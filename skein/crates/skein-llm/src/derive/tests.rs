@@ -217,7 +217,7 @@ fn owner_declared_counts_accept_the_boundary_and_refuse_one_more_by_name() {
 
 #[test]
 fn the_public_route_takes_the_head_floor() {
-    // llm.md 7: public response-head and error-body floors, without a capture.
+    // llm/README.md 7: public response-head and error-body floors, without a capture.
     const HEAD_BYTES: u32 = 16 * 1024;
     const HEAD_FIELDS: u32 = 128;
     let bounds = Limits::derive(&DECLARED).unwrap().dialect(Provider::OpenAi);
@@ -227,7 +227,7 @@ fn the_public_route_takes_the_head_floor() {
 #[test]
 fn synthetic_public_decoder_constants_match_the_responses_measurements() {
     let constants = &super::OPENAI;
-    // llm.md, sections 4.2 and 7: measured Responses projection and policy floors.
+    // llm/README.md, sections 4.2 and 7: measured Responses projection and policy floors.
     assert_eq!(constants.response_head, 16_384);
     assert_eq!(constants.response_fields, 128);
     assert_eq!(constants.error_bytes, 16_384);

@@ -1,4 +1,4 @@
-//! Named listeners and joined sockets (io.md, 3.5).
+//! Named listeners and joined sockets (runtime/io/sockets.md, 5).
 mod end;
 use crate::Limits;
 use crate::layer::{Entity, Io, Tables};

@@ -307,7 +307,7 @@ pub fn request_bytes(settings: Settings) -> Box<[u8]> {
 // The request caps are the fixture's TLS send and io output bounds.
 pub const TLS_REQUEST_ROOM: usize = 16_384;
 pub const PLAIN_REQUEST_ROOM: usize = 32_768;
-// forge-connection.md 7.4 reserves 192 bytes for head framing.
+// forge/connection.md 7.4 reserves 192 bytes for head framing.
 pub const HEAD_FRAMING: usize = 192;
 pub const SECRET_BOUND: usize = 128;
 pub const PULL_PAYLOAD: &[u8] = b"{\"repository\":{\"id\":2},\"number\":7}";
@@ -477,7 +477,7 @@ pub fn head_settings(name: &str, tls: bool, agent_bytes: usize) -> Settings {
     settings
 }
 
-// forge.md 3.7 fixed widths, with the fixture's string/body/inner bounds.
+// forge/README.md 3.7 fixed widths, with the fixture's string/body/inner bounds.
 pub const ROW_ITEMS: u32 = 2971;
 pub const ROW_REVIEWS: u32 = 1691;
 pub const ROW_STATUSES: u32 = 544;

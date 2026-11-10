@@ -12,7 +12,7 @@ publish.workspace = true
 # the std it needs, and the subset's other checks stay on, which an allocator
 # wants (no silent casts, overflow or panicking indexing). Its unsafe impl is
 # allowed in place, the one exception beside the ring adapter: a test-only
-# crate, never linked into a service (testing.md, 6).
+# crate, never linked into a service (testing/README.md, 6).
 [lib]
 doctest = false
 

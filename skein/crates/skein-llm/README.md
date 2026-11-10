@@ -104,7 +104,7 @@ cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
 The other five provider stories are ignored and manual
-(skein/docs/design/llm.status.md, 5). The two OpenAI stories,
+(skein/docs/design/llm/README.status.md, 5). The two OpenAI stories,
 `openai_streamed_text_and_history` and `openai_tool_round_trip`, need a login of
 the same form whose access token holds `api.responses.write`, which the Codex
 login lacks; the owner names it in `SKEIN_TEST_LIVE_OPENAI_AUTH`. The three

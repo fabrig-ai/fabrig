@@ -1,4 +1,4 @@
-//! Locating a repository by owner and name (forge-client.md, 5).
+//! Locating a repository by owner and name (forge/client.md, 5).
 use skein_forge::api;
 use skein_forge_client_world::{Settings, World};
 

@@ -1,4 +1,4 @@
-//! The opens of the kernel boundary (kernel.md, 6.1).
+//! The opens of the kernel boundary (runtime/kernel.md, 6.1).
 use skein_io::kernel::OpenHow;
 
 /// The new file's mode a `Create` that asks for none is made with, and a
@@ -15,7 +15,7 @@ pub(crate) struct Fields {
 
 /// What `openat2` is told for each way io opens: close-on-exec always,
 /// without blocking or taking a controlling terminal, and resolved beneath
-/// the root, without magic links (kernel.md, 6.1).
+/// the root, without magic links (runtime/kernel.md, 6.1).
 pub(crate) fn fields(how: OpenHow) -> Fields {
     let no_follow = matches!(
         how,

@@ -1,5 +1,5 @@
 //! `skein-echo`, the echo example's main (examples.md, 4): its
-//! configuration, startup (shell.md, 6), and the loop of
+//! configuration, startup (runtime/shell.md, 6), and the loop of
 //! programming-model.md, section 2, over the shell kit's kernel and clock.
 //!
 //! ```text
@@ -8,7 +8,7 @@
 //!
 //! It listens at `ADDRESS` (127.0.0.1:7007 unless given; port 0 picks one)
 //! and answers each line with itself. SIGINT and SIGTERM arrive through
-//! io (io.md, section 7): it stops admitting clients, drains its sessions
+//! io (runtime/io/README.md, section 4): it stops admitting clients, drains its sessions
 //! and exits successfully. A listener failure exits with a diagnostic.
 #![forbid(unsafe_code)]
 
@@ -76,7 +76,7 @@ fn run(configuration: &Configuration) -> Result<(), String> {
     startup(configuration)?;
     let limits = &configuration.limits;
     // 3. Block termination signals before opening the ring, then adopt their
-    // source into io (shell.md, section 6; io.md, section 7).
+    // source into io (runtime/shell.md, section 6; runtime/io/README.md, section 4).
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("cannot open termination signals (errno {errno})"))?;
     // 7. The seed, and the kernel, which probes the ring for the floor.
@@ -97,11 +97,11 @@ fn run(configuration: &Configuration) -> Result<(), String> {
     }
 }
 
-/// Startup's checks (shell.md, 6), before anything is opened.
+/// Startup's checks (runtime/shell.md, 6), before anything is opened.
 fn startup(configuration: &Configuration) -> Result<(), String> {
     let limits = &configuration.limits;
     // 1. The configuration, the limits of every layer among it, read; and
-    // each machine's largest demand within the cap below it (io.md, 2).
+    // each machine's largest demand within the cap below it (runtime/io/README.md, 2).
     limits.check().map_err(|unusable| format!("the limits cannot run: {unusable:?}"))?;
     // 3. Termination signals are blocked and adopted in run, before the ring.
     // 4. Roots for io's files: the echo opens none.

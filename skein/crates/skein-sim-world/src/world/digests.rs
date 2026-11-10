@@ -1,7 +1,7 @@
 use super::{Host, Machine, World};
 use skein_sim::Pid;
 
-/// The state digests a run ended with, for replay (testing.md, 5).
+/// The state digests a run ended with, for replay (testing/README.md, 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct StateDigests {
     /// Each surviving process's, in admission order, as `Finished::procs`.

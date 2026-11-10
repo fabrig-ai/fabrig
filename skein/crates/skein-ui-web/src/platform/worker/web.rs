@@ -1,4 +1,4 @@
-//! The page's worker and browser timer (ui-web.md, 18; playground.md, 5 to 7).
+//! The page's worker and browser timer (ui/web/README.md, 15; playground.md, 5 to 7).
 use super::{Heard, Page, shown};
 use crate::{bridge, fetch, inbox::Inbox, log::Log, platform::Platform, store, transport::StreamDuty};
 use skein_lib::{Duration, Time, Wall};
@@ -8,7 +8,7 @@ use std::{
 };
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 
-/// The page's platform for a world in a worker (ui-web.md, 18).
+/// The page's platform for a world in a worker (ui/web/README.md, 15).
 pub struct Worker<R> {
     shared: Rc<Shared<R>>,
 }

@@ -27,10 +27,10 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   - commands left running as jobs, held, read and stopped;
   - checks run and guides read.
 - **Everything runs in a view.** Each command, search and check is a
-  contained tree (skein's `io.md`, 6.2–6.4) that sees the workspace's
+  contained tree (skein's `runtime/io/processes.md`, 2–4) that sees the workspace's
   directories side by side, writable as the start says, with every git
   directory read-only. Without contained trees they are plain children in
-  process groups, and the agent says so (section 3).
+  process groups, and the agent says so (`agent.md`, section 3).
 - **Configuration is declared quantities.** It gives:
   - the endpoints and their declared limits for charter models;
   - the programs it may run, and their configuration directories'
@@ -88,7 +88,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   1. terminate: the termination signal to the group;
   2. kill: the kill signal to the group;
   3. close: io's close of the child, which kills what is left of its
-     group and reaps it (skein's io.md, 6).
+     group and reaps it (skein's runtime/io/processes.md).
 
   It answers once the group's leader is reaped and its pipes are closed.
 - **Jobs** are commands the domain left running past their call's
@@ -155,19 +155,19 @@ product's own settings are `../shell/README.md`'s.
   declaration. Each endpoint has:
   - its name, which charters and transcripts use;
   - **its dialect,** by name and number, each fixed for good: `openai`,
-    3, OpenAI's public Responses dialect (skein's `llm.md`, 4.8);
-    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm.md`,
+    3, OpenAI's public Responses dialect (skein's `llm/README.md`, 4.8);
+    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm/README.md`,
     4.7). A transcript's turns and opaque blocks carry the number
     (transcript.md, section 2), so a number is never given to another
     dialect, and 1 is given to none;
     a name and number that do not match are refused, naming the field;
-  - its address, as a name resolved at startup (skein's `io.md`,
-    section 4);
+  - its address, as a name resolved at startup (skein's `runtime/io/README.md`,
+    section 3);
   - its transport: TLS, with its server name and what to trust it by, the
     machine's roots by default; or plaintext, only to an address on
-    loopback (skein's `llm-connection.md`, section 3);
+    loopback (skein's `llm/connection.md`, section 3);
   - the dialect's path and headers, each the dialect's own by default
-    (skein's `llm.md`). The affinity's header names are reserved and
+    (skein's `llm/README.md`). The affinity's header names are reserved and
     refused here (llm.md, 2.1);
   - **its program,** optional: the program, `claude_code`, that runs a
     run whose grant names a program source (programs.md, section 3). An
@@ -238,14 +238,14 @@ spawns one (host.md, section 5.2).
   A fact taken by one sink is never taken from the other.
 - **Written through io, as an append stream.** The shell opens the trace
   file for appending, beneath its root, and io adopts it as a write
-  stream with the configured `write_deadline` (skein's `io.md`, 5.1). A
+  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 1). A
   destination that is a pipe or a redirected standard output is adopted
   the same way. Each record is encoded at its final length into the
   stream's output, within its cap. A write that outstays the deadline
   fails the stream once: the sink gives that destination up, counts
   every later record as lost, and says so on standard error (events.md,
   section 5.2). The stream is closed in the teardown, after
-  `session.ended` (section 6), under io's close deadline in place of the
+  `session.ended` (`agent.md`, section 6), under io's close deadline in place of the
   write deadline. There is no thread and no grace of its own.
 - **The capture policy** decides what content the stream holds
   (events.md, section 5.3):
@@ -326,7 +326,7 @@ spawns one (host.md, section 5.2).
   stream writes `session.ended` and closes. Two of io's close deadlines in
   turn, the stream's write deadline for its last records, and the moment
   its cancels take to settle, are its **teardown bound** (limits.md,
-  section 7; skein's `shell.md`, section 13).
+  section 7; skein's `runtime/shell.md`, section 12).
 - **A termination signal after the answer** turns every close still in
   progress into an abort: `Answered` and `Closing` end as soon as io has
   settled what it aborted. `session.ended` says the teardown aborted.
@@ -353,7 +353,7 @@ run has.
   and then ends: the endpoint, by the number a charter's LLM names it by; its
   credential, scheme and bytes, or none. This is the channel's grant value, kept
   from argv and the environment as a run's is, and goes nowhere but the request.
-- **The request** is skein's (`skein/docs/design/llm-connection.md`, 4.3), under
+- **The request** is skein's (`skein/docs/design/llm/connection.md`, 4.3), under
   the endpoint's connect and handshake deadlines and a whole deadline the host
   bounds by stopping it.
 - **Standard output** carries `ListAnswer`, one record, then ends: the rows of
@@ -372,15 +372,15 @@ run has.
   end, a group ended after a deadline.
 - **skein owes:**
   - io's files and roots;
-  - process groups, signalled whole (skein's `io.md`, section 6), and
-    contained trees (skein's `io.md`, 6.2–6.4);
+  - process groups, signalled whole (skein's `runtime/io/processes.md`), and
+    contained trees (skein's `runtime/io/processes.md`, 2–4);
   - append streams on files, with write and close deadlines (skein's
-    `io.md`, 5.1);
+    `runtime/io/files.md`, 1);
   - owner close, with a closed terminal, for every component the agent
     owns, the LLM connection pool's included (programming-model.md,
-    section 5.2; skein's `llm-connection.md`);
-  - the shell's startup, its loop and its end (skein's `shell.md`,
-    sections 6, 12 and 13).
+    section 5.2; skein's `llm/connection.md`);
+  - the shell's startup, its loop and its end (skein's `runtime/shell.md`,
+    sections 6, 11 and 12).
 
 ## 8. The world
 

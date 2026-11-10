@@ -1,4 +1,4 @@
-//! Stateless `OpenID` Connect issuer (oauth-issuer.md): the caller owns
+//! Stateless `OpenID` Connect issuer (oauth/issuer.md): the caller owns
 //! people, code spending, access tokens, clocks and randomness.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -27,7 +27,7 @@ pub struct Settings {
     /// PKCS#8 `PrivateKeyInfo` DER, RSA of 2048 to 4096 bits.
     pub key: Secret,
 }
-/// A client registration (skein/docs/design/oauth-issuer.md, 2).
+/// A client registration (skein/docs/design/oauth/issuer.md, 2).
 #[derive(Debug)]
 pub struct Client {
     pub id: Box<[u8]>,
@@ -61,7 +61,7 @@ pub struct Authorization {
     pub nonce: Option<Box<[u8]>>,
     pub challenge: [u8; 43],
 }
-// skein/docs/design/oauth.md, 4: state and nonce bytes stay out of Debug.
+// skein/docs/design/oauth/README.md, 4: state and nonce bytes stay out of Debug.
 impl core::fmt::Debug for Authorization {
     #[expect(clippy::manual_map, reason = "explicit matches keep closures out of step code")]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -89,14 +89,14 @@ pub enum Refusal {
     UnknownRedirect,
     Back { location: Box<[u8]> },
 }
-#[expect(clippy::partial_pub_fields, reason = "oauth-issuer.md 5 exposes the authenticated client and code alone")]
+#[expect(clippy::partial_pub_fields, reason = "oauth/issuer.md 5 exposes the authenticated client and code alone")]
 pub struct TokenRequest {
     pub client: Box<[u8]>,
     pub code: Secret,
     redirect_uri: Box<[u8]>,
     verifier: Box<[u8]>,
 }
-// skein/docs/design/oauth.md, 4: a verifier's bytes stay out of Debug.
+// skein/docs/design/oauth/README.md, 4: a verifier's bytes stay out of Debug.
 impl core::fmt::Debug for TokenRequest {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("TokenRequest")

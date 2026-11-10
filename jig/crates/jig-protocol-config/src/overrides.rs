@@ -899,7 +899,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
 }
 
 /// The accounts' driver listens for each sign-in at once, at least one, on two sockets each beside
-/// its exchanges', and a sign-in waits within a deadline above zero (skein's oauth.md, 6.7).
+/// its exchanges', and a sign-in waits within a deadline above zero (skein's oauth/accounts.md, 7).
 /// Its outgoing URL fits ADDRESS, its redirect bound holds `redirect_room`, and its server head
 /// holds `listener_head` for that redirect bound (jig/docs/design/protocol/limits.md).
 pub(crate) fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {

@@ -1,16 +1,16 @@
-//! The tokenizer (json.md, 3): a step machine that reads one JSON document
+//! The tokenizer (data/json.md, 3): a step machine that reads one JSON document
 //! (RFC 8259) from the stream below, by demand, and hands it to the side
 //! above one [`Token`] at a time, each when the side above asks for it.
 //!
 //! # Its two sides
 //!
-//! Below, a `lib::stream` (lib.md, 7) carrying one document, then its end.
+//! Below, a `lib::stream` (runtime/lib.md, 7) carrying one document, then its end.
 //! The tokenizer demands only what the token it is reading needs, never
 //! past the document: one byte at a time between tokens and within a
 //! number, the rest of a literal after its first letter, and a string's
 //! text in scans to the next quote of at most [`Limits::chunk`] bytes. It
 //! sends nothing down, so it asks for no room. The side below meets the
-//! contract of a stream (lib.md, 7); a scan that meets no quote within its
+//! contract of a stream (runtime/lib.md, 7); a scan that meets no quote within its
 //! maximum is one piece of a long string, and the tokenizer reads on.
 //!
 //! Above, the service's decoder ([`Request`] down, [`Event`] up):
@@ -43,7 +43,7 @@
 //! # Positions
 //!
 //! [`Tokenizer::position`] holds the first byte of its last token, long
-//! string or skipped value until the next demand (json.md, 3.6).
+//! string or skipped value until the next demand (data/json.md, 3.6).
 //! Outcomes give the byte at fault or the end of what was read.
 
 mod feed;
@@ -88,7 +88,7 @@ pub struct Limits {
 /// [`Limits::chunk`], or the four letters after the `f` of `false`.
 ///
 /// Whoever stacks the tokenizer checks at startup that the side below's cap
-/// holds it (lib.md, 7): a demand past that cap could never be met.
+/// holds it (runtime/lib.md, 7): a demand past that cap could never be met.
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk.max(Literal::False.len())
@@ -103,7 +103,7 @@ pub fn largest_demand(limits: &Limits) -> u32 {
 /// It is the stack of open objects and arrays and the text of the string or
 /// number being read, both allocated when the tokenizer is made, and the
 /// delivery it reads: a delivery is made to its demand, so it counts it
-/// (testing.md, 5), held for the step that reads it, and at most
+/// (testing/README.md, 5), held for the step that reads it, and at most
 /// [`largest_demand`] bytes. A
 /// token's box is the side above's to count from when it is emitted.
 #[must_use]
@@ -263,7 +263,7 @@ impl Tokenizer {
         }
     }
 
-    /// Where its last answer is (json.md, 3.6).
+    /// Where its last answer is (data/json.md, 3.6).
     /// Before an answer and after restart, offset 0, line 1, column 1.
     #[must_use]
     pub fn position(&self) -> Position {

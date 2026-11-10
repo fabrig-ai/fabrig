@@ -1,4 +1,4 @@
-//! Debug-only disclosure fixture for the real browser story (skein/docs/design/ui-web.md, 7).
+//! Debug-only disclosure fixture for the real browser story (skein/docs/design/ui/web/README.md, 5).
 use skein_lib::{Queue, Token};
 use skein_ui::{Binding, Builder, Owner, Role, Run, Shortcut, State, View};
 use skein_ui_web::{

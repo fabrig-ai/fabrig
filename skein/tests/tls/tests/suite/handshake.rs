@@ -1,4 +1,4 @@
-//! Handshakes against a rustls server (tls.md, 5): each version, a retry,
+//! Handshakes against a rustls server (net/tls.md, 5): each version, a retry,
 //! ALPN, certificates checked against the wall time handed in, a chain
 //! longer than the records held, peers that are not TLS or give up, and the
 //! stream ending or failing before the handshake.
@@ -282,7 +282,7 @@ fn withdrawn_room_is_handed_on_or_asked_for_again() {
 fn a_corrupted_record_read_after_close_notify_went_fails_as_invalid() {
     // rustls's debug assertions hold an alert after close_notify to be a
     // bug, and abort here; the workspace builds rustls without them, as it
-    // ships (tls.md, 6).
+    // ships (net/tls.md, 6).
     let mut pair = pair(&pki::Server::plain(), "skein.test", pki::VALID, &pki::client(&[]), LIMITS);
     assert_eq!(handshake(&mut pair), ready(Version::Tls13, None));
     assert_eq!(pair.down(Request::Stream(Down::Finish)), vec![]);

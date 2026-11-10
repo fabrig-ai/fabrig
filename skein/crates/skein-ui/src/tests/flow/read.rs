@@ -1,4 +1,4 @@
-//! Reading flows and refusing blocks past the subset (skein/docs/design/ui.md, 10.1).
+//! Reading flows and refusing blocks past the subset (skein/docs/design/ui/markdown.md, 1).
 #![expect(clippy::disallowed_types, reason = "ordinary tests collect decoded nodes and Markdown text")]
 #![expect(clippy::disallowed_methods, reason = "ordinary tests collect semantic projections")]
 #![expect(clippy::disallowed_macros, reason = "acceptance cases are compiled from their unchanged files")]

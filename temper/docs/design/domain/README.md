@@ -84,12 +84,12 @@ temper-worker-domain                       the worker's root (worker.md)
 - **smith's documents** likewise, by their path in smith's
   `docs/design/`: smith's `domain/run.md`. skein's foundation documents
   by their own names (`programming-model.md`, `testing-strategy.md`),
-  and skein's design documents with skein's name: skein's `lib.md`.
+  and skein's design documents with skein's name: skein's `runtime/lib.md`.
 - **Code cites a section** at module or type level, by the document's
   path from `docs/design/`: `domain/forge.md, 8.2`; jig's as
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
-  the conformance's `facts.txt` (skein's `fake-forge.md`, section 7) and
+  the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
   `tools/git-transcripts/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
@@ -103,7 +103,7 @@ smith's are smith's.
 
 | Name | What it is |
 |---|---|
-| the forge | the one system temper drives, Forgejo first, as a connector of jig's (forge.md) |
+| the forge | the one system temper drives, Forgejo first, as a connector of jig's (skein/docs/design/forge/README.md) |
 | repository | a forge's repository adopted into a project with a role, owned, fork or context, and named by the forge's id for it (forge.md, section 4) |
 | landing branch | a branch a project names for temper to land changes into (forge.md, section 4) |
 | prefix | the branch prefix temper writes under in a repository, `temper/` by default (forge.md, sections 4 and 11) |

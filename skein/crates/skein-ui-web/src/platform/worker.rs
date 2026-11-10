@@ -1,4 +1,4 @@
-//! The worker's platform, its pure half (ui-web.md, 18).
+//! The worker's platform, its pure half (ui/web/README.md, 15).
 #[cfg(target_arch = "wasm32")]
 mod web;
 #[cfg(target_arch = "wasm32")]
@@ -203,7 +203,7 @@ impl Page {
 }
 
 /// A navigation the worker's platform follows: a path on the page's own origin
-/// (ui-web.md, 10), shown in the address bar.
+/// (ui/web/README.md, 8), shown in the address bar.
 #[must_use]
 pub fn shown(to: &[u8]) -> bool {
     to.starts_with(b"/") && navigation::allowed(to, false)

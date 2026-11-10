@@ -10,7 +10,7 @@ const SIZE: Size = Size { rows: 1, columns: 1 };
 const INTERVAL: Duration = Duration::from_secs(1);
 const SECOND: Time = Time::from_nanos(1_000_000_000);
 const THIRD: Time = Time::from_nanos(2_000_000_000);
-// The terminal's output room (skein/docs/design/ui-screen.md, 8).
+// The terminal's output room (skein/docs/design/ui/screen.md, 8).
 const OUTPUT: u32 = 65_536;
 const READ: u32 = 4096;
 // Alternating RGB paints make 4096 cells exceed the 64 KiB write room.

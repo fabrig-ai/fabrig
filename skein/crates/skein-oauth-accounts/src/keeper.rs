@@ -1,4 +1,4 @@
-//! Private keeper ownership (oauth.md, section 6.4; io.md, sections 5.2 and 5.3).
+//! Private keeper ownership (oauth/accounts.md, section 4; runtime/io/files.md, sections 2 and 3).
 //! Keeps configuration, one private root and one outstanding file owner token;
 //! never reads filesystem metadata itself. The component schedules requests,
 //! receives file terminals, and retains cancelled requests until they settle.

@@ -278,7 +278,7 @@ a change's merge job from the engine through its worker to the fake forge
     the real-Forgejo restart trial remains the after-landing proof.
     The fake reads a rebase copy's head at landing, so the dropped-push
     story uses an explicit branch rewrite and does not establish the
-    real forge's concurrent-push behaviour (skein's `forge.md`, section 9).
+    real forge's concurrent-push behaviour (skein's `forge/forgejo.md`, section 2).
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request
@@ -424,7 +424,7 @@ a change's merge job from the engine through its worker to the fake forge
   - 8.10: a change drained.
   - 8.11: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing
-    merges (skein's `fake-forge.md`, 2.2).
+    merges (skein's `testing/fakes/forge.md`, 2.2).
   - 8.11: what a step short of message room leaves for the next. A
     question's `Stands` is taken, foreman, asked or held
     (`temper-engine-domain-forge-change/src/boundary.rs`, and the store's
@@ -600,7 +600,7 @@ a change's merge job from the engine through its worker to the fake forge
   comparison, not a `Range`: the change step's up-to-date and catch-up
   ranges (`Read::Commits`, `temper-engine-domain-forge/src/domain.rs`,
   `ancestry_status`), a landing member's main (`landing.rs`) and a lost
-  run's observed head (`domain.rs`, `lost_read`) (skein's `forge.md`,
+  run's observed head (`domain.rs`, `lost_read`) (skein's `forge/README.md`,
   3.2).
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start

@@ -1,11 +1,11 @@
-//! One whole borrowed input driven one request at a time (json.md, 5.3).
+//! One whole borrowed input driven one request at a time (data/json.md, 5.3).
 
 use skein_lib::stream::{Down, Slice};
 use skein_lib::{Env, Queue, Time, Wall};
 
 use super::{Error, Event, Limits, Request, Tokenizer, down, tokenizer_bound, up};
 
-/// A tokenizer and its side below over one borrowed input (json.md, 5.3).
+/// A tokenizer and its side below over one borrowed input (data/json.md, 5.3).
 #[derive(Debug)]
 pub struct Feed<'a> {
     machine: Tokenizer,

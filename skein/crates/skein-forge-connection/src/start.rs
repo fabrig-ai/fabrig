@@ -1,4 +1,4 @@
-//! Forge component start (forge-connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component start (forge/connection.md, sections 2, 3.5, 7 and 8).
 use super::boundary::{StartRead, Stopped};
 use super::limits::Limits;
 use skein_forge::forgejo::plans::start::Heard;
@@ -27,7 +27,7 @@ pub enum Start {
     Stopped(Stopped),
 }
 
-/// The start's next state after `heard` (forge-connection.md, 8, "A forge's start").
+/// The start's next state after `heard` (forge/connection.md, 8, "A forge's start").
 #[must_use]
 pub fn heard(start: Start, heard: Heard, user: u64, now: Time, limits: &Limits) -> Start {
     let (read, next) = match start {

@@ -11,7 +11,7 @@ made:
   progress;
 - how a limit that fires is reported.
 
-The derivation's skein half is skein's `llm.md`. The values a product
+The derivation's skein half is skein's `llm/README.md`. The values a product
 ships are its presets, in `../shell/README.md`. This document holds
 the rules and the arithmetic's shape, not the values.
 
@@ -134,7 +134,7 @@ name `smith check` and the event stream's header print it under
 | `compaction_threshold` | fraction | the share of a window at which a session compacts (domain/session.md, section 8) |
 | `parallel_tools` | count | the most adjacent reads of one completion that run at once, as one batch; the reads after them wait, in call order, until every call of that batch has answered, and then form the next batch. A session uses the smaller of it and `calls_per_response` (domain/session.md, section 5). It is from 1 to 8, the most calls a session runs at once |
 | `connect`, `handshake` | duration, per endpoint | connecting, and TLS's handshake (section 7) |
-| `connection_keep` | duration, per endpoint | how long an idle connection stays open in a live service; never how the process ends, since the pool closes at the answer (skein's `llm-connection.md`, section 7) |
+| `connection_keep` | duration, per endpoint | how long an idle connection stays open in a live service; never how the process ends, since the pool closes at the answer (skein's `llm/connection.md`, section 7) |
 | `tool_deadline` | duration | a tool call's longest deadline: the most a command's call may ask for, and the most any tool call's deadline may be, a host tool's included (domain/tools.md, section 5) |
 | `shell_timeout` | duration | a command's deadline when its call asks for none |
 | `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5) |
@@ -147,7 +147,7 @@ name `smith check` and the event stream's header print it under
 | `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2) |
 | `live_interval` | duration | the longest the agent holds live bytes before sending them as a piece (channel.md, section 7); the default is 100 ms |
 | `exit_grace` | duration | a host's grace for a spawned agent to exit after its answer, above the agent's teardown bound (section 4) |
-| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth.md` refresh lead, shared by every process on the record (`../shell/settings.md`, 2.5, and `../shell/credentials.md`, 3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
+| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth/README.md` refresh lead, shared by every process on the record (`../shell/settings.md`, 2.5, and `../shell/credentials.md`, 3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
 
 ### 2.4 Fixed by the vocabulary
 
@@ -176,7 +176,7 @@ in every deployment:
   declaration (`../shell/settings.md`, 2.1), never the vocabulary's;
 - **an account's refusal:** the refused notice's code, text of at most
   128 bytes, skein's report bound, left empty past it, never clipped
-  (skein's `llm.md`, 2.5 and 7); and its reason, text of at most 512
+  (skein's `llm/README.md`, 2.5 and 7); and its reason, text of at most 512
   bytes, the failure's detail cut at a character's boundary. Both are
   the channel schema's, and a failed run's refused account carries the
   code within the same bound (channel.md, section 4);
@@ -233,7 +233,7 @@ Every derivation follows these rules:
    never what is reserved. The product's values set them: where a
    profile's value would pass a ceiling, the ceiling rises in place while
    formats are pre-release (README.md, section 8), as far as the codec's
-   encoded and decoded bounds at the ceilings allow (skein's `codec.md`,
+   encoded and decoded bounds at the ceilings allow (skein's `data/codec/README.md`,
    section 4).
    Many large items are bounded jointly, as one field of bytes at their
    total, as the start's transcript is (3.6), where a list's count times
@@ -246,7 +246,7 @@ scenarios measure heap peaks separately (section 5).
 
 ### 3.1 The LLM path: skein
 
-`skein_llm::Limits::derive(&Declared)` (skein's `llm.md`, sections 4.1
+`skein_llm::Limits::derive(&Declared)` (skein's `llm/README.md`, sections 4.1
 and 4.2) runs once per endpoint. Its `Declared` takes the endpoint's
 maxima, the largest `window`, `output` and `reasoning_item` of the models
 the configuration declares for it, and the deployment's `tool_payload`,
@@ -258,19 +258,19 @@ answer, one call's input, a reasoning item, replay's metadata, a
 completion's output items, the strings it keeps, the tokens it retains,
 a call's receiving reservation, the bytes it skips, the tools and the
 history items. Events are decoded as they stream and selectively
-(skein's `json.md`), so what a provider echoes that smith never reads
+(skein's `data/json.md`), so what a provider echoes that smith never reads
 costs a scan, not memory, and no limit is sized by it. Text smith sends
 has no cap of skein's: smith bounds what it renders (3.4), and the
 request bounds the whole.
 
 skein's LLM connection component is given, from the same declarations
-(skein's `llm-connection.md`, sections 3 and 7):
+(skein's `llm/connection.md`, sections 3 and 7):
 
 - **`calls`:** `conversations`, the calls it holds at once, running or
   waiting;
 - **`connections`:** `conversations` across the pool, and as many per
   endpoint. skein checks connections ≥ calls when the component is made
-  (skein's `llm.md`, section 4.3), so the service refuses to start
+  (skein's `llm/README.md`, section 4.3), so the service refuses to start
   otherwise;
 - **`memory`:** `llm_pool`, the bytes calls may reserve at once;
 - **`idle keep`:** each endpoint's `connection_keep`;
@@ -298,7 +298,7 @@ declarations:
   within what is left (domain/session.md, 8.1), never in more history. So `window-first`
   holds by construction. Its messages and blocks are
   those bytes over a block's cell in memory, by rule 3, and they are
-  also skein's declared history items (skein's `llm.md`, 4.2). A prompt
+  also skein's declared history items (skein's `llm/README.md`, 4.2). A prompt
   the session sends is within skein's request, because the line bounds
   it in tokens and the request is derived from the same window. A
   request-size `Limit` cannot follow a passed admission: should one
@@ -319,7 +319,7 @@ declarations:
     it, unescaped and at most the answer's bytes in all;
   - its reasoning at skein's share for it, output items × the reasoning
     bound, each item within that bound. A run of consecutive reasoning
-    items is one block (skein's `llm.md`, section 2), so one block may
+    items is one block (skein's `llm/README.md`, section 2), so one block may
     hold the whole share;
   - a cell per block.
 
@@ -338,7 +338,7 @@ declarations:
   (rule 1), rendered ×4 only where bytes may be invalid UTF-8 (rule 2);
 - **a failure's detail,** the last failure's, kept for the operator: the
   provider's text within the largest failure detail skein's dialects
-  keep (skein's `llm.md`, 4.2), or a limit's name and bound. The session
+  keep (skein's `llm/README.md`, 4.2), or a limit's name and bound. The session
   keeps one, each later failure replacing it (domain/session.md, section
   4); the event stream carries it whole under content capture, and the
   operator's line clips it (2.4).
@@ -712,7 +712,7 @@ the limits on each side and their values (agent.md, section 6;
 `smith check` in `../shell/README.md`).
 
 skein checks its own as it derives and composes, each refused by its
-name (skein's `llm.md`, section 4.3): one call's input within the
+name (skein's `llm/README.md`, section 4.3): one call's input within the
 answer; the output items and strings its rules give; one largest call's
 request and receiving reservation within `llm_pool`; at least as many
 connections as `conversations`; each demand within its cap; and
@@ -738,14 +738,14 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | `request-head` | a request's head holds a credential at its bound (2.4), the affinity's headers and the endpoint's configured headers, none of which is a reserved name |
 | `ceilings-in-vocabulary` | the policy ceilings fit the charter's and the channel's schemas |
 | `deadlines` | every deadline is positive, `shell_timeout` ≤ `tool_deadline`, so no command's deadline, asked for or not, passes what the session allows one tool call, and `job_poll` ≤ `job_wait` ≤ `tool_deadline`, so no yield or wait does either, the default included |
-| `cancel-over-close` | `cancel_grace` is at least twice io's `close`: a cancelled call settles within one `close` against a peer that keeps its connection open (skein's `shell.md`, section 13), so a grace no longer than `close` drops a run whose cancel would have settled; the second `close` is the margin |
+| `cancel-over-close` | `cancel_grace` is at least twice io's `close`: a cancelled call settles within one `close` against a peer that keeps its connection open (skein's `runtime/shell.md`, section 12), so a grace no longer than `close` drops a run whose cancel would have settled; the second `close` is the margin |
 
 Two more hold across processes, and the side that knows both checks
 them:
 
 | Name | Who checks | Relationship |
 |---|---|---|
-| `grace-over-teardown` | a host that writes its agent's configuration | `exit_grace` exceeds the agent's teardown bound (section 7), with a margin, as skein's `shell.md`, section 13 has a supervisor derive its grace (agent.md, section 6; domain/host.md, section 4) |
+| `grace-over-teardown` | a host that writes its agent's configuration | `exit_grace` exceeds the agent's teardown bound (section 7), with a margin, as skein's `runtime/shell.md`, section 12 has a supervisor derive its grace (agent.md, section 6; domain/host.md, section 4) |
 | `watchdog-over-silence` | the host kit | its no-progress deadline exceeds the longest deadline the run may be silent for between reports: io's short operations and its own steps (domain/host.md, section 4) |
 
 What a run asks for is checked at its entrance, not at startup
@@ -783,9 +783,9 @@ reserve against the budget.
   cost (../benchmarks/codex-parity.md, 1).
 - **Admission to the LLM pool.** Every LLM call in flight draws on
   `llm_pool`, which skein's connection component keeps (skein's
-  `llm-connection.md`, section 7). At admission a call reserves its
+  `llm/connection.md`, section 7). At admission a call reserves its
   request, measured exactly before encoding, and its derived receiving
-  bound (skein's `llm.md`, 4.2), releasing both at its terminal. A call
+  bound (skein's `llm/README.md`, 4.2), releasing both at its terminal. A call
   that fits alone waits for room, in arrival order and within its
   deadline (section 6).
 - **One process owns each part once.** The product in one process
@@ -831,7 +831,7 @@ reserve against the budget.
 - **Progress, not duration.** A response that keeps streaming is never
   cut by a fixed bound. There is no ceiling per attempt.
 - **`TimedOut` carries its phase:** `Connect`, `Handshake`, `Head`,
-  `Idle` or `Whole` (skein's `llm-connection.md`). The session retries by
+  `Idle` or `Whole` (skein's `llm/connection.md`). The session retries by
   phase (domain/session.md, section 4).
 - **A call waiting for the pool** is within its whole bound; past it, it
   fails unsent.
@@ -849,7 +849,7 @@ reserve against the budget.
   steps of agent.md, section 2, so it waits at most three `group_stop`s
   for them, however many there are.
 - **The end of the process** is bounded only by io's close deadlines
-  (skein's `shell.md`, section 13). After its answer the agent closes its
+  (skein's `runtime/shell.md`, section 12). After its answer the agent closes its
   components together, its LLM connections, its machine's roots and its
   channel, and then its event stream, after `session.ended` (agent.md,
   section 6): two `close` deadlines in turn, the stream's
@@ -869,7 +869,7 @@ reserve against the budget.
 ## 8. A limit that fires
 
 - **Typed.** A limit that fires is `Limit { which, bound }`: which limit,
-  and its value. The LLM path's kinds are skein's (skein's `llm.md`);
+  and its value. The LLM path's kinds are skein's (skein's `llm/README.md`);
   smith's are its own layers' (a session's history, a decoded call, a
   message). An HTTP failure carries its status.
 - **Carried whole.** The session keeps it in its failure, the run in its
@@ -907,15 +907,15 @@ losslessly by count.
   domain meets another layer's limit in the middle of a run.
 - **skein owes:**
   - `Limits::derive` for the LLM path, with its documented factors and
-    its own relationships checked (skein's `llm.md`, section 4);
-  - selective, streamed decoding of provider events (skein's `json.md`
+    its own relationships checked (skein's `llm/README.md`, section 4);
+  - selective, streamed decoding of provider events (skein's `data/json.md`
     and `http.md`);
   - an oversized call as a block of its own, typed `Limit` kinds and
     HTTP statuses, and a reasoning bound apart from replay's metadata
-    (skein's `llm.md`);
+    (skein's `llm/README.md`);
   - waiting for a connection or for room in the memory pool, the expired
     phase in `TimedOut`, and a pool sized from the owner's concurrency
-    (skein's `llm-connection.md`, sections 4.1, 6 and 7);
+    (skein's `llm/connection.md`, sections 4.1, 6 and 7);
   - encoded, decoded and workspace bounds for edges, and allocation
     prices charged at admission (programming-model.md, 6.3).
 

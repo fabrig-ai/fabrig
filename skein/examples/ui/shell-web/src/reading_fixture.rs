@@ -1,4 +1,4 @@
-//! Debug-only log owner and measurements for Chromium (skein/docs/design/ui-web.md, 7).
+//! Debug-only log owner and measurements for Chromium (skein/docs/design/ui/web/README.md, 5).
 use skein_lib::{Queue, Token};
 use skein_ui::{Act, Binding, Builder, Key, LogEdge, NodeId, Owner, Role, Run, State, View};
 use skein_ui_web::{

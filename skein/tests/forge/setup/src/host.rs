@@ -1,5 +1,5 @@
 //! The host over HTTP bytes, a fake Forgejo and io played by hand
-//! (skein/docs/design/forge-setup.md, 6.3).
+//! (skein/docs/design/forge/setup/README.md, 4.3).
 use crate::{fixtures, host::plans::seeded_config, tls::Carrier};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
@@ -133,7 +133,7 @@ impl HostWorld {
     #[must_use]
     pub fn github(seed: u64, script: &[Connect]) -> Self {
         let mut limits = fixtures::host_limits();
-        // Conversion accepts PEM text up to twice the DER bound (forge-setup.md, 5.2).
+        // Conversion accepts PEM text up to twice the DER bound (forge/setup/github.md, 1.2).
         limits.string_bytes = fixtures::github_given().limits.key_bytes.checked_mul(2).expect("PEM bound");
         let mut world = Self::new_with(seed, script, fixtures::github_settings(), limits);
         world.github = Some(Fake::bare(seed));

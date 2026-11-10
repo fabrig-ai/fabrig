@@ -1,10 +1,10 @@
-//! Stable identities and bounded edits (skein's ui.md, section 7).
+//! Stable identities and bounded edits (skein's ui/README.md, section 7).
 //! Roots match; below matched parents, keys match objects and unkeyed nodes
 //! match by position among the same role. Four bounded index tables keep the
 //! relationships. Structural patches remove unmatched roots, insert unmatched
 //! roots after positioning matched siblings by reverse moves. Insertions then
 //! use the already-positioned siblings as anchors, in reverse order.
-//! A diff emits at most four patches per node (ui.md, 7).
+//! A diff emits at most four patches per node (ui/README.md, 7).
 //! Bindings stay in the view: the shell sees only their presence and node ids.
 
 use crate::Limits;

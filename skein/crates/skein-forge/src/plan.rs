@@ -1,7 +1,7 @@
-//! What a plan's exchange can end in, in both dialects (forge.md, 4.4).
+//! What a plan's exchange can end in, in both dialects (forge/README.md, 4.4).
 use crate::api;
 
-/// Whether a broken exchange could have reached the server (forge.md, 3.4,
+/// Whether a broken exchange could have reached the server (forge/README.md, 3.4,
 /// "Unavailable is provable only before the first byte").
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {

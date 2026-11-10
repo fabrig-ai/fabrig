@@ -1,4 +1,4 @@
-//! One whole borrowed input to a retained document (skein/docs/design/json.md, 5.3).
+//! One whole borrowed input to a retained document (skein/docs/design/data/json.md, 5.3).
 //! The tokenizer owns grammar state; the builder admits retained counts.
 //! No stream state survives `parse`, and only the compact document is returned.
 
@@ -6,7 +6,7 @@ use crate::Document;
 use crate::document::{self, Builder};
 use crate::tokenizer::{self, Event, Feed, Request};
 
-/// A grammar/input refusal or a retained-count refusal (skein/docs/design/json.md, 5.3).
+/// A grammar/input refusal or a retained-count refusal (skein/docs/design/data/json.md, 5.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ParseError {
     /// The tokenizer refused the input under its limits.
@@ -15,7 +15,7 @@ pub enum ParseError {
     Document(document::Error),
 }
 
-/// Parses exactly one value and trailing whitespace (skein/docs/design/json.md, 5.3).
+/// Parses exactly one value and trailing whitespace (skein/docs/design/data/json.md, 5.3).
 /// Input, nesting, strings and numbers use `limits`; retained records and
 /// decoded text use `retained`. No partial document is returned on failure.
 /// As for `Feed::new`, `limits.chunk` must be positive and

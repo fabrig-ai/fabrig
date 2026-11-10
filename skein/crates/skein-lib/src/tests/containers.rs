@@ -1,4 +1,4 @@
-//! The bounded containers (lib.md, 5): each refuses past its capacity and
+//! The bounded containers (runtime/lib.md, 5): each refuses past its capacity and
 //! keeps its order, a B-tree is priced in its nodes, and a full buffer
 //! grows by one rule.
 

@@ -1,4 +1,4 @@
-//! Each admission's number and refusal's reason, and keys given by the asker (lib.md, 12).
+//! Each admission's number and refusal's reason, and keys given by the asker (runtime/lib.md, 12).
 
 use super::{FIRST_OWNER, Owner, SECOND_OWNER, limits, live, owner, sent};
 use crate::{

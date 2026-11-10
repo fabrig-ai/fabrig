@@ -1,4 +1,4 @@
-//! Compact records read by index, counts and checked offset edges (json.md, 5.2).
+//! Compact records read by index, counts and checked offset edges (data/json.md, 5.2).
 
 #![expect(clippy::disallowed_macros, reason = "a test supplies its own token sequence with vec!")]
 

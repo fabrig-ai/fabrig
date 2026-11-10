@@ -1,4 +1,4 @@
-//! Hand-steered component exchanges (skein/docs/design/forge-connection.md, 10).
+//! Hand-steered component exchanges (skein/docs/design/forge/connection.md, 10).
 use skein_forge::api;
 pub use skein_forge_connection::fixtures::{
     BODY_ROOM, BRANCH, BRANCH_HEAD, FORGE, OP_BYTES, OTHER_FORGE, REPO, TOKEN, TOKEN_BOUND, USER_AGENT, WORD, WRITER,
@@ -179,7 +179,7 @@ impl Harness {
     pub fn connected(&mut self, forge: u16) {
         let owner = self.newest(forge);
         let peer = self.peers.get_mut(&owner).expect("registered connect");
-        // A connect completes once (skein/docs/design/io.md's stream table); a step over a reused socket hears nothing.
+        // A connect completes once (skein/docs/design/runtime/io/README.md's stream table); a step over a reused socket hears nothing.
         if !core::mem::replace(&mut peer.connected, true) {
             self.event(skein_io::Event::Connected { owner });
         }

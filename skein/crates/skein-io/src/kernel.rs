@@ -1,7 +1,7 @@
-//! The kernel boundary (kernel.md): the records io submits to a
+//! The kernel boundary (runtime/kernel.md): the records io submits to a
 //! backend and the completions the backend hands back. The ring adapter, the
 //! simulator and any later backend implement exactly this, and the
-//! conformance suite (kernel.md, 8) holds each of them to it.
+//! conformance suite (runtime/kernel.md, 8) holds each of them to it.
 //!
 //! # The contract
 //!
@@ -14,7 +14,7 @@
 //!   backend never drops, copies or replaces a `Box` (programming-model.md,
 //!   6.2). A `Recv` comes back with `buf[..n]` filled, a `Send` with its
 //!   `bytes` untouched.
-//! - **The backend allocates nothing that goes up** (kernel.md, section 4).
+//! - **The backend allocates nothing that goes up** (runtime/kernel.md, section 4).
 //!   A `Spawn` returns its original pipe table, each `parent` slot filled
 //!   only on success; `Done::Spawned` carries the pidfd and an opaque sender identity.
 //! - **One success shape per operation** ([`Shape`], tabled on [`Op`]). An
@@ -66,7 +66,7 @@
 //!   close. A `Recv` buffer is never empty ([`Op::recv`]).
 //! - **A `Send`'s count is bytes the kernel accepted** past `from`, at least
 //!   one and no more than were left. io continues a short send from
-//!   `from + n` (io.md, 3).
+//!   `from + n` (runtime/io/sockets.md).
 //! - **`Shutdown` ends this side's sending:** it completes `Ok` once the end
 //!   is queued, behind the bytes of every completed `Send`. A second
 //!   `Shutdown` is `Ok` while the connection lasts and `NotConnected` once it
@@ -138,7 +138,7 @@
 //!   end for a startup file opened with `O_APPEND`. On an ordinary writable
 //!   file it advances the position after each write. Counts are positive;
 //!   a short append continues from `from + n`. Only one is in flight on a
-//!   descriptor opened to write (kernel.md, 6.1 and 7).
+//!   descriptor opened to write (runtime/kernel.md, 6.1 and 7).
 //! - **`Sync`** flushes the file, or a directory's entries, to storage:
 //!   once it completes, what was written or renamed before it survives a
 //!   crash.
@@ -206,7 +206,7 @@
 //!   both answer `Exit`. The zombie retains the group's leader until its reap.
 //! - `Signal` names the child or its group through the pidfd, never a numeric PID.
 //! - `Usage` is synchronous: own and reaped children's CPU and resident peaks
-//!   (kernel.md, sections 6.2 and 6.3). It cannot be cancelled.
+//!   (runtime/kernel.md, sections 6.2 and 6.3). It cannot be cancelled.
 //!
 //! The errors each operation names, beyond `NoBufferSpace`,
 //! `InvalidArgument` and `Other`, which any operation but `Cancel` may
@@ -311,7 +311,7 @@ impl Fd {
 ///
 /// `core::net`'s, which is plain data (no allocation, no lookup, no
 /// formatting needed) and passes the subset's lints. Names are resolved
-/// before io (io.md, 4).
+/// before io (runtime/io/README.md, 3).
 pub type Addr = SocketAddr;
 
 /// The address family of a socket.
@@ -418,7 +418,7 @@ pub enum Op {
         fd: Fd,
     },
     // Files, beneath a root (see the module documentation). Processes and
-    // the other synchronous operations (io.md, 6; kernel.md) go here, when
+    // the other synchronous operations (runtime/io/processes.md; runtime/kernel.md) go here, when
     // a user pulls them.
     /// `path`, resolved beneath the directory open on `root`, opened as `how`
     /// says. The path holds no NUL byte.
@@ -500,7 +500,7 @@ pub enum Op {
     Spawn {
         spawn: Box<Spawn>,
     },
-    /// Observes a child exit, or reaps it after observation (kernel.md, section 6.2).
+    /// Observes a child exit, or reaps it after observation (runtime/kernel.md, section 6.2).
     Wait {
         pidfd: Fd,
         reap: bool,
@@ -511,14 +511,14 @@ pub enum Op {
         signal: Signal,
         to: Target,
     },
-    /// Reads the process and reaped children resource usage (kernel.md, section 6.3).
+    /// Reads the process and reaped children resource usage (runtime/kernel.md, section 6.3).
     Usage,
-    /// Reads the terminal size synchronously (kernel.md, section 6.3).
+    /// Reads the terminal size synchronously (runtime/kernel.md, section 6.3).
     Window {
         fd: Fd,
     },
     /// Reads one blocked signal from the signalfd opened at startup
-    /// (io.md, section 7; shell.md, section 6).
+    /// (runtime/io/README.md, section 4; runtime/shell.md, section 6).
     ReadSignal {
         fd: Fd,
     },
@@ -578,7 +578,7 @@ impl core::fmt::Debug for EnvNames<'_> {
     }
 }
 
-/// A child descriptor: a pipe, a held listener or null (io.md, sections 6 and 6.3).
+/// A child descriptor: a pipe, a held listener or null (runtime/io/processes.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Pipe {
     pub child: u32,
@@ -601,7 +601,7 @@ pub enum Way {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 /// A signal a child's owner sends it, or its group, or a cgroup's
-/// processes (kernel.md, sections 6.2 and 6.6).
+/// processes (runtime/kernel.md, sections 6.2 and 6.6).
 pub enum Signal {
     /// Ask the recipient to stop what it is doing (`SIGINT`): a program
     /// may handle it and go on.
@@ -616,7 +616,7 @@ pub enum Signal {
     Continue,
 }
 
-/// A signal's recipient, selected by the pidfd's owner (kernel.md, section 6.2).
+/// A signal's recipient, selected by the pidfd's owner (runtime/kernel.md, section 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Target {
     /// The child alone.
@@ -655,7 +655,7 @@ pub enum ServiceSignal {
     Interrupt,
     /// A termination request (`SIGTERM`).
     Terminate,
-    /// A terminal's closing (`SIGHUP`), read only by a service that asks (shell.md, 6.3).
+    /// A terminal's closing (`SIGHUP`), read only by a service that asks (runtime/shell.md, 6.3).
     Hangup,
 }
 
@@ -671,7 +671,7 @@ pub enum Exit {
 /// How an [`Op::Open`] opens what its path names.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum OpenHow {
-    /// An entry itself, links refused in its parents, for Stat and Close only (kernel.md, 6.1).
+    /// An entry itself, links refused in its parents, for Stat and Close only (runtime/kernel.md, 6.1).
     PathNoFollow,
     /// An existing file or directory, to `Read` or `Stat` (`O_RDONLY`).
     Read,
@@ -768,14 +768,14 @@ pub fn is_name(name: &[u8]) -> bool {
     true
 }
 
-/// A terminal's size in character cells (kernel.md, section 6.3).
+/// A terminal's size in character cells (runtime/kernel.md, section 6.3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Size {
     pub rows: u16,
     pub columns: u16,
 }
 
-/// A backend process identity, compared only for equality (io.md, sections 6 and 7).
+/// A backend process identity, compared only for equality (runtime/io/processes.md and runtime/io/README.md, section 4).
 /// It has no numeric accessor and is never exposed in io events.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Sender(u64);
@@ -788,7 +788,7 @@ impl Sender {
     }
 }
 
-/// One signal read from the service's signalfd (io.md, section 7).
+/// One signal read from the service's signalfd (runtime/io/README.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Signalled {
     /// A termination delivered as io's Shutdown.

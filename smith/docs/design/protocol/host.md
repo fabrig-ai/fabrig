@@ -23,7 +23,7 @@ The contract is ../domain/host.md's.
   - checks a program source's login, and signs it out, when its host
     asks (section 2).
 - **The streams are the host's to make:**
-  - a spawned agent's pipes, from a contained tree (skein's `io.md`, 6.2–6.4);
+  - a spawned agent's pipes, from a contained tree (skein's `runtime/io/processes.md`, 2–4);
   - or a connection to a daemon.
 
   The half works the same on either.
@@ -71,7 +71,7 @@ The contract is ../domain/host.md's.
   as when a run goes past its window (channel.md, section 7;
   ../domain/host.md, section 6). Opening and send outcomes do not answer or
   withdraw a read. Cancel leaves an outstanding read in place. A ping or
-  an unsupported-kind notice is the channel's own (skein's `channel.md`,
+  an unsupported-kind notice is the channel's own (skein's `net/channel.md`,
   section 6), and the half reads on for the same demand. An end that comes
   between reads is kept, and answers the next one, once.
 - **Deadlines become durations** on the way down, and durations become
@@ -136,7 +136,7 @@ layer spawns a contained tree:
   error, whose tail the half keeps for the domain's report of how the agent
   ended (../domain/host.md, section 4);
 - **room for the agent's own trees** inside its tree, so they are held,
-  stopped and proved empty with it (skein's `io.md`, 6.2–6.4).
+  stopped and proved empty with it (skein's `runtime/io/processes.md`, 2–4).
 
 The spawn's deadline covers the opening. A tree that does not start, or
 whose channel does not reach ready in time, is reported as an agent that
@@ -169,7 +169,7 @@ what its host's protocol layer would do:
   decides on;
 - **keepalive:** pings while nothing is sent, and silence and stall
   deadlines, armed by the host's protocol layer from the channel's
-  queries (skein's `channel.md`, section 9);
+  queries (skein's `net/channel.md`, section 9);
 - **a lost connection** is a channel hung up while the run is live. What
   that means for the run waits on the domain (README.md, section 11).
 
@@ -237,8 +237,8 @@ what its host's protocol layer would do:
   writes the agent's configuration, as generated JSON (agent.md, section
   4).
 - **Its graces are derived, not guessed:** a spawned agent's exit grace
-  from the agent's teardown bound (section 5.6), as skein's `shell.md`,
-  section 13 has a supervisor derive it.
+  from the agent's teardown bound (section 5.6), as skein's `runtime/shell.md`,
+  section 12 has a supervisor derive it.
 
 ### 5.3 Transcripts
 
@@ -255,7 +255,7 @@ piece is built, before concrete transcript decoding.
 
 A missing marker permits creation only after a complete bounded scan finds
 an empty directory, or only regular `format.skein-<16 lowercase hex>`
-interrupted-create temporaries (skein's io.md, 5.2). These are never removed.
+interrupted-create temporaries (skein's runtime/io/files.md, 2). These are never removed.
 Any other entry or incomplete scan refuses as unrecorded. Malformed,
 truncated or wrong-version markers refuse as a store-layout mismatch; IO,
 symlink, directory and size failures refuse without adopting the directory.
@@ -308,7 +308,7 @@ directory, each record under its lock (`../shell/credentials.md`
 ):
 
 - **`sign_in`, smith's own,** with skein's OAuth client and its driver
-  (skein's `oauth.md`, section 6), as a public client with the
+  (skein's `oauth/accounts.md`), as a public client with the
   registration its provider's preset carries (`../shell/credentials.md`
   ). The authorization page's address is shown at the
   terminal, and the redirect comes back to a loopback listener bound to
@@ -402,7 +402,7 @@ writer's, is refused, saying that this host does not save.
   setting, waits on contained trees (../domain/host.md, section 12).
 - **Grace.** A spawned agent's exit grace is derived from the agent's
   teardown bound, which io's close deadlines make (agent.md, section 6;
-  skein's `shell.md`, section 13), with a margin above it; a setting
+  skein's `runtime/shell.md`, section 12), with a margin above it; a setting
   below it is refused (limits.md, `grace-over-teardown`). The inline
   agent's cancel grace is a setting of its own, before a drop.
 
@@ -428,8 +428,8 @@ writer's, is refused, saying that this host does not save.
   - its OAuth client, with `localhost` redirects, and its fake issuer;
   - the OAuth driver that signs in with a registration, refreshes,
     reads a kept record again before a refresh when its owner asks,
-    keeps records, revokes and lends (skein's `oauth.md`, section 6);
-  - a directory's lock and private files (skein's `io.md`, 5 and 5.3);
+    keeps records, revokes and lends (skein's `oauth/accounts.md`);
+  - a directory's lock and private files (skein's `runtime/io/files.md`);
   - append streams and durable whole-file replacement, for the event
     stream and the chat's files;
   - the fake checkout, for commits in worlds.

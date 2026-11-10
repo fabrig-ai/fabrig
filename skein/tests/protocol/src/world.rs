@@ -124,7 +124,7 @@ pub struct Scenario {
     /// The least a closed end lingers, draining what comes, that the
     /// expectation needs: a response given before the upload ends reaches a
     /// client still uploading only if the server's end drains its upload
-    /// meanwhile, as io's close does until its deadline (io.md, 3.3).
+    /// meanwhile, as io's close does until its deadline (runtime/io/sockets.md, 3).
     pub linger: u64,
 }
 

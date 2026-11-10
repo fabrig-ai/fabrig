@@ -1,4 +1,4 @@
-//! Matching, line checks and retained conversions (codec.md, 11.2–11.3 and 11.6).
+//! Matching, line checks and retained conversions (data/codec/patches.md, 2–3 and 6).
 
 use super::text::{Block, Kind, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
@@ -78,7 +78,7 @@ pub(crate) struct SitePlan {
 /// A declared refusal's spans in `Plan::text` and its global site index.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RefusalPlan {
-    #[cfg_attr(not(test), expect(dead_code, reason = "planning retains refusal names in text order (codec.md, 11.3)"))]
+    #[cfg_attr(not(test), expect(dead_code, reason = "planning retains refusal names in text order (data/codec/patches.md, 3)"))]
     pub(crate) name: Span,
     /// The content without its quotes.
     pub(crate) text: Span,
@@ -248,7 +248,7 @@ impl Matching {
     }
 }
 
-/// Why a rename cannot pair its two schema targets (codec.md, 11.6).
+/// Why a rename cannot pair its two schema targets (data/codec/patches.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RenameRefused {
     OldUnknown,
@@ -458,7 +458,7 @@ fn width(ty: Type) -> Option<u32> {
         | Type::Named(_) => None,
     }
 }
-#[expect(clippy::too_many_lines, reason = "the leaf comparison exhaustively lists schema type pairs (codec.md, 10.3)")]
+#[expect(clippy::too_many_lines, reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/diff.md, 3)")]
 fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
     let equal = match a {
         Type::Named(_) | Type::Bytes { .. } | Type::Secret { .. } | Type::List { .. } | Type::Option(_) => false,
@@ -691,9 +691,9 @@ pub(crate) fn compare(
     unreachable!("each wrapper advances within its schema's bounded types")
 }
 
-/// One layout change, in diff order (codec.md, 11.6).
+/// One layout change, in diff order (data/codec/patches.md, 6).
 #[derive(Clone, Copy, Debug)]
-#[expect(clippy::partial_pub_fields, reason = "line coverage is private to planning (codec.md, 11.6)")]
+#[expect(clippy::partial_pub_fields, reason = "line coverage is private to planning (data/codec/patches.md, 6)")]
 pub struct Change {
     pub op: Op,
     pub target: Target,
@@ -1126,7 +1126,7 @@ fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, piece
     for pair in digits.chunks_exact(2) {
         let &high = pair.first().expect("two hex digits");
         let &low = pair.get(1).expect("two hex digits");
-        // A value's hex digits are lower case (codec.md, 11.2), though lib
+        // A value's hex digits are lower case (data/codec/patches.md, 2), though lib
         // reads either case.
         if high.is_ascii_uppercase() || low.is_ascii_uppercase() {
             return Err(PatchWrong::Value);
@@ -1140,7 +1140,7 @@ fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, piece
 
 #[expect(
     clippy::too_many_lines,
-    reason = "the value encoder exhaustively lists the accepted forms of every schema type (codec.md, 11.2)"
+    reason = "the value encoder exhaustively lists the accepted forms of every schema type (data/codec/patches.md, 2)"
 )]
 fn value(
     pool: &mut List<u8>,
@@ -1494,7 +1494,7 @@ fn conversion(plan: &Plan, at: DeclIx) -> Conversion {
 }
 #[expect(
     clippy::too_many_lines,
-    reason = "the bounded wrapper walk exhaustively names the terminal schema types (codec.md, 11.3)"
+    reason = "the bounded wrapper walk exhaustively names the terminal schema types (data/codec/patches.md, 3)"
 )]
 fn reference_flags(
     plan: &Plan,

@@ -1,4 +1,4 @@
-//! A delivery's UUID text (forge-github.md, 9.2).
+//! A delivery's UUID text (forge/github.md, 9.2).
 use skein_lib::bytes;
 
 /// Reads exactly 8-4-4-4-12 hexadecimal digits, in either case.

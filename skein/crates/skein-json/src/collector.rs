@@ -1,4 +1,4 @@
-//! Selective JSON collection (json.md, section 5.1): a tokenizer and one
+//! Selective JSON collection (data/json.md, section 5.1): a tokenizer and one
 //! bounded walk keep only a filter's named paths. The machine owns reusable
 //! compact buffers and counts skipped wire bytes; it knows no transport or
 //! application meaning. `Collect` reads one stream through its end; `Close`
@@ -173,7 +173,7 @@ pub struct Counts {
 pub struct Collector {
     tokenizer: Tokenizer,
     events: Queue<json::Event>,
-    // Stages one request within up (json.md, 5.1); empty on entry, so capacity 1 cannot reject a push.
+    // Stages one request within up (data/json.md, 5.1); empty on entry, so capacity 1 cannot reject a push.
     demands: Queue<Down>,
     walk: Stack<Frame>,
     document: Builder,

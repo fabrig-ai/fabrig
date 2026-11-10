@@ -27,7 +27,7 @@ fn setup_bundle(bundle: std::path::PathBuf) -> Setup<'static> {
     }
 }
 
-/// Each write reports once, with the gesture kept (skein/docs/design/ui-web.md, 14.3).
+/// Each write reports once, with the gesture kept (skein/docs/design/ui/web/testing.md, 3).
 #[test]
 fn a_clipboard_write_keeps_the_press_and_reports_once() {
     let see =

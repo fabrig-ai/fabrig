@@ -191,7 +191,7 @@ impl Shape {
 
 // Observe the worker's own received assignments and successful agent spawns.
 const WIRE_BYTES: usize = 65_536;
-// skein's channel.md, 3: the eight-byte frame header.
+// skein's net/channel.md, 3: the eight-byte frame header.
 const HEADER_BYTES: usize = 8;
 #[derive(Default)]
 pub(crate) struct Runs {

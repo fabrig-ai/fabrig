@@ -601,7 +601,7 @@ pub fn git_limits() -> skein_fake_forge_forgejo::Limits {
 
 /// Constructs the checked document's peer without io (protocol/setup.md, 8.4).
 /// The peer's shared Forge is lent back to the host for observation drains.
-/// This follows skein's fake-forge.md, 5, `Rc<RefCell<Forge>>` boundary;
+/// This follows skein's testing/fakes/forge.md, 5, `Rc<RefCell<Forge>>` boundary;
 /// the departure from programming-model.md's ownership rule is confined here.
 #[expect(
     clippy::disallowed_types,

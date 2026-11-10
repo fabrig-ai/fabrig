@@ -1,4 +1,4 @@
-//! Independent LLM peer configuration (skein's fake-llm.md, 6).
+//! Independent LLM peer configuration (skein's testing/fakes/llm.md, 6).
 use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_fake_peers::{Limits, Transport, llm::Peer};
@@ -81,7 +81,7 @@ pub fn cued(scripts: Box<[api::Script]>) -> api::Scripts {
     api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) }
 }
 
-/// The native peer selects system and request scripts as declared (skein/docs/design/fake-llm.md, 2.4).
+/// The native peer selects system and request scripts as declared (skein/docs/design/testing/fakes/llm.md, 2.4).
 #[must_use]
 pub fn played(scripts: api::Scripts) -> Recipe {
     let mut recipe = scripted(Box::new([]));
@@ -95,7 +95,7 @@ pub fn played(scripts: api::Scripts) -> Recipe {
     recipe
 }
 
-/// The scripted peer with opt-in fresh-input turn selection (skein's fake-llm.md, 2.4).
+/// The scripted peer with opt-in fresh-input turn selection (skein's testing/fakes/llm.md, 2.4).
 #[must_use]
 pub fn played_by_input(scripts: Box<[api::Script]>, rules: Box<[Box<[api::Rule]>]>) -> Recipe {
     let mut recipe = scripted(Box::new([]));

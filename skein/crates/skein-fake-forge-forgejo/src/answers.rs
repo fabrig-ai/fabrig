@@ -1,4 +1,4 @@
-//! The fake's typed reads in Forgejo's document vocabulary (fake-forge.md, 4).
+//! The fake's typed reads in Forgejo's document vocabulary (testing/fakes/forge.md, 4).
 use crate::{Config, routes, setup::Store};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;

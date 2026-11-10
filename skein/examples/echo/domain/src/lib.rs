@@ -48,7 +48,7 @@ pub enum Event {
     /// ends.
     Gone { session: Token },
     /// The service is shutting down. It stands in for io's `Shutdown` event,
-    /// which is not built (io.md, 7).
+    /// which is not built (runtime/io/README.md, 4).
     Shutdown,
 }
 

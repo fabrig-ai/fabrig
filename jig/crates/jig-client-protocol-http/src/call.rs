@@ -16,7 +16,7 @@ pub struct Call {
     pub body: Box<[u8]>,
 }
 
-// Header values and bodies hide secret bytes (skein/docs/design/oauth.md, 4).
+// Header values and bodies hide secret bytes (skein/docs/design/oauth/README.md, 4).
 impl core::fmt::Debug for Call {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Call")

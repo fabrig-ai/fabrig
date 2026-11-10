@@ -252,7 +252,7 @@ attempt, retries included.
 | `spent` | integer | this completion's charge, in the host's unit |
 | `request_bytes` | integer or null | the request as encoded, measured before it was sent; null when the attempt ended before its request was measured |
 | `first_byte_ms` | integer or null | from the request sent to the response's first byte |
-| `largest_gap_ms` | integer or null | the largest gap between two of the response's events that carry the model's output, a provider's pings not among them, the measure its `idle` deadline bounds (skein's llm-connection.md, section 6) |
+| `largest_gap_ms` | integer or null | the largest gap between two of the response's events that carry the model's output, a provider's pings not among them, the measure its `idle` deadline bounds (skein's llm/connection.md, section 6) |
 | `duration_ms` | integer | from `response.started` |
 | `failure` | completion failure, optional | for `failed` (3.10) |
 | `retry_ms` | integer, optional | for a failure the session retries: the wait before the next attempt |
@@ -417,7 +417,7 @@ when it is about one; and the kind's fields.
 - **usage:** `input_tokens`, read afresh; `cache_read_tokens`;
   `cache_write_tokens`; `output_tokens`; and `reasoning_tokens`, the part
   of the output spent on reasoning. Each is an integer, or null when the
-  provider did not report it (skein's `llm.md`). A prompt's size is its
+  provider did not report it (skein's `llm/README.md`). A prompt's size is its
   input, cache reads and cache writes. A total sums what was reported,
   including a response whose accounting the session refused, and is null
   only when nothing was.
@@ -549,7 +549,7 @@ projection.
   lost, and says so on standard error, naming the destination and why
   (agent.md, section 6). The run goes on.
 - **An abandoned destination gets nothing more.** io ends a stream at its first failed write,
-  and nothing follows but `Closed` (skein's `io.md`, 3.3), so the end
+  and nothing follows but `Closed` (skein's `runtime/io/sockets.md`, 3), so the end
   cannot be tried there. The line on standard error names the
   destination and why, in io's terms: it stayed behind past the write
   deadline (the sink tells this by its own clock), its reader went
@@ -626,13 +626,13 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   (domain/run.md, section 10;
   domain/session.md).
 - **skein owes:**
-  - its JSON writer and reader (skein's `json.md`);
+  - its JSON writer and reader (skein's `data/json.md`);
   - an append stream on a file, and standard output adopted as a stream,
-    with write deadlines (skein's `io.md`, 5.1);
+    with write deadlines (skein's `runtime/io/files.md`, 1);
   - the kernel's resource usage of the process and its children, read by
     the shell through io's usage request after the last child has closed
-    and before the stream closes (skein's `io.md`, section 6.1; skein's
-    `shell.md`, section 13).
+    and before the stream closes (skein's `runtime/io/processes.md`, section 1; skein's
+    `runtime/shell.md`, section 12).
 
 ## 8. The world
 
@@ -644,7 +644,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
     counting allocator.
 - **Drift.** The goldens are committed. A change that alters one fails
   until the schema, code, golden and this document change together.
-  Before the first release the version stays fixed (skein's `codec.md`,
+  Before the first release the version stays fixed (skein's `data/codec/README.md`,
   section 5); a reader test refuses a golden line of another version.
 - **Conformance,** in the agent's simulated world (agent.md, section 8)
   and the local host's (host.md, section 7). The referee reads the
@@ -692,6 +692,6 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   spare descriptor of each destination, adopted for the end records
   alone (each tried once under the write deadline, after a newline if a
   write was torn); or io's write stream survives a failed write and
-  takes later sends (a change to skein's `io.md`, 3.3). io's fault could
+  takes later sends (a change to skein's `runtime/io/sockets.md`, 3). io's fault could
   also carry the kernel's reason (a full disk, a read-only file system),
   which it does not.

@@ -1,4 +1,4 @@
-//! The owner's OAuth accounts (oauth.md, sections 6.1–6.7).
+//! The owner's OAuth accounts (oauth/accounts.md, sections 1–7).
 //! Keeps bounded records, held grants, issuer exchanges, redirect listeners and deadlines;
 //! names configured accounts by index and `add` admits further owner numbers. `down` accepts
 //! owner requests and keeper terminals, `up` routes socket events, `filed` routes
@@ -23,14 +23,14 @@ pub use boundary::{Asked, Ends, Event, Failure, Keeping, Locked, Place, Refusal,
 pub use component::{Component, FileLower, Lower, LowerEvent, Unusable};
 pub use limits::{BROWSER_FIELDS, Limits, listener_head, redirect_room, valid};
 
-/// The longest application name the listener's long page names (skein/docs/design/oauth.md, 6.7).
+/// The longest application name the listener's long page names (skein/docs/design/oauth/accounts.md, 7).
 pub const APPLICATION_BYTES: usize = 64;
 
-/// The largest return location for one sign-in (oauth.md, section 6.5).
+/// The largest return location for one sign-in (oauth/accounts.md, section 5).
 pub const RETURN_BYTES: usize = 2048;
 
 /// The `Redirected`s one sign-in refuses for their state before it refuses every later one as
-/// full (oauth.md, section 6.5).
+/// full (oauth/accounts.md, section 5).
 pub const STATE_REFUSALS: u32 = 4;
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 # The examples
 
 Provisional, 2026-10-04, revised 2026-10-19. The design of skein's
-example services (testing.md, 3): what each one is, the steps section 10
+example services (testing/README.md, 3): what each one is, the steps section 10
 asks for before code (the wire protocol, the limits, the entities, the
 state machines), its fakes, the harness its worlds run on, and how it is
 tested; and of the UI example, an application on skein-ui (section 9).
@@ -24,8 +24,8 @@ them.
 - **An application with a face, too.** The UI example (section 9), a
   small notes application on skein-ui, with its browser shell and a
   server on skein's HTTP, is the reference an application's browser
-  shell is copied from, and is tested in the browser tier (ui-web.md,
-  section 14).
+  shell is copied from, and is tested in the browser tier (ui/web/testing.md
+  ).
 
 ## 2. Layout
 
@@ -102,11 +102,11 @@ A foreign-style line protocol, so scanned framing (programming-model.md,
 | protocol | `line` | the longest line, `\n` included, and the room each answer asks for: at least the longest refusal |
 | protocol | `idle`, `spread` | the idle deadline, and how far it is spread |
 | protocol | `retry` | how long the listener waits to listen again after io refused it for want of resources |
-| io | io.md, 2 | `intake` and `output` at least `line`: the protocol's largest read and room |
+| io | runtime/io/README.md, 2 | `intake` and `output` at least `line`: the protocol's largest read and room |
 | service | `queue` | kernel submission and completion capacity, at least `Limits::LEAST_QUEUE` for io's largest entrance |
 
 Startup checks usable io limits and that the protocol's largest demand
-fits io (io.md, 2): `line` fits `intake` and `output`, and the kernel
+fits io (runtime/io/README.md, 2): `line` fits `intake` and `output`, and the kernel
 queues hold each io entrance's submissions. The service's
 internal queues grow as admitted work fills them. Worlds check measured
 process peaks under named scenario ceilings with headroom.
@@ -128,7 +128,7 @@ the `\n`: framing stays in the protocol layer, which copies the text out
 when it decodes and writes the answer at its length when it encodes.
 
 The protocol layer tells the domain `Shutdown`, from its ready list,
-when io's `Shutdown` event arrives (io.md, 7), or when the service's
+when io's `Shutdown` event arrives (runtime/io/README.md, 4), or when the service's
 `shutdown` asks it to, which worlds below the binary call. The domain
 decides what it means: it admits no one more, and asks for the listener
 to stop. The connections it has drain (programming-model.md, 5.2): one
@@ -239,7 +239,7 @@ making.
 | Closing, Closed | `Stop` | ignored |
 
 io's `Busy` says that nothing was made and the request may be made again
-later (io.md, 2): a listen refused for want of descriptors or buffers is a
+later (runtime/io/README.md, 2): a listen refused for want of descriptors or buffers is a
 shortage, not a failure, so the listener listens again after `retry`.
 Any other failure stops it for good, and the service with it: `main` then
 says why and exits. A failure is kept whether a stop came meanwhile or
@@ -252,7 +252,7 @@ listener is.
 (programming-model.md, 5.4), each holding nothing but its state: the
 shutdown, told to the domain once from the ready list (Running, Asked,
 Told); and the connections' stop (Serving, Draining, Aborting), which the
-domain's `Stop` drains and a second shutdown aborts (shell.md, 13). A
+domain's `Stop` drains and a second shutdown aborts (runtime/shell.md, 12). A
 shutdown that finds the domain stopped already is that second one: the
 domain has nothing left to be told.
 
@@ -267,7 +267,7 @@ domain has nothing left to be told.
 | Aborting | `Stop` | the same: each connection aborts |
 | Running | a shutdown, the connections Aborting | impossible: only a shutdown makes them abort, and it leaves Running |
 
-Each connection's drain or abort is its owner transition (shell.md, 13),
+Each connection's drain or abort is its owner transition (runtime/shell.md, 12),
 scheduled on the ready list with its idle deadline cancelled; the
 listener's stop is its own machine's, above.
 
@@ -278,7 +278,7 @@ every `Open` with `Busy` and asks once for `Stop`.
 ## 4. The echo's main
 
 `main` reads the address to listen on from its arguments and uses the
-shell's layer limits. Startup (shell.md, 6) checks usable limits and io's
+shell's layer limits. Startup (runtime/shell.md, 6) checks usable limits and io's
 caps against the protocol's largest demand. It blocks termination signals
 and opens their signalfd (`open_termination_signals`) for io to adopt,
 then obtains the seed and opens the kernel. It runs the loop of
@@ -286,10 +286,10 @@ programming-model.md, section 2, over the shell's `Kernel` and `Clock`.
 
 - **It ends by itself.** `SIGINT` or `SIGTERM` arrives as io's `Shutdown`:
   the echo admits no one more, its connections end (section 3.3), and the
-  loop exits once the service holds nothing, with a success (shell.md,
-  13). A listener that fails, as when the address is in use, ends it too,
+  loop exits once the service holds nothing, with a success (runtime/shell.md,
+  12). A listener that fails, as when the address is in use, ends it too,
   with the failure on standard error.
-- **Its loop is `drive`** (shell.md, 12), over the echo's `Host`, from
+- **Its loop is `drive`** (runtime/shell.md, 11), over the echo's `Host`, from
   skein-shell. Its hook says once that the echo listens, and at
   what address, and once that a listen refused for want of resources is
   being retried: the startup facts emitted between `iterate` and the
@@ -331,13 +331,13 @@ processes, each a host of an `iterate` (a service, or a fake client):
   iterates and submits, in turn, and the referee observes each.
 - **Time** moves only when the world is idle, to the earlier of what the
   simulator has due and the processes' and the referee's earliest
-  deadline (simulator.md, 3).
+  deadline (testing/simulator.md, 3).
 - **Trace and replay:** a run returns the simulator's trace, which the
   same seed replays.
-- **Memory** (simulator.md, 5): under the counting allocator, each
+- **Memory** (testing/simulator.md, 5): under the counting allocator, each
   process's heap, what grew within its own calls (building it, and each
   `iterate`), at its peak within each call, against the ceiling its
-  scenario names, with headroom (shell.md, 12).
+  scenario names, with headroom (runtime/shell.md, 11).
   What grew within the simulator's calls and the harness's own storage
   is left out,
   by metering around the processes' calls rather than theirs; and as
@@ -359,7 +359,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
 - **Settled:** once the referee passed and nothing is busy, every process
   holds nothing, the simulator has nothing in flight, and every
   descriptor is closed.
-- **The shell's own `Host`** (shell.md, 12), which `skein-world`
+- **The shell's own `Host`** (runtime/shell.md, 11), which `skein-world`
   re-exports: the harness calls each process's hook where `drive` does,
   after its `iterate`, and checks the teardown invariant
   (testing-strategy.md, 6): after the scenario's last word, no deadline
@@ -385,7 +385,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
   - **A spawned service is hosted, not run.** Its spawn never reaches the
     kernel: the harness makes the child's pipes, hands the parent its
     ends, and starts the child in the same loop with the other ends, as
-    the simulator does (simulator.md, 3). The parent's wait ends once the
+    the simulator does (testing/simulator.md, 3). The parent's wait ends once the
     child has finished and the harness has closed what it still held, as
     the kernel would at its exit. A kill drops the child and closes
     everything it held.
@@ -424,7 +424,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     processes at once, from `memory.peak`.
 
     This is the first use of the kernel's cgroup facilities that
-    contained trees build on (io.md, 6.2 to 6.4). It is written as a tree
+    contained trees build on (runtime/io/processes.md, 2 to 4). It is written as a tree
     in io's terms (spawned into a cgroup, empty, killed, counted)
     so that it can move into io whole. When io gains trees, the kit
     starts its binary as an io tree and drops its own cgroup code; the
@@ -438,7 +438,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     period while any runs. It waits on each pidfd, never on any child, so
     it takes no other part's children. The tree has settled once it has
     reaped every one. Its counts are the kernel's count of reaped
-    children (`Usage`, kernel.md, 6.3), taken before the binary starts and
+    children (`Usage`, runtime/kernel.md, 6.3), taken before the binary starts and
     after the tree settles: CPU summed over the tree, and a peak that is
     the largest one process reached, not the tree's at once, which only a
     cgroup gives. The kernel's peak is the largest over every child the
@@ -449,7 +449,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     listing finds it.
   - **A process group, on macOS,** which has neither a cgroup nor a
     subreaper. The binary leads a process group of its own, as every
-    child does (kernel.md, 6.2), and the group's ID is its pid. The kit
+    child does (runtime/kernel.md, 6.2), and the group's ID is its pid. The kit
     holds the binary's handle and that ID, and adopts nothing: an orphan
     goes to the system's first process, which reaps it. On Linux the
     group refuses to start (`Busy`) while the test process is a
@@ -463,7 +463,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     settles, CPU over the binary and what it reaped, and the largest one
     process's peak. It cannot see a descendant that leaves the group (a
     session or a group of its own), nor name a member but the binary: a
-    test that needs either stays Linux's (shell.md, 9), and the group's
+    test that needs either stays Linux's (runtime/shell.md, 8), and the group's
     pid lists (`TreeStatus`) hold the binary's alone.
   - **The end.** Once the binary has exited and the test is done with
     it, or at the test's deadline, the kit kills what is left of the tree
@@ -476,7 +476,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     once the binary is reaped); one that measures a binary it
     does not own only kills and counts.
   - **A crash on purpose.** A test that crashes its binary, to prove
-    what a restart finds, is its supervisor (shell.md, 13). It supervises
+    what a restart finds, is its supervisor (runtime/shell.md, 12). It supervises
     the tree (`Expectation::Supervise`), kills all of it at once
     (`signal_tree`: `cgroup.kill`, every process the walk has found, or
     the group),
@@ -533,7 +533,7 @@ A small notes application on skein-ui: the reference an application
 with a face starts from, as the echo is a service's. It is an
 application's three pieces, a crate each: its view (step code), its
 browser shell (the **reference shell**, which applications copy), and a
-server on skein's HTTP. It carries one of each thing ui.md and ui-web.md
+server on skein's HTTP. It carries one of each thing ui/README.md and ui/web/README.md
 let an application write, so that the browser tier tests each once: a
 form with entry kinds and a select, a dialog, a focus request, a drawing
 acted on, an element of its own, a component, one JavaScript snippet,
@@ -541,11 +541,11 @@ two places, the small store, exchanges and a stream.
 
 ### 9.1 What a person sees
 
-- **One owner,** the example's (ui.md, 3.3), with the look's prefix
-  `notes`: its style tokens and region names start with `notes-` (ui.md,
-  section 8). Its words are English, from its phrasebook (ui.md,
+- **One owner,** the example's (ui/README.md, 3.3), with the look's prefix
+  `notes`: its style tokens and region names start with `notes-` (ui/README.md,
+  section 8). Its words are English, from its phrasebook (ui/README.md,
   section 9).
-- **The list's page,** at `/`, under the outline (ui.md, section 14):
+- **The list's page,** at `/`, under the outline (ui/README.md, section 12):
   - *the banner:* the example's name, and a status saying whether the
     page is live with its server;
   - *the main:* a level-1 heading; the notes, a list keyed by note, each
@@ -556,20 +556,20 @@ two places, the small store, exchanges and a stream.
     takes (the number entry kind), a label (a select of three options:
     idea, task, reference), a button that adds it, and one that clears
     it. A field the view finds wrong is invalid, its description saying
-    why (ui.md, 3.2). Adding a note, or discarding a draft, moves the
-    focus to the title by a focus request (ui.md, 3.2);
+    why (ui/README.md, 3.2). Adding a note, or discarding a draft, moves the
+    focus to the title by a focus request (ui/README.md, 3.2);
   - *a complementary landmark:* the chart (9.4), and beside it a choice
     group showing all notes or one label's;
   - *a dialog,* while the person clears a form holding words: whether to
     discard the draft, with a button that discards it and one that keeps
-    it, which names Escape (ui.md, 6.1).
+    it, which names Escape (ui/README.md, 6.1).
 - **A note's page,** at `/notes/<n>`: in the main, a region named by the
   note's title and carrying `notes-card` (9.4), holding its title as the
   level-1 heading, its body, its due date, its minutes and its label;
   and a link back to the list. Any other path shows a page saying there
   is no such note.
 - **Its places** are printed and parsed by its own codec, in its view
-  (9.2; ui-web.md, section 9).
+  (9.2; ui/web/README.md, section 7).
 
 ### 9.2 Its view
 
@@ -577,24 +577,24 @@ two places, the small store, exchanges and a stream.
 and for `wasm32-unknown-unknown`:
 
 - **Its state:** the notes the page knows, the form's values with the
-  view's count of its own writes to each (ui.md, 3.4), the label shown,
+  view's count of its own writes to each (ui/README.md, 3.4), the label shown,
   the place, the adds pending, and whether the stream is live.
 - **Its view,** built through skein-ui's builder from the state, with
-  its bindings decoded into its actions (ui.md, sections 5 and 6), its
-  drawing code (ui.md, 11.1), its codec for places, its limits from
-  skein-ui's (ui.md, section 15).
-- **Its records** are a codec family of its own (codec.md), a note, an
+  its bindings decoded into its actions (ui/README.md, sections 5 and 6), its
+  drawing code (ui/scenes.md, 1), its codec for places, its limits from
+  skein-ui's (ui/README.md, section 13).
+- **Its records** are a codec family of its own (data/codec/README.md), a note, an
   add and the list, which the server names too. An exchange carries one
   record as `application/octet-stream`; the stream carries one in each
-  event's data, as base64 (lib.md, 6.1), read with HTTP's event-stream
+  event's data, as base64 (runtime/lib.md, 6.1), read with HTTP's event-stream
   reader (http.md, section 4).
 - **An add is written to the small store first,** under a key drawn from
-  the seed, then sent, in the transport's order (ui-web.md, section 10).
+  the seed, then sent, in the transport's order (ui/web/README.md, section 8).
   The server makes an add once per key, so an add a reload sends again
   makes one note; its record leaves the small store once answered.
   Closing loses requests while an add is pending, so the page holds its
-  closing warning then, and only then (ui-web.md, 5.1).
-- **Live:** at start, and when a hidden tab comes back (ui-web.md, 5.1),
+  closing warning then, and only then (ui/web/README.md, 4.1).
+- **Live:** at start, and when a hidden tab comes back (ui/web/README.md, 4.1),
   the view opens the stream, then reads the list, and applies each note
   by its number, so a note made between the two shows once. The page
   is live from the list's answer, read after the stream opened, until
@@ -607,7 +607,7 @@ and for `wasm32-unknown-unknown`:
 ### 9.3 Its server
 
 `skein-ui-example-server`, the binary `skein-ui-example`: one process, a
-loop over `drive` (shell.md, 12), on skein's HTTP server and its
+loop over `drive` (runtime/shell.md, 11), on skein's HTTP server and its
 event-stream writer (http.md, sections 4.3 and 5). Its notes are kept in
 memory, and its modules keep the domain, which names no io, apart from
 the routes; the echo shows a service's layers as crates (section 2), and
@@ -618,15 +618,15 @@ a service copies that.
 | `GET /api/notes` | the list, one record |
 | `POST /api/notes` | an add, one record with its key: the note made, or the one made before under the same key |
 | `GET /api/events` | the stream: an event for each note made while it is open |
-| `GET /bundle/<digest>/<file>` | the bundle's file, as ui-web.md, 4.4, serves it; a digest not the bundle's, not found |
+| `GET /bundle/<digest>/<file>` | the bundle's file, as ui/web/bundle.md, 4, serves it; a digest not the bundle's, not found |
 | any other `GET` | the page |
 
 - **The bundle,** written by `skein-ui-bundle` with `/bundle/` as the
-  bundle's prefix (ui-web.md, 4.2), is read from the directory its
-  arguments name, at startup (shell.md, 6.1), and served under
-  ui-web.md, 4.4: the digest directory immutable, each file in the
+  bundle's prefix (ui/web/bundle.md, 2), is read from the directory its
+  arguments name, at startup (runtime/shell.md, 6.1), and served under
+  ui/web/bundle.md, 4: the digest directory immutable, each file in the
   form the request takes, the page with an `ETag` and `no-cache`.
-- **The strict content security policy** of ui-web.md, 4.4, on every
+- **The strict content security policy** of ui/web/bundle.md, 4, on every
   answer, so the browser tier sees any violation of it.
 - **A placeholder,** a line of its own and a small stylesheet, beside its
   shell, so that the browser tier loads the bundler's loader in every
@@ -635,25 +635,25 @@ a service copies that.
   open at once are limits; past one, it refuses at the entrance
   (programming-model.md, section 7), and the page says so in words.
 - **It listens at the address its arguments name,** and says where,
-  once, from its hook (shell.md, 12): the line the harness finds by its
-  prefix (ui-web.md, 14.2), which can stop it and start it again there.
+  once, from its hook (runtime/shell.md, 11): the line the harness finds by its
+  prefix (ui/web/testing.md, 2), which can stop it and start it again there.
 
 ### 9.4 Its browser shell, its component and its drawing
 
 - **The reference shell,** `skein-ui-example-shell-web`, built for
   wasm32 only: its start makes skein's browser parts with its look and
-  starts its view, and its loop is the turn (ui-web.md, 3.1 and 5.2).
+  starts its view, and its loop is the turn (ui/web/README.md, 3.1 and 4.2).
   About 200 lines (a guide), commented to be copied: an application's
   browser shell starts as a copy of it.
-- **Its look** (ui-web.md, 3.2): the prefix `notes`, its tokens' and
+- **Its look** (ui/web/README.md, 3.2): the prefix `notes`, its tokens' and
   region names' names, its drawing code and its component table; and
   its stylesheet, loaded after `skein-ui.css`, styling its tokens and
-  placing its regions (ui-web.md, section 12). Its page is the
-  bundler's (ui-web.md, 4.3).
-- **An element of its own** (ui-web.md, 6.1): a region carrying
+  placing its regions (ui/web/README.md, section 10). Its page is the
+  bundler's (ui/web/bundle.md, 3).
+- **An element of its own** (ui/web/elements.md, 1): a region carrying
   `notes-card` is an `<article>`, which keeps the region's role and
   name.
-- **A component** (ui.md, section 12; ui-web.md, 6.1): the body's text
+- **A component** (ui/README.md, section 10; ui/web/elements.md, 1): the body's text
   area carries the token `notes-grow`, which the look's component table
   maps, for a text area, to a text area that grows with its words. It
   keeps its node's role and name, reports only the input acts a text
@@ -662,18 +662,18 @@ a service copies that.
   content's, through `wasm-bindgen`'s snippets, so the bundle and the
   policy carry an application's JavaScript. The text shell, the fake
   person and a screen reader see the text area.
-- **A drawing acted on** (ui.md, section 11): a bar chart of the notes
+- **A drawing acted on** (ui/scenes.md): a bar chart of the notes
   by label, of the example's one drawing kind, its data the counts and
   their words. Its drawing code draws a bar and a text per label, with
-  the token `notes-bar`, as SVG in a browser by default (ui-web.md,
-  section 8). Its fallback is a list saying each label's count in
+  the token `notes-bar`, as SVG in a browser by default (ui/web/README.md,
+  section 6). Its fallback is a list saying each label's count in
   words. Each bar's mark carries the act that shows its label's notes,
-  which the choice group beside the chart does too (ui.md, 11.3).
-- **Its module's size,** built with the `web` profile (ui-web.md, 4.1),
+  which the choice group beside the chart does too (ui/scenes.md, 3).
+- **Its module's size,** built with the `web` profile (ui/web/bundle.md, 1),
   is kept beside the shell as a guide; past it, what grew is reported
-  (ui-web.md, 4.2).
-- **What it gives skein's stories for a browser shell** (ui-web.md,
-  14.2): its title field, typed in while a second person adds a note,
+  (ui/web/bundle.md, 2).
+- **What it gives skein's stories for a browser shell** (ui/web/testing.md,
+  2): its title field, typed in while a second person adds a note,
   and that note, which the first person's list then shows; `/` and a
   note's address, and what each shows; and, in its test build alone
   (debug assertions on, as in the browser tier's module, never in one
@@ -687,22 +687,22 @@ a service copies that.
 ### 9.5 How it is tested
 
 - **Step tests** of the view: its pages printed through skein-ui-text
-  and kept as golden text (ui-text.md, section 8); the fake person's
+  and kept as golden text (ui/text.md, section 8); the fake person's
   tree face adding a note, a required title refused in words, a label
-  chosen, a note opened and left (ui.md, 17.1); golden scenes of the
-  chart (ui.md, section 11); its places printed and parsed back; its
+  chosen, a note opened and left (ui/README.md, 14.1); golden scenes of the
+  chart (ui/scenes.md); its places printed and parsed back; its
   limits and memory under a scenario ceiling.
 - **Step tests** of the server: each route, an add made once per key,
   the bundle's headers and the policy on every answer, the page at any
   other path, a digest not the bundle's not found, a limit refused.
 - **The wasm32 builds** of the view and the browser shell, with clippy's
-  lints as errors, in skein's gate (testing.md, section 6).
-- **The browser tier** (ui-web.md, 14.1 and 14.3), in `tests/ui-web`:
+  lints as errors, in skein's gate (testing/README.md, section 6).
+- **The browser tier** (ui/web/testing.md, 1 and 3), in `tests/ui-web`:
   the server's binary and Chromium through `skein-fake-person-browser`'s
   harness and face, failing on any trouble a story did not expect, a
   policy violation among it. It calls skein's stories for a browser
-  shell with the example's binary, bundle and codec (9.4; ui-web.md,
-  14.2), and adds its own: a person opens the example and sees its
+  shell with the example's binary, bundle and codec (9.4; ui/web/testing.md,
+  2), and adds its own: a person opens the example and sees its
   notes, with no trouble; a field of each entry kind it uses, and a
   label chosen from its select; Escape in its dialog pressing the keep
   button, and a focus request moving the focus to the title; a press on

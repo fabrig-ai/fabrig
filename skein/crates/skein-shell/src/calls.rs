@@ -1,4 +1,4 @@
-//! Shared operation errors, path checks and bounds (shell.md, 7.5).
+//! Shared operation errors, path checks and bounds (runtime/readiness.md, 5).
 
 use skein_io::kernel::{Error, Fd, Op};
 
@@ -250,7 +250,7 @@ pub(crate) fn file_error(kind: &Op, errno: i32) -> Error {
     named.unwrap_or(Error::Other(errno))
 }
 
-/// Path-only descriptors never enter an operation other than Stat or Close (kernel.md, 6.1).
+/// Path-only descriptors never enter an operation other than Stat or Close (runtime/kernel.md, 6.1).
 pub(crate) fn check_path_access(operation: &Op) {
     for descriptor in path_descriptors(operation).into_iter().flatten() {
         check_path_flags(status_flags(descriptor.raw()));

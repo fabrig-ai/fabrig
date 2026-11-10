@@ -783,7 +783,7 @@ impl Recording {
     }
 }
 
-// Each private writer owns its file lane (skein/docs/design/io.md, 5).
+// Each private writer owns its file lane (skein/docs/design/runtime/io/files.md).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SaveStage {
     Ready,
@@ -795,7 +795,7 @@ enum SaveStage {
 }
 
 /// A private replace, serialized with later saves and drained before LEAVE.
-/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/io.md, 5.3.
+/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/runtime/io/files.md, 3.
 struct FileSave {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,

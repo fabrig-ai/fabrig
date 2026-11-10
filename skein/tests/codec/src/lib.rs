@@ -1,4 +1,4 @@
-//! Generated sample family for codec.md, sections 4 and 6.
+//! Generated sample family for data/codec/README.md, sections 4 and 6.
 //! The types hold bounded fields. They know no peer or transport. Tests drive
 //! their constructors and, later, wire entry points.
 

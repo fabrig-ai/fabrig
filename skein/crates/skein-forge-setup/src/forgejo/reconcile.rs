@@ -1,4 +1,4 @@
-//! One forge reconciled from its answers, with one need outstanding (forge-setup.md, 4.3).
+//! One forge reconciled from its answers, with one need outstanding (forge/setup/forgejo.md, 1.3).
 mod hooks;
 mod orgs;
 mod tokens;

@@ -31,7 +31,7 @@
   so these strings keep their bytes rather than follow the citation
   convention.
 - **Departs:** 6: the `reason` strings of hearth's `clippy.toml` files cite
-  `io.md, 6` and "skein's programming-model.md, 10.2" without the
+  `skein/docs/design/runtime/io/processes.md`` and "skein's programming-model.md, 10.2" without the
   repository-root prefix, because each file is a copy of
   `tools/lints/clippy/*.toml`, which `tools/lints/lints.py` holds equal.
 - **Not yet:** 7.1: a full stat by name without following links, readlink

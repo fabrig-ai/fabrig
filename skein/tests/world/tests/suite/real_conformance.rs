@@ -213,7 +213,7 @@ fn real_conformance_fixture_and_hosted_equivalent_return_the_same_parent_records
     assert_eq!(hosted.script.received, b"hello");
     assert_eq!(
         real.records, hosted.records,
-        "kernel.md record return and io.md section 6: parent cannot distinguish hosting"
+        "kernel.md record return and runtime/io/processes.md: parent cannot distinguish hosting"
     );
 }
 

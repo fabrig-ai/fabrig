@@ -1,5 +1,5 @@
-//! One request per connection (skein/docs/design/forge-setup.md, 6.3),
-//! over the transport of skein/docs/design/link.md, 3.
+//! One request per connection (skein/docs/design/forge/setup/README.md, 4.3),
+//! over the transport of skein/docs/design/net/link.md, 3.
 use super::{
     Limits, limits,
     settings::{self, Forge, Transport},

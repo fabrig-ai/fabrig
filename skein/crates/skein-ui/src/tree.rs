@@ -1,6 +1,6 @@
 //! Accessibility roles and owned bytes, with no layout or application types.
 //! Nodes are preorder; a subtree occupies `size` consecutive nodes including
-//! its root (skein's ui.md, section 3). New builds have unassigned ids;
+//! its root (skein's ui/README.md, section 3). New builds have unassigned ids;
 //! the diff assigns ids when the tree becomes visible.
 
 use alloc::boxed::Box;
@@ -295,7 +295,7 @@ impl Role {
     }
 }
 
-/// A semantic state, never a visual style (ui.md, 3.2).
+/// A semantic state, never a visual style (ui/README.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     /// The node is disabled.
@@ -335,19 +335,19 @@ pub struct Style {
     pub token: u16,
 }
 
-/// A region's language-free name from its owner's closed set (ui.md, 8).
+/// A region's language-free name from its owner's closed set (ui/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Region {
     pub owner: Owner,
     pub number: u16,
 }
-/// One of an owner's pictures, supplied when a shell is built (ui.md, 3.5).
+/// One of an owner's pictures, supplied when a shell is built (ui/README.md, 3.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Picture {
     pub owner: Owner,
     pub number: u16,
 }
-/// A field's keyboard or control (ui.md, 3.4).
+/// A field's keyboard or control (ui/README.md, 3.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EntryKind {
     Text,
@@ -359,38 +359,38 @@ pub enum EntryKind {
     Time,
     Secret,
 }
-/// A column header's order (ui.md, 3.2).
+/// A column header's order (ui/README.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Sort {
     Ascending,
     Descending,
 }
-/// The rows and columns a cell spans, each at least one (ui.md, 3.2).
+/// The rows and columns a cell spans, each at least one (ui/README.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Spans {
     pub rows: u16,
     pub columns: u16,
 }
-/// Done of total, in its owner's numbers (ui.md, 3.2).
+/// Done of total, in its owner's numbers (ui/README.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Fraction {
     pub done: u64,
     pub total: u64,
 }
-/// An image's owner picture or checked address (ui.md, 3.5).
+/// An image's owner picture or checked address (ui/README.md, 3.5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Source {
     Picture(Picture),
     Address(Box<[u8]>),
 }
-/// A key a bound node answers to as a press (ui.md, 6.1).
+/// A key a bound node answers to as a press (ui/README.md, 6.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Shortcut {
     pub key: u8,
     pub modifier: Modifier,
 }
 impl Shortcut {
-    /// Escape is named only inside a dialog or a form (ui.md, 6.1 and 14).
+    /// Escape is named only inside a dialog or a form (ui/README.md, 6.1 and 12).
     pub const ESCAPE: Shortcut = Shortcut { key: 0x1b, modifier: Modifier::Plain };
 }
 /// The modifier pressed with a shortcut's key.
@@ -474,13 +474,13 @@ pub struct Node {
     pub source: Option<Source>,
     pub description: Option<Box<[u8]>>,
     pub placeholder: Option<Box<[u8]>>,
-    /// Words a shell with a pointer shows on hover, never needed to decide (ui.md, 3.2).
+    /// Words a shell with a pointer shows on hover, never needed to decide (ui/README.md, 3.2).
     pub hint: Option<Box<[u8]>>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
     pub count: Option<u32>,
-    /// A list's order: its items are numbered, and this is the first one's number (ui.md, 3.2).
+    /// A list's order: its items are numbered, and this is the first one's number (ui/README.md, 3.2).
     pub ordered: Option<u32>,
     pub position: Option<u32>,
     pub spans: Option<Spans>,
@@ -567,7 +567,7 @@ impl Node {
     }
 
     /// The bytes the builder charges this node against `Limits::text_per_node`
-    /// (ui.md, section 15).
+    /// (ui/README.md, section 13).
     #[must_use]
     pub fn text_bytes(&self) -> u32 {
         let mut bytes = 0_u32;

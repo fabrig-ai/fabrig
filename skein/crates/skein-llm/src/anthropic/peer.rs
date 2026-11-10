@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};
 use skein_lib::{List, bytes, usize_of};
 
-/// The byte peer's native request and ordered cache positions (llm.md, section 4.7).
+/// The byte peer's native request and ordered cache positions (llm/README.md, section 4.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Request {
     pub prompt: Prompt,

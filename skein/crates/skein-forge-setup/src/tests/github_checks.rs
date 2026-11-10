@@ -6,7 +6,7 @@ use skein_forge::github::{
 };
 use skein_lib::List;
 
-// forge-setup.md, 5.6: nine permissions followed by fourteen events.
+// forge/setup/github.md, 1.6: nine permissions followed by fourteen events.
 const WANTED: u32 = 23;
 
 fn permission(name: &[u8], access: Access) -> Lacking {

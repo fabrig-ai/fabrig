@@ -41,7 +41,7 @@ impl Peer {
     }
 }
 
-/// Kernel trace and IO events for exact replay (io.md, 3.3; lib.md, 7.1).
+/// Kernel trace and IO events for exact replay (runtime/io/sockets.md, 3; runtime/lib.md, 7.1).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Outcome {
     /// Simulated kernel operations in execution order.
@@ -260,7 +260,7 @@ impl Driver {
     }
 }
 
-// The harness supplies reap, submit and settlement checks (world.md, 3).
+// The harness supplies reap, submit and settlement checks (testing/world.md, 3).
 impl Host for Driver {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
@@ -308,7 +308,7 @@ impl Referee<Driver> for Settled {
     }
 }
 
-/// Both payloads complete behind independent output rights (io.md, 3.3; lib.md, 7.1).
+/// Both payloads complete behind independent output rights (runtime/io/sockets.md, 3; runtime/lib.md, 7.1).
 /// Returns with both peers and the listener closed, one terminal per peer, and empty queues, operations and descriptors.
 /// Payload or lifetime violations, or exceeding `20_000` driver iterations, panic.
 #[must_use]

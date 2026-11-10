@@ -1,4 +1,4 @@
-//! A hidden tab releases its stream after its delay (ui-web.md, 10).
+//! A hidden tab releases its stream after its delay (ui/web/README.md, 8).
 use crate::transport::StreamDuty;
 use skein_lib::{Duration, Time};
 #[cfg(target_arch = "wasm32")]

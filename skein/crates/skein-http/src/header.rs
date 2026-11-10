@@ -22,7 +22,7 @@ pub struct Header {
     pub value: Box<[u8]>,
 }
 
-// skein/docs/design/http.md, 2: a header prints its name and its value's length.
+// skein/docs/design/net/http/README.md, 2: a header prints its name and its value's length.
 impl core::fmt::Debug for Header {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Header").field("name", &self.name).field("value_len", &self.value.len()).finish()

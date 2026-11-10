@@ -2,7 +2,7 @@
 //! It never knows service state or heap. `bind_service` and `finish_service`
 //! join a hosted child to its parent; `reap_exited_service` hands its records
 //! back before a metered drop, and `close_exited_service` closes its descriptors
-//! (kernel.md, section 4; simulator.md, sections 3 and 5).
+//! (runtime/kernel.md, section 4; testing/simulator.md, sections 3 and 5).
 #![expect(
     clippy::indexing_slicing,
     clippy::wildcard_enum_match_arm,
@@ -87,7 +87,7 @@ pub(super) struct InheritedPipe {
 }
 
 impl Sim {
-    /// Sets a modeled process's own usage; zero until the world sets it (simulator.md, section 3.2).
+    /// Sets a modeled process's own usage; zero until the world sets it (testing/simulator.md, section 3.2).
     pub fn set_usage(&mut self, pid: Pid, resources: Resources) {
         self.process_mut(pid).usage.own = resources;
     }
@@ -113,7 +113,7 @@ impl Sim {
     }
 
     /// The exact launch record and its owner while the machine selects a hosted
-    /// program (simulator.md, section 3). Borrowed bytes remain parent-owned.
+    /// program (testing/simulator.md, section 3). Borrowed bytes remain parent-owned.
     #[must_use]
     pub fn hosted_spawn(&self, ticket: Ticket) -> (Pid, Token, &skein_io::kernel::Spawn) {
         let (pid, token) = *self.spawn_asked.get(&ticket).expect("a spawn call waiting");
@@ -127,7 +127,7 @@ impl Sim {
     /// Starts the service selected by a successful spawn. The returned
     /// descriptors are the child's inherited pipes, given listeners and nulls, keyed by the
     /// descriptor numbers requested in `Spawn`. The world hosts this process
-    /// and drives it through `submit` and `reap` (simulator.md, section 3).
+    /// and drives it through `submit` and `reap` (testing/simulator.md, section 3).
     pub fn bind_service(&mut self, parent: Pid, pidfd: Fd) -> (Pid, Vec<(u32, Fd)>) {
         let child_id = *self.process(parent).pidfds.get(&pidfd).expect("a spawned child's pidfd");
         let child = &self.process(parent).children[&child_id];
@@ -202,7 +202,7 @@ impl Sim {
     }
 
     /// Hands a terminated hosted child's outstanding records back before
-    /// its world drops the process (kernel.md, section 4; simulator.md,
+    /// its world drops the process (runtime/kernel.md, section 4; testing/simulator.md,
     /// section 5). Undecided operations are interrupted; already decided
     /// completions keep their results and are delivered immediately.
     pub fn reap_exited_service(&mut self, pid: Pid, completions: &mut skein_lib::Queue<skein_io::kernel::Complete>) {

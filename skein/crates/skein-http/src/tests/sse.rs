@@ -416,7 +416,7 @@ fn face_request(read: Read) -> Request {
 }
 
 /// Each byte delivery is held until its owner asks; a tail shorter than a
-/// fill is discarded by stream End, as in lib.md, 7.
+/// fill is discarded by stream End, as in runtime/lib.md, 7.
 fn native_read(bytes: &[u8], read: Read) -> (Vec<u8>, Vec<crate::sse::Event>) {
     let mut face = Face::new();
     let mut intake = Intake::with_capacity(u32::try_from(bytes.len()).unwrap().max(LIMITS.chunk));

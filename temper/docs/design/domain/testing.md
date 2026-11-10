@@ -32,7 +32,7 @@ layout (section 7), and what is still open (section 10).
   programs they run: git, rg, sh, temper's own) stays one set of state
   machines, with a face for each layer of temper it can sit under.
 - **The fake forge speaks Forgejo's dialect and, through its GitHub
-  layer, GitHub's** (skein's `fake-forge.md`, section 10), one world per
+  layer, GitHub's** (skein's `testing/fakes/github.md`, section 1), one world per
   forge kind, API and git in one store, so a branch the worker pushes is
   the head the engine reads. Its protocol layer serves the dialect's
   API; its git is reached by the fake git program, through the forge's
@@ -59,10 +59,10 @@ layout (section 7), and what is still open (section 10).
 
 | Tier (testing-strategy.md, section 2) | In temper |
 |---|---|
-| step tests | every domain crate and every fake; every codec (golden bytes, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge.md`, section 11), and GitHub's, skein's (skein's `forge-github.md`); the forges' records and a git identity's value, golden bytes and fuzz targets (../protocol/forge.md, 2.1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge.md, section 10; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup.md, 13.1); lib's are skein's |
+| step tests | every domain crate and every fake; every codec (golden bytes, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, golden bytes and fuzz targets (../protocol/forge.md, 2.1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge.md, section 10; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup.md, 13.1); lib's are skein's |
 | domain worlds | each child domain with the world as its parent, and each component's root domain with its child domains; most of temper's tests |
 | system worlds | the engine, the worker and smith's agents together; temper's client joined to the engine's root (2.1) |
-| machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge-connection.md`, section 10) |
+| machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge/connection.md`, section 10) |
 | protocol worlds | the forge's: the forge component against the fake forge's protocol layer, deliveries included; reconcile's is skein's (2.2) |
 | io worlds | skein's: temper does not retest io |
 | simulated worlds | the one-process world: `temper-service` on skein's simulator (2.3, 2.5) |
@@ -87,9 +87,9 @@ alone shows; temper's stories stay in the worlds and the real loop
 (../client/browser.md, section 4).
 
 No tier calls github.com or uses a real credential. GitHub's tests run
-on the fake's GitHub layer (skein's `fake-forge.md`, section 10). Live
+on the fake's GitHub layer (skein's `testing/fakes/github.md`, section 1). Live
 calls to GitHub are only skein's opt-in conformance (skein's
-`fake-forge.md`, section 11), run by hand on credentials from the person's private
+`testing/fakes/github.md`, section 2), run by hand on credentials from the person's private
 directory, never in a suite or at the gate. The user's own token is never used.
 
 The fake-backend welcome's configuration and issuer contracts are tested
@@ -198,7 +198,7 @@ in temper.
   before the forge's first `Connected`, and each renewed before it
   expires on the fake's clock, at GitHub's hour (../protocol/credentials.md,
   section 4).
-- **Reconcile's,** in skein (skein's `forge-setup.md`, section 7):
+- **Reconcile's,** in skein (skein's `forge/setup/README.md`, section 5):
   reconcile's machine against the fake forge's protocol layer serving the
   setup's routes, through bytes: a forge converged from empty and again,
   each thing deleted made again, the refusals, no secret in a message or a
@@ -442,7 +442,7 @@ in the lower world that owns it, never here.
   - **a sign-in refused, and one past its deadline,** each settled with
     no account usable: `tests/client`, its answer scripted
     (../client/tools.md, 11.2); the issuer's side in skein's OAuth
-    worlds (skein's `oauth.md`, sections 3 and 6.8) and jig's protocol
+    worlds (skein's `oauth/README.md`, section 3, and `oauth/accounts.md`, section 8) and jig's protocol
     world (jig's `protocol/llm.md`, section 8);
   - **a turn limited (exhausted with a reset and without), refused or
     unauthorized,** and the account's state following (jig's
@@ -485,7 +485,7 @@ in the lower world that owns it, never here.
   whose task has ended.
   Teardown's own check stays beside it: no child is killed but those a
   story asks for.
-- **The forge and git:** skein's forge peer (skein's `fake-forge.md`,
+- **The forge and git:** skein's forge peer (skein's `testing/fakes/forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake
   git program reaches (4.3). Stories that clone, push or land run on the
@@ -493,7 +493,7 @@ in the lower world that owns it, never here.
   its runner. Real git against the fake forge is an open question
   (section 10).
 - **CI and webhooks.** CI follows the fake forge's content cue (skein's
-  `fake-forge.md`, section 2); CI that runs a workflow's steps in the
+  `testing/fakes/forge.md`, section 2); CI that runs a workflow's steps in the
   shell subset is an open question (section 10). The forge peer
   delivers a hooked repository's webhooks to the engine's webhooks'
   listener (../protocol/forge.md, section 5), and polling stays the
@@ -515,7 +515,7 @@ in the lower world that owns it, never here.
     engine's paces short: the shell prints at once after a command, and
     a story waits on what the pages say, never on the interval. The
     shipped interval's pacing is skein's text shell's to test (skein's
-    `ui-text.md`, section 8).
+    `ui/text.md`, section 8).
   - **Signed in by the printed link,** as `temper open DIRECTORY LINK`
     is (../client/README.md, 6.1), on a DIRECTORY of its own in the
     scratch directory, never one of `temper ctl`'s
@@ -553,7 +553,7 @@ in the lower world that owns it, never here.
   - **A run's live text is one of its stories.** A person's message
     starts a chat turn, and the fake LLM plays a reply in two pieces,
     the second under a named hold, which waits before it (skein's
-    `fake-llm.md`, section 2.2): the first piece is sent and the reply
+    `testing/fakes/llm.md`, section 2.2): the first piece is sent and the reply
     held. The typist reads a printed page that shows that piece before
     its "▍", before the turn commits; only then does the story
     release the hold, through the fake LLM's owner in the loop, as the
@@ -567,8 +567,8 @@ in the lower world that owns it, never here.
     counts pieces.
 - **GitHub's stories,** the real loop's. One smoke story per feature,
   each on the fake's GitHub layer, which the forge peer hosts on
-  loopback beside its Forgejo face (skein's `fake-forge.md`, section
-  10), over the same forge as the fake git program. No story calls
+  loopback beside its Forgejo face (skein's `testing/fakes/github.md`, section
+  1), over the same forge as the fake git program. No story calls
   github.com or holds a real credential.
   - **The configuration** points `application.machine.github`'s `api`,
     `transport`, `remote` and `web` at the peer
@@ -585,7 +585,7 @@ in the lower world that owns it, never here.
     configuration.
   - **No browser in the real loop.** The story stands in for it with
     plain HTTP requests, following each `302` and the one link, to the
-    service's clients' listener (skein's `fake-forge.md`, 10.1). It
+    service's clients' listener (skein's `testing/fakes/github.md`, 1.1). It
     reads the manifest page's form on the clients' listener and posts
     its `manifest` field to `<web>/settings/apps/new?state=<s>`, which
     answers `200` with a small page holding one link, `Create GitHub
@@ -598,7 +598,7 @@ in the lower world that owns it, never here.
     with `installation_id`, `setup_action=install` and the state.
   - **The harness,** the eight stories' own, in
     `tests/real-loop/src/github.rs`: skein's forge peer with its GitHub
-    layer (skein's `fake-forge.md`, section 10) on the world's one fake
+    layer (skein's `testing/fakes/github.md`, section 1) on the world's one fake
     forge, the GitHub forge's configuration (its identity by the forge,
     `login` and `author` null, the bot's), and the layer's record of its
     git calls read for the story, which holds no token. A story that
@@ -639,7 +639,7 @@ in the lower world that owns it, never here.
     6. git on GitHub's tokens (`tests/real-loop/tests/suite/github.rs`): a
        chat's clone and push on a GitHub repository, each authenticated
        by its installation's token (`x-access-token`), which the layer's
-       git route checks (skein's `fake-forge.md`, section 10). Two
+       git route checks (skein's `testing/fakes/github.md`, section 1). Two
        accounts on the layer, one repository each, and the App made
        through the manifest (story 2), installed on all of `acme`'s
        repositories and on none of `umbra`'s. The
@@ -738,7 +738,7 @@ terminal client, the captures and the faults.
     is prepared, committed and pushed on the fake forge through the fake
     git program;
   - a merge in progress is resolved and pushed with both parents;
-  - on GitHub's layer (skein's `fake-forge.md`, section 10), its App
+  - on GitHub's layer (skein's `testing/fakes/github.md`, section 1), its App
     seeded as the real loop's are (2.4): a goal's change cloned by its
     installation's token, the token renewed `renew_before` ahead of
     GitHub's hour on the simulator's clock while the run holds its
@@ -802,8 +802,8 @@ terminal client, the captures and the faults.
 - **Faults:** kills and power loss at drawn submissions; the fake
   forge's and the fake LLM's faults, drawn from the seed; the forge's
   refusals and failures as the fake git program prints them. Joined
-  sockets are io's own, out of the simulator's faults (skein's `io.md`,
-  3.5), so the link's cuts and stalls are jig's channel world's, not
+  sockets are io's own, out of the simulator's faults (skein's `runtime/io/sockets.md`,
+  5), so the link's cuts and stalls are jig's channel world's, not
   this world's.
 - **Its referee:**
   - jig's conformance referee, through bytes, as jig's one-process world
@@ -962,7 +962,7 @@ terminal client, the captures and the faults.
   4. a goal is given whose change, its CI passed, lands on the owned
      Forgejo, pushed by real git;
   5. the binary crashes: its whole tree is killed at once, as a
-     supervisor ends a crashed service's (skein's `shell.md`, 13), and
+     supervisor ends a crashed service's (skein's `runtime/shell.md`, 12), and
      once nothing of it runs, it is started again on the same directory;
   6. the person finds the work, and the change's branch on the forge is
      at the run's commit.
@@ -985,7 +985,7 @@ terminal client, the captures and the faults.
   proves what a crash of every process keeps on disk, the page cache
   surviving it, not what a power loss does, which the one-process world
   draws (2.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
-  (skein's `shell.md`, 13): the test sends `Terminate`, the engine
+  (skein's `runtime/shell.md`, 12): the test sends `Terminate`, the engine
   drains (`root.md`, 9.2), the service closes what it started, and the
   binary exits 0 with none of its tree running. A process left at that
   exit is temper's failure, its shutdown's; one left by the crash's kill
@@ -1042,7 +1042,7 @@ terminal client, the captures and the faults.
   and about 0.5 s is temper's part; being past its aim, it waits on the
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
-- **The throwaway Forgejo** is the one in skein's `fake-forge.md`,
+- **The throwaway Forgejo** is the one in skein's `testing/fakes/forge.md`,
   section 6, never an existing Forgejo: temper's `tools/git-transcripts`
   records real git against it (../protocol/git.md, section 9). temper's
   users give it the binaries `TEMPER_FORGEJO` and
@@ -1327,8 +1327,8 @@ section 8; testing-strategy.md, 2.9).
 - **GitHub, by its own test:** the stories above have the owned
   Forgejo alone and never call github.com. github.com is reached only
   by the GitHub story below and by skein's opt-in conformance (skein's
-  `fake-forge.md`, section 11), each run by hand by the developer who
-  holds the probe App's fixtures (section 2), never by an implementer.
+  `testing/fakes/github.md`, section 2), each run by hand by the developer who
+  holds the probe App's fixtures (`testing.md`, section 2), never by an implementer.
 - **The stories:** the process tier's chat, answered by the real model;
   and one small change, made by the model in a repository of the owned
   Forgejo, adopted as in 2.6, and pushed by real git. The story ends
@@ -1696,14 +1696,14 @@ tests nothing (`../release.md`, 5.1).
   - the steps of the story's CI use what both systems' tools have, within
     the cleared `PATH`s of the box and of the owned runner;
   - `left`, Linux's whole-tree proof, proves nothing under the tree
-    keeper's Group (`skein/docs/design/shell.md`, section 9): it reads
+    keeper's Group (`skein/docs/design/runtime/shell.md`, section 8): it reads
     empty there, so the story holds the box's clean exit alone.
 - **No containers:** its jobs run on the runner's host under the
   `temper-host` label, as on Linux.
 - **The Darwin check.** On our Linux machines clippy reaches, for
   `aarch64-apple-darwin`, the members that do not reach rustls, whose
-  `ring` crate compiles C against Apple's headers (skein's `shell.md`,
-  section 9); the rest are the workflow's.
+  `ring` crate compiles C against Apple's headers (skein's `runtime/shell.md`,
+  section 8); the rest are the workflow's.
 - **Linux's own tests, by name.** A test that only Linux can run is built
   for Linux alone, `cfg(target_os = "linux")` on its test, module or
   binary, with its reason beside it, and listed here. A test that
@@ -1737,7 +1737,7 @@ which reaches the engine over jig's client protocol, and their fake is
 skein's fake person in front of it (4.4). A peer can be a client as well as
 a server: the fake forge's protocol layer sends signed deliveries to the
 engine's webhooks' listener (../protocol/forge.md, section 5; skein's
-`fake-forge.md`, section 4); and reconcile meets it as the engine does,
+`testing/fakes/forge.md`, section 4); and reconcile meets it as the engine does,
 through the setup's routes (../protocol/setup.md, 13.2).
 
 ### 3.2 The machine
@@ -1762,18 +1762,18 @@ section 4).
 
 temper has no fake provider of its own: the engine makes no LLM call, and
 the worker's agents are smith's (../protocol/llm.md, section 2). The fake is
-skein's (skein's `fake-llm.md`):
+skein's (skein's `testing/fakes/llm.md`):
 
-- **Its domain,** `skein-fake-llm-domain` (skein's `fake-llm.md`,
+- **Its domain,** `skein-fake-llm-domain` (skein's `testing/fakes/llm.md`,
   section 2), whose scripts cue on content (5.1); a scripted reply can
   come in pieces, held after a piece, so a world observes the reply
-  partway (skein's `fake-llm.md`, 2.2).
-- **Its peer,** in `skein-fake-peers` (skein's `fake-llm.md`, section 3),
+  partway (skein's `testing/fakes/llm.md`, 2.2).
+- **Its peer,** in `skein-fake-peers` (skein's `testing/fakes/llm.md`, section 3),
   which the one-process and real-loop worlds host and the process tier
   runs as a process. Its faults move down with it, to the stream: a stream
   cut mid-event or between events, a malformed event, a slow trickle, a
   stall with pings only. One peer accepts several accounts' credentials; a
-  scripted turn answers with a provider's failure (skein's `fake-llm.md`,
+  scripted turn answers with a provider's failure (skein's `testing/fakes/llm.md`,
   2.3), so that a story drives an account's state; and its observations
   say which credential a call used, never a value.
 - **As a process,** `temper fake llm --document FILE`
@@ -1802,13 +1802,13 @@ skein's (skein's `fake-llm.md`):
   peer records nothing.
 - **A script's rules and holds, as a process** (../protocol/setup.md,
   8.4): the LLM document gives a script its turn rules, its `inputs`
-  (skein's `fake-llm.md`, 2.4), so that it plays the turn its fresh
+  (skein's `testing/fakes/llm.md`, 2.4), so that it plays the turn its fresh
   input selects rather than the one its count reaches; and a turn its
-  pieces, held by name (skein's `fake-llm.md`, 2.2), which the
+  pieces, held by name (skein's `testing/fakes/llm.md`, 2.2), which the
   process's `control` releases, a loopback listener of the test's
   alone. A hold without a `control` is refused at the start.
 - **Its issuer,** skein's fake issuer (`skein-fake-oauth`; skein's
-  `oauth.md`, section 5), for sign-ins with an LLM provider; the test
+  `oauth/README.md`, section 5), for sign-ins with an LLM provider; the test
   drives the redirect to the engine's loopback listener as a browser
   would (2.4).
 - **Claude Code** is smith's fake `claude` (smith's
@@ -1818,7 +1818,7 @@ skein's (skein's `fake-llm.md`):
   runs it signed in, under smith's agent hosts, and the process tier
   under `temper internal agent` and `temper program-login` (2.6).
 - **What temper's stories need of them** is skein's and smith's to
-  design (skein's `fake-llm.md`, and skein's `oauth.md`, section 5;
+  design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
   against the fake LLM's script.
 - **A live run's twin,** `tools/twin` (crate `temper-twin`), a
@@ -1842,7 +1842,7 @@ skein's (skein's `fake-llm.md`):
     its other members are preserved. A script's cue names its opening
     sequence: asked turns advance on tool results, a pending `wait`'s
     waking result included, while a new user message holding text
-    selects anew and restarts the count (skein's `fake-llm.md`, 2.4).
+    selects anew and restarts the count (skein's `testing/fakes/llm.md`, 2.4).
   - **Its output:** one document in `temper fake llm`'s form
     (../protocol/setup.md, 8.4), a script per task, each assistant
     completion of its run one turn, its text and its calls in order,
@@ -1868,7 +1868,7 @@ skein's (skein's `fake-llm.md`):
     quotes another's (a goal's, the person's request), its own cue must
     come earlier in its system text than the quoted one. Whether each
     selects its script on replay, as the fake's earliest-cue rule
-    chooses (skein's `fake-llm.md`, 2.4), the twin's run proves, not
+    chooses (skein's `testing/fakes/llm.md`, 2.4), the twin's run proves, not
     the tool.
   - **What does not replay** is the caller's to name: values a fresh
     deployment does not give again, such as a commit's id in a call's
@@ -1884,12 +1884,12 @@ skein's (skein's `fake-llm.md`):
 
 ### 4.2 The forge
 
-The fake forge is skein's (skein's `fake-forge.md`): its domain, with its
-refusals, timing, faults and CI (skein's `fake-forge.md`, section 2); its git, in the store the
+The fake forge is skein's (skein's `testing/fakes/forge.md`): its domain, with its
+refusals, timing, faults and CI (skein's `testing/fakes/forge.md`, section 2); its git, in the store the
 API reads, so a branch the worker pushes is the head the engine reads
-(skein's `fake-forge.md`, section 3); its protocol layer, which serves Forgejo's API, signed
-deliveries and the setup's routes (skein's `fake-forge.md`, section 4); and its forge peer on
-loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
+(skein's `testing/fakes/forge.md`, section 3); its protocol layer, which serves Forgejo's API, signed
+deliveries and the setup's routes (skein's `testing/fakes/forge.md`, section 4); and its forge peer on
+loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 
 - **What the engine's worlds need of it** (`root.md`, section 12;
   `forge.md`, section 18): CI that passes, fails or never
@@ -1898,7 +1898,7 @@ loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
   The domain's faults give them, drawn from the world's seed.
 - **Its fixtures.** The scenario gives the protocol layer each
   repository's id and its table of API tokens and the users they stand
-  for (skein's `fake-forge.md`, section 4), and the repositories their
+  for (skein's `testing/fakes/forge.md`, section 4), and the repositories their
   files and checks (5.1).
 - **Its costs.** The protocol layer counts the requests it serves, by
   route, which the engine's cost checks hold to ceilings
@@ -1907,7 +1907,7 @@ loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
   writes each on a connection to it, as Forgejo sends one
   (../protocol/forge.md, section 5), and the forge peer does so in the real
   loop (2.4). The world hands the peer that listener's address once it
-  listens (skein's `fake-forge.md`, section 5). A hook due before then has
+  listens (skein's `testing/fakes/forge.md`, section 5). A hook due before then has
   no address, and is dropped and observed, as the hooks of a story's setup
   are, since the setup runs before any host. The adopted repository's
   story is the hooked one. Its setup's push is lost. The agent's push, which
@@ -1922,24 +1922,24 @@ loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
   connect (2.4). temper's own routes on the clients' listener are
   tested in `temper-service`'s tests, against no fake (2.1).
 - **Its referee** drains the forge's observations (skein's
-  `fake-forge.md`, 2.4; here, 5.2).
+  `testing/fakes/forge.md`, 2.4; here, 5.2).
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (4.3), as by the fake checkout in the
-  domain worlds; and over its git route (skein's `fake-forge.md`,
+  domain worlds; and over its git route (skein's `testing/fakes/forge.md`,
   section 4) by the fake git program in the real loop (2.4), as in the
   playground's processes (../protocol/setup.md, 8.4). Real git meets an owned
   Forgejo in the process and live tiers, and skein's throwaway Forgejo
   in temper's transcripts (2.6); a real-git bridge is an open question
   (section 10).
 - **CI follows content,** by the fake forge's cue (skein's
-  `fake-forge.md`, 2.3; here, 2.4). CI that runs a repository's checks
+  `testing/fakes/forge.md`, 2.3; here, 2.4). CI that runs a repository's checks
   in the shell subset (4.3) on the pushed tree, so that a change that is
   wrong fails on the forge as it fails in the run, is an open question
   (section 10).
 - **GitHub's API** is served by the fake's GitHub layer, over the same
   domain, with the browser's pages as plain HTTP at its `web` origin
-  (skein's `fake-forge.md`, section 10); its stories are 2.4's.
+  (skein's `testing/fakes/github.md`, section 1); its stories are 2.4's.
 - **GitHub's, as a process:** `temper fake forge --document FILE`
   serves the GitHub layer when the document has a `github` member: the
   App (`id`, `slug`, the bot's user id, and `key`, the index of one of
@@ -1950,7 +1950,7 @@ loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
   The repositories are the document's own, as for Forgejo, each with its
   owner an account. Its `--observations` file holds, beside the forge's
   observations, the layer's record of its git calls (skein's
-  `fake-forge.md`, 10.1): the installation and
+  `testing/fakes/github.md`, 1.1): the installation and
   mint of the token that authenticated it, whether it wrote, and its
   status, never a token. Each new call is written as it appears; at the
   layer's `limits.git_records` bound, the stream ends with a git-call
@@ -2001,7 +2001,7 @@ reaches the owned Forgejo over HTTP. Working trees and their git
 directories are the machine's, as skein's fake checkout keeps them, the
 repositories are the fake forge's, and the transport carries git's calls
 between them; the transport and the remote boundary are skein's
-(skein's `fake-forge.md`, section 3, and skein's `fake-checkout.md`,
+(skein's `testing/fakes/forge.md`, section 3, and skein's `testing/fakes/checkout.md`,
 section 4).
 
 **The fake git program** is git as the machine runs it below the git
@@ -2013,11 +2013,11 @@ application's; hosted on the real file system by the real loop; and as a
 process of its own, `temper fake git`, the playground's git. It stays
 temper's, as it fakes temper's git component's program, and is built on
 skein's fake forge, whose domain is its only remote state. It reaches
-that forge in one of two ways (skein's `fake-forge.md`, section 3):
+that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
 through the typed transport of the fake forge's domain, sharing the
-forge with the forge peer (skein's `fake-forge.md`, section 5) where a
+forge with the forge peer (skein's `testing/fakes/forge.md`, section 5) where a
 world hosts both in one ring (2.5); or over the forge's git route on the
-forge's listener (skein's `fake-forge.md`, section 4), from the real
+forge's listener (skein's `testing/fakes/forge.md`, section 4), from the real
 loop (2.4) and from another process.
 
 - **What it takes:** the invocations of ../protocol/git.md, section 4, with
@@ -2030,7 +2030,7 @@ loop (2.4) and from another process.
   keeping its git state in each repository's `.git` as skein's fake
   checkout keeps it, and reaches the fake forge through its typed
   transport. Its commits are the fake forge's counts, written as 40-digit
-  ids (skein's `fake-forge.md`, section 4).
+  ids (skein's `testing/fakes/forge.md`, section 4).
 - **What it prints:** what real git prints for those invocations: the
   porcelain lines, the NUL-separated paths and the ids ../protocol/git.md
   reads, and git's exit statuses; and, for the fake forge's refusals and
@@ -2056,7 +2056,7 @@ loop (2.4) and from another process.
 its own:
 
 - **Its calls:** skein's fake checkout asks its remote synchronously
-  (skein's `fake-checkout.md`, section 4), and the route is across a
+  (skein's `testing/fakes/checkout.md`, section 4), and the route is across a
   network, so the program replays. It answers the kit from what it has:
   the objects it fetched, kept in a cache, and a log of the other
   calls' answers, in order. A call it lacks gets a placeholder answer
@@ -2076,7 +2076,7 @@ its own:
   the URL its clone wrote in `.git/temper-remote`, which holds no
   secret. The credential is the `Authorization` git's `http.extraHeader`
   carries (../protocol/git.md, section 5), forwarded as it is; the
-  store's calls carry none (skein's `fake-forge.md`, section 4).
+  store's calls carry none (skein's `testing/fakes/forge.md`, section 4).
 - **Its exits:** what real git exits, for what real git does or
   refuses; 128 and a `fatal:` line, as git's on a network failure, when
   the route is out of reach or fails; 125 and `temper fake git: broken:
@@ -2100,7 +2100,7 @@ its own:
   binary ships it: the checks, the answers, the step core, the replay
   and both transports; over `skein-fake-checkout`, the fake forge's
   domain, protocol layer and peer, and `skein-http`, each in skein's
-  `crates/` (skein's `testing.md`, section 6). Its hosted half,
+  `crates/` (skein's `testing/README.md`, section 6). Its hosted half,
   `crates/temper-fake-git-hosted`: the program as skein's simulated
   world hosts it, from the world's `Inherited`, which the playground
   ships; the fixtures and scenarios the worlds share stay with the
@@ -2138,7 +2138,7 @@ drawn from the seed.
 
 - **On the fake forge** it acts as a forge user.
 - **Through temper's client** it is skein's: skein's fake person
-  (skein's `ui.md`, 17.1), reading the tree temper's view makes and
+  (skein's `ui/README.md`, 14.1), reading the tree temper's view makes and
   acting on it, with jig's client test kit's faults and check (jig's
   `client/domain/testing.md`), in `tests/client`; and the same person in
   front of temper's terminal client (../client/README.md, section 2), in the
@@ -2218,7 +2218,7 @@ the hour. What temper adds:
   there.
 
 The referee is built on skein's world harness (`skein-world`; skein's
-`testing.md`, section 5), as ordinary Rust: each world writes its
+`testing/README.md`, section 5), as ordinary Rust: each world writes its
 scenario's expectations, with the stimuli it may inject, and the
 harness judges them.
 
@@ -2390,7 +2390,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   worlds in lockstep under the same stimuli. After each iteration it
   compares their complete traces exactly, and hashes the frozen root,
   children, store and pending scripts through their `Hash` implementations
-  (skein's `lib.md`, 5.1). The world's test store hashes the four fields
+  (skein's `runtime/lib.md`, 5.1). The world's test store hashes the four fields
   its `Debug` prints: `applied`, `rows`, `pending` and `held`.
   The comparison uses a test-only 64-bit word hasher: its
   digests are compared within one process and never kept, with no
@@ -2901,17 +2901,17 @@ scripts/proof-live.sh               the live tier
 - **The machine-level fakes are skein's:** the fake machine
   (`skein-fake-machine`), the fake checkout, the fake LLM and its peer,
   the fake issuer. temper's fakes sit on them.
-- **The fake forge is skein's** (skein's `fake-forge.md`): its domain
+- **The fake forge is skein's** (skein's `testing/fakes/forge.md`): its domain
   (`crates/skein-fake-forge-domain`), its protocol layer
   (`crates/skein-fake-forge-forgejo`), its forge peer (in
   `crates/skein-fake-peers`), the throwaway Forgejo
   (`testing/skein-throwaway-forgejo`), its tests in ordinary Rust, and
   the conformance (`testing/skein-forge-conformance`). Reconcile's world is
-  in skein's `forge-setup.md`, section 7. temper's fake git program,
+  in skein's `forge/setup/README.md`, section 5. temper's fake git program,
   its core in `crates/temper-fake-git` and its hosted half in
   `crates/temper-fake-git-hosted`, sits on the fake forge (4.3).
 - **Machine worlds live beside what they test:** the forge component's is
-  in skein's `forge-connection.md`, section 10; the git component's is in
+  in skein's `forge/connection.md`, section 10; the git component's is in
   `tests/worker/protocol-git` (../protocol/git.md, section 9); the terminal's
   in `temper-client-shell-terminal`'s own tests (../client/README.md, section
   10). temper's protocol world for the forge, over skein's crates, is
@@ -2931,7 +2931,7 @@ scripts/proof-live.sh               the live tier
   API's reads and merges. The design must keep object identities, refs,
   protection and merge results consistent, and reuse the fake's policies
   and scenario expectations. It is designed against skein's fake forge,
-  in skein's `fake-forge.md`, section 3. What needs it: a real agent on
+  in skein's `testing/fakes/forge.md`, section 3. What needs it: a real agent on
   the fake forge, which runs git in its working tree as a person does;
   nothing else does, since the fake git program reaches the fake forge
   across processes too (4.3), and real git's own behaviour is the
@@ -3041,7 +3041,7 @@ scripts/proof-live.sh               the live tier
   Further work needs:
   - A different admitted allocation contract for eager decoder lists,
     or coalesced scalar writing that preserves field order, whole-put
-    refusal and overflow progress (skein's `lib.md`, sections 5 and 6).
+    refusal and overflow progress (skein's `runtime/lib.md`, sections 5 and 6).
     Required decoding and scalar reads remain; smaller measurement,
     conversion and scratch costs stay below the roughly 2% stop rule.
   - Cheaper independent native sessions and equivalent fake-person and

@@ -20,7 +20,7 @@ without agents has none of this. What is still open is listed in section
   whose runs are `smith-inline-agent`'s (smith's `domain/host.md`, 9.1)
   owns one `smith-protocol-llm` component, with skein's LLM connection
   component beneath it, as smith's own hosts do (smith's
-  `protocol/llm.md`; skein's `llm-connection.md`): the engine, for its
+  `protocol/llm.md`; skein's `llm/connection.md`): the engine, for its
   own slots, and a worker that composes `smith-inline-agent`. jig writes
   no prompt, and none of smith's own tools' schemas, decoding or
   rendering; its engine tools' are `jig-protocol-tools`' (`channel/README.md`,
@@ -37,11 +37,11 @@ without agents has none of this. What is still open is listed in section
   as a party asks, refreshes each signed-in source before it lapses,
   signs it out with revocation, keeps each new record in the secrets'
   store before lending its access token, and lends tokens by generation
-  (skein's `oauth.md`, section 6). `jig-protocol-accounts` translates
+  (skein's `oauth/accounts.md`). `jig-protocol-accounts` translates
   between the two and holds the values lent.
 - **Four sources, two kinds of grant.** A signed-in source's access
   token and a key are values, lent as credentials with their scheme,
-  `bearer` or `key` (skein's `llm.md`, 2.6). A program source is
+  `bearer` or `key` (skein's `llm/README.md`, 2.6). A program source is
   lent by its name: its login is the program's own, in a configuration
   directory on each host, which jig never reads (5.5). A *none* source
   lends nothing.
@@ -56,7 +56,7 @@ without agents has none of this. What is still open is listed in section
   `jig-protocol-accounts` links no smith crate.
 - **Failures by class.** skein classes what a provider's API answers
   (exhausted, refused, unsupported, unauthorized, with the provider's
-  error code and request id: skein's `llm.md`, 2.5), and smith what a
+  error code and request id: skein's `llm/README.md`, 2.5), and smith what a
   program reports (smith's `protocol/programs.md`, section 5). A run's
   notices reach the accounts child as limited, refused or unauthorized
   (section 6); unsupported is the request's error.
@@ -207,11 +207,11 @@ engine's protocol layer
   registration, with the
   client id the provider issued at its first sign-in; its token
   endpoint's address and transport; and the owner's store as its keeper
-  (skein's `oauth.md`, 6.4). A registration is public: the engine holds
+  (skein's `oauth/accounts.md`, 4). A registration is public: the engine holds
   no client secret.
 - **Sources come and go while it runs.** A sign-in adds an account to
   the driver, within its limit; a sign-out or a removal takes one out
-  (skein's `oauth.md`, 6.2). Every signed-in source is wanted once the
+  (skein's `oauth/accounts.md`, 2). Every signed-in source is wanted once the
   restart has restored the core's records (`../domain/engine/restart.md`
   , item 1), the accounts child naming its sources then as
   now, and a want before the driver is made waits for it; and until the
@@ -225,7 +225,7 @@ engine's protocol layer
   lent, so a rotated refresh token is never lost to a crash; a rejected
   token refreshed once, a second rejection of the same generation failed;
   sign-out, revoking the record at the provider where it offers
-  revocation; failures classed (skein's `oauth.md`, sections 4 and 6.3).
+  revocation; failures classed (skein's `oauth/README.md`, section 4, and `oauth/accounts.md`, section 3).
   jig writes no OAuth exchange.
 - **The refresh token never leaves the driver** and the secrets' store.
   Only access tokens come out of the driver, each with its generation and
@@ -258,7 +258,7 @@ engine's protocol layer
 | keep: a record | nothing: the routing keeps it in the secrets' store and answers `kept` (`store/secrets.md`) |
 | taken: a redirected the sign-in took | the finish taken: its answer, *finishing* |
 | refused, a redirected: another address, another sign-in's state, full, or not waiting | the finish refused, saying which (full: *too many*), the sign-in still waiting: never a sign-in failed, nor its source signed out; not waiting for any other refusal of a redirected |
-| signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth.md`, 2.2) |
+| signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth/README.md`, 2.2) |
 | refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts.md`, 3.7) |
 | signed in, without a scope the provider requires | refused, naming the scope |
 | granted: the access token, its generation, how long it is valid | granted: the generation and how long it is valid; the token goes into the table (5.3) |
@@ -288,7 +288,7 @@ engine's protocol layer
 - **A grant's value is a credential:** a signed-in source's access token
   or a key, with its scheme, `bearer` or `key`, which skein's LLM client
   takes and its dialect puts where its provider wants it (skein's
-  `llm.md`, 2.6). It carries no account id. The table holds it secret,
+  `llm/README.md`, 2.6). It carries no account id. The table holds it secret,
   and so does jig's channel (`channel/README.md`, section 7).
 - **Put in its taker's form where it is handed over.** The protocol
   layer that hands a value to an agent capability puts it in the form
@@ -318,7 +318,7 @@ engine's protocol layer
   the record before it says signed in. The party sees the sign-in end on
   its `accounts` watch (`../client/domain/contract/README.md`, 5.1).
 - **Only a public registration signs in.** A confidential one, whose
-  redirect reaches a web server (skein's `oauth.md`, 6.5), is refused
+  redirect reaches a web server (skein's `oauth/accounts.md`, 5), is refused
   at its start, naming the LLM provider.
 - **A browser on another machine** than the engine's is sent to the
   redirect on its own loopback, where nothing answers. Its person
@@ -329,7 +329,7 @@ engine's protocol layer
   ), and the core hands the accounts child its number. The
   child admits it only from the party who started that sign-in, while
   it waits, one at a time; the routing reads the address and hands it
-  to the driver as a `redirected` (skein's `oauth.md`, 6.5). The
+  to the driver as a `redirected` (skein's `oauth/accounts.md`, 5). The
   clients' component erases it once the request is answered, whatever
   the answer: the core leaves every finish unused, as it leaves a
   refused key's value. The driver checks it as its listener checks a
@@ -349,7 +349,7 @@ engine's protocol layer
   again, which replaces it.
 - **A revoked record** fails its source as needs sign-in; the driver
   drops it and the secrets' store erases it, so a new sign-in's record
-  takes its place (skein's `oauth.md`, 6.4).
+  takes its place (skein's `oauth/accounts.md`, 4).
 - **No record is handed in.** No account is read from a file another
   program's login fills, and none is the driver's handed-in, access-only
   kind: a live test runs on a key, on a sign-in made as it starts, on a
@@ -400,8 +400,8 @@ engine's protocol layer
   layer), the issuer, the client id the record refreshes with (the one
   its LLM provider issued, kept in the record, or the registration's own
   where none was issued), the subject, the display name, and the
-  record, `secret N holds skein-oauth SavedToken` (skein's `oauth.md`,
-  6.4). Each part has its bound, the whole at most their sum. The
+  record, `secret N holds skein-oauth SavedToken` (skein's `oauth/accounts.md`,
+  4). Each part has its bound, the whole at most their sum. The
   generated decode refuses another version, a part past its bound, and
   a short or trailing input; the moves then refuse an empty part but
   the display name, which may be empty, and decode the record with
@@ -438,8 +438,8 @@ engine's protocol layer
   **refreshed once**: the copy the driver is handed has its access
   token disowned, its expiry past and no earliest refresh time, so the
   driver refreshes before it lends anything (a grant asked for when the
-  token expires within the lead refreshes first, skein's `oauth.md`,
-  6.3), or answers that its exchanges are full, and the grant is asked
+  token expires within the lead refreshes first, skein's `oauth/accounts.md`,
+  3), or answers that its exchanges are full, and the grant is asked
   again later. Only the driver's copy is so marked, never the stored
   row: the source keeps its moving hold until the first grant after the
   refresh, so a restart before it refreshes again. A refresh refused as
@@ -508,7 +508,7 @@ engine's protocol layer
   `protocol/llm.md`, section 8).
 - **skein's connection component's:** conversations, the agent's slots;
   its memory pool; connections per endpoint (skein's
-  `llm-connection.md`, section 7).
+  `llm/connection.md`, section 7).
 - **The slots' contracts:** one per slot, each at most a charter's
   largest contract.
 - **Text as it comes:** a piece's bytes, and the pieces a pass may hand
@@ -516,11 +516,11 @@ engine's protocol layer
 - **The driver's:** accounts, the signed-in sources the accounts' bounds
   allow; exchanges at once; listeners, twice the sign-ins at once,
   since a cancelled sign-in's listener counts until it settles (skein's
-  `oauth.md`, 6.5) and a person starting again at the sign-ins' bound
+  `oauth/accounts.md`, 5) and a person starting again at the sign-ins' bound
   needs its replacement's beside it (`../domain/accounts.md`, section
   5), one more socket per sign-in; the sign-in
-  deadline (skein's `oauth.md`, section 3); the refresh lead (skein's
-  `oauth.md`, 6.7). The table's, from the accounts' bounds
+  deadline (skein's `oauth/README.md`, section 3); the refresh lead (skein's
+  `oauth/accounts.md`, 7). The table's, from the accounts' bounds
   and a credential's bytes (`limits.md`). The moves'
   (5.6): a file's bytes and its record for each source withdrawn, at
   most the accounts' sources, and one for each move in under way, at
@@ -545,7 +545,7 @@ Each within jig's suites' budgets.
   (`service.md`, section 8): the root, `smith-inline-agent`, smith's
   component with the slots' contracts beside it, skein's connection
   component, the driver and the secrets' store, against skein's fake LLM
-  peer and fake issuer (skein's `fake-llm.md`; skein's `oauth.md`,
+  peer and fake issuer (skein's `testing/fakes/llm.md`; skein's `oauth/README.md`,
   section 5), over streams cut at random: completions, `finish` decoded
   under each slot's own contract, failures of each class, cancels
   mid-stream, a grant refreshed between two completions, a rotation, a
@@ -586,8 +586,8 @@ Each within jig's suites' budgets.
 - **skein owes** the driver's accounts added and removed while it runs,
   its sign-out with revocation, the issued client id kept with the
   record, the scopes granted and the subject on signing in, and the
-  owner's store as keeper (skein's `oauth.md`, section 6); the
-  credential's scheme and the failure classes (skein's `llm.md`,
+  owner's store as keeper (skein's `oauth/accounts.md`); the
+  credential's scheme and the failure classes (skein's `llm/README.md`,
   sections 2 and 2.5).
 - **The store owes** the secrets' records and keys (`store/secrets.md`
   ), and the accounts' family (`store/README.md`, 4.4).

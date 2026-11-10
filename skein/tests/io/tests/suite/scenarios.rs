@@ -1,4 +1,4 @@
-//! io's scenarios (io.md, 8), each over a few seeds: calm, where every
+//! io's scenarios (runtime/io/README.md, 5), each over a few seeds: calm, where every
 //! expectation holds whole, and chaotic, where streams may break. The sweeps
 //! over hundreds of seeds are in `fuzzy_scenarios.rs`.
 

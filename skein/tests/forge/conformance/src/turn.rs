@@ -1,4 +1,4 @@
-//! Recorded turn prerequisites on the pinned Forgejo (forge.md, 9).
+//! Recorded turn prerequisites on the pinned Forgejo (forge/forgejo.md, 2).
 use crate::{
     Result,
     cases::Recorder,

@@ -1,4 +1,4 @@
-//! One node per call with bounded open parents (skein's ui.md, section 5).
+//! One node per call with bounded open parents (skein's ui/README.md, section 5).
 //! `open` enters a parent, `close` records its subtree size, and `finish` hands
 //! over a complete tree. Attributes change the innermost open node. Capacity
 //! errors assert before allocating bytes: the caller's counts must cover all
@@ -222,7 +222,7 @@ impl Builder {
         self.focused = true;
     }
 
-    /// Request the log's end in view (ui.md, 3.2).
+    /// Request the log's end in view (ui/README.md, 3.2).
     pub fn end_request(&mut self, count: u64) {
         assert!(self.node().role == Role::Log, "end requests belong to logs");
         self.node_mut().end_request = Some(count);
@@ -234,7 +234,7 @@ impl Builder {
         self.node_mut().count = Some(count);
     }
 
-    /// Number a list's items, the first one `first` (ui.md, 3.2).
+    /// Number a list's items, the first one `first` (ui/README.md, 3.2).
     pub fn ordered(&mut self, first: u32) {
         assert!(self.node().role == Role::List, "orders belong to lists");
         self.node_mut().ordered = Some(first);
@@ -585,7 +585,7 @@ fn resized(value: u32, removed: u32, added: u32) -> u32 {
         .expect("spliced index fits u32")
 }
 
-// skein's ui.md, section 6: every bound node is one a person acts on.
+// skein's ui/README.md, section 6: every bound node is one a person acts on.
 fn acted_on(role: Role) -> bool {
     match role {
         Role::Button

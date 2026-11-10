@@ -340,7 +340,7 @@ fn a_refresh_refused_as_sign_in_again_drops_an_owner_kept_record() {
 
 #[test]
 fn a_just_kept_refresh_waits_for_its_lead_or_half_its_remaining_lifetime() {
-    // skein/docs/design/oauth.md, 6.3: never back to back, measured when kept.
+    // skein/docs/design/oauth/accounts.md, 3: never back to back, measured when kept.
     for (lead, next) in [(60, 16), (10, 20)] {
         let profile = Limits { refresh_lead: Duration::from_secs(lead), ..limits() };
         let account = refresh_account(0, ([127, 0, 0, 1], 31000).into());

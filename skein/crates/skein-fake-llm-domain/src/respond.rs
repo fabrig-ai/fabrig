@@ -24,7 +24,7 @@
 //!   last message is read from the cache, written by the call before; the
 //!   last message is read afresh, and cached for the next call.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -248,7 +248,7 @@ fn tool_count(query: &Query, outside: bool) -> u64 {
 
 /// What a text answer cut short says.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cut_text() -> Box<[Part]> {
     Box::new([Part::Text { text: copy_of(b"do") }])
 }
@@ -300,7 +300,7 @@ fn cut_arguments(arguments: &[u8]) -> Box<[u8]> {
 /// The answer of `parts`, which take `tokens` to say; or, past the query's
 /// `max_tokens`, of `cut`, which takes them all.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn answer(query: &Query, parts: Box<[Part]>, finish: Finish, tokens: u64, cut: Box<[Part]>) -> Answer {
     let most = u64::from(query.max_tokens);
     if tokens > most {
@@ -405,7 +405,7 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
 /// Which of `scripts` cues the conversation of `system`: the one whose cue
 /// comes first in it, the first listed of those that come at once.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
     // One pass, from each place in the text on, the scripts in order at each.
     // Bounded by the text: visit every byte suffix, including the empty one.
@@ -428,7 +428,7 @@ fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
 /// query's `max_tokens` as any answer is, partway into its first call if it
 /// starts with one.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn scripted(
     minted: &mut u64,
     query: &Query,
@@ -478,7 +478,7 @@ fn scripted(
 
 /// The assistant messages a conversation has had.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn said(messages: &[Message]) -> usize {
     let mut said: usize = 0;
     for message in messages {
@@ -516,7 +516,7 @@ fn usage(_query: &Query, output: u64) -> Usage {
 /// tool outputs answer exactly the tool calls of the assistant message before
 /// it: no call goes unanswered, and no output answers nothing.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn valid(messages: &[Message]) -> bool {
     match messages.last() {
         Some(last) => match last.role {
@@ -561,7 +561,7 @@ fn valid(messages: &[Message]) -> bool {
 /// Whether the tool outputs among `parts` answer exactly the tool calls among
 /// `calls`.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn answers(parts: &[Part], calls: &[Part]) -> bool {
     for part in parts {
         match part {
@@ -619,7 +619,7 @@ fn outputs_for(parts: &[Part], wanted: &[u8]) -> u32 {
 /// Assistant messages that call tools, since the last user message that the
 /// client wrote (one with text, not only tool outputs).
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn tool_rounds(messages: &[Message]) -> u32 {
     let mut rounds: u32 = 0;
     for message in messages {
@@ -661,7 +661,7 @@ fn calls_any(parts: &[Part]) -> bool {
 
 /// "call_" and sixteen hex digits of `n`.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn call_id(n: u64) -> Box<[u8]> {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut id = *b"call_0000000000000000";
@@ -740,7 +740,7 @@ mod tests {
 
     /// The id and the name of the tool call `part`.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     fn called(part: Option<&Part>) -> (&[u8], &[u8], &[u8]) {
         let Some(Part::ToolCall { id, name, arguments }) = part else {
             panic!("expected a tool call, not {part:?}");

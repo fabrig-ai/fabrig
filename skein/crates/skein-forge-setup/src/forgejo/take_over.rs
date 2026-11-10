@@ -1,4 +1,4 @@
-//! Takes over an owned Forgejo's handed admin token (forge-setup.md, 4.7).
+//! Takes over an owned Forgejo's handed admin token (forge/setup/forgejo.md, 1.7).
 use crate::forgejo::admin::{self, Admin};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{

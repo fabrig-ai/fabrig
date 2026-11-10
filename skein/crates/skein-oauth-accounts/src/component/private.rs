@@ -1,4 +1,4 @@
-//! Private record load, durable keep and settlement (oauth.md, section 6.4).
+//! Private record load, durable keep and settlement (oauth/accounts.md, section 4).
 //! Account requests join one load. A missing or unreadable record permits a
 //! sign-in; every other unread cause ends it before Visit. An outstanding file
 //! operation retains its owner token through cancellation and root closing.

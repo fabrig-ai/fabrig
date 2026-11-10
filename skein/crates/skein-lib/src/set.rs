@@ -110,7 +110,7 @@ impl<'a, K> IntoIterator for &'a Set<K> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<K: Hash> Hash for Set<K> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.keys.hash(state);

@@ -1,4 +1,4 @@
-//! The simulated world's state and its steps (world.md).
+//! The simulated world's state and its steps (testing/world.md).
 use crate::{Bare, Finished, Meter, Step, Turns};
 mod digests;
 mod startup;
@@ -29,7 +29,7 @@ struct PreparedStartup {
     appends: Vec<(Box<[u8]>, Handle)>,
 }
 
-/// How a scenario cuts its processes (simulator.md, 3.3).
+/// How a scenario cuts its processes (testing/simulator.md, 3.3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Cut {
     /// Cuts one process, keeping every machine operation that completed.
@@ -52,7 +52,7 @@ struct PlannedCut {
     done: bool,
 }
 
-/// A world (world.md): the simulator, its processes each a `Host`, the
+/// A world (testing/world.md): the simulator, its processes each a `Host`, the
 /// machine behind the simulator's seam, the program registry that hosts
 /// a spawn, and the clock. It runs no loop of its own: a loop runs its steps.
 pub struct World<P, M = NoMachine, H = Bare> {
@@ -205,7 +205,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
     }
 
     /// Registers a factory and the named directories opened independently for
-    /// each launch, before its factory runs (simulator.md, section 3.1).
+    /// each launch, before its factory runs (testing/simulator.md, section 3.1).
     pub fn host_roots(&mut self, program: HostedProgram<P>, roots: StartupRoots) {
         self.host_startup(program, roots, crate::program::no_appends);
     }
@@ -227,7 +227,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
 
     /// Adds a process whose factory owns independently opened named roots
     /// and a signal source. A cut restarts it at the same index over these
-    /// root paths (simulator.md, 3.3).
+    /// root paths (testing/simulator.md, 3.3).
     pub fn spawn_restartable(&mut self, roots: Vec<StartupRoot>, make: fn(&Inherited) -> P) -> usize {
         self.spawn_restartable_startup(roots, Vec::new(), make)
     }
@@ -394,7 +394,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
         &self.meter
     }
 
-    /// Moves the idle world's clock without turning a process (world.md, 4).
+    /// Moves the idle world's clock without turning a process (testing/world.md, 4).
     pub fn advance(&mut self, to: Time) {
         assert!(!self.busy(), "time moves only while the world is idle");
         assert!(to >= self.now(), "time never moves backwards");
@@ -670,7 +670,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
     }
 
     /// The earliest of what the simulator has due and every deadline in the
-    /// world: the processes' (simulator.md, 3).
+    /// world: the processes' (testing/simulator.md, 3).
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let mut next = self.sim.next_due();

@@ -293,7 +293,7 @@ fn signing_in_again_carries_the_held_records_hints() {
     assert_eq!(seen, Hints { issued: true, id_token: true, subject: true });
 }
 
-// Two listener reservations each need a listener and callback socket (oauth.md, 6.7).
+// Two listener reservations each need a listener and callback socket (oauth/accounts.md, 7).
 const RESTART_LISTENERS: u32 = 2;
 const RESTART_SOCKETS: u32 = 6;
 const FIXED_PORT: u16 = 31234;

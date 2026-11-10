@@ -1,6 +1,6 @@
 #!/bin/sh
 # The browser tier, outside the gate: the UI example's bundle and server,
-# then the browser suite (ui-web.md, 14.1). Its arguments go to nextest,
+# then the browser suite (ui/web/testing.md, 1). Its arguments go to nextest,
 # so that one test runs alone: scripts/browser.sh -E 'test(=NAME)'.
 set -eu
 

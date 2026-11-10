@@ -1,4 +1,4 @@
-//! rustls's unbuffered client connection, driven in place (tls.md, 3.2): the
+//! rustls's unbuffered client connection, driven in place (net/tls.md, 3.2): the
 //! records received go in one slice, which rustls deciphers and joins in
 //! place; what it deciphers goes to the intake; what it writes goes to the
 //! output TLS owes the stream below.
@@ -39,11 +39,11 @@ impl fmt::Debug for Connection {
 
 /// A connection to `name`, which checks certificates against `wall`, with
 /// its `ClientHello` written: rustls draws its randoms and its key share from
-/// the kernel here (tls.md, 4).
+/// the kernel here (net/tls.md, 4).
 pub(crate) fn connect(config: &Config, name: Name, wall: Wall) -> Result<Connection, Error> {
     if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
         // TLS is not available on the portable target: a world runs in plaintext
-        // (testing.md, 10).
+        // (testing/README.md, 10).
         return Err(Error::Other);
     }
     match UnbufferedClientConnection::new(config.at(wall), name.into_server_name()) {

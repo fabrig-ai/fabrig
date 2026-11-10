@@ -1,4 +1,4 @@
-//! The text shell's remaining role layouts in cells (skein/docs/design/ui-screen.md, 5.3).
+//! The text shell's remaining role layouts in cells (skein/docs/design/ui/screen.md, 5.3).
 
 use skein_lib::List;
 use skein_ui::{Role, Tree};
@@ -185,7 +185,7 @@ pub(super) fn line(
         out.safe(b": ", paint, focused, frame);
     }
     // Code keeps its first columns, without wrapping a misleading new code line
-    // (skein/docs/design/ui-screen.md, 5.3).
+    // (skein/docs/design/ui/screen.md, 5.3).
     out.block(n.role == Role::Code, n.role == Role::Quote);
     if n.role == Role::Quote {
         out.safe(b"> ", paint, focused, frame);

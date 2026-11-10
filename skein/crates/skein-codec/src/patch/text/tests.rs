@@ -1,4 +1,4 @@
-//! Statement grammar, diagnostics and text-global numbering (codec.md, 11.1).
+//! Statement grammar, diagnostics and text-global numbering (data/codec/patches.md, 1).
 
 #![expect(
     clippy::disallowed_types,

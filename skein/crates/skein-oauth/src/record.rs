@@ -1,4 +1,4 @@
-//! Versioned kept token records and refresh state (oauth.md, sections 1 and 2).
+//! Versioned kept token records and refresh state (oauth/README.md, sections 1 and 2).
 //! A record owns access and optional refresh bytes, expiry and selected metadata;
 //! it knows no credential source or store. The codecs enforce bounds and version,
 //! and `rotate` prepares a candidate the caller keeps before lending.

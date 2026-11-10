@@ -1,5 +1,5 @@
 //! Local git boundaries extracted from consuming checkout-world stories;
-//! service remote policy and routing stay outside this kit (fake-checkout.md, section 4).
+//! service remote policy and routing stay outside this kit (testing/fakes/checkout.md, section 4).
 
 use skein_fake_checkout::Checkout;
 use skein_fake_checkout::git::{self, CommitFailure, Created, Fault, NotFetched, Pushed, Remote, Want, What};

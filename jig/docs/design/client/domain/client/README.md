@@ -108,7 +108,7 @@ jig-client                        jig_client::Client: the domain and the link, c
   - *handles:* each watch's and each read's, with its asker (section
     4), each watch mapped onto a watch of the engine's with its latest
     document (`README.md`, section 6 and `watches.md`);
-  - *the request table,* skein-lib's `RequestTable` (skein's `lib.md`,
+  - *the request table,* skein-lib's `RequestTable` (skein's `runtime/lib.md`,
     section 12), with each request's key and asker (`requests.md`);
   - *kept work:* the requests restored at start (section 8);
   - *its timers and its seed,* from which the table's keys, the engine
@@ -180,7 +180,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
   the client root that asked (../root.md, section 15; jig's reference UI's
   is 65536): the client keeps it, hands it back with everything it says
   of that handle or key, and never reads it, as skein-ui keeps an owner
-  (skein's `ui.md`, 3.3). The client root routes by it, and keeps no map
+  (skein's `ui/README.md`, 3.3). The client root routes by it, and keeps no map
   from handles or keys to its children (../root.md, section 5).
 
 ### 4.1 What it hears
@@ -391,7 +391,7 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   `Save`, and the client gives its first `Exchange` only once the transport
   says `Stored`. `NotStored` (a quota full, a disk failing) retires the
   requests the write carried, unsent, each answered *not kept*, by its
-  key (skein's `lib.md`, 12, not kept): parked, or with its `Exchange`
+  key (skein's `runtime/lib.md`, 12, not kept): parked, or with its `Exchange`
   waiting for the write, since a parked request's record leaves at its
   admission too. Its erase leaves as any retired request's, since an
   earlier write may hold its record; if that erase is not stored either,
@@ -635,7 +635,7 @@ Each is configured and bounds what enters or is retained:
   provisional turn, each priced from the wire's worst cases at the
   client's limits (`../../../protocol/client/README.md`, section 10);
 - the request table's: requests held, and their bytes, a family's
-  included (skein's `lib.md`, section 12); the records restored at
+  included (skein's `runtime/lib.md`, section 12); the records restored at
   start, no more than the table holds and the stream's name (section
   8);
 - backoffs' first and most spans, the heartbeat's tolerance, the

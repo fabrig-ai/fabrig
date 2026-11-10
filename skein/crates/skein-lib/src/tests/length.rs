@@ -1,4 +1,4 @@
-//! Widening lengths and counts (skein/docs/design/lib.md, 6).
+//! Widening lengths and counts (skein/docs/design/runtime/lib.md, 6).
 
 use crate::{len_u64, usize_of};
 

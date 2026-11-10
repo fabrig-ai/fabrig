@@ -1,1 +1,1 @@
-//! Protocol worlds for skein's generic framed channel (channel.md, section 11).
+//! Protocol worlds for skein's generic framed channel (net/channel.md, section 11).

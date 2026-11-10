@@ -1,4 +1,4 @@
-//! The conformance suite (kernel.md, 8; testing-strategy.md, 5): scripted
+//! The conformance suite (runtime/kernel.md, 8; testing-strategy.md, 5): scripted
 //! sequences of `skein_io::kernel` records that run against any [`Backend`],
 //! each returning what it saw, and a [`Check`] of that against the rules of
 //! the contract.
@@ -13,7 +13,7 @@
 //!
 //! The scenarios on files run beneath a root each lays out for itself
 //! ([`Item`]): a scratch directory on the ring, the minimal fake machine in
-//! the simulator (testing.md, 4).
+//! the simulator (testing/README.md, 4).
 //!
 //! The faults beyond loopback (refused, reset and timed-out connections,
 //! buffer exhaustion, a cancel the backend cannot submit), those of a disk
@@ -116,7 +116,7 @@ pub trait Backend {
     fn assert_settled(&self, process: Self::Process);
 
     /// A new root for `process`, laid out as `tree` says, opened as the
-    /// shell opens a root at startup (kernel.md, 6.1): a descriptor the
+    /// shell opens a root at startup (runtime/kernel.md, 6.1): a descriptor the
     /// scenario closes with a `Close`.
     fn root(&mut self, process: Self::Process, tree: &[Item]) -> Fd;
 

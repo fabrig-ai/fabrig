@@ -1,4 +1,4 @@
-//! The row runner's failures and admission (skein/docs/design/testing.md, 6).
+//! The row runner's failures and admission (skein/docs/design/testing/README.md, 6).
 
 use std::cell::Cell;
 use std::panic::{AssertUnwindSafe, catch_unwind, panic_any};

@@ -1,11 +1,11 @@
-//! Signals to process groups and process liveness (shell.md, 7.5).
+//! Signals to process groups and process liveness (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
 //! Kill takes only a checked process or negative process group ID and a signal number;
 //! it borrows no memory and retains no pointer.
 
-#![expect(unsafe_code, reason = "kill takes checked integers only (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "kill takes checked integers only (runtime/readiness.md, 5)")]
 
 use super::process::map_error;
 use crate::system::last_errno;

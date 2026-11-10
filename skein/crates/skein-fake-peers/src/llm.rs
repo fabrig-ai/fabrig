@@ -1,4 +1,4 @@
-//! Hosted fake LLM process (fake-llm.md, sections 2 and 3). It keeps the
+//! Hosted fake LLM process (testing/fakes/llm.md, sections 2 and 3). It keeps the
 //! script domain and byte routing, socket bindings and outside observations;
 //! it never sees client state or application effects. `new` listens,
 //! `Host::iterate` drives progress, and `shutdown` drains actual settlement.
@@ -160,7 +160,7 @@ impl Peer {
         Ok(index)
     }
 
-    /// Replaces the list answer between requests (fake-llm.md, 3.2).
+    /// Replaces the list answer between requests (testing/fakes/llm.md, 3.2).
     pub fn set_list(&mut self, list: Option<Box<[u8]>>, status: Option<u16>) {
         self.service.set_list(list, status);
     }

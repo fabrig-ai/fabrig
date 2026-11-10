@@ -1,4 +1,4 @@
-//! Upload's pieces (skein/docs/design/link.md, 3.4).
+//! Upload's pieces (skein/docs/design/net/link.md, 3.4).
 use super::Upload;
 use alloc::boxed::Box;
 use skein_lib::bytes;

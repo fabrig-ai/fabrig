@@ -1,4 +1,4 @@
-//! One signed GitHub payload and its forge hint (forge-github.md, section 9).
+//! One signed GitHub payload and its forge hint (forge/github.md, section 9).
 pub use super::decode::delivery::{Decoder, Step, decode, decoder, step};
 use super::limits::Limits;
 use crate::{api, marker, text::Body};

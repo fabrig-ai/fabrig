@@ -1,6 +1,6 @@
-//! lib's step tests (lib.md, 10; testing-strategy.md, 2.1): each container
+//! lib's step tests (runtime/lib.md, 10; testing-strategy.md, 2.1): each container
 //! driven through its operations, at and past its capacity, and each value
-//! type through its edges, one module per area of lib.md.
+//! type through its edges, one module per area of runtime/lib.md.
 
 mod base64;
 mod buffer;

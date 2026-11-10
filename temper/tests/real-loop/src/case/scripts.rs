@@ -19,7 +19,7 @@ const DELEGATED: &str = "Delegated tasks: ";
 /// Smith renders labelled inbox deliveries in smith-domain-run/src/inbox.rs.
 const DELIVERY: &str = ": ";
 
-/// The turn rules for `step_4_1`'s scripts, index-parallel (skein's fake-llm.md, 2.4).
+/// The turn rules for `step_4_1`'s scripts, index-parallel (skein's testing/fakes/llm.md, 2.4).
 #[must_use]
 pub fn step_4_1_rules() -> Box<[Box<[Rule]>]> {
     let director = [

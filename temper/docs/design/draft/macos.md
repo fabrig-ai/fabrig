@@ -29,10 +29,10 @@ or less sophisticated on macOS, and rough edges are fine.
 - **Then the rest, as it stays cheap** (section 2): the suites, tree by
   tree (2.1); a person on a real Mac (2.3); the first-run demo in a
   browser, best effort (2.2).
-- **The bulk is skein's readiness backend** (skein's `shell.md`,
-  section 7): one backend for hosts without io_uring, kqueue's on macOS
+- **The bulk is skein's readiness backend** (skein's `runtime/readiness.md`
+  ): one backend for hosts without io_uring, kqueue's on macOS
   and epoll's on Linux. Step code never knows which backend runs; no
-  step crate changes (section 3).
+  step crate changes (`macos.md`, section 3).
 - **The floor is macOS 15, on Apple Silicon** (`aarch64-apple-darwin`):
   the first with `O_RESOLVE_BENEATH`, which an open beneath a root
   needs. The runners are `macos-26`'s, arm64 (3.4).
@@ -127,7 +127,7 @@ or less sophisticated on macOS, and rough edges are fine.
 
 ### 3.1 One backend, two waits
 
-- **It emulates completions** (`shell.md`, section 7): it waits for
+- **It emulates completions** (`skein/docs/design/runtime/readiness.md`): it waits for
   readiness, makes the call without blocking, and completes the record.
   Regular files are always ready: their operations run at submit, as
   the ring's synchronous ones do.
@@ -140,7 +140,7 @@ or less sophisticated on macOS, and rough edges are fine.
   then proves only what is Darwin's. It also serves the Linux hosts
   section 7 names: Docker's default seccomp profile, and `io_uring`
   disabled.
-- **Chosen at startup** (`shell.md`, 4): Linux takes the ring, and the
+- **Chosen at startup** (`skein/docs/design/runtime/shell.md`, 4): Linux takes the ring, and the
   readiness backend when the probe finds no ring; macOS always takes the
   readiness backend. A setting forces it on Linux, for its tests.
 
@@ -169,11 +169,11 @@ or less sophisticated on macOS, and rough edges are fine.
 
 - **A stalled filesystem holds the loop.** File operations run at
   submit, so an NFS or FUSE mount that stalls stalls the service, and a
-  cancel of a file operation always comes too late. `kernel.md` says so
+  cancel of a file operation always comes too late. `skein/docs/design/runtime/kernel.md` says so
   beside its cancellable file operations.
 - **Processes are groups, as they are today:** a descendant that leaves
   its group escapes the close's kill. A cgroup tree, when there is one
-  (`kernel.md`, 6.6), is refused on macOS as unsupported.
+  (`skein/docs/design/runtime/kernel.md`, 6.6), is refused on macOS as unsupported.
 
 ### 3.4 The floor
 
@@ -195,7 +195,7 @@ or less sophisticated on macOS, and rough edges are fine.
 ### 3.6 The conformance suite
 
 - **It runs against the readiness backend,** each scenario once, on each
-  wait (`kernel.md`, section 8).
+  wait (`skein/docs/design/runtime/kernel.md`, section 8).
 - **What is Linux's is said so.** Some scenarios encode Linux's
   behaviour: a full listen queue, the order of refusals, errno values.
   Each says what every backend must do and what is the operating
@@ -263,7 +263,7 @@ or less sophisticated on macOS, and rough edges are fine.
     again from nothing, as 6.6 has it. A binary already at its name with
     another digest is refused, never overwritten.
 - **Two digests per binary on macOS,** in `skein-forge` beside Linux's
-  (skein's `forge.md`, 4.3): the archive's, which is its address, and
+  (skein's `forge/README.md`, 4.3): the archive's, which is its address, and
   the binary's, which a file already in the cache is held to. A pin is
   selected by platform, architecture and kind of file: `arm64` alone no
   longer says which.
@@ -273,7 +273,7 @@ or less sophisticated on macOS, and rough edges are fine.
   checked when its pin is taken. The rule that a fetched binary is the
   build the conformance checked, byte for byte, stays Linux's: a bottle
   is the same version and another build. 2.4's story is what checks it,
-  and skein's forge conformance (skein's `fake-forge.md`, section 7)
+  and skein's forge conformance (skein's `testing/fakes/forge.md`, section 7)
   joins the workflow with skein's suites.
 - **A bottle gone:** Homebrew promises nothing about old blobs. The
   fetch refuses, naming the URL and saying what answers it: a binary
@@ -325,14 +325,14 @@ or less sophisticated on macOS, and rough edges are fine.
 - **A red run blocks nothing.** It is a finding, triaged as a red
   after landing is (`../domain/after-landing.md`, section 7).
 - **Before the runner,** Darwin's compile is checked on Linux, as
-  skein's `shell.md`, section 9 has it: clippy for
+  skein's `runtime/shell.md`, section 8 has it: clippy for
   `aarch64-apple-darwin`, the members that reach rustls left to the
   runner.
 
 ### 5.2 Linux-only, by name
 
 - **One list per tree,** each entry with its reason; skein's is
-  `shell.md`, section 9, and the others follow it. Code Darwin cannot
+  `runtime/shell.md`, section 8, and the others follow it. Code Darwin cannot
   compile takes `cfg(target_os = "linux")` on its binary, module or
   support, before the workflow's first run; a test that compiles and
   cannot run may instead go in the tree's nextest configuration.
@@ -372,7 +372,7 @@ Linux-only list:
 
 - **A path held without following its last link** (`PathNoFollow`):
   Linux opens it `O_PATH | O_NOFOLLOW`; macOS has no `O_PATH`. Default:
-  the owner's design in `shell.md`, from `O_SYMLINK` and `O_EVTONLY`.
+  the owner's design in `skein/docs/design/runtime/shell.md`, from `O_SYMLINK` and `O_EVTONLY`.
 - **A directory listing's position on macOS:** `getdirentries`'s
   cookies or `readdir`'s positions. Default: the owner's call, held to
   the same conformance.

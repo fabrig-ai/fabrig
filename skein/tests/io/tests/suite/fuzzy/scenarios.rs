@@ -2,7 +2,7 @@
 //! held to everything it expects, and chaotic, every fault of the simulator
 //! on. A fault configured that never fell tests nothing, so the chaotic
 //! sweep asserts that each fell, and that every outcome a cancel may have
-//! (kernel.md, 5) came of a cancel of each operation io cancels.
+//! (runtime/kernel.md, 5) came of a cancel of each operation io cancels.
 
 use std::collections::BTreeSet;
 

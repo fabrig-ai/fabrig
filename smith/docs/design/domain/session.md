@@ -39,7 +39,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   thread, its ordinal in the run's activation, main's being zero (run.md,
   sections 3.2 and 5.3). The session puts it unchanged into every prompt. skein's
   dialect renders it, or ignores it where the provider has nothing to
-  render it as (skein's llm.md). It is fixed for the conversation's life:
+  render it as (skein's llm/README.md). It is fixed for the conversation's life:
   across its windows (section 8), and across activations through its
   transcript, which records it (section 3). A session opened from a
   transcript keeps the affinity the transcript records.

@@ -32,7 +32,7 @@ client's protocol's (`../../protocol/client/README.md`,
    proposals, escalations, questions, person tasks, results, refusals,
    the conversation, and the requests that steer a task.
 6. **view.md:** the reference UI's view on skein's UI kit (skein's
-   `ui.md`): its primitives and jig's default arrangement of them, its
+   `ui/README.md`): its primitives and jig's default arrangement of them, its
    owners, bindings, words, tokens, a decision's facts,
    conversations, shells, and jig's settings for skein's text shell;
    and the reference UI's state (`view-state.md`): its place and page, the
@@ -66,7 +66,7 @@ the transport, the application's, with jig's defaults, to use or leave
 jig-client-protocol-http             the default HTTP mapping's client end, for the host and wasm32 (../../protocol/client/default-http.md, 4)
 jig-client-shell-native              a native shell over skein's HTTP client (../../protocol/client/README.md, section 9)
 jig-client-shell-web                 jig's browser parts: the client's adapter, the printed link's sign-in, jig's look (../../protocol/browser.md, 5.1)
-skein-ui, skein-ui-text, skein-ui-web, skein-ui-bundle   skein's UI kit (skein's ui.md, section 2)
+skein-ui, skein-ui-text, skein-ui-web, skein-ui-bundle   skein's UI kit (skein's ui/README.md, section 2)
 
 for tests
 jig-client-test-domain, jig-client-test-view   jig's test application's client root and view root, the reference (root.md, section 12)
@@ -96,8 +96,8 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
   protocol's (`../../protocol/client/README.md`, the default HTTP mapping in its
   section 17; jig's browser parts,
   `../../protocol/browser.md`), beside
-  the engine's, and skein's UI kit's (skein's `ui-text.md` and
-  `ui-web.md`). This design says what they owe the client, and no more,
+  the engine's, and skein's UI kit's (skein's `ui/text.md` and
+  `skein/docs/design/ui/web/README.md`). This design says what they owe the client, and no more,
   but for jig's settings of skein's text shell (view.md, section 15). A
   shell is the impure part of a client, ordinary Rust as skein's shell
   is, not step code.
@@ -110,7 +110,7 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 - **Code cites a section** at module or type level, as
   `client/watches.md`, 2.
 - **skein's and smith's documents** are named with their project's name:
-  skein's `lib.md`, smith's `protocol/transcript.md`. skein's foundation
+  skein's `runtime/lib.md`, smith's `protocol/transcript.md`. skein's foundation
   documents by their own names: `programming-model.md`,
   `testing-strategy.md`.
 - **An application** appears only as an example, and says so: `ops` most
@@ -165,9 +165,9 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | jig's default arrangement | the reference UI's own arrangement of its primitives: its banner, its pages, `after_page`; a default and a reference, never mandated (pages.md, 12.3) |
 | a decision's facts | what a decision rests on (the object's state, a refusal and why, what a decision will do and whether it is dangerous): data in jig's documents (contract/documents.md, 4), which the helper `facts` reads (client/helpers.md) and a presentation says, with `words` or its own words (objects.md, section 2) |
 | jig's check | the test kit's: in an application's worlds, a decision sent naming a revision no document the client delivered carried; on a tree, a deciding act made on a tree that did not show its facts; never mandated (testing.md, 6.2) |
-| outline | skein-ui's rules for the landmarks a tree keeps: each child of the page node a landmark or a dialog, exactly one main, at most one banner and one content info; jig adds none (skein's `ui.md`, section 14; view.md, 3.1) |
+| outline | skein-ui's rules for the landmarks a tree keeps: each child of the page node a landmark or a dialog, exactly one main, at most one banner and one content info; jig adds none (skein's `ui/README.md`, section 12; view.md, 3.1) |
 | landmark | a role saying which part of a page a node is: banner, navigation, main, complementary, content info, form, search |
-| region name | a region's language-free, stable name, which a stylesheet places it by (skein's `ui.md`, section 8; pages.md, 12.4) |
+| region name | a region's language-free, stable name, which a stylesheet places it by (skein's `ui/README.md`, section 8; pages.md, 12.4) |
 | object | something a card shows, held once by the reference UI: a task, a proposal, an escalation… (objects.md) |
 | card | how one object shows in the reference UI, wherever it appears |
 | chip | a task named in passing: its number, its title, its phase, kept live |
@@ -178,11 +178,11 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | part | a value of an application's that a jig document names by reference: a connector's name, a resource, a kind, a panel, an effect's description (root.md, section 6) |
 | slot | the place a reference UI's page or card leaves for a part, or an application's page for one of the reference UI's cards or sections, filled by its owner |
 | shortcut | a key a bound node answers to, as a press (view.md, section 5) |
-| scene | a drawing as its owner's drawing code draws it: a bounded list of marks in whole pixels, which each shell that draws maps onto its platform (skein's `ui.md`, section 11; view.md, section 17) |
-| component, a shell's | a shell's native implementation of a node, chosen from the look by the node's role and one of its owner's style tokens, or by a drawing's kind (skein's `ui.md`, section 12). Not a protocol layer's component (`../../protocol/README.md`, section 3) |
+| scene | a drawing as its owner's drawing code draws it: a bounded list of marks in whole pixels, which each shell that draws maps onto its platform (skein's `ui/scenes.md`; view.md, section 17) |
+| component, a shell's | a shell's native implementation of a node, chosen from the look by the node's role and one of its owner's style tokens, or by a drawing's kind (skein's `ui/README.md`, section 10). Not a protocol layer's component (`../../protocol/README.md`, section 3) |
 | client host | an application's client root, its presentation and its transport's client end, stepped as one machine and shared by its shells (`../../protocol/browser.md`, 3.2) |
 | browser shell | an application's crate, `<application>-client-shell-web`: its start and its loop over skein's browser parts, the reference UI's and its client host, copied from jig's test application's, `jig-client-test-shell-web` (`../../protocol/browser.md`, 3.1) |
-| text shell | skein's shell for a terminal or a pipe, `skein-ui-text`: the tree printed as lines, a typed line read as an act; the reference UI gives it jig's settings (skein's `ui-text.md`; view.md, section 15) |
+| text shell | skein's shell for a terminal or a pipe, `skein-ui-text`: the tree printed as lines, a typed line read as an act; the reference UI gives it jig's settings (skein's `ui/text.md`; view.md, section 15) |
 | document | a typed value the engine gives a client about one subject, its owner's alone (contract/documents.md) |
 | revision | the state of one thing a party decides about (a hold, a task's spec, a person task, a note), which the decision names (contract/documents.md, 2) |
 | read | a request for a document, or a page of a list; one answer |
@@ -191,8 +191,8 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | draft | words a person is writing, kept by a presentation across pages and reloads |
 | confirmation | what an act will do, said before it is sent: the presentation's, from the facts jig gives |
 | bounds | the engine's facts a draft of an act is compared with, and what happens beyond them, offered for creating and amending (contract/documents.md, 3) |
-| phrasebook | the words a view says, for one language, by skein's machinery (skein's `ui.md`, section 9; view.md, section 7) |
-| fake person | skein's person, `skein-fake-person`, in the client's worlds: reads the tree by role, name and text, and acts on it (skein's `ui.md`, 17.1; testing.md, section 3) |
+| phrasebook | the words a view says, for one language, by skein's machinery (skein's `ui/README.md`, section 9; view.md, section 7) |
+| fake person | skein's person, `skein-fake-person`, in the client's worlds: reads the tree by role, name and text, and acts on it (skein's `ui/README.md`, 14.1; testing.md, section 3) |
 | scripted engine | the engine as the client's worlds play it (testing.md, section 4) |
 
 The engine's names (`../../domain/README.md`, section 4) keep their
@@ -362,44 +362,44 @@ where each is answered.
 - **Home and navigation are the presentation's,** among the reference
   UI's pages and the application's own (pages.md, section 2).
 - **The view is semantic and platform-neutral:** skein's tree (skein's
-  `ui.md`, section 3), shaped like an accessibility tree, which each
-  shell maps onto its platform (skein's `ui.md`, section 16).
+  `ui/README.md`, section 3), shaped like an accessibility tree, which each
+  shell maps onto its platform (skein's `ui/shells.md`).
 - **Words come from a phrasebook,** one per language: jig ships English,
   and an application may give its own as data (client/helpers.md;
   view.md, section 7).
 - **An application may draw:** its own kinds of drawing (a chart, a map),
   whose data its view writes, drawn as a scene by its drawing code or by
   a component of its own, each with a fallback in words every shell, a
-  screen reader and the fake person can read (skein's `ui.md`, sections
-  11 and 12; view.md, sections 3 and 17).
+  screen reader and the fake person can read (skein's `ui/scenes.md` and `ui/README.md`, section 10
+  ; view.md, sections 3 and 17).
 - **The browser's parts are skein's; the server and the loop are the
   application's.** skein's UI kit gives the browser parts, scenes as
   SVG, the bundler, and the browser tier's face and harness (skein's
-  `ui-web.md`). jig adds its browser parts, `jig-client-shell-web`:
+  `ui/web/README.md`). jig adds its browser parts, `jig-client-shell-web`:
   the client's adapter, the printed link's sign-in, and jig's look,
   each usable alone. An application's browser shell, copied from jig's
   test application's, runs its own loop over the parts and its client
   host; its server serves its page and bundle
-  (skein's `ui-web.md`, section 4) and mounts jig's clients' component
+  (skein's `ui/web/bundle.md`) and mounts jig's clients' component
   under a prefix of its choosing (`../../protocol/browser.md`, 3.1 and
   section 12).
 - **Layout as semantics.** Every tree keeps skein-ui's outline of
-  landmarks (skein's `ui.md`, section 14), to which jig adds no rule, and
+  landmarks (skein's `ui/README.md`, section 12), to which jig adds no rule, and
   the reference UI's regions carry stable region names (view.md, section
   3).
 - **The tree's closed sets are skein's,** grown by skein's criterion
-  through its light path (skein's `ui.md`, sections 3 and 4): the
+  through its light path (skein's `ui/README.md`, sections 3 and 4): the
   reference UI uses them and adds none.
 - **Owners, not connectors.** Everything that names an application's
   owner, as root.md, section 15, lists (parts, the client's askers, the
   view's slots, bindings, styles, drawings and region names, requests,
   reads and subjects), names it by a number its engine's root and its
   client root share, a connector's being its connector's. In the tree,
-  an owner is skein-ui's opaque number (skein's `ui.md`, 3.3): an
+  an owner is skein-ui's opaque number (skein's `ui/README.md`, 3.3): an
   application's owner its own number, and jig 65536, one past every
   `u16`, so the two never meet (root.md, section 15).
 - **The text shell is skein's:** printing a tree and reading a line
-  decide nothing of jig's or an application's (skein's `ui-text.md`); a
+  decide nothing of jig's or an application's (skein's `ui/text.md`); a
   terminal presents the reference UI with jig's settings, its status
   region `jig-link` (view.md, section 15).
 

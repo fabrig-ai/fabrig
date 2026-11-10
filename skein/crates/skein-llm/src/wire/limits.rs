@@ -50,7 +50,7 @@ impl Limits {
     }
 }
 /// Bounds request encoding workspace.
-/// Fixed scratch for writing borrowed requests (llm.md, section 4.2).
+/// Fixed scratch for writing borrowed requests (llm/README.md, section 4.2).
 /// The body belongs to its reservation; nesting and grammar are the only heap.
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {

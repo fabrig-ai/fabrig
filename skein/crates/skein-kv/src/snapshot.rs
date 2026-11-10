@@ -19,7 +19,7 @@ pub(crate) const HEADER: usize = 18;
 pub(crate) const TRAILER_LEN: usize = 28;
 
 /// A single-row snapshot chunk's encoded size, including its lengths and checksum
-/// (skein/docs/design/kv.md, 7). Excludes the snapshot header and trailer.
+/// (skein/docs/design/data/kv.md, 7). Excludes the snapshot header and trailer.
 #[must_use]
 pub fn chunk_bytes(key: u32, value: u32) -> Option<u32> {
     row_bytes(key, value)?.checked_add(CHUNK_BYTES)
@@ -76,7 +76,7 @@ pub(crate) fn trailer(rows: u64, bytes: u64) -> Box<[u8]> {
     trailer.into_boxed_slice()
 }
 
-/// Incremental snapshot validation (skein/docs/design/kv.md, 3, 7 and 12).
+/// Incremental snapshot validation (skein/docs/design/data/kv.md, 3, 7 and 12).
 /// The buffer holds only the header, one chunk, or the trailer; rows leave
 /// only after their whole chunk checks.
 #[derive(Debug)]

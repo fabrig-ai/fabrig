@@ -1,4 +1,4 @@
-//! A commit barrier for writes and outputs (lib.md, section 11).
+//! A commit barrier for writes and outputs (runtime/lib.md, section 11).
 //! Decisions and queues grow as they fill; release is bounded per call.
 //!
 //! The journal keeps accepted commits, their numbers, outputs held for
@@ -10,7 +10,7 @@
 //! A root calls `failed` for a failed sent commit, or `stop` when it stops of its own.
 //! `uncapped` resumes numbering after its supplied durable commit on restart.
 //!
-//! Commit transitions (lib.md, section 11):
+//! Commit transitions (runtime/lib.md, section 11):
 //!
 //! | State | Event | Next | What becomes available |
 //! |---|---|---|---|
@@ -25,7 +25,7 @@ use core::hash::{Hash, Hasher};
 
 use crate::Queue;
 
-/// The journal's limit on outputs released by one call (lib.md, section 11).
+/// The journal's limit on outputs released by one call (runtime/lib.md, section 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct JournalLimits {
     /// Outputs released by one call.
@@ -78,7 +78,7 @@ impl<W, O> Decision<W, O> {
     }
 }
 
-/// A growing commit barrier with bounded release per call (lib.md, section 11).
+/// A growing commit barrier with bounded release per call (runtime/lib.md, section 11).
 #[derive(Debug)]
 pub struct Journal<W, O> {
     release: u32,
@@ -247,7 +247,7 @@ impl<W, O> Journal<W, O> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<W: Hash, O: Hash> Hash for Journal<W, O> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.pending.hash(state);

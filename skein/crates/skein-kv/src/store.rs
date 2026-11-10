@@ -1,4 +1,4 @@
-//! The store's transitions (skein/docs/design/kv.md, 2–5).
+//! The store's transitions (skein/docs/design/data/kv.md, 2–5).
 //! At most one file request is outstanding.
 
 use alloc::boxed::Box;
@@ -134,7 +134,7 @@ struct Dir {
     log_bytes: u64,
 }
 
-/// Who hears when the store serves (skein/docs/design/kv.md, 2).
+/// Who hears when the store serves (skein/docs/design/data/kv.md, 2).
 #[derive(Debug)]
 enum Serving {
     Yes,
@@ -142,7 +142,7 @@ enum Serving {
     Recovering,
 }
 
-/// Whether recovery needs a snapshot before serving (skein/docs/design/kv.md, 3 and 4).
+/// Whether recovery needs a snapshot before serving (skein/docs/design/data/kv.md, 3 and 4).
 #[derive(Debug)]
 enum Repair {
     Clean,
@@ -467,7 +467,7 @@ fn log_number(name: &[u8]) -> Option<u64> {
     Some(number)
 }
 
-/// What a recovery read asks: the target, or what the file holds past `at` (kv.md, 3).
+/// What a recovery read asks: the target, or what the file holds past `at` (data/kv.md, 3).
 fn read_size(target: u32, len: u64, at: u64) -> u32 {
     let left = len.checked_sub(at).expect("recovery reads only within the file");
     u32::try_from(u64::from(target).min(left)).expect("a recovery read is at most the target")

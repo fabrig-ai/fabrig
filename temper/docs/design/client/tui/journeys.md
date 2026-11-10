@@ -205,7 +205,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **A mark is a frame as the person saw it:** as drawn when a key with
   an event came, before its turn changes it; as drawn when the mark key
   was pressed; and at the recording's end. It keeps the live frame's
-  print, `Frame::print` (skein's `ui-screen.md`, section 4: its text,
+  print, `Frame::print` (skein's `ui/screen.md`, section 4: its text,
   its paints and its cursor), for the first replay's proof.
 - **The frame is the host's:** `Host::frame` at the window's size, so a
   mark holds the whole screen (`../../draft/tui.md`, 1).
@@ -377,7 +377,7 @@ no cursor.
   default text and background, `ink` and `bg`; a rule per palette colour
   for `f-` and `b-`, a rule per attribute, a monospace font and the
   cursor's look. A frame keeps the terminal's default as a colour of its
-  own (skein's `ui-screen.md`, section 3), and only the page draws it,
+  own (skein's `ui/screen.md`, section 3), and only the page draws it,
   in the stand-ins.
 
 ### 6.5 Opening them

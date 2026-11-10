@@ -5,7 +5,7 @@ use crate::github::{
 };
 use skein_lib::{Duration, Writer};
 
-// A relation's adjacent values differ by one nanosecond (forge-setup.md, 4.4).
+// A relation's adjacent values differ by one nanosecond (forge/setup/forgejo.md, 1.4).
 const ONE_NS: Duration = Duration::from_nanos(1);
 const LIMIT_PLACES: [Place; 10] = [
     Place::KeyBytes,

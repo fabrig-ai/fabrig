@@ -1,4 +1,4 @@
-//! File steps driven by the loop's environment (skein/docs/design/io.md, 5).
+//! File steps driven by the loop's environment (skein/docs/design/runtime/io/files.md).
 use super::{
     Cancelling, Complete, Env, Error, Event, FileIo, Limits, Queue, Request, Stop, Submit, Time, Work, cancelled,
     down_inner, follow_cancel, follow_work, mem, stopped, submit_cancel, up_inner,

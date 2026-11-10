@@ -1,4 +1,4 @@
-//! Dispatch-only workflows, runner faults and explicit reruns (fake-forge.md, 2.3).
+//! Dispatch-only workflows, runner faults and explicit reruns (testing/fakes/forge.md, 2.3).
 use crate::{
     Config, Domain, Limits,
     actions::{self, Conclusion, Job, Kept, Run, RunEvent, RunState},

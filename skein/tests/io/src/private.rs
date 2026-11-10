@@ -1,4 +1,4 @@
-//! Private-root owners over the shared world (io.md, section 5.3).
+//! Private-root owners over the shared world (runtime/io/files.md, section 3).
 //! The scenario observes metadata, reads and terminals; it never interprets secrets.
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};

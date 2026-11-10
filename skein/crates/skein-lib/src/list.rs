@@ -1,4 +1,4 @@
-//! Bounded sequences (skein/docs/design/lib.md, 5): what a step appends to,
+//! Bounded sequences (skein/docs/design/runtime/lib.md, 5): what a step appends to,
 //! growing as they fill under a cap.
 
 #![expect(clippy::disallowed_types, reason = "a list is a Vec grown exactly as it fills, never past its cap")]

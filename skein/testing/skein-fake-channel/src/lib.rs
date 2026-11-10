@@ -1,4 +1,4 @@
-//! A scripted peer for application protocol worlds (channel.md, section 11).
+//! A scripted peer for application protocol worlds (net/channel.md, section 11).
 //! It performs the generic opening, then sends scripted frames and records
 //! frames received from a channel. A caller supplies byte cuts and checks the
 //! final observation list.

@@ -1,4 +1,4 @@
-//! Catalogue copies and deletion (skein/docs/design/fake-forge.md, 4).
+//! Catalogue copies and deletion (skein/docs/design/testing/fakes/forge.md, 4).
 use super::{Store, absent, concat, encoded, full, refusal, remove};
 use crate::{Config, Hosted, Limits, Repository, response::Reply};
 use alloc::boxed::Box;

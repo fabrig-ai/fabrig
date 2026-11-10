@@ -1,4 +1,4 @@
-//! Content-addressed directory entries, without recursive walks (fake-forge.md, 2.3).
+//! Content-addressed directory entries, without recursive walks (testing/fakes/forge.md, 2.3).
 use crate::{
     Domain, Limits,
     api::{Answer, Error, TreeEntry, TreeEntryKind, TreeOf, What},

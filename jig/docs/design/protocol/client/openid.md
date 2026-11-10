@@ -5,7 +5,7 @@ deployment's own web applications: a forge, a wiki, whatever signs its
 people in by OpenID. A person signed in to the application is signed in
 there by the code flow, with no consent page: the clients are the
 deployment's, configured by its owners. skein's issuer
-(`skein-oauth-issuer`, skein's `oauth-issuer.md`) checks the requests
+(`skein-oauth-issuer`, skein's `oauth/issuer.md`) checks the requests
 and writes the documents and tokens; the component holds what lives,
 its codes and access tokens, and decides who is signed in. The routes
 and their addresses are the application's (`default-http.md`, 1: no provider route).
@@ -28,7 +28,7 @@ and their addresses are the application's (`default-http.md`, 1: no provider rou
   token, userinfo and key set routes; the helper builds skein's
   `Issuer`, which the startup hands the component in its settings,
   after taking from it the discovery document and the key set, which
-  the application serves itself (skein's `oauth-issuer.md`, section 3).
+  the application serves itself (skein's `oauth/issuer.md`, section 3).
 - **`Authorize`,** a client's message: the authorization request's
   query, as the browser's address carried it to the application's
   page, which the client hands on (the application's client decides
@@ -67,7 +67,7 @@ and their addresses are the application's (`default-http.md`, 1: no provider rou
   with its `Authorization` header, answered `Claimed`. Each answer is a
   status, an optional challenge for `WWW-Authenticate`, and a body,
   which the server sends as it is, `application/json` and
-  `Cache-Control: no-store` (skein's `oauth-issuer.md`, sections 5 and
+  `Cache-Control: no-store` (skein's `oauth/issuer.md`, sections 5 and
   7). A code is spent at its first presentation, whatever follows;
   `Redeemed` with tokens draws an access token, kept with the person.
 - **In the component's memory,** never the store: a code lives one

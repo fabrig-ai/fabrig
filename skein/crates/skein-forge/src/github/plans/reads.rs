@@ -1,4 +1,4 @@
-//! The reads whose GitHub requests and documents are complete (forge-github.md, 4.1).
+//! The reads whose GitHub requests and documents are complete (forge/github.md, 4.1).
 use super::{
     Body, Heard, failure,
     plan::{Bounds, Exchange, Step},

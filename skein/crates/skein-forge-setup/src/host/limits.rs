@@ -1,4 +1,4 @@
-//! Admission and stack bounds for the host (forge-setup.md, 6.3).
+//! Admission and stack bounds for the host (forge/setup/README.md, 4.3).
 use super::settings::{self, Kind, Settings, Transport};
 use alloc::boxed::Box;
 use skein_forge::{forgejo::limits as docs, github as dialect};
@@ -9,7 +9,7 @@ pub struct Limits {
     pub forges: u32,
     /// Run slots, including ended runs whose connections are settling (6.5).
     pub runs: u32,
-    /// One-time states retained across all forges, nonzero (forge-setup.md, 5.7).
+    /// One-time states retained across all forges, nonzero (forge/setup/github.md, 1.7).
     pub states: u32,
     /// The longest token or secret item (6.4), at least 64 bytes.
     pub token_bytes: u32,

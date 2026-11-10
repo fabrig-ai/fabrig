@@ -1,4 +1,4 @@
-// The loader (ui-web.md, 4.3); words belong to the markup.
+// The loader (ui/web/bundle.md, 3); words belong to the markup.
 const $=s=>document.querySelector(s), b=$("#boot"), p=$("#boot progress"), l=$("#boot-line"), n=$("#boot-note"), r=$("#boot button"), w={...b.dataset};
 const url=s=>new URL(s,import.meta.url).href, mb=n=>(n/1e6).toFixed(1), say=(s,v)=>s.replace(/\{(\w+)\}/g,(_,k)=>v[k]);
 const rows=[GLUE,WASM,...SHEETS], TOTAL=rows.reduce((s,r)=>s+r[1],0), begun=performance.now();

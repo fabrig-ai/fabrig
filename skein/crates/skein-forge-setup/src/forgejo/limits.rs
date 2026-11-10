@@ -1,4 +1,4 @@
-//! Reconcile's bounded orgs, repositories, deadline and wait (forge-setup.md, 4.4).
+//! Reconcile's bounded orgs, repositories, deadline and wait (forge/setup/forgejo.md, 1.4).
 use crate::given::{Place, Refused};
 use skein_lib::Duration;
 /// Limits checked before a setup is read.
@@ -6,14 +6,14 @@ use skein_lib::Duration;
 pub struct Limits {
     pub orgs: u32,         // Orgs per forge.
     pub repositories: u32, // Repositories adopted per forge.
-    /// Repositories held in one picker page (forge-setup.md, 4.8).
+    /// Repositories held in one picker page (forge/setup/forgejo.md, 1.8).
     pub reachable: u32,
     /// Files in a creation plan.
     pub files: u32,
     /// Bytes in each creation file.
     pub file_bytes: u32,
     pub deadline: Duration, // Whole reconcile run.
-    /// Whole copy run (forge-setup.md, 4.10).
+    /// Whole copy run (forge/setup/forgejo.md, 1.10).
     pub copy_deadline: Duration,
     pub backoff: Duration,     // First retry delay.
     pub backoff_max: Duration, // Largest retry delay.

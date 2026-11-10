@@ -231,7 +231,7 @@ pub(crate) fn configure(
         .filter(|text| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
         .and_then(|text| text.parse::<u64>().ok())
         .ok_or_else(|| "--seed N (TEMPER_SEED): expected a decimal u64".to_string())?;
-    // shell.md 6.5 has no absent setting; Default alone means absent.
+    // skein/docs/design/runtime/shell.md 6.5 has no absent setting; Default alone means absent.
     // In particular --ready "" is a present, empty prefix.
     let ready = if resolved.value(1).origin == Origin::Default { None } else { Some(resolved.value(1).bytes.clone()) };
     let observations = if kind == Kind::Oauth || resolved.value(3).origin == Origin::Default {

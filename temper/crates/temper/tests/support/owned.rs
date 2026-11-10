@@ -1071,7 +1071,7 @@ fn checked_setup(_bytes: &[u8], named: &temper_service::Named) -> temper_forge_s
     }
 }
 
-/// Adopt's stand-in (forge-setup.md, 4.5 and 4.8).
+/// Adopt's stand-in (skein/docs/design/forge/setup/forgejo.md, 1.5 and 1.8).
 /// Uses the kept webhook secret, drawing one only when absent.
 /// Uses the person's token because preparation's admin token carries no write:repository.
 pub fn adopt(

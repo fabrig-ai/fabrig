@@ -99,7 +99,7 @@ fn main() {
     let signals = skein_shell::open_termination_signals().expect("block signals on the only thread");
     let root = skein_shell::open_root(std::path::Path::new(".")).expect("spawn root");
     // One signal source, one child and its input pipe; the pipe keeps the
-    // sender live until the parent has consumed its signal (io.md, 7).
+    // sender live until the parent has consumed its signal (runtime/io/README.md, 4).
     let limits = io::Limits {
         sockets: 3,
         intake: 8,

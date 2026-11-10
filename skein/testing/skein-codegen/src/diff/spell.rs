@@ -1,4 +1,4 @@
-//! Schema names and grammar spelling (codec.md, 7.1 and 10.2).
+//! Schema names and grammar spelling (data/codec/README.md, 7.1, and data/codec/diff.md, 2).
 
 use skein_codec::patch::Target;
 use skein_codec::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};

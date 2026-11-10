@@ -52,7 +52,7 @@ denied, so that the ring adapter can expect it in place; a crate here with no `u
 ## 3. Which crate takes which
 
 - **`step`:** every crate held to the subset, and any crate under `testing/` or `tests/` held to the
-  step crates' lints (a fake that runs as a step machine, `skein/docs/design/testing.md`, 6). A crate
+  step crates' lints (a fake that runs as a step machine, `skein/docs/design/testing/README.md`, 6). A crate
   already on `step` stays there.
 - **`harness`:** the worlds under `tests/`, the kits under `testing/`, the fakes under `crates/`, and
   the development tools under `tools/`.

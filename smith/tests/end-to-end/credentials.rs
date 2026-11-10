@@ -67,7 +67,7 @@ fn seed(scratch: &Scratch, name: &str, subject: &[u8]) {
         .expect("credential fixture");
 }
 
-// smith/docs/design/testing.md, 2.3 and 8; skein/docs/design/oauth.md, 6.3.
+// smith/docs/design/testing.md, 2.3 and 8; skein/docs/design/oauth/accounts.md, 3.
 fn refresh_fixture(scratch: &Scratch, earliest_refresh_at: Option<Wall>) -> (Box<[u8]>, Box<[u8]>) {
     let now = Clock::new().now().wall;
     let expires_at = Wall::from_nanos(

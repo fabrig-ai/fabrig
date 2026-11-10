@@ -4,7 +4,7 @@ use crate::{
     limits,
 };
 use skein_lib::Duration;
-// A relation's adjacent values differ by one nanosecond (forge-setup.md, 4.4).
+// A relation's adjacent values differ by one nanosecond (forge/setup/forgejo.md, 1.4).
 const ONE_NS: Duration = Duration::from_nanos(1);
 #[test]
 fn limits_at_both_relations_are_accepted() {

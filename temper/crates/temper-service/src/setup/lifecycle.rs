@@ -496,7 +496,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     }
     let outcome = match outcome {
         reconcile::Outcome::Manifest { state, target, manifest } => {
-            // The kit answers the form's parts; the page is temper's (forge-setup.md 5.1).
+            // The kit answers the form's parts; the page is temper's (skein/docs/design/forge/setup/github.md 1.1).
             let back = manifest_back(engine, token);
             let Some(page) = super::routes::form(&target, &manifest, back, forge, engine.setup.env.limits.body_bytes)
             else {

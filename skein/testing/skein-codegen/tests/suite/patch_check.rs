@@ -1,4 +1,4 @@
-//! Each row of codec.md 12.7, checked without writing.
+//! Each row of data/codec/command.md 7, checked without writing.
 
 #[cfg(test)]
 mod tests {
@@ -261,7 +261,7 @@ mod tests {
             ),
             (
                 Finding::Version { family: "shelf".into(), verdict: Version::Wrong, kept: 7, current: 9 },
-                "shelf: version 9 over kept 7 is Wrong (codec.md, 12.5)",
+                "shelf: version 9 over kept 7 is Wrong (data/codec/command.md, 5)",
             ),
             (Finding::Changed { path: "patches/0001.patch".into() }, "patches/0001.patch: landed, and changed or gone"),
             (Finding::PatchGap { missing: 1 }, "patch 0001 missing"),

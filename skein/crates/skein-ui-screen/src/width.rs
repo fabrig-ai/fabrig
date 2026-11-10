@@ -1,4 +1,4 @@
-//! A character's cell width (skein/docs/design/ui-screen.md, 5.1).
+//! A character's cell width (skein/docs/design/ui/screen.md, 5.1).
 
 mod table;
 

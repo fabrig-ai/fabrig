@@ -1,4 +1,4 @@
-//! The server and Chromium are children of one io loop (ui-web.md, 14.2).
+//! The server and Chromium are children of one io loop (ui/web/testing.md, 2).
 use crate::BrowserFace;
 use browser::boundary::{Below, Down, Event, Request, Trouble};
 use skein_browser::{self as browser, Browser};
@@ -172,7 +172,7 @@ impl Harness {
     }
     /// Sets the whole run's horizon for a program with bounds of its own on each step.
     /// No test sets it: every test stands on the forty-second horizon
-    /// (skein/docs/design/ui-web.md, 14.2).
+    /// (skein/docs/design/ui/web/testing.md, 2).
     #[must_use]
     pub fn horizon(mut self, horizon: Duration) -> Self {
         bounds(horizon);
@@ -1004,7 +1004,7 @@ impl Runtime {
             }
         }
     }
-    #[expect(clippy::too_many_lines, reason = "ui-web.md, 14.2 keeps the run and its close window in one loop")]
+    #[expect(clippy::too_many_lines, reason = "ui/web/testing.md, 2 keeps the run and its close window in one loop")]
     fn run(
         mut self,
         setup: &Harness,

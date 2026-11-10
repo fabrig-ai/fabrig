@@ -1,4 +1,4 @@
-//! Frozen binary record measurements (skein/docs/design/codec.md, section 6).
+//! Frozen binary record measurements (skein/docs/design/data/codec/README.md, section 6).
 
 pub fn assert_measured(family: &str, version: u16, record: &str, measure: impl Fn(&[u8]) -> u32) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}/golden/v{version}"));

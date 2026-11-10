@@ -68,7 +68,7 @@ impl Visitor {
             connections: BTreeMap::new(),
         }
     }
-    /// An input between steps; it acts on it at its next turn (skein/docs/design/world.md, 5).
+    /// An input between steps; it acts on it at its next turn (skein/docs/design/testing/world.md, 5).
     pub fn enter(&mut self, input: bridge::Input) {
         self.inputs.push_back(input);
     }

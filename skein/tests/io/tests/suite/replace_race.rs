@@ -1,4 +1,4 @@
-//! Private loads survive the store's rename between open and stat (io.md, 5.2–5.3).
+//! Private loads survive the store's rename between open and stat (runtime/io/files.md, 2–3).
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::file::Event;

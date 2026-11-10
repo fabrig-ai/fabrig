@@ -1,4 +1,4 @@
-//! Pure route answers and the policy on every answer (ui-web.md, 4.4).
+//! Pure route answers and the policy on every answer (ui/web/bundle.md, 4).
 use crate::{
     State,
     bundle::{self, Bundle},

@@ -1,4 +1,4 @@
-//! Patch p0003: audio books become ebooks (codec.md, 11.5).
+//! Patch p0003: audio books become ebooks (data/codec/patches.md, 5).
 
 use super::Context;
 use super::kept::shelf::p0003::{new, old};

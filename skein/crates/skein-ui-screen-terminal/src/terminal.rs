@@ -1,4 +1,4 @@
-//! The full-screen terminal on tagged io (skein/docs/design/ui-screen.md, 8).
+//! The full-screen terminal on tagged io (skein/docs/design/ui/screen.md, 8).
 use crate::{ASK_BACKGROUND, Decoder, Depth, ENTER, Key, LEAVE, draw, draw_bound};
 use skein_io::{
     Event, Io, Request, Window,
@@ -105,7 +105,7 @@ impl Terminal {
             retry: Duration::from_millis(1),
         })
     }
-    /// Includes io's independent window-request slot (skein/docs/design/io.md, 7).
+    /// Includes io's independent window-request slot (skein/docs/design/runtime/io/README.md, 4).
     #[must_use]
     pub fn operations(settings: &Settings) -> Option<u32> {
         skein_io::operations(&Self::io_limits(settings)?)

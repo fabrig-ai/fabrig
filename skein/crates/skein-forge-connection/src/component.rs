@@ -1,4 +1,4 @@
-//! Waiting calls and returned answers (skein/docs/design/forge-connection.md, sections 2, 7.1 and 8).
+//! Waiting calls and returned answers (skein/docs/design/forge/connection.md, sections 2, 7.1 and 8).
 use crate::{
     boundary::{Answered, Event, Request},
     connection::{self, Connection, Phase, Use},
@@ -139,7 +139,7 @@ pub struct Component {
     common: Common,
 }
 
-/// What the configured forges share (skein/docs/design/forge-connection.md, 7.1).
+/// What the configured forges share (skein/docs/design/forge/connection.md, 7.1).
 #[derive(Debug)]
 pub(crate) struct Common {
     hooks: crate::hooks::Hooks,
@@ -340,7 +340,7 @@ impl Component {
         }
     }
     /// Ends each open call with no answer and drops what the component holds for the
-    /// owner and each forge (forge-connection.md, 8.5).
+    /// owner and each forge (forge/connection.md, 8.5).
     fn shed(&mut self) {
         let Self { forges, common } = self;
         for _ in 0..common.calls.len() {

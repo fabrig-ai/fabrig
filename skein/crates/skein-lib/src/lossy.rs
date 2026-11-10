@@ -1,5 +1,5 @@
 //! Facts a reader may miss: kept up to a cap, the rest dropped and counted
-//! (skein/docs/design/lib.md, 5).
+//! (skein/docs/design/runtime/lib.md, 5).
 
 use crate::Queue;
 

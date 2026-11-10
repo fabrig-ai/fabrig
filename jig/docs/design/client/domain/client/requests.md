@@ -32,7 +32,7 @@
   keeps it beside the application's key in the request's record, so a
   kept request comes back under its key (`README.md`, section 8).
 - **A `Send` may carry a name:** an engine key the application gives,
-  which the table admits in place of a drawn one (skein's `lib.md`,
+  which the table admits in place of a drawn one (skein's `runtime/lib.md`,
   section 12). The request's record keeps it as the engine's key beside
   the application's key. Any ask may carry a name, a family's included.
   - *Held.* A named `Send` whose engine key the table already holds (the
@@ -49,7 +49,7 @@
     another request is still a key conflict, loud.
   - *Not joined.* The table keeps one asker per named entry, `Seen`
     included.
-- **Through skein-lib's request table** (skein's `lib.md`, section 12),
+- **Through skein-lib's request table** (skein's `runtime/lib.md`, section 12),
   which the client holds. It is the client's only way out for a keyed
   request without a carried value, as the journal is the engine's root's
   (`../../../README.md`, 6.2); a request carrying a value (below) is the

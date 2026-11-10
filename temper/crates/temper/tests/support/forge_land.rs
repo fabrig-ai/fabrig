@@ -204,7 +204,7 @@ impl Face {
     }
 }
 
-/// What the model peer saw, without credential values (skein/docs/design/fake-llm.md, 3–3.2).
+/// What the model peer saw, without credential values (skein/docs/design/testing/fakes/llm.md, 3 and 3.2).
 pub struct Seen {
     pub requests: Vec<api::Query>,
     pub answers: Vec<Result<(), api::Error>>,
@@ -342,7 +342,7 @@ fn delegate_page(parent: u64, after: Option<&str>) -> super::ctl::Call {
 
 #[must_use]
 pub fn restart_script(chat_cue: &[u8]) -> Box<[Script]> {
-    // A system cue's turns count every assistant message (fake-llm.md 2.4):
+    // A system cue's turns count every assistant message (skein/docs/design/testing/fakes/llm.md 2.4):
     // the first box's delegate, wait and reply are turns 0 to 2, played there.
     // The restart runs the chat's lost attempt again, which answers (turn 3);
     // Close then asks the parked run to finish, and its text ends it (turn 4,

@@ -1,4 +1,4 @@
-//! Installations and their tokens (fake-forge.md, 10.1).
+//! Installations and their tokens (testing/fakes/github.md, 1.1).
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Queue, Rng, Secret, Wall, Writer, bytes};
 
@@ -29,7 +29,7 @@ pub struct Installation {
     pub suspended: bool,
     pub created: Wall,
 }
-/// Everything its installation may do, or contents alone (forge-github.md, 8.2).
+/// Everything its installation may do, or contents alone (forge/github.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Scope {
     Full,
@@ -135,7 +135,7 @@ impl Installations {
         None
     }
 
-    /// Ids are sequential from 1 and are never reused (fake-forge.md, 10.4).
+    /// Ids are sequential from 1 and are never reused (testing/fakes/github.md, 1.4).
     /// A listed reach is capped per installation, and retained at its length.
     pub fn install(&mut self, account: u64, login: &[u8], kind: Kind, reach: Reach, now: Wall) -> Result<u64, Install> {
         if login.is_empty() || login.len() > LOGIN_BYTES {

@@ -1,15 +1,15 @@
-//! Forge component limits (forge-connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component limits (forge/connection.md, sections 2, 3.5, 7 and 8).
 use skein_forge::forgejo::limits as documents;
 use skein_lib::{Duration, len_u64, usize_of};
 
-/// The component's limits (forge-connection.md, section 7).
+/// The component's limits (forge/connection.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The forges served.
     pub forges: u32,
     /// The longest API token.
     pub token_bytes: u32,
-    /// The longest App key, PKCS#1 DER (forge-connection.md, 5.2).
+    /// The longest App key, PKCS#1 DER (forge/connection.md, 5.2).
     pub key_bytes: u32,
     /// Forge connections in all: the client's `calls`.
     pub connections: u32,
@@ -65,7 +65,7 @@ pub struct Limits {
 }
 
 /// What the component is given of its neighbours' limits
-/// (forge-connection.md, 7.3).
+/// (forge/connection.md, 7.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Shared {
     /// The forge client's: `calls`, `rows`, `answer_bytes`, `op_bytes`, `lifetime`.
@@ -82,7 +82,7 @@ pub struct Shared {
     pub io: skein_io::Limits,
 }
 
-/// Configured forge counts by dialect (forge-connection.md, 7.5).
+/// Configured forge counts by dialect (forge/connection.md, 7.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Forges {
     pub forgejo: u32,
@@ -103,7 +103,7 @@ impl Forges {
     }
 }
 
-/// The listings whose page size the component chooses (forge-connection.md, 3.1).
+/// The listings whose page size the component chooses (forge/connection.md, 3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Listing {
     Items,
@@ -488,7 +488,7 @@ fn check_origins(l: &Limits, s: &Shared, user_agent: &[u8], forge: &Forge, tls: 
     }
     Ok(())
 }
-/// A connect's check of one access (forge-connection.md, 3.5), before any io.
+/// A connect's check of one access (forge/connection.md, 3.5), before any io.
 pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) -> Result<(), Value> {
     use skein_forge::credential::Credential;
     match (&access.credential, kind) {

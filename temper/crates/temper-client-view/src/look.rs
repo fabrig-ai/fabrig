@@ -712,7 +712,7 @@ pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 362 };
 pub const WELCOME_OK: Style = Style { owner: owner(), token: 363 };
 /// The separator between the forge's name and its status.
 pub const WELCOME_SEP: Style = Style { owner: owner(), token: 364 };
-/// The look's names (skein's ui.md, 8): styles by token, regions by number.
+/// The look's names (skein's ui/README.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
     prefix: b"temper",

@@ -245,11 +245,11 @@ It proves the connection, and nothing more. Illustrative:
   `temper-client-view`, with the same words where the same thing is
   said.
 - **A full-screen shell of skein's,** beside its text shell (skein's
-  `ui.md`, section 16): a renderer that lays the tree out on a grid of
-  cells, placing regions by their names (skein's `ui.md`, section 8),
+  `ui/shells.md`): a renderer that lays the tree out on a grid of
+  cells, placing regions by their names (skein's `ui/README.md`, section 8),
   and a terminal that takes raw keys, the alternate screen, resizes and
   colour. The renderer is step code, the terminal ordinary Rust, as the
-  text shell's are (skein's `ui-text.md`).
+  text shell's are (skein's `ui/text.md`).
 - **Its look,** a theme the application gives the shell: colours,
   glyphs and borders for its tokens and regions, from the browser's
   chat terminal (`../client/browser.md`, 2.5, *A chat's terminal*), dark

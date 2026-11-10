@@ -96,7 +96,7 @@ section 4. What is still open is listed in section 14.
    commits and loads, transcripts, secrets, growth.
 8. **browser.md:** a browser's client: the default HTTP mapping's
    browser end, `jig-client-shell-web`, over skein's browser parts
-   (skein's `ui-web.md`), and the cookie that carries a browser's
+   (skein's `ui/web/README.md`), and the cookie that carries a browser's
    credential; the example guards and jig's attack stories, for the
    application's server; jig's test application's browser shell, server
    and page policy, as the example of an application's; and where jig's
@@ -108,8 +108,8 @@ section 4. What is still open is listed in section 14.
 |---|---|
 | protocol layer | a process's layer between its root and io: its components, and the application's routing between them (programming-model.md, section 4) |
 | component | a crate of a protocol layer that the application's protocol layer owns as a child and routes to |
-| component, a shell's | the client's name (`../client/domain/README.md`, section 4): a shell's native implementation of a node (skein's `ui.md`, section 12), never a protocol layer's component |
-| codec crate | a crate of records generated from a schema, used by components at both ends (skein's `codec.md`) |
+| component, a shell's | the client's name (`../client/domain/README.md`, section 4): a shell's native implementation of a node (skein's `ui/README.md`, section 10), never a protocol layer's component |
+| codec crate | a crate of records generated from a schema, used by components at both ends (skein's `data/codec/README.md`) |
 | record | a value of a protocol's vocabulary, encoded to its schema |
 | service | a process's `iterate` with its root and protocol layer; its `main` is its shell |
 | worker's link | a worker's one channel with its engine, dialled and redialled (`channel/README.md`); the hub's link to the core, over a channel |
@@ -205,7 +205,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
   section 10), as every crate of jig's is but its test kits and the
   client's shells and their parts. The reference UI's bundle is made at
   build by skein's bundler, `skein-ui-bundle`, a tool, not a component,
-  and served by the application's server (skein's `ui-web.md`, 4.2;
+  and served by the application's server (skein's `ui/web/bundle.md`, 2;
   `browser.md`, 4.2 and section 12).
 - **Each depends** on skein-lib, io's vocabulary, the skein components it
   drives, its codec crate, and the domain vocabulary it translates: the
@@ -255,7 +255,7 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   fixed: changes to its schema, generated code and golden bytes are made
   in place. Each family keeps one set of golden bytes, its current
   schema's. Versions move at a release, not at a landing (skein's
-  `codec.md`, section 5). A reader refuses another version, saying so,
+  `data/codec/README.md`, section 5). A reader refuses another version, saying so,
   and nothing is translated.
 - **No upgrade in place.** Everything that crosses a boundary or
   outlives a process carries its version, which an upgrade will need; an
@@ -327,7 +327,7 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 ## 9. The store
 
 - **jig's store is skein's key-value store in the engine** (skein's
-  `kv.md`): embedded in the engine's process, with transcripts beside it
+  `data/kv.md`): embedded in the engine's process, with transcripts beside it
   and secrets in a second store. There is no store process and no wire:
   the store is a component of the engine's protocol layer, and its bytes
   are its records on disk. jig's part is the engine's own records (its
@@ -361,52 +361,52 @@ Each is generic, and says nothing about jig.
   accepting sockets joined in memory to those that connect to it, with
   the same requests, events, backpressure and ends as TCP, and never
   reaching the simulator, for the one-process shape (section 4; skein's
-  `io.md`, 3.5 and section 4).
+  `runtime/io/sockets.md`, 5, and `runtime/io/README.md`, 3).
 - **TLS's server side with independent output,** for the engine's
   workers' listener between hosts, and for clients' HTTPS on an
   application's server built on skein's HTTP, as the reference's is
-  (skein's `tls.md`, section 8; skein's `channel.md`, section 12). Not
+  (skein's `net/tls.md`, section 8; skein's `net/channel.md`, section 12). Not
   needed in one process.
 - **Contained process trees,** for workers' agents: spawned within a
   deadline, with an environment given whole and only named directories
   writable, stopped politely, then terminated, then killed, and proved
-  empty (`../domain/hosts/README.md`, section 8; skein's `io.md`, 6.2–6.4;
+  empty (`../domain/hosts/README.md`, section 8; skein's `runtime/io/processes.md`, 2–4;
   smith's `protocol/README.md`, section 9 asks the same). Without them,
   each agent process, command and check runs in a process group of its
-  own, which a stop signals whole (skein's `io.md`, section 6).
+  own, which a stop signals whole (skein's `runtime/io/processes.md`).
 - **Private files read at startup:** the startup kit's
   `read_private_file`, refusing a file that is not private to the
   process's user, or reached through a link, for configuration's secrets
-  (skein's `shell.md`, 6.1; skein's `io.md`, 5.3).
+  (skein's `runtime/shell.md`, 6.1; skein's `runtime/io/files.md`, 3).
 - **A cryptographic generator:** skein-lib's `CryptoRng`, keyed by the
-  seed the shell draws at start (skein's `lib.md`, section 8; skein's
-  `shell.md`, section 5), for minted credentials, the printed link's
+  seed the shell draws at start (skein's `runtime/lib.md`, section 8; skein's
+  `runtime/shell.md`, section 5), for minted credentials, the printed link's
   secret, services' credentials, the accounts driver's states and
   verifiers, and the installation's identifier (`store/README.md`, 4.4).
 - **The loop's host:** skein's `Host` and `drive`, with
-  `next_policy_deadline` (skein's `shell.md`, section 12; `service.md`,
+  `next_policy_deadline` (skein's `runtime/shell.md`, section 11; `service.md`,
   section 4).
 - **For `jig-client` on WebAssembly, and its records:** skein-lib and
   skein-codec built for `wasm32-unknown-unknown`, with skein-http's
   machines for the default mapping's client end, and `skein-ui` for the
-  reference UI, checked by skein's gate (skein's `lib.md`, section 2;
-  skein's `testing.md`, section 6); skein-lib's bounded `base64`, for
+  reference UI, checked by skein's gate (skein's `runtime/lib.md`, section 2;
+  skein's `testing/README.md`, section 6); skein-lib's bounded `base64`, for
   records in the default mapping's server-sent events (`client/default-http.md`,
   2);
   and skein-lib's `Secret`, the generator's `secret` type, whose `Debug`
   shows its length only, for credentials' values (`README.md`, section 8; skein's
-  `codec.md`, section 3).
+  `data/codec/README.md`, section 3).
 - **For the reference UI and its shells, skein's UI kit** (skein's
-  `ui.md`, `ui-text.md` and `ui-web.md`), which an application's own
+  `ui/README.md`, `skein/docs/design/ui/text.md` and `skein/docs/design/ui/web/README.md`), which an application's own
   presentation may use or leave:
   - `skein-ui`: the tree and its vocabulary, owners as opaque numbers,
     to which jig maps its own (`../client/domain/view.md`, section 3;
-    skein's `ui.md`, 3.3), the builder with slots and splicing, bindings
+    skein's `ui/README.md`, 3.3), the builder with slots and splicing, bindings
     and acts, the diff and the view, style tokens and the look's names,
     the phrasebook's machinery with its reference hole, Markdown,
     scenes, the outline's rules, and limits with their worst case;
   - `skein-ui-text`, the text shell, which jig's terminal client
-    composes with jig's settings (skein's `ui-text.md`);
+    composes with jig's settings (skein's `ui/text.md`);
   - `skein-ui-web`, the browser parts each usable alone and their
     default mapping of roles to elements, beside which jig's own parts
     sit (`browser.md`, 5.1): their platform halves call through the glue
@@ -416,28 +416,28 @@ Each is generic, and says nothing about jig.
     `jig-client-shell-web` forbids it in its own code;
   - `skein-ui-bundle`, the bundler, which writes the reference UI's
     bundle, under the prefix the application's server serves it at
-    (skein's `ui-web.md`, 4.2 to 4.4; `browser.md`, 4.2);
+    (skein's `ui/web/bundle.md`, 2 to 4; `browser.md`, 4.2);
   - `skein-fake-person`, the person over the tree, and
     `skein-fake-person-browser`, its face over skein's browser kit (a
     name matched by words as well as exactly, a press at a point within
-    a node's box: skein's `browser.md`, sections 5 and 6) and the
+    a node's box: skein's `testing/browser.md`, sections 5 and 6) and the
     harness, which stops the application's binary and starts it again
     within a story, with skein's stories for a browser shell, which
-    jig's tier calls beside its own (skein's `ui-web.md`, 14.2;
+    jig's tier calls beside its own (skein's `ui/web/testing.md`, 2;
     `../client/domain/testing.md`, section 3; `browser.md`, section
     15).
 - **LLM accounts' mechanism:** the accounts driver, with sources added
   and removed while it runs, sign-out with revocation, the client id a
   registration is issued kept with its record, signed in with the
   subject and scopes granted, and records kept through its owner's
-  store (skein's `oauth.md`, 6.2 to 6.4); a credential with its scheme,
-  and the failures' classes (skein's `llm.md`, sections 2 and 2.5).
+  store (skein's `oauth/accounts.md`, 2 to 4); a credential with its scheme,
+  and the failures' classes (skein's `llm/README.md`, sections 2 and 2.5).
 - **What it has, as it is:** the framed channel, codecs and their
   generator, the JSON reader and writer, the key-value store, the LLM
   client and connection component and their fake peer, OAuth's client and
   fake issuer, HTTP's server and client, server-sent events.
 - **The store** needs skein-kv as it is, and io's `OpenWrite` and `Cut`
-  (skein's `io.md`, section 5; `store/README.md`, section 10).
+  (skein's `runtime/io/files.md`; `store/README.md`, section 10).
 - **Nothing new for the client's API.** Its generic half (keyed
   requests until durable, level-triggered watches, the link, generic
   guards) is jig's while it has one user.

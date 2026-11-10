@@ -82,7 +82,7 @@ impl fmt::Debug for Store {
     }
 }
 // Replay covers the four fields Debug exposes, preserving the world's store
-// comparison boundary (skein/docs/design/lib.md, 5.1). The real component and
+// comparison boundary (skein/docs/design/runtime/lib.md, 5.1). The real component and
 // file machinery remain exercised by each world's commits and reads.
 impl core::hash::Hash for Store {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {

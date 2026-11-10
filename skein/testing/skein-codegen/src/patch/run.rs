@@ -15,7 +15,7 @@ use crate::diff::{Rename, Version};
 
 pub(super) type Writes = BTreeMap<PathBuf, Option<Vec<u8>>>;
 
-/// Runs codec.md 12.2 over an owner's crate, with the base supplied by its caller.
+/// Runs data/codec/command.md 2 over an owner's crate, with the base supplied by its caller.
 pub fn run(owner: &Path, landed: &Landed, options: &Options) -> Result<Report, Error> {
     let tree = Crate::read(owner)?;
     let base = Crate::base(owner, landed)?;

@@ -1,4 +1,4 @@
-//! Durable startup directories (shell.md, section 6).
+//! Durable startup directories (runtime/shell.md, section 6).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -13,7 +13,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 /// Makes absent directories along `path` durable, then opens it as a root
-/// (shell.md, 6). Existing directories keep their modes; errors are errno.
+/// (runtime/shell.md, 6). Existing directories keep their modes; errors are errno.
 pub fn make_root(path: &Path, mode: u32) -> Result<Fd, i32> {
     if mode & !PERMISSIONS != 0 {
         return Err(libc::EINVAL);

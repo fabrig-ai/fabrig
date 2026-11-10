@@ -1,4 +1,4 @@
-//! Content-free diagnostics from the forge client (forge-client.md, section 5).
+//! Content-free diagnostics from the forge client (forge/client.md, section 5).
 //!
 //! Facts are bounded observations, not durable decisions. This module keeps
 //! no state, knows no task content, and exposes only diagnostic value types.

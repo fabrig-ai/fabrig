@@ -264,7 +264,7 @@ enum State {
     Waiting { reply_to: ReplyTo, result: Result<Answer, Error>, landing: Option<Landing> },
     /// Answered as timed out: it is made when the call's timer fires again.
     Landing(Landing),
-    /// The destination exists empty until this call's alarm (fake-forge.md, 2.6).
+    /// The destination exists empty until this call's alarm (testing/fakes/forge.md, 2.6).
     Copying { reply_to: ReplyTo, source: Id<Repository>, destination: Id<Repository>, result: Result<Answer, Error> },
     /// Terminal: holds nothing.
     Closed,

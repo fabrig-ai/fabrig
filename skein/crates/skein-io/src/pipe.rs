@@ -1,4 +1,4 @@
-//! One-way pipes and adopted append files (io.md, 3, 5.1 and 6).
+//! One-way pipes and adopted append files (runtime/io/sockets.md and runtime/io/files.md, 1 and runtime/io/processes.md).
 //! Data-carrying states follow programming-model.md, 5.4. Output writes
 //! keep the owner's deadline; graceful closing replaces it with io's.
 

@@ -211,7 +211,7 @@ down:  released and door outputs → components → io submissions
   components and the root hold as state.
 - **The policy deadline.** skein's `Host` asks each service for its
   earliest deadline other than io's own, the one the teardown invariant
-  watches (skein's `shell.md`, section 12, `next_policy_deadline`): a
+  watches (skein's `runtime/shell.md`, section 11, `next_policy_deadline`): a
   service's `iterate` reports there its root's and its components'
   deadlines, as it reports them for its loop; in one process (section
   10), over every root and protocol layer it owns.
@@ -276,7 +276,7 @@ down:  released and door outputs → components → io submissions
   domain, which asks for an agent process per run; the protocol layer
   spawns the agent program its configuration names (`configuration.md`,
   section 4), with an environment holding no credential, in a process
-  group of its own (skein's `io.md`, section 6), and gives smith's host
+  group of its own (skein's `runtime/io/processes.md`), and gives smith's host
   half its pipes (smith's `protocol/host.md`, section 3). A run on a
   program source names its configuration directory under the programs
   directory (`configuration.md`, section 4), where the program keeps
@@ -342,7 +342,7 @@ down:  released and door outputs → components → io submissions
   component at `/jig` with jig's default HTTP mapping and its example
   guards whole, its `Host` allow-list the address its printed link
   names; and it serves jig's test application's bundle itself, as
-  skein's `ui-web.md`, 4.4 says, under `/bundle/`, its page at every
+  skein's `ui/web/bundle.md`, 4 says, under `/bundle/`, its page at every
   other GET and at the printed link's route, and one root file
   (`browser.md`, 3.5, step 5), with the reference page policy
   (`browser.md`, 12.1). The bundle is data its startup gives it, or
@@ -409,7 +409,7 @@ Each within jig's suites' budgets.
   lost; and a drained shutdown ends with nothing waiting for a commit.
 - **End to end** (testing-strategy.md, 2.9): the reference binary,
   `jig-test`, started on a scratch directory with skein's fake LLM peer
-  as a process of its own on loopback (skein's `fake-llm.md`) as its
+  as a process of its own on loopback (skein's `testing/fakes/llm.md`) as its
   endpoint, a person's requests answered through a native client on
   loopback, over jig's default HTTP mapping,
   runs taken by smith's real agent processes, then the binary killed and
@@ -499,7 +499,7 @@ between hosts.
   They share io and the loop, and nothing else: no root reads another's
   state, and nothing crosses between them but bytes.
 - **Joined by in-process addresses.** The engine's workers' listener and
-  each worker's link use an in-process address (skein's `io.md`, 3.5),
+  each worker's link use an in-process address (skein's `runtime/io/sockets.md`, 5),
   so the channel's opening, authentication, liveness, relays and grants
   run as they do between hosts, in plaintext, with no TLS.
 - **A client on loopback.** The clients' listener, the application's
@@ -558,7 +558,7 @@ between hosts.
   addresses, the test worker's agents smith's agent processes over skein's
   fake LLM.
   Joined sockets are io's own and never reach skein's simulator (skein's
-  `io.md`, 3.5), so the link's cuts and stalls are the channel's protocol
+  `runtime/io/sockets.md`, 5), so the link's cuts and stalls are the channel's protocol
   world's, over streams cut at random (`channel/README.md`, section 11).
 
 ## 11. The service parts
@@ -601,7 +601,7 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 `jig-protocol-worker-agents` links smith, so an application whose workers
 run no agents leaves it out, as `README.md`, 5 says. The kernel's hand-off
 between a process's owners of records is skein's, `kernel::Routes`
-(skein's `kernel.md`, 5).
+(skein's `runtime/kernel.md`, 5).
 
 ### 11.1 The accounts' host
 
@@ -645,7 +645,7 @@ and feeds the answer back.
   once. An effect that any step makes after `begin` has counted waits for
   the next pass.
 - **Tokens.** The host's exchange tokens and io owners sit below the top
-  four bits (skein's `lib.md`, 4). The owner tags `io`'s requests and
+  four bits (skein's `runtime/lib.md`, 4). The owner tags `io`'s requests and
   `Store`'s exchange in its own namespace, and hands io's events back
   untagged. `answer` and `begin` take a store answer's namespace off.
 - **Room.** The queue to a root is uncapped (section 2). An owner whose
@@ -767,8 +767,8 @@ and the page policy. It knows no route: what a call means is its owner's.
   connection and tells the owner the call's connection closed, as
   `client/default-http.md`, 4 asks. `PeerEnd::Call` leaves the connection to
   skein's server, which lets a response go on once the request is all
-  read and says nothing of that end above (`skein/docs/design/http.md`,
-  5.5): the owner hears the call end with its response.
+  read and says nothing of that end above (`skein/docs/design/net/http/server.md`,
+  5): the owner hears the call end with its response.
 - **A call the owner holds.** `hold` keeps a call's connection to a
   deadline of the owner's, past the stall, and `release` gives the call
   back to the stall.
@@ -781,8 +781,8 @@ and the page policy. It knows no route: what a call means is its owner's.
   `Set-Cookie`, so `Server` shows its listener, its phase and how many
   connections it holds, and `Routed` its variant and its call's token.
 - **What serving a bundle has in common** is `bundle`, beside the server:
-  `File` and `kind`, a file's type by skein's closed list (`ui-web.md`,
-  4.4), a `File` holding its compressed form where the bundle has one;
+  `File` and `kind`, a file's type by skein's closed list (`skein/docs/design/ui/web/bundle.md`,
+  4), a `File` holding its compressed form where the bundle has one;
   `compressed_of`, the file a `NAME.gz` is the form of; `target`, a
   head's path; `file`, the file a path names under its digest; `field`,
   one header; `demand` and `chunk`, a body's way out in chunks of the

@@ -1,4 +1,4 @@
-//! Opening private roots and making directories (skein/docs/design/io.md, 5.3).
+//! Opening private roots and making directories (skein/docs/design/runtime/io/files.md, 3).
 //! Each state owns its descriptors until cleanup (skein/docs/foundation/programming-model.md, 5.4).
 //! `start`, `up`, and `stopped` run only through `FileIo`'s entry points.
 

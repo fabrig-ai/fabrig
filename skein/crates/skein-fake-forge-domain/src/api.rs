@@ -1,5 +1,5 @@
 //! The forge's API, as its domain layer sees it once the protocol layer has
-//! parsed a request: the Forgejo-shaped vocabulary (fake-forge.md, section 2), and the git a
+//! parsed a request: the Forgejo-shaped vocabulary (testing/fakes/forge.md, section 2), and the git a
 //! worker speaks to it.
 //!
 //! Names are the forge's own. A repository is named by its full name
@@ -29,7 +29,7 @@ pub enum Permission {
     Admin,
 }
 
-/// A numeric user's permission; this fake keeps no logins (fake-forge.md, section 2).
+/// A numeric user's permission; this fake keeps no logins (testing/fakes/forge.md, section 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct UserPermission {
     pub user: u64,
@@ -148,7 +148,7 @@ pub enum Read {
         page: u32,
         limit: u32,
     },
-    /// One directory, paged from one (fake-forge.md, 2.3).
+    /// One directory, paged from one (testing/fakes/forge.md, 2.3).
     GitTree {
         object: TreeOf,
         page: u32,
@@ -228,7 +228,7 @@ pub enum Read {
 /// The writes, each answered by [`Answer::Done`] unless it says otherwise.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Copies this source into a private repository (fake-forge.md, 2.6).
+    /// Copies this source into a private repository (testing/fakes/forge.md, 2.6).
     Copy {
         owner: Box<[u8]>,
         name: Box<[u8]>,
@@ -395,7 +395,7 @@ pub enum Write {
         description: Box<[u8]>,
         link: Box<[u8]>,
     },
-    /// Runs the workflow at the branch's current head (fake-forge.md, 2.3).
+    /// Runs the workflow at the branch's current head (testing/fakes/forge.md, 2.3).
     Dispatch {
         workflow: Box<[u8]>,
         branch: Box<[u8]>,
@@ -445,7 +445,7 @@ pub enum Want {
     Default,
 }
 
-/// When a copy fills its empty destination (fake-forge.md, 2.6).
+/// When a copy fills its empty destination (testing/fakes/forge.md, 2.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fill {
     Whole,
@@ -756,7 +756,7 @@ pub enum QueueRemoval {
 }
 
 impl QueueRemoval {
-    /// GitHub's spelling (forge-github.md, 4.1).
+    /// GitHub's spelling (forge/github.md, 4.1).
     #[must_use]
     pub fn github(self) -> &'static [u8] {
         match self {
@@ -1031,10 +1031,10 @@ pub enum EntryKind {
     File,
     Directory,
 }
-/// A workflow run only when dispatched (fake-forge.md, 2.3).
+/// A workflow run only when dispatched (testing/fakes/forge.md, 2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Workflow {
-    /// The test ids failed by the workflow, beside its cue (fake-forge.md, 2.3).
+    /// The test ids failed by the workflow, beside its cue (testing/fakes/forge.md, 2.3).
     pub fails: Box<[Box<[u8]>]>,
     /// Tests that fail in a run not given the selection input and pass in a
     /// run whose selection lists them: a flake, at the same commit.
@@ -1053,7 +1053,7 @@ pub struct Workflow {
     pub cue: Option<Cue>,
 }
 
-/// One named dispatch input; keys fit a name and values a body (fake-forge.md, 2.3).
+/// One named dispatch input; keys fit a name and values a body (testing/fakes/forge.md, 2.3).
 pub type WorkflowInput = (Box<[u8]>, Box<[u8]>);
 
 /// A workflow's report artifact.

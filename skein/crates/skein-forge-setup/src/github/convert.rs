@@ -1,4 +1,4 @@
-//! Convert a manifest, prove its identity, then retain it (forge-setup.md, 5.2 and 5.3).
+//! Convert a manifest, prove its identity, then retain it (forge/setup/github.md, 1.2 and 1.3).
 use super::{
     app,
     given::{self, Given, Place, Refused},
@@ -31,7 +31,7 @@ enum State {
 }
 
 /// A one-shot manifest conversion; state admission belongs to the host
-/// (forge-setup.md, 5.2, 5.3 and 6.4). No request containing the code is retained.
+/// (forge/setup/github.md, 1.2 and 1.3, and forge/setup/README.md, 4.4). No request containing the code is retained.
 #[derive(Debug)]
 pub struct Convert {
     forge: u16,
@@ -46,7 +46,7 @@ pub struct Convert {
 }
 impl Convert {
     /// Checks the given values and a nonempty code of at most `URL_BYTES`
-    /// before copying either (forge-setup.md, 5.2).
+    /// before copying either (forge/setup/github.md, 1.2).
     pub fn new(given: &Given, code: &[u8]) -> Result<Self, Refused> {
         given::check(given)?;
         if code.is_empty() || code.len() > given::URL_BYTES {
@@ -184,7 +184,7 @@ fn unsigned_unexpected(reply: Reply) -> Why {
     }
 }
 /// Consumes one event, emitting its next need; ended
-/// conversions ignore further events (forge-setup.md, 5.2 and 6.4).
+/// conversions ignore further events (forge/setup/github.md, 1.2, and forge/setup/README.md, 4.4).
 pub fn step(machine: &mut Convert, event: Event, out: &mut Queue<Need>) {
     match machine.state {
         State::Ended => (),

@@ -984,7 +984,7 @@ const FULL_REPORT_PEAK_CEILING: u64 = 820_000;
 
 #[test]
 fn a_full_report_stays_under_the_peak_ceiling() {
-    // llm.md 4.2: each report value may hold 128 bytes.
+    // llm/README.md 4.2: each report value may hold 128 bytes.
     const REPORT_BOUND: usize = 128;
     let bounds = limits();
     let body = format!(

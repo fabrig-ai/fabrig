@@ -1,4 +1,4 @@
-//! A reproducible browser bundle (ui-web.md, 4.2).
+//! A reproducible browser bundle (ui/web/bundle.md, 2).
 #![forbid(unsafe_code)]
 
 use std::collections::BTreeMap;
@@ -14,7 +14,7 @@ pub mod types;
 pub use digest::Digest;
 
 /// The kit's stylesheet, `skein-ui.css`, which every bundle holds first and a
-/// program printing pages beside it without a bundle copies (ui-web.md, 12).
+/// program printing pages beside it without a bundle copies (ui/web/README.md, 10).
 pub const STYLESHEET: &[u8] = include_bytes!("../skein-ui.css");
 
 /// What the application gives the bundler.
@@ -35,7 +35,7 @@ pub struct Inputs {
     pub noscript: String,
 }
 
-/// What a page with a placeholder paints first (ui-web.md, 4.3).
+/// What a page with a placeholder paints first (ui/web/bundle.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Placeholder {
     pub markup: PathBuf,

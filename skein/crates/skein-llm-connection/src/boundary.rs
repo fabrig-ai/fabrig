@@ -1,5 +1,5 @@
 //! Requests and events at the owner's and io's boundaries
-//! (llm-connection.md, sections 2 and 4). The owner translates its domain
+//! (llm/connection.md, sections 2 and 4). The owner translates its domain
 //! vocabulary and keeps io's token with each component token.
 
 use alloc::boxed::Box;
@@ -25,7 +25,7 @@ impl Deadlines {
     }
 }
 
-/// Observations carried by every call terminal to its owner (llm-connection.md, section 4).
+/// Observations carried by every call terminal to its owner (llm/connection.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Measures {
     /// Encoded head and body bytes, present once the request starts sending.
@@ -114,7 +114,7 @@ pub type Lower = skein_io::Request;
 /// An io event routed back by the owner using the component's token.
 pub type LowerEvent = skein_io::Event;
 
-/// One rendered call body (skein/docs/design/llm-connection.status.md).
+/// One rendered call body (skein/docs/design/llm/connection.status.md).
 #[derive(Debug)]
 pub struct Body {
     pub call: Token,

@@ -1,4 +1,4 @@
-//! Submit guards with constructed records and no open ring (shell.md, 3).
+//! Submit guards with constructed records and no open ring (runtime/shell.md, 3).
 
 use skein_io::kernel::{Fd, Op, Submit};
 use skein_lib::Token;

@@ -1,4 +1,4 @@
-//! The writer against the tokenizer, swept (testing-strategy.md, 8; json.md,
+//! The writer against the tokenizer, swept (testing-strategy.md, 8; data/json.md,
 //! 6): many generated documents written and read back the same through the
 //! machine world, and text and numbers drawn at random refused by the writer
 //! exactly when the standard library and the grammar refuse them.
@@ -129,7 +129,7 @@ fn text_in_runs_is_written_as_a_naive_reading_has_it() {
         b"\xed\xa0\x80",
         b"\xf5",
     ];
-    // json.md, 6: a small sweep with over 1,000 accepted and refused texts.
+    // data/json.md, 6: a small sweep with over 1,000 accepted and refused texts.
     const ROUNDS: u64 = 5_000;
     let mut written = 0;
     let mut refused = 0;

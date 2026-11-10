@@ -567,7 +567,7 @@ convention is a tag on the record, with a fixed mapping:
   - **Its usage is unknown, never zero.** A provider that answered with
     a failure may have read the prompt first. skein's failed call
     carries no usage, whatever the provider sent with it (skein's
-    `llm.md`, section 2: a completion carries the token usage).
+    `llm/README.md`, section 2: a completion carries the token usage).
   - **Its scope's totals and the attempt's are lower bounds,** and each
     names it as a retried failure, apart from any other gap. They miss
     the failed request alone. Its prompt is its retry's (../protocol/events.md,
@@ -850,7 +850,7 @@ Each runs in milliseconds, within the focused and fuzzy budgets.
 - **A failed response's usage:** skein's failed call carries none, so
   usage a provider sends with its failure is told as null (8.2, a
   retried failure). Whether a failure should carry it is skein's
-  `llm.md`'s question.
+  `llm/README.md`'s question.
 - **A failure's kind in a summary:** a harness failure has a kind, and only
   its words reach a result: `HarnessError` and `Refused` hold text (8.3).
   Default: so; a summary that counts by kind changes the result's format.

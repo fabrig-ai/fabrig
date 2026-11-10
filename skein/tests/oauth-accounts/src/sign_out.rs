@@ -1,4 +1,4 @@
-//! Sign-out over the shared simulated and protocol worlds (oauth.md, section 6.8).
+//! Sign-out over the shared simulated and protocol worlds (oauth/accounts.md, section 8).
 use crate::{private, world};
 use skein_fake_oauth as fake;
 use skein_fake_peers::Transport;

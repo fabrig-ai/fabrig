@@ -1,7 +1,7 @@
 //! A real HTTP/SSE fake provider service. HTTP documents enter the neutral
 //! fake domain; its answers leave through the dialect server and SSE writer.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use crate::documents;
 
@@ -29,33 +29,33 @@ const ROUTES: u32 = 8;
 
 /// Immutable ownership and document caps supplied by the caller to every entry point.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     /// Maximum provider calls held at once.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub calls: u32,
     /// HTTP server bounds supplied by the byte world.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub http: http::Limits,
     /// SSE framing bounds supplied by the byte world.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub sse: sse::Limits,
     /// Document codec bounds for the selected fake provider.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub documents: documents::Limits,
 }
 
 /// Scripted peer configuration supplied by the byte world; it contains no live IO.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[expect(missing_debug_implementations, reason = "configured header values must not enter traces")]
 pub struct Config {
-    /// World-supplied model-list body; absent lists answer 404 (fake-llm.md, 3.2).
+    /// World-supplied model-list body; absent lists answer 404 (testing/fakes/llm.md, 3.2).
     pub list: Option<Box<[u8]>>,
     /// Status answered instead of the list body.
     pub list_status: Option<u16>,
@@ -67,58 +67,58 @@ pub struct Config {
     pub usage_fields: documents::UsageFields,
     /// Provider dialect selected by this scripted service.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub provider: documents::Provider,
     /// Exact configured inference target accepted by this peer.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub path: Box<[u8]>,
     /// Verified compatibility data chosen by the world/deployment; this fake
     /// does not certify historical identities as current provider identities.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub headers: Box<[Header]>,
 }
 
 /// Typed refusal or terminal failure of the fake peer, independent of the agent's policy.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Error {
     /// Configuration or constructor ownership caps cannot be honored.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Limits,
     /// Input has invalid syntax or violates the codec's structural contract.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Malformed,
     /// A configured ownership, count or encoded-byte cap would be exceeded.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     TooLarge,
 }
 
 /// Decoded provider or peer event; the enclosing entry point checks order and correlation.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     /// Request fields without credentials, and what was presented, before its body/query.
     Head { headers: Box<[Header]>, presented: Presented },
     /// Typed request forwarded to the neutral fake provider domain.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Domain(domain::Event),
-    /// A model-list request, with no credential bytes (fake-llm.md, 3.2).
+    /// A model-list request, with no credential bytes (testing/fakes/llm.md, 3.2).
     List { presented: Presented },
     /// The owner requests connection closure; the lower layer still supplies Closed.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Close,
     /// The lower layer has completed connection closure.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Closed,
 }
 
@@ -148,7 +148,7 @@ struct Call {
 
 /// Bounded fake-provider service owning routing and pending calls across its connections.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[expect(missing_debug_implementations, reason = "configured headers remain protocol-only")]
 pub struct Service {
     config: Config,
@@ -160,7 +160,7 @@ pub struct Service {
 impl Service {
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn new(config: Config, limits: &Limits) -> Result<Service, Error> {
         if !valid(limits)
             || config.path.first() != Some(&b'/')
@@ -222,7 +222,7 @@ impl Service {
         self::scripts(&self.config, credentials, scripts)
     }
 
-    /// Replaces the model-list answer between requests (fake-llm.md, 3.2).
+    /// Replaces the model-list answer between requests (testing/fakes/llm.md, 3.2).
     pub fn set_list(&mut self, list: Option<Box<[u8]>>, status: Option<u16>) {
         self.config.list = list;
         self.config.list_status = status;
@@ -230,7 +230,7 @@ impl Service {
 
     /// Number of fake provider calls observed since service construction.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub const fn count(&self) -> u64 {
         self.count
@@ -238,7 +238,7 @@ impl Service {
 
     /// Routes still owned by the Service, including retired slots until
     /// iteration-end reclamation. This content-free count changes no state.
-    /// Contract: docs/design/fake-llm.md, sections 2–5;
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5;
     /// programming-model.md, sections 5.1 and 6.3.
     #[must_use]
     pub const fn calls(&self) -> u32 {
@@ -249,7 +249,7 @@ impl Service {
     /// Returns the update alongside its target, preserving a terminal's reply right
     /// for `down`; an unmatched or closed route returns the owned update as `Err`.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn target(&self, request: domain::Request) -> Result<(Token, domain::Request), domain::Request> {
         let (token, request) = match request {
             domain::Request::Reply { to, result } => {
@@ -267,7 +267,7 @@ impl Service {
 
     /// Iteration-end reclamation of retired entries; it must follow delivery of owned outputs.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn reclaim(&mut self) {
         self.calls.reclaim();
     }
@@ -275,7 +275,7 @@ impl Service {
 
 /// Bounded per-connection HTTP/SSE state driven by start, input, resume and close events.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[expect(missing_debug_implementations, reason = "HTTP input queues temporarily hold authorization values")]
 pub struct Server {
     owner: Token,
@@ -321,7 +321,7 @@ impl Server {
 
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn new(owner: Token, limits: &Limits) -> Result<Server, Error> {
         if !valid(limits) {
             return Err(Error::Limits);
@@ -358,7 +358,7 @@ impl Server {
 
     /// Whether this peer can progress from its queued input or injected time without fresh transport input.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn has_work(&self) -> bool {
         !self.events.is_empty() || !self.writer_events.is_empty() || !self.requests.is_empty() || pieces::ready(self)
@@ -367,7 +367,7 @@ impl Server {
 
 /// Starts this connection's HTTP state with uncapped output queues.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn start(
     server: &mut Server,
     service: &mut Service,
@@ -386,7 +386,7 @@ pub fn start(
 
 /// Consumes one lower transport event and routes bounded HTTP progress or terminals to the owner.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn up(
     server: &mut Server,
     service: &mut Service,
@@ -407,7 +407,7 @@ pub fn up(
 
 /// Accepts one neutral fake-domain update and schedules its bounded HTTP/SSE response.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn down(
     server: &mut Server,
     service: &mut Service,
@@ -489,7 +489,7 @@ pub fn down(
 
 /// Performs bounded deferred HTTP/SSE handoffs through uncapped output queues.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn resume(
     server: &mut Server,
     service: &mut Service,
@@ -522,7 +522,7 @@ pub fn resume(
 
 /// Starts orderly connection closure; outstanding lower work still requires its terminal.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn close(
     server: &mut Server,
     service: &mut Service,
@@ -558,7 +558,7 @@ pub fn close(
 
 /// Consumes the lower layer's close terminal and emits the owner's single Closed observation.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn closed(
     server: &mut Server,
     service: &mut Service,

@@ -1,4 +1,4 @@
-//! Header admission for one owner read (channel.md, sections 5.3 and 6).
+//! Header admission for one owner read (net/channel.md, sections 5.3 and 6).
 //! It knows the selected version and this side's receive bounds, but never
 //! decodes application bodies or stores stream bytes. `classify` is called
 //! before any body allocation or skip demand.

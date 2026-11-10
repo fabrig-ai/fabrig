@@ -1,4 +1,4 @@
-//! The intake against a plain reference (lib.md, 7), over many random
+//! The intake against a plain reference (runtime/lib.md, 7), over many random
 //! inputs, demands, caps and splits.
 
 use skein_lib::stream::{Delimiter, Read};

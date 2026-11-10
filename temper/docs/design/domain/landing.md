@@ -9,7 +9,7 @@ such a project, the change's CI, its queue, its updates and its merge
 in the repository's style (`forge.md`, 8.2 steps 3 and 5 to 7,
 `forge.md`, sections 9 and 10). What follows a landing, its tiers and its verdict,
 is `after-landing.md`. The forge's calls it makes are skein's
-`forge.md`, 3.2. What is still open is section 17.
+`forge/README.md`, 3.2. What is still open is section 17.
 
 ## 1. In one page
 
@@ -250,7 +250,7 @@ For a project with no prepare command, one member per repository:
   update. This is the one move `forge.md`, 8.5 takes as the change's
   that is not forward. Another hand's push present when the forge reads
   the branch is carried into the candidate. A push made after that read
-  can be dropped by the rebase's forced push (skein's `forge-client.md`,
+  can be dropped by the rebase's forced push (skein's `forge/client.md`,
   7.3: the forge's update checks no head). A head moved by another
   identity at any other time is drift.
 - **Lost.** A rebase whose answer is lost is looked for and made again as
@@ -369,7 +369,7 @@ For a project with no prepare command, one member per repository:
   start; then read as it goes (`Read::Run`), on the job deliveries'
   hints where they come and on the landing's own polling of its runs in
   flight: a dispatch-only job publishes no commit status on its head
-  (skein's `forge.md`, section 9), so no status read wakes it. Its polls
+  (skein's `forge/forgejo.md`, section 2), so no status read wakes it. Its polls
   are due at the client's `poll_at` for the run's repository, every
   `poll` or, while that repository hears, at its last hint plus
   `fallback` (`forge.md`, 5.2). A
@@ -670,7 +670,7 @@ documents for another task or project remain errors.
 
 Stories in the forge's world (`forge.md`, section 18; `testing.md`,
 4.2), the fake forge running dispatched workflows (skein's
-`fake-forge.md`). The process tier adds one story on a real Forgejo
+`testing/fakes/forge.md`). The process tier adds one story on a real Forgejo
 with its runner, for what only they show (`testing.md`, 2.6): a
 landing whose dispatched job the runner cancels, rerun and landed
 across a restart of the binary. The forge's world holds:
@@ -712,7 +712,7 @@ across a restart of the binary. The forge's world holds:
 - **A late prepare copy** (5.2): how often it rewrites a candidate under
   proof, costs another CI run or a drift hold, or drops a later push,
   awaits measurement with the update's real time (skein's
-  `forge-client.md`, 11; `forge.md`, 20). Default: the lifetime stays and
+  `forge/client.md`, 11; `forge.md`, 20). Default: the lifetime stays and
   a moved head after prepare is drift; every merge still names its exact
   checked head.
 - **A judgement gate's key** as a patch id of the member's diff, which a

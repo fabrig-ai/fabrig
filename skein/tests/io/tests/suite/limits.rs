@@ -1,4 +1,4 @@
-//! Limit representation (programming-model.md, 6.3; io.md, 2).
+//! Limit representation (programming-model.md, 6.3; runtime/io/README.md, 2).
 use skein_io::{Limits, valid};
 use skein_lib::{Duration, Rng};
 
@@ -15,7 +15,7 @@ pub(super) const LIMITS: Limits = Limits {
     ..Limits::TEST
 };
 
-// io.md, 5: 8*sockets+4 flight slots must fit below the 2^27 file lane.
+// runtime/io/files.md: 8*sockets+4 flight slots must fit below the 2^27 file lane.
 pub(super) const LAST_FLIGHT_SOCKETS: u32 = 16_777_215;
 
 #[test]

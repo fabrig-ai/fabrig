@@ -5,7 +5,7 @@
 //!
 //! # Its two sides
 //!
-//! Below, a `lib::stream` (lib.md, 7), written: a response body, from the
+//! Below, a `lib::stream` (runtime/lib.md, 7), written: a response body, from the
 //! HTTP server. The writer demands room only, of at most
 //! [`Limits::chunk`], and sends an event in as many pieces as that takes,
 //! each within the room granted; it reads nothing, so the stream's end
@@ -55,7 +55,7 @@ pub struct Limits {
 }
 
 /// The most room the writer demands below at once: whoever stacks it
-/// checks at startup that the side below grants this much (lib.md, 7), the
+/// checks at startup that the side below grants this much (runtime/lib.md, 7), the
 /// server's `Limits::send`.
 #[must_use]
 pub fn largest_room(limits: &Limits) -> u32 {

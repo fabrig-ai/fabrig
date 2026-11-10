@@ -1,4 +1,4 @@
-//! Empty destinations and deferred copies (skein/docs/design/fake-forge.md, 2.6).
+//! Empty destinations and deferred copies (skein/docs/design/testing/fakes/forge.md, 2.6).
 
 use crate::{
     Config, Domain,

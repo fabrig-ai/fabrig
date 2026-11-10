@@ -195,7 +195,7 @@ impl World {
     /// Queue and intake capacities are identical to [`Self::new`]. Price the
     /// Client once, with source bytes, sent/seen observations and world buffers
     /// separately; this constructor adds no state or memory allowance.
-    /// Contract: docs/design/fake-llm.md, section 5; programming-model.md,
+    /// Contract: docs/design/testing/fakes/llm.md, section 5; programming-model.md,
     /// sections 4.4, 5.2 and 6.3; testing-strategy.md, sections 2.4 and 6.
     #[must_use]
     pub fn prepared(machine: client::Client, limits: client::Limits, source: Vec<u8>, seed: u64) -> Self {

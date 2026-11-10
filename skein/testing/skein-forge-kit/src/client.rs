@@ -1,4 +1,4 @@
-//! Shared client fixtures (skein/docs/design/testing.md, 6).
+//! Shared client fixtures (skein/docs/design/testing/README.md, 6).
 use skein_forge::api as client;
 use skein_forge_client::Limits;
 use skein_lib::Duration;

@@ -1,4 +1,4 @@
-//! The simulator's own tests (simulator.md, 6): the records of
+//! The simulator's own tests (testing/simulator.md, 6): the records of
 //! `skein_io::kernel`, submitted by hand, against what the contract allows.
 //!
 //! What the test binaries share: [`World`], a small harness that submits one

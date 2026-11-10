@@ -1,4 +1,4 @@
-//! One bounded OAuth exchange (oauth.md, sections 1 and 3). It keeps the
+//! One bounded OAuth exchange (oauth/README.md, sections 1 and 3). It keeps the
 //! registered endpoints, one exchange and its deadlines; it knows no provider
 //! identity or token store. `Client::step` emits visits, HTTP demands and one
 //! terminal. HTTP transport and persistence belong to the caller.
@@ -115,7 +115,7 @@ pub struct Registration {
     pub terms: Option<crate::Terms>,
 }
 
-/// What an HTTP demand asks of the caller's stack (oauth.md, section 3).
+/// What an HTTP demand asks of the caller's stack (oauth/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Method {
     /// A token exchange or revocation.
@@ -153,7 +153,7 @@ pub struct HttpResponse {
 }
 
 /// A redirect's values as its caller decoded them: the address without its query, and the
-/// fields the client reads (oauth.md, sections 3 and 6.5).
+/// fields the client reads (oauth/README.md, section 3, and oauth/accounts.md, section 5).
 #[derive(Debug)]
 pub struct Redirect {
     pub uri: Box<[u8]>,
@@ -163,7 +163,7 @@ pub struct Redirect {
     pub client_id: Option<Box<[u8]>>,
 }
 
-/// Why `Client::admits` would not take a redirect, in the order it checks (oauth.md, section 3).
+/// Why `Client::admits` would not take a redirect, in the order it checks (oauth/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Inadmissible {
     /// No sign-in waits for a redirect: any phase but `AwaitRedirect`, or its deadline reached.
@@ -476,7 +476,7 @@ impl Client {
         Ok(())
     }
 
-    /// Whether `Redirected` would take this redirect at `now`; changes nothing (oauth.md, section 3).
+    /// Whether `Redirected` would take this redirect at `now`; changes nothing (oauth/README.md, section 3).
     #[must_use = "the caller must judge admission before taking a redirect"]
     pub fn admits(&self, redirect: &Redirect, now: Time) -> Result<(), Inadmissible> {
         let exchange = match &self.phase {
@@ -492,7 +492,7 @@ impl Client {
     }
 
     /// Whether a sign-in waits for its redirect before its deadline and `state` is
-    /// its own, compared in constant time (skein/docs/design/oauth.md, 3 and 6.5).
+    /// its own, compared in constant time (skein/docs/design/oauth/README.md, 3, and skein/docs/design/oauth/accounts.md, 5).
     #[must_use]
     pub fn awaits_state(&self, state: &[u8], now: Time) -> bool {
         match &self.phase {

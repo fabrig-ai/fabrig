@@ -561,7 +561,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `--timeout` alone, with neither, and a wait's flag on any other read,
   `task show TASK --tree` among them, are usage errors, exit 1. There is
   no `wait` tool.
-- **A digest** is the first 8 bytes of the SHA-256 (skein's `lib.md`,
+- **A digest** is the first 8 bytes of the SHA-256 (skein's `runtime/lib.md`,
   6.2) of the subject's document as `--json` prints it (6.2), without
   its `digest` field, printed as 16 hex digits. A read and a wait digest
   one form, the watch's document: for `inbox` and `task list`, whose
@@ -660,7 +660,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **`settled`** follows a sign-in or a check, or a forge's connect or
   install, to its end. A sign-in is in
   progress from its request's answer until it ends: made, renewed,
-  refused, or past the sign-in's deadline (skein's `oauth.md`, section
+  refused, or past the sign-in's deadline (skein's `oauth/README.md`, section
   3); a check, until each host it asks has reported (jig's
   `domain/accounts.md`, 3.4). So a wait begun once `account connect` or
   `account verify` has answered is not met before them: `account
@@ -1195,7 +1195,7 @@ The table grows area by area, each with its stories (section 11).
      both; and, for `forge repositories`, the forge's reason (not
      connected, not installed, unreachable) and, on a managed or owned
      Forgejo, the admin's token's, missing or not a site admin's (skein's
-     `forge-setup.md`, 4.3 and 4.8).
+     `forge/setup/forgejo.md`, 1.3 and 1.8).
    - **A page** is at most `picker.page` rows
      (`../protocol/configuration.md`, its limits), clipped to the
      forge's own page cap, and says more follow when it is full; so a
@@ -1226,7 +1226,7 @@ The table grows area by area, each with its stories (section 11).
 - **A `pending` row** is a line each: the request's operation, as a
   `kept:` line names it (6.1); its party, `party N`; and when it was
   first sent, `first sent HH:MM UTC`, the documents' words for a wall
-  time (skein's `lib.md`, section 12), or `not sent`. No name and no
+  time (skein's `runtime/lib.md`, section 12), or `not sent`. No name and no
   key, as a `kept:` line prints none. Under `--json`: `pending`, rows
   of `operation`, `party` and `first_sent`, a wall time as jig's
   integer, or `null`; and `unread`.
@@ -1986,7 +1986,7 @@ as the terminal's host is:
   `temper ctl: the engine's N streams are all in use, by waits and open clients; end one, or wait and call again`.
   It names the bound's size in place of the link-down deadline line.
 - **A termination signal,** `SIGINT` or `SIGTERM`, arrives as skein's
-  `Shutdown` (skein's `io.md`, section 7), and ends the call at once:
+  `Shutdown` (skein's `runtime/io/README.md`, section 4), and ends the call at once:
   it sends nothing more, leaves DIRECTORY's kept requests as they are,
   prints nothing more, and exits 128 plus the signal's number, 130 or
   143. What it sent stays in the small store, the next call that sends
@@ -2021,15 +2021,15 @@ An agent runs a wait while it acts, or several agents share a party.
 - **A call that sends** takes an exclusive lock on DIRECTORY before it
   loads the small store's records (8.2, step 2), so two never write the
   small store over each other: skein's `Lock` on a root (skein's
-  `io.md`, section 5), on DIRECTORY itself, since `store` is replaced by
+  `runtime/io/files.md`), on DIRECTORY itself, since `store` is replaced by
   a rename on each write. A second tries again every 100 ms, and past
-  the lock's wait (section 12) exits 1, "DIRECTORY is busy with another
+  the lock's wait (`tools.md`, section 12) exits 1, "DIRECTORY is busy with another
   call".
 - **The lock ends when the call is done with DIRECTORY,** before its
   process exits: once the call has its status and its reads and writes
   of DIRECTORY have completed, a store write in flight at a signal
   included, it closes the descriptor it locked, and the lock ends with
-  that `Close` (skein's `io.md`, section 5: "The lock lasts as long as
+  that `Close` (skein's `runtime/io/files.md`: "The lock lasts as long as
   the root's descriptor: until its `Close`"). Its output drains and its
   process exits after, touching nothing of DIRECTORY, so the next call
   never waits on a slow reader of this one's output. A process that ends
@@ -2266,7 +2266,7 @@ tier (11.4). The forge's stories run on `skein-world`'s
 `World::new_controlled`, unchecked, while the fake git program shares
 the fake forge in memory: its memory there outlives the git program
 that made it, which the checked world fails (skein's
-`testing-strategy.md`, section 6; skein's `fake-forge.md`, section 5).
+`testing-strategy.md`, section 6; skein's `testing/fakes/forge.md`, section 5).
 Over the git route the program shares nothing, and they run checked.
 Every other story here is checked.
 
@@ -2292,7 +2292,7 @@ does, and waits for `usable`. Area 5's stories (`../domain/testing.md`,
 Area 6's stories reach the forge through the tools, on skein's fake
 forge, whose browser pages are plain HTTP: its manifest post answers
 `200` with a page holding one link, `Create GitHub App` (id `create`),
-and its install page `302` (skein's `fake-forge.md`, 10.1), so the test
+and its install page `302` (skein's `testing/fakes/github.md`, 1.1), so the test
 drives a browser's steps as plain requests, following the link as a
 person clicks it, and no story calls github.com:
 
@@ -2328,7 +2328,7 @@ Each call of `temper ctl` in these stories is its host,
 per call, on its DIRECTORY: the lock, DIRECTORY's files and the call's
 exit run on the real kernel. Two acts at once on one DIRECTORY are
 serialized by the lock: skein's `Lock` is `flock`, held per open
-descriptor (skein's `kernel.md`), so two programs of one process contend
+descriptor (skein's `runtime/kernel.md`), so two programs of one process contend
 as two processes do.
 
 These are smoke, one end-to-end path per feature, at the gate
@@ -2481,7 +2481,7 @@ contract's reads, watches and requests, they take:
 - **A named key:** `jig-client`'s `Send` under a key the application
   names, refused `Held` when the client holds it already (jig's
   `client/domain/client/requests.md`), on skein's request table's
-  given keys (skein's `lib.md`, section 12); everything else of keyed
+  given keys (skein's `runtime/lib.md`, section 12); everything else of keyed
   requests is the contract's (jig's `client/domain/contract/requests.md`, 1).
 - **A read of one turn,** `turn{n, attempt, turn}` (jig's
   `client/domain/contract/README.md`, section 4), answered from the store's

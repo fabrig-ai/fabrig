@@ -1,4 +1,4 @@
-//! Compact retained JSON (json.md, section 5.2): one text allocation and
+//! Compact retained JSON (data/json.md, section 5.2): one text allocation and
 //! fixed records pointing into it. This stores no stream or grammar state;
 //! its producer supplies a bounded token sequence. `from_tokens` admits the
 //! counts before allocation, `token` reads a borrowed record by index, and
@@ -172,7 +172,7 @@ impl Document {
         }
     }
 
-    /// A direct member's first value index (skein/docs/design/json.md, 5.2).
+    /// A direct member's first value index (skein/docs/design/data/json.md, 5.2).
     /// Returns `None` for a non-object, an absent name or an incomplete walk.
     /// The producer supplies valid grammar; duplicate names select the first.
     #[must_use]
@@ -207,7 +207,7 @@ impl Document {
         None
     }
 
-    /// The exclusive token end of a value (skein/docs/design/json.md, 5.2).
+    /// The exclusive token end of a value (skein/docs/design/data/json.md, 5.2).
     /// Scalars, including `Long`, occupy one record; keys and closings are
     /// not values. An absent value or unfinished container returns `None`.
     /// This navigates producer-checked grammar without validating it again.

@@ -637,7 +637,7 @@ pub enum Event {
     },
 }
 
-/// A directory adopted by the service (io.md, section 9).
+/// A directory adopted by the service (skein/docs/design/runtime/io/README.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Root {
     pub token: Token,

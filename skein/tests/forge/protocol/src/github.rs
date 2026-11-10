@@ -1,4 +1,4 @@
-//! HTTP framing over seeded streams (skein/docs/design/fake-forge.md, 10.6).
+//! HTTP framing over seeded streams (skein/docs/design/testing/fakes/github.md, 1.6).
 use crate::{fixtures, github_fixture as fixture, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_fake_forge_github::{

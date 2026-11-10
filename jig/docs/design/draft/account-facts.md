@@ -67,9 +67,9 @@ without changing it. Reading and showing them come after (section 6).
 
 - **Where each comes from** is each provider's design, in its adapter:
   OpenAI's ID token claims, of which skein reads none beyond `sub`
-  today (skein's `oauth.md`, 2.2); Claude Code's status and its
+  today (skein's `oauth/README.md`, 2.2); Claude Code's status and its
   rate-limit events (smith's `protocol/programs.md`, 5.6); a limit
-  error's reset (skein's `llm.md`, 4.8).
+  error's reset (skein's `llm/README.md`, 4.8).
 - **A fact no source reports is absent,** never guessed, as a reset is
   never guessed (`../domain/providers.md`, 2.6).
 - **Origins** are registered alike: 1 a sign-in, 2 a refresh, 3 a
@@ -132,7 +132,7 @@ Three ways were weighed:
   schema change, but no client shows it without that provider's
   parser, nothing bounds or checks what is in it, and the store's
   codecs refuse what they cannot read for a reason (skein's
-  `codec.md`, 3 and 4).
+  `data/codec/README.md`, 3 and 4).
 - **A typed open list,** section 4: the schema fixes a few shapes, the
   design registers kinds, every client shows a registered kind the
   same way, and each value is bounded and checked. Its cost: a kind's

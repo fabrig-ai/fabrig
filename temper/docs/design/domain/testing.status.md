@@ -337,7 +337,7 @@ the fake's own process story.
   4.3: `temper-fake-git/src/exchange.rs`, `decode`, and its
   `src/tests/net.rs`, `decode`, each drive a tokenizer over one whole body
   in a `Held` by hand, with their own step bounds, where
-  `skein/docs/design/json.md`, 5.3 gives one whole buffer to `parse` or a
+  `skein/docs/design/data/json.md`, 5.3 gives one whole buffer to `parse` or a
   `Feed`, and the user's request of 11-04 asked that no crate under
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.

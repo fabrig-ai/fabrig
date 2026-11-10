@@ -394,7 +394,7 @@ pub struct Job {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Step {
     pub number: u32,
-    /// Empty when the name exceeds `string_bytes` (forge.md, 3.3).
+    /// Empty when the name exceeds `string_bytes` (forge/README.md, 3.3).
     pub name: Box<[u8]>,
     pub status: StepStatus,
 }
@@ -517,7 +517,7 @@ pub struct Hook {
     pub active: bool,
 }
 
-/// One nonrecursive git tree entry (forge.md, 5.2).
+/// One nonrecursive git tree entry (forge/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TreeEntry {
     pub path: Box<[u8]>,

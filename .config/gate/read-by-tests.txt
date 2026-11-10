@@ -13,7 +13,7 @@ smith/benchmarks/tasks/**
 smith/benchmarks/tests/fixtures/**
 smith/benchmarks/tests/recorded/**
 skein/crates/skein-ui/src/tests/markdown/**
-skein/docs/design/forge-github.md
+skein/docs/design/forge/github.md
 skein/docs/design/draft/diagrams/**
 temper/docs/design/client/journeys/**
 temper/docs/design/client/tui/journeys/**

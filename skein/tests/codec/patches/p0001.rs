@@ -1,4 +1,4 @@
-//! Written conversions for patch 0001 (codec.md, 11.5).
+//! Written conversions for patch 0001 (data/codec/patches.md, 5).
 
 use super::Context;
 use super::kept::every::{v1, v2};

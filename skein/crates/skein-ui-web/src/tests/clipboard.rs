@@ -1,4 +1,4 @@
-//! Rejection names classify one write's report (skein/docs/design/ui-web.md, section 11).
+//! Rejection names classify one write's report (skein/docs/design/ui/web/README.md, section 9).
 use crate::clipboard::{Outcome, rejected};
 
 #[test]

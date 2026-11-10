@@ -1,4 +1,4 @@
-//! Bounded issue listings and comments paged by Link (forge-github.md, 4.1).
+//! Bounded issue listings and comments paged by Link (forge/github.md, 4.1).
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, size};
 use crate::api::Excess;
 use crate::{

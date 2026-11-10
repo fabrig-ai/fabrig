@@ -1,4 +1,4 @@
-//! A held buffer as a stream (lib.md, 7): each demand answered at once,
+//! A held buffer as a stream (runtime/lib.md, 7): each demand answered at once,
 //! by exactly what it reads, or by the end.
 
 use alloc::boxed::Box;

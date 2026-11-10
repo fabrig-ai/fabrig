@@ -1,4 +1,4 @@
-//! Request accounting and retry scheduling (forge-client.md, section 6).
+//! Request accounting and retry scheduling (forge/client.md, section 6).
 //!
 //! Calls retain four priority queues, in-flight tokens and rate windows;
 //! they know neither tasks nor provider history. `queue` admits a logical
@@ -285,7 +285,7 @@ fn settle(d: &mut Domain, env: &Env<Limits>, priority: Priority, window: Time, c
         exhausted(d, env);
     }
 }
-/// `left` has just reached 0 (forge-client.md, 6). A window the forge
+/// `left` has just reached 0 (forge/client.md, 6). A window the forge
 /// capped is out when the forge's is; one it did not, when the
 /// client's own ends.
 fn exhausted(d: &mut Domain, env: &Env<Limits>) {
@@ -305,7 +305,7 @@ fn forge_reset(env: &Env<Limits>, reset_at: Wall) -> Option<Time> {
     let wait = Duration::from_nanos(reset_at.as_nanos().saturating_sub(env.wall.as_nanos()));
     if wait == Duration::ZERO { None } else { Some(env.now.saturating_add(wait.min(env.limits.window))) }
 }
-/// The forge's window (forge-client.md, 6): its `remaining` below what the
+/// The forge's window (forge/client.md, 6): its `remaining` below what the
 /// window has left becomes what it has left, and at 0 all four classes are
 /// held until its reset.
 fn forge_window(d: &mut Domain, env: &Env<Limits>, rate: api::Rate) {

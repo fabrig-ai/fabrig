@@ -282,7 +282,7 @@ fn the_response_goes_up_when_its_head_is_whole_and_not_before() {
     let [Event::Response(response)] = events.as_slice() else { panic!("{events:?}") };
     assert_eq!(response.framing, Framing::Length(2));
     // An end with nothing demanded comes only once nothing is held below
-    // (lib.md, 7): the body's two bytes never came.
+    // (runtime/lib.md, 7): the body's two bytes never came.
     let (events, _) = machine.up(Up::End);
     assert_eq!(
         events,

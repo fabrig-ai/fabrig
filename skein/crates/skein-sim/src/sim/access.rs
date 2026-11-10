@@ -1,4 +1,4 @@
-//! Descriptor access rules for files (kernel.md, 6.1).
+//! Descriptor access rules for files (runtime/kernel.md, 6.1).
 use super::{Pid, Sim, files};
 use crate::trace::Summary;
 use alloc::format;

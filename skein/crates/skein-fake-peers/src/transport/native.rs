@@ -1,4 +1,4 @@
-//! Buffered TLS and plaintext transport on the native target (testing.md, 10).
+//! Buffered TLS and plaintext transport on the native target (testing/README.md, 10).
 
 use std::io::{Read as _, Write as _};
 use std::sync::Arc;

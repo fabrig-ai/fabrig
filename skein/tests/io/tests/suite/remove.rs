@@ -1,4 +1,4 @@
-//! Single-name removal through the file driver (io.md, section 5).
+//! Single-name removal through the file driver (runtime/io/files.md).
 
 use skein_fake_machine::{How, Item, Machine, Opened, Refusal, kernel_error};
 use skein_io::file::{Event, Request};

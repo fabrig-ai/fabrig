@@ -1,4 +1,4 @@
-//! One streaming, authenticated webhook connection (forge-connection.md, 5 and 8).
+//! One streaming, authenticated webhook connection (forge/connection.md, 5 and 8).
 use super::Hinted;
 use crate::{Event, Limits, component::entry::ForgeEntry, limits};
 use alloc::boxed::Box;
@@ -17,7 +17,7 @@ use skein_lib::{
     sha256::{self, Hmac},
 };
 
-// skein/docs/design/forge-connection.md, 8.4: each phase owns its data and clock.
+// skein/docs/design/forge/connection.md, 8.4: each phase owns its data and clock.
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "the bounded connection holds its streaming decoder inline")]
 enum State {

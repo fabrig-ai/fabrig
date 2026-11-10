@@ -1,4 +1,4 @@
-//! Bounded object decoding (skein/docs/design/json.md, 3.3 and 5.3).
+//! Bounded object decoding (skein/docs/design/data/json.md, 3.3 and 5.3).
 
 use crate::Problem;
 use crate::json::{Value, parse};

@@ -491,7 +491,7 @@ fn layout_elements_move_the_selected_fingerprints_from_both_sides() {
 
 #[test]
 fn each_type_has_its_literal_canonical_encoding() {
-    // codec.md 9.1: version 1, record 1, unversioned 0, one field.
+    // data/codec/README.md 9.1: version 1, record 1, unversioned 0, one field.
     const PREFIX: &[u8] = &[1, 1, 0, 0, 0, 0, 1];
     let cases: &[(&str, &[u8])] = &[
         ("u8", &[1]),
@@ -562,7 +562,7 @@ fn full_declaration_table_includes_every_unused_root() {
     let fingerprints = schema.fingerprints();
     let empty = digest(&[1, 1, 0, 0, 0, 0, 0]);
     let mut family = Sha256::new();
-    family.update(&[1, 3, 0, 0, 16, 0]); // 4096 declarations, codec.md 7.3.
+    family.update(&[1, 3, 0, 0, 16, 0]); // 4096 declarations, data/codec/README.md 7.3.
     for index in 0..MAX_DECLARATIONS {
         assert_eq!(fingerprints.declaration(DeclIx::new(index)).digest(), empty, "R{index}");
         family.update(&empty);
@@ -572,7 +572,7 @@ fn full_declaration_table_includes_every_unused_root() {
 
 #[test]
 fn all_256_variants_have_a_big_endian_count() {
-    const VARIANTS: u32 = 256; // codec.md 7.2: all values of a one-byte tag.
+    const VARIANTS: u32 = 256; // data/codec/README.md 7.2: all values of a one-byte tag.
     let mut text = String::from("family f 1 enum E {");
     let mut canonical = vec![1, 2, 0, 0, 1, 0];
     for index in 0..VARIANTS {

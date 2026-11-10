@@ -1,4 +1,4 @@
-//! Schema tables converted to the generator tree (codec.md, section 7).
+//! Schema tables converted to the generator tree (data/codec/README.md, section 7).
 
 use core::fmt;
 

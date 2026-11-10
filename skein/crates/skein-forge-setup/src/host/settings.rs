@@ -1,5 +1,5 @@
-//! Checked forge settings (skein/docs/design/forge-setup.md, 6.3).
-//! Runtime membership follows skein/docs/design/forge-setup.md, 6.3.
+//! Checked forge settings (skein/docs/design/forge/setup/README.md, 4.3).
+//! Runtime membership follows skein/docs/design/forge/setup/README.md, 4.3.
 use super::{Plan, boundary::Dialect};
 use crate::{github, given::Given};
 use alloc::boxed::Box;
@@ -15,7 +15,7 @@ pub struct Forge {
     pub address: skein_io::Addr,
     pub transport: Transport,
 }
-/// A forge's dialect, and the given of its plans (forge-setup.md, 6.3).
+/// A forge's dialect, and the given of its plans (forge/setup/README.md, 4.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Kind {
     Forgejo(Given),

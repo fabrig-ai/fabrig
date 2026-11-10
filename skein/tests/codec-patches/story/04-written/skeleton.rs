@@ -1,4 +1,4 @@
-//! Patch 0002: the command wrote the skeleton; its functions are the author's (codec.md, 11.5).
+//! Patch 0002: the command wrote the skeleton; its functions are the author's (data/codec/patches.md, 5).
 
 use super::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};

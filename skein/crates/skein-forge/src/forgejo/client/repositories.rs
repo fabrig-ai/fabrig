@@ -1,4 +1,4 @@
-//! The organization repository creation answer (forge-setup.md, 4.3).
+//! The organization repository creation answer (forge/setup/forgejo.md, 1.3).
 use crate::forgejo::{
     decode::{
         Malformed, Step,

@@ -126,7 +126,7 @@
   holder, sources per account, sign-ins at once (moves out and in
   count among them: `../domain/accounts.md`, 3.6), program sources per
   worker, and a credential's bytes, which bound a key (skein's
-  `llm.md`, 2.6). Within them the accounts' table, skein's driver (its
+  `llm/README.md`, 2.6). Within them the accounts' table, skein's driver (its
   listeners twice the sign-ins at once, so that a sign-in started
   again has room while the one it cancels settles: `llm.md`, section
   7), the hub's grants, a worker's `sources` and `logins` and the secrets'
@@ -135,10 +135,10 @@
   document lines in each account, source and sign-in list
   (`../client/domain/client/README.md`, section 11). A sign-in waits for its
   redirect only within the sign-in deadline, a limit of the driver's
-  (skein's `oauth.md`, section 3). The driver reads a returning redirect
+  (skein's `oauth/README.md`, section 3). The driver reads a returning redirect
   within its own bound, `redirect_bytes`, 16,384 in both profiles: at
   least what holds its client's registered URI, code, scope, state and
-  issued client id at their bounds (skein's `oauth.md`, 6.7,
+  issued client id at their bounds (skein's `oauth/accounts.md`, 7,
   `redirect_room`: 13,407 in small). Its listener's request head,
   `server.head`, holds a browser's request for a redirect at that bound,
   cookies for `127.0.0.1` among its fields (`listener_head`: 24,593). The
@@ -148,7 +148,7 @@
   (`limits.driver.redirect_bytes`, `limits.driver.server.head`,
   `limits.driver.url_bytes`), and so is an override whose driver would.
   The driver's own over-long listener redirect ends its sign-in with
-  the long-answer page (skein's `oauth.md`, 6.5). The accounts protocol
+  the long-answer page (skein's `oauth/accounts.md`, 5). The accounts protocol
   carries its failure as `SignInAgain`; its address's length and bound
   stay at the driver's terminal. Carrying those figures to an
   application's sign-in page is separate work (`configuration.md`, section 8).

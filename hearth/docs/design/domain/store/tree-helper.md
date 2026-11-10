@@ -109,7 +109,7 @@ with a token that its one answer echoes.
 - **A changed entry is read whole:** skein's `StatEntry`,
   `ListAttributes` and `GetAttribute` for the covered families,
   `ReadLink`, and a file's contents, hashed as they stream (
-  skein/docs/design/kernel.md, 6.4). Files with more than one link are grouped by inode
+  skein/docs/design/runtime/kernel.md, 6.4). Files with more than one link are grouped by inode
   number.
 - **The walk checks what a stream cannot defer:** a path with a hard
   link to an entry seen before must agree with that first entry's mode,
@@ -164,7 +164,7 @@ with a token that its one answer echoes.
   M3 (hearth/docs/design/domain/slots/prepare.md, 2).
 - **Records:** skein's `MakeDirectory`, `Create`, `Truncate`,
   `MakeLink`, `HardLink`, `SetOwner`, `SetMode`, `SetAttribute` and
-  `RemoveAttribute`, beneath the store's root (skein/docs/design/kernel.md, 6.4).
+  `RemoveAttribute`, beneath the store's root (skein/docs/design/runtime/kernel.md, 6.4).
 - **Empty** removes everything beneath a layer's root, deepest first, so
   the builder can `rmdir` it (`README.md`, 5.3). Stopped half-way, it is done again.
 - **Snapshot, freeze, thaw and delete** are skein's `Snapshot`,
@@ -229,7 +229,7 @@ by its protocol layer (hearth/docs/design/domain/render/README.md, 2.3), whence 
 
 All are unprivileged: the ioctls the builder makes for any user, the
 helper's for the owner of a subvolume's root. They are synchronous
-records of skein's ring adapter, a closed list (skein/docs/design/kernel.md, 6.5;
+records of skein's ring adapter, a closed list (skein/docs/design/runtime/kernel.md, 6.5;
 hearth/docs/design/README.md, 7.1), made in two processes: the builder and its tree
 helper. The long ones (a snapshot, a flag, a destroy, a sync) are the
 helper's alone, so they never stall the builder's loop; the builder's

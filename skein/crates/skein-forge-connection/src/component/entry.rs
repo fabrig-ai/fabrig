@@ -1,4 +1,4 @@
-//! One configured forge and its dialect's state (skein/docs/design/forge-connection.md, 7.1).
+//! One configured forge and its dialect's state (skein/docs/design/forge/connection.md, 7.1).
 use super::{OwnPlan, Start, initial};
 use crate::{Limits, settings::Forge};
 use alloc::boxed::Box;
@@ -34,7 +34,7 @@ pub(crate) struct GitHubForge {
 }
 
 impl Dialect {
-    /// The forge's own exchange goes with its connection (forge-connection.md, 7.1).
+    /// The forge's own exchange goes with its connection (forge/connection.md, 7.1).
     pub(crate) fn forget_exchange(&mut self) {
         match self {
             Self::Forgejo { exchange, .. } => *exchange = crate::connection::forgejo::Exchange::new(),

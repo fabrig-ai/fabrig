@@ -1,4 +1,4 @@
-//! Owned requests and events around a generic channel (channel.md, sections
+//! Owned requests and events around a generic channel (net/channel.md, sections
 //! 5 and 9). They keep no transport handle, clock or application body meaning.
 use alloc::boxed::Box;
 use skein_lib::{List, Token, stream};
@@ -31,7 +31,7 @@ pub enum Request {
     Close,
 }
 
-// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
 impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -116,7 +116,7 @@ pub enum Event {
     Closed { why: Closed },
 }
 
-// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 3 and 5: bodies and credentials print lengths.
+// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 3 and 5: bodies and credentials print lengths.
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

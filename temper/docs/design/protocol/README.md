@@ -37,7 +37,7 @@ its tests, is section 15.
   services (setup.md). Each is a crate of its own (section 5).
 - **Foreign protocols are stacks of skein's machines.** Forgejo's REST
   API and GitHub's are skein's forge kit, each a dialect of it, over
-  skein's HTTP client and JSON (skein's `forge.md`); git's arguments in and text out are temper's decoders
+  skein's HTTP client and JSON (skein's `forge/README.md`); git's arguments in and text out are temper's decoders
   over io's processes. temper's records on jig's channel, in jig's store
   and on the client's wire are generated from schemas by skein's
   generator.
@@ -132,7 +132,7 @@ binary (`jig-test`).
 | the cluster's description | `crates/temper/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (15.5) |
 | the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 6 and 7) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
-| the forge component | skein's `skein-forge-connection` (forge.md; skein's `forge-connection.md`) |
+| the forge component | skein's `skein-forge-connection` (forge.md; skein's `forge/connection.md`) |
 | the git component | `temper-worker-protocol-git` (git.md) |
 | temper's parts | the workspace items, the saved-work branch, the work, the preparation (channel.md) |
 | payload version, store version, client version | temper's three own versions: `PAYLOAD_VERSION`, `STORE_VERSION`, `CLIENT_VERSION` (section 9) |
@@ -150,8 +150,8 @@ binary (`jig-test`).
 | the clients' listener | `temper-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/README.md`, section 8) |
 | the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../domain/testing.md`, 4.3) |
 | the throwaway Forgejo | a Forgejo started by a test script on loopback, with SQLite in a scratch directory, removed after (`../domain/testing.md`, 2.6) |
-| locate | the forge connector's read of a repository's id by owner and name (skein's `forge.md`, 5.2) |
-| the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge-connection.md`, section 6; forge.md, section 5) |
+| locate | the forge connector's read of a repository's id by owner and name (skein's `forge/forgejo.md`, 1.2) |
+| the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge/connection.md`, section 6; forge.md, section 5) |
 
 The forge's setup's names are setup.md's: connected, managed and owned
 (setup.md, section 2), the forge's directory (setup.md, section 3), reconcile, a plan of the
@@ -261,7 +261,7 @@ default; the document is `temper.json` in the configuration directory
     --box`, adopts the box's pipe, the two fds after the listeners the
     box gives it (setup.md, 7.1). Given listeners, `LISTEN_FDS` of them
     from fd 3, its clients' and webhooks' listeners take them by their
-    addresses (skein's `shell.md`, 6.6).
+    addresses (skein's `runtime/shell.md`, 6.6).
   - A first termination signal settles the engine's forge writes, then
     drains it (`../domain/root.md`, 9.2; jig's `protocol/service.md`,
     section 5), and a worker alone's runs its worker's ending (jig's
@@ -797,7 +797,7 @@ which reads the agent's host limits from its profile at start, as jig's
 reference binary does.
 
 **skein's:** `skein-lib` and `skein-io` everywhere, lib's HMAC-SHA256
-checking the deliveries' signatures (skein's `lib.md`, 6.2), io's
+checking the deliveries' signatures (skein's `runtime/lib.md`, 6.2), io's
 processes under the box; `skein-shell`, the binary's startup kit
 (`read_file`, `read_private_file`, seeds, `Host`, `drive`);
 `skein-json`, configuration and the forges' documents; `skein-http`, the
@@ -806,7 +806,7 @@ host's client, and the fake forge's server; the forge kit,
 `skein-forge` (Forgejo's and GitHub's documents and call plans), `skein-forge-client`,
 `skein-forge-connection` (the forge component) and `skein-forge-setup`
 (the setup host and its plans), with the fake forge and the throwaway Forgejo in its worlds
-(skein's `forge.md`, section 2);
+(skein's `forge/README.md`, section 2);
 `skein-tls`, a forge's TLS; `skein-codec` and its generator, every codec
 crate; `skein-kv`, under jig's store and temper's key encoders;
 `skein-channel`, under jig's channel; `skein-oauth-accounts`, under
@@ -863,7 +863,7 @@ fake git program's core:
 domain, the process and live tiers, and the tool that records git's
 transcripts (git.md, section 9). The fake forge's protocol layer, the
 throwaway Forgejo and the tool that records Forgejo's transcripts are
-skein's (`fake-forge.md`, sections 4, 6 and 7).
+skein's (`testing/fakes/forge.md`, sections 4, 6 and 7).
 
 **What temper's components share** is what every component of jig's
 does (jig's `protocol/README.md`, section 1; programming-model.md,
@@ -879,7 +879,7 @@ rules every temper component keeps:
 - **No retries below the domain.** A call goes out once and ends once,
   with the failure the domain's vocabulary defines: for the forge,
   unavailable only when the call provably never left, and timed out
-  otherwise (skein's `forge.md`, 5.4). A retry below the domain hides its cost from
+  otherwise (skein's `forge/forgejo.md`, 1.4). A retry below the domain hides its cost from
   the budget, and adds load just when the peer is struggling.
 - **Limits at the entrances.** The worker's `temper-worker-domain::valid`
   checks entrance constraints and count representability at start
@@ -912,7 +912,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
 
 - **The forge component,** speaking each forge's API, Forgejo's REST API
   under `/api/v1` or GitHub's in skein's dialect, polled at the domain's
-  cadences (skein's `forge.md`, section 5). The root's
+  cadences (skein's `forge/forgejo.md`, section 1). The root's
   `Request::Forge { call, repository, op }` goes to it; it answers each
   call with exactly one `client::Event::Answered { call, cost, result }`,
   which the routing hands the root as a forge event
@@ -923,7 +923,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   2; `../domain/root.md`, 9.2). Each forge's access is the component's
   alone (credentials.md, section 5).
 - **A forge's start check** (credentials.md, section 5; skein's
-  `forge-connection.md`, section 3): when a forge refuses its access, or
+  `forge/connection.md`, section 3): when a forge refuses its access, or
   it answers as a user other than the forge's own, that forge stops,
   never the engine: the component gives `Stopped { forge, why }`, the
   deployment's page names it with Replace (`../client/forge.md`, 5.4),
@@ -1043,7 +1043,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
 - **Local channel refusals** use jig's public `u16` constants
   `REFUSED_LIMITS = 2` and `REFUSED_FRAMING = 3` from
   `jig-protocol-worker-link`, including diagnostic matches (jig's
-  `protocol/channel/README.md`, 9.1; skein's `channel.md`, 5.1). These are
+  `protocol/channel/README.md`, 9.1; skein's `net/channel.md`, 5.1). These are
   channel reasons, separate from jig's application reasons at 256 and
   above. Existing worker diagnostic tests check those matches; the
   wire and `Closed` facts keep their values.
@@ -1217,7 +1217,7 @@ section 8 give them. temper's sit beside them:
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge.md, section 4) |
 | configuration | none | — | unknown members refuse the start (configuration.md, section 2) |
 
-- **The baseline is the first release** (skein's `codec.md`, section 5).
+- **The baseline is the first release** (skein's `data/codec/README.md`, section 5).
   Until it, each of temper's three versions keeps its current number.
   A change a reader would notice changes the schema, its generated code
   and its one set of golden bytes in place, including a repin of smith
@@ -1259,7 +1259,7 @@ section 8 give them. temper's sit beside them:
     `pieces`, its bytes moving in place where they must.
   - **An effect's key is an identity, never patched:** kept as written,
     in the store and in the forge's markers, compared byte for byte.
-    Its first byte is its version (skein's `forge-client.md`, 7.1); from
+    Its first byte is its version (skein's `forge/client.md`, 7.1); from
     the first release the connector reads every version it has written,
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge.md, section 4). The marker's wrapper and the bot's
@@ -1292,7 +1292,7 @@ section 8 give them. temper's sit beside them:
   (`../draft/upgrades.md`, section 3). So the tag's commit makes, in one
   set across skein, smith, jig and temper:
   - **every stored family's text kept:** each owner's crate run once
-    with `--baseline` (skein's `codec.md`, 12.1), its current texts its
+    with `--baseline` (skein's `data/codec/command.md`, 1), its current texts its
     first kept versions, its level 0, no patch: skein-oauth's
     `skein-oauth`; smith-transcript's turn family; jig's store families
     (the core, tasks, people, notes, accounts, settings, the component's
@@ -1307,8 +1307,8 @@ section 8 give them. temper's sit beside them:
     level none, is refused as older, made again (jig's
     `protocol/store/records.md`, 3);
   - **the gate's check from then on:** each repository's gate runs the
-    patch command's check over each owner crate (skein's `codec.md`,
-    12.7), so a stored change with no patch, an edited kept text or a
+    patch command's check over each owner crate (skein's `data/codec/command.md`,
+    7), so a stored change with no patch, an edited kept text or a
     landed patch changed fails it;
   - **the baseline's golden store,** made by the tag's binary from a
     story (a project, a person and an account, a goal's change landed,
@@ -1324,7 +1324,7 @@ section 8 give them. temper's sit beside them:
   11, still open); the golden store's story and its later builds'
   assertion, as a test; the rehearsal below. The patch command's
   modules and the sets built from them exist only once `--baseline` has
-  run (skein's `codec.md`, 12.1 and 12.3), and its check reports every
+  run (skein's `data/codec/command.md`, 1 and 3), and its check reports every
   family unkept until then (12.7), so the sets, their handing and the
   gates' check are the tag's set's, with the kept texts.
 - **The baseline rehearsed before the tag:** that set made on a branch
@@ -1405,11 +1405,11 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
   environment builders, and its output parsers against transcripts of
   real git (`tools/git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
-  `fake-forge.md`, section 7);
+  `skein/docs/design/testing/fakes/forge.md`, section 7);
   temper's pages as skein's text shell prints them (`../client/README.md`,
   section 10).
 - **Machine worlds:** the forge component against a scripted HTTP peer
-  (skein's `forge-connection.md`, section 10); the git component against
+  (skein's `forge/connection.md`, section 10); the git component against
   scripted process ends and outputs; the terminal's host against a
   scripted stdin and stdout.
 - **The forge's protocol world,** `tests/engine/protocol-forge`: the
@@ -1426,8 +1426,8 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
   waiting for a commit; no secret's value in a domain's state, a store
   record or an agent process's environment (`../domain/testing.md`, 2.5).
 - **Reconcile's world** is skein's: reconcile against the fake forge's
-  protocol layer, serving the setup's routes (skein's `forge-setup.md`,
-  section 7; setup.md, 13.2).
+  protocol layer, serving the setup's routes (skein's `forge/setup/README.md`,
+  section 5; setup.md, 13.2).
 - **The process tier and the live tier:** the real binary end to end,
   outside the two suites: a chat answered, a change landed on an owned
   Forgejo with CI and webhooks, the binary killed and restarted, `temper
@@ -1701,7 +1701,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   server keeps its own, as the sign-in link reads it; the workers'
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
-  `forge-connection.md`, 6.4).
+  `forge/connection.md`, 6.4).
 - **Ready**: the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,

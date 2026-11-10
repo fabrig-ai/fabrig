@@ -6,7 +6,7 @@ use skein_lib::{Duration, Rng};
 #[test]
 fn valid_checks_seeded_usable_limits_against_the_flight_capacity_edge() {
     // The flight table needs 8*sockets+4 slots below the file lane
-    // (io.md, 5); the other derived capacities fit whenever it does.
+    // (runtime/io/files.md); the other derived capacities fit whenever it does.
     // Alternate small and full-range socket counts to cover admission and refusal.
     const DRAWS: u32 = 4096;
     const SMALL: u32 = 255;

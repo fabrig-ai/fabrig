@@ -1,4 +1,4 @@
-//! Stable account numbers and their bounded places (oauth.md, section 6.2).
+//! Stable account numbers and their bounded places (oauth/accounts.md, section 2).
 
 use super::{Component, Lifecycle, Name};
 use crate::{Asked, Event, Refusal, Request};

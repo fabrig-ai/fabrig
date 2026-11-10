@@ -1,4 +1,4 @@
-//! Only the protection fields the client keeps (forge-github.md, 5.3).
+//! Only the protection fields the client keeps (forge/github.md, 5.3).
 use super::{Field, Node, Read, Role, field, optional};
 use crate::github::decode::protection::Node as P;
 const fn container(key: &'static [u8], node: P) -> Field {

@@ -1,4 +1,4 @@
-//! Bounded JSON documents and configuration problems (skein/docs/design/json.md, 5.3).
+//! Bounded JSON documents and configuration problems (skein/docs/design/data/json.md, 5.3).
 use crate::{Path, Problem, What};
 use skein_json::{Document, document, tokenizer};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

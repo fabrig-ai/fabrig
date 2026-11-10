@@ -1,4 +1,4 @@
-//! Bounded issuer documents and RSA signing keys (oauth.md, sections 2.2 and 5).
+//! Bounded issuer documents and RSA signing keys (oauth/README.md, sections 2.2 and 5).
 use crate::{Check, ClientLimits, Json, json};
 use alloc::boxed::Box;
 use skein_json::Token;

@@ -1,4 +1,4 @@
-//! The records between io and the layer above (io.md, 2): the requests io
+//! The records between io and the layer above (runtime/io/README.md, 2): the requests io
 //! takes, the events it tells, and its errors, which are what the layer above
 //! can act on, not the kernel's.
 
@@ -12,7 +12,7 @@ use crate::kernel::{self, Exit, ServiceSignal, Signal, Spawn, Target};
 /// What the layer above asks of io. Each names an entity by a token: its
 /// owner's, for an entity it asks io to make, and io's (from `Listening`,
 /// `Accepted` or `Connecting`) for one that exists. A request naming an
-/// entity that is gone, or closing, is dropped (io.md, 3.1).
+/// entity that is gone, or closing, is dropped (runtime/io/sockets.md, 1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// A listener at `addr`: told `Listening` or `Failed`, then `Closed`.
@@ -27,21 +27,21 @@ pub enum Request {
     /// The answer to `Accepted` that refuses the socket: io closes it, and
     /// tells no one.
     Reject { socket: Token },
-    /// The stream vocabulary (lib.md, 7), to a socket once it is connected or
+    /// The stream vocabulary (runtime/lib.md, 7), to a socket once it is connected or
     /// bound.
     Stream { stream: Token, down: stream::Down },
-    /// Native independent output (lib.md, 7.1), once connected or bound.
+    /// Native independent output (runtime/lib.md, 7.1), once connected or bound.
     /// Only positive within-cap Room on idle writable output is admitted;
     /// its exact terminal precedes Closed. Stale identities are inert.
     Output {
-        /// The connected socket or actual writable parent pipe (io.md, 3.3).
+        /// The connected socket or actual writable parent pipe (runtime/io/sockets.md, 3).
         stream: Token,
-        /// One bounded request or owning Send within a matching grant (lib.md, 7.1).
+        /// One bounded request or owning Send within a matching grant (runtime/lib.md, 7.1).
         down: stream::OutputDown,
     },
     /// Start a child, returning its pidfd-backed token and pipe tokens.
     Spawn { owner: Token, spawn: Spawn },
-    /// Start a child whose close signals only it, leaving its descendants alive (io.md, 6).
+    /// Start a child whose close signals only it, leaving its descendants alive (runtime/io/processes.md).
     SpawnAlone { owner: Token, spawn: Spawn },
     /// An owner signals its child or group, before closing the child.
     Signal { child: Token, signal: Signal, to: Target },
@@ -49,22 +49,22 @@ pub enum Request {
     Usage { owner: Token },
     /// Reads the terminal stream size: exactly one Window terminal.
     Window { owner: Token, stream: Token },
-    // Files, processes and signals (io.md, 5 to 7) go here when a user pulls
+    // Files, processes and signals (runtime/io/files.md and runtime/io/processes.md and runtime/io/README.md, 4) go here when a user pulls
     // them: File { owner, root, op }, Spawn { owner, spawn },
     // Signal { child, signal, to }.
-    /// A graceful close (io.md, 3): the output flushed and half-closed, the
+    /// A graceful close (runtime/io/sockets.md): the output flushed and half-closed, the
     /// input discarded until the peer ends or the close deadline passes. On
     /// the classic face only `Closed` follows; a pending native output right
     /// also receives its owed `Cancelled` terminal before `Closed`
-    /// (lib.md, 7.1; io.md, 3.3).
+    /// (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
     Close { entity: Token },
     /// A close at once, whatever is in flight or queued. On the classic face
     /// only `Closed` follows; a pending native output right also receives its
-    /// owed `Cancelled` terminal before `Closed` (lib.md, 7.1; io.md, 3.3).
+    /// owed `Cancelled` terminal before `Closed` (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
     Abort { entity: Token },
 }
 
-/// Routing queries (skein/docs/design/io.md, 3.1).
+/// Routing queries (skein/docs/design/runtime/io/sockets.md, 1).
 impl Request {
     /// The owner named by this request, absent when it names only an io entity.
     #[must_use]
@@ -137,16 +137,16 @@ pub enum Event {
     Connected {
         owner: Token,
     },
-    /// The stream vocabulary (lib.md, 7), once connected or bound.
+    /// The stream vocabulary (runtime/lib.md, 7), once connected or bound.
     Stream {
         owner: Token,
         up: stream::Up,
     },
-    /// Native independent output terminal, distinct from classic Stream (lib.md, 7.1).
+    /// Native independent output terminal, distinct from classic Stream (runtime/lib.md, 7.1).
     Output {
-        /// The owner of the actual stream, retained until Closed (io.md, 3.3).
+        /// The owner of the actual stream, retained until Closed (runtime/io/sockets.md, 3).
         owner: Token,
-        /// One exactly-once terminal for its admitted output right (lib.md, 7.1).
+        /// One exactly-once terminal for its admitted output right (runtime/lib.md, 7.1).
         up: stream::OutputUp,
     },
     Spawned {
@@ -170,7 +170,7 @@ pub enum Event {
         owner: Token,
         window: Window,
     },
-    /// A blocked termination signal to the service itself (io.md, section 7).
+    /// A blocked termination signal to the service itself (runtime/io/README.md, section 4).
     Shutdown {
         signal: ServiceSignal,
         /// The live child that sent it, when the backend identifies the sender.
@@ -193,7 +193,7 @@ pub enum Event {
     },
 }
 
-/// Routing and lifecycle queries (skein/docs/design/io.md, 2 and 3.1).
+/// Routing and lifecycle queries (skein/docs/design/runtime/io/README.md, 2, and skein/docs/design/runtime/io/sockets.md, 1).
 impl Event {
     /// The destination owner, absent for service signals and resize notifications.
     #[must_use]
@@ -236,7 +236,7 @@ impl Event {
         self
     }
 
-    /// Whether this is the entity's final event (skein/docs/design/io.md, 3.1).
+    /// Whether this is the entity's final event (skein/docs/design/runtime/io/sockets.md, 1).
     #[must_use]
     pub const fn is_closed(&self) -> bool {
         match self {
@@ -259,7 +259,7 @@ impl Event {
 }
 
 /// Why a listen or a connect failed, as far as the layer above can act on it
-/// (io.md, 2). Kernel errors stay below io.
+/// (runtime/io/README.md, 2). Kernel errors stay below io.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Error {
     /// Nothing listened at the address.
@@ -279,7 +279,7 @@ pub enum Error {
     Other,
 }
 
-/// What a terminal size read returned (io.md, section 7).
+/// What a terminal size read returned (runtime/io/README.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Window {
     /// The terminal's current size.
@@ -288,7 +288,7 @@ pub enum Window {
     Gone,
 }
 
-/// What a process resource read returned (io.md, section 6.1).
+/// What a process resource read returned (runtime/io/processes.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Measured {
     /// The kernel read the process's own usage and its reaped children's.

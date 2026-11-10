@@ -1,4 +1,4 @@
-//! Generator regressions for codec.md, sections 3 and 6.
+//! Generator regressions for data/codec/README.md, sections 3 and 6.
 
 use core::fmt::Write;
 

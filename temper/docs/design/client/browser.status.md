@@ -58,7 +58,7 @@ landing*).
 
 - **Departs:** 2.5: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
-  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
 
 Sections 2.3's `Team` row, 2.5's *Team's look* and 7.2's `team`,
@@ -127,7 +127,7 @@ work runs' frame alike; with a fourth tab the tabs stand two by two at
 small words `--gf-faint`; and each rise's fade colours its stops by the
 `temper-ways-fade-*` tokens, the line's rules written under
 `:not([data-fade])` so that no stroke outweighs the fade (skein's
-`ui-web.md`, section 8). The gallery's `ask-ways-*` states are reprinted
+`ui/web/README.md`, section 6). The gallery's `ask-ways-*` states are reprinted
 with them.
 
 Sections 2.5, *How work runs' look*, and 7.2 have no known
@@ -385,7 +385,7 @@ establish no rendered equality.
   otherwise move its words by -0.18 px.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
-  line (skein's `ui-web.status.md`, 4.3).
+  line (skein's `ui/web/bundle.status.md`, 3).
 - **Not yet:** 4.2, 4.3, 4.6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
@@ -416,7 +416,7 @@ establish no rendered equality.
   of 2026-11-08 cut the long story's fixture and decoding: the tier's window,
   `long_text` and `turn_text` at 32,768 bytes, reading's code lines scaled
   with them (4.3), and skein's decoder indexing each CDP message once (skein's
-  `browser.md`, 4). It reads no CPU figure, so what the four stories cost now
+  `testing/browser.md`, 4). It reads no CPU figure, so what the four stories cost now
   is unmeasured; the final cost awaits after-landing (section 5). Backoff
   failed its CPU and wall criteria and is absent, and the 131,072-byte window
   alone showed no CPU saving in those figures.

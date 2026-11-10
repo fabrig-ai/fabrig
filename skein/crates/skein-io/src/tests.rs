@@ -1,6 +1,6 @@
 //! io's step tests (testing-strategy.md, 2.1): the kernel records' rules,
-//! and the cells of the listener's and the stream's transition tables (io.md,
-//! 3.2 and 3.3) driven by hand, refusals at full slabs, and stale tokens.
+//! and the cells of the listener's and the stream's transition tables (runtime/io/sockets.md,
+//! 2 and 3) driven by hand, refusals at full slabs, and stale tokens.
 //! Every entry point gets its declared kernel submission room; events are
 //! collected without a cap.
 

@@ -1,4 +1,4 @@
-//! Bounds both dialects share (skein/docs/design/forge.md, 4.4).
+//! Bounds both dialects share (skein/docs/design/forge/README.md, 4.4).
 use skein_json::{tokenizer, writer};
 /// Bounds on tokens, documents, retained fields and targets.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

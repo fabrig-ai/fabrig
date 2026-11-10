@@ -1,4 +1,4 @@
-//! The pinned Forgejo's documents (forge.md, sections 2, 3 and 9).
+//! The pinned Forgejo's documents (forge/README.md, sections 2 and 3, and forge/forgejo.md, section 2).
 pub mod client;
 pub mod credential;
 pub mod decode;

@@ -1,5 +1,5 @@
 //! What a world does to the forge from outside its API
-//! (skein/docs/design/fake-forge.md, 2.4): it sets up repositories and their users, makes a repository
+//! (skein/docs/design/testing/fakes/forge.md, 2.4): it sets up repositories and their users, makes a repository
 //! unreachable or refusing, commits as a working tree's git does, and has
 //! another party advance a branch.
 //!
@@ -287,7 +287,7 @@ pub fn set_failing(domain: &mut Domain, repository: &[u8], context: &[u8], faili
         failing;
 }
 
-/// Sets a context's whole job log opening (skein/docs/design/fake-forge.md, 2.3).
+/// Sets a context's whole job log opening (skein/docs/design/testing/fakes/forge.md, 2.3).
 pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes: &[u8]) {
     let id = domain.id(repository);
     let repository = domain.repositories.get_mut(id).expect("a repository of the forge");

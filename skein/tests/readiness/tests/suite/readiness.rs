@@ -1,4 +1,4 @@
-//! The readiness backend's own behaviours through the public kernel (shell.md, 9).
+//! The readiness backend's own behaviours through the public kernel (runtime/shell.md, 8).
 //! Peers share this thread; every backend is forced to readiness.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,7 +17,7 @@ const OPERATIONS: u32 = 4;
 const PATIENCE: Duration = Duration::from_secs(2);
 // One byte is enough to distinguish the two readers of one description.
 const BYTE: usize = 1;
-// Large enough to exceed loopback's socket buffers (task C; shell.md, 9).
+// Large enough to exceed loopback's socket buffers (task C; runtime/shell.md, 8).
 const TRANSFER: usize = 8 << 20;
 // A prime period below 256 exposes changes to the byte order across receives.
 const PATTERN_PERIOD: usize = 251;

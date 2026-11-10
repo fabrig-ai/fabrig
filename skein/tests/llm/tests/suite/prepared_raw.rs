@@ -1,7 +1,7 @@
 //! One caller-prepared Client adopts independent native response bytes.
 //! Literal expectations observe request, original callback and real lower
 //! settlement; these synthetic fixtures establish no live admission policy.
-//! Contract: docs/design/fake-llm.md, section 5; testing-strategy.md,
+//! Contract: docs/design/testing/fakes/llm.md, section 5; testing-strategy.md,
 //! sections 2.4, 4.1 and 6.
 
 use skein_lib::Token;

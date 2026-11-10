@@ -1,4 +1,4 @@
-//! HTTP shared by the fake forge's layers (skein/docs/design/fake-forge.md, 12).
+//! HTTP shared by the fake forge's layers (skein/docs/design/testing/fakes/github.md, 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

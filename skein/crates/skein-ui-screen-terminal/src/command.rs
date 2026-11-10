@@ -1,4 +1,4 @@
-//! Keys as acts and focus moves (skein/docs/design/ui-screen.md, 6.2).
+//! Keys as acts and focus moves (skein/docs/design/ui/screen.md, 6.2).
 use crate::Key;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};

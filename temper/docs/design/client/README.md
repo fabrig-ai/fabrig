@@ -101,8 +101,8 @@ section 11.
   repository and adopts it on the person's behalf, or runs the connect
   (section 8).
 - **One view, every shell.** `temper-client-view` builds temper's pages
-  as skein-ui's tree (skein's `ui.md`); the terminal prints that tree
-  with skein's text shell (skein's `ui-text.md`); the browser, its
+  as skein-ui's tree (skein's `ui/README.md`); the terminal prints that tree
+  with skein's text shell (skein's `ui/text.md`); the browser, its
   second shell, maps it with skein's browser parts (`browser.md`).
 - **A terminal first.** `temper open` runs temper's client, its view and
   skein's text shell over `jig-client-shell-native`, jig's native
@@ -241,7 +241,7 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
 - **Step code under the subset:** the domain, the forge's side, the
   view, the TUI's state, view and theme, and the wire. **Ordinary
   Rust:** the terminal's host, the TUI's host and loop, and the
-  browser's shell, as a shell is (skein's `ui.md`, section 2).
+  browser's shell, as a shell is (skein's `ui/README.md`, section 2).
 - **The client's limits** are constants of
   `temper-client-shell-terminal`: `jig-client`'s, from jig's small
   profile with the overrides temper's configuration gives the engine's
@@ -1341,7 +1341,7 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing shown.
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
     with the status role at the end of the frame, in a region named "Notices"
-    (skein's `docs/design/ui.md`, 14: a page's child is a landmark) that has
+    (skein's `ui/README.md`, 12: a page's child is a landmark) that has
     no look of its own, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.
   - *The rail's count:* one standing `inbox` watch while a project's
@@ -1518,7 +1518,7 @@ keeps (`../protocol/configuration.md`, section 2).
     cut within it after its 71st character;
   - *the whole title* stays in the heading's name, "TN · TITLE", and where
     the short form isn't the whole title it is the heading's hint as well,
-    which a browser shows on hover (`skein/docs/design/ui.md`, 3.2); a title
+    which a browser shows on hover (`skein/docs/design/ui/README.md`, 3.2); a title
     shown whole has no hint. The person's message, the task card and the stored title keep it
     whole. Only a chat's heading is short: an agent's page keeps "TN ·
     TITLE" whole.
@@ -1597,7 +1597,7 @@ keeps (`../protocol/configuration.md`, section 2).
     empty has no such turn, and opens on its first words line;
   - *the agent's words,* each assistant message's text under "Temper",
     whole within the receiving bounds (5.4), read as Markdown by
-    `skein-ui`'s reader (skein's `ui.md`, section 10): paragraphs, lists,
+    `skein-ui`'s reader (skein's `ui/markdown.md`): paragraphs, lists,
     quotes, code, and tables at the top level. A browser draws a table
     as the mockups' (`md-table`), and leaves out a header row whose
     cells are all empty, as they do. A provider's opaque block, a turn's
@@ -1607,7 +1607,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *the words being written,* the turn being written, under "Temper",
     whole from its start up to `long_text` (5.4), a page opened late
     from what the engine retains (section 11), read by `skein-ui`'s
-    `read_growing` (skein's `ui.md`, section 10): a block a blank line
+    `read_growing` (skein's `ui/markdown.md`): a block a blank line
     has closed stays on the page as it was, only the last changes as
     words arrive, and no marker shows being written. A small block,
     "▍", in `temper-writing-end`, stands after the last word. The
@@ -1621,7 +1621,7 @@ keeps (`../protocol/configuration.md`, section 2).
     them, drawn once as one line. A text, a person's words, a card, a
     document's write or any other drawn line ends a run; a line the chat
     hides does not. A call that a card stands for is neither counted,
-    named nor listed. The line is one disclosure (skein's `ui.md`, its
+    named nor listed. The line is one disclosure (skein's `ui/README.md`, its
     disclosure), `temper-work-run`, in a turn of its own:
     - *its name,* one phrase a tool, in the order first called, joined
       by ", ", the first capitalised unless it is a tool's own name:
@@ -1778,8 +1778,8 @@ keeps (`../protocol/configuration.md`, section 2).
     `.btn.quiet.small`.
   - *Reading back:* "Latest", `temper-latest`, a browser's alone: a small
     pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
-    a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
-    the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    a button *to log end* (skein's `ui/README.md`, 3.2) beside the log, shown while
+    the log is away from its end (`data-log-away`, skein's `ui/web/README.md`, 5).
     At a phone's width it stands in a row of its own below the log instead,
     so nothing lies beneath it and it covers none of a card's controls.
     Pressed, the view returns to the end and it goes. Where the window has
@@ -1847,7 +1847,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **Where the focus stands on a chat** (the request `ui-composer-focus` of
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
-    composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
+    composer focused, as soon as its composer shows (skein's `ui/web/README.md`, 5):
     from a new chat, its draft, `Ask` and a suggested request alike.
     "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
@@ -1856,7 +1856,7 @@ keeps (`../protocol/configuration.md`, section 2).
     with a screen reader or the keyboard lands on what the page is, though the
     heading is drawn after the page (`browser.md`, 2.3). An address, a reload,
     Back and Forward make no new entry, and take the focus to no heading
-    (skein's `ui-web.md`, 7).
+    (skein's `ui/web/README.md`, 5).
   - *After a send,* by Enter or by "Send", whether or not it went out, the focus
     is in the composer, on a chat's, a goal's and an agent's task's (5.11) alike:
     "Send" disables as the words clear, and a disabled button holds no focus.
@@ -1871,7 +1871,7 @@ keeps (`../protocol/configuration.md`, section 2).
   temper chat's (the look request `model-picker`). A choice is the task's LLM choice,
   from the chat's next run (jig's `domain/tasks/README.md`, section 3 and `domain/tasks/changes.md`).
   - *The picker* is on the hint's row, at the composer's right edge: a
-    disclosure named "Model" (skein's `ui.md`, its disclosure), which folds
+    disclosure named "Model" (skein's `ui/README.md`, its disclosure), which folds
     away, described by its closed line. A browser shows the line and a chevron;
     the terminal and the fake person read "Model: LINE" and find its content
     whole. On a phone the hint goes and the picker stays.
@@ -2064,7 +2064,7 @@ keeps (`../protocol/configuration.md`, section 2).
     by its heading and its place among its namesakes, so that a change keeps the others'
     nodes. `#`, level 2, is drawn as the mock's `.doc-inner h1`, and `##`, level 3, as its `h2`; the first section's first
     paragraph as `.doc-muted`. Tables as `configure-chat-draft`'s. A fenced block
-    reads as code, but for a flow (`skein/docs/design/ui.md`, 10.1), which is drawn.
+    reads as code, but for a flow (`skein/docs/design/ui/markdown.md`, 1), which is drawn.
     temper's page routes skein-ui's owner to its drawing code and gives its names
     beside temper's, so a flow draws in any Markdown a person reads here, a turn's as
     a document's. Its look is `browser.md`, 2.5's.
@@ -2112,7 +2112,7 @@ keeps (`../protocol/configuration.md`, section 2).
     A browser with no record of its own starts
     `{ terminal: false, theme: Dark, font: DejaVu, night: false }`: a first visit
     is day, whatever the system's scheme. The shell reads it at start
-    from the kept store's record `look` (skein's `ui-web.md`, 10), four bytes,
+    from the kept store's record `look` (skein's `ui/web/README.md`, 8), four bytes,
     one for each field, in that order, `0` or `1`, `1` the terminal, `Light`,
     `Plex` and night; a record of three, the form before `night`, reads with
     `night` off, and a record of any other form is none. A change writes the record, in
@@ -2128,7 +2128,7 @@ keeps (`../protocol/configuration.md`, section 2).
     browser's bar after the mode group or "+ Draft" and before "Start goal…" or
     "Start over", on every chat, `NewChat` and `Ask`, on a phone too:
     `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
-    screen in the same step (skein's `ui-web.md`, 11, *Full screen*). The press
+    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*). The press
     draws the terminal in that step, before the browser answers: every terminal
     act, and a list's closing on any event, moves the pages' shown count, as
     each change the view draws does (section 3). Full screen refused, the
@@ -2180,7 +2180,7 @@ keeps (`../protocol/configuration.md`, section 2).
     `/model`'s list, then " · 778 spent", the chat's own spend. On a phone the spend
     goes. While a list is open the quiet line gives it its place.
   - *Commands,* typed in the box: words that begin with "/" and hold no white space
-    open the list under the box (skein's `ui.md`, 3.2, *options*), named
+    open the list under the box (skein's `ui/README.md`, 3.2, *options*), named
     "Commands": each command the page offers now whose name begins with the words,
     in the table's order, its name and its words. Enter presses the active one, Tab
     completes its name, a click presses it. Enter on words that name no command
@@ -2228,7 +2228,7 @@ keeps (`../protocol/configuration.md`, section 2).
     `/font`'s, a closed chat's. They are the page's state, at most 8, the oldest
     going first, gone when the page closes; nothing sends or keeps them.
   - *Keys:* Enter sends, Shift+Enter makes a new line, `Ctrl+\` shows or hides the
-    draft, PgUp and PgDn read back (skein's `ui-web.md`, 7), Esc closes a list and
+    draft, PgUp and PgDn read back (skein's `ui/web/README.md`, 5), Esc closes a list and
     otherwise does nothing; in a list, the arrows move, Tab completes, Enter takes.
     In full screen, where the browser lets the terminal hold Escape (Chromium's), a
     short Esc is the terminal's and a long one leaves full screen; where it doesn't
@@ -2916,7 +2916,7 @@ keeps (`../protocol/configuration.md`, section 2).
     is carried, the root asks its shell to open a tab (`Request::Tab`,
     `Tab::Open`), which holds "Opening ChatGPT’s sign-in…" until the
     address comes: a browser blocks as a pop-up a tab opened once an
-    answer has come back (skein's `ui-web.md`, section 10). The sign-in's
+    answer has come back (skein's `ui/web/README.md`, section 8). The sign-in's
     answer, `AccountSignInStarted`, names its source S and the address.
     The root asks its shell to point the tab at the address
     (`Tab::Point`), its opener cut, once, from that answer: never from its
@@ -2940,12 +2940,12 @@ keeps (`../protocol/configuration.md`, section 2).
     `Accounts` with its line (*Ready's place*, below), or the welcome's
     Ready, its address replacing the step's, or to the ending's words and
     acts. A hidden tab lets its
-    stream go after a minute (skein's `ui-web.md`, section 10), so a slow
+    stream go after a minute (skein's `ui/web/README.md`, section 8), so a slow
     sign-in moves on when the person returns, its stream opened again;
     the page says nothing of this. The new tab ends on the listener's
     fixed page, "Sign-in received. You can close this tab.", which never
-    says how the sign-in ended (skein's `oauth.md`, 6.5): that's the
-    page's to say, and temper closes no tab it has pointed (section 11).
+    says how the sign-in ended (skein's `oauth/accounts.md`, 5): that's the
+    page's to say, and temper closes no tab it has pointed (`README.md`, section 11).
   - *A reload while it waits,* the page is a new client at the address
     with the source (`browser.md`, 2.3): it takes the source's sign-in
     as its own and draws the same page, while the `accounts` watch lists
@@ -3425,8 +3425,8 @@ keeps (`../protocol/configuration.md`, section 2).
       browser alone: a quiet "Copy" in the block's top right corner, whose
       right padding keeps the text from running under it at every width. A
       press writes the command's exact text, as one line, an effect asked in
-      the press's own turn (skein's `ui.md`, section 13; `ui-web.md`, section
-      11). It reads "Copied" for 2 s. On plain http, where a browser has no
+      the press's own turn (skein's `ui/README.md`, section 11; `skein/docs/design/ui/web/README.md`, section
+      9). It reads "Copied" for 2 s. On plain http, where a browser has no
       clipboard, and on any refusal or failure, it reads "Couldn’t copy" for
       2 s, and the text stays selectable. A press within the 2 s writes again,
       and an answer to an earlier press says nothing. The terminal has no
@@ -4014,7 +4014,7 @@ keeps (`../protocol/configuration.md`, section 2).
   words with what fits (look again, change what was asked); unknown,
   past the engine's retention, it says so. A goal's page says it in the toast (5.11).
 - **A key is pasted once, never kept.** Its field is a secret (skein's
-  `ui.md`, 3.2 and 3.4), and adding or replacing a key is a request
+  `ui/README.md`, 3.2 and 3.4), and adding or replacing a key is a request
   carrying a value (jig's `client/domain/client/requests.md`; jig's
   `protocol/client/README.md`, section 7): sent once under a name, never in
   the small store, never parked, never sent again by the client. The
@@ -4367,7 +4367,7 @@ the person to check existence and grant the repository to the App.
   and last connect's end, 11 since GitHub's manifest (`Connect`'s
   `GitHubManifest` and the row's `app`). It stays at 11 until the first
   release, as `../protocol/README.md`, section 9 says (skein's
-  `codec.md`, section 5). A request, an outcome, a read, a subject or a
+  `data/codec/README.md`, section 5). A request, an outcome, a read, a subject or a
   field added to the family (the FORGE requests of section 8, the
   picker's ids in `Adopt`, the forge's kind in the adopted outcome, the
   playground's read, a change's panel) changes its schema, generated code and
@@ -4445,9 +4445,9 @@ the person to check existence and grant the repository to the App.
   or invalid, a name Forgejo
   would refuse (the org a login of at most 40 bytes, the repository
   1 to 100 bytes of letters, digits, `.`, `_` or `-`, neither `.` nor
-  `..`; skein `forge-setup.md`, 4.9) or past the engine's
+  `..`; skein `skein/docs/design/forge/setup/forgejo.md`, 1.9) or past the engine's
   `name_bytes`; or *unknown*, its
-  outcome no longer held (section 8), the same unknown as an
+  outcome no longer held (`README.md`, section 8), the same unknown as an
   adoption's. A refusal at admission is jig's answer, as for `Adopt`.
 - **`DismissMaking`:** of the project it names, or of the deployment with
   none (section 8), as `MakeRepository`'s `into` gives its scope, so that a
@@ -5102,7 +5102,7 @@ client removes no account and closes no chat of its own.
 ### 5.1 Its shape
 
 `temper-client-view` builds temper's pages as skein-ui's tree (skein's
-`ui.md`), one owner, temper's:
+`ui/README.md`), one owner, temper's:
 
 - **Its state:** skein-ui's view (the last tree, a spare, node ids never
   reused); temper's phrasebook, English, with jig's words for jig's
@@ -5114,7 +5114,7 @@ client removes no account and closes no chat of its own.
   limits; the instant its words next change (5.12).
 - **`build`:** at the shell's time, when the domain's shown count moved
   or that time has reached the instant its words next change (5.12),
-  it builds the page in one outline (skein's `ui.md`, section 14), in
+  it builds the page in one outline (skein's `ui/README.md`, section 12), in
   the mockups' order:
   - *the rail (5.3):* on a project page, every page but `Welcome`
     while a project is open and the link is neither signed out nor out
@@ -5249,10 +5249,10 @@ client removes no account and closes no chat of its own.
 - **`act`:** a shell's act on a node is resolved by skein-ui in the
   last tree to its binding, and decoded by temper's bindings into the
   domain's action. A node gone, or a token of an older tree, decodes to
-  nothing (skein's `ui.md`, section 6).
+  nothing (skein's `ui/README.md`, section 6).
 - **Every node a person acts on has a role and a name,** since skein's
   fake person finds nodes only by them; nothing a person must know is
-  said by style alone (skein's `ui.md`, section 8).
+  said by style alone (skein's `ui/README.md`, section 8).
 - **The look:** the mockups' (`mockups/style.css`),
   as style tokens each shell interprets or ignores; the terminal prints
   none, and the browser's stylesheet draws them (`browser.md`, 2.5).
@@ -5349,7 +5349,7 @@ navigation named by the open project, in this order:
   `Repositories` and `Adopt`;
 - the new box, `div.temper-rail-new`, one dashed box. While the project
   offers drafts (`drafts_offered`, 3.5.4.5), it is "+ New draft or change", the
-  button of skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, section 6),
+  button of skein-ui's menu (`Role::Menu`; skein's `ui/web/elements.md`),
   named "New draft or change", opening a panel under the box 288 pixels
   wide, past the rail's edge and over the page. Its items, a name and a line
   each: "Draft", "A design session that ends in a goal, best had in the
@@ -5378,7 +5378,7 @@ navigation named by the open project, in this order:
   the engine." while `me` or the page cannot say otherwise (6.6), the
   terminal's "Sign out" being the `Accounts` tab's (3.5);
 - the person's menu, a browser's: the person's name is the button of
-  skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
+  skein-ui's menu (`Role::Menu`; skein's `ui/web/README.md`, 5), in a
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
   "Accounts", to `Accounts`; "What temper remembers about you", to
@@ -5527,14 +5527,14 @@ The acts of both, each one act and one request (3.6):
   it, then "Save", primary and small. The field's Enter or "Save" sends
   jig's `Rename { project, name }`, its name without the spaces at its
   ends, the form's acts disabled while it is out; Escape closes the form
-  and sends nothing: the form's "Cancel" names it (skein's `ui.md`,
+  and sends nothing: the form's "Cancel" names it (skein's `ui/README.md`,
   6.1), which the terminal shows and the browser's sheet hides. An empty
   name, or the name unchanged, sends nothing and closes the form,
   keeping the old name. Answered renamed, the form closes, and `me`
   brings the new name wherever the project's name shows; refused (the
   name taken, its shape, the role), the form stays and says why under
   its field. A closed form leaves the focus on the switcher's summary
-  (skein's `ui-web.md`, 7), or on a page's own field where the page asks
+  (skein's `ui/web/README.md`, 5), or on a page's own field where the page asks
   it (a new chat, Ask temper's page, a composer after a send, 3.5).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
@@ -5553,17 +5553,17 @@ The acts of both, each one act and one request (3.6):
 
 ### 5.4 Limits
 
-The view's limits are skein-ui's (skein's `ui.md`, section 15), derived
+The view's limits are skein-ui's (skein's `ui/README.md`, section 13), derived
 from the domain's: each page's nodes at its conversation's bytes (5.15)
 and its other windows' most rows, the
 forge's form and its outcome's lines, the kinds' list at its longest,
 and one paragraph per part not read. Their text across a tree,
 `text_bytes`, is the nodes outside a window's turns at a node's most
 text, and each of a window's lines at what its reader may make of its
-turn's bytes (skein's `ui.md`, section 10) and its disclosures' names:
+turn's bytes (skein's `ui/markdown.md`) and its disclosures' names:
 a lower cap would be a guess, which skein-ui's builder turns into a
 panic on the page past it. Their patches are four a node, the most a diff emits (skein's
-`ui.md`, section 7). skein's text shell counts its worst-case print from these limits,
+`ui/README.md`, section 7). skein's text shell counts its worst-case print from these limits,
 and reserves for each print only what that page's tree may print
 (6.8).
 
@@ -5596,7 +5596,7 @@ under the composer says how far over they are, counting the characters past the
 bound: "That's 3,200 characters over what one message holds." The client holds an
 edit's first `long_text` bytes and counts the characters past them in that line. A
 browser's field keeps them, since a field's value is written only when its owner's
-count moves (skein's `ui.md`, 3.4), and a composer drawn anew shows what the
+count moves (skein's `ui/README.md`, 3.4), and a composer drawn anew shows what the
 client holds. A suggestion's words and a choice's stay within `CUE_BYTES`, as a
 cue's and a button's. The view prices one composer's value at `long_text`.
 
@@ -6160,7 +6160,7 @@ the change's chip in a chat (`forge.md`, 2.4 and 2.5).
   four once it has landed, none otherwise. A ticked step is skein-ui's
   `completed` item, its tick the look's (STEP_DONE): a screen reader
   reads "Branch pushed completed" and the terminal prints "- Branch
-  pushed (completed)" (skein's `ui.md`, 3.2), so nothing is said by
+  pushed (completed)" (skein's `ui/README.md`, 3.2), so nothing is said by
   style alone (5.1). The change's live stages are later (section 11).
 - **What it stands for:** the call's work summary, its result's, and
   the line that heard the task's result, whose words are the card's: a
@@ -7423,7 +7423,7 @@ can open it. `draft` is the draft's path in the repository
 A chat's conversation and an agent's task's (5.9) are read by scrolling
 (`../draft/chat-reading.md`, section 5). jig's thread holds the window
 (jig's `client/domain/client/conversations.md`), and skein's page part
-measures it (skein's `ui-web.md`, section 7).
+measures it (skein's `ui/web/README.md`, section 5).
 
 - **The log is bound** while an earlier page remains or the window has let
   its newest lines go, its act decoding to `Older` at its head and `Newer` at
@@ -7456,14 +7456,14 @@ measures it (skein's `ui-web.md`, section 7).
   and reading later the earliest; they come back when scrolled to, and nothing
   says how many left.
 - **While a window has let its newest go** the log *continues* (skein's
-  `ui.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
+  `ui/README.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
   New words and a run's live text wait: they show when the end is back.
 - **A delivery that makes the view stale** rebuilds the semantic page tree,
   rereads the held Markdown and compares the old and new trees across the
   window. Unchanged builds are gated; the diff patches changed DOM nodes in
   place. No parsed Markdown or conversation subtree is retained. Following
   reads aggregate log geometry; holding an away reader can scan entries for
-  its anchors, including on a patch outside that log (skein's `ui-web.md`, 7).
+  its anchors, including on a patch outside that log (skein's `ui/web/README.md`, 5).
 - **Each line's outer node is keyed,** a turn by its name, a run of calls by
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
@@ -7492,10 +7492,10 @@ measures it (skein's `ui-web.md`, section 7).
   which `Chat` counts. An agent's page has the same pill; while its window
   has let the end go, a press asks for the next later page (`Thread::newer`),
   and the log, following, asks for each next until its end is back (skein's
-  `ui-web.md`, section 7). Its log has no end request, so sending there does
+  `ui/web/README.md`, section 5). Its log has no end request, so sending there does
   not request the end.
 - **The terminal:** the log is bound and continues as in a browser, with no
-  measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
+  measures: `up` reads earlier and `down` later (skein's `ui/text.md`, section
   6), and each prints the whole window again. These are lines followed by
   Enter, as are the escape sequences PgUp and PgDn make, not raw keys.
   It opens with the bounded initial history above. The line under its bound log's name says
@@ -7513,7 +7513,7 @@ terminal draw the same path.
 - **The block:** in a turn's text or the chat's document, a fenced block
   at the top level, its info string `view` and its one line the view's
   address. The client splits the text at such blocks before reading the
-  rest as Markdown (skein's `ui.md`, section 10), so that a `view` block
+  rest as Markdown (skein's `ui/markdown.md`), so that a `view` block
   is never shown as code; one indented, inside another block or with more
   than one line stays code.
 - **The addresses** of this milestone: `way NAME`, a stock way by its name
@@ -7561,7 +7561,7 @@ terminal draw the same path.
     from 720 up and 720 under it, so that in a box under 720 the scene
     says its width and is scaled to the box, keeping its proportions, as
     the look request's picture is, 658 by 127.94 in a box 658 wide
-    (skein's `ui.md`, 11.2): the dotted line
+    (skein's `ui/scenes.md`, 2): the dotted line
     at 72; a person's and an agent's marks at 40, their words over them
     at 22; code's at 106, its words under it at 131; the stops before the
     last bar evenly from 12 to `A − 68`, the first's words anchored at its
@@ -7571,8 +7571,8 @@ terminal draw the same path.
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
     curve each way, and ends at the landing branch's bar: the base row
-    in the line's colour, each rise painted by a fade (skein's `ui.md`,
-    11.2) from its mark's colour at the marks' row, through a fainter
+    in the line's colour, each rise painted by a fade (skein's `ui/scenes.md`,
+    2) from its mark's colour at the marks' row, through a fainter
     tone at the dotted line, to the line's colour at the base row, as the
     look request's fade is, a person's rises in the signal's and an
     agent's in ink, each tone one mark of the scene; a stop's small
@@ -7587,12 +7587,12 @@ terminal draw the same path.
     under its own, 12 lower, on the same side; a stop every 40 pixels
     from 16, the landing branch's bar across the line's foot 38 under the
     last stop, its words before it; the scene's height its own, 14 under
-    that bar (skein's `ui.md`, 11.2); the line's fades run across the
+    that bar (skein's `ui/scenes.md`, 2); the line's fades run across the
     column, from the marks' side to code's.
 - **Pressed,** on Ask temper's page and How work runs alone (3.5; 5.13): each stop but a bar is a
   group whose transparent area, 60 by 52 above the line and 60 by 44
   below it across, a row 28 high down the page, carries its act, so that
-  a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
+  a press anywhere on it opens the stop's card (skein's `ui/scenes.md`, 3);
   the open stop has a pale ring of 15 behind its mark and its words in
   ink, bold, and the scene grows at its foot by what is 14 pixels in the
   box (14 × `A` / `W` across, and 14 × 360 / `W` down the page in a box
@@ -7679,9 +7679,9 @@ there. It draws what the engine holds, with no placeholder.
   its parent as a root (skein-shell's `open_root`) and gives its last
   component to `jig-client-shell-native`, whose files make it `0o700` if
   it is absent and refuse it unless it is a directory of this user's
-  with no group or other bits (skein's `io.md`, 5.3). It holds the
+  with no group or other bits (skein's `runtime/io/files.md`, 3). It holds the
   bearer credential's file and the small store's, both the native
-  shell's (section 7).
+  shell's (`README.md`, section 7).
 - **LINK_OR_ADDRESS** is one of:
   - the link `temper serve` printed,
     `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`: the client
@@ -7715,11 +7715,11 @@ there. It draws what the engine holds, with no placeholder.
 ### 6.2 The loop
 
 - **One host on skein's loop** (skein-shell's `drive`; skein's
-  `shell.md`, section 12): temper's client root, its view,
+  `runtime/shell.md`, section 11): temper's client root, its view,
   `jig-client-shell-native`'s transport, and skein's text shell's
-  terminal (skein's `ui-text.md`, section 7), with SIGINT and SIGTERM
+  terminal (skein's `ui/text.md`, section 7), with SIGINT and SIGTERM
   from skein-shell's `open_termination_signals`, adopted by io.
-- **The text shell's settings** (skein's `ui-text.md`, section 3): the
+- **The text shell's settings** (skein's `ui/text.md`, section 3): the
   name `temper`; the longest line, 4096 bytes; a print interval of one
   second; the status region, the link's state (5.1); temper's
   lines, 32 (6.3); and their line bytes, DIRECTORY's bytes and 160:
@@ -7741,7 +7741,7 @@ there. It draws what the engine holds, with no placeholder.
 
 ### 6.3 When it prints
 
-As skein's text shell prints (skein's `ui-text.md`, section 4), at the
+As skein's text shell prints (skein's `ui/text.md`, section 4), at the
 interval of 6.2. Before the first tree (signing in), only temper's own
 lines, each starting `temper: `.
 
@@ -7766,7 +7766,7 @@ lines, each starting `temper: `.
 
 ### 6.4 How it prints
 
-As skein's text shell prints (skein's `ui-text.md`, section 5). The
+As skein's text shell prints (skein's `ui/text.md`, section 5). The
 first line is `== TITLE == STATUS`: TITLE the page's level-1 heading,
 STATUS the link's state (5.1), with "Behind" after it while the page
 is behind. With the repository sheet open, the underlying page is
@@ -7780,12 +7780,12 @@ button: list demand and search read subsequent pages (4.4).
 
 ### 6.5 Numbers and commands
 
-skein's text shell's (skein's `ui-text.md`, section 6). temper adds no
+skein's text shell's (skein's `ui/text.md`, section 6). temper adds no
 command.
 
-- **A sign-in's address** is an external link (skein's `ui.md`, 6.2),
+- **A sign-in's address** is an external link (skein's `ui/README.md`, 6.2),
   which the terminal prints as `TEXT <URL>`, with no number (skein's
-  `ui-text.md`, section 5), and never opens: it starts no browser and
+  `ui/text.md`, section 5), and never opens: it starts no browser and
   no program. The person opens the address in a browser on the
   engine's machine, where the provider's redirect reaches the engine
   (`../protocol/credentials.md`, section 3), or in one elsewhere, and
@@ -7805,9 +7805,9 @@ command.
   engine's machine in standalone, and the forges' page shows the
   connect's end when the engine tells it (`forge.md`, 5.4).
 - **A key's field,** a secret, prints `(hidden)` once written, and the
-  command `n KEY` writes it (skein's `ui-text.md`, sections 5 and 6);
+  command `n KEY` writes it (skein's `ui/text.md`, sections 5 and 6);
   the terminal's line editing echoes the key as it is typed, which
-  skein's text shell cannot turn off (skein's `ui-text.md`, section 9).
+  skein's text shell cannot turn off (skein's `ui/text.md`, section 9).
   `temper ctl account add-key` reads a key from a file instead
   (`tools.md`, 5.5, area 5).
 - **A forge's pasted value** prints the same way: each of the forges'
@@ -7827,7 +7827,7 @@ command.
   Signed out: the host has the native shell keep none, which leaves
   DIRECTORY's token a zero-byte file, read as none; the main says
   "Signed out." (5.1), the first line reads `== temper == Signed out`
-  (skein's `ui-text.md`, section 5: TITLE is "the shell's name when
+  (skein's `ui/text.md`, section 5: TITLE is "the shell's name when
   there is none"), and temper prints `temper: signed out; to sign in
   again, run temper open DIRECTORY LINK with a link temper serve
   printed`. A sign-out that did not reach the engine leaves the person
@@ -7889,7 +7889,7 @@ command.
 ### 6.8 Pure where it decides
 
 The renderer and the command reader are skein's text shell's, step code
-under the subset (skein's `ui-text.md`, section 3). The host adds the
+under the subset (skein's `ui/text.md`, section 3). The host adds the
 terminal's operations (`Terminal::operations`) to its ring's, beside
 its client's and its own; it copies none of the terminal's count. The
 terminal starts from temper's view limits, as `temper open` makes it,
@@ -7929,7 +7929,7 @@ draws its heading and its "Task brief".
 
 The TUI (`../draft/tui.md`) is a person's full-screen terminal client:
 temper's client root, a view of its own and skein's full-screen shell
-(skein's `ui-screen.md`), over the native transport `temper open` uses.
+(skein's `ui/screen.md`), over the native transport `temper open` uses.
 Its first pass (`../draft/tui.md`, section 4) signs in from the local
 engine's link file, with a pasted link or the browser's approval as
 fallback (7.1); once signed in it draws, live, a launchpad, the commands
@@ -7992,7 +7992,7 @@ it (6.14). `temper open` stays the tests' line client
   `temper ctl`'s, and no argument names it.
 - **Private,** as `temper open`'s (6.1): the binary makes it and its
   missing parents `0o700` and refuses it unless it is a directory of
-  this user's with no group or other bits (skein's `io.md`, 5.3), then
+  this user's with no group or other bits (skein's `runtime/io/files.md`, 3), then
   opens its parent as a root and gives `tui` to
   `jig-client-shell-native`, as `temper open` gives DIRECTORY's last
   component.
@@ -8156,7 +8156,7 @@ it (6.14). `temper open` stays the tests' line client
   the engine's link file read for the duty `local`, its bytes or none;
   `Due`, the root's
   deadline reached; `Key`, one key as skein's decoder made it (skein's
-  `ui-screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
+  `ui/screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
   the transport's or the small store's events, as the native shell gives
   them; `Kept`, the credential's write ended, written or not; `Opened`,
   the browser's opener ended, done or not (7.1). Any report
@@ -8183,7 +8183,7 @@ it (6.14). `temper open` stays the tests' line client
   elsewhere, a sign-in ended, a held credential the engine does not
   know), is a duty to erase it. A sign-in kept by the engine leaves the
   credential as it was, and writes nothing (section 7).
-- **A key** goes through skein's key reader (skein's `ui-screen.md`,
+- **A key** goes through skein's key reader (skein's `ui/screen.md`,
   6.2) on the tree and the focus the last frame laid, so that a key
   acts on what the person saw: an act on a node becomes the TUI's event
   through its view, if the view names one (6.14); the focus moved draws
@@ -8202,7 +8202,7 @@ it (6.14). `temper open` stays the tests' line client
   renderer at the window's size, in the theme of the scheme the root's
   look names and the start's background, `temper_client_tui::theme(scheme,
   background)` (*The look*, below; 6.15), with the host's focus (skein's
-  `ui-screen.md`, section 5). After each report the host has already
+  `ui/screen.md`, section 5). After each report the host has already
   built its view from the root and the TUI's state, so `Host::tree` is
   the tree the next key reads.
 - **Its pages:** the root starts at `Inbox { filter: ALL }`, as `temper
@@ -8344,7 +8344,7 @@ the foot and the commands (6.17).
   question and acts, the chat's question, a card's line, the notes'
   words and the terminal's own phrases ("/ for commands", "✦", "❯").
   Its other words are its own phrases, under an owner of its own
-  (skein's `ui.md`, section 9).
+  (skein's `ui/README.md`, section 9).
 - **The link's state** is the bottom row's last child, a status in the
   view's words after the TUI's own `●`: "Live" once `me` is read on a
   live link, "Connecting" while it starts or before `me`, "Offline",
@@ -8365,9 +8365,9 @@ the foot and the commands (6.17).
 ```
 
 - **The paste:** one text field, "Link", a secret, drawn masked (skein's
-  `ui-screen.md`, 5.4), that submits on Enter, its placeholder the
+  `ui/screen.md`, 5.4), that submits on Enter, its placeholder the
   link's shape at the TUI's address, and the focus asked for it as the
-  screen opens. A paste fills it whole (skein's `ui-screen.md`, 6.2). A
+  screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
   `q` types in it, so the bottom row says "Ctrl+C to quit".
 - **Enter** checks the field with jig's parser of the printed link
   (`jig-client-protocol-http`'s `printed`, under the default mapping's
@@ -8512,7 +8512,7 @@ words, parts and order bind and whose figures don't), illustrative:
   its border: "temper" (`tui-title`), " · " (`tui-faint`) and the
   project's name (`tui-name`); and, at the border's end, `HOST:PORT`
   (`tui-address`, aligned to the end), which skein leaves out first
-  where the border lacks the room for both (skein's `ui-screen.md`,
+  where the border lacks the room for both (skein's `ui/screen.md`,
   5.2). Inside it:
   - *with a brief new to the person* (`Facts::brief`, 3.5.1, *Home on any
     project*): its sentence, one paragraph, then the byline "written by
@@ -8666,10 +8666,10 @@ chat, the running line above them.
   delegate", "Waiting for an account" (`tui-running`), with no clock and
   no pulse.
 - **The box,** the region `tui-box`, framed by two rules across the
-  window and no sides (skein's `ui-screen.md`, 5.2): one text area
+  window and no sides (skein's `ui/screen.md`, 5.2): one text area
   (`tui-field`) that submits on Enter, named "Ask temper" on the launchpad
   and "Message" on a chat, as the browser's composers are, its name the
-  tree's and not laid (skein's `ui-screen.md`, 3, `label`); the focus's
+  tree's and not laid (skein's `ui/screen.md`, 3, `label`); the focus's
   mark `❯` before it. Its placeholder: "Ask for a change, or ask
   temper.  / for commands" on the launchpad with a project (the words
   then two spaces and the terminal's phrase, as `../draft/surfaces.md`,
@@ -8692,7 +8692,7 @@ chat, the running line above them.
     alone (*Typed before the sign-in lands*).
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
-    Down leave the focus where it is (skein's `ui-screen.md`, 6.2), but
+    Down leave the focus where it is (skein's `ui/screen.md`, 6.2), but
     for the launchpad's left-off chats (*Where you left off*), and
     `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
     TUI from anywhere (6.16).
@@ -8890,13 +8890,13 @@ chat, the running line above them.
   itself.
 - **The list:** the box's words beginning with "/" and holding no white
   space open the commands under the box in the quiet line's place, the
-  region `tui-list`: an options menu after the box (skein's `ui.md`,
+  region `tui-list`: an options menu after the box (skein's `ui/README.md`,
   3.2, *options*), named "Commands", with no head, each command offered
   whose name begins with the words, in the order *Offered* and *The
   TUI's own commands* give, its name and, as its description, its words (`tui-command`), the
   first active. While it stands the box keeps the focus: Up and Down
   move the active command, Enter presses it, Tab completes its name
-  (skein's `ui-screen.md`, 6.2), Esc closes the list and clears the
+  (skein's `ui/screen.md`, 6.2), Esc closes the list and clears the
   words (`terminal::Act::Dismiss`). With no command beginning with the
   words, no list stands.
 - **Pressed,** or sent whole, which with its list standing is the same
@@ -8996,7 +8996,7 @@ chat, the running line above them.
   page holds them (3.5, `Chat { task }`; `pages().chat()`).
 - **The rule above the box** carries the chat's title, aligned to its
   end, as Claude Code's is: the box region's level-1 heading, which
-  skein draws in its top rule (skein's `ui-screen.md`, 5.2), its parts
+  skein draws in its top rule (skein's `ui/screen.md`, 5.2), its parts
   each aligned to the end (`tui-rule-title`), so that they end two
   glyphs across before the rule's end: the project's name (`tui-name`),
   " / " (`tui-faint`), the title (`tui-name`), " T2", the chat's number,
@@ -9019,12 +9019,12 @@ chat, the running line above them.
   - *A narrow terminal:* while the title's parts and six columns are
     wider than the window's columns, the place and its " on " are left
     out first, then the project and its " / "; skein leaves out what
-    still does not fit, whole (skein's `ui-screen.md`, 5.2), and the rule
+    still does not fit, whole (skein's `ui/screen.md`, 5.2), and the rule
     stands bare.
   - *While a list stands* under the box (the commands, a question), the
     rule above the box keeps the title; on the launchpad the box's rule
     has no title, and its framed header stays as it is.
-- **The conversation,** in the body, from the screen's first row: a log (skein's `ui.md`, 3.2) with
+- **The conversation,** in the body, from the screen's first row: a log (skein's `ui/README.md`, 3.2) with
   the chat's end request (`Chat::to_end`), holding one list, an item an
   entry, in the thread's order as the browser's terminal reads it (3.5.4.6, *The
   conversation*), with a blank row between two entries
@@ -9046,12 +9046,12 @@ chat, the running line above them.
     skein-ui's reader, its blocks two columns in (`tui-agent`), inside
     a group under `tui-bullets`, whose mark "•" takes the place of the
     entry's "✦" before every unnumbered item under it, nested ones too
-    (skein's `ui-screen.md`, 3): a Markdown bullet is "•", never the
+    (skein's `ui/screen.md`, 3): a Markdown bullet is "•", never the
     agent's own mark "✦" (the user's request of 2026-11-08); numbered
     lists are numbered, as skein's reader orders them. The words being
     written are read inside the same group;
   - *the words being written:* the turn being written, whole, read by
-    `markdown::read_growing` (skein's `ui.md`, section 10), its end a
+    `markdown::read_growing` (skein's `ui/markdown.md`), its end a
     small block after its last word, a reversed space (`tui-end`), in
     the browser's "▍" place. A closed block is read again to the same
     nodes and stays as it was; the committed turn draws the same blocks
@@ -9129,7 +9129,7 @@ chat, the running line above them.
     sent" and "Sent", the conversation showing the words.
   The terminal's notes follow the conversation, each in `tui-note`.
 - **Reading back:** PgUp and PgDn page the body by its rows while the
-  box keeps the focus (skein's `ui-screen.md`, 6.2); the body follows the
+  box keeps the focus (skein's `ui/screen.md`, 6.2); the body follows the
   conversation's end as it grows, until the person pages up, and again
   once they page down to it (5.2 there). The window is the one the
   chat's page reads as it opens: earlier pages are not read as the head
@@ -9231,7 +9231,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   (`pages::chat::Chat::mode`, 3.5, *Its mode*), of which the TUI keeps
   nothing: `Mode::Chat`, folded, the conversation alone; `Mode::Split`,
   half, the conversation in the body and the draft in the side region
-  `tui-pane` beside it (6.15; skein's `ui-screen.md`, 5.2, *A side
+  `tui-pane` beside it (6.15; skein's `ui/screen.md`, 5.2, *A side
   region*); `Mode::Draft`, all, the draft in the body in the
   conversation's place, the conversation not drawn. The foot (the
   running line, the box, a list or the quiet line) stands under each.
@@ -9255,11 +9255,11 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     (*Offered*).
   - *The body as the state changes:* entering all, the host sets the
     body's scroll to its first row and stops following its end (skein's
-    `ui-screen.md`, 5.2, `Focus::scroll` and `Focus::follow`); leaving
+    `ui/screen.md`, 5.2, `Focus::scroll` and `Focus::follow`); leaving
     all, it follows the conversation's end again: the draft reads from
     its head, the conversation from its newest words. PgUp and PgDn page
     the body in each state; at half the pane shows what fits and does
-    not scroll (skein's `ui-screen.md`, 5.2, *A side region*), all
+    not scroll (skein's `ui/screen.md`, 5.2, *A side region*), all
     being the place to read the draft whole.
 - **The draft,** at half and at all alike, from the chat's document as
   the web reads it (3.5, *A chat's document*: the same reads, no new
@@ -9286,7 +9286,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     that wrote nothing marks none, and the marks stand until the next
     turn's writes. `temper_client_tui::marked(body, writes)`, pure,
     gives the sections' indexes. No diff is drawn.
-  - *a flow* (`skein/docs/design/ui.md`, 10.1) prints as its fenced
+  - *a flow* (`skein/docs/design/ui/markdown.md`, 1) prints as its fenced
     text: a fenced block whose info string is `mermaid` lays as a code
     block of its lines, never a drawing, in the pane and in all alone;
     the conversation reads as it does.
@@ -9389,7 +9389,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     no rule under it, and "new" stands two spaces after a section's
     heading rather than flush with the pane's end: a side region lays
     lines, nothing flush beside other words on a row (skein's
-    `ui-screen.md`, 5.2); and "new" marks a `#` or `##` section, the
+    `ui/screen.md`, 5.2); and "new" marks a `#` or `##` section, the
     document's parts as the domain splits them, where the mockup marks
     a numbered paragraph;
   - the drafter's choices stand under the box as a prompt, as the
@@ -9408,12 +9408,12 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
 
 - **Two themes,** dark and light, `skein_ui_screen::Theme`s that
   `temper-client-tui` gives by its `Scheme` (`Dark`, `Light`), whole
-  (skein's `ui-screen.md`, section 3), from the browser's chat terminal
+  (skein's `ui/screen.md`, section 3), from the browser's chat terminal
   (`browser.md`, 2.5, *A chat's terminal*) and the palette its
   stylesheet, `temper.css`, holds there.
 - **The terminal's own colours.** The base is the terminal's defaults: a
   paint with no colour, which skein draws as SGR 39 and 49 (skein's
-  `ui-screen.md`, sections 3 and 7), so that the terminal's ground and
+  `ui/screen.md`, sections 3 and 7), so that the terminal's ground and
   body text show through and the TUI paints only its accents, as Claude
   Code does. No region names a background, and one paint does: the band
   under the person's words and a list's active item, where the terminal
@@ -9447,7 +9447,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     dim colour after an accent "❯", as Claude Code draws its prompts,
     and a list's active item, or the launchpad's selected chat, shows by
     its mark and the accent alone.
-- **Its regions,** placed by name (skein's `ui-screen.md`, 5.2):
+- **Its regions,** placed by name (skein's `ui/screen.md`, 5.2):
 
   | Region | Place | Arranged | Border | Padding | Holds |
   |---|---|---|---|---|---|
@@ -9462,9 +9462,9 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   A chat's conversation and notes are in the body, unplaced, from the
   row's start, and so is its draft at all.
 - **Its tokens,** under the TUI's owner, its names' prefix `tui` (skein's
-  `ui.md`, section 8), each look a paint over the region's and, where
+  `ui/README.md`, section 8), each look a paint over the region's and, where
   the table says, an alignment, a band, a mark, a description's paint,
-  rows between children or no label (skein's `ui-screen.md`, 3):
+  rows between children or no label (skein's `ui/screen.md`, 3):
 
   | Token | Paint | Else | Carried by |
   |---|---|---|---|
@@ -9504,13 +9504,13 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   as Claude Code shows it; in a spread row, which keeps no focus
   columns, the accent alone. The box's words and its caret's cell are
   the terminal's own ink: `tui-field` names a focused value's paint of
-  none (skein's `ui-screen.md`, section 3, `focused_value`), so the
+  none (skein's `ui/screen.md`, section 3, `focused_value`), so the
   accent lies on its "❯" alone (the user's request of 2026-11-09); the
   sign-in's link field keeps the focus's paint. The active choice of a list is shown as
-  skein lays it (`ui-screen.md`, 5.3): the focus's mark and paint over
+  skein lays it (`skein/docs/design/ui/screen.md`, 5.3): the focus's mark and paint over
   the active paint, the theme's band across the list, or none where it
   has no band (*The band*). Command names use
-  `active_name: Some(Paint::NONE)` (skein's `ui-screen.md`, 3), so the
+  `active_name: Some(Paint::NONE)` (skein's `ui/screen.md`, 3), so the
   active command name is plain and inactive names are bold in both schemes.
   Descriptions stay plain; question choices keep their bold names. Reverse video is
   the fallback should the mark and the accent not show the focus
@@ -9520,7 +9520,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   last field, the background the
   terminal declares, is a number, light for 7 or 15 and dark for any
   other, read by the binary; else from the terminal's own background,
-  asked at start (skein's `ui-screen.md`, section 8) and waited for at
+  asked at start (skein's `ui/screen.md`, section 8) and waited for at
   most 200 ms, `limits::BACKGROUND` (6.16): light where
   `Scheme::of_background` finds the answer light, its luma `2126 R +
   7152 G + 722 B` above 1,275,000, half of white's, else dark; with no
@@ -9552,7 +9552,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     writes alone. A failed write says nothing; the next one is whole.
 - **The colours' depth,** chosen by the binary: 24-bit where
   `COLORTERM` is `truecolor` or `24bit`, else the 256 indexed ones
-  (skein's `ui-screen.md`, section 7).
+  (skein's `ui/screen.md`, section 7).
 
 ### 6.16 Its loop and closing
 
@@ -9560,7 +9560,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   `temper-client-shell-tui`'s `run::Run`: the host (6.13);
   `jig-client-shell-native`'s `Shell`, its transport and its files, as
   `temper open`'s; skein's full-screen terminal on stdin and stdout
-  (skein's `ui-screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
+  (skein's `ui/screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
   from skein-shell's `open_signals` with `Watch::TerminationAndWindow`,
   adopted by an io of its own, which in front of a box reads the box's
   lines too (6.17). A completion goes by its tag: the
@@ -9585,7 +9585,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   read (6.12).
 - **Each iteration:** the native shell iterates; once it has loaded the
   token and the small store, and the terminal's background is no longer
-  awaited (`Terminal::background`, skein's `ui-screen.md`, section 8),
+  awaited (`Terminal::background`, skein's `ui/screen.md`, section 8),
   `Start`, at the terminal's size, in the scheme chosen, with the
   terminal's background where it answered (6.15) and whether the TUI is
   on a box (6.12); then the
@@ -9609,7 +9609,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   and files; the binary sets the terminal's modes back, writes the
   address (6.12) and exits 0. What is pending stays in the small store,
   as `temper open`'s does (6.6).
-- **Its startup** is the binary's (skein's `ui-screen.md`, section 8):
+- **Its startup** is the binary's (skein's `ui/screen.md`, section 8):
   the input set raw with the interrupt keys passed as bytes
   (`Keys::Pass`), so that Ctrl+C is a key; then the restoration
   skein-shell's kept modes make, `Kept::on_abort(stdout, LEAVE)`, given
@@ -9649,7 +9649,7 @@ the user's hand-made frames of the look request `tui-box-front`
   argument, variable or file holds its link.
 - **Its terminal:** it opens the process's controlling terminal and takes
   its foreground before it reads the terminal or sets its modes
-  (skein's `shell.md`, 6.3, `open_terminal` and `take_foreground`), then
+  (skein's `runtime/shell.md`, 6.3, `open_terminal` and `take_foreground`), then
   runs on that descriptor, its input and its output, as bare `temper`
   runs on 0 and 1 (6.16): raw, with Ctrl+C a key, and its `LEAVE` given
   to the fail-stop hook. The box gives it no descriptor of its terminal
@@ -9817,7 +9817,7 @@ signed in, and 02, after):
 - **The header,** on the launchpad: at the border's end, before the
   place, "playground" (`tui-playground`) and " · " (`tui-end-faint`),
   the three left out whole together where the border lacks the room
-  (skein's `ui-screen.md`, 5.2). Inside it, in the place of Home's brief
+  (skein's `ui/screen.md`, 5.2). Inside it, in the place of Home's brief
   and headline, which are not drawn while the playground runs, the TUI's
   "This is the playground: a scripted model and in-memory forge. Set
   temper up in your browser when you're ready to leave it.": the
@@ -9917,11 +9917,11 @@ Stop the box? csv-export's running task stops with it.
   columns in, the box's last lines, oldest first, each as the box wrote
   it, read as UTF-8 with a replacement for each invalid byte and cut at
   512 bytes, `limits::LOG_LINE` (`tui-note`); with none kept yet,
-  "Nothing yet." in their place. The lines are a log (skein's `ui.md`,
+  "Nothing yet." in their place. The lines are a log (skein's `ui/README.md`,
   3.2) whose end request is the TUI's state's revision, so that it moves
   as the note opens and as lines come while it stands, and the body
   shows its end, the newest lines, as many as fit; PgUp reads back the
-  rest until the next change (skein's `ui-screen.md`, 5.2).
+  rest until the next change (skein's `ui/screen.md`, 5.2).
 
 **The place.** In front, the TUI is on a box: it names its place
 "box" at the default port, 8367, and "box:PORT" at another,
@@ -9947,7 +9947,7 @@ header's border end with no project, as the frames show.
   Each marks the frame it acts on in a recording, as any key with an
   event but typing does (`tui/journeys.md`, 3.3).
 - **Its words,** every one quoted in this section, are the TUI's own,
-  under its owner (skein's `ui.md`, section 9), but "temper box" and the
+  under its owner (skein's `ui/README.md`, section 9), but "temper box" and the
   steps' labels, the view's.
 - **Its tokens,** under the TUI's owner, after 6.15's, in its table's
   form:
@@ -10123,8 +10123,8 @@ was answered with. A box enables it beside the printed link
     says reaches the screen; its environment is the TUI's. Its exit
     ended, the run reports `Opened { opened }`, done on 0. Closing
     aborts and reaps the opener alone, without waiting for it to finish
-    by itself or signalling the browser's group (skein's `io.md`, section
-    6, `SpawnAlone`).
+    by itself or signalling the browser's group (skein's `runtime/io/processes.md`
+    , `SpawnAlone`).
   - *The opener* is the binary's choice, at start: none on an SSH
     session (`SSH_CONNECTION` or `SSH_TTY` set) or, on Linux, with no
     display (neither `DISPLAY` nor `WAYLAND_DISPLAY` set); else the
@@ -10302,7 +10302,7 @@ does for the client:
   | `Looked { project }` | none; its scope the project | the party's `Looked` row moved in the request's decision, the subject `status` marked, and, at a new sitting, the status agent's run asked (`../domain/forge.md`, 5.6 and 5.7) | looked; forge refused, too large |
   | `StartPlayground` | the scripted model's key, which the routing reads from its file at each start and carries as a pasted value | the playground's start (`../protocol/setup.md`, 8.4): the `Playground` row written starting when none, its fake forge's record made and the box asked for its group, then the scripted model's account added and its repository adopted into its project, each unless done; refused "not offered" while a real forge is kept | running, once all are done; start failed, naming why |
   | `EndPlayground` | none | the playground's reset (`../protocol/setup.md`, 8.4): the `Playground` row resetting in one decision, then its kept acts in order, the project deleted, the fake forge removed, the scripted account removed, the row erased | reset, once the row is erased; end refused, not offered, with no playground |
-  | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge-setup.md`, 4.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |
+  | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge/setup/forgejo.md`, 1.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |
 
   `first` is a `FirstAsk { org, repository, label }`: the
   first repository's fields, as `SetUp`'s, with no project, and `label`, the runner label
@@ -10374,7 +10374,7 @@ does for the client:
     one given for a Forgejo (the plan's `Installation` stop), and on a
     managed or owned Forgejo the admin's token's, missing (`Missing`) or
     not a site admin's (`NotAdmin`), as the plan's first step has them
-    (skein's `forge-setup.md`, 4.3 and 4.8).
+    (skein's `forge/setup/forgejo.md`, 1.3 and 1.8).
 - **The root routes an adoption** (`../domain/forge.md`, section 4;
   `../domain/root.md`, 5.4): jig's people child admits it by key, and
   refuses at admission as jig's answer; admitted, it goes to the forge
@@ -10396,7 +10396,7 @@ does for the client:
   ask again later, under a new key", N the bound.
 - **The forge's errors as reasons,** by the forge connector
   (`temper-engine-domain-forge`'s `reason`, from `skein-forge`'s
-  `Error`, skein's `forge.md`, section 3.4): `NotConnected` is not
+  `Error`, skein's `forge/README.md`, section 3.4): `NotConnected` is not
   connected; `NotInstalled` is not installed; `Missing` is not granted
   on a repository whose account has an installation of selected
   repositories, with that installation's page, and not found
@@ -10571,7 +10571,7 @@ own tests:
   every outcome, the forges' page with a forge in each state of
   `forge.md`, 5.4);
   `temper-client-protocol-wire` (golden bytes, bounds and fuzz targets,
-  as skein's `codec.md`, section 6 has them); and the engine's routing
+  as skein's `data/codec/README.md`, section 6 has them); and the engine's routing
   of the forge's family both ways, a change's panel's watch to the root
   with its scope, and its document encoded with the pull request's
   address on a GitHub forge, on a Forgejo and with no `web`.
@@ -11638,7 +11638,7 @@ own tests:
   a suggested request's press asks for the composer's focus there too,
   and a browser that lets a press's activation outlive the answer may raise
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
-  a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
+  a focus request that raises no keyboard (skein's `ui/web/README.md`, 5). Default: the
   same focus at every width.
 - **A start refused, by its press** (3.5.4.4, *Where the focus stands on a chat*; the
   request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
@@ -11648,7 +11648,7 @@ own tests:
   nothing.
 - **A composer that comes back** (3.5.4.4, *Where the focus stands on a chat*; the
   request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
-  (skein's `ui-web.md`, 7), so a chat that loses Message and regains it, after a
+  (skein's `ui/web/README.md`, 5), so a chat that loses Message and regains it, after a
   send or "Change something", takes the focus again, from a person typing elsewhere
   on that page at that moment. Default: not guarded.
 
@@ -11723,7 +11723,7 @@ own tests:
   of the person's that Home's goals read, by priority, does not hold,
   which needs a read of the person's goals by activity; a run opened to its
   rows; earlier pages read as the conversation's head nears, and "Latest
-  ↓", once skein's screen reports a log's edge (skein's `ui-screen.md`,
+  ↓", once skein's screen reports a log's edge (skein's `ui/screen.md`,
   section 10); a card at the call that made it, and its acts, Accept
   among them; a close that asks its delegates' fates; a new line in the
   box, which a terminal's Shift+Enter cannot ask; a paste into the box
@@ -11917,15 +11917,15 @@ own tests:
 - **The rename's opening and closing, as the mock draws them** (5.3; the request
   `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
   folds the menu as it closes and says "Renamed" in a toast. A view can neither
-  select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
+  select a field's words nor fold a disclosure (skein's `ui/web/README.md`, 12), and that
   request names none of the three. Default: the name unselected, the menu open with
   the focus on its summary, and no toast.
 - **A time's moment on demand:** an ago ("12 min ago") has no title
   or hover saying its moment. Default: none; the view can give the time
-  node its moment as a hint (`skein/docs/design/ui.md`, 3.2).
+  node its moment as a hint (`skein/docs/design/ui/README.md`, 3.2).
 - **The switcher's name** (5.1): the look requests name it "Project:
   NAME" apart from its summary's words, NAME; skein's disclosure names
-  its summary by its words alone (skein's `ui-web.md`, section 6).
+  its summary by its words alone (skein's `ui/web/elements.md`).
   Default: named NAME, until skein's disclosure carries a label of its
   own.
 
@@ -11982,12 +11982,12 @@ own tests:
   Default: accepted on one person's machine; `temper ctl account
   add-key` reads one from a file.
 - **The terminal's reprint:** skein's text shell prints the whole page
-  when it changes (skein's `ui-text.md`, section 4), so a page with a
+  when it changes (skein's `ui/text.md`, section 4), so a page with a
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
 - **The terminal's keys and opening** (5.15; `../draft/chat-reading.md`, 5): its
-  input is never raw (skein's `ui-text.md`, section 7), so PgUp and PgDn are lines
+  input is never raw (skein's `ui/text.md`, section 7), so PgUp and PgDn are lines
   with Enter, and with no view to measure a chat opens with what its opening reads
   hold, as the TUI's does (6.14): the history's end or 2,880 bytes, a screen and a
   half of an 80 by 24 terminal, whatever the terminal's size. Default: as it

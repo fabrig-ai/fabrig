@@ -1,4 +1,4 @@
-//! Runtime membership (skein/docs/design/forge-setup.md, 6.3).
+//! Runtime membership (skein/docs/design/forge/setup/README.md, 4.3).
 use super::*;
 
 fn unknown(run: u64, forge: u16) -> Event {

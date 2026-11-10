@@ -207,7 +207,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
         }
     }
 
-    /// Runs on `backend` rather than the host's (shell.md, 7.1 and 9).
+    /// Runs on `backend` rather than the host's (runtime/readiness.md, 1, and runtime/shell.md, 8).
     #[must_use]
     pub fn on(mut self, backend: Backend) -> Self {
         self.backend = Some(backend);

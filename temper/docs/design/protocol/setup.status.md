@@ -50,7 +50,7 @@ tables hold each but the last (`temper-box/src/tests/host.rs`,
 signing its front in, the front's raw modes, and its stop with no
 secret in a log. The foreground taken back
 (`crates/temper/src/box_command.rs`) is held by skein's world for the
-call alone (`skein/docs/design/shell.status.md`); no temper test reads the
+call alone (`skein/docs/design/runtime/shell.status.md`); no temper test reads the
 terminal's foreground group after the front. Every other box story starts
 the box on pipes, so `--no-tui`'s and a non-terminal's box are 7.2's as
 before. No real terminal has run it; that check follows landing
@@ -70,7 +70,7 @@ and GitHub reconcile compare the kept `AppMade` and `AppId` and the App's
 account type before sending `PersonOf`; absent or invalid evidence is
 `NotTheirs`. Failed reads send no person answer. The given-value and
 lifecycle tables cover these decisions; they establish no live GitHub
-account observation (`skein/docs/design/forge-github.status.md`, 13).
+account observation (`skein/docs/design/forge/github.status.md`, 13).
 The connector's remaining scope gap is in `../domain/forge.status.md`, 4.6.
 
 Sections 8.2 and 8.3 have no known gap in generated documents holding

@@ -19,7 +19,7 @@ fn channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
 }
 
 // The wire version and frame header size come from protocol/channel.md, section 2,
-// and skein/docs/design/channel.md, section 3.
+// and skein/docs/design/net/channel.md, section 3.
 const VERSION: u16 = smith_channel::kind::VERSION;
 const HEADER_BYTES: usize = 8;
 const CALL: Token = Token::new(1);

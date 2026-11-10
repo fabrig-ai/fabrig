@@ -1,4 +1,4 @@
-//! Bounded startup reads and the server's independent type table (ui-web.md, 4.4).
+//! Bounded startup reads and the server's independent type table (ui/web/bundle.md, 4).
 use std::collections::BTreeMap;
 use std::path::{Component, Path};
 
@@ -12,7 +12,7 @@ pub struct Bundle {
     pub digest: String,
     pub files: BTreeMap<String, File>,
 }
-/// The two forms of one address (skein/docs/design/ui-web.md, 4.4).
+/// The two forms of one address (skein/docs/design/ui/web/bundle.md, 4).
 #[derive(Debug)]
 pub struct File {
     pub bytes: Box<[u8]>,

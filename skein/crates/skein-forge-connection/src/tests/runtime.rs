@@ -1,4 +1,4 @@
-//! Runtime membership (skein/docs/design/forge-connection.md, 3.1).
+//! Runtime membership (skein/docs/design/forge/connection.md, 3.1).
 use super::fixtures as f;
 use crate::{Event, Request, Settings, settings::Forge};
 use alloc::boxed::Box;

@@ -1,4 +1,4 @@
-//! Path-only admission with supplied descriptor flags (shell.md, 7.5).
+//! Path-only admission with supplied descriptor flags (runtime/readiness.md, 5).
 
 use super::{Fd, Op, check_path_flags, path_descriptors, system};
 

@@ -2,7 +2,7 @@
 //! branch's or a pull request's head, each context of the repository's checks
 //! is pending at once, then passes or fails after a drawn latency, or never
 //! reports, by the repository's chances; or, where a cue is configured, as the
-//! commit's file content or message says (skein/docs/design/fake-forge.md,
+//! commit's file content or message says (skein/docs/design/testing/fakes/forge.md,
 //! 2.3). Pull-file cues start a new run when a push head becomes a pull
 //! head, binding its number; other CI runs once per commit and repository. A
 //! context that reported may be run again once, by the repository's chance:

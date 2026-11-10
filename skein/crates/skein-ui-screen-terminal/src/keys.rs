@@ -1,4 +1,4 @@
-//! Bounded byte decoding (skein/docs/design/ui-screen.md, 6.1).
+//! Bounded byte decoding (skein/docs/design/ui/screen.md, 6.1).
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, bytes};
 use skein_ui_screen::Rgb;
@@ -58,7 +58,7 @@ impl Decoder {
         self.waiting = true;
     }
 
-    /// Ends the background wait, giving any held ESC as Escape (skein/docs/design/ui-screen.md, 6.1).
+    /// Ends the background wait, giving any held ESC as Escape (skein/docs/design/ui/screen.md, 6.1).
     pub fn end_background_wait(&mut self, keys: &mut Queue<Key>) {
         self.waiting = false;
         match self.state {

@@ -339,10 +339,10 @@ profile (`README.md`, 2.1).
 
 | | `openai` | `anthropic` |
 |---|---|---|
-| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm.md`, 4.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm.md`, 4.7) |
+| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm/README.md`, 4.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm/README.md`, 4.7) |
 | program | none | `claude_code`, Claude Code (../protocol/programs.md) |
 | sources | `sign_in`, with smith's registration; `key`; `env` | `program`; `key`; `env` |
-| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm.md`, 2.6) | a key, in `x-api-key` |
+| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm/README.md`, 2.6) | a key, in `x-api-key` |
 | `connect`, `handshake` | 10 s each | 10 s each |
 | `connection_keep` | 30 s, provisional | 30 s, provisional |
 
@@ -451,8 +451,8 @@ names (`../protocol/limits.md`, section 2.3):
 | `write_deadline` | 30 s for one write of the event stream | provisional |
 | `wrap_up` | 60 s, a child's final turn's allowance at most | provisional; the budget probe's `wrap-up` |
 | `cancel_grace` | 10 s | provisional |
-| `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `shell.md`, section 13; ../protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
-| `sign_in_time` | 10 minutes, a browser sign-in's deadline (`commands.md`, 5) and skein's `oauth.md` sign-in deadline; no profile value: the product's client limits fix it, and `smith check` does not print it | provisional |
+| `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `runtime/shell.md`, section 12; ../protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
+| `sign_in_time` | 10 minutes, a browser sign-in's deadline (`commands.md`, 5) and skein's `oauth/README.md` sign-in deadline; no profile value: the product's client limits fix it, and `smith check` does not print it | provisional |
 | `refresh_lead` | 60 s before the access token expires | provisional; the `credentials` probe |
 
 ### 2.6 Instructions

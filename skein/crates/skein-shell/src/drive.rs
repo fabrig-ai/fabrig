@@ -1,4 +1,4 @@
-//! A service loop and its adapter (shell.md, sections 12 and 13).
+//! A service loop and its adapter (runtime/shell.md, sections 11 and 12).
 //! The host keeps every service entity and queue; the loop knows only its
 //! settlement, work and deadlines, never its domain state.
 
@@ -10,7 +10,7 @@ use skein_lib::{Queue, Time, Wall};
 /// completions into [`Host::completions`], calls [`Host::iterate`], and
 /// submits [`Host::submissions`], as its shell would.
 pub trait Host {
-    /// A digest of held state for replay (lib.md, 5.1); only worlds read it.
+    /// A digest of held state for replay (runtime/lib.md, 5.1); only worlds read it.
     fn state_digest(&self) -> Option<[u8; 32]> {
         None
     }
@@ -127,7 +127,7 @@ impl<D: Delegate> Host for D {
 }
 
 /// Runs a service until its entities and kernel operations have settled.
-/// Its exit belongs to the host, after its final drain (shell.md, 13).
+/// Its exit belongs to the host, after its final drain (runtime/shell.md, 12).
 #[cfg(unix)]
 pub fn drive(kernel: &mut crate::Kernel, clock: &crate::Clock, host: &mut impl Host) -> Exit {
     loop {

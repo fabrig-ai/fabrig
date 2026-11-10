@@ -1,4 +1,4 @@
-//! Demand checks for a world's stream below (skein/docs/design/testing.md, 6).
+//! Demand checks for a world's stream below (skein/docs/design/testing/README.md, 6).
 
 use skein_lib::stream::Read;
 

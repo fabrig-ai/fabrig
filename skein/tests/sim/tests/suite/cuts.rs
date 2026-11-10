@@ -1,5 +1,5 @@
 //! Simulator cuts discard original records and preserve the machine's
-//! completed/durable state (simulator.md, 3.3).
+//! completed/durable state (testing/simulator.md, 3.3).
 
 use skein_fake_machine::{Item, Opened};
 use skein_io::kernel::{Done, Op, OpenHow};

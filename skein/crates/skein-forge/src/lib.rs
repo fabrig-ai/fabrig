@@ -1,4 +1,4 @@
-//! Neutral forge vocabulary and dialects (forge.md).
+//! Neutral forge vocabulary and dialects (forge/README.md).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

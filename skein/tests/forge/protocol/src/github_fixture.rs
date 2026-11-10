@@ -1,4 +1,4 @@
-//! GitHub scenario overrides (skein/docs/design/fake-forge.md, 10.6).
+//! GitHub scenario overrides (skein/docs/design/testing/fakes/github.md, 1.6).
 use skein_fake_forge_github::{
     app::App,
     fixture, installations, pages,

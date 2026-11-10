@@ -215,8 +215,8 @@ which a reply draws; a stop made only when needed is drawn outlined, its
 small words over its own, and the fallback says ", when needed" and the
 small words in brackets; who acts is the mark alone, an agent's star
 and its rises in ink, a person's ring and its rises the signal's,
-code's square grey, each rise a fade of skein's (skein's `ui.md`,
-11.2), the legend with an agent when needed; and in a box under 360 the
+code's square grey, each rise a fade of skein's (skein's `ui/scenes.md`,
+2), the legend with an agent when needed; and in a box under 360 the
 narrow path is a scene 360 wide scaled to the box, as the request's
 picture is. How work runs draws its path with Ask temper's drawing,
 legend, tabs, card and act, shared in the view's `pages/ways.rs`, and
@@ -225,7 +225,7 @@ and again at a newer revision. The view's `tests/ask.rs`, `tests/how.rs`
 and `tests/views.rs`, the fuzzy suite's
 `parts_and_drawing_follow_only_the_current_facts` and the gallery's
 `ask-ways-*` and `how` to `night-how` hold them. Their render check and
-the page's walk remain section 11's after-landing work.
+the page's walk remain `README.md`, section 11's after-landing work.
 
 Section 5.17, with 3.5's `Remembered` row and *Sign out* row and 5.3's
 person's menu, is present by plan `ui-ask-m4` but for the gaps below:
@@ -280,7 +280,7 @@ phone's, and its walk follow landing (section 11).
 
 - **Departs:** 5.13: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
-  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
 
 How work runs has plan `ui-p3a-how`'s implementation, with
@@ -614,7 +614,7 @@ mockups is `../draft/surfaces.status.md`.
   part shown before them would name a key or a command that does nothing
   (the user, 2026-11-10); the left half, the project, "drafter" and the
   closed line, stands. Skein's side region comes first (skein's
-  `ui-screen.status.md`).
+  `ui/screen.status.md`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
@@ -860,11 +860,11 @@ section 11 keeps that observation and the page comparison after landing.
   no world moves a hold's revision between the read and the send. "Paused" on Home is seen by reading: the view's tests
   draw it on a Chats row (`a_paused_chat_s_row_says_paused`) and none on Home.
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
-  alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
+  alone. Firefox's and Safari's gesture is read and not run (skein's `ui/web/testing.md`, 3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
 - **Not yet:** 3.5, `ConnectModel`, *Its end*: no test has a slow sign-in move on once a hidden tab's stream is opened
   again: `skein-ui-web`'s `tests/hidden.rs` holds the letting go natively, and each look of the browser tier's brings
-  the page to the front within the minute (skein's `browser.md`, section 6). On the welcome, no test has a paste's end
+  the page to the front within the minute (skein's `testing/browser.md`, section 6). On the welcome, no test has a paste's end
   move on: `watch_success_replaces_a_pending_paste_with_ready` runs on `ConnectModel`, and `route.rs`'s
   `welcome_model_progress` reads the same for both. Seen by reading.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
@@ -1006,7 +1006,7 @@ landing; its later failures are `browser.status.md`'s, 4.3 and 4.6.
 - **Design departs:** 5.3, from the greenfield target, by the request
   `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
   menu open with the focus on its summary, where the mock draws the menu closed,
-  since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
+  since a disclosure's fold is skein's page part's (`skein/docs/design/ui/web/README.md`, 5). The field does
   not select its name on opening, and no toast says "Renamed": the request names
   neither, and section 11 holds them. On a new chat or Ask temper's page the closed form
   leaves the focus on the page's own field, where the request has the opener or the
@@ -1136,7 +1136,7 @@ landing; its later failures are `browser.status.md`'s, 4.3 and 4.6.
   32,768-byte window, with ctl history (`browser.md`, 4.3); they do not prove the
   person's whole-bound layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
-  tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
+  tried again on a move back within one and a half screens (skein's `ui/web/README.status.md`, 5).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
   chat's restored document, at 420, after a round trip through working notes, with no
   error and no setting, repository or goal changed in between. Eight other fresh boxes
@@ -1498,7 +1498,7 @@ over an empty main marked busy, with no banner, no page body and the
 terminal look waiting, at every address but the sign-in page, the
 `Authorize` and approval places and the pages not about the work. The
 main is kept empty, not left out, because skein's outline asks exactly
-one main of every tree (skein's `ui.md`, 14). The frame's table covers
+one main of every tree (skein's `ui/README.md`, 12). The frame's table covers
 `Chats`, `NewChat`, `Welcome` and a kept terminal look before `me` in
 both shells, and the welcome's tables its end; the welcome's journeys
 are reprinted with it. temper/ui's rendered comparison follows landing

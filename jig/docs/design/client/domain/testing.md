@@ -19,7 +19,7 @@ section 15). What is still open is listed in section 10.
   the client is written in those terms, and needs no tree and no person.
 - **Trees and the fake person are skein's and the applications'.** A
   presentation on skein's UI kit is tested as skein says, by skein's
-  fake person acting on its tree (skein's `ui.md`, section 17). The
+  fake person acting on its tree (skein's `ui/README.md`, section 14). The
   reference UI is one: its stories run in jig's worlds, with jig's test
   application in front of the client (section 4). An application's
   presentation runs in its own worlds, on jig's.
@@ -69,20 +69,20 @@ harness's one loop (section 3).
 What every application on skein-ui shares is tested in skein, by its
 crates' step tests: the tree, the diff, the Markdown reader, words'
 machinery, the outline's rules, scenes by golden scenes, and the text
-shell's renderer and command reader by golden text (skein's `ui.md`,
-section 17; skein's `ui-text.md`, section 8). jig's tests test what is
+shell's renderer and command reader by golden text (skein's `ui/README.md`,
+section 14; skein's `ui/text.md`, section 8). jig's tests test what is
 jig's on them.
 
 ## 3. The person
 
-The person is skein's, `skein-fake-person` (skein's `ui.md`, 17.1):
+The person is skein's, `skein-fake-person` (skein's `ui/README.md`, 14.1):
 ordinary Rust, shaped as a step machine so that the browser tier's loop
 runs it too. It acts on a tree, and the client has none: it plays the
 reference UI's stories in jig's worlds, and an application's stories in
 its own, wherever a presentation builds on skein's UI kit.
 
 - **Its queries, acts, reports, tree face, random person and browser
-  face are skein's** (skein's `ui.md`, 17.1; skein's `ui-web.md`, 14.2),
+  face are skein's** (skein's `ui/README.md`, 14.1; skein's `ui/web/testing.md`, 2),
   and so is the browser tier's harness, in `skein-fake-person-browser`.
 - **jig's stories find a target as a person would:** by role, name and
   text, within regions named outermost first ("the button named Accept,
@@ -98,7 +98,7 @@ its own, wherever a presentation builds on skein's UI kit.
   An application's browser shell runs its own loop over skein's parts
   and jig's, so both kits' stories check its wiring: the order its loop
   keeps, and, where it drives fetch and the small store without skein's
-  transport, the rule it then takes on itself (skein's `ui-web.md`, 5.3;
+  transport, the rule it then takes on itself (skein's `ui/web/README.md`, 4.3;
   `../../protocol/browser.md`, 5.3).
 
 ## 4. The client's world
@@ -355,7 +355,7 @@ application's on skein's UI kit:
   engine makes it, as it observes its commits, never from a client's
   link.
 - **The page's outline:** every tree a person saw keeps skein-ui's
-  outline (skein's `ui.md`, section 14). The referee runs `skein_ui::outline::check` on it, so an application's
+  outline (skein's `ui/README.md`, section 12). The referee runs `skein_ui::outline::check` on it, so an application's
   tree is held to it as jig's is. jig adds no rule: that jig's default
   arrangement keeps its banner and `after_page`'s parts last is the
   reference UI's step tests' to check (section 2).

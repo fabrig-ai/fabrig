@@ -1,4 +1,4 @@
-//! Startup file reads and error meanings shared by Linux and Darwin (shell.md, 6.1 and 7.5).
+//! Startup file reads and error meanings shared by Linux and Darwin (runtime/shell.md, 6.1, and runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -6,7 +6,7 @@
 //! exclusive buffer's supplied length. No call retains a pointer. The caller
 //! owns the descriptor until it closes it after this read returns.
 
-#![expect(unsafe_code, reason = "file calls borrow local storage only until return (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "file calls borrow local storage only until return (runtime/readiness.md, 5)")]
 
 use crate::startup::Unread;
 use skein_io::{

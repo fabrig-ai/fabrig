@@ -1,4 +1,4 @@
-//! Forge component settings (forge-connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component settings (forge/connection.md, sections 2, 3.5, 7 and 8).
 use alloc::boxed::Box;
 use skein_io::Addr;
 use skein_lib::{List, Secret, len_u64};
@@ -8,7 +8,7 @@ use skein_lib::{List, Secret, len_u64};
 pub struct Settings {
     /// At most `Limits::forges`, numbers unique.
     pub forges: List<Forge>,
-    /// The listener; each forge's secret is in its access (forge-connection.md, 6.1).
+    /// The listener; each forge's secret is in its access (forge/connection.md, 6.1).
     pub webhooks: Option<crate::hooks::Webhooks>,
     /// Owner word used in markers and webhook hints, at most 16 bytes.
     pub word: Box<[u8]>,
@@ -16,7 +16,7 @@ pub struct Settings {
     pub user_agent: Box<[u8]>,
 }
 
-/// The deployment's inputs shared by its forges (forge-connection.md, 7.1).
+/// The deployment's inputs shared by its forges (forge/connection.md, 7.1).
 #[derive(Debug)]
 pub(crate) struct Owner {
     pub webhooks: Option<crate::hooks::Webhooks>,
@@ -36,7 +36,7 @@ pub struct Forge {
     /// The access the forge holds; with none it runs no start, and its calls are
     /// answered `NotConnected`.
     pub access: Option<Access>,
-    /// Resolved job log origins; empty reads no job log (forge-connection.md, 4.5).
+    /// Resolved job log origins; empty reads no job log (forge/connection.md, 4.5).
     pub log_origins: List<LogOrigin>,
 }
 
@@ -47,7 +47,7 @@ pub struct LogOrigin {
     pub address: Addr,
 }
 
-/// What lets the component act on a forge as its user (forge-connection.md,
+/// What lets the component act on a forge as its user (forge/connection.md,
 /// 3.5): handed at construction or by `Request::Connect`, replaced whole,
 /// never logged.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -65,7 +65,7 @@ pub struct Access {
 pub enum Kind {
     /// The pinned Forgejo's API under `/api/v1`.
     Forgejo,
-    /// GitHub's REST and GraphQL API, served as an App (forge-connection.md, 3.4).
+    /// GitHub's REST and GraphQL API, served as an App (forge/connection.md, 3.4).
     GitHub,
 }
 

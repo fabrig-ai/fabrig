@@ -1,4 +1,4 @@
-//! Directory-stream positions owned by the readiness backend (shell.md, 7.5).
+//! Directory-stream positions owned by the readiness backend (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!

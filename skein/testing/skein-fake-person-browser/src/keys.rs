@@ -1,4 +1,4 @@
-//! Native date/time parts under the kit's en-US locale (ui-web.md, 14.2).
+//! Native date/time parts under the kit's en-US locale (ui/web/testing.md, 2).
 pub(crate) fn date(value: &[u8]) -> Option<Box<[u8]>> {
     if value.is_empty() {
         return Some(Box::from([]));

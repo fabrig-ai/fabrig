@@ -86,7 +86,7 @@ document is drawn beside their conversation (the look request
   numbered whose description does not begin `work:`, with no kind. A `work:`
   note is never drawn, and a chat with only working notes has no document;
   its description its title, its body Markdown, read by
-  skein-ui's reader (`skein/docs/design/ui.md`, section 10), flows included
+  skein-ui's reader (`skein/docs/design/ui/markdown.md`), flows included
   once skein's diagrams draft is built. Every note's body has the room of a
   document: no bound of its own.
 - **Read live with no new watch:** the chat's page already watches the task

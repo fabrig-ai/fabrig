@@ -1,4 +1,4 @@
-//! GitHub's API pin (forge-github.md, section 12).
+//! GitHub's API pin (forge/github.md, section 12).
 /// The API version sent on every request.
 pub const API_VERSION: &str = "2026-03-10";
 /// The conformance's checked date.

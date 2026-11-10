@@ -1,7 +1,7 @@
 //! Actual Client and independent bounded peer ownership through physical close.
 //! Public payloads and literal observations supply the fixture oracle; the
 //! peer price excludes the one separately priced Client. Contract:
-//! docs/design/fake-llm.md, sections 2–5; programming-model.md, section 6.3;
+//! docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 6.3;
 //! testing-strategy.md, sections 2.5 and 6.
 
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};

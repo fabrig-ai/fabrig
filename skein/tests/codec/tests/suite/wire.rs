@@ -1,4 +1,4 @@
-//! Hand-written bytes for codec.md, sections 3-4.
+//! Hand-written bytes for data/codec/README.md, sections 3-4.
 
 #[cfg(test)]
 mod tests {

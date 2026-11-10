@@ -1,11 +1,11 @@
-//! The bounded manifest form and its draw (forge-setup.md, 5.1 and 5.5).
+//! The bounded manifest form and its draw (forge/setup/github.md, 1.1 and 1.5).
 use super::given::{self, Given, Place, Refused};
 use crate::plan::{self, Event, Need, Outcome, Stage, Why};
 use alloc::boxed::Box;
 use skein_forge::github as dialect;
 use skein_lib::{Queue, Writer, bytes::hex_digit, usize_of};
 
-/// The account that will own the App (forge-setup.md, 5.1).
+/// The account that will own the App (forge/setup/github.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Target {
     Personal,
@@ -30,7 +30,7 @@ pub struct Manifest {
     phase: Phase,
 }
 impl Manifest {
-    /// Checks every input before copying it (forge-setup.md, 5.1 and 5.5).
+    /// Checks every input before copying it (forge/setup/github.md, 1.1 and 1.5).
     /// State is text here; the host binds its authority (5.7).
     pub fn new(given: &Given, target: &Target, state: &[u8]) -> Result<Self, Refused> {
         given::check(given)?;
@@ -58,7 +58,7 @@ struct Form {
     manifest: Box<[u8]>,
 }
 
-/// Pure form construction from checked inputs (forge-setup.md, 5.1 and 5.5).
+/// Pure form construction from checked inputs (forge/setup/github.md, 1.1 and 1.5).
 /// Every intermediate and each form part is measured and capped before allocation.
 fn form(given: &Given, target: &Target, state: &[u8], random: &[u8]) -> Option<Form> {
     if random.len() != 3 {
@@ -132,7 +132,7 @@ pub fn step(machine: &mut Manifest, event: Event, out: &mut Queue<Need>) {
     out.push(need);
 }
 
-/// The host state spelling shared by pages and links (forge-setup.md, 5.7).
+/// The host state spelling shared by pages and links (forge/setup/github.md, 1.7).
 pub(crate) fn check_state(state: &[u8]) -> Result<(), Refused> {
     if state.len() != 32 {
         return Err(Refused { place: Place::State, other: None });

@@ -1,5 +1,5 @@
 //! The browser and its operations, each advanced by one reply or event.
-//! Looking brings its page forward (skein/docs/design/browser.md, 6).
+//! Looking brings its page forward (skein/docs/design/testing/browser.md, 6).
 
 #![expect(
     clippy::disallowed_types,

@@ -1,4 +1,4 @@
-//! The shipped builder host and its startup directories (skein/docs/design/shell.md, 6).
+//! The shipped builder host and its startup directories (skein/docs/design/runtime/shell.md, 6).
 
 pub mod argv;
 pub use hearth_client_protocol_records as records;

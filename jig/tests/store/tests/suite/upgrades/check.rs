@@ -270,7 +270,7 @@ fn token_past_schema_bound_refuses_without_switch() {
 
 #[test]
 fn secrets_record_one_byte_past_commit_room_refuses_large() {
-    // kv.md 3: frame 26 + put framing 9 + key 10 + Token before 78 = 123.
+    // skein/docs/design/data/kv.md 3: frame 26 + put framing 9 + key 10 + Token before 78 = 123.
     // The patch adds the absent-option tag, making this record alone cost 124.
     const BEFORE_COMMIT: u32 = 123;
     let mut records = empty();

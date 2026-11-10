@@ -1,4 +1,4 @@
-//! Check-run display fields and Actions job identities (forge-github.md, 4.4).
+//! Check-run display fields and Actions job identities (forge/github.md, 4.4).
 use super::{Malformed, walk::Node};
 use crate::{
     api,

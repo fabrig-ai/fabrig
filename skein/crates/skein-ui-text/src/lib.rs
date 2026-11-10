@@ -1,4 +1,4 @@
-//! The text shell's pure rendering and commands (ui-text.md, 3).
+//! The text shell's pure rendering and commands (ui/text.md, 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

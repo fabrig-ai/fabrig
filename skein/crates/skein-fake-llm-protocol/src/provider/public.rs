@@ -1,4 +1,4 @@
-//! Public Responses request rules (fake-llm.md, 3.1; llm.md, 4.8).
+//! Public Responses request rules (testing/fakes/llm.md, 3.1; llm/README.md, 4.8).
 use crate::documents::Error;
 use skein_json::{Document, Kind};
 

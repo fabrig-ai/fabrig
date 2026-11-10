@@ -1,4 +1,4 @@
-//! Connect or replace a pasted App while preserving identity (forge-setup.md, 5.8).
+//! Connect or replace a pasted App while preserving identity (forge/setup/github.md, 1.8).
 use super::{
     app::{self, Kept},
     checks::{self, Lacking},
@@ -42,7 +42,7 @@ enum State {
     Ended,
 }
 /// Reads Pasted once, proves both identities before hook repair, and waits for
-/// every durable identity write before Done(Lacking) (forge-setup.md, 5.8, 6.4).
+/// every durable identity write before Done(Lacking) (forge/setup/github.md, 1.8, forge/setup/README.md, 4.4).
 #[derive(Debug)]
 pub struct Paste {
     given: Given,
@@ -190,7 +190,7 @@ impl Paste {
         }
     }
 }
-/// A kept identity is optional, but malformed bytes are Unexpected (forge-setup.md, 5.8).
+/// A kept identity is optional, but malformed bytes are Unexpected (forge/setup/github.md, 1.8).
 fn optional_id(read: Option<Secret>) -> Result<Option<NonZeroU64>, Why> {
     match read {
         Some(value) => match item::user(value.expose()) {

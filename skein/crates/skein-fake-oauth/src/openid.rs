@@ -1,4 +1,4 @@
-//! Signed issuer documents and faults (oauth.md, 2.2, 5 and 7).
+//! Signed issuer documents and faults (oauth/README.md, 2.2, 5 and 6).
 use crate::{Account, Config, Error, HttpEvidence, HttpResponse, Limits, Request, key};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as WriterLimits};
@@ -19,7 +19,7 @@ pub struct OpenId {
     pub header_kid: bool,
     pub fault: Option<Fault>,
 }
-/// One change to a document or claim (oauth.md, 2.2 and 5).
+/// One change to a document or claim (oauth/README.md, 2.2 and 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
     UnknownKid,

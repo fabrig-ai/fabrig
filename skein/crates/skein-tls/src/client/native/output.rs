@@ -1,4 +1,4 @@
-//! The output rights and their settling (tls.md, 3.6).
+//! The output rights and their settling (net/tls.md, 3.6).
 
 use super::{
     Client, Error, Event, Handshake, Limits, LowerRequest, State, Writing, fail, open, room_for, withdraw_read,

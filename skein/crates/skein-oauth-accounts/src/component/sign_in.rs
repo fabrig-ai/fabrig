@@ -1,5 +1,5 @@
 //! The owner's sign-in and redirect admission boundary
-//! (oauth.md, sections 6.3 and 6.5). Listener heads use the same decoder;
+//! (oauth/accounts.md, sections 3 and 5). Listener heads use the same decoder;
 //! the OAuth client owns state authentication and the exchange's deadline.
 
 use super::{AccountEntry, Component, State};
@@ -325,7 +325,7 @@ impl Component {
     }
 }
 
-/// Both sources ask the same pure question before taking a redirect (oauth.md, 6.5).
+/// Both sources ask the same pure question before taking a redirect (oauth/accounts.md, 5).
 pub(super) fn judge(exchange: &mut Exchange, redirect: Redirect, now: Time) -> Result<(), Refusal> {
     if !exchange.waiting() {
         return Err(Refusal::NotWaiting);

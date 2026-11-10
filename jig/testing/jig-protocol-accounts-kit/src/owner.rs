@@ -149,7 +149,7 @@ impl Owner {
             limits.accounts = 1;
         }
         if story == Story::SignInAgain {
-            // A cancelled listener counts until it settles (skein oauth.md 6.5): room beside the live sign-in.
+            // A cancelled listener counts until it settles (skein skein/docs/design/oauth/accounts.md 5): room beside the live sign-in.
             limits.listeners = 2;
             limits.io.sockets = 2 * limits.listeners + limits.exchanges;
         }

@@ -193,7 +193,7 @@ pub enum Event {
     },
 }
 
-/// A person's other tab, as the browser lists it (skein/docs/design/browser.md, 6).
+/// A person's other tab, as the browser lists it (skein/docs/design/testing/browser.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Tab {
     pub url: Box<[u8]>,
@@ -233,7 +233,7 @@ pub enum Key {
     ArrowRight,
     /// Select the focused field's whole value with Control+A; `shift` is ignored.
     SelectAll,
-    /// A keyboard letter a to z; Alt makes no text (browser.md, section 5).
+    /// A keyboard letter a to z; Alt makes no text (testing/browser.md, section 5).
     Letter {
         letter: u8,
         alt: bool,
@@ -292,7 +292,7 @@ pub struct States {
     pub checked: bool,
     pub expanded: bool,
     pub selected: bool,
-    /// A toggle's `pressed` reads `true` (skein/docs/design/browser.md, 5).
+    /// A toggle's `pressed` reads `true` (skein/docs/design/testing/browser.md, 5).
     pub pressed: bool,
 }
 

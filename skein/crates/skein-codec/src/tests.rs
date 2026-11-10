@@ -3,7 +3,7 @@ use skein_lib::Reader;
 
 mod piece;
 
-// The patcher's step tests count what a reused pass allocates (codec.md, 11.8).
+// The patcher's step tests count what a reused pass allocates (data/codec/patches.md, 8).
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 

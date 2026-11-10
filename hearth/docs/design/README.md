@@ -382,7 +382,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
   others this way, whatever directory it is in.
 - **Other trees' documents** are cited the same way:
   `skein/docs/foundation/programming-model.md`,
-  `skein/docs/design/channel.md`, `jig/docs/design/domain/connectors.md`.
+  `skein/docs/design/net/channel.md`, `jig/docs/design/domain/connectors.md`.
 - **Each document** says in one page what it is, then its parts, what it
   owes and is owed below the domain, its world, what it keeps or changes
   from os, and what is open.
@@ -405,20 +405,20 @@ user (`skein/docs/foundation/testing-strategy.md`, section 9). From the earliest
 |---|---|---|
 | a public, streaming SHA-256 in lib, usable by the domain | digests | M1 |
 | JSON: each of the tokenizer's tokens and errors with its position in the document, its byte offset, line and column (the column in bytes, both from 1). `hearth-protocol-config` reads every document through skein-json's tokenizer, and refuses duplicate keys itself, at every depth, as it decodes each object's keys | strict configuration (hearth/docs/design/protocol/format/README.md, 2.2); the file, line and column of every render error (hearth/docs/design/domain/render/README.md, 3.1 and hearth/docs/design/domain/render/errors.md; hearth/docs/design/protocol/format/README.md, 5.5) | M1 |
-| a full stat by name, without following links; readlink; extended attributes (`skein/docs/design/kernel.md`, 6.1 and 6.4; `skein/docs/design/io.md`, 5) | the tree helper's walk | M2 |
-| writing a tree's metadata: symlink, link, chmod, chown, extended attributes, mkdir, truncate (`skein/docs/design/kernel.md`, 6.4) | change sets | M2 |
+| a full stat by name, without following links; readlink; extended attributes (`skein/docs/design/runtime/kernel.md`, 6.1 and 6.4; `skein/docs/design/runtime/io/files.md`) | the tree helper's walk | M2 |
+| writing a tree's metadata: symlink, link, chmod, chown, extended attributes, mkdir, truncate (`skein/docs/design/runtime/kernel.md`, 6.4) | change sets | M2 |
 | setting an entry's times, without following links (`utimensat`) | a slot's `/var`, copied (hearth/docs/design/domain/slots/prepare.md, 3); later, the walk's clamp (hearth/docs/design/domain/build/reproducible.md, 5.1) | M3 |
 | spawning as another user, with supplementary groups; signalling a process group | the steward under the activator, the builder under the steward; stopping a tool | M2 |
 | contained process trees, with id maps through `newuidmap`, a composed root and `pivot_root`, network and uts namespaces, fresh `/proc`, `/sys` and `/dev`, `no_new_privs` and limits (hearth/docs/design/domain/build/sandboxes.md, 8) | sandboxes | M2 |
-| a closed list of synchronous ioctls in the ring adapter: `GET_SUBVOL_INFO`, `GET_SUBVOL_ROOTREF`, `INO_LOOKUP_USER`, `SUBVOL_CREATE`, `SNAP_CREATE_V2`, `SNAP_DESTROY_V2`, `SUBVOL_SETFLAGS` (hearth/docs/design/domain/store/tree-helper.md, 8; `skein/docs/design/kernel.md`, 6.5) | the store and the slots, unprivileged where they can be | M2 |
+| a closed list of synchronous ioctls in the ring adapter: `GET_SUBVOL_INFO`, `GET_SUBVOL_ROOTREF`, `INO_LOOKUP_USER`, `SUBVOL_CREATE`, `SNAP_CREATE_V2`, `SNAP_DESTROY_V2`, `SUBVOL_SETFLAGS` (hearth/docs/design/domain/store/tree-helper.md, 8; `skein/docs/design/runtime/kernel.md`, 6.5) | the store and the slots, unprivileged where they can be | M2 |
 | a digest of a world's state, for replay (hearth/docs/design/testing/worlds.md, 4) | replay checks in hearth's worlds | M1 |
-| an exclusive lock on a directory, taken without waiting, which the owner asks for again on its own timer (`skein/docs/design/kernel.md`, 6.1; `skein/docs/design/io.md`, 5) | the store's lock (hearth/docs/design/domain/store/README.md, 6.2, step 1) | M1 |
-| a rename from one directory to another (`skein/docs/design/io.md`, 5) | a resolution's indices moved from its scratch directory into the cache (hearth/docs/design/domain/render/spec.md, 2.3; hearth/docs/design/domain/store/records.md, 4) | M1 |
-| a directory listed page by page (`skein/docs/design/io.md`, 5) | the startup scan of `cache/` and `resolutions/`, whatever their size (hearth/docs/design/domain/store/README.md, 6.2) | M1 |
-| `statfs`'s filesystem type (`skein/docs/design/kernel.md`, 6.5) | the scan's subvolume steps, on btrfs alone (hearth/docs/design/domain/store/README.md, 2.4) | M2 |
+| an exclusive lock on a directory, taken without waiting, which the owner asks for again on its own timer (`skein/docs/design/runtime/kernel.md`, 6.1; `skein/docs/design/runtime/io/files.md`) | the store's lock (hearth/docs/design/domain/store/README.md, 6.2, step 1) | M1 |
+| a rename from one directory to another (`skein/docs/design/runtime/io/files.md`) | a resolution's indices moved from its scratch directory into the cache (hearth/docs/design/domain/render/spec.md, 2.3; hearth/docs/design/domain/store/records.md, 4) | M1 |
+| a directory listed page by page (`skein/docs/design/runtime/io/files.md`) | the startup scan of `cache/` and `resolutions/`, whatever their size (hearth/docs/design/domain/store/README.md, 6.2) | M1 |
+| `statfs`'s filesystem type (`skein/docs/design/runtime/kernel.md`, 6.5) | the scan's subvolume steps, on btrfs alone (hearth/docs/design/domain/store/README.md, 2.4) | M2 |
 | Unix sockets with peer credentials | the client | M3 |
 | redialling and identity on the channel's TLS client | the wire | M4 |
-| `syncfs` (`skein/docs/design/kernel.md`, 6.5) | a layer durable at its freeze, before its record (hearth/docs/design/domain/store/README.md, 4.2) | M2 |
+| `syncfs` (`skein/docs/design/runtime/kernel.md`, 6.5) | a layer durable at its freeze, before its record (hearth/docs/design/domain/store/README.md, 4.2) | M2 |
 | `openat2` with `RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS` and `RESOLVE_NO_XDEV`; `FICLONE` | prepare resolving and copying a slot's paths safely | M3 |
 | the new mount API: `fsopen`, `fsconfig`, `fsmount`, `move_mount` with `MOVE_MOUNT_BENEATH`, `open_tree`, `mount_setattr`; `umount2` with `MNT_DETACH`; walking a detached mount through its descriptor | live changes: overlays built aside, verified, swapped beneath and back (hearth/docs/design/domain/slots/trial.md, 8) | M3 |
 | `mknodat` of a 0/0 character device | a live delta's whiteouts | M3 |

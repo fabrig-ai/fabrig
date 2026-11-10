@@ -258,7 +258,7 @@ fn native_and_actual_client_request_bounds_charge_complete_escaped_history() {
     world.run();
     completed(&world, 71);
     // The public route sends its rendered body under the request cap
-    // (llm.md, section 4.8).
+    // (llm/README.md, section 4.8).
     let rendered = |sent: &[u8]| {
         let sent = skein_llm_world::identity(sent);
         let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("actual native body") + 4;

@@ -1,4 +1,4 @@
-//! The page's landmark outline (skein's ui.md, section 14).
+//! The page's landmark outline (skein's ui/README.md, section 12).
 use crate::{Role, Shortcut, State, Tree};
 use skein_lib::List;
 

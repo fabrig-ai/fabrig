@@ -294,7 +294,7 @@ fn settings_owned_bytes_count_names_and_user_agent() {
 
 #[test]
 fn owner_words_are_checked_before_io() {
-    // forge.md 6 admits one through sixteen lowercase letters, digits or hyphens.
+    // forge/README.md 5 admits one through sixteen lowercase letters, digits or hyphens.
     const LONGEST: &[u8] = b"a0123456789-abcd";
     const TOO_LONG: &[u8] = b"a0123456789-abcde";
     let limits = Limits { body_bytes: fixtures::MAX_WORD_BODY_ROOM, ..fixtures::limits() };

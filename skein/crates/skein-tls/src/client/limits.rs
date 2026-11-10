@@ -1,4 +1,4 @@
-//! Limits and edge bounds (tls.md, 3.5).
+//! Limits and edge bounds (net/tls.md, 3.5).
 #[cfg(doc)]
 use super::{Client, Error};
 
@@ -17,14 +17,14 @@ pub const MAX_RECORD: u32 = HEADER + MAX_BODY;
 
 /// The most bytes the client demands below at once: a record's body.
 /// Whoever stacks it checks at startup that the stream below's intake holds
-/// it (lib.md, 7): a demand past that cap could never be met.
+/// it (runtime/lib.md, 7): a demand past that cap could never be met.
 pub const LARGEST_READ: u32 = MAX_BODY;
 
 /// The most of TLS's own output held at once: a flight of the handshake, or
 /// an alert and `close_notify`. The longest flight is a `ClientHello` of a
 /// server name of 253 bytes and protocols of [`ALPN`](crate::ALPN) bytes,
 /// measured at 738 bytes, and 809 once a `HelloRetryRequest` asks for a
-/// larger key share (tls.md, 5).
+/// larger key share (net/tls.md, 5).
 pub const FLIGHT: u32 = 2_048;
 
 /// The most a record adds to the plaintext it carries, of ring's suites:

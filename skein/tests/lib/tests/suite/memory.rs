@@ -1,4 +1,4 @@
-//! Each container's `price` against the counting allocator (lib.md, 10;
+//! Each container's `price` against the counting allocator (runtime/lib.md, 10;
 //! programming-model.md, 6.3): built at a capacity, tiny ones among them,
 //! filled to it, emptied and filled again, every operation a step of the
 //! meter, and what it held of its own never more than `price(capacity)`.

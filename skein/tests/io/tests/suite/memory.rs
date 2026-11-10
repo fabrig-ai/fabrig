@@ -1,11 +1,11 @@
 //! io's scenario ceilings against the counting allocator (programming-model.md,
-//! 6.3; io.md, 3.4): io driven by hand, every call a step of the meter, to
+//! 6.3; runtime/io/sockets.md, 4): io driven by hand, every call a step of the meter, to
 //! its limits and back, with each step's own peak checked against its
 //! scenario's ceiling.
 //!
 //! The test plays the kernel and the owner, with storage it makes before the
 //! meter's base, so that only io's heap is measured. What io submits stays
-//! io's while the test holds it, as a buffer in flight is io's (io.md, 3.4);
+//! io's while the test holds it, as a buffer in flight is io's (runtime/io/sockets.md, 4);
 //! what io tells up (the bytes it delivers) is handed out, and dropped before
 //! the check.
 //!
@@ -368,7 +368,7 @@ fn fill_and_drain(limits: Limits, ceiling: u64) -> u64 {
         driver.complete_all(is_recv, succeed);
     }
     // Each output full: a send in flight, and its queue of sends, within the
-    // room asked for them all at once (lib.md, 7). The bytes are made by the
+    // room asked for them all at once (runtime/lib.md, 7). The bytes are made by the
     // test, the owner, and io's once sent.
     let boxes = limits.sends + 1;
     let each = usize::try_from(limits.output / boxes).expect("a few bytes");

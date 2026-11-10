@@ -23,7 +23,7 @@ python3 -I -B tools/citations/test_citations.py
   ("`x.md`'s, 6.2", "`x.md`'s section 15") and parentheses ("`x.md` (section 10 is ...)").
   An "its" before a path inherits the nearest explicit tree owner in the same sentence.
   Opening parentheses keep an explicit owner only directly after its possessive
-  ("skein's (`forge.md`, section 6)"); intervening words end that ownership at "(".
+  ("skein's (`forge/README.md`, section 5)"); intervening words end that ownership at "(".
   A list item's bold heading path ("- **`x.md`:**", "6. **x.md:**") is also a target for bare
   sections throughout the item. Strings in code are test data, not citations. Left out:
   everything under a tree's `docs/plan/`, whatever its extension (a runner's records of a
@@ -63,9 +63,9 @@ to the tree before the move, so swaps and nested moves apply together:
 ```text
 skein/docs/design/forge-client.md -> skein/docs/design/forge/client.md
 skein/docs/design/examples/ -> skein/docs/design/forge/examples/
-skein/docs/design/forge.md 6 -> skein/docs/design/forge/markers.md 1
+skein/docs/design/forge/README.md 5 -> skein/docs/design/forge/markers.md 1
 title skein/docs/design/forge/markers.md: Keys' markers
-skein/docs/design/forge.md 7 -> skein/docs/design/forge/decisions.md
+skein/docs/design/forge/README.md 6 -> skein/docs/design/forge/decisions.md
 title skein/docs/design/forge/decisions.md: Decisions
 skein/docs/design/forge.md -> skein/docs/design/forge/README.md
 renumber skein/docs/design/forge.md

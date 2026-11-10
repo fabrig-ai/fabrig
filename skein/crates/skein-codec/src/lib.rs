@@ -1,7 +1,7 @@
-//! Shared bounded reads and pieces for codecs (codec.md, sections 2 to 4).
+//! Shared bounded reads and pieces for codecs (data/codec/README.md, sections 2 to 4).
 //! Generated decoders call the read helpers after choosing a limit.
-//! Schemas are read into bounded tables (codec.md, section 7).
-//! Family patches are read and planned by [`patch`] (codec.md, section 11).
+//! Schemas are read into bounded tables (data/codec/README.md, section 7).
+//! Family patches are read and planned by [`patch`] (data/codec/patches.md).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

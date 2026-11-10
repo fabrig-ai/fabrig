@@ -1,5 +1,5 @@
 //! A decoded value at every ceiling stays within its declared heap bound
-//! (codec.md, sections 4 and 6; testing-strategy.md, section 6).
+//! (data/codec/README.md, sections 4 and 6; testing-strategy.md, section 6).
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +238,7 @@ mod patch_memory {
     // Repeated records make retention observable after the first growth.
     const RECORDS: u32 = 128;
 
-    // Store-sized transcript ceilings (codec.md, 11.8).
+    // Store-sized transcript ceilings (data/codec/patches.md, 8).
     const LARGE: Capacity = Capacity { nodes: 1 << 21, bytes: 1 << 22, ..CAPACITY };
     // The contract's capacity-independent allowance for the run's floor.
     const FLOOR: u64 = 65_536;

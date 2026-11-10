@@ -1,4 +1,4 @@
-//! The machine seam (simulator.md, 3): operations on files and program
+//! The machine seam (testing/simulator.md, 3): operations on files and program
 //! selection passed to the embedder's fake machine, and its answers. Both
 //! are data. The world owns the
 //! simulator and the machine, takes the calls from [`Sim::calls`], hands

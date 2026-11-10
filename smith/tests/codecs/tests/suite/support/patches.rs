@@ -40,7 +40,7 @@ pub fn fixture_patcher() -> Patcher {
 
 /// Patches a kept turn to the current version: each plan from its version on,
 /// the root found once by `ROOT` and carried to each next version by its
-/// counterpart (skein/docs/design/codec.md, 11.6).
+/// counterpart (skein/docs/design/data/codec/patches.md, 6).
 pub fn patch_to_current(patcher: &mut Patcher, record: Box<[u8]>) -> Result<Box<[u8]>, Halt> {
     let version = skein_codec::version_of(&record).expect("a kept turn starts with its version");
     let Some(mut plan) = patcher.plan_from(version) else {

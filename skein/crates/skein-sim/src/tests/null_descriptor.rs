@@ -1,4 +1,4 @@
-//! Null child descriptors (skein/docs/design/kernel.md, 6.2).
+//! Null child descriptors (skein/docs/design/runtime/kernel.md, 6.2).
 
 use crate::{Answer, Config, Handle, Pid, Program, Reply, Sim};
 use alloc::boxed::Box;

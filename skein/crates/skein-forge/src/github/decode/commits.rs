@@ -1,4 +1,4 @@
-//! Commit range fields without changed files (forge-github.md, 4.5).
+//! Commit range fields without changed files (forge/github.md, 4.5).
 use super::Malformed;
 use crate::{
     api,

@@ -1,4 +1,4 @@
-//! A loopback Forgejo or GitHub peer over one owner's shared forge (fake-forge.md, 5).
+//! A loopback Forgejo or GitHub peer over one owner's shared forge (testing/fakes/forge.md, 5).
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
 use self::layer as protocol;
@@ -65,8 +65,8 @@ pub enum Observation {
     },
 }
 
-/// The kinds of outside records a peer keeps (fake-forge.md, section 5).
-#[expect(clippy::struct_excessive_bools, reason = "each outside record kind is kept independently (fake-forge.md, 5)")]
+/// The kinds of outside records a peer keeps (testing/fakes/forge.md, section 5).
+#[expect(clippy::struct_excessive_bools, reason = "each outside record kind is kept independently (testing/fakes/forge.md, 5)")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Kept {
     pub connections: bool,
@@ -156,7 +156,7 @@ impl Peer {
         Self::host(address, limits, protocol::Limits::Forgejo(protocol), service, forge)
     }
     /// GitHub's API and browser pages share this listener and the owner's forge.
-    /// Its second listener serves signed, credential-free job logs (fake-forge.md, 10.5).
+    /// Its second listener serves signed, credential-free job logs (testing/fakes/github.md, 1.5).
     pub fn github(
         address: SocketAddr,
         blob: SocketAddr,

@@ -1,4 +1,4 @@
-//! Sized writing of framed items (codec.md, 3).
+//! Sized writing of framed items (skein/docs/design/data/codec/README.md, 3).
 use alloc::boxed::Box;
 use skein_codec::Reason;
 use skein_lib::{List, Writer};

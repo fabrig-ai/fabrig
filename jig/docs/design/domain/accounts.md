@@ -72,7 +72,7 @@ in `accounts.md`, section 7.
 - **Its own records, refreshed by itself.** A sign-in's record and a
   key are kept in the application's store (`../protocol/store/secrets.md`
   ), and its engine's accounts' component alone refreshes a
-  record (skein's `oauth.md`, section 6), so refreshes of one record are
+  record (skein's `oauth/accounts.md`), so refreshes of one record are
   serialized by construction (providers.md, 2.3).
 - **No borrowed login.** No application reads another program's login
   file, a Codex login or another application's records. A program the
@@ -310,7 +310,7 @@ A source's state is one of:
   nothing of the record's generation is lent.
 
 Each source's mechanism maps its LLM provider's failures onto these,
-skein for what a provider's API answers (skein's `llm.md`, section 2.5)
+skein for what a provider's API answers (skein's `llm/README.md`, section 2.5)
 and smith for what a program reports (smith's `protocol/programs.md`,
 section 5). A failure a run meets is the run's: unavailable is retried
 by smith's session; unsupported, a field the LLM provider will not
@@ -326,7 +326,7 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   item 1), to the close, so the component refreshes each before its
   access token lapses whether or not a run holds it, and answers each
   new generation, granted; an idle account keeps its
-  refresh token (providers.md, 2.3; skein's `oauth.md`, section 6.3). A
+  refresh token (providers.md, 2.3; skein's `oauth/accounts.md`, section 3). A
   key is granted once it is kept, a replaced key as its next generation.
 - **Every live attempt hears each new generation** of its source, on
   whatever host, the engine's own included; and the fleet sends each
@@ -521,7 +521,7 @@ Value, one of
   no document.
 - **A fact no source reports is absent,** never guessed. A claim that is
   empty, past its bound or holds a control byte is not reported (skein's
-  `oauth.md`, 2.2; smith's `protocol/programs.md`, section 3). A report that
+  `oauth/README.md`, 2.2; smith's `protocol/programs.md`, section 3). A report that
   would pass 24 facts keeps those already held and drops the new one.
 - **A program's report:** a host's `logins` naming an email for a usable
   login (`../protocol/channel/records.md`, 1) reports kind 1, origin 5, through

@@ -1,6 +1,6 @@
 //! Owned bytes (programming-model.md, 6.1): a `Box<[u8]>` allocated at its
 //! final length, moved from owner to owner, never shared; searching them;
-//! and the hex and decimal digits a step writes and reads in them (lib.md, 6).
+//! and the hex and decimal digits a step writes and reads in them (runtime/lib.md, 6).
 
 use alloc::boxed::Box;
 use core::cmp::Ordering;

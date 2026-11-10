@@ -76,7 +76,7 @@ pub struct Settings {
     pub stdout: Fd,
     pub stderr: Fd,
 }
-// Environment entries may contain credentials; Debug shows only their count (skein/docs/design/lib.md, 6).
+// Environment entries may contain credentials; Debug shows only their count (skein/docs/design/runtime/lib.md, 6).
 impl core::fmt::Debug for Settings {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Settings")

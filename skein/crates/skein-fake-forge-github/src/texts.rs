@@ -1,4 +1,4 @@
-//! The fake's copies of GitHub's refusal texts (forge-github.md, section 7).
+//! The fake's copies of GitHub's refusal texts (forge/github.md, section 7).
 
 // user-on-installation-403.
 pub(crate) const INTEGRATION: &[u8] = b"Resource not accessible by integration";
@@ -39,7 +39,7 @@ pub(crate) const REF_EXISTS: &[u8] = b"Reference already exists";
 // refs-delete-missing-422.
 pub(crate) const REF_MISSING: &[u8] = b"Reference does not exist";
 
-// no unmet rule visible; unrecorded shape (fake-forge.md, 10.4).
+// no unmet rule visible; unrecorded shape (testing/fakes/github.md, 1.4).
 pub(crate) const RULES_FALLBACK: &[u8] = b"Repository rule violations found\n\n";
 
 // o/github live 2026-10-20 records 1; live session 1917 records 2.
@@ -58,9 +58,9 @@ pub(crate) const CHECK_PROGRESS: &[u8] = b"\" is in progress.";
 // o/github live 2026-10-20, for an Actions check; a commit status's is inferred.
 pub(crate) const CHECK_FAILING: &[u8] = b"\" is failing.";
 
-// unrecorded: GitHub's spelling as forge-github.md names it.
+// unrecorded: GitHub's spelling as forge/github.md names it.
 pub(crate) const CI_FAILURE: &[u8] = b"CI_FAILURE";
-// unrecorded: GitHub's spelling as forge-github.md names it.
+// unrecorded: GitHub's spelling as forge/github.md names it.
 pub(crate) const MERGE_CONFLICT: &[u8] = b"MERGE_CONFLICT";
 // classic-protection-404-under-rulesets.
 pub(crate) const BRANCH_NOT_PROTECTED: &[u8] = b"Branch not protected";
@@ -75,9 +75,9 @@ pub(crate) fn approval(out: &mut skein_lib::Writer, count: u32) -> Option<()> {
     out.put(if count == 1 { APPROVAL_SINGULAR } else { APPROVAL_PLURAL }).ok()
 }
 
-// Unrecorded primary-rate message; inferred from forge-github.md, 7 and 8.5.
+// Unrecorded primary-rate message; inferred from forge/github.md, 7 and 8.5.
 pub(crate) const PRIMARY_RATE: &[u8] = b"API rate limit exceeded";
-// forge-github.md, 7, recorded secondary-limit classifier.
+// forge/github.md, 7, recorded secondary-limit classifier.
 pub(crate) const SECONDARY_RATE: &[u8] = b"You have exceeded a secondary rate limit";
 
 // Docs-derived installation-repository-removal-refusals; unchecked live.

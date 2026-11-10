@@ -1,4 +1,4 @@
-//! The owner's lending boundary (oauth.md, sections 6.3 and 6.6).
+//! The owner's lending boundary (oauth/accounts.md, sections 3 and 6).
 
 use crate::Unusable;
 use alloc::boxed::Box;
@@ -17,9 +17,9 @@ pub enum Request {
     /// Starts this account's sign-in: Visit once, then `SignedIn`, Failed or Refused.
     SignIn { account: u32, subject: Option<Box<[u8]>> },
     /// A redirect handed in: the confidential owner's, or the address a person pasted for a public
-    /// sign-in whose listener is up; Taken, or Refused with the sign-in still waiting (oauth.md, 6.5).
+    /// sign-in whose listener is up; Taken, or Refused with the sign-in still waiting (oauth/accounts.md, 5).
     Redirected { account: u32, uri: Secret },
-    /// The address the listener sends the browser on to once it takes this sign-in's redirect (oauth.md, 6.5).
+    /// The address the listener sends the browser on to once it takes this sign-in's redirect (oauth/accounts.md, 5).
     Return { account: u32, location: Box<[u8]> },
     /// Cancels this account's exchange; its requested or held work hears the terminal.
     Cancel { account: u32 },
@@ -50,7 +50,7 @@ pub enum Event {
     SignedOut { account: u32, revoked: bool },
     /// The authorization URL for the owner to show, once per admitted sign-in.
     Visit { account: u32, url: Secret },
-    /// Ends `Redirected`: the sign-in took the redirect handed in; its own terminal follows (oauth.md, 6.5).
+    /// Ends `Redirected`: the sign-in took the redirect handed in; its own terminal follows (oauth/accounts.md, 5).
     Taken { account: u32 },
     /// Ends `SignIn` once kept, naming the record's subject and required scopes not granted in `missing`.
     SignedIn {
@@ -104,7 +104,7 @@ pub enum Failure {
     AnotherSubject,
     /// A public sign-in's listener read its own redirect and state past the
     /// redirect bound: the address's `length` and `bound`, `redirect_bytes`;
-    /// the sign-in ends at once (skein/docs/design/oauth.md, 6.3 and 6.5).
+    /// the sign-in ends at once (skein/docs/design/oauth/accounts.md, 3 and 5).
     LongRedirect { length: u32, bound: u32 },
     /// A sign-in's candidate could not be durably kept; nothing of it is lent.
     NotKept,
@@ -112,7 +112,7 @@ pub enum Failure {
     Exchange(skein_oauth::Failure),
     /// No valid record, or the provider rejected its token; a newer record is needed.
     Expired,
-    /// The private record did not load, with its location and unread cause (oauth.md, section 6.4).
+    /// The private record did not load, with its location and unread cause (oauth/accounts.md, section 4).
     Unloaded { at: Place, why: Unloaded },
 }
 
@@ -150,7 +150,7 @@ pub enum Refusal {
     NotWaiting,
     /// The redirect differs from the bound address or violates its admitted fields or syntax.
     Redirect,
-    /// The redirect carries another sign-in's state; the sign-in still waits (oauth.md, 6.5).
+    /// The redirect carries another sign-in's state; the sign-in still waits (oauth/accounts.md, 5).
     State,
     /// The owner has closed or aborted its component.
     Closed,
@@ -179,7 +179,7 @@ pub enum Keeping {
     NotKept,
 }
 
-/// The part of a private keeper whose loading stopped (oauth.md, section 6.4).
+/// The part of a private keeper whose loading stopped (oauth/accounts.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Place {
     /// The private directory, opened before any record is served.
@@ -188,7 +188,7 @@ pub enum Place {
     File,
 }
 
-/// Why loading left an account without a record (oauth.md, section 6.4).
+/// Why loading left an account without a record (oauth/accounts.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unloaded {
     /// Damaged bytes, another version, or no issuer-required client id; a sign-in may replace their digest.
@@ -203,7 +203,7 @@ pub enum Unloaded {
     TooLarge { size: u64 },
 }
 
-/// The owner's answer to a shared record lock (oauth.md, section 6.4).
+/// The owner's answer to a shared record lock (oauth/accounts.md, section 4).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Locked {
     /// The lock is held; private keepers load their own record.

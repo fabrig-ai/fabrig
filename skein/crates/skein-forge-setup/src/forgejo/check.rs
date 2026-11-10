@@ -1,4 +1,4 @@
-//! A connected Forgejo's tokens must belong to one user (forge-setup.md, 4.6).
+//! A connected Forgejo's tokens must belong to one user (forge/setup/forgejo.md, 1.6).
 use crate::{
     call::Auth,
     item::{self, Item},

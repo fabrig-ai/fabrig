@@ -1,5 +1,5 @@
 //! The component's owner routes io and a TLS stream to the independent fake
-//! LLM byte peer in both dialects (llm-connection.md, section 8).
+//! LLM byte peer in both dialects (llm/connection.md, section 8).
 
 use core::net::Ipv4Addr;
 

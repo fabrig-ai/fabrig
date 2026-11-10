@@ -7,7 +7,7 @@ use super::Jwt;
 
 const APP: u64 = 7;
 const DEADLINE: Duration = Duration::from_secs(10);
-// forge-github.md, 8.1: the 256-byte signature's unpadded base64url.
+// forge/github.md, 8.1: the 256-byte signature's unpadded base64url.
 const SIGNATURE_BYTES: usize = 342;
 
 fn key() -> Secret {

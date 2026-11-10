@@ -67,7 +67,7 @@ is testing-strategy.md.
   and a short list of library types. No `async`, closures, trait objects,
   user-defined traits or generics, `Rc` or `RefCell`, `Drop` impls, or
   `unsafe` outside one module (in tests, also the counting allocator and
-  the fork kit's process boundary: skein's testing.md, section 6). Panics
+  the fork kit's process boundary: skein's ../design/testing/README.md, section 6). Panics
   abort.
 
 ## 2. The loop
@@ -105,7 +105,7 @@ The sketch shows the main flow only. What it leaves out:
   no cap: a step's push into them cannot fail, and nothing waits for room
   there. Room is checked where a queue meets the outside: io takes a
   request while the kernel's submission queue can hold what it makes and
-  while io can hold a refusal (io's `takes`: io.md, 2), and whatever does
+  while io can hold a refusal (io's `takes`: ../design/runtime/io/README.md, 2), and whatever does
   not fit waits for the next iteration. New work from outside waits at
   the root's watermark instead (7.1).
 - **The order within a stage.** A stage first drains its layer's ready
@@ -175,17 +175,17 @@ to a file.
   `ring` draws from the kernel; `zeroize`, `subtle` and `once_cell`,
   beneath rustls, a few lines each. In tests, `unsafe` is confined to the
   counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-  documented process-boundary module (skein's testing.md, section 6).
+  documented process-boundary module (skein's ../design/testing/README.md, section 6).
 - **In a client compiled to WebAssembly, the glue crates are the only
   `unsafe` code,** since they make every platform call: `wasm-bindgen`,
   `js-sys` and `web-sys`, pinned to exact versions, their dependencies,
   and the code their macros generate. Such a client, as an
   application's in a browser over skein's browser parts (skein's
-  ui-web.md, 4.1), has no kernel and no ring. No crate of it
+  ../design/ui/web/bundle.md, 1), has no kernel and no ring. No crate of it
   writes `unsafe` of its own: a kit of the platform's parts forbids it,
   and the application's own shell holds only what the glue's macros
   generate, for its start and for bindings to its own JavaScript. Its
-  step code runs there unchanged (lib.md, section 2).
+  step code runs there unchanged (../design/runtime/lib.md, section 2).
 - **No std handle types that close on drop.** `OwnedFd`, `File`,
   `TcpStream`, `TcpListener` and `std::process::Child` release kernel
   resources in their destructors, at a moment the lifecycle did not
@@ -194,11 +194,11 @@ to a file.
   bans them all.
 - **No threads, and no file written beside the ring.** The shell starts
   no thread and writes no file on the service's behalf. A trace or a log
-  is an io stream on a file opened to append (io.md, 5.1); a record kept
-  between runs is replaced whole through io (io.md, 5.2); what the shell
+  is an io stream on a file opened to append (../design/runtime/io/files.md, 1); a record kept
+  between runs is replaced whole through io (../design/runtime/io/files.md, 2); what the shell
   reads off the service between iterations, it reads in the loop's hook
-  (shell.md, 12). Before the loop, startup reads its configuration and
-  certificates with the kit (shell.md, 6).
+  (../design/runtime/shell.md, 11). Before the loop, startup reads its configuration and
+  certificates with the kit (../design/runtime/shell.md, 6).
 - **Panics abort.** A panic anywhere is fail-stop, and a supervisor
   restarts the process. The release and web profiles say `panic =
   "abort"`. The dev profile unwinds, as the test harness needs, so that a
@@ -207,7 +207,7 @@ to a file.
   anything else, which reports the panic and aborts before anything
   unwinds, and each repository's gate checks that it does. A binary that
   changed its terminal gives the hook a restoration to run before its
-  report (`before_report`; shell.md, 6.3), so the report reaches the
+  report (`before_report`; ../design/runtime/shell.md, 6.3), so the report reaches the
   person's own screen. In a client compiled
   to WebAssembly the abort is a trap, and its shell restarts the client,
   in a browser by reloading its page.
@@ -588,7 +588,7 @@ inside them, and *settling* (5.3) is part of *closing*.
   owes a peer or its owner: its final answer, its last reply. After it,
   the service closes everything it owns, components and entities, and
   ends when each has reported closed and io is empty: its loop exits once
-  it holds nothing (shell.md, 13).
+  it holds nothing (../design/runtime/shell.md, 12).
   - Only io's deadlines bound this: its close deadlines, and for a file
     the stall deadline its owner stated, which fires only on a stall. Its
     retry deadlines pace it. Nothing waits for a keep, an idle or a grace
@@ -598,7 +598,7 @@ inside them, and *settling* (5.3) is part of *closing*.
     each component still closing its abort.
   - A supervisor's grace and kill are a backstop for a process that does
     not end, never the way it ends; a supervisor's grace exceeds the
-    service's teardown bound (shell.md, 13).
+    service's teardown bound (../design/runtime/shell.md, 12).
 
   Every world checks this (testing-strategy.md, 6).
 
@@ -952,7 +952,7 @@ order's test before the check goes.
   state, seeded by the shell from `getrandom`, or by the simulator, which
   then owns both the clock and the random state. What must not be guessed
   is drawn from a `lib::CryptoRng`, keyed by a cryptographic seed the
-  shell draws apart (shell.md, section 5), or a world from its own seed.
+  shell draws apart (../design/runtime/shell.md, section 5), or a world from its own seed.
 
 ## 10. The Rust subset
 
@@ -1027,7 +1027,7 @@ does not hand-roll data structures: what is missing goes into lib.
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
 counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-documented process-boundary module (skein's testing.md, section 6).
+documented process-boundary module (skein's ../design/testing/README.md, section 6).
 
 ### 10.3 What is out
 

@@ -1,4 +1,4 @@
-//! The events, needs and outcomes shared by setup plans (skein/docs/design/forge-setup.md, 4.2).
+//! The events, needs and outcomes shared by setup plans (skein/docs/design/forge/setup/forgejo.md, 1.2).
 use crate::{
     call::{Auth, Call},
     item::Item,
@@ -25,7 +25,7 @@ pub enum Need {
     Done(Outcome),
     Stop(Failure),
 }
-/// What a plan hands its owner when it ends (forge-setup.md, 4.2).
+/// What a plan hands its owner when it ends (forge/setup/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Outcome {
     /// Nothing to serve or show.

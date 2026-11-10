@@ -240,7 +240,7 @@ Every request has one answer, of one of these kinds:
     issued client id), *state* (another sign-in's: the sign-in still
     waits), or *too many* (it has refused a few for their state, and
     takes no more pastes, still waiting for its browser: skein's
-    `oauth.md`, 6.5; `../../../domain/accounts.md`, section 5);
+    `oauth/accounts.md`, 5; `../../../domain/accounts.md`, section 5);
   - *key conflict:* the key names another ask, which is a client's bug
     where the client drew the key (`requests.md`, 1);
   - *account move:* an account's move refused, saying why: *not signed

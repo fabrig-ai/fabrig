@@ -1,4 +1,4 @@
-//! Atomic replacement beside an opened parent directory (skein/docs/design/io.md, 5.2).
+//! Atomic replacement beside an opened parent directory (skein/docs/design/runtime/io/files.md, 2).
 //!
 //! Each state owns its descriptors and temporary name, with one kernel operation
 //! in flight. A terminal follows every close and temporary removal attempt;
@@ -230,7 +230,7 @@ pub(super) fn start(
     let private = private_owner.is_some();
     let no_follow = no_follow || private;
     let produced = digest(&bytes);
-    #[expect(clippy::disallowed_methods, reason = "io.md, 5: retain the store's boxed allocation at its exact length")]
+    #[expect(clippy::disallowed_methods, reason = "runtime/io/files.md: retain the store's boxed allocation at its exact length")]
     let bytes = Contents(bytes.into_vec());
     let store = Store {
         owner,

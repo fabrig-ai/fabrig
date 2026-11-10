@@ -144,7 +144,7 @@ recipient.
   vocabulary; and, for an application's request, the digest of the
   record's bytes as they came (SHA-256), which tells a key sent again
   with another request apart (`../../client/domain/contract/requests.md`, 3). The
-  record is canonical (skein's `codec.md`, section 1), so the same
+  record is canonical (skein's `data/codec/README.md`, section 1), so the same
   request always has the same digest. A request carrying a value
   (below) has a digest of its own.
 - **A request carrying a value,** an LLM account's key added or
@@ -326,7 +326,7 @@ recipient.
   read: *version not served*, naming the owner and the ranges the engine
   serves. A keyed request, a read and a watch's opening are each
   answered so; nothing is done.
-- **Until the first release, versions stay fixed** (skein's `codec.md`,
+- **Until the first release, versions stay fixed** (skein's `data/codec/README.md`,
   section 5). A change to a record, the template preview's among them
   (`wire.md`, section 1), changes its schema, codec, translations and one set of
   golden bytes in place. Versions move at a release; family owners keep
@@ -416,7 +416,7 @@ recipient.
   watermark again, with no notice from a record of its own
   (`../../client/domain/client/README.md`, section 8).
 - **Where** is the shell's: a browser tab's session storage, as text
-  skein's small store part encodes (skein's `ui-web.md`, section 10); a
+  skein's small store part encodes (skein's `ui/web/README.md`, section 8); a
   file a native client writes whole and syncs; a service's file, synced
   before its requests leave; a world's memory.
 
@@ -465,7 +465,7 @@ recipient.
   (`../browser.md`, 3.1). An application's own browser shell uses them,
   skein's parts alone, or neither.
 - **Its pages are served by the application's server,** through skein's
-  serving contract (skein's `ui-web.md`, section 4), under its own
+  serving contract (skein's `ui/web/bundle.md`), under its own
   policy: jig serves no page, no bundle, and reserves no path
   (`../service.md`, section 2; `../browser.md`, section 12).
 
@@ -522,13 +522,13 @@ Each within jig's suites' budgets.
   and failures release credit, with one watch terminal throughout
   (`jig-client-protocol-link`'s stream table).
 - **Step tests** in `jig-client-protocol-wire` and each application's
-  wire: generated, as skein's `codec.md`, section 6 has them; the fixed
+  wire: generated, as skein's `data/codec/README.md`, section 6 has them; the fixed
   envelope read across versions among them.
 - **The client's wire world,** `jig-client-wire-world`: the client
   side's generated codecs (jig's wire, the reference UI's records,
   `ops`'s wire and jig's test family's) checked for drift against their
   schemas, and jig's wire's decoders run over arbitrary and mutated
-  bytes in the fuzzy suite (skein's `codec.md`, section 6).
+  bytes in the fuzzy suite (skein's `data/codec/README.md`, section 6).
 - **The template preview** in the client-protocol carriage tests and
   wire goldens: both configured intent and `resolved_default`, including
   `None`, cross whole. The shapes tests keep omission, and the
@@ -631,7 +631,7 @@ Each within jig's suites' budgets.
 - **HTTP/2:** one connection for the stream and the exchanges, when
   skein's HTTP has it.
 - **JSON records:** the same schemas written as JSON, for clients not
-  built on skein, when the generator writes them (skein's `codec.md`,
+  built on skein, when the generator writes them (skein's `data/codec/README.md`,
   section 7).
 - **A sign-in helper for OAuth or OpenID:** a generic flow, configured
   by its issuer and its client, which an application's server would run
@@ -670,11 +670,11 @@ Each within jig's suites' budgets.
   `../../domain/engine/views.md` has them.
 - **skein owes,** for one person's machine: skein-lib, skein-codec and
   skein-http, with its server-sent events reader and writer, built for
-  `wasm32-unknown-unknown` (skein's `lib.md`, section 2; skein's
-  `testing.md`, section 6); for the reference UI, its UI kit's browser
+  `wasm32-unknown-unknown` (skein's `runtime/lib.md`, section 2; skein's
+  `testing/README.md`, section 6); for the reference UI, its UI kit's browser
   parts, its bundler, and its face and harness for the browser tier
-  (skein's `ui-web.md`, 5.1, 4.2 and 14.2), over its browser kit
-  (skein's `browser.md`, sections 5 and 6); a client compiled to
+  (skein's `ui/web/README.md`, 4.1, and `ui/web/bundle.md`, 2, and `ui/web/testing.md`, 2), over its browser kit
+  (skein's `testing/browser.md`, sections 5 and 6); a client compiled to
   WebAssembly in its model (`skein/docs/foundation/programming-model.md`, 2.1). Its HTTP
   server and client serve as they are. Between hosts, TLS's server side
   (`../README.md`, section 10).
