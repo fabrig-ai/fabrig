@@ -39,3 +39,48 @@ python3 -I -B tools/citations/test_citations.py
 - **`allow.txt`** excuses what must stay as it is, one line each: `FILE TARGET # reason`, FILE a
   glob and TARGET as the checker prints it, or `*` for every target.
 - Exit 0 clean, 1 findings, 2 usage, a malformed `allow.txt` or a git failure.
+
+## Moving documents and sections
+
+`move.py` applies a map to the clean working tree, rewrites citations using the checker's
+readings, and stages every change. Run it from the repository root:
+
+```sh
+python3 -I -B tools/citations/move.py MOVE_MAP --dry-run
+python3 -I -B tools/citations/move.py MOVE_MAP
+python3 -I -B tools/citations/test_move.py
+```
+
+The map has one move per line; blank lines and `#` comments are ignored. All sources refer
+to the tree before the move, so swaps and nested moves apply together:
+
+```text
+skein/docs/design/forge-client.md -> skein/docs/design/forge/client.md
+skein/docs/design/examples/ -> skein/docs/design/forge/examples/
+skein/docs/design/forge.md 6 -> skein/docs/design/forge/markers.md 1
+title skein/docs/design/forge/markers.md: Keys' markers
+```
+
+- **Documents** carry their status and execution files. **Directories** carry every tracked
+  file, including assets. Moves use `git mv`.
+- **Sections** carry their subsections and unnumbered headings. The most specific source
+  wins; an explicit subsection move overrides its parent's move. The destination number
+  sets the heading levels and subsection prefixes. Sections are inserted in number order;
+  other numbers stay as they are. A document entry and a section entry for the same source
+  document are refused.
+- **New documents** made from sections require a `title` entry. Destinations must be under
+  one of the five trees' `docs/`. Missing sources, duplicate destinations and occupied
+  destinations that are not moved away are errors. All map errors are listed before any
+  change; a git failure rolls back the operation. A tree with tracked changes is refused.
+- **Citations** keep their path style where it resolves to the final target. Relative paths
+  in moved text are rebased, section numbers follow their targets, and links follow heading
+  anchors. Status labels are renumbered within their document. The source files and skipped
+  plans and dated records are the same as the checker's.
+- **By hand** lists citations split across documents, ambiguous section readings, status
+  labels that need another document, allow-list globs, and moved names in code strings or
+  other text outside the citations. These are left for a person. Exact allow-list paths and
+  section targets are rewritten.
+- **Dry runs** print the same move summary and By hand list and write nothing. Exit 0 means
+  the map was applied (or planned); 2 means a map error or a git failure. The mover never
+  commits. Review the staged changes and By hand list, repair those items, commit, then run
+  the citation gate before pushing.
