@@ -31,9 +31,11 @@ Heading = collections.namedtuple("Heading", "number start end level")
 
 
 def skipped_text(path):
+    # The mover's and checker's own tests build synthetic repositories whose paths are data.
     parts = path.split("/")
     return (parts[0] in c.TREES and (parts[1:3] == ["docs", "plan"] or
-            (parts[1:3] == ["docs", "development"] and c.DATED.search(parts[-1])))) or path.startswith("tools/citations/maps/")
+            (parts[1:3] == ["docs", "development"] and c.DATED.search(parts[-1])))) or \
+        path.startswith(("tools/citations/maps/", "tools/citations/test_"))
 
 
 def readable_text(root, path):
