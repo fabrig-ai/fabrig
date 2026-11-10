@@ -1,2 +1,6 @@
 # Trees whose design documents the size limit covers (citations.py's LIMIT; DESIGN.md, 5).
 # A tree joins once its layout keeps every design document under the limit.
+hearth
+smith
+jig
+skein
