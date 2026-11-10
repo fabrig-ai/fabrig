@@ -86,7 +86,7 @@ fn section(run: &engine::Assignment, kind: engine::ForgeBriefKind) -> &str {
 
 #[test]
 fn a_clean_updates_red_names_its_check_and_no_conflict() {
-    let (mut world, task, head, base) = updated_change();
+    let (mut world, task, head, _) = updated_change();
     let run = repair(&mut world, task, head, false);
     let ci = section(&run, engine::ForgeBriefKind::Ci);
     assert!(ci.contains("Failed check: build\n"), "{ci}");
@@ -99,11 +99,7 @@ fn a_clean_updates_red_names_its_check_and_no_conflict() {
     assert_eq!(words, format!("Repair CI at {short}: build\n{AFTER_UPDATE}{PRESERVE}"));
     let pull = section(&run, engine::ForgeBriefKind::Pull);
     assert!(pull.contains("Base: main\n"), "{pull}");
-    assert!(pull.contains("What landed in the base:\n"), "{pull}");
-    assert!(
-        pull.contains(core::str::from_utf8(&engine::commit_text(&translate::commit(base))).expect("base commit")),
-        "{pull}"
-    );
+    assert!(pull.contains("What landed in the base: 2 commits\n"), "{pull}");
     assert!(pull.contains("Base file: other\n"), "{pull}");
     let ci_at =
         run.sections.iter().position(|s| s.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Ci)).expect("CI");

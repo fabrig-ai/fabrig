@@ -87,7 +87,7 @@ pub struct Limits {
     pub remarks_answer_remarks: u32,
     pub pull_files_answer_files: u32,
     pub compare_answer_files: u32,
-    pub compare_answer_commits: u32,
+    pub compare_answer_files_item: u32,
     pub checks_answer_statuses: u32,
     pub collaborators_answer_collaborators: u32,
     pub call_decided_took_some: u32,
@@ -290,8 +290,8 @@ pub const CEILINGS: Limits = Limits {
     statuses_answer_statuses: 2_097_152,
     remarks_answer_remarks: 2_097_152,
     pull_files_answer_files: 2_097_152,
-    compare_answer_files: 2_097_152,
-    compare_answer_commits: 65_536,
+    compare_answer_files: 1_024,
+    compare_answer_files_item: 1_048_576,
     checks_answer_statuses: 2_097_152,
     collaborators_answer_collaborators: 65_536,
     call_decided_took_some: 120,
@@ -1137,12 +1137,14 @@ pub enum Path {
     CompareAnswerBefore,
     /// The `after` field of `CompareAnswer`.
     CompareAnswerAfter,
-    /// The `contains_before` field of `CompareAnswer`.
-    CompareAnswerContainsBefore,
+    /// The `ahead` field of `CompareAnswer`.
+    CompareAnswerAhead,
+    /// The `behind` field of `CompareAnswer`.
+    CompareAnswerBehind,
     /// The `files` field of `CompareAnswer`.
     CompareAnswerFiles,
-    /// The `commits` field of `CompareAnswer`.
-    CompareAnswerCommits,
+    /// The `changed` field of `CompareAnswer`.
+    CompareAnswerChanged,
     /// Bytes after `CompareAnswer`.
     CompareAnswerTail,
     /// The `statuses` field of `ChecksAnswer`.
@@ -2774,7 +2776,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.remarks_answer_remarks > CEILINGS.remarks_answer_remarks { return Err(Problem { path: Path::RemarksAnswerRemarks, reason: skein_codec::Reason::Bound }); }
     if limits.pull_files_answer_files > CEILINGS.pull_files_answer_files { return Err(Problem { path: Path::PullFilesAnswerFiles, reason: skein_codec::Reason::Bound }); }
     if limits.compare_answer_files > CEILINGS.compare_answer_files { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Bound }); }
-    if limits.compare_answer_commits > CEILINGS.compare_answer_commits { return Err(Problem { path: Path::CompareAnswerCommits, reason: skein_codec::Reason::Bound }); }
+    if limits.compare_answer_files_item > CEILINGS.compare_answer_files_item { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Bound }); }
     if limits.checks_answer_statuses > CEILINGS.checks_answer_statuses { return Err(Problem { path: Path::ChecksAnswerStatuses, reason: skein_codec::Reason::Bound }); }
     if limits.collaborators_answer_collaborators > CEILINGS.collaborators_answer_collaborators { return Err(Problem { path: Path::CollaboratorsAnswerCollaborators, reason: skein_codec::Reason::Bound }); }
     if limits.call_decided_took_some > CEILINGS.call_decided_took_some { return Err(Problem { path: Path::CallDecidedTook, reason: skein_codec::Reason::Bound }); }
@@ -7435,12 +7437,14 @@ pub struct CompareAnswerParts {
     pub before: [u8; 32],
     /// The `after` field.
     pub after: [u8; 32],
-    /// The `contains_before` field.
-    pub contains_before: bool,
+    /// The `ahead` field.
+    pub ahead: u64,
+    /// The `behind` field.
+    pub behind: u64,
     /// The `files` field.
-    pub files: Box<[u8]>,
-    /// The `commits` field.
-    pub commits: List<[u8; 32]>,
+    pub files: List<Box<[u8]>>,
+    /// The `changed` field.
+    pub changed: u64,
 }
 
 /// `CompareAnswer` in this codec family.
@@ -7448,16 +7452,17 @@ pub struct CompareAnswerParts {
 pub struct CompareAnswer {
     before: [u8; 32],
     after: [u8; 32],
-    contains_before: bool,
-    files: Box<[u8]>,
-    commits: List<[u8; 32]>,
+    ahead: u64,
+    behind: u64,
+    files: List<Box<[u8]>>,
+    changed: u64,
 }
 
 impl CompareAnswer {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: CompareAnswerParts) -> Result<Self, Problem> {
-        let CompareAnswerParts { before, after, contains_before, files, commits } = parts;
-        let value = Self { before, after, contains_before, files, commits };
+        let CompareAnswerParts { before, after, ahead, behind, files, changed } = parts;
+        let value = Self { before, after, ahead, behind, files, changed };
         value.check(limits)?;
         Ok(value)
     }
@@ -7470,25 +7475,31 @@ impl CompareAnswer {
     #[must_use]
     pub fn after(&self) -> &[u8; 32] { &self.after }
 
-    /// Reads the `contains_before` field.
+    /// Reads the `ahead` field.
     #[must_use]
-    pub fn contains_before(&self) -> bool { self.contains_before }
+    pub fn ahead(&self) -> u64 { self.ahead }
+
+    /// Reads the `behind` field.
+    #[must_use]
+    pub fn behind(&self) -> u64 { self.behind }
 
     /// Reads the `files` field.
     #[must_use]
-    pub fn files(&self) -> &[u8] { &self.files }
+    pub fn files(&self) -> &List<Box<[u8]>> { &self.files }
 
-    /// Reads the `commits` field.
+    /// Reads the `changed` field.
     #[must_use]
-    pub fn commits(&self) -> &List<[u8; 32]> { &self.commits }
+    pub fn changed(&self) -> u64 { self.changed }
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> CompareAnswerParts { CompareAnswerParts { before: self.before, after: self.after, contains_before: self.contains_before, files: self.files, commits: self.commits } }
+    pub fn into_parts(self) -> CompareAnswerParts { CompareAnswerParts { before: self.before, after: self.after, ahead: self.ahead, behind: self.behind, files: self.files, changed: self.changed } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.files.len() > usize::try_from(limits.compare_answer_files.min(CEILINGS.compare_answer_files)).expect("u32 fits usize") { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Bound }); }
-        if self.commits.capacity() > limits.compare_answer_commits.min(CEILINGS.compare_answer_commits) { return Err(Problem { path: Path::CompareAnswerCommits, reason: skein_codec::Reason::Bound }); }
+        if self.files.capacity() > limits.compare_answer_files.min(CEILINGS.compare_answer_files) { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.files.as_slice() {
+        if item_0.len() > usize::try_from(limits.compare_answer_files_item.min(CEILINGS.compare_answer_files_item)).expect("u32 fits usize") { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Bound }); }
+        }
         Ok(())
     }
 }
@@ -21977,13 +21988,15 @@ impl CompareAnswer {
         let mut size = 0_u32;
         size = size.checked_add(32).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_files = &self.files;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_files.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_commits = &self.commits;
+        for item_0 in field_files.as_slice() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_commits.len().checked_mul(32).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(item_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
         size
     }
 
@@ -21993,16 +22006,18 @@ impl CompareAnswer {
         writer.put(field_before)?;
         let field_after = &self.after;
         writer.put(field_after)?;
-        let field_contains_before = &self.contains_before;
-        writer.put(&[u8::from(*field_contains_before)])?;
+        let field_ahead = &self.ahead;
+        writer.put(&field_ahead.to_be_bytes())?;
+        let field_behind = &self.behind;
+        writer.put(&field_behind.to_be_bytes())?;
         let field_files = &self.files;
-        writer.put(&u32::try_from(field_files.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_files.as_ref())?;
-        let field_commits = &self.commits;
-        writer.put(&field_commits.len().to_be_bytes())?;
-        for item_0 in field_commits.as_slice() {
-        writer.put(item_0)?;
+        writer.put(&field_files.len().to_be_bytes())?;
+        for item_0 in field_files.as_slice() {
+        writer.put(&u32::try_from(item_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(item_0.as_ref())?;
         }
+        let field_changed = &self.changed;
+        writer.put(&field_changed.to_be_bytes())?;
         Ok(())
     }
 
@@ -22016,10 +22031,11 @@ impl CompareAnswer {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_before = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::CompareAnswerBefore, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_after = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::CompareAnswerAfter, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_contains_before = match reader.u8().ok_or(Problem { path: Path::CompareAnswerContainsBefore, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::CompareAnswerContainsBefore, reason: skein_codec::Reason::Bool }) };
-        let decoded_files = { let length = match skein_codec::read_len(reader, limits.compare_answer_files.min(CEILINGS.compare_answer_files)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short })?) };
-        let decoded_commits = { let count = match skein_codec::read_count(reader, limits.compare_answer_commits.min(CEILINGS.compare_answer_commits)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CompareAnswerCommits, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::CompareAnswerCommits, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::CompareAnswerCommits, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { before: decoded_before, after: decoded_after, contains_before: decoded_contains_before, files: decoded_files, commits: decoded_commits })
+        let decoded_ahead = reader.u64().ok_or(Problem { path: Path::CompareAnswerAhead, reason: skein_codec::Reason::Short })?;
+        let decoded_behind = reader.u64().ok_or(Problem { path: Path::CompareAnswerBehind, reason: skein_codec::Reason::Short })?;
+        let decoded_files = { let count = match skein_codec::read_count(reader, limits.compare_answer_files.min(CEILINGS.compare_answer_files)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.compare_answer_files_item.min(CEILINGS.compare_answer_files_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changed = reader.u64().ok_or(Problem { path: Path::CompareAnswerChanged, reason: skein_codec::Reason::Short })?;
+        Ok(Self { before: decoded_before, after: decoded_after, ahead: decoded_ahead, behind: decoded_behind, files: decoded_files, changed: decoded_changed })
     }
 }
 
@@ -35477,8 +35493,8 @@ impl CompareAnswer {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.compare_answer_files))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.compare_answer_commits).checked_mul(u64::from(32_u32))?)?)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.compare_answer_files).checked_mul(4_u64.checked_add(u64::from(limits.compare_answer_files_item))?)?)?)?.checked_add(8_u64)?;
         size.checked_add(0)
     }
 
@@ -35492,8 +35508,8 @@ impl CompareAnswer {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.compare_answer_files))?;
-        heap = heap.checked_add(List::<[u8; 32]>::price(limits.compare_answer_commits)?.checked_add(u64::from(limits.compare_answer_commits).checked_mul(0_u64)?)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.compare_answer_files)?.checked_add(u64::from(limits.compare_answer_files).checked_mul(u64::from(limits.compare_answer_files_item))?)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -43260,8 +43276,8 @@ mod golden_tests {
         ("record_remarks_answer_full", || { let value = RemarksAnswer::new(&CEILINGS, RemarksAnswerParts { remarks: Box::from([0_u8, 127_u8, 255_u8].as_slice()), more: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RemarksAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_pull_files_answer_smallest", || { let value = PullFilesAnswer::new(&CEILINGS, PullFilesAnswerParts { head: [0_u8; 32], files: Box::from([].as_slice()), more: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PullFilesAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_pull_files_answer_full", || { let value = PullFilesAnswer::new(&CEILINGS, PullFilesAnswerParts { head: [165_u8; 32], files: Box::from([0_u8, 127_u8, 255_u8].as_slice()), more: true }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PullFilesAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_compare_answer_smallest", || { let value = CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [0_u8; 32], after: [0_u8; 32], contains_before: false, files: Box::from([].as_slice()), commits: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CompareAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_compare_answer_full", || { let value = CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [165_u8; 32], after: [165_u8; 32], contains_before: true, files: Box::from([0_u8, 127_u8, 255_u8].as_slice()), commits: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CompareAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_compare_answer_smallest", || { let value = CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [0_u8; 32], after: [0_u8; 32], ahead: 0_u64, behind: 0_u64, files: skein_lib::List::with_capacity(0), changed: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CompareAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_compare_answer_full", || { let value = CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [165_u8; 32], after: [165_u8; 32], ahead: u64::MAX, behind: u64::MAX, files: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, changed: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CompareAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_checks_answer_smallest", || { let value = ChecksAnswer::new(&CEILINGS, ChecksAnswerParts { statuses: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ChecksAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_checks_answer_full", || { let value = ChecksAnswer::new(&CEILINGS, ChecksAnswerParts { statuses: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ChecksAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_collaborators_answer_smallest", || { let value = CollaboratorsAnswer::new(&CEILINGS, CollaboratorsAnswerParts { collaborators: skein_lib::List::with_capacity(0), more: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CollaboratorsAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -43286,8 +43302,8 @@ mod golden_tests {
         ("enum_answer_branches_full", || { let value = Answer::Branches(BranchesAnswer::new(&CEILINGS, BranchesAnswerParts { branches: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_pull_files_smallest", || { let value = Answer::PullFiles(PullFilesAnswer::new(&CEILINGS, PullFilesAnswerParts { head: [0_u8; 32], files: Box::from([].as_slice()), more: false }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_pull_files_full", || { let value = Answer::PullFiles(PullFilesAnswer::new(&CEILINGS, PullFilesAnswerParts { head: [165_u8; 32], files: Box::from([0_u8, 127_u8, 255_u8].as_slice()), more: true }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_answer_compare_smallest", || { let value = Answer::Compare(CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [0_u8; 32], after: [0_u8; 32], contains_before: false, files: Box::from([].as_slice()), commits: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_answer_compare_full", || { let value = Answer::Compare(CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [165_u8; 32], after: [165_u8; 32], contains_before: true, files: Box::from([0_u8, 127_u8, 255_u8].as_slice()), commits: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_answer_compare_smallest", || { let value = Answer::Compare(CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [0_u8; 32], after: [0_u8; 32], ahead: 0_u64, behind: 0_u64, files: skein_lib::List::with_capacity(0), changed: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_answer_compare_full", || { let value = Answer::Compare(CompareAnswer::new(&CEILINGS, CompareAnswerParts { before: [165_u8; 32], after: [165_u8; 32], ahead: u64::MAX, behind: u64::MAX, files: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, changed: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_checks_smallest", || { let value = Answer::Checks(ChecksAnswer::new(&CEILINGS, ChecksAnswerParts { statuses: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[10, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_checks_full", || { let value = Answer::Checks(ChecksAnswer::new(&CEILINGS, ChecksAnswerParts { statuses: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[10, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_job_smallest", || { let value = Answer::Job(JobAnswer::new(&CEILINGS, JobAnswerParts { attempt: JobAttempt::new(&CEILINGS, JobAttemptParts { head: [0_u8; 32], run: 0_u64, job: 0_u64, attempt: 0_u32 }).expect("golden within ceilings"), step: None, log: Box::from([].as_slice()), truncated: false }).expect("golden within ceilings")); let bytes: &[u8] = &[11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -44324,8 +44340,8 @@ mod golden_tests {
         ("bound_statuses_answer_statuses", || bound((Path::StatusesAnswerStatuses, skein_codec::Reason::Bound), &Limits { statuses_answer_statuses: 3, ..CEILINGS }, &[0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match StatusesAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_remarks_answer_remarks", || bound((Path::RemarksAnswerRemarks, skein_codec::Reason::Bound), &Limits { remarks_answer_remarks: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match RemarksAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_pull_files_answer_files", || bound((Path::PullFilesAnswerFiles, skein_codec::Reason::Bound), &Limits { pull_files_answer_files: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match PullFilesAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_compare_answer_files", || bound((Path::CompareAnswerFiles, skein_codec::Reason::Bound), &Limits { compare_answer_files: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CompareAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_compare_answer_commits", || bound((Path::CompareAnswerCommits, skein_codec::Reason::Bound), &Limits { compare_answer_commits: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CompareAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_compare_answer_files", || bound((Path::CompareAnswerFiles, skein_codec::Reason::Bound), &Limits { compare_answer_files: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CompareAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_compare_answer_files_item", || bound((Path::CompareAnswerFiles, skein_codec::Reason::Bound), &Limits { compare_answer_files_item: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CompareAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_checks_answer_statuses", || bound((Path::ChecksAnswerStatuses, skein_codec::Reason::Bound), &Limits { checks_answer_statuses: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match ChecksAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_collaborators_answer_collaborators", || bound((Path::CollaboratorsAnswerCollaborators, skein_codec::Reason::Bound), &Limits { collaborators_answer_collaborators: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CollaboratorsAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_call_decided_took_some", || bound((Path::CallDecidedTook, skein_codec::Reason::Bound), &Limits { call_decided_took_some: 3, ..CEILINGS }, &[1, 0, 0, 0, 3, 0, 0, 0, 0], &[1, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match CallDecided::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),

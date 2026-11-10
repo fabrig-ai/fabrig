@@ -504,6 +504,8 @@ pub enum Answer {
         head: u64,
         /// Whether the requested base is an ancestor of the head.
         contains_base: bool,
+        ahead: u64,
+        behind: u64,
         files: Box<[ChangedFile]>,
         commits: Box<[u64]>,
     },

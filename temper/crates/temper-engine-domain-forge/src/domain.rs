@@ -1973,7 +1973,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.capabilities.contains_key(&owner) {
                     crate::capabilities::answered(d, env, owner, result, out);
                 } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
-                    brief::brief_answer(d, owner, result, out);
+                    brief::brief_answer(d, owner, result, env.limits.client.rows, out);
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
                 } else if d.landings.contains_key(&owner) {
@@ -5908,14 +5908,10 @@ fn landing_read(
 ) {
     let Some(pending) = d.landings.remove(&owner) else { return };
     let files = match result {
-        Ok(skein_forge::api::Answer::Compare { before, after, files, commits: _, contains_before: _ })
-            if before == pending.before && after == pending.after =>
+        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
+            if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>
         {
-            let mut names = List::with_capacity(u32::try_from(files.len()).unwrap_or(u32::MAX));
-            for file in files {
-                names.push(file.path).expect("sized from bounded comparison");
-            }
-            Some(names.into_boxed())
+            Some(files)
         }
         Ok(_) | Err(_) => None,
     };

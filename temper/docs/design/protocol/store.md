@@ -326,6 +326,8 @@ forge's constants `WORKFLOWS` and `WORKFLOW_BYTES` (`../domain/forge.md`,
 joins family 2's record in place, in store v11 with no migration
 (2026-11-08).
 
+A named call's comparison answer is names and counts (skein's `forge.md`, 3.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`, replaced in place in store v11 with no version bump, no migration and no arm kept for older rows: before the first release a stored format changes in place, and a store written before it is made afresh (A deployment made again, above) (2026-11-10).
+
 ## 5. The restart
 
 - **One step, one interval.** The core's restart script asks for the

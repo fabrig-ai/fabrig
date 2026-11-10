@@ -568,8 +568,6 @@ const SHORT_RAW: &[u8] = b"abc";
 const FULL_RAW: &[u8] = b"abcd";
 const JOB_TAIL: &[u8] = b"bcd";
 const CHANGED_FILES: &[u8] = br#"[{"filename":"x","status":"changed","previous_filename":""}]"#;
-const CHANGED_COMPARE: &[u8] =
-    br#"{"total_commits":0,"commits":[],"files":[{"filename":"x","status":"changed","previous_filename":""}]}"#;
 fn raw_body(run: &mut Run, bytes: &[u8], more: bool) -> Option<Step> {
     run.hear(Heard::Head { status: 200, fields: fixtures::fields() });
     run.hear(Heard::Done(AnswerBody::Raw { bytes: Box::from(bytes), more }))
@@ -628,27 +626,16 @@ fn file_sides_past_remaining_room_are_too_large() {
 }
 
 type SideCase = (Read, &'static [(u16, &'static [u8])], &'static [&'static str]);
-fn side_cases() -> [SideCase; 2] {
-    [
-        (
-            Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 },
-            &[(200, PULL), (200, CHANGED_FILES)],
-            &[
-                "GET /api/v1/repos/fixture/specimen/pulls/1",
-                "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
-                "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
-            ],
-        ),
-        (
-            Read::Compare { before: fixtures::BASE, after: HEAD },
-            &[(200, CHANGED_COMPARE), (200, fixtures::EMPTY_COMPARE)],
-            &[
-                "GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?verification=false",
-                "GET /api/v1/repos/fixture/specimen/compare/0100000000000000000000000000000000000000...0300000000000000000000000000000000000000?files=false&verification=false",
-                "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
-            ],
-        ),
-    ]
+fn side_cases() -> [SideCase; 1] {
+    [(
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 },
+        &[(200, PULL), (200, CHANGED_FILES)],
+        &[
+            "GET /api/v1/repos/fixture/specimen/pulls/1",
+            "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+            "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
+        ],
+    )]
 }
 
 // The asked id differs from the response's id; owner 2 is REPOSITORY's fixture owner.

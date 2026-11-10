@@ -316,8 +316,6 @@ impl Decoder {
                 | Node::MergeBaseOnly
                 | Node::FileRows
                 | Node::FileRow
-                | Node::CompareCommits
-                | Node::CompareCommit
                 | Node::CompareFiles
                 | Node::CompareFile
                 | Node::MergeBase),
@@ -479,8 +477,6 @@ impl Decoder {
                 | Node::MergeBaseOnly
                 | Node::FileRows
                 | Node::FileRow
-                | Node::CompareCommits
-                | Node::CompareCommit
                 | Node::CompareFiles
                 | Node::CompareFile
                 | Node::MergeBase),

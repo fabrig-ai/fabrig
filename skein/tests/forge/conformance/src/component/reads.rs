@@ -90,7 +90,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
         |a| matches!(a, Answer::Branches(b) if { let mut b = b.to_vec(); b.sort(); b == names }),
     ));
     facts.push(h.observe("component-read-pull-files", repo, Read::PullFiles { number: f.feature, head, page: 1 }.operation(), |a| matches!(a, Answer::PullFiles { head: got, files, more: true } if *got == head && files.len() == 1 && files.iter().enumerate().all(|(i,f)| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n")))))));
-    facts.push(h.observe("component-read-compare", repo, Read::Compare { before: base, after: head }.operation(), |a| matches!(a, Answer::Compare { before, after, contains_before: true, files, commits } if *before == base && *after == head && commits.len() == 3 && files.len() == 3 && (0..3).all(|i| files.iter().any(|f| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n"))))))));
+    facts.push(h.observe("component-read-compare", repo, Read::Compare { before: base, after: head }.operation(), |a| matches!(a, Answer::Compare {before, after, files, ahead: 3, behind: 0, changed: 3} if *before == base && *after == head && files.len() == 3 && (0..3).all(|i| files.iter().any(|path| *path == bytes(&format!("file-{i}.txt")))))));
     actions(runner, f, h, facts)?;
     facts.push(h.observe("component-read-file", repo, Read::File { head, path: bytes("file-0.txt"), max_bytes: 4 }.operation(), |a| matches!(a, Answer::File { head: got, path, bytes, truncated: true } if *got == head && path.as_ref() == b"file-0.txt" && bytes.as_ref() == b"file")));
     let protection = h.call(repo, Read::Protection { branch: bytes("main") }.operation());

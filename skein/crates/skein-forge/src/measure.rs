@@ -222,8 +222,12 @@ pub fn answer(value: &Answer) -> Option<u64> {
             Some(held)
         }
         Answer::PullFiles { files: values, .. } => files(values),
-        Answer::Compare { files: values, commits, .. } => {
-            files(values)?.checked_add(rows(commits.len(), COMMIT_BYTES)?)
+        Answer::Compare { files, .. } => {
+            let mut held = rows(files.len(), STRING_BYTES)?;
+            for path in files {
+                held = held.checked_add(bytes(path)?)?;
+            }
+            Some(held)
         }
         Answer::Protection(value) => match value {
             Some(value) => {
@@ -325,7 +329,7 @@ pub fn answer_rows(value: &Answer, rows: u32) -> bool {
         Answer::Remarks { remarks, .. } => remarks.len() <= rows,
         Answer::Branches(branches) => branches.len() <= rows,
         Answer::PullFiles { files, .. } => files.len() <= rows,
-        Answer::Compare { files, commits, .. } => files.len() <= rows && commits.len() <= rows,
+        Answer::Compare { files, .. } => files.len() <= rows,
         Answer::Protection(protection) => match protection {
             Some(value) => value.contexts.len() <= rows,
             None => true,
