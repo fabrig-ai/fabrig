@@ -22,6 +22,7 @@ python3 -I -B tools/citations/test_citations.py
   Sections after a path include possessives followed by a comma or "section"
   ("`x.md`'s, 6.2", "`x.md`'s section 15") and parentheses ("`x.md` (section 10 is ...)").
   An "its" before a path inherits the nearest explicit tree owner in the same sentence.
+  Opening parentheses keep an explicit owner ("skein's (`forge.md`, section 6)").
   A list item's bold heading path ("- **`x.md`:**", "6. **x.md:**") is also a target for bare
   sections throughout the item. Strings in code are test data, not citations. Left out:
   everything under a tree's `docs/plan/`, whatever its extension (a runner's records of a
@@ -59,6 +60,10 @@ skein/docs/design/forge-client.md -> skein/docs/design/forge/client.md
 skein/docs/design/examples/ -> skein/docs/design/forge/examples/
 skein/docs/design/forge.md 6 -> skein/docs/design/forge/markers.md 1
 title skein/docs/design/forge/markers.md: Keys' markers
+skein/docs/design/forge.md 7 -> skein/docs/design/forge/decisions.md
+title skein/docs/design/forge/decisions.md: Decisions
+skein/docs/design/forge.md -> skein/docs/design/forge/README.md
+renumber skein/docs/design/forge.md
 ```
 
 - **Documents** carry their status and execution files. **Directories** carry every tracked
@@ -66,21 +71,51 @@ title skein/docs/design/forge/markers.md: Keys' markers
 - **Sections** carry their subsections and unnumbered headings. The most specific source
   wins; an explicit subsection move overrides its parent's move. The destination number
   sets the heading levels and subsection prefixes. Sections are inserted in number order;
-  other numbers stay as they are. A document entry and a section entry for the same source
-  document are refused.
+  other numbers stay as they are. A section destination without a number makes that section
+  the whole created document: its opening text becomes the preamble, its own heading goes,
+  and its subsections are promoted to sections. Citations of the section become document
+  citations. This form requires a created destination and its title.
+- **A whole tree fits one map.** Section entries apply before a document entry for the same
+  source; the rest of the document and its companions then follow the document entry.
+  `renumber PATH.md`, naming the source before the move, numbers its remaining top-level
+  sections consecutively, with their subsections, citations and status labels following.
 - **New documents** made from sections require a `title` entry. Destinations must be under
   one of the five trees' `docs/`. Missing sources, duplicate destinations and occupied
   destinations that are not moved away are errors. All map errors are listed before any
-  change; a git failure rolls back the operation. A tree with tracked changes is refused.
+  change; an exception during application rolls back the operation. Document destinations
+  must end in `.md`. A tree with tracked changes is refused. A map comment begins at the
+  start of a line or after whitespace, so a title can contain `C#`.
 - **Citations** keep their path style where it resolves to the final target. Relative paths
   in moved text are rebased, section numbers follow their targets, and links follow heading
-  anchors. Status labels are renumbered within their document. The source files and skipped
-  plans and dated records are the same as the checker's.
-- **By hand** lists citations split across documents, ambiguous section readings, status
-  labels that need another document, allow-list globs, and moved names in code strings or
-  other text outside the citations. These are left for a person. Exact allow-list paths and
-  section targets are rewritten.
-- **Dry runs** print the same move summary and By hand list and write nothing. Exit 0 means
-  the map was applied (or planned); 2 means a map error or a git failure. The mover never
-  commits. Review the staged changes and By hand list, repair those items, commit, then run
-  the citation gate before pushing.
+  anchors. The fallback order is a relative path within the same tree, a code comment's
+  tree-relative path, then a root path. Cross-tree owner forms keep their owner; other
+  cross-tree paths use the root. Ranges (`to`, `–`, `-`) expand from the source headings,
+  including their middle members. Lists and ranges split by destination in their original
+  order, then compress within each destination without adding headings.
+- **Own dotted numbers** in design Markdown also follow their original headings: `(6.7)`,
+  `6.6 to 6.9`, `12.2 and 12.8`, and `4.6's`. Literals, link targets, URLs, versions, dates
+  and quantities are excluded. A number that crosses documents gains a path; one that
+  stays local keeps its bare form. Single bare numbers still require `section`. The summary
+  counts rewritten bare numbers separately. These extra readings do not change the gate.
+- **Status entries** follow their labels into created documents. Each created document gets
+  a dated UTC status header, and `No gap.` when it receives no entry. An emptied source
+  status gets `No gap.` too. Split entries copy their full text, keeping only each
+  destination's labels; whole-document gaps follow every extracted part. Each moved or
+  split entry is listed once for review and trimming.
+- **By hand** lists ambiguous sections whose candidates need different rewrites, grammar
+  that cannot be split mechanically, allow-list globs, and moved names outside citations.
+  A shadowed suffix name whose target did not move keeps its prose token and is listed
+  with its new resolution. Backticked link labels, including status-index document names,
+  follow their links. Reports name final files and lines, with code and configuration
+  first. Plans and dated development records stay unchanged and unlisted. Exact allow-list
+  paths and section targets are rewritten.
+- **The final check** re-reads citations in the resulting tree with the checker's reader,
+  and checks each original region against its mapped headings or document. Bare-number
+  readings count too. An ambiguous reading may keep a permitted original candidate, but
+  may not gain a different heading. A mismatch appears under **Wrong**, showing its final
+  text, reading and expected reading. Exit 1 leaves the changes applied and staged: repair
+  them before committing. Exit 0 means the map was applied and the readings agree; 2 means
+  a map error or a git failure. The mover never commits.
+- **Dry runs** perform the same final check in a temporary copy and print the same report,
+  without changing the working tree or index. Review the staged changes and By hand list,
+  repair those items, commit, then run the citation gate before pushing.
