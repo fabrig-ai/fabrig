@@ -45,7 +45,7 @@ draft carries what the look cannot.
 - **Opened:** a row a call: the tool, its argument in a few words, and
   its outcome's first line, cut to the row. Never a result's body.
 - **What stays apart:** a call with a card of its own (a delegate, a
-  change, a goal, a proposal; `../client/README.md`, 5.7) keeps its card,
+  change, a goal, a proposal; `../client/view.md`, 5) keeps its card,
   and a document's write keeps its line and "Show". Neither counts in a
   run.
 - **The terminal** prints the line and, opened, its rows.

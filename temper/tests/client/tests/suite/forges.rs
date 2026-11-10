@@ -1,5 +1,5 @@
 //! The tools' root joined to the engine root; only the box link is scripted
-//! (client/tools.md, 11.2; domain/testing.md, 6.3).
+//! (client/ctl/testing.md, 2; testing/checks.md, 3).
 use jig_client::{self as client, contract as c};
 use jig_client_kit::{harness::ClientId, joint::transport::Transport};
 use jig_domain_people as people;

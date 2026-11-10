@@ -1,4 +1,4 @@
-//! The build script's logic on samples (client/browser.md, 2.6), in both builds.
+//! The build script's logic on samples (client/web/README.md, 2.6), in both builds.
 #[path = "../build/steps.rs"]
 mod steps;
 

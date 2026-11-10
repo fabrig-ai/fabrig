@@ -5,7 +5,7 @@ Provisional, 2026-10-06, revised 2026-10-26. The design of
 a service's loop, so that a service with a web can test it as a person
 uses it. It is a step machine over the child's pipes, speaking the
 DevTools protocol (CDP), with no dependency beyond skein. Its first user
-is temper's browser shell (temper's `client/browser.md`, section 4); the
+is temper's browser shell (temper's `client/web/testing.md`); the
 person's browser face in `skein-fake-person-browser`, and the UI
 example's browser tier through it, are others (../ui/web/testing.md).
 
@@ -565,7 +565,7 @@ The kit's tests are a crate of their own, `tests/browser`
   `Seen.rect` keeps the first content quad alone; a missing rectangle stays
   in a boxed query's result for its caller to judge. Temper's public
   geometry story needs the other fragments to check a wrapped line whole
-  (`temper/docs/design/client/browser.md`, 8.4).
+  (`temper/docs/design/client/web/public.md`, 4).
 - **Chromium's own sandbox** under a service's containment: whether the
   namespaces it needs are there, or the real loop's sandbox stands in for
   it.

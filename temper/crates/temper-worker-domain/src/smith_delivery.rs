@@ -1,8 +1,8 @@
 //! A delivery's commit fields and smith's delivery terminals (jig's
 //! `domain/hosts/README.md`, sections 6 and 7). The fields arrive typed; this keeps
 //! temper's policy over them, and translates a push's landings into smith's
-//! terminal, push receipts in words (`temper/docs/design/domain/agent.md`,
-//! section 6) and operator tails as data.
+//! terminal, push receipts in words (`temper/docs/design/domain/agent/README.md`,
+//! section 5) and operator tails as data.
 
 use alloc::boxed::Box;
 use jig_domain_host as host;

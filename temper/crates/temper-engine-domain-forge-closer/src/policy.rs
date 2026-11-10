@@ -1,4 +1,4 @@
-//! A goal's ordered, repeatable closing steps (temper/docs/design/domain/forge.md, 11.2).
+//! A goal's ordered, repeatable closing steps (temper/docs/design/domain/forge/branches.md, 2).
 use alloc::boxed::Box;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

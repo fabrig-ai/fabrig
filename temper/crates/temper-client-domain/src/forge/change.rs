@@ -1,4 +1,4 @@
-//! A change panel's drawing facts (client/README.md, 5.10).
+//! A change panel's drawing facts (client/pages/task.md, 3).
 use super::{
     panel,
     words::{self, ChangeWord as W},
@@ -331,7 +331,7 @@ impl<'a> Change<'a> {
         if address.is_empty() { None } else { Some(address) }
     }
     /// Distinguish CI the rules do not ask for from its observed verdict
-    /// and from terminal evidence absent after restart (domain/forge.md, 8.8).
+    /// and from terminal evidence absent after restart (domain/forge/change/README.md, 5).
     #[must_use]
     pub fn ci(self) -> W {
         if !self.panel.ci_required() {

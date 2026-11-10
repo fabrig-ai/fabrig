@@ -1,4 +1,4 @@
-//! Refused-start stderr, including writes named before store decoding (protocol/README.md, 4).
+//! Refused-start stderr, including writes named before store decoding (protocol/binaries.md).
 use alloc::boxed::Box;
 use jig_protocol_store::OpenRefusal;
 use skein_lib::{Decimal, Writer};

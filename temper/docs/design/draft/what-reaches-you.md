@@ -3,21 +3,21 @@
 Draft, 2026-11-08, from a session with the user that day. What reaches a
 person, and what agents decide in their place and tell them afterwards, as
 one setting of a project's, of which Away becomes a modifier. It is
-`whole-story.md`'s Decide (its section 2). It revises `../domain/forge.md`,
-5.8 and 5.9, where Away's kinds are four bits of the person's own, only
-goals decide and a project keeps 64 decided rows; `../domain/forge.md`, 8.12
-and section 9, where a change waiting on a person's approval holds its
-branch's queue; `../domain/agent.md`, 4.3's `decided`; `stock-ways.md`,
+`whole-story.md`'s Decide (its section 2). It revises `../domain/forge/attention.md`,
+4 and 5, where Away's kinds are four bits of the person's own, only
+goals decide and a project keeps 64 decided rows; `../domain/forge/change/questions.md`, 2 and `../domain/forge/queues.md`
+, where a change waiting on a person's approval holds its
+branch's queue; `../domain/agent/tools.md`'s `decided`; `stock-ways.md`,
 section 2, where a way sets how work starts and lands and nothing else, as a
-way now also sets the classes' defaults (section 2); what kind 6, a project's
-question route (`../protocol/configuration.md`, 13.2), and Start goal's
-"Always ask" (`Asks: always`, `../domain/forge.md`, 5.9;
-`../client/README.md`, 5.14) mean beside the classes (section 2); and
-`../client/README.md`, 3.5's Away and Needs you, and it gives 5.13's
+way now also sets the classes' defaults (`what-reaches-you.md`, section 2); what kind 6, a project's
+question route (`../protocol/configuration/settings.md`, 2), and Start goal's
+"Always ask" (`Asks: always`, `../domain/forge/attention.md`, 5;
+`../client/pages/goal.md`, 3) mean beside the classes (`what-reaches-you.md`, section 2); and
+`../client/pages/README.md`'s Away and Needs you, and it gives 5.13's
 disabled *Telling you* its mechanism. It wins where they differ until its
 plans fold it in. temper/ui carries it out: the classes, Away, Needs you,
 Decided for you and being told; temper/migration carries rules by path into
-the landing (section 7).
+the landing (`what-reaches-you.md`, section 7).
 
 How we run our own development today is the model: whoever meets a decision
 picks, acts and lists it for the person to review, and it can be undone;
@@ -57,8 +57,8 @@ passes them by.
 ## 2. Three classes
 
 A project's setting, decided by its owners and proposed by Ask temper like
-any other (`../protocol/configuration.md`, 13.2; `../domain/agent.md`,
-8.4.2): a table of kinds, each in one class.
+any other (`../protocol/configuration/settings.md`, 2; `../domain/agent/ask-temper.md`,
+2): a table of kinds, each in one class.
 
 - **Agents decide, then tell you:** the asker decides, and the decision is
   listed under Decided for you (section 6). Nothing waits.
@@ -93,17 +93,17 @@ The kinds, each named in the asker's call (section 4):
   for agents to follow, not for code to check (`configuring.md`, section 2),
   so a decision taken under such words is always listed.
 - **`money`, `irreversible` and `rules` cover** what `other` covers today by
-  the charters' words (`../domain/agent.md`, 4.3): funds, sign-ins,
+  the charters' words (`../domain/agent/tools.md`): funds, sign-ins,
   machines, a plan's go-ahead and anything hard to reverse. A proposal of
   settings and an escalation still wait for their decider, whatever the
   table says (jig's `domain/tasks/proposals.md`).
 - **Kind 6 stays the route,** the classes the gate: a project's question
-  route (`../protocol/configuration.md`, 13.2) still says which way a
+  route (`../protocol/configuration/settings.md`, 2) still says which way a
   change's question goes up the tree, through a foreman or to its maker
-  (`../domain/forge.md`, 8.11). The classes judge only where a question
+  (`../domain/forge/change/questions.md`, 1). The classes judge only where a question
   would reach a person.
 - **"Always ask" stays a goal's own,** chosen when it starts
-  (`../client/README.md`, 5.14): a goal whose words hold `Asks: always` is
+  (`../client/pages/goal.md`, 3): a goal whose words hold `Asks: always` is
   judged as if every item of the table asked, Away included, as 5.9 answers
   such a goal today.
 
@@ -128,7 +128,7 @@ changed afterwards as any setting is:
 ## 3. Away, a modifier
 
 Away stays a person's switch on a project, with its spell and its end
-(`../domain/forge.md`, 5.8). Its four bits of kinds go: what it lets
+(`../domain/forge/attention.md`, 4). Its four bits of kinds go: what it lets
 agents decide is the project's table.
 
 - **While it is on,** an "asks you" item Away may decide is decided with
@@ -136,12 +136,12 @@ agents decide is the project's table.
   ask as ever, and "always waits" kinds are never decided.
 - **It shows** once the project's table holds an "asks you" item Away may
   decide: in the rail's foot and on a phone's top bar, as
-  `../client/README.md`, 3.5 draws it. With none, as on You approve, there
+  `../client/pages/README.md` draws it. With none, as on You approve, there
   is nothing for it to do, and it isn't drawn.
 - **Until a time:** `until` stays as 5.8 has it, the next 08:00 by default
   or "I turn it off". Past it, everything asks again.
 - **Settings' section** *While you're away, agents may decide*
-  (`../client/README.md`, 5.13) becomes a view of the table: each "asks
+  (`../client/pages/settings.md`, 2) becomes a view of the table: each "asks
   you" item with its "even when away" mark, and the "always waits" kinds
   locked, as its last line is today.
 - **Several people:** the table is the project's, Away is each person's. A
@@ -151,12 +151,12 @@ agents decide is the project's table.
 ## 4. Who decides in your place
 
 - **Whoever would have asked:** the asker's coordinator, for a change's
-  question routed up (`../domain/forge.md`, 8.11); the area's owner where a
+  question routed up (`../domain/forge/change/questions.md`, 1); the area's owner where a
   standing role owns it (`standing-roles.md`, sections 4 and 5); a goal; a
   chat delegating work. Any task whose question would reach a person may
-  call `decided`, which `../domain/forge.md`, 5.9 limits to goals today.
+  call `decided`, which `../domain/forge/attention.md`, 5 limits to goals today.
 - **`decided` takes a kind and, for a choice that changes files, the paths
-  it would touch** (`../domain/agent.md`, 4.3). The judgement is code's, in
+  it would touch** (`../domain/agent/tools.md`). The judgement is code's, in
   the call's decision: the kind's class, the person's Away, and every path
   set the paths, or the asker's change at its head, touch. The strictest
   class wins: a wording choice inside the protocol core asks its owner.
@@ -170,7 +170,7 @@ agents decide is the project's table.
   task fills 5.9's 64 rows a project in a busy night, and rows still inside
   their day would be erased unseen. A row is kept 7 days, and a project
   holds at most `decided_per_project` of them, a limit setting
-  (`../protocol/configuration.md`, section 7), 1,024 by default; past it,
+  (`../protocol/configuration/limits.md`), 1,024 by default; past it,
   the oldest row already past its day goes first, and a row still inside
   its day is never erased for room: a call that would need it is answered
   ask. The row's document stays 5.9's.
@@ -183,7 +183,7 @@ agents decide is the project's table.
   sent it and its class, from the decision that said ask: "Reached you
   because it changes vsr's protocol core, which asks you, even when away."
   A need with no item, a question routed to its person by kind 6
-  (`../protocol/configuration.md`, 13.2), says so.
+  (`../protocol/configuration/settings.md`, 2), says so.
 - **Stop asking** is one link on the line. It opens, in place, the
   narrowest change that would have decided this need: the item moved to
   "agents decide, then tell you"; or, for a path set, the item with words
@@ -192,7 +192,7 @@ agents decide is the project's table.
   the person proposes it as their own; an owner may apply it directly
   instead. It is never a procedure's proposal, which jig's
   `domain/engine/settings.md`, 6 rules out. Ask temper writes one in words when
-  the person asks for something else (`../domain/agent.md`, 8.4.2).
+  the person asks for something else (`../domain/agent/ask-temper.md`, 2).
 - **An owner accepts it in place,** one press, and new questions follow it.
   The need in hand still waits for its answer: the rule changes what comes
   next, never what was asked.
@@ -204,20 +204,20 @@ agents decide is the project's table.
 
 - **Shown for 24 hours** on Needs you and on Home, newest last, each with
   its question, what was taken, why, and Overturn; then only in the task's
-  history, where its call keeps its answer (`../domain/forge.md`, 5.9).
+  history, where its call keeps its answer (`../domain/forge/attention.md`, 5).
 - **Its why** says what allowed it: "Allowed: test-only changes are decided
   and listed."
 - **Overturn** stays 5.9's: the row marked, and the client sends the task
   its message, which a standing role, like a goal, is woken by.
 - **Ended work:** a row whose task has ended says when, and that a new goal
-  can undo it, as `../client/README.md`, 3.5 has it.
+  can undo it, as `../client/pages/README.md` has it.
 - **Across projects:** Needs you's unfiltered page lists every project's
   rows (`surfaces.md`, section 4).
 
 ## 7. Rules by path
 
 Landing rules cover branches: a rule's pattern ends at a branch
-(`../protocol/configuration.md`, section 3), so a project can't say "a
+(`../protocol/configuration/engine.md`), so a project can't say "a
 change touching the protocol core needs my sign-off, the rest lands on its
 own" (the Team example on fabrig.ai's home page says so).
 
@@ -229,19 +229,19 @@ own" (the Team example on fabrig.ai's home page says so).
   landing branch's own edits to a path set makes no change touch it. A
   change whose files the forge can't give whole, too many to list or a read
   that failed, counts as touching every path set, as an unknown overlap
-  wakes in `../domain/forge.md`, 7.3.
+  wakes in `../domain/forge/README.md`, 5.3.
 - **Enforced by temper's landing:** the forge judges requirement 5, *the
-  landing rules* (`../protocol/configuration.md`, 13.3), over the rules
+  landing rules* (`../protocol/configuration/settings.md`, 3), over the rules
   covering the branch and, for a rule with path sets, the paths the change
   touches at that exact head, a fact the forge reads with the change's
-  review facts (`../domain/forge.md`, 8.7). A merge lands only what was
+  review facts (`../domain/forge/change/gates.md`, 2). A merge lands only what was
   checked, so a head that newly touches a path set waits again.
 - **Out of the queue while it waits:** a change whose merge waits on a
   person's approval leaves its branch's queue until the approval counts at
   its head, then takes its place again after the change then first. The
   rest of the branch lands meanwhile. This revises
-  `../domain/forge.md`, 8.12, where the read leaves the branch held by the
-  change first in line, and `../domain/forge.md`, section 9's queue: a sign-off can wait a
+  `../domain/forge/change/questions.md`, 2, where the read leaves the branch held by the
+  change first in line, and `../domain/forge/queues.md`'s queue: a sign-off can wait a
   night, and vsr's other changes shouldn't.
 - **Its approval** is a rule's `approvals`, as today: a person's review on
   the forge. Needs you's card leads with "Review on GitHub ↗" or "Sign off
@@ -273,9 +273,9 @@ addressed to them that asks for an act rather than a choice (jig's
 
 - **Listed apart,** under its own head on Needs you, "Only you", after the
   needs and before Decided for you.
-- **Read, not stored:** the accounts' states (`../client/README.md`, 5.5)
+- **Read, not stored:** the accounts' states (`../client/pages/accounts.md`, 2)
   and the person's tasks of that kind, as the approvals' wait is a read
-  (`../domain/forge.md`, 8.12).
+  (`../domain/forge/change/questions.md`, 2).
 - **Work goes around them:** runs that need the account wait for it, as
   today, and nothing else does. The line says what waits: "Two agents on
   vsr wait for this login."
@@ -284,7 +284,7 @@ addressed to them that asks for an act rather than a choice (jig's
 
 ## 9. Being told
 
-Settings' *Telling you* row is disabled today (`../client/README.md`, 5.13).
+Settings' *Telling you* row is disabled today (`../client/pages/settings.md`, 2).
 It becomes:
 
 - **Pushed at once:** a need that holds work, "asks you" or "always

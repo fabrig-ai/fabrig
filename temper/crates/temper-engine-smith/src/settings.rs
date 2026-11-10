@@ -1,4 +1,4 @@
-//! Shared ctl settings input and text, bounded for host tools (domain/agent.md, 4.3).
+//! Shared ctl settings input and text, bounded for host tools (domain/agent/tools.md).
 use crate::{Decoded, Problem, json::Value};
 use alloc::boxed::Box;
 use jig_domain_core::{SettingsAnswer, SettingsRead, settings as s};
@@ -166,7 +166,7 @@ pub(crate) fn proposal(
 }
 
 /// Decode an authorized, revision-checked note's whole settings file through
-/// the same parser and validation as inline proposals (domain/agent.md, 8.1).
+/// the same parser and validation as inline proposals (domain/agent/agents.md, 1).
 pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[s::CatalogueModel]) -> Result<Decoded, Problem> {
     let engine::Tool::ProposeSettingsNote { against, reason, .. } = call.tool else {
         return Err(Problem::Range(b"note"));
@@ -212,7 +212,7 @@ fn proposal_items(
 }
 
 /// Type application values at the schema ceilings; the forge judges deployment bounds
-/// (temper/docs/design/domain/root.md, 5.6).
+/// (temper/docs/design/domain/routing.md, 6).
 pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>, Problem> {
     let ceilings = temper_client_protocol_wire::v1::CEILINGS;
     let bounds = crate::kinds::Bounds {
@@ -652,7 +652,7 @@ fn malformed_setting(
     }
 }
 
-/// Render unrecorded parts in the contract's words (domain/agent.md, 8.4.2).
+/// Render unrecorded parts in the contract's words (domain/agent/ask-temper.md, 2).
 pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer) -> Result<bool, Problem> {
     use engine::PartsAnswer as P;
     text.add(b"propose_settings: ")?;

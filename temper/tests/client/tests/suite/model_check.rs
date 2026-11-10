@@ -1,5 +1,5 @@
 //! A usable account's trial through the joined client and engine
-//! (temper/docs/design/domain/trial.md, 6; temper/docs/design/domain/testing.md, 6.3).
+//! (temper/docs/design/domain/trial.md, 6; temper/docs/design/testing/checks.md, 3).
 use jig_client_kit::harness::{App, Front, FrontFault};
 use jig_domain_host::{AgentActivity, LinkUp};
 use jig_domain_link::Phase;

@@ -1,4 +1,4 @@
-//! The process-tier GitHub document (domain/testing.md, 4.2).
+//! The process-tier GitHub document (testing/fakes.md, 2).
 use super::{Document, Repository};
 use crate::{Refusal, read};
 use alloc::boxed::Box;

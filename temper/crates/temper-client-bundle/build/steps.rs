@@ -1,5 +1,5 @@
 //! The build script's logic, plain functions over their inputs, tested on samples by `tests/steps.rs`
-//! (client/browser.md, 2.6).
+//! (client/web/README.md, 2.6).
 use std::ffi::OsStr;
 
 /// What `TEMPER_BUNDLE` asks for.
@@ -67,7 +67,7 @@ pub struct Command {
     pub directory: PathBuf,
 }
 
-/// The nested cargo builds and bundler, in execution order (client/browser.md, 2.6).
+/// The nested cargo builds and bundler, in execution order (client/web/README.md, 2.6).
 pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: (&str, &str)) -> [Command; 3] {
     let nested = target.join("bundle");
     let build = |args: &[&str]| Command {

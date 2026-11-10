@@ -1,4 +1,4 @@
-//! Application secrets and forge connections after the durable start mark (domain/root.md, 9.1).
+//! Application secrets and forge connections after the durable start mark (domain/root.md, 8.1).
 use alloc::boxed::Box;
 use jig_protocol_store::{Event, SecretOwner, Secrets};
 #[cfg(test)]
@@ -6,7 +6,7 @@ use skein_lib::List;
 use skein_lib::{Queue, Secret, Token};
 use temper_protocol_records as records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
-/// Every forge-family row survives until its record chooses the runtime (temper/docs/design/protocol/forge.md, 2.1).
+/// Every forge-family row survives until its record chooses the runtime (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Debug)]
 pub(crate) struct Rows {
     values: records::Rows,

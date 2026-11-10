@@ -1,4 +1,4 @@
-//! How work runs, role and rule pages read the forge's view (temper/docs/design/client/README.md, 3.5 and 5.16).
+//! How work runs, role and rule pages read the forge's view (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/chat/conversation.md, 3).
 use super::Request;
 use crate::{Address, forge, owner::Owner};
 use alloc::boxed::Box;

@@ -514,7 +514,7 @@ fn reasoning_allowance(directory: &Path) -> u64 {
 
 fn answer_peer(allowance: u64, exceeded: bool) -> super::llm::Listening {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
-    // The chat is ended by its requester (domain/agent.md, 4.6): its answer is the
+    // The chat is ended by its requester (domain/agent/charter.md, 5): its answer is the
     // turn's text, and the finish only ends the turn.
     let item = usize::try_from(allowance)
         .expect("item length")

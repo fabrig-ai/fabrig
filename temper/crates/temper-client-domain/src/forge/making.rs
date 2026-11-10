@@ -1,4 +1,4 @@
-//! Repository making facts and the client's checks (temper/docs/design/client/README.md, 3.5 and 4.6;
+//! Repository making facts and the client's checks (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md;
 //! temper/docs/design/draft/repository-copies.md, 5.2 to 5.4).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -56,7 +56,7 @@ pub fn parse_copies(text: &[u8]) -> Result<List<Box<[u8]>>, CopiesRefused> {
     Ok(addresses)
 }
 
-/// Each address keeps its own repair (temper/docs/design/client/README.md, 4.4).
+/// Each address keeps its own repair (temper/docs/design/client/forge/family.md, 4).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Line {
     To { address: Box<[u8]>, org: Box<[u8]>, name: Box<[u8]> },
@@ -122,7 +122,7 @@ fn line(raw: &str, has: &dyn Fn(&[u8], &[u8]) -> bool) -> Line {
     if has(&org, &name) { Line::Taken { raw: bytes::copy_of(raw), org, name } } else { Line::To { address, org, name } }
 }
 
-/// The copies of the real forge numbered lowest whose intent names them (client/README.md, 3.5).
+/// The copies of the real forge numbered lowest whose intent names them (client/pages/README.md).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Copies {
     pub forge: u16,
@@ -180,7 +180,7 @@ pub fn is_target(making: &Making, address: &[u8]) -> bool {
         w::MakeFrom::Empty => false,
     }
 }
-/// A copy already asked or held anywhere on this forge (client/README.md, 3.5, Home).
+/// A copy already asked or held anywhere on this forge (client/pages/README.md, Home).
 #[must_use]
 pub fn asked(row: &super::forges::Row, address: &[u8]) -> bool {
     for making in &row.makings {

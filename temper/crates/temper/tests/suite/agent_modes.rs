@@ -1,4 +1,4 @@
-//! temper/docs/design/protocol/README.md, 4: smith's agent modes precede command parsing.
+//! temper/docs/design/protocol/binaries.md: smith's agent modes precede command parsing.
 
 use crate::support;
 use smith_protocol_program::{Status, status};

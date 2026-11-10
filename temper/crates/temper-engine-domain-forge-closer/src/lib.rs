@@ -1,4 +1,4 @@
-//! Pure goal closer reports (temper/docs/design/domain/forge.md, 11.2).
+//! Pure goal closer reports (temper/docs/design/domain/forge/branches.md, 2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

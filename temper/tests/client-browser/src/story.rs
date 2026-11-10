@@ -1,4 +1,4 @@
-//! Naming the stories a failed step stands in (temper/docs/design/client/browser.md, 4.3).
+//! Naming the stories a failed step stands in (temper/docs/design/client/web/testing.md, 3).
 use skein_fake_person_browser::{Step, harness::Outcome};
 
 /// The stories begun in one person's script.

@@ -62,7 +62,7 @@ pub(crate) struct Process {
 }
 
 /// The process service's live producer, played here because smith's domain
-/// world emits only whole turns (domain/testing.md, 2.1).
+/// world emits only whole turns (testing/README.md, 2.1).
 struct Producer {
     count: usize,
     pieces: VecDeque<host::Piece>,

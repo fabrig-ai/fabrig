@@ -1,4 +1,4 @@
-//! The box's deployment reader and printed program-login command (protocol/README.md, 4.5).
+//! The box's deployment reader and printed program-login command (protocol/binaries.md, 5).
 pub(crate) fn deployment(
     bytes: &[u8],
     directories: &jig_protocol_config::Directories,
@@ -7,7 +7,7 @@ pub(crate) fn deployment(
     named.worker.ok_or_else(|| "workers: standalone takes one worker".into())
 }
 
-/// The box's POSIX command, without NAME (client/README.md, 4.6, *The printed command*).
+/// The box's POSIX command, without NAME (client/forge/records.md, *The printed command*).
 pub(crate) fn line(directories: &super::Directories, binary: &[u8], home: Option<&[u8]>) -> Option<String> {
     use std::fmt::Write;
     let mut command = format!("{} program-login", std::str::from_utf8(binary).ok()?);

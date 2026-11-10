@@ -554,8 +554,8 @@ deadline, circles, a procedure's need) keep their rules.
 A closer ends a task when nothing is left for its agent to judge: jig
 decides when, by 2's rule, and the application's procedure decides
 what, so that a model wakes for judgement alone and code does what is
-mechanical once the task's work is done (temper's `domain/forge.md`,
-11.2, a goal's landing).
+mechanical once the task's work is done (temper's `domain/forge/branches.md`,
+2, a goal's landing).
 
 - **Named at its making:** `ended_by` `Closer { connector, code }`, a
   procedure executor (3), given by its batch entry or its template

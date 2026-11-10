@@ -1,4 +1,4 @@
-//! Forge sign-in and its page follow kept records (temper/docs/design/protocol/sign-in.md, 9.7, 9.8 and 9.9).
+//! Forge sign-in and its page follow kept records (temper/docs/design/protocol/openid-provider.md, 7, 8 and 9).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

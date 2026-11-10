@@ -100,7 +100,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     let owned: serde_json::Value = serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
     let mut source: serde_json::Value =
         serde_json::from_slice(&channel::engine_document()).expect("channel engine JSON");
-    // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration.md, 7).
+    // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration/limits.md).
     for name in ["views.watchers", "views.watchers_per_party"] {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }

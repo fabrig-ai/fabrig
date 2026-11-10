@@ -1,4 +1,4 @@
-//! Reads added for the connector (protocol/forge.md, section 3.2).
+//! Reads added for the connector (temper/docs/design/protocol/forge/README.md, section 2.2).
 //! Comparisons deliberately do not page; excessive data is an explicit
 //! refusal, never a short answer claiming to be complete.
 

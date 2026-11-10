@@ -155,7 +155,7 @@ impl Ending {
 }
 
 /// A held record lent to a story's store, from before its import to the test's end
-/// (temper/docs/design/domain/testing.md, 2.7). A record at its path owes nothing, so the
+/// (temper/docs/design/testing/live-tier.md). A record at its path owes nothing, so the
 /// story's own return disarms this, and an import that never ran leaves it nothing to do.
 pub struct Lent {
     binary: PathBuf,

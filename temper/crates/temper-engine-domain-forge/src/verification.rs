@@ -8,7 +8,7 @@ use skein_lib::{List, Queue};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_tiers::{self as policy, Blame};
 
-/// What the forge knows of a landing a change names as the red it repairs (temper/docs/design/domain/agent.md, 4.3.1).
+/// What the forge knows of a landing a change names as the red it repairs (temper/docs/design/domain/agent/tools.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum LandingRed {
     /// No live `Verification` row of temper's has this commit in the repository.

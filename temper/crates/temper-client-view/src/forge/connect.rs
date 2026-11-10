@@ -1,5 +1,5 @@
-//! Forge choices and unfinished setup (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
-//! `ConnectForge` and the welcome's shared forge body (client/forge.md, 5.4).
+//! Forge choices and unfinished setup (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
+//! `ConnectForge` and the welcome's shared forge body (client/forge/deployment.md).
 use super::bindings::{Bindings as ForgeBindings, Meaning};
 use crate::{
     flow::{self, Control, Mark},
@@ -425,7 +425,7 @@ fn connect_choices(
     }
 }
 /// The welcome's Forge step: Forgejo's card, the default, whose button opens
-/// its sheet, then GitHub's (`temper/docs/design/client/forge.md`, 5.4).
+/// its sheet, then GitHub's (`temper/docs/design/client/forge/deployment.md`).
 fn welcome_choices(
     b: &mut Builder,
     root: &Domain,
@@ -472,7 +472,7 @@ fn welcome_choices(
 }
 /// The welcome's sheet over the Forge step: what Forgejo on this machine
 /// starts with, the chosen one's own fields under it, then Cancel and Run.
-/// Run sends its choice; copies wait for Ready (`temper/docs/design/client/README.md`, 3.5).
+/// Run sends its choice; copies wait for Ready (`temper/docs/design/client/pages/README.md`).
 fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     let draft = root.forge().setup_form();
     b.open(Role::Dialog);
@@ -803,7 +803,7 @@ pub(crate) fn app_control(
     back: Option<Address>,
 ) {
     // The first installation is primary on Forges too; another account is maintenance.
-    // On the welcome, GitHub's card stands beside Forgejo's, the default (client/forge.md, 5.4).
+    // On the welcome, GitHub's card stands beside Forgejo's, the default (client/forge/deployment.md).
     let primary = if word == Word::ForgeConnectGitHub && back == Some(Place::Connect.address(None)) {
         connect::default_choice(connect::records(root.forges()), connect::playground(root.forge()), owned(root))
             == Some(connect::Choice::GitHub)
@@ -1291,14 +1291,14 @@ pub(crate) fn status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
 pub(crate) fn status_words(root: &Domain, w: &Words, row: &Row) -> Box<[u8]> {
     w.say(Word::ForgeStatus, &[Hole::Name(name(w, row, root)), Hole::Name(forge::words::forge_connection(row))])
 }
-/// First repository facts, with the pending setup as fallback (client/README.md, 3.5).
+/// First repository facts, with the pending setup as fallback (client/pages/README.md).
 pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a [u8], &'a [u8])> {
     if let Some(first) = &row.first {
         return Some((&first.org, &first.repository));
     }
     setup_target(root, row)
 }
-/// The Forge step's line in the column (client/README.md, 3.5, The Forge step with a forge).
+/// The Forge step's line in the column (client/pages/README.md, The Forge step with a forge).
 fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row, sign_in: &crate::forge_sign_in::Forges) {
     let done = !connect::underway(row);
     let forge = name(w, row, root);
@@ -1382,7 +1382,7 @@ fn forge_done(w: &Words, row: &Row) -> Box<[u8]> {
     }
     login
 }
-/// The welcome's Model step says what Forge did (client/README.md, 3.5).
+/// The welcome's Model step says what Forge did (client/pages/README.md).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let forge = name(w, row, root);
     let connection = forge::words::forge_connection(row);
@@ -1433,7 +1433,7 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
 fn busy(row: &Row) -> bool {
     connect::underway(row) && row.kind != Kind::GitHub
 }
-/// The forge's line (client/README.md, 3.5): one paragraph named by its words. The browser
+/// The forge's line (client/pages/README.md): one paragraph named by its words. The browser
 /// stacks its name and details by style; the terminal has neither, so says them on a line.
 pub(crate) fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], mark: Mark) {
     b.open(Role::Paragraph);
@@ -1784,7 +1784,7 @@ fn admin_stop(b: &mut Builder, w: &Words, row: &Row) {
     }
     text(b, w, Role::Paragraph, Word::AdminKept);
 }
-/// The address field supplies the managed connection's public endpoint (temper/docs/design/client/forge.md, 5.4).
+/// The address field supplies the managed connection's public endpoint (temper/docs/design/client/forge/deployment.md).
 fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Managed> {
     use forge::admin::PlaceField;
     let address = draft.fields.get(PlaceField::Host.index())?.as_ref();

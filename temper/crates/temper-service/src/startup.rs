@@ -1,4 +1,4 @@
-//! The document's shape and its checked startup (protocol/configuration.md, 2).
+//! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub(crate) mod application;
 pub mod members;
 mod reference;
@@ -26,14 +26,14 @@ pub(crate) use problems::admission_words;
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
 
-/// The services selected by the document's members (protocol/README.md, 15.1).
+/// The services selected by the document's members (protocol/cluster.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Shape {
     Standalone,
     EngineAlone,
     WorkerAlone,
 }
-/// Refuse a shape this build does not serve (protocol/README.md, 4.1 and 15.1).
+/// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
 #[must_use]
 pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
     if worker {
@@ -57,7 +57,7 @@ fn nearest_document(document: &skein_json::Document) -> Shape {
     let Some(first) = listeners.get(0) else { return Shape::Standalone };
     if member(document, *first, b"socket").is_some() { Shape::EngineAlone } else { Shape::Standalone }
 }
-/// The document's nearest shape (protocol/README.md, 15.1), read from its
+/// The document's nearest shape (protocol/cluster.md, 1), read from its
 /// members alone; `None` when the bytes are no JSON document whose root is an object.
 #[must_use]
 pub fn nearest(input: &[u8]) -> Option<Shape> {
@@ -144,7 +144,7 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
-    /// The agent's program, `workers[0].agent.program`, which Claude Code's `claude` link names (protocol/setup.md, 6.6).
+    /// The agent's program, `workers[0].agent.program`, which Claude Code's `claude` link names (protocol/setup/owned.md, 6).
     pub program: Box<[u8]>,
 }
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
@@ -275,7 +275,7 @@ impl Parsed {
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
 }
-/// Raw membership preserves an explicit profile-default override (protocol/configuration.md, 7).
+/// Raw membership preserves an explicit profile-default override (protocol/configuration/limits.md).
 #[derive(Clone, Copy, Debug)]
 enum CallAnswer {
     Profile,
@@ -316,7 +316,7 @@ fn indexed(index: usize) -> Path {
     Path::root().member(b"workers").child(Segment::Index(u32::try_from(index).expect("bounded workers")))
 }
 /// Parse jig's engine member and pass the supplied defaults, refusing document
-/// settings members (protocol/configuration.md, 13.5 and 13.6).
+/// settings members (protocol/configuration/settings.md, 4 and 5).
 /// # Errors
 /// The document's problems at its paths under `engine`.
 pub fn engine_with(

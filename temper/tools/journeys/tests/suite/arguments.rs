@@ -1,4 +1,4 @@
-//! Argument refusals never start a browser or a box (client/journeys.md, 6).
+//! Argument refusals never start a browser or a box (client/web/journeys.md, 6).
 use skein_lib::{Time, Wall};
 use skein_scratch::{Scratch, paths};
 use skein_ui_web::mapping::Primary;
@@ -74,7 +74,7 @@ fn a_stale_recording_prints_no_line_of_its_own() {
     }
     assert!(output.stdout.is_empty());
     let expected = format!(
-        "temper-client-journeys: {name} is stale at turn 1, line {exchange_line}: recorded exchange, asked exchange; record it again (client/journeys.md, 8); nothing was written\n"
+        "temper-client-journeys: {name} is stale at turn 1, line {exchange_line}: recorded exchange, asked exchange; record it again (client/web/journeys.md, 8); nothing was written\n"
     );
     assert!(output.stderr == expected.as_bytes(), "the stale refusal names the turn, line and record kinds alone");
     assert!(!directory.exists(), "a refused add creates no journey");

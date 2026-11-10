@@ -18,7 +18,7 @@ The independent fake forge receives translated native API operations. Its
 observations retain actual pre-write state, actor ownership, server replies and
 native changes. Released writes require durable outbox entries and attempts.
 The root contributes no effect verdicts. Recovery declarations follow the
-native client's classes and `docs/design/domain/forge.md`, section 6.
+native client's classes and `docs/design/domain/forge/README.md`, section 4.
 
 | Shared scenario | temper's binding |
 |---|---|

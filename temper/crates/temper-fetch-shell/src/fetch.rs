@@ -92,7 +92,7 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
         .and_then(|dir| dir.sync_all())
         .map_err(|why| file_error(file, &why))
 }
-/// Finds Claude Code by size, serializing a missing build's fetch (protocol/setup.md, 6.6).
+/// Finds Claude Code by size, serializing a missing build's fetch (protocol/setup/owned.md, 6).
 pub fn claude_code(
     limits: &skein_io::Limits,
     trust: &Trust,
@@ -136,7 +136,7 @@ fn claude_present(file: &std::path::Path, bytes: u64) -> Result<bool, Failed> {
         Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
     }
 }
-/// The caller's bounded archive extraction (protocol/setup.md, 6.6).
+/// The caller's bounded archive extraction (protocol/setup/owned.md, 6).
 pub type Extract = fn(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> fetch::Extraction;
 
 fn no_extraction(_: &[u8], _: &[u8], _: &mut fs::File, _: u64) -> fetch::Extraction {

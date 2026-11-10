@@ -1,4 +1,4 @@
-//! Locate bounds and its nonzero answer (protocol/forge.md, 12).
+//! Locate bounds and its nonzero answer (temper/docs/design/protocol/forge/README.md, 10).
 use super::*;
 
 #[test]

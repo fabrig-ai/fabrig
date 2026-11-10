@@ -1,4 +1,4 @@
-//! The deployment's hosts as Settings' Builders tab reads them (client/README.md, 3.5, Settings).
+//! The deployment's hosts as Settings' Builders tab reads them (client/pages/README.md, Settings).
 use super::{Request, accounts};
 use crate::owner::Owner;
 use jig_client::{Client, Handle, Latest, State, contract as c};

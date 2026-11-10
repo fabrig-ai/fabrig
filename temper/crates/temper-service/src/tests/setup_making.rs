@@ -1,4 +1,4 @@
-//! Kept repository rows meet the setup host (temper/docs/design/protocol/setup.md, 6.9).
+//! Kept repository rows meet the setup host (temper/docs/design/protocol/setup/owned.md, 9).
 use super::*;
 use crate::setup::making;
 use git::api::Fill;
@@ -17,7 +17,7 @@ const TURNS: u32 = 20_000;
 // The shared host advances four root turns per IO turn and bounds journal settlement at 256 passes.
 const ROOT_TURNS: u32 = 4;
 const ROOT_PASSES: u32 = 256;
-// protocol/setup.md, 6.9: one writing run per forge.
+// protocol/setup/owned.md, 9: one writing run per forge.
 const WRITERS: u32 = 1;
 
 fn host() -> (Forge, crate::Service) {

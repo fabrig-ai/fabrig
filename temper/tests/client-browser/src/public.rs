@@ -1,9 +1,9 @@
-//! Public reading on the box's demo (temper/docs/design/client/browser.md, 8.4).
+//! Public reading on the box's demo (temper/docs/design/client/web/public.md, 4).
 use crate::{Tier, bundle, configuration, forgery, temper};
 
 impl Tier {
     /// Whether a public landings page's text, run together, is a form the demo's page takes
-    /// (temper/docs/design/client/browser.md, 8.4): the queue's one member while the change
+    /// (temper/docs/design/client/web/public.md, 4): the queue's one member while the change
     /// waits, then no landing or the stock queue's merge, with the public sign-in top bar.
     #[must_use]
     pub fn public_landings_reads(shown: &str) -> bool {

@@ -1,6 +1,6 @@
 //! Values of temper's kinds, typed at the entrance
-//! (temper/docs/design/domain/root.md, 5.6;
-//! temper/docs/design/protocol/configuration.md, 13.2).
+//! (temper/docs/design/domain/routing.md, 6;
+//! temper/docs/design/protocol/configuration/settings.md, 2).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
@@ -292,7 +292,7 @@ fn wire_project_words(words: &settings::ProjectWords) -> v1::ProjectWords {
     .expect("words within schema ceilings")
 }
 
-// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
 fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
     v1::TemplateGoal::new(&v1::CEILINGS, v1::TemplateGoalParts { design: goal.design, close_out: goal.close_out })
         .expect("fixed goal fields")

@@ -1,4 +1,4 @@
-//! The asking family's memory call (temper/docs/design/domain/agent.md, 8.4.4).
+//! The asking family's memory call (temper/docs/design/domain/agent/ask-temper.md, 4).
 mod flight;
 pub(crate) use flight::RememberFlight;
 

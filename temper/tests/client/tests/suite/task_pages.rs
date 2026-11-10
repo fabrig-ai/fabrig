@@ -45,7 +45,7 @@ fn dependency(task: u64, find: Find) -> Find {
     }]))
 }
 
-// client/README.md 6.10: "a root started at a page's address ... asking its reads";
+// client/line.md 10: "a root started at a page's address ... asking its reads";
 // 5.9: the brief's dependency line and header state use the supplied facts;
 // a run's heading and result follow the current or last run.
 #[test]
@@ -89,7 +89,7 @@ fn fresh_waiting_delegate_tracks_dependency_completion_then_its_own_result() {
     );
 }
 
-// client/README.md 5.9: an ended task shows "Result" and its report's words;
+// client/pages/task.md 2: an ended task shows "Result" and its report's words;
 // 6.10: a fresh client at its address asks the reads (the ended subject has no live watch),
 // and a browser's reload is "a new client at that address". This world's `reload` is a
 // terminal restart, which keeps no address (tests/client/src/front.rs), so the reload is a
@@ -125,7 +125,7 @@ fn fresh_ended_advisor_keeps_its_brief_and_result_across_reload() {
     );
 }
 
-// client/README.md 5.8: an ended goal keeps its result and total counts.
+// client/pages/goal.md 2: an ended goal keeps its result and total counts.
 #[test]
 #[ignore = "backlog: a goal page that misses a burst of tree changes before its goal ends keeps a stale live row; B2's story, which reads between the reports, passes"]
 fn goal_finishes_with_its_result_and_counts() {
@@ -137,7 +137,7 @@ fn goal_finishes_with_its_result_and_counts() {
     follow(&mut world, client, ended_goal());
 }
 
-// client/README.md 5.8: the report, total counts and bounded done tasks survive reload.
+// client/pages/goal.md 2: the report, total counts and bounded done tasks survive reload.
 // B2's engine clamps the ended page to two rows; its third delegate is beyond the cut.
 // A second client at the address models the browser's reload (6.10).
 #[test]

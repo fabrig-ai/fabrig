@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): Stop holds B and its delegates; one release resumes their work.
+//! Retained first-edition story (testing/reference-case.md): Stop holds B and its delegates; one release resumes their work.
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -22,7 +22,7 @@ fn a_stopped_owner_holds_its_delegates_and_its_release_resumes_them_and_its_news
     // review stands for h1 in flight,
     // not already ready in kit's queue: this fixture's CI passes at once.
     // Nothing acts on the results until B's one release; the person's tour of
-    // every owner's work is left out (domain/testing.md, 5.3's 5.2 row).
+    // every owner's work is left out (testing/reference-case.md's 5.2 row).
     let ran = run_cluster_forge(
         case::PAUSE_WORKERS,
         &[],

@@ -1,4 +1,4 @@
-//! The engine's refusal text and consecutive note suppression (protocol/README.md, 15.3).
+//! The engine's refusal text and consecutive note suppression (protocol/cluster.md, 3).
 use super::fixtures;
 use jig_domain_fleet::{AgentShortfall as A, Figures, HelloRefusal as H, HelloRefused};
 use skein_lib::Token;

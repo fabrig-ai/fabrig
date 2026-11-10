@@ -1,4 +1,4 @@
-//! Changes follow their landing branch's rules (temper/docs/design/domain/forge.md, 8.2 and 8.7).
+//! Changes follow their landing branch's rules (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2).
 use super::*;
 use temper_engine_domain_forge_change as change_step;
 
@@ -166,7 +166,7 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a conflict under rules asking no update delegates resolution at the observed base.
+/// temper/docs/design/domain/forge/change/repairs.md: a conflict under rules asking no update delegates resolution at the observed base.
 #[test]
 fn a_conflict_under_rules_asking_neither_delegates_resolution() {
     let (mut world, task, head, base) = pushed_change(true);
@@ -196,7 +196,7 @@ fn a_conflict_under_rules_asking_neither_delegates_resolution() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a conflict past the resolution bound holds under every rule.
+/// temper/docs/design/domain/forge/change/repairs.md: a conflict past the resolution bound holds under every rule.
 #[test]
 fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
     let (mut world, task, head, base) = pushed_change_with_resolutions(true, Some(0));

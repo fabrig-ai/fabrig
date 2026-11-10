@@ -10,7 +10,7 @@ who make the code meet it. How the goal lands is `reference-landing.md`;
 `reference-case.md` walks both on one small goal; `notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
-Unqualified, `forge.md`, `landing.md`, `after-landing.md`, `agent.md`
+Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
 and `worker.md` are temper's `../domain/` documents; jig's and smith's
 are named as theirs.
 
@@ -111,8 +111,8 @@ P, a person
 - **G holds g** (N3). Under its hold, each writer in its subtree writes g
   one at a time (jig's `domain/tasks/holds.md`, 3): a merge into g, and, once
   L is made, L's update, repairs and resolution. G's own runs inspect
-  alone (`agent.md`, 4.3) and take no writer slot. g is a landing branch
-  with a queue, as any (`forge.md`, section 9), and the one that is held:
+  alone (`../domain/agent/tools.md`) and take no writer slot. g is a landing branch
+  with a queue, as any (`../domain/forge/queues.md`), and the one that is held:
   a change into it from outside G's subtree is refused at its batch,
   naming G. As G closes, its hold's release deletes g if a change landed
   it (its tip reachable from that change's landing branch), and
@@ -152,7 +152,7 @@ P, a person
   *its own goal branch*, a symbolic resource the forge offers on a
   tracked task only, resolved to `temper/<root>/g<root>` in the project's
   home repository once the goal has its number, as a task's run branch
-  is (`forge.md`, section 11). A small goal's template names
+  is (`../domain/forge/branches.md`). A small goal's template names
   none, and its changes land into main each. jig checks the batch as any
   (jig's `domain/tasks/README.md`, section 4). A goal made by hand may name it
   too, within its creator's authority. The choice is made with the goal,
@@ -163,10 +163,10 @@ P, a person
 
 ## 5. The cut
 
-G's runs read: a checkout of g, inspect only, no delivery (`agent.md`,
-4.3), its brief carrying the project's rules as the charter's documents
-(`AGENTS.md`, the code's rules: temper's `../protocol/configuration.md`,
-13.7).
+G's runs read: a checkout of g, inspect only, no delivery (`../domain/agent/tools.md`
+), its brief carrying the project's rules as the charter's documents
+(`AGENTS.md`, the code's rules: temper's `../protocol/configuration/settings.md`,
+6).
 
 1. **Read.** The draft, the guides, the designs it touches and their
    status files.
@@ -212,9 +212,9 @@ G's runs read: a checkout of g, inspect only, no delivery (`agent.md`,
    made or in the same batch. A dependency found later is added by
    amendment (jig's `domain/tasks/changes.md`).
 
-**A spec** is a change's words (`forge.md`, 8.1): what to make, citing
-the design in g by path and section (`temper/docs/design/domain/forge.md,
-4.2`) and the status entries it closes; what it owns and must leave
+**A spec** is a change's words (`../domain/forge/change/README.md`, 1): what to make, citing
+the design in g by path and section (`temper/docs/design/domain/forge/adoption.md,
+2`) and the status entries it closes; what it owns and must leave
 alone; its checks; its report. It is short: the design holds the
 detail, and the producer's checkout holds the design. Its parameters
 carry the rest: g as its landing branch, its dependencies, an LLM choice
@@ -241,7 +241,7 @@ revision; their producers' next runs merge g's tip first (N2).
 
 ## 6. A change into the goal's branch
 
-Its way is the change procedure's (`forge.md`, 8.2), under the landing
+Its way is the change procedure's (`../domain/forge/change/README.md`, 2), under the landing
 rule for goal branches (N4):
 
 1. **Producing.** A task for an agent under the change's producer
@@ -258,13 +258,13 @@ rule for goal branches (N4):
    branches requires none (N4).
 4. **Queued, then first,** in g's queue, ordered by priority (one
    goal's, so by when each became ready), never while kept by a
-   dependency (`forge.md`, section 9).
+   dependency (`../domain/forge/queues.md`).
 5. **Merged** at exactly its head, as a merge commit, under G's hold,
    once the forge finds it mergeable. A merge the forge refuses for a
    conflict goes to the merge job, which merges g's tip into the change's
    branch and settles what the project's tooling knows (N7); what is left
-   goes to a resolution, an agent in that merge in progress (`forge.md`,
-   8.4); the merged head then merges into g.
+   goes to a resolution, an agent in that merge in progress (`../domain/forge/change/repairs.md`
+   ); the merged head then merges into g.
 6. **Landed,** and done: no tier that judges landings follows g, so a
    change into it has no verification (N5). Its result wakes G: its
    result words carry, after its landing's three lines, its producer's
@@ -357,10 +357,10 @@ jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/p
 - **A producer's failures** are tried again within their class's tries:
   a peer gone, an agent crashed, a host lost. Its own failure (the task
   cannot be done as asked) holds the change at producing, with its words
-  (`forge.md`, 8.4).
+  (`../domain/forge/change/repairs.md`).
 - **A change's bounds** (repairs, resolutions, each wait's stall, its
   questions) hold it, saying why; so does its authority spent (its tasks
-  made: `forge.md`, 8.4; N21).
+  made: `../domain/forge/change/repairs.md`; N21).
 - **A budget spent** holds the task that spent it: it is the bound on a
   producer that loops.
 - **Every hold escalates** to the nearest holder above that may decide
@@ -398,7 +398,7 @@ Main's tiers follow main only.
 ## 11. Catching up with main
 
 While the goal works, main moves with other landings. G hears those that
-touch the goal's open work as news (`forge.md`, 7.3), its wake policy
+touch the goal's open work as news (`../domain/forge/README.md`, 5.3), its wake policy
 pacing them (at most once in 30 minutes: N23), and takes them by a
 catch-up change into g (N6), its words naming main's commit: its
 producer the merge job, merging that commit into a branch made at g's
@@ -450,7 +450,7 @@ arrives while G runs is relayed to that run instead.
 | a change's result | its producer's report and Left list | a new change for what is left, an amendment of a live change, or nothing; L once the plan is done (section 12) |
 | a person task's result | P's choice | the answer it was waiting to give |
 | a red of g's tier, as news | the tier, the failing tests, the log, the tree | a repair change into g, or an amendment (section 10) |
-| a landing into main that touches the goal's open work (`forge.md`, 7.3) | the landing | a catch-up change into g (section 11) |
+| a landing into main that touches the goal's open work (`../domain/forge/README.md`, 5.3) | the landing | a catch-up change into g (section 11) |
 | X's result | the close-out's report | the goal's report, and it finishes (section 12) |
 | an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`reference-landing.md`) |
 | a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`reference-landing.md`) |
@@ -459,7 +459,7 @@ arrives while G runs is relayed to that run instead.
 ## 14. Configuration
 
 What the reference sets, as settings (jig's `domain/engine/settings.md`
-; temper's `../protocol/configuration.md`, section 13):
+; temper's `../protocol/configuration/settings.md`):
 
 | Setting | The reference |
 |---|---|
@@ -467,7 +467,7 @@ What the reference sets, as settings (jig's `domain/engine/settings.md`
 | the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules (here `DESIGN.md`, whole) |
 | the goal template for drafts | a new template beside the stock's: the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* |
 | a small goal's template | the stock's goal template, left as it is, no branch of its own |
-| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15), and, where its change's words and the design leave a choice it cannot make, to push what it has and ask its change (section 8); retain the stock run: 800 turns and 28,800 s, with a reserve of 1 turn and 60 s (`../protocol/configuration.md`, 13.4 and 13.9) |
+| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15), and, where its change's words and the design leave a choice it cannot make, to push what it has and ask its change (section 8); retain the stock run: 800 turns and 28,800 s, with a reserve of 1 turn and 60 s (`../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`) |
 | the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate |
 | the triage's charter | read-only (inspect and the forge's reads), no shell, no sub-agents; instructions: for each failing test, the change or landing it fails in, whether new, inherited or a flake, and the repair it would make (`reference-landing.md`, section 6); gpt-6.1-sol |
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's |

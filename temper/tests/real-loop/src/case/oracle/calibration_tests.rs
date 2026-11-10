@@ -1,4 +1,4 @@
-//! Pure oracle calibration (temper/docs/design/domain/testing.md, 2.4).
+//! Pure oracle calibration (temper/docs/design/testing/real-loop.md).
 use super::*;
 use serde_json::json;
 use skein_fake_llm_domain::api::Part;

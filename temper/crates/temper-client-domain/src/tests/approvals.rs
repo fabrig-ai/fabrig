@@ -1,4 +1,4 @@
-//! The session's approvals watch (temper/docs/design/client/README.md, 3.5, 4.6).
+//! The session's approvals watch (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
 use super::fixtures as f;
 use crate::{Domain, Event, Request, forge::approvals};
 use jig_client::{Down, Family, Link, Told, Up, Watchable, contract as c};

@@ -371,7 +371,7 @@ mod tests {
         page
     }
 
-    // client/README.md 5.9: with no lineage, "parent is its requester's Task N link
+    // client/pages/task.md 2: with no lineage, "parent is its requester's Task N link
     // when a task asked it"; otherwise no parent.
     #[test]
     fn agent_lineage_falls_back_only_to_a_task_requester() {
@@ -399,7 +399,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.9: claimed, running and closing run are "live now";
+    // client/pages/task.md 2: claimed, running and closing run are "live now";
     // a live task with no run out says "waiting", and run_since is only shown there.
     #[test]
     fn agent_run_headings_follow_phase_even_without_observed_work() {
@@ -423,7 +423,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.9: "no heading once it has ended without [a run]";
+    // client/pages/task.md 2: "no heading once it has ended without [a run]";
     // result uses "Completed", "Failed", "Cancelled" and the result's words.
     #[test]
     fn never_run_agent_endings_show_result_without_a_run_heading() {
@@ -461,7 +461,7 @@ mod tests {
         text(&nodes[index..end])
     }
 
-    // client/README.md 5.9: brief dependencies are "in order" with added marks
+    // client/pages/task.md 2: brief dependencies are "in order" with added marks
     // from "dependency_facts"; document cut "does not say which ... was cut",
     // so the line has no invented last item (5.8 marks match by number).
     #[test]
@@ -505,7 +505,7 @@ mod tests {
         );
     }
 
-    // client/README.md 5.11: "An act the document does not offer is not drawn,
+    // client/pages/task.md 4: "An act the document does not offer is not drawn,
     // not even disabled"; offered Message alone controls the agent's composer.
     #[test]
     fn agent_composer_disappears_when_the_offer_is_removed() {
@@ -539,7 +539,7 @@ mod tests {
         );
     }
 
-    // client/README.md 5.9: Agent is "an agent's executor, no priority, not the
+    // client/pages/task.md 2: Agent is "an agent's executor, no priority, not the
     // chat label"; 5.11 allows untracking a goal. Its resulting page has a brief
     // and conversation, with no inherited ended-delegate query (5.8).
     #[test]
@@ -553,7 +553,7 @@ mod tests {
         assert!(!drawing.contains("ended child 21"), "goal's ended rows leave with its tracked shape: {drawing}");
         assert!(!drawing.contains("Its delegates:"), "agent has no goal plan counts: {drawing}");
     }
-    // client/README.md, 5.11: needs are bands; held tasks have cards on their own pages.
+    // client/pages/task.md, 4: needs are bands; held tasks have cards on their own pages.
     #[test]
     fn a_tracked_page_reads_no_own_or_delegate_held_cards() {
         let mut task = goal();

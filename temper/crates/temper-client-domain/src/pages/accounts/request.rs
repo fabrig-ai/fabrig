@@ -1,5 +1,5 @@
 //! One page's account request and one-shot secret transport
-//! (temper/docs/design/client/README.md, 3.5 and 7).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/README.md, 4).
 use super::{Broken, KEY_BYTES, Paste, Pending, SignInState, document};
 use crate::{owner::Owner, pages::Request as Output};
 use alloc::boxed::Box;

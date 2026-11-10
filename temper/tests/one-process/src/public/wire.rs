@@ -1,4 +1,4 @@
-//! Socket programs on the world's kernel (temper/docs/design/domain/testing.md, 2.5).
+//! Socket programs on the world's kernel (temper/docs/design/testing/README.md, 2.5).
 use super::http::{self, Answer};
 use skein_http::Method;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};

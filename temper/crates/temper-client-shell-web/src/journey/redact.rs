@@ -1,4 +1,4 @@
-//! Pure recording redaction (temper/docs/design/client/journeys.md, 3.6).
+//! Pure recording redaction (temper/docs/design/client/web/journeys.md, 3.6).
 use super::{Framing, Line, Originals, Streams, Undecoded, Unreadable, fields_mut, lines, placeholder, typed};
 use skein_lib::bytes::find_from;
 use skein_ui::Act;

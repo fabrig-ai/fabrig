@@ -1,4 +1,4 @@
-//! A connected Forgejo's one-shot bot tokens (temper/docs/design/client/forge.md, 5.4).
+//! A connected Forgejo's one-shot bot tokens (temper/docs/design/client/forge/deployment.md).
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
@@ -66,7 +66,7 @@ impl Draft {
     }
 }
 /// What a sent connect has seen of its forge's row: the stop that empties the fields
-/// again is its own (temper/docs/design/client/forge.md, 5.4).
+/// again is its own (temper/docs/design/client/forge/deployment.md).
 #[derive(Debug, PartialEq, Eq)]
 enum Seen {
     /// Not yet stopped or connected: the row's stop and its last connect's words, as last delivered.

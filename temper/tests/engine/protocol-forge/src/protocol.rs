@@ -236,7 +236,7 @@ impl Protocol {
         self.joint.fake_env.limits.latency_max = delay;
     }
     /// Stop after the next applied merge, before delivering its answer to the caller
-    /// (temper/docs/design/domain/forge.md, 16).
+    /// (temper/docs/design/domain/forge/README.md, 9).
     pub fn cut_after_next_merge(&mut self) {
         self.merge_cut = Some(self.joint.observations.len());
         self.cut_taken = false;
@@ -260,7 +260,7 @@ impl Protocol {
     }
 
     /// Write branch protection as the repository's admin, outside the component's requests
-    /// (temper/docs/design/domain/testing.md, 4.2).
+    /// (temper/docs/design/testing/fakes.md, 2).
     pub fn protect(&mut self, protection: raw::Protection) {
         self.external(raw::Op::Write(raw::Write::SetProtection { protection: Some(protection) }), self.fixture.writer);
     }

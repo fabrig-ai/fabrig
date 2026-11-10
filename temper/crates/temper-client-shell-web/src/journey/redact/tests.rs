@@ -100,7 +100,7 @@ fn case(label: &str, before: Line, after: Line) -> Case {
 }
 type TextField = (&'static str, fn(Box<[u8]>) -> Line);
 
-#[expect(clippy::too_many_lines, reason = "the table names each field, form and piece boundary of journeys.md, 3.6")]
+#[expect(clippy::too_many_lines, reason = "the table names each field, form and piece boundary of client/web/journeys.md, 3.6")]
 fn places() -> Vec<Case> {
     let mut cases = vec![
         case("secret bytes", Line::Secret(VALUE.into()), Line::Secret(HIDDEN.into())),

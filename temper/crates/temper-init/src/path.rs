@@ -1,4 +1,4 @@
-//! Paths are checked before any output is built (protocol/setup.md, 8.2).
+//! Paths are checked before any output is built (protocol/setup/init.md, 2).
 use crate::{Fact, Reason, Refusal};
 use alloc::boxed::Box;
 use skein_lib::Writer;

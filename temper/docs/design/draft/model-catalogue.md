@@ -54,10 +54,10 @@ As read from the providers' pages on 2026-11-06 (section 8's sources):
   order from low to high, `"effort"` the default. Today the list's first is
   the default (jig's `domain/tasks/README.md`, section 3), which would draw the
   picker's scale out of order.
-- **The window and output** stay the stock's (`../protocol/configuration.md`,
-  13.4), whatever a provider allows. Declaring efforts changes what the
-  start checks as the agent's largest turn (`../protocol/configuration.md`,
-  13.8), so its measure is taken again.
+- **The window and output** stay the stock's (`../protocol/configuration/stock.md`
+  ), whatever a provider allows. Declaring efforts changes what the
+  start checks as the agent's largest turn (`../protocol/configuration/settings.md`,
+  7), so its measure is taken again.
 - **The playground's scripted model** stays with its own provider. It is
   offered only while the playground runs, and never to connect.
 
@@ -99,7 +99,7 @@ So:
   offered now.
 - **A wait names no model it wasn't given:** a task given no choice with no
   account says "No account can run this chat yet.", not the charter's first
-  (`../client/README.md`, 5.5).
+  (`../client/pages/accounts.md`, 2).
 
 A task given no LLM choice takes the first of its charter's models whose
 provider has an account usable now and serving its payer (jig's
@@ -133,7 +133,7 @@ provider has an account usable now and serving its payer (jig's
   `domain/engine/settings.md`, 7).
 - **What the files refuse:** under passed defaults, `engine.llm.models` and
   each provider's `models` in `temper.json`; each endpoint's `models` in
-  `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration.md`, section 2).
+  `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration/README.md`, section 2).
 - **smith takes a model from the charter.** The charter's LLM already
   gives its window, output and effort; the endpoint gives the rest as one
   default for its models, `reasoning_item`, `head` and `idle`. The agent

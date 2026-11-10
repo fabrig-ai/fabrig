@@ -1,5 +1,5 @@
 //! Process producers edit and deliver; Open chats inspect
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 use jig_domain_tasks as tasks;
 use temper_engine_domain as engine;
 
@@ -46,7 +46,7 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
 
 #[test]
 fn process_producers_can_write_and_deliver_while_open_chats_cannot() {
-    const NUMBER: u64 = 2; // configuration.md, 13.4: stock producer charter.
+    const NUMBER: u64 = 2; // protocol/configuration/stock.md: stock producer charter.
     let (_, bytes) = crate::support::configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
     let deployment: serde_json::Value = serde_json::from_slice(&bytes).expect("process configuration");
     let configured = temper_real_loop_world::settings::configuration(&deployment);

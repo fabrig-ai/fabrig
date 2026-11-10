@@ -41,5 +41,5 @@ pub fn named(salt: &[u8], name: &Name) -> RequestKey {
     key
 }
 
-/// Salt shared with named ctl requests (client/tools.md, 7).
+/// Salt shared with named ctl requests (client/ctl/README.md, 5).
 pub const TOOLS: &[u8] = b"temper-tools";

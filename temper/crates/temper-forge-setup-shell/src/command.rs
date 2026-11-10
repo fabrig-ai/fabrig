@@ -24,7 +24,7 @@ const OWNER: Token = Token::new(1);
 pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {
     run(limits, spec, None)
 }
-/// One deadline shared by a box's source-list and source-add commands (setup.md, 7.1).
+/// One deadline shared by a box's source-list and source-add commands (protocol/setup/box.md, 1).
 pub fn run_until(limits: &Limits, spec: &Spec, deadline: Time) -> Result<Ran, Error> {
     run(limits, spec, Some(deadline))
 }

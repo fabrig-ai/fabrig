@@ -1,4 +1,4 @@
-//! Decisions retain their bounded wire facts (client/README.md, 4.6).
+//! Decisions retain their bounded wire facts (client/forge/records.md).
 use super::fixtures as f;
 use crate::forge::decided;
 use jig_client::{Family, Watchable, contract as c};

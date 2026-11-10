@@ -1,4 +1,4 @@
-//! The browser's approval page (client/README.md, 3.5, The approval page; client/browser.md, 2.3 and 2.4).
+//! The browser's approval page (client/pages/README.md, The approval page; client/web/README.md, 2.3 and 2.4).
 use crate::{Domain, Limits, Place, Request};
 use alloc::boxed::Box;
 use jig_client::ApprovalCode;

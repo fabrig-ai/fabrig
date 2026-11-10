@@ -1,4 +1,4 @@
-//! Home adoption's task boundary, domain/forge.md, 11. The real-loop
+//! Home adoption's task boundary, domain/forge/branches.md. The real-loop
 //! public harness has Forgejo only; this rule is independent of the forge.
 use serde_json::json;
 use skein_fake_forge_domain::api;
@@ -121,7 +121,7 @@ fn read_was_answered(ran: &world::Ran) {
 }
 
 #[test]
-#[ignore = "a chat's deliver before its end is not built: domain/agent.md, 4.3, and its status"]
+#[ignore = "a chat's deliver before its end is not built: domain/agent/tools.md, and its status"]
 fn a_chat_created_after_home_adoption_gets_a_writable_run_branch() {
     let ran = world::run_forge(
         fixture(),

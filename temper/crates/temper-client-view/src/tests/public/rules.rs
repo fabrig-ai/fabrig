@@ -1,4 +1,4 @@
-//! Public row and page contracts (temper/docs/design/client/browser.md, 8.3 and 8.4).
+//! Public row and page contracts (temper/docs/design/client/web/public.md, 3 and 4).
 #![expect(clippy::disallowed_types, reason = "test oracles collect complete paragraphs as UTF-8 strings")]
 #![expect(clippy::disallowed_methods, reason = "test oracles inspect and collect semantic subtrees")]
 #![expect(clippy::disallowed_macros, reason = "page test cases own differently sized document lists")]

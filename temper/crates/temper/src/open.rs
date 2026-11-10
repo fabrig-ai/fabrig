@@ -1,4 +1,4 @@
-//! The terminal's arguments and startup (client/README.md, 6.1).
+//! The terminal's arguments and startup (client/line.md, 1).
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::Path};

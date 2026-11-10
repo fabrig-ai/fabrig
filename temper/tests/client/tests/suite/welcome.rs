@@ -1,4 +1,4 @@
-//! Welcome states (temper/docs/design/client/README.md, 3.5 and 10).
+//! Welcome states (temper/docs/design/client/pages/README.md and temper/docs/design/client/testing.md).
 use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::Role;

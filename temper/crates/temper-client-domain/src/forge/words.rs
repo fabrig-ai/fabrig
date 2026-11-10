@@ -1,4 +1,4 @@
-//! Forge phrases as checked English data (client/README.md, 4.4, 4.7 and 5.10).
+//! Forge phrases as checked English data (client/forge/family.md, 4 and 6, and client/pages/task.md, 3).
 use super::{Broken, Kinds, Role};
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer, bytes::copy_of};
@@ -723,7 +723,7 @@ pub const fn role(role: Role) -> Word {
     }
 }
 
-/// The change page's vocabulary (client/README.md, 5.10).
+/// The change page's vocabulary (client/pages/task.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChangeWord {
     Tag,
@@ -1120,7 +1120,7 @@ pub fn extend_change(connector: u16, shapes: &mut List<PhraseShape>, phrases: &m
     }
 }
 
-/// The connection table's words (client/forge.md, 5.4), shared by every client.
+/// The connection table's words (client/forge/deployment.md), shared by every client.
 #[must_use]
 pub const fn forge_kind(kind: super::forges::Kind) -> &'static [u8] {
     match kind {
@@ -1157,7 +1157,7 @@ pub const fn set_up_outcome(outcome: super::forges::SetUpOutcome) -> &'static [u
         SetUpOutcome::Unknown => b"unknown",
     }
 }
-/// ctl's line after a set up refused "not under the box" (client/tools.md, 5.5).
+/// ctl's line after a set up refused "not under the box" (client/ctl/areas.md).
 pub const UNDER_THE_BOX: &[u8] = b"Start temper with `temper box` to set one up here.";
 fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     let mut size = 0usize;
@@ -1170,17 +1170,17 @@ fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
-/// A connected row's words on the Forges page, "Connected as LOGIN" (client/forge.md, 5.4).
+/// A connected row's words on the Forges page, "Connected as LOGIN" (client/forge/deployment.md).
 #[must_use]
 pub fn forge_connected_as(login: &[u8]) -> Box<[u8]> {
     join_words(&[b"Connected as ", &lossy(login)])
 }
-/// A connected row's Account line, "LOGIN · user ID" (client/forge.md, 5.4).
+/// A connected row's Account line, "LOGIN · user ID" (client/forge/deployment.md).
 #[must_use]
 pub fn forge_account(login: &[u8], id: u64) -> Box<[u8]> {
     join_words(&[&lossy(login), b" \xc2\xb7 user ", skein_lib::Decimal::of(id).as_bytes()])
 }
-/// What runs on this machine for an owned forge (client/forge.md, 5.4).
+/// What runs on this machine for an owned forge (client/forge/deployment.md).
 #[must_use]
 pub fn forge_runs(owned: &super::forges::Owned) -> Box<[u8]> {
     match &owned.runner {
@@ -1194,7 +1194,7 @@ pub fn forge_runs(owned: &super::forges::Owned) -> Box<[u8]> {
         None => join_words(&[b"Forgejo ", &lossy(&owned.forgejo), b", on this machine, with no runner."]),
     }
 }
-/// The first password's file path, never its value (protocol/setup.md, 6.5).
+/// The first password's file path, never its value (protocol/setup/owned.md, 5).
 #[must_use]
 pub fn forge_password(path: &[u8]) -> Box<[u8]> {
     join_words(&[b"Your first password is in ", &lossy(path), b". Change it on Forgejo when you like."])
@@ -1232,7 +1232,7 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
     }
 }
 
-/// The connection's words without a fetch figure (temper/docs/design/client/forge.md, 5.4).
+/// The connection's words without a fetch figure (temper/docs/design/client/forge/deployment.md).
 #[must_use]
 pub fn forge_connection_bare(row: &super::forges::Row) -> Box<[u8]> {
     use super::forges::{Connection as C, Offer, Step};
@@ -1281,7 +1281,7 @@ pub fn forge_connection_bare(row: &super::forges::Row) -> Box<[u8]> {
     }
 }
 
-/// The fetch's percentage or decimal megabytes, rounded down (temper/docs/design/client/forge.md, 5.4).
+/// The fetch's percentage or decimal megabytes, rounded down (temper/docs/design/client/forge/deployment.md).
 #[must_use]
 pub fn fetched_figure(fetched: super::forges::Fetched) -> Box<[u8]> {
     let (number, unit) = match fetched.total {
@@ -1298,7 +1298,7 @@ pub fn fetched_figure(fetched: super::forges::Fetched) -> Box<[u8]> {
     join_words(&[skein_lib::Decimal::of(number).as_bytes(), unit])
 }
 
-/// The progress node's name (temper/docs/design/client/forge.md, 5.4).
+/// The progress node's name (temper/docs/design/client/forge/deployment.md).
 #[must_use]
 pub const fn fetching_name(fetched: super::forges::Fetched) -> &'static [u8] {
     match fetched.binary {
@@ -1338,7 +1338,7 @@ pub fn lossy(bytes: &[u8]) -> Box<[u8]> {
     out.finish()
 }
 
-/// The first repository's step, in the row's words (client/forge.md, 5.4).
+/// The first repository's step, in the row's words (client/forge/deployment.md).
 #[must_use]
 pub const fn create_step(step: super::forges::CreateStep) -> &'static [u8] {
     use super::forges::CreateStep;
@@ -1360,7 +1360,7 @@ pub fn first_repository(first: &super::forges::First) -> Box<[u8]> {
     }
 }
 
-/// GitHub App presentation from the row's facts (client/forge.md, 5.4).
+/// GitHub App presentation from the row's facts (client/forge/deployment.md).
 #[must_use]
 pub fn app_line(row: &super::forges::Row) -> Option<Box<[u8]>> {
     let slug = super::forges::slug(row)?;
@@ -1446,7 +1446,7 @@ pub fn app_installation(installation: &super::forges::Installation, first: bool)
     join_words(&[if first { b"" } else { b", " }, &installation_words(installation)])
 }
 
-/// What makes an unlisted repository reachable (client/forge.md, 5.1).
+/// What makes an unlisted repository reachable (client/forge/repositories.md, 1).
 #[must_use]
 pub fn sheet_remedy(remedy: &super::sheet::Remedy) -> Box<[u8]> {
     use super::sheet::Remedy;
@@ -1491,7 +1491,7 @@ pub fn sheet_line(line: &super::making::Line) -> Option<Box<[u8]>> {
     })
 }
 
-/// A sheet keeps the refusal beside the remaining selections (client/README.md, 4.4).
+/// A sheet keeps the refusal beside the remaining selections (client/forge/family.md, 4).
 #[must_use]
 pub fn sheet_adoption(answer: &super::Answer) -> Box<[u8]> {
     use super::{Answer, Reason};

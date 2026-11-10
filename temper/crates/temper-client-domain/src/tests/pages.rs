@@ -400,7 +400,7 @@ fn task_document_backoff_reaches_thirty_seconds_and_stays() {
     let (mut root, mut read) = ended_task_read();
     let mut env = fixtures::env(&limits);
     let mut out = Queue::uncapped();
-    // Successive waits: 1, 2, 4, 8, 16, 30, 30, 30 seconds (client/README.md, 3.5).
+    // Successive waits: 1, 2, 4, 8, 16, 30, 30, 30 seconds (client/pages/README.md).
     for seconds in [1, 3, 7, 15, 31, 61, 91, 121] {
         end_document_read(
             &mut root,

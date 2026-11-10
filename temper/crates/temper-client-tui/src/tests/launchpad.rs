@@ -1,4 +1,4 @@
-//! The launchpad's states and hand-written frames (client/README.md, 6.14 and 6.15).
+//! The launchpad's states and hand-written frames (client/tui/pages.md and client/tui/theme.md).
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,

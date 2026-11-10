@@ -1,4 +1,4 @@
-//! What a call waited for when the link's deadline passed (client/tools.md, 6.3).
+//! What a call waited for when the link's deadline passed (client/ctl/results.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Waited {
     Link,

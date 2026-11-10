@@ -7,7 +7,7 @@ is "just fabrig/temper's own 'way of doing'", whose parts "can be
 tweaked to a good extent". The way itself is the reference
 (`reference-code-production.md` and `reference-landing.md`); this
 draft is how a person meets it. The look request
-`configure-temper-own-way` draws it (`../client/journeys.md`, 7).
+`configure-temper-own-way` draws it (`../client/web/journeys.md`, 7).
 Nothing here is adopted, and no plan takes it up until the user does.
 
 ## 1. In one page
@@ -36,8 +36,8 @@ Nothing here is adopted, and no plan takes it up until the user does.
   phone). No chat is made.
 - **"Start from it"** starts the configuring chat with its words as the
   first message, "Set Hello up the way temper builds itself, sized for
-  this machine.", as a suggested request does (`../client/README.md`,
-  3.5), the project's name in place of Hello.
+  this machine.", as a suggested request does (`../client/pages/README.md`
+  ), the project's name in place of Hello.
 
 ## 3. The reference document
 
@@ -64,7 +64,7 @@ Nothing here is adopted, and no plan takes it up until the user does.
 - **Each row is a setting,** named where the reference sets it
   (`reference-code-production.md`, section 14): the goal template for
   drafts; each change's LLM choices; the profile's limits and the
-  fleet's slots (`../protocol/configuration.md`, section 2); the
+  fleet's slots (`../protocol/configuration/README.md`, section 2); the
   landing rules (`../domain/landing.md`, section 13); QA after landing;
   questions. A row whose setting is not a project's yet says "later",
   never offers what cannot be set.
@@ -72,7 +72,7 @@ Nothing here is adopted, and no plan takes it up until the user does.
 ## 6. Starting from it
 
 - **The configuring agent** (`configuring.md`) reads the reference
-  with its instructions (`../domain/agent.md`, 8.1) and proposes its settings sized for the
+  with its instructions (`../domain/agent/agents.md`, 1) and proposes its settings sized for the
   deployment: the slots its workers have, the models its accounts reach,
   QA after landing once a tester is set; what the deployment cannot do
   yet, it says, and leaves out.
@@ -86,10 +86,10 @@ Nothing here is adopted, and no plan takes it up until the user does.
   up until then (2026-11-05).
 - **Settings or the deployment's:** which rows a project sets and which
   are the deployment's (workers and their slots are the root's
-  configuration: `../protocol/configuration.md`, section 2), and how
+  configuration: `../protocol/configuration/README.md`, section 2), and how
   the table says so.
 - **Where the reference lives:** a stock file in the binary, as the
-  stock templates are (`../protocol/configuration.md`, 13.4), or a
+  stock templates are (`../protocol/configuration/stock.md`), or a
   document note the deployment seeds (`jig/docs/design/draft/notes-memory.md`,
   section 5).
 - **The picture's parallel parts:** a flow is one path; the parts made

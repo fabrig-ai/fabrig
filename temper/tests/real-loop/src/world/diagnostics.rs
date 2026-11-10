@@ -1,4 +1,4 @@
-//! Bounded overdue context (temper/docs/design/domain/testing.md, 2.4;
+//! Bounded overdue context (temper/docs/design/testing/real-loop.md;
 //! skein/docs/foundation/testing-strategy.md, 2.10).
 mod terminals;
 use skein_io::kernel::{Complete, Op, Submit};

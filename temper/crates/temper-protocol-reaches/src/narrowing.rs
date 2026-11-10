@@ -1,4 +1,4 @@
-//! Stop asking's proposed tables (temper/docs/design/domain/forge.md, 5.10).
+//! Stop asking's proposed tables (temper/docs/design/domain/forge/attention.md, 6).
 use crate::pattern::pattern_bit;
 use crate::{
     Class, Classes, ITEMS, Item, NAME_BYTES, Offer, PathSet, Reach, Reason, Refusal, SETS, Subject, WORDS_BYTES,

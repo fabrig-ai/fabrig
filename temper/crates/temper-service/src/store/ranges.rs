@@ -1,5 +1,5 @@
 //! The root's ranges, expressed in jig's store vocabulary.
-//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 use super::route::Flight;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -34,7 +34,7 @@ pub(super) fn window(range: &Range) -> bool {
 }
 
 /// Startup selects stored families; writer rules are proved by store oracles
-/// (temper/docs/design/domain/root.md, 9.1).
+/// (temper/docs/design/domain/root.md, 8.1).
 pub(super) fn starting(range: &Range) -> bool {
     match range {
         Range::Core(

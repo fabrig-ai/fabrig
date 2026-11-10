@@ -1,5 +1,5 @@
 //! A stalled row holds its task and reaches its deciding holder
-//! (temper/docs/design/domain/forge.md, 8.4; jig/docs/design/domain/tasks/proposals.md).
+//! (temper/docs/design/domain/forge/change/repairs.md; jig/docs/design/domain/tasks/proposals.md).
 use super::early_start::{observe_push, stop};
 use super::questions::{next_producer, row};
 use super::*;

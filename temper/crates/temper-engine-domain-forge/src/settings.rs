@@ -1,6 +1,6 @@
 //! Values and edits of the forge's kinds of settings
-//! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3;
-//! temper/docs/design/domain/forge.md, 8.9).
+//! (temper/docs/design/protocol/configuration/settings.md, 2 and 3;
+//! temper/docs/design/domain/forge/change/gates.md, 3).
 use alloc::boxed::Box;
 
 use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Requires, gates::covers};
@@ -13,11 +13,11 @@ pub enum Kind {
     ProjectQuestions,
     ProjectWays,
     ProjectClasses,
-    /// A charter's words (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A charter's words (temper/docs/design/protocol/configuration/settings.md, 2).
     CharterWords,
-    /// A project's words (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A project's words (temper/docs/design/protocol/configuration/settings.md, 2).
     ProjectWords,
-    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     TemplateGoal,
 }
 
@@ -86,14 +86,14 @@ pub struct ProjectWays {
     pub way: u32,
 }
 
-/// A charter's line's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+/// A charter's line's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
 pub const LINE_BYTES: u32 = 120;
-/// A project's headline's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+/// A project's headline's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
 pub const HEADLINE_BYTES: u32 = 120;
-/// A project's lede's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+/// A project's lede's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
 pub const LEDE_BYTES: u32 = 480;
 
-/// A project's words, kind 10 (temper/docs/design/protocol/configuration.md, 13.2).
+/// A project's words, kind 10 (temper/docs/design/protocol/configuration/settings.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectWords {
     pub headline: Box<[u8]>,
@@ -101,7 +101,7 @@ pub struct ProjectWords {
 }
 
 /// Words saved with a setting fit `most`: 1 to `most` bytes of UTF-8 holding no
-/// control character (temper/docs/design/protocol/configuration.md, 13.2).
+/// control character (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 #[expect(clippy::disallowed_methods, reason = "the forge judges whether setting words are UTF-8 at its boundary")]
 pub fn words_fit(words: &[u8], most: u32) -> bool {
@@ -119,7 +119,7 @@ pub fn words_fit(words: &[u8], most: u32) -> bool {
     true
 }
 
-/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration.md, 13.2):
+/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration/settings.md, 2):
 /// whether its coordinator designs first and makes a close-out; neither with none.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub struct TemplateGoal {
@@ -134,16 +134,16 @@ pub enum Value {
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
     Classes(temper_protocol_reaches::Classes),
-    /// A charter's line (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A charter's line (temper/docs/design/protocol/configuration/settings.md, 2).
     CharterWords(Box<[u8]>),
-    /// A project's headline and lede (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A project's headline and lede (temper/docs/design/protocol/configuration/settings.md, 2).
     ProjectWords(ProjectWords),
-    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     Goal(TemplateGoal),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
-/// was decoded or made (temper/docs/design/domain/root.md, 5.6).
+/// was decoded or made (temper/docs/design/domain/routing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SizedValue {
     pub value: Value,
@@ -151,7 +151,7 @@ pub struct SizedValue {
 }
 
 /// The value of a project's kind 6, 7 or 8 with none stored
-/// (temper/docs/design/protocol/configuration.md, 13.4).
+/// (temper/docs/design/protocol/configuration/stock.md).
 #[must_use]
 pub fn project_stock(kind: u32) -> Option<SizedValue> {
     use temper_client_protocol_wire::v1;
@@ -260,7 +260,7 @@ pub struct Bounds {
     pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
-    /// Template numbers (temper/docs/design/protocol/configuration.md, 13.2).
+    /// Template numbers (temper/docs/design/protocol/configuration/settings.md, 2).
     pub templates: u32,
 }
 
@@ -285,7 +285,7 @@ pub enum Refusal {
     Replaced,
     Way,
     Classes(temper_protocol_reaches::Refusal),
-    /// Invalid setting words (temper/docs/design/protocol/configuration.md, 13.2).
+    /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
     Words,
 }
 
@@ -545,7 +545,7 @@ pub struct Held {
     pub rule: LandingRule,
 }
 
-/// Current rules by scope (temper/docs/design/domain/forge.md, 8.9).
+/// Current rules by scope (temper/docs/design/domain/forge/change/gates.md, 3).
 #[derive(Hash, Debug)]
 pub struct HeldRules {
     pub deployment: Box<[Held]>,
@@ -554,7 +554,7 @@ pub struct HeldRules {
 }
 
 /// The procedure's waits over the supplied scopes' rules, enforcing or not
-/// (temper/docs/design/domain/forge.md, 8.7).
+/// (temper/docs/design/domain/forge/change/gates.md, 2).
 #[must_use]
 pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
     let mut result = Requires { ci: false, up_to_date: false };

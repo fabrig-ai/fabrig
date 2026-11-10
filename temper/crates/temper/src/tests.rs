@@ -8,7 +8,7 @@ mod reference_settings;
 mod settings_fields;
 mod tui;
 
-// jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup.md, 7.2.
+// jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
     use jig_protocol_config::profile::{Profile, profile};
@@ -424,7 +424,7 @@ fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_argum
     }
 }
 
-// temper/docs/design/protocol/setup.md, 6.6.
+// temper/docs/design/protocol/setup/owned.md, 6.
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
     assert_eq!(temper_launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);

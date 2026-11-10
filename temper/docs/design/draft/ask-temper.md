@@ -3,16 +3,16 @@
 Draft, 2026-11-07, from a session with the user that day. One chat in which a
 person asks temper itself: how to set it up for the way they work, where their
 work stands, how a piece of work ran, how temper works. It grows from the
-configuring chat (`../domain/agent.md`, 8.1) and takes its place (the user,
+configuring chat (`../domain/agent/agents.md`, 1) and takes its place (the user,
 2026-11-07), and it is written green
 field: nothing of `configuring.txt` carries over unless this draft says so
-(section 9). It adopts jig's `draft/notes-memory.md`, section 3, narrowed, for
-this chat's runs (section 7); it extends skein's `draft/diagrams.md`, section
+(`ask-temper.md`, section 9). It adopts jig's `draft/notes-memory.md`, section 3, narrowed, for
+this chat's runs (`ask-temper.md`, section 7); it extends skein's `draft/diagrams.md`, section
 2, with who acts at each node (6.3); and for this chat's charter it departs
-from `../domain/agent.md`, 4.3's every host tool in every charter, and from
+from `../domain/agent/tools.md`'s every host tool in every charter, and from
 smith's `protocol/programs.md`, 5.1's Claude Code prompt kept for every run
-(section 4). It wins where they differ until its plans fold it in. temper/ui
-carries it out (section 11). Reasons: `notes.md`, section 10.
+(`ask-temper.md`, section 4). It wins where they differ until its plans fold it in. temper/ui
+carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
 
 ## 1. In one page
 
@@ -105,7 +105,7 @@ carries it out (section 11). Reasons: `notes.md`, section 10.
 - **What temper gives,** its instructions, mechanics, declarations and brief at
   a first message with no preference kept, is at most 16 KB on both shapes,
   held by a step test in `temper-service` as it holds each stock charter's
-  figures (`../protocol/configuration.md`, 13.4). With section 8 as it stands
+  figures (`../protocol/configuration/stock.md`). With `ask-temper.md`, section 8 as it stands
   that is about 13.5 KB, and with Claude Code's own part about 15 KB.
 - **Claude Code's own part** temper never sees (smith's
   `protocol/programs.md`, section 9), so it is a recorded figure: about 1.1 KB
@@ -119,11 +119,11 @@ carries it out (section 11). Reasons: `notes.md`, section 10.
 ### 4.2 No workspace
 
 - **Its charter selects no repository,** as the status agent's charter 9 does
-  (`../domain/forge.md`, 5.7), and has no inspect, modify, shell or agents
+  (`../domain/forge/attention.md`, 3), and has no inspect, modify, shell or agents
   family, so that its runs have no checkout, no file tools, no shell and no
   sub-agents. Charter 3 names no repository either, yet the root gives every run
   but a change's delegate the project's home repository (`../domain/root.md`,
-  7.1), and in the capture of 2026-11-07 its runs had inspect tools, a
+  6.1), and in the capture of 2026-11-07 its runs had inspect tools, a
   `## Checkout` and a git working directory.
 - **smith's mechanics** for an open run then say nothing of a checkout: no
   `## Tools` section on reading files and no `## Checkout` (smith's
@@ -134,7 +134,7 @@ carries it out (section 11). Reasons: `notes.md`, section 10.
 ### 4.3 Its tools alone
 
 - **Declared:** section 5's tools and no other host tool, whatever its family.
-  For this charter it departs from `../domain/agent.md`, 4.3, where every
+  For this charter it departs from `../domain/agent/tools.md`, where every
   charter is declared every host tool and its authority refuses the call: a
   tool it may never call costs every request and blurs what it does.
 - **A family of their own,** asking: `see`, `document` and `remember`. Charter
@@ -187,30 +187,30 @@ tools.
   read, through the checks a client's read takes, and of the chat's project
   alone, so that nothing of their other projects reaches this project's
   transcript. jig has no such read for a run: a run reads related tasks
-  (`../domain/agent.md`, 4.3), and a party's views are a client's (jig's
+  (`../domain/agent/tools.md`), and a party's views are a client's (jig's
   `domain/engine/views.md`). The settings inventory adds what charter
   3's `settings` read gives today: the offer, the project's repositories, its
-  people and their forge identities (`../domain/agent.md`, 8.1).
-- **Over the reads a client makes** (`../client/tools.md`, 5.2 and 5.5), not
+  people and their forge identities (`../domain/agent/agents.md`, 1).
+- **Over the reads a client makes** (`../client/ctl/tools.md`, 2 and `../client/ctl/areas.md`), not
   ctl's text, which is for an agent driving temper and is left as it is.
 
 | Address | Answers | Over |
 |---|---|---|
 | `me` | the person: their role here, what waits on them here, counted | `me`, for the project |
 | `project` | its repositories, its people and roles, this period's budget and spend, what is held | `project show`, `hold list`, the inventory's repositories |
-| `goals [ended]` | its goals by priority, each with its state, what it waits on and its report's headline | `task list`, the goals' reports (`../domain/agent.md`, 8.3) |
+| `goals [ended]` | its goals by priority, each with its state, what it waits on and its report's headline | `task list`, the goals' reports (`../domain/agent/agents.md`, 3) |
 | `tasks` | its live tasks, a line each | `task list` |
 | `task N` | its kind, state, requester, charter by name, model, spend, what it waits on, and its report or result | `task show` |
 | `task N tree` | its delegates, each with its executor (an agent with its charter and model, a procedure, a person) and state | `task tree` |
 | `task N activity` | its events, oldest first, a call a line | `task activity` |
 | `task N turn A.T` | one turn: its brief, its words, its calls and their results | `task turn` |
 | `change N` | a change's pull request, its gates and their verdicts, its repairs, its place in the queue | `change show` |
-| `changes` | what is on its way to the project's landing branches, in order, and what landed last, landings by turn among them | the forge's `changes` (`../domain/forge.md`, section 9; `../client/README.md`, 4.6), `landing list` |
+| `changes` | what is on its way to the project's landing branches, in order, and what landed last, landings by turn among them | the forge's `changes` (`../domain/forge/queues.md`; `../client/forge/records.md`), `landing list` |
 | `inbox` | what waits on the person in the project | `inbox --project` |
 | `settings` | the inventory: each setting by kind, number and name, with the revision that last changed it; the models the person may offer; the project's repositories; its people, each with their forge identity and whether they can approve, and why not | `settings show`, the `settings` read |
 | `settings KIND N` | a charter, template, policy, model or forge charter, whole | `settings show`; `model list` for a model |
 | `settings rules`, `settings landing-rule N [project]`, `settings project-ways`, `settings project-questions` | the rules; a landing rule, the deployment's, or the project's with `project`; the project's ways and questions | `settings show` |
-| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration.md`, 13.2), which no client reads |
+| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration/settings.md`, 2), which no client reads |
 | `ways` | the stock ways, each with its words and its path over the project, and which one the project runs (`stock-ways.md`, section 5) | the forge's `ways` |
 | `revisions`, `revision N` | the history; one revision: who decided it, when, from which proposal, its items | `revision list`, `revision show` |
 | `proposal tN/K`, `proposal pN/K` | a proposal, a task's or a party's, with its review and its outcome | `proposal show` |
@@ -240,7 +240,7 @@ teach a model done by the tool instead:
 - **Approvals:** a landing rule whose role has too few eligible approvers on a
   forge is refused at the call, naming the project, the forge, the role, how
   many it requires and how many are eligible, as acceptance would refuse it
-  (`../protocol/configuration.md`, 13.2); the inventory says who is eligible,
+  (`../protocol/configuration/settings.md`, 2); the inventory says who is eligible,
   and for anyone who is not, why.
 - **A large set** is given in parts by the tool's own calls, with no note to
   write.
@@ -249,7 +249,7 @@ teach a model done by the tool instead:
 
 ### 5.3 `document`
 
-The chat's one document (`../domain/agent.md`, 8.3; jig's
+The chat's one document (`../domain/agent/agents.md`, 3; jig's
 `draft/notes-memory.md`, section 5), written by section rather than by line:
 
 - **Write** it whole the first time; then **append** a section, or **replace**
@@ -424,7 +424,7 @@ Speak their terms: what happens to their work, who does it, what must pass befor
 - **Its own stock settings:** charter 11, its instructions section 8's, charter
   3's models, its families 4.3's and no repository; template 5, Ask temper, a
   conversation run by charter 11. Their numbers follow the stock's and the
-  reference's (`../protocol/configuration.md`, 13.4 and 13.9).
+  reference's (`../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`).
 - **Delegation:** charter 11 joins the rules' and policy 1's delegation, as
   13.9 adds charter 5; a project made before keeps its own policy, a copy
   (jig's `domain/engine/settings.md`, 2), and gains it by a proposal its owner
@@ -433,13 +433,13 @@ Speak their terms: what happens to their work, who does it, what must pass befor
   bar, on every page of a project, as the look request `ask-temper-place` draws
   them; To begin's first step keeps its words and opens it; and `chat start
   --template 5`. Its page is `Configure { project }` moved and renamed,
-  `Ask { project }`, through no Settings (`../client/README.md`, 3.5).
+  `Ask { project }`, through no Settings (`../client/pages/README.md`).
 - **The configuring chat goes** (the user, 2026-11-07), with no time beside it:
   template 3, charter 3, `Configure` and Settings' offer. Every word that names
   it names Ask temper.
 - **Its acceptance stays:** `configuring.md`, section 8, whole, and with it rung
   D of `v0.1.0.md`, ask Ask temper; the gate's scripted runs of charter 3
-  (`../domain/testing.md`, 6.4) become charter 11's.
+  (`../testing/checks.md`, 4) become charter 11's.
 
 ## 10. Its tests
 

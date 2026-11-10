@@ -1,4 +1,4 @@
-//! Replay and prove against the shipped host (client/journeys.md, 4).
+//! Replay and prove against the shipped host (client/web/journeys.md, 4).
 use super::{
     Facts, Line, Unreadable,
     line::{clone_act, clone_heard},
@@ -9,7 +9,7 @@ use crate::host::{Host, Report};
 use skein_ui::{NodeId, Tree};
 use skein_ui_web::{page::Page, store::Record, transport::Carried};
 
-/// A recording given back to the shipped host (client/journeys.md, 4.1).
+/// A recording given back to the shipped host (client/web/journeys.md, 4.1).
 pub struct Replay {
     lines: Vec<Line>,
     at: usize,
@@ -31,7 +31,7 @@ pub struct Mark<'a> {
     pub recorded: Option<&'a [u8]>,
     pub end: bool,
 }
-/// Where a replay stopped (client/journeys.md, 4.2).
+/// Where a replay stopped (client/web/journeys.md, 4.2).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Stale {
     pub turn: u32,
@@ -316,14 +316,14 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
         at,
     ))
 }
-/// Prove every live print, then drop its html (client/journeys.md, 4.3).
+/// Prove every live print, then drop its html (client/web/journeys.md, 4.3).
 ///
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.
 pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal> {
     prove_drawn(recording, &mut |_, _| {})
 }
-/// As `prove`, giving `drawn` the turn's number and page at each turn's end (client/journeys.md, 3.7).
+/// As `prove`, giving `drawn` the turn's number and page at each turn's end (client/web/journeys.md, 3.7).
 ///
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.

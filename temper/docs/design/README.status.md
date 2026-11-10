@@ -11,9 +11,9 @@ delegate repository changes, stands in the code, and section 9 names the crates
 there are.
 
 - **Not yet:** 6: the client's documents by surface. All of them are in
-  `client/` itself: `browser.md`, `journeys.md` with its journeys'
+  `client/` itself: `client/web/README.md`, `client/web/journeys.md` with its journeys'
   prints, `mockups/` and `greenfield/` are the browser's, for
-  `client/web/`; `tools.md` is `temper ctl`'s, for `client/ctl/`;
+  `client/web/`; `client/ctl/README.md` is `temper ctl`'s, for `client/ctl/`;
   `client/README.md` holds the browser's pages' look and the TUI's
   sections, 6.11 to 6.16, beside what is generic. They move in a cleanup
   of their own, which fixes every citation to them.

@@ -6,17 +6,17 @@ Sections 4 and 6's store step is carried by jig's model settings and
 catalogue, smith's endpoint limits and charter model names, temper's binary
 stock, Ask temper's `see` and `propose_settings`, Settings, Models and the help. The Models
 page account is `415e659c54`; its render comparison remains temper/ui's
-after-landing work (`../client/README.md`, section 11). Section 5's worker
+after-landing work (`../client/README.md`, section 5). Section 5's worker
 reads, retained per-account lists, catalogue updates, offer narrowing and
 Settings read states are carried by the design and code. The design lags,
 departures and open decisions below keep this draft.
 
 - **Design lags:**
-  - 3: `../client/README.md`, 3.5: an unusable account has a fix only
+  - 3: `../client/pages/README.md`: an unusable account has a fix only
     while its provider has no offered model, so it has no separate line beside
-    a usable account of the same provider. Section 11 defers those separate
+    a usable account of the same provider. `../client/README.md`, section 5 defers those separate
     account rows. Settings, Models is
-    `../client/README.md`, 3.5, *The `Models` tab*.
+    `../client/pages/README.md`, *The `Models` tab*.
 - **Design departs:**
   - 5, *Who reads*: smith's `protocol/agent.md`, 6.1: the agent makes the one request in a process of its own, `--list`, where smith's host half runs it as it runs a program's status, and no run channel carries it, since a run's channel, domain and lifecycle hold nothing a read needs. The worker's channel carries the request and answer (jig's `protocol/channel/records.md`, 1 and 2): decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 5: skein's `llm/README.md`, 4.9 reads one page, at most 256 rows by default,
@@ -28,8 +28,8 @@ departures and open decisions below keep this draft.
   - 5, *The table*: jig's `domain/accounts.md`, 3.7: an account's first source says whether it has a list, so an Anthropic account with Claude Code first and a key after reads nothing, since the order decides who pays and a key's list doesn't say what that subscription serves: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 5: jig's `domain/engine/settings.md`, 12: a list's window and output come no larger than the stock's, and a name's figures are its first read's, since 2 has them stay the stock's whatever a provider allows and a read must not undo what an accepted proposal set: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 4: jig's `domain/engine/settings.md`, 11: a person's removal of a list's model makes it a person's, so that a list naming it again doesn't bring it back: decided by the cut of `model-catalogue-3`, 2026-11-07.
-  - 3: `../client/README.md`, 3.5, *Ask temper's page*: there is no "Models by role" starter to name connected accounts, since Ask temper's opening shows the stock ways to pick in place of its starters: the look request `ask-temper-ways`, the user, 2026-11-08.
-  - 3: `../domain/agent.md`, 8.1 gives the inventory the offer alone, but
+  - 3: `../client/pages/README.md`, *Ask temper's page*: there is no "Models by role" starter to name connected accounts, since Ask temper's opening shows the stock ways to pick in place of its starters: the look request `ask-temper-ways`, the user, 2026-11-08.
+  - 3: `../domain/agent/agents.md`, 1 gives the inventory the offer alone, but
     serves a charter's full value when read, including unoffered models, and
     proposal validation accepts configured models outside the offer: the
     `model-catalogue-1` cut chose this because proposals need whole charter
@@ -41,8 +41,8 @@ departures and open decisions below keep this draft.
   - 4: a model's removal withdraws it and keeps its setting, as an exception to jig's `domain/engine/settings.md`, 1's general removal rule, specified in its 17.11, so that a number is never given to another name and a task keeps its model: decided by the cut of `model-catalogue-2`, 2026-11-06.
   - 6: "Add a model by name" and the picker's switch are `ChangeModel`, a request of their own that the core makes into one change at the newest revision, where the draft has them as any setting's change, since a client holds no model whole and a switch can't go stale: decided by the cut of `model-catalogue-2`, 2026-11-06.
   - 4: a provider names an `endpoint` for its added models and an endpoint declares its `limits`, which the draft leaves implied: decided by the cut of `model-catalogue-2`, 2026-11-06.
-  - 3: this draft and `../client/README.md`, 3.5 don't say what a started chat's change across LLM providers, or to a window too small for its conversation, does. What smith and jig already do stands, as the plain thing: decided by the cut of `ui-model-next-turn`, 2026-11-06, which changes none of it. Across LLM providers or accounts the run's check chooses an account again (jig's `domain/tasks/changes.md`), and the window is carried over, compacted on the new model without the provider's opaque replay (smith's `domain/session.md`, 8.2). On the same account, a smaller window is reached through a compaction on the old model. A conversation too large for the new model fails as a compaction's *context too long* does (smith's `protocol/transcript.md`, section 11): the chat is held, "the run no longer fits the model's window of N tokens" (jig's `client/domain/contract/documents.md`, 5), its transcript kept and nothing cut, and its person can choose another model, since a held task can still be amended (jig's `domain/tasks/changes.md`).
-  - 1, 3, 4 and 5: `../protocol/configuration.md`, 13.4 and `../domain/agent.md`, 8.1 say Ask temper, charter 11 and template 5, where this draft says the configuring chat, the configuring agent and Configure temper; 3's row of the configuring agent's models is charter 11's: `ask-temper.md`, section 9, the user, 2026-11-07 ("just drop the old one").
+  - 3: this draft and `../client/pages/README.md` don't say what a started chat's change across LLM providers, or to a window too small for its conversation, does. What smith and jig already do stands, as the plain thing: decided by the cut of `ui-model-next-turn`, 2026-11-06, which changes none of it. Across LLM providers or accounts the run's check chooses an account again (jig's `domain/tasks/changes.md`), and the window is carried over, compacted on the new model without the provider's opaque replay (smith's `domain/session.md`, 8.2). On the same account, a smaller window is reached through a compaction on the old model. A conversation too large for the new model fails as a compaction's *context too long* does (smith's `protocol/transcript.md`, section 11): the chat is held, "the run no longer fits the model's window of N tokens" (jig's `client/domain/contract/documents.md`, 5), its transcript kept and nothing cut, and its person can choose another model, since a held task can still be amended (jig's `domain/tasks/changes.md`).
+  - 1, 3, 4 and 5: `../protocol/configuration/stock.md` and `../domain/agent/agents.md`, 1 say Ask temper, charter 11 and template 5, where this draft says the configuring chat, the configuring agent and Configure temper; 3's row of the configuring agent's models is charter 11's: `ask-temper.md`, section 9, the user, 2026-11-07 ("just drop the old one").
 - **Open:**
   - 4: a deployment with no stock provider, such as a local model's alone, has no default model, and its start is refused at `engine.llm.providers`; how its first model comes in is undecided.
   - 8: Haiku 5.5; a plan that lacks a model; a role's models on a page.

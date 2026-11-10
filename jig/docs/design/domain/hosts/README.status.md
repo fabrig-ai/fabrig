@@ -16,7 +16,7 @@ The fleet exposes it for the attempt hosted there (`../engine/fleet.md`).
 `hub.md`, section 6 has no known gap in a loss told with why or a worker's
 return: each side's link component names each loss's cause, which
 temper's service prints (`../../protocol/channel/README.status.md`;
-`temper/docs/design/protocol/README.md`, 15.3), and the engine's world takes back a worker
+`temper/docs/design/protocol/cluster.md`, 3), and the engine's world takes back a worker
 lost fifty times, its closing connections aborted at the stall deadline.
 
 `hub.md`, section 7 has no known gap in a worker's hub saying it drains: a

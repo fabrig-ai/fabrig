@@ -1,4 +1,4 @@
-//! Away on All projects (temper/docs/design/client/README.md, 3.5, Away, On All projects).
+//! Away on All projects (temper/docs/design/client/pages/README.md, Away, On All projects).
 use super::{Pages, away, needs::Toasted};
 use crate::{Domain, Limits, Request, owner::Owner};
 use jig_client::{Ask, Client, Key, Told};

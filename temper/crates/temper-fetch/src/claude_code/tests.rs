@@ -13,7 +13,7 @@ use skein_forge::forgejo::pin::Platform;
     reason = "ordinary Rust compares release pins to the design's table (programming-model.md, 10.2)"
 )]
 fn every_build_is_pinned_to_the_design_table() {
-    let design = include_str!("../../../../docs/design/protocol/setup.md");
+    let design = include_str!("../../../../docs/design/protocol/setup/owned.md");
     assert!(design.contains(&format!("**The pin:** `VERSION` `{}`", claude_code::VERSION)));
     for (platform, arch, libc, name) in [
         (Platform::Linux, "x86_64", Libc::Gnu, "linux-x64"),

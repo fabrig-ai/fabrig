@@ -1,4 +1,4 @@
-//! Home's facts, watches and entry look (temper/docs/design/client/README.md, 3.5, Home).
+//! Home's facts, watches and entry look (temper/docs/design/client/pages/README.md, Home).
 use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
@@ -196,7 +196,7 @@ pub(crate) fn configured(client: &Client) -> bool {
     false
 }
 
-/// The recent Away spell accompanying Home's decisions (client/README.md, 3.5, Decided for you).
+/// The recent Away spell accompanying Home's decisions (client/pages/README.md, Decided for you).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Spell {
     pub since: Wall,
@@ -204,7 +204,7 @@ pub struct Spell {
     pub landed: Option<u64>,
 }
 
-/// The repository sheet belongs to this Home (client/README.md, 3.5).
+/// The repository sheet belongs to this Home (client/pages/README.md).
 #[derive(Debug, PartialEq, Eq)]
 pub struct AddSheet {
     pub start: forge::forges::Start,
@@ -311,7 +311,7 @@ fn add_answer(outcome: &jig_client::Outcome, limits: forge::Limits) -> Result<()
     Err(AddRefused::Unknown)
 }
 
-/// What needs the person in this project (temper/docs/design/client/README.md, 3.5, Home).
+/// What needs the person in this project (temper/docs/design/client/pages/README.md, Home).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Needs {
     Unknown,
@@ -322,7 +322,7 @@ pub enum Needs {
     },
 }
 
-/// What the person's skip says (temper/docs/design/client/README.md, 3.5, To begin).
+/// What the person's skip says (temper/docs/design/client/pages/README.md, To begin).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Skip {
     /// The dismissals aren't delivered, or their watch was refused or ended.
@@ -332,7 +332,7 @@ pub enum Skip {
     NotSkipped,
 }
 
-/// The facts Home draws (temper/docs/design/client/README.md, 3.5, Home).
+/// The facts Home draws (temper/docs/design/client/pages/README.md, Home).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Facts {
     pub configured: bool,
@@ -354,7 +354,7 @@ pub enum Status {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Repository {
     Unknown,
-    /// Copies being made into this project, a line each (client/README.md, 3.5, Home).
+    /// Copies being made into this project, a line each (client/pages/README.md, Home).
     Copying {
         lines: Box<[CopyLine]>,
     },
@@ -481,7 +481,7 @@ impl Facts {
     }
 }
 /// Whether To begin shows for the rail: on Home and on Ask temper's page alone
-/// (temper/docs/design/client/README.md, 5.3, *While To begin shows*).
+/// (temper/docs/design/client/view.md, 3, *While To begin shows*).
 #[must_use]
 pub fn beginning(root: &Domain, project: u32, wall: Wall) -> bool {
     (root.pages().address() == &(crate::Address::Home { project })
@@ -650,7 +650,7 @@ pub(super) fn add_forge(state: &forge::forges::State, playground: Option<u16>) -
     found
 }
 
-/// The making rows take precedence over held repositories (client/README.md, 3.5, Home).
+/// The making rows take precedence over held repositories (client/pages/README.md, Home).
 fn copy_repository(state: &forge::forges::State, playground: Option<u16>, project: u32) -> Option<Repository> {
     use forge::making;
     let copies = making::copies(state, playground);

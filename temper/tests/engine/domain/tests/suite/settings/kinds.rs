@@ -1,4 +1,4 @@
-//! Kinds judged, kept and used (temper/docs/design/domain/forge.md, 8.7, 8.9 and 18).
+//! Kinds judged, kept and used (temper/docs/design/domain/forge/change/gates.md, 2 and 3, and temper/docs/design/domain/forge/README.md, 10).
 use jig_domain_core::settings as s;
 use jig_domain_people as people;
 use skein_fake_forge_domain::api as raw;

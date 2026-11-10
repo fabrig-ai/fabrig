@@ -1,4 +1,4 @@
-//! Coverage and gate order (temper/docs/design/domain/forge.md, 8.3, 8.9 and 8.13).
+//! Coverage and gate order (temper/docs/design/domain/forge/change/gates.md, 1 and 3 and temper/docs/design/domain/forge/change/branch-path.md).
 use super::Inputs;
 use alloc::boxed::Box;
 use skein_lib::List;

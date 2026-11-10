@@ -1,4 +1,4 @@
-//! A change relays its agents' questions (temper/docs/design/domain/forge.md, 8.11).
+//! A change relays its agents' questions (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::*;
 use temper_engine_domain_forge_change::{Route, Stands, State};
 
@@ -357,7 +357,7 @@ fn a_producers_question_goes_up_and_the_answer_comes_down() {
     );
 }
 
-/// temper/docs/design/domain/agent.md, 6: an unchecked push is the next brief's head.
+/// temper/docs/design/domain/agent/README.md, 5: an unchecked push is the next brief's head.
 #[test]
 fn a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head() {
     let (mut world, requester, change, producer) = up_world(None);

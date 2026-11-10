@@ -4007,7 +4007,7 @@ fn a_chats_long_line_draws_whole() {
     }
 }
 
-// client/README.md, 3.5: this hold is the reader's own Stop on this chat.
+// client/pages/README.md: this hold is the reader's own Stop on this chat.
 pub(super) fn pause_chip(chip: &mut c::Chip) {
     chip.phase = c::Phase::Held;
     chip.details.phase = c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 19 };
@@ -4668,7 +4668,7 @@ fn a_decided_proposal_of_another_kind_keeps_its_row_and_draws_no_card() {
     }
 }
 
-// client/README.md, 5.4: the message composers share the bound.
+// client/view.md, 4: the message composers share the bound.
 fn bounded_composers(browser: bool) -> Box<[temper_client_domain::Domain]> {
     use temper_client_domain::Address;
     let mut agent = fixtures::task::document();

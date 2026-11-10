@@ -1,4 +1,4 @@
-//! Starting a goal from its draft (client/README.md, 5.14).
+//! Starting a goal from its draft (client/pages/goal.md, 3).
 use super::{Pages, Request, goal, needs::Toasted};
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -38,7 +38,7 @@ enum Sent {
     Propose(c::Recipient),
 }
 
-/// The goal's title and draft provenance (client/README.md, 5.14).
+/// The goal's title and draft provenance (client/pages/goal.md, 3).
 #[must_use]
 pub fn words(name: &[u8], path: &[u8], chat: Option<u64>, always: bool) -> Box<[u8]> {
     let path = path.trim_ascii();
@@ -90,7 +90,7 @@ pub fn default_way(me: &c::Me, project: u32) -> Option<u32> {
     first
 }
 
-/// Nothing to fund a goal, and why (client/README.md, 5.14).
+/// Nothing to fund a goal, and why (client/pages/goal.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unfunded {
     Held,

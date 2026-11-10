@@ -627,7 +627,7 @@ fn a_persons_new_request_restarts_the_chat_script() {
 }
 
 /// A person's draft request must reach the unsuggested script through Smith's
-/// open-chat opening (temper/docs/design/domain/agent.md, 8.3).
+/// open-chat opening (temper/docs/design/domain/agent/agents.md, 3).
 #[test]
 fn a_chat_document_request_calls_note_from_smiths_opening() {
     let first = answers("Please write this up. Write this up as a draft beside us.", run::Mode::Open, 2);

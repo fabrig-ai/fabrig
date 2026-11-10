@@ -1,4 +1,4 @@
-//! Reading's histories and anchoring steps (temper/docs/design/client/browser.md, 4.3 and 4.6, item 14).
+//! Reading's histories and anchoring steps (temper/docs/design/client/web/testing.md, 3 and 6, item 14).
 use skein_fake_person_browser::Step;
 
 /// Eight replies span three windows; the long story reads them by their place.
@@ -11,7 +11,7 @@ pub const SHORT_START: &str = "A short conversation";
 pub const SHORT_END: &str = "The whole answer.";
 
 // The shell's small-window bundle holds its long_text: a thirty-second of a person's
-// document_bytes, using the same window mechanism (temper/docs/design/client/browser.md, 4.3).
+// document_bytes, using the same window mechanism (temper/docs/design/client/web/testing.md, 3).
 #[cfg(test)]
 const READING_WINDOW_BYTES: usize = 32_768;
 // One code line carries each reply's bytes: eight span just past three windows,

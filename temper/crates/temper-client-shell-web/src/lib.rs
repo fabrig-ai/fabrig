@@ -182,7 +182,7 @@ fn start_signed_in() {
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
-/// The page follows the domain's look even when keeping it is refused (client/README.md, 3.5).
+/// The page follows the domain's look even when keeping it is refused (client/pages/README.md).
 #[cfg(target_arch = "wasm32")]
 fn night(document: &web_sys::Document, on: bool) {
     let html = document.document_element().expect("document html");

@@ -1,4 +1,4 @@
-//! Public paths come only from me (client/browser.md, 8.1).
+//! Public paths come only from me (client/web/public.md, 1).
 use super::{Text, outcome::newline};
 use crate::jig::{
     digest::Digest,

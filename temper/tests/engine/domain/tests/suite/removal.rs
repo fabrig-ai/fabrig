@@ -1,4 +1,4 @@
-//! Crash cuts through forge removal (temper/docs/design/domain/forge.md, 4.1 and 18).
+//! Crash cuts through forge removal (temper/docs/design/domain/forge/adoption.md, 1, and temper/docs/design/domain/forge/README.md, 10).
 use jig_domain_core as core;
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people as people;

@@ -1,5 +1,5 @@
 //! temper's calendar: each project's funding period, renewed on one span
-//! (domain/root.md, 5.7). It keeps no money and stores nothing: the periods
+//! (domain/routing.md, 7). It keeps no money and stores nothing: the periods
 //! are the core's records, and the root fills each period's budget.
 #![no_std]
 #![forbid(unsafe_code)]

@@ -1,4 +1,4 @@
-//! Stock ways at the client/engine boundary (temper/docs/design/client/README.md, 5.13).
+//! Stock ways at the client/engine boundary (temper/docs/design/client/pages/settings.md, 2).
 use super::{Joint, client, core_rows, engine, engine_limits, fixtures};
 use jig_domain_authority as authority;
 use jig_domain_core::settings as s;

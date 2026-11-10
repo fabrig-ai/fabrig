@@ -61,11 +61,11 @@ impl Memory {
         }
         self.transport.event(now, event);
     }
-    /// A connection taken at any time during this call (client/tools.md, 6.3).
+    /// A connection taken at any time during this call (client/ctl/results.md, 3).
     pub(crate) fn connected(&self) -> bool {
         self.connected_once
     }
-    /// A connection the kernel refused, before any was made (client/tools.md, 6.3).
+    /// A connection the kernel refused, before any was made (client/ctl/results.md, 3).
     pub(crate) fn refused(&self) -> bool {
         self.refused
     }

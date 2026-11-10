@@ -1,4 +1,4 @@
-//! The welcome's command block and its Copy (temper/docs/design/client/README.md, 3.5).
+//! The welcome's command block and its Copy (temper/docs/design/client/pages/README.md).
 use crate::{accounts::Bindings, words::Words};
 use skein_ui::Builder;
 use temper_client_domain::Domain;

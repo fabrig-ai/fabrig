@@ -1,4 +1,4 @@
-//! The lock, exec and extraction exceptions (protocol/setup.md, 6.4 and 6.6).
+//! The lock, exec and extraction exceptions (protocol/setup/owned.md, 4 and 6).
 use skein_lib::sha256::Sha256;
 use std::{
     fs, io,
@@ -57,7 +57,7 @@ pub fn command(spec: &Spec, lock: Lock) -> Command {
 /// Replaces this process; only an unsuccessful exec returns.
 /// An inherited listener at fd 3 remains open: `listener_at` leaves its flags
 /// unchanged, the parent's dup2 cleared CLOEXEC, and `CommandExt::exec` does
-/// not close descriptors without CLOEXEC (protocol/setup.md, 6.4).
+/// not close descriptors without CLOEXEC (protocol/setup/owned.md, 4).
 #[must_use]
 pub fn exec(spec: &Spec, lock: Lock) -> io::Error {
     command(spec, lock).exec()
@@ -102,7 +102,7 @@ pub fn id() -> u32 {
     std::process::id()
 }
 
-/// The effective user's login from the system command (protocol/setup.md, 8.2).
+/// The effective user's login from the system command (protocol/setup/init.md, 2).
 /// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
 pub fn login_id() -> Result<Box<[u8]>, String> {
     let output = Command::new("/usr/bin/id")

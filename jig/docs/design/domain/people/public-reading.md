@@ -120,12 +120,12 @@ and the project's name. Their records, and each field's source, are
   chat can reach a stranger. Titles cross all the same: the user's
   decision, reaffirmed on 2026-11-06 (the request `ui-public-3`), on the
   condition that making a project public says so. temper's words, in
-  each place it offers that (temper's `client/tools.md`, 5.3), are:
+  each place it offers that (temper's `client/ctl/tools.md`, 3), are:
   "Anything said in this project's chats may show on its public pages,
   in the titles of its goals and tasks. On a public repository, a
   change's pull request shows what its agent wrote too."
   Its help and completed answer carry these words; an acknowledgement
-  before publication is deferred in temper's `client/tools.md`, section 14.
+  before publication is deferred in temper's `client/ctl/README.md`, section 11.
 - **No internal number:** a project or a task is named by its public
   identifier alone (8), in every field and every route.
 - **An application's own public documents** are its connectors' (the
@@ -138,7 +138,7 @@ and the project's name. Their records, and each field's source, are
   those it was handed, named through the read's list of tasks
   (`../../protocol/client/public-reads.md`), which the core checks again
   before it answers (10). What a connector kept of a task past its
-  end, such as temper's landed commit (temper's `client/forge.md`, 11.2),
+  end, such as temper's landed commit (temper's `client/forge/README.md`, 9.2),
   it gives only while that task is handed; keeping it makes nothing public.
 
 ## 4. Who sees what
@@ -301,7 +301,7 @@ One rule, the same for every field, list, count and connector:
   (`../../protocol/store/loads.md`, 4), so a start, or a project made public,
   begins with none. Loading them is open (`README.md`, section 11). A page drawing a
   board says what this leaves out, so that its empty lists are not read
-  as no work (temper's `client/browser.md`, 8.3).
+  as no work (temper's `client/web/public.md`, 3).
 - **Bounded per read:** a board examines at most its goals' bound times
   its lines' bound, a card its lineage's depth and its delegates'
   bound; each answer's bytes are known from those bounds, which its

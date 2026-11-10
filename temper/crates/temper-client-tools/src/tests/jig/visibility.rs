@@ -1,4 +1,4 @@
-//! Visibility and public paths (temper/docs/design/client/tools.md, 5.2 and 5.3).
+//! Visibility and public paths (temper/docs/design/client/ctl/tools.md, 2 and 3).
 use crate::{jig, tests::fixtures as f};
 use jig_client::{Ask, contract as c};
 

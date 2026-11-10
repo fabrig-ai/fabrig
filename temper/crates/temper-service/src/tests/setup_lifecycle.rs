@@ -29,7 +29,7 @@ fn restored_owned_forge_reads_a_present_handover_before_using_kept_admin() {
     assert!(!contains(&face.wire.received, b"test-admin"), "kept admin did not bypass the handover");
 }
 
-/// A kept owned forge whose first handover read precedes box preparation (protocol/setup.md, 6.5).
+/// A kept owned forge whose first handover read precedes box preparation (protocol/setup/owned.md, 5).
 fn restored_box(sign_in: bool) -> crate::Service {
     let mut config = local_config(true, false);
     let entries = core::mem::replace(&mut config.setup, Box::new([]));
@@ -1737,7 +1737,7 @@ fn pasted_app_key_form_and_401_failures_use_the_persons_words() {
     );
 }
 
-// client/forge.md 9.1: QA observes the browser's status, shell and destination.
+// client/forge/served.md 1: QA observes the browser's status, shell and destination.
 fn ended(peer: &fixtures::http::Peer) {
     status(peer, b"410");
     assert!(contains(peer.received(), b"<h1>This link has ended</h1>"));
@@ -1850,7 +1850,7 @@ fn restart_before_acceptance_restores_connecting_then_install_accept_and_reachab
     assert_eq!(rows.len(), 1);
     assert!(rows[0].installations.is_empty(), "no Ready installation survives an abandoned tab");
     // App connectivity with no accepted installation is the client's Connecting
-    // step (client/forge.md 5.4), exercised by the joint client's abandoned-tab QA.
+    // step (client/forge/deployment.md), exercised by the joint client's abandoned-tab QA.
     assert_eq!(
         rows[0].connection,
         domain::Connection::Connected { id: 9, login: Box::from(b"app-fixture[bot]".as_slice()) }

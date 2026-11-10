@@ -1,4 +1,4 @@
-//! Team's drawn facts (temper/docs/design/client/README.md, 3.5, Team).
+//! Team's drawn facts (temper/docs/design/client/pages/README.md, Team).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

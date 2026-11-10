@@ -1,4 +1,4 @@
-//! The deployment's client entry point (temper/docs/design/protocol/README.md, section 4).
+//! The deployment's client entry point (temper/docs/design/protocol/binaries.md).
 #![forbid(unsafe_code)]
 
 use std::process::ExitCode;

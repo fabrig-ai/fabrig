@@ -1,4 +1,4 @@
-//! Decode an address read (temper/docs/design/domain/agent.md, 8.4.1).
+//! Decode an address read (temper/docs/design/domain/agent/ask-temper.md, 1).
 
 pub(crate) mod addresses;
 mod person;
@@ -33,7 +33,7 @@ pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem>
     Ok(Ok(Tool::See { line: line.into(), from: 0 }))
 }
 
-/// The most an answer's body holds (domain/agent.md, 8.4.1).
+/// The most an answer's body holds (domain/agent/ask-temper.md, 1).
 pub const SEE_PART: u32 = 6_144;
 pub use addresses::ADDRESSES;
 

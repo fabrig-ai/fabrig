@@ -75,7 +75,7 @@ fn setup_intent(
 }
 #[test]
 fn setup_refused_without_the_box() {
-    // domain/forge.md, 4.1: without the box, setup is refused before routing.
+    // domain/forge/adoption.md, 1: without the box, setup is refused before routing.
     let mut driver = driver(false);
     let answer = setup(&mut driver, 51, b"work", b"hello");
     assert_eq!(
@@ -86,7 +86,7 @@ fn setup_refused_without_the_box() {
 
 #[test]
 fn invalid_names_are_refused_before_any_box_request() {
-    // client/README.md, 4.6; protocol/setup.md, 6.7: both grammars checked at admission.
+    // client/forge/records.md; protocol/setup/owned.md, 7: both grammars checked at admission.
     let cases: &[(&[u8], &[u8])] = &[
         (b"", b"hello"),
         (b"work", b""),
@@ -117,7 +117,7 @@ fn invalid_names_are_refused_before_any_box_request() {
 
 #[test]
 fn names_one_byte_past_each_forge_limit_are_refused() {
-    // client/README.md, 4.6: 40-byte organization and 100-byte repository maxima.
+    // client/forge/records.md: 40-byte organization and 100-byte repository maxima.
     for (org, name) in [(vec![b'o'; 41], b"hello".to_vec()), (b"work".to_vec(), vec![b'r'; 101])] {
         let mut driver = driver(true);
         assert_eq!(
@@ -129,7 +129,7 @@ fn names_one_byte_past_each_forge_limit_are_refused() {
 
 #[test]
 fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
-    // client/README.md, 4.6: accept the other side of both name boundaries.
+    // client/forge/records.md: accept the other side of both name boundaries.
     for (org, name) in [(vec![b'o'; 40], vec![b'r'; 100]), (b"work".to_vec(), b".hello_World-9.".to_vec())] {
         let mut driver = driver(true);
         assert_eq!(setup(&mut driver, 54, &org, &name), None, "an admitted setup waits for the box's answer");
@@ -139,7 +139,7 @@ fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
 
 #[test]
 fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
-    // domain/forge.md, 4.1; protocol/setup.md, 6.7: one setup at a time, intent only replaced on admission.
+    // domain/forge/adoption.md, 1; protocol/setup/owned.md, 7: one setup at a time, intent only replaced on admission.
     let mut driver = driver(true);
     assert_eq!(setup(&mut driver, 55, b"work", b"hello"), None);
     event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
@@ -158,7 +158,7 @@ fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
 
 #[test]
 fn connected_forge_does_not_offer_setup() {
-    // domain/forge.md, 4.1: a forge already connected does not offer SetUp.
+    // domain/forge/adoption.md, 1: a forge already connected does not offer SetUp.
     let mut driver = driver(true);
     event(
         &mut driver,
@@ -204,7 +204,7 @@ fn forges(driver: &mut Driver) -> forge::Forges {
 
 #[test]
 fn first_repository_row_is_volatile_across_restart() {
-    // protocol/setup.md, 6.7: even made(id) is volatile, never recovered as an adoption.
+    // protocol/setup/owned.md, 7: even made(id) is volatile, never recovered as an adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 58, b"work", b"hello");
     event(&mut driver, forge::Event::FirstMade { forge: 1, id: 2 });
@@ -245,7 +245,7 @@ fn first_repository_row_is_volatile_across_restart() {
 
 #[test]
 fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
-    // protocol/setup.md, 6.7: admin/org/repository/file failures are named and offered again.
+    // protocol/setup/owned.md, 7: admin/org/repository/file failures are named and offered again.
     for step in
         [forge::CreateStep::Admin, forge::CreateStep::Org, forge::CreateStep::Repository, forge::CreateStep::File]
     {
@@ -277,7 +277,7 @@ fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
 
 #[test]
 fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
-    // domain/forge.md, 4.1; client/README.md, 4.6: SetUp is keyed like adoption.
+    // domain/forge/adoption.md, 1; client/forge/records.md: SetUp is keyed like adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 62, b"work", b"hello");
     let request = driver
@@ -300,7 +300,7 @@ fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
 
 #[test]
 fn first_row_moves_from_none_to_making_to_the_created_id() {
-    // protocol/setup.md, 6.7; client/README.md, 4.6: row transitions preserve the created id.
+    // protocol/setup/owned.md, 7; client/forge/records.md: row transitions preserve the created id.
     let mut driver = driver(true);
     assert!(forges(&mut driver).rows[0].first.is_none());
     let _ = setup(&mut driver, 63, b"work", b"hello");
@@ -315,7 +315,7 @@ fn first_row_moves_from_none_to_making_to_the_created_id() {
 
 #[test]
 fn engine_name_limit_is_checked_even_when_forge_grammar_allows_the_names() {
-    // client/README.md, 4.6: valid forge names must also fit engine name_bytes.
+    // client/forge/records.md: valid forge names must also fit engine name_bytes.
     for (org, name, admitted) in [
         (b"work".as_slice(), b"repo".as_slice(), true),
         (b"works".as_slice(), b"repo".as_slice(), false),

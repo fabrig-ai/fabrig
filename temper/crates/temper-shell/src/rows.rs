@@ -1,4 +1,4 @@
-//! The rows shared by binaries (temper/docs/design/protocol/README.md, section 4).
+//! The rows shared by binaries (temper/docs/design/protocol/binaries.md).
 use crate::commands::{Argument, Row, Who};
 
 pub const HELP: Row = Row {

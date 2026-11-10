@@ -596,7 +596,7 @@ was neither made nor refused, and it lands, or not, later.
 ### 7.8 A stop
 
 An owner that stops settles its effects first (jig's
-`domain/connectors.md`, 4.2; temper's `domain/root.md`, 9.2). `Settle`
+`domain/connectors.md`, 4.2; temper's `domain/root.md`, 8.2). `Settle`
 tells the client to finish what it sent and to send nothing new; it is
 the client's last state, and a start builds a new client.
 

@@ -1,5 +1,5 @@
 //! The engine's merge job crosses its worker and returns to the change
-//! (temper/docs/design/domain/testing.md, 2.1; domain/forge.md, 8.4).
+//! (temper/docs/design/testing/README.md, 2.1; domain/forge/change/repairs.md).
 use super::{Duration, Script, Token, VecDeque, World, call, engine, host, link, tasks, worker};
 use jig_domain_link::JobBound;
 use temper_fake_checkout::git::Remote;
@@ -10,7 +10,7 @@ const REMOTE: &[u8] = b"org/repo";
 const COMMAND: &[u8] = b"world merge command\n";
 const LEFT: &[u8] = br#"{"settled":[],"left":["FILE"]}"#;
 
-/// One row of the merge job's story (temper/docs/design/domain/testing.md, 2.1).
+/// One row of the merge job's story (temper/docs/design/testing/README.md, 2.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Row {
     Settled,

@@ -187,7 +187,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   full queue drops and counts (`observations_lost`).
 - **Written out, each is a JSON line,** for a referee in another process,
   such as temper's fake forge's `--observations` file (temper's
-  `protocol/setup.md`, 8.4). The protocol layer's `observations` holds the
+  `protocol/setup/playground.md`). The protocol layer's `observations` holds the
   encoding, since the domain has no JSON: `encode` writes a `Recorded`, an
   observation or a checkpoint, as one object and a newline, and
   `decode` reads one back exactly. For example:
@@ -217,7 +217,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
     stopped writer's last line is a checkpoint, so a stream that does not
     end with one is truncated, and a judge reading it rules Undecided.
     temper's writer sends nothing of a pass before its flush is written
-    (temper's `protocol/setup.md`, 8.4), so a reader that has seen a
+    (temper's `protocol/setup/playground.md`), so a reader that has seen a
     reply, or what a reply caused, finds what it observed.
   - **A number,** a commit, a user, an item, an id, a revision or a
     position, is a JSON integer, exact to `u64`. A flag, a group's
@@ -585,7 +585,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   account's user number (section 5) the same permission on the
   repository, as Forgejo's collaborator has it. So the bot that adoption
   grants reads and writes through the domain's routes, as an
-  application's demo needs (temper's `protocol/setup.md`, 8.4). Only the
+  application's demo needs (temper's `protocol/setup/playground.md`). Only the
   grant crosses: the store's other rows stay its own.
 
 The git decoder's `decoder_bound` bounds retained input scratch;
@@ -614,7 +614,7 @@ peers host theirs. The real loop hosts the same one.
   outgrows it fails by name rather than losing its history.
 - **A peer that serves a person keeps no records.** An application that
   runs the fake as a product, such as a demo's forge (temper's
-  `protocol/setup.md`, 8.4), lives longer than any story's caps.
+  `protocol/setup/playground.md`), lives longer than any story's caps.
   `without_records()`, called on a fresh peer before its first pass,
   makes it keep none: `observations()` stays empty and the assertion
   never runs. A cap of zero
@@ -634,7 +634,7 @@ peers host theirs. The real loop hosts the same one.
   protocol layer's setup store (section 4), as `Service::setup_mut`
   does, so that an owner makes, before the peer serves, the site
   administrator and its token that an application's setup takes over as
-  an owned forge's (temper's `protocol/setup.md`, 6.5). A setup
+  an owned forge's (temper's `protocol/setup/owned.md`, 5). A setup
   account's number is the user number its tokens act as in the domain,
   so an owner that seeds both keeps the scenario's `users` apart from
   them.

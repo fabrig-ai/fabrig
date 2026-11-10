@@ -127,7 +127,7 @@ a finding, as section 2 says.
 **Its phases** are configuration, start and sign-in, forge setup, login import, the chat turn,
 login export and stop.
 
-**Twin and fixtures:** none; twins start at B0 (`../design/domain/testing.md`, 2.4).
+**Twin and fixtures:** none; twins start at B0 (`../design/testing/real-loop.md`).
 
 ## 5. Rung A, the playground
 
@@ -209,7 +209,7 @@ request, CI passed, review, landing and chat's last word.
 `temper/tests/real-loop/tests/fixtures/b0/`. The live story is
 `rung_b0_a_person_agrees_a_plan_before_the_change_lands` in `temper/crates/temper/tests/live.rs`,
 run by `temper/scripts/proof-live.sh rung-b0`, with its offline proofs `rung-b0-offline`
-(`../design/domain/testing.md`, 2.4 and 2.7).
+(`../design/testing/real-loop.md` and `../design/testing/live-tier.md`).
 
 ## 7. Rung B1, the repair
 
@@ -260,7 +260,7 @@ request, first CI failure, repair's start and push, CI passed, review, landing a
 word.
 
 **Twin and fixtures:** `suite::fuzzy::repair`, `temper/tests/real-loop/src/repair.rs`, with
-fixtures in `temper/tests/real-loop/tests/fixtures/b1/` (`../design/domain/testing.md`, 2.4).
+fixtures in `temper/tests/real-loop/tests/fixtures/b1/` (`../design/testing/real-loop.md`).
 The person's gate follows in full.
 
 The note must name when its pull request was opened, which no push can know before the pull

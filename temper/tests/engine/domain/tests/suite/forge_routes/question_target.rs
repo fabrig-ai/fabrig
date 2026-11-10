@@ -1,4 +1,4 @@
-//! A producer asks the requester named in its brief (temper/docs/design/domain/forge.md, 8.11).
+//! A producer asks the requester named in its brief (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::early_start::goal_world;
 use super::questions::{call, make_change, next_producer, row};
 use super::*;

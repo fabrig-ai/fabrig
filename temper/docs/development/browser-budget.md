@@ -174,7 +174,7 @@ these costs in place.
 
 ## Belonging
 
-`temper/docs/design/client/browser.md`, section 4, is the test: a story is in this tier only when no world can show it. No story moves, and budget played no part in that call. This is a cut's reading of the design and of the lower worlds' tests by name, not a run.
+`temper/docs/design/client/web/testing.md`, is the test: a story is in this tier only when no world can show it. No story moves, and budget played no part in that call. This is a cut's reading of the design and of the lower worlds' tests by name, not a run.
 
 - **`a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` stays.** The client world holds the window's logic on a tree (`suite::reading::reading_back_then_forward_recovers_whole_lines_and_follows_new_turns`), and the domain the end coming back (`the_end_comes_back_after_enough_older`). Neither has a layout. Only a browser shows the end in view with the head a screen and a half above it, PgUp scrolling from a focused text area, and real measurements driving the reads.
 - **`latest_returns_a_chat_to_its_end_after_new_words_while_reading_back` stays.** `suite::reading::latest_replaces_the_past_with_the_ends_window`, `sending_from_the_past_returns_to_the_end_and_shows_the_persons_words` and `live_text_and_its_commit_wait_while_the_person_reads_back` hold what the tree does, and skein's `a_log_scrolled_away_returns_to_its_end_and_keeps_following` holds the page part on its example. Only here is the view seen holding and returning, in temper's page.

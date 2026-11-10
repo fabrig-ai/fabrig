@@ -1,4 +1,4 @@
-//! A native client's ask for an approval (client/README.md, 7.1).
+//! A native client's ask for an approval (client/README.md, 4.1).
 use crate::{Domain, Limits, Request};
 use jig_client::ApprovalCode;
 use skein_lib::{Env, Queue, Wall};

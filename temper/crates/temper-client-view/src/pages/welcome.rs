@@ -1,4 +1,4 @@
-//! First-run pages (temper/docs/design/client/README.md, 3.5).
+//! First-run pages (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,
@@ -212,7 +212,7 @@ pub(crate) fn main(
     b.close();
 }
 
-/// A line with nothing yet keeps its label and inline connect link (client/README.md, 3.5, Ready).
+/// A line with nothing yet keeps its label and inline connect link (client/pages/README.md, Ready).
 fn none_yet(b: &mut Builder, w: &Words, bindings: &mut Bindings, label: Word, none: Word, link: Word, step: Step) {
     let name = crate::accounts::words::join(&[&w.say(label, &[]), b" ", &w.say(none, &[])]);
     b.open(Role::Slot);

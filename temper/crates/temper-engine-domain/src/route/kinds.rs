@@ -1,6 +1,6 @@
 //! Typed settings handoffs within the root's decision
-//! (temper/docs/design/domain/root.md, 5.6;
-//! temper/docs/design/protocol/configuration.md, 13.2).
+//! (temper/docs/design/domain/routing.md, 6;
+//! temper/docs/design/protocol/configuration/settings.md, 2).
 use alloc::boxed::Box;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::{Decimal, Env, List, Queue};
@@ -172,13 +172,13 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
     Some(words.into_boxed())
 }
 
-// temper/docs/design/domain/forge.md, 8.9: eligibility joins the forge's rule with the core's people.
+// temper/docs/design/domain/forge/change/gates.md, 3: eligibility joins the forge's rule with the core's people.
 fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
     approval_for_projects(domain, asked, domain.core.projects.as_slice())
 }
 
 /// Acceptance's approval refusal, judged for one project at the call
-/// (temper/docs/design/domain/agent.md, 8.4.2; forge.md, 8.9).
+/// (temper/docs/design/domain/agent/ask-temper.md, 2; domain/forge/change/gates.md, 3).
 pub(super) fn call_approval_refusal(domain: &Domain, project: u32, kinds: &[crate::KindValue]) -> Option<Box<[u8]>> {
     for value in kinds {
         let asked = settings::Asked {
@@ -270,7 +270,7 @@ pub(super) fn covers_repository(
     pattern_at_most(&pattern, &branches) || pattern_at_most(&branches, &pattern)
 }
 
-/// The project's members with `role` who count as people on `forge` (domain/forge.md, 8.9).
+/// The project's members with `role` who count as people on `forge` (domain/forge/change/gates.md, 3).
 pub(super) fn eligible_people(domain: &Domain, project: u32, forge: u16, role: u32) -> u32 {
     let mut count = 0_u32;
     let Some(members) = domain.core.people.project_members(project) else { return count };
@@ -376,7 +376,7 @@ fn save_defaults(domain: &mut Domain, revision: Option<u64>, out: &mut Queue<tem
     domain.forge.save_settings_defaults(out);
 }
 
-/// Settings reads require membership in their requested scope (temper/docs/design/client/forge.md, 9).
+/// Settings reads require membership in their requested scope (temper/docs/design/client/forge/served.md).
 pub(super) fn read(
     domain: &mut Domain,
     env: &Env<Limits>,

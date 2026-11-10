@@ -1,5 +1,5 @@
 //! A welcome trial on the hosted worker and fake Claude Code
-//! (temper/docs/design/domain/trial.md, 2, 6; temper/docs/design/domain/testing.md, 2.4).
+//! (temper/docs/design/domain/trial.md, 2, 6; temper/docs/design/testing/real-loop.md).
 use temper_real_loop_world::{Exit, Scratch, claude, forge, run_forge_on, terminal};
 
 const SOURCE: &str = "claude-owner";

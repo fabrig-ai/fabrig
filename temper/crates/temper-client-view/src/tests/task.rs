@@ -1109,7 +1109,7 @@ fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
 fn agent(task: c::Task) -> crate::View {
     fixtures::page_view(&f::agent_root(task, Some(f::tree()), true))
 }
-// client/README.md, 5.9: an agent shares the chat's work line and reading control.
+// client/pages/task.md, 2: an agent shares the chat's work line and reading control.
 fn agent_work_page(ended: bool) -> c::ActivityPage {
     use fixtures::first_run as run;
     let mut rows = List::with_capacity(2);
@@ -1322,7 +1322,7 @@ fn latest_binds_where_the_window_let_its_end_go() {
         );
     }
 }
-// Context and date headings must arrive above existing words (client/README.md, 5.15).
+// Context and date headings must arrive above existing words (client/pages/chat/conversation.md, 2).
 fn reading_chat(times: &[u64], earlier: bool) -> crate::View {
     let mut rows = List::with_capacity(u32::try_from(times.len()).unwrap());
     for (index, nanos) in times.iter().enumerate() {
@@ -1678,7 +1678,7 @@ fn an_agents_message_folds_each_call_and_results_into_rows() {
     }
 }
 #[test]
-// client/README.md, 5.9: the conversation draws "Run N began" and
+// client/pages/task.md, 2: the conversation draws "Run N began" and
 // "Run N ended"; milestones are not among its lines.
 fn an_agent_pages_conversation_draws_its_runs_but_not_its_milestones() {
     let mut task = f::delegate();

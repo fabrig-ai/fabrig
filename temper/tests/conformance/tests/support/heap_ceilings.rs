@@ -1,6 +1,6 @@
 //! Fixed ceilings for the stories and simulation tests and their crash sweeps.
 //! Each is three times its measured peak plus a quarter, rounded up
-//! (temper/docs/design/domain/testing.md, 5.2).
+//! (temper/docs/design/testing/README.md, 4.2).
 use crate::stories::Story;
 use jig_conformance::scenarios::Scenario;
 

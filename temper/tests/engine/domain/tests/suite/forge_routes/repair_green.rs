@@ -1,4 +1,4 @@
-//! Green CI ends an idle repair through jig (temper/docs/design/domain/forge.md, 8.4).
+//! Green CI ends an idle repair through jig (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 use temper_engine_domain_forge_change::{Repair, State};
 

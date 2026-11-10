@@ -21,7 +21,7 @@ doubling startup refuses, and `documents.text_bytes`,
 
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
-    box (`domain/forge.md`, 4.1, and its status).
+    box (`domain/forge/adoption.md`, 1, and its status).
   - 6: the playground forge's links shown as text.
   - 7: released with temper: no release's build calls
     `scripts/bundle.sh --playground`, `scripts/release.sh` itself being

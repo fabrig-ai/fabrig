@@ -1,4 +1,4 @@
-//! A green head ends CI repair alone (temper/docs/design/domain/forge.md, 8.4).
+//! A green head ends CI repair alone (temper/docs/design/domain/forge/change/repairs.md).
 use skein_fake_forge_domain::api as raw;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;

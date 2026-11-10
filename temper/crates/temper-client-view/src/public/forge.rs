@@ -1,4 +1,4 @@
-//! Public forge mechanics and commits (temper/docs/design/client/forge.md, 11.1 and 11.3).
+//! Public forge mechanics and commits (temper/docs/design/client/forge/README.md, 9.1 and 9.3).
 use super::Draw;
 use crate::words::{TimeForm, Word};
 use jig_client_protocol_wire::public_v1::PublicApplication;

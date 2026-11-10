@@ -5,7 +5,7 @@ fn a_named_key_is_the_first_16_bytes_of_the_salted_digest() {
     let digest = skein_lib::sha256::digest(b"temper-tools\0chat-to-shop");
     assert_eq!(key::engine(&fixtures::name(b"chat-to-shop"))[..], digest[..16]);
 }
-/// client/tools.md, 7: names contain one to 64 bytes.
+/// client/ctl/README.md, 5: names contain one to 64 bytes.
 const NAME_MOST: usize = 64;
 const NAMES: &[(&[u8], bool)] = &[
     (b"", false),

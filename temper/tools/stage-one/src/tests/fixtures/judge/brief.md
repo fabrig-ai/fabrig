@@ -272,9 +272,9 @@ You triage a red for a goal's coordinator. Read the tree, the design, the goal's
 - coordinator.questions | coordinator | Coding changes relay questions through a foreman; a designer's change's questions come straight up; each relayed question is answered, amended, met by a new change or asked of the person | reference-code-production.md, 8
 - coordinator.holds | coordinator | A hold is released, amended then released, cancelled, or passed up to the person with its reasons | reference-code-production.md, 9
 - coordinator.llm | coordinator | Each coding change at gpt-6.1-sol at its spec's effort; each designer's change at Opus 5.5, xhigh, its sub-agents at high | reference-code-production.md, 14
-- coordinator.catch-up | coordinator | The coordinator makes no catch-up changes when main moves under its goal | temper/docs/design/protocol/configuration.md, 13.9
+- coordinator.catch-up | coordinator | The coordinator makes no catch-up changes when main moves under its goal | temper/docs/design/protocol/configuration/reference.md
 - coordinator.triage | coordinator | A red of the goal branch's tier is triaged: a live change's failure amends its words, the rest a repair change into the goal's branch | reference-code-production.md, 10
-- coordinator.close | coordinator | The coordinator makes no close-out, landing or finish once its plan's changes end; its closer settles status, lands the goal and writes the goal's report | temper/docs/design/protocol/configuration.md, 13.9
+- coordinator.close | coordinator | The coordinator makes no close-out, landing or finish once its plan's changes end; its closer settles status, lands the goal and writes the goal's report | temper/docs/design/protocol/configuration/reference.md
 - triage.report | triage | Read only; for each failing test, the change or landing it fails in, whether new, inherited or a flake, and the repair it would make | reference-landing.md, 6
 
 # The agent's description

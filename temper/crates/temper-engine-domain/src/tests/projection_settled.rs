@@ -1,5 +1,5 @@
 //! Explicit connector terminals belong to core bookkeeping even for live tasks
-//! (`temper/docs/design/domain/forge.md`, 12; `jig/docs/design/domain/connectors.md`, 8).
+//! (`temper/docs/design/domain/forge/issues.md`; `jig/docs/design/domain/connectors.md`, 8).
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token, Wall};

@@ -13,11 +13,11 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
-    /// The native client's ask for an approval (client/README.md, 7.1).
+    /// The native client's ask for an approval (client/README.md, 4.1).
     AskApproval,
-    /// The browser left full screen, whoever left it (client/README.md, 3.5).
+    /// The browser left full screen, whoever left it (client/pages/README.md).
     ScreenLeft,
-    /// At start, the kept store’s look (client/README.md, 3.5).
+    /// At start, the kept store’s look (client/pages/README.md).
     LookKept {
         look: crate::pages::terminal::Look,
     },
@@ -48,7 +48,7 @@ pub enum Event {
     },
     SignedOut,
     TabRefused,
-    /// The browser's kept sign-in address (client/README.md, 7).
+    /// The browser's kept sign-in address (client/README.md, 4).
     SignInKept {
         source: u32,
         address: Box<[u8]>,
@@ -60,7 +60,7 @@ pub enum Event {
 pub enum Fact {
     UnknownAsker,
 }
-/// What the shell does with a sign-in's tab (client/README.md, 3.5, `ConnectModel`, The sign-in's tab).
+/// What the shell does with a sign-in's tab (client/pages/README.md, `ConnectModel`, The sign-in's tab).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Tab {
     /// In the press's own turn, before the sign-in is carried; the provider names its words.
@@ -73,15 +73,15 @@ pub enum Tab {
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
-    /// Full screen in the turn of a person’s terminal act (client/README.md, 3.5).
+    /// Full screen in the turn of a person’s terminal act (client/pages/README.md).
     Screen {
         on: bool,
     },
-    /// Keep the look in the step that changed it (client/README.md, 3.5).
+    /// Keep the look in the step that changed it (client/pages/README.md).
     KeepLook {
         look: crate::pages::terminal::Look,
     },
-    /// Keep an answered sign-in beside the client's records (client/README.md, 7).
+    /// Keep an answered sign-in beside the client's records (client/README.md, 4).
     KeepSignIn {
         source: u32,
         address: Box<[u8]>,
@@ -105,7 +105,7 @@ pub enum Request {
         address: Address,
         replace: bool,
     },
-    /// Send the page away to this address, once (client/README.md, 3.5).
+    /// Send the page away to this address, once (client/pages/README.md).
     Leave {
         to: Box<[u8]>,
         replace: bool,

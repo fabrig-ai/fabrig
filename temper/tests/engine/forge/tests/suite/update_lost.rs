@@ -1,4 +1,4 @@
-//! Lost updates and their copies (domain/forge.md, 10 and 18;
+//! Lost updates and their copies (domain/forge/README.md, 6 and 10;
 //! domain/landing.md, 5.2 and 16; jig/docs/design/domain/connectors.md, 15).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;

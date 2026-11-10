@@ -243,7 +243,7 @@ pub(crate) fn send(side: &mut Side, account: u32, again: bool, limits: Limits, o
     side.changed();
 }
 
-/// Decoded tells cross the forge's event boundary (client/README.md, 4.6).
+/// Decoded tells cross the forge's event boundary (client/forge/records.md).
 #[derive(Debug)]
 pub enum Event {
     Rows { rows: Box<[Row]> },

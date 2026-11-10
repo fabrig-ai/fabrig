@@ -90,7 +90,7 @@ pub enum Read {
     StoryOwnerInitial,
     DirectionNoteWritten,
     DirectionFirst,
-    // Act 3, step 6.5 (domain/testing.md, 5.3)
+    // Act 3, step 6.5 (testing/reference-case.md)
     BudgetAsked,
     BudgetInboxAnswered,
     BudgetMedium,
@@ -135,7 +135,7 @@ pub enum Read {
     RedRootsEnded,
     RedRootsPending,
     RedUpdatedReviewEnded,
-    // Act 3, step 6.7 (domain/testing.md, 5.3)
+    // Act 3, step 6.7 (testing/reference-case.md)
     CapHeldWait,
     CapHeld,
     CapA5Writing,
@@ -483,7 +483,7 @@ pub fn step_4_6(base: usize) -> Vec<calls::Step> {
     ]
 }
 
-// Act 2, step 5.1 (domain/testing.md, 5.3)
+// Act 2, step 5.1 (testing/reference-case.md)
 const RULES_ENDED: usize = 3;
 pub const READS_5_1: &[(Read, usize)] = &[
     (Read::RulesWaiting, 5),
@@ -572,7 +572,7 @@ pub fn step_5_1() -> Vec<calls::Step> {
     ]
 }
 
-// Act 2, step 5.3 (domain/testing.md, 5.3)
+// Act 2, step 5.3 (testing/reference-case.md)
 const SHAPE_ENDED: usize = 3;
 pub const READS_5_3: &[(Read, usize)] = &[(Read::MoverEnded, 6), (Read::ShapeEnded, SHAPE_ENDED)];
 
@@ -602,7 +602,7 @@ pub fn step_5_3() -> Vec<calls::Step> {
     ]
 }
 
-// Act 2, step 5.2 (domain/testing.md, 5.3)
+// Act 2, step 5.2 (testing/reference-case.md)
 const B_ENDED_5_2: usize = 21;
 pub const READS_5_2: &[(Read, usize)] = &[
     (Read::ImplementerRunning, 5),
@@ -732,7 +732,7 @@ pub fn step_5_2() -> Vec<calls::Step> {
     ]
 }
 
-// Act 2, step 5.5 (domain/testing.md, 5.3)
+// Act 2, step 5.5 (testing/reference-case.md)
 const PLAN_ENDED: usize = 2;
 pub const READS_5_5: &[(Read, usize)] = &[
     (Read::PlanEnded, PLAN_ENDED),
@@ -781,7 +781,7 @@ pub fn step_5_5() -> Vec<calls::Step> {
     ]
 }
 
-// Act 2, step 5.4 (domain/testing.md, 5.3)
+// Act 2, step 5.4 (testing/reference-case.md)
 const DIRECTION_B_ENDED: usize = 32;
 const STORY_OWNER_ENDED: usize = 36;
 const DIRECTION_ENDED: usize = 38;
@@ -940,7 +940,7 @@ pub fn step_5_4() -> Vec<calls::Step> {
     ]
 }
 
-// Act 3, step 6.5 (domain/testing.md, 5.3)
+// Act 3, step 6.5 (testing/reference-case.md)
 pub const READS_6_5: &[(Read, usize)] = &[
     (Read::BudgetAsked, 5),
     (Read::BudgetMedium, 10),
@@ -1020,7 +1020,7 @@ pub fn step_6_5() -> Vec<calls::Step> {
     steps
 }
 
-// Act 3, step 6.4 (domain/testing.md, 5.3)
+// Act 3, step 6.4 (testing/reference-case.md)
 const RED_OWNER_ENDED: usize = 19;
 pub const READS_6_4: &[(Read, usize)] = &[
     (Read::RedReviewWriting, 8),
@@ -1128,7 +1128,7 @@ pub fn step_6_4() -> Vec<calls::Step> {
     steps
 }
 
-// Act 3, step 6.7 (domain/testing.md, 5.3)
+// Act 3, step 6.7 (testing/reference-case.md)
 pub const READS_6_7: &[(Read, usize)] = &[
     (Read::CapHeldWait, 7),
     (Read::CapHeld, 8),

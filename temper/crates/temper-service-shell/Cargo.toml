@@ -1,6 +1,6 @@
 [package]
 name = "temper-service-shell"
-description = "Serve's run and host for every binary that serves (temper/docs/design/protocol/README.md, 4.1)"
+description = "Serve's run and host for every binary that serves (temper/docs/design/protocol/binaries.md, 1)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -773,7 +773,7 @@ and resends what it must after the next hello.
   limits a run that committed its most calls could never resume. How
   large a start the domains admit beside the room is the application's
   figure, and the application names the bound when it refuses such
-  limits (temper's `protocol/configuration.md`, section 7).
+  limits (temper's `protocol/configuration/limits.md`).
 - **The worst case per channel** is skein's channel's (skein's
   `net/channel.md`, section 10) with these terms and caps; per side, the
   engine's is that times the fleet's workers and the connections opening,

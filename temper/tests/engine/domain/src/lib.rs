@@ -46,7 +46,7 @@ pub fn poll(
     }
 }
 
-/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 9.1).
+/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 8.1).
 pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
     use jig_domain_core::start::Phase;
     let runtime = root.ready()

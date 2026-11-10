@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): M1's message, M2's admission and QA's owner-landed test.
+//! Retained first-edition story (testing/reference-case.md): M1's message, M2's admission and QA's owner-landed test.
 use temper_real_loop_world::{Exit, case, run_cluster_forge};
 
 #[test]

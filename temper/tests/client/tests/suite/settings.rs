@@ -1,4 +1,4 @@
-//! Settings at the client/engine meeting point (temper/docs/design/client/README.md, 5.13 and 10).
+//! Settings at the client/engine meeting point (temper/docs/design/client/pages/settings.md, 2 and temper/docs/design/client/testing.md).
 use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_ui::{Role, State};

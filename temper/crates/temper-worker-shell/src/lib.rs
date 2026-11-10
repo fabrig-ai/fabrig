@@ -1,4 +1,4 @@
-//! The worker's half of a start and program-login, for every binary that runs a worker (temper/docs/design/protocol/README.md, 4.1 and 4.5).
+//! The worker's half of a start and program-login, for every binary that runs a worker (temper/docs/design/protocol/binaries.md, 1 and 5).
 #[cfg(test)]
 extern crate self as temper;
 use std::{

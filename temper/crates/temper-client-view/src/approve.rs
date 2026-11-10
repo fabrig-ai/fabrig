@@ -1,5 +1,5 @@
-//! The browser's approval column (temper/docs/design/client/README.md, 3.5, 5.1 and 5.12;
-//! temper/docs/design/client/browser.md, 2.5).
+//! The browser's approval column (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and 6;
+//! temper/docs/design/client/web/look.md).
 use crate::{
     frame::Bindings,
     look, outside,

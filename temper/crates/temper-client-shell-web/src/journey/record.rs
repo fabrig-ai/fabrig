@@ -1,4 +1,4 @@
-//! Keep the reports and duties, never patches (client/journeys.md, 3.1).
+//! Keep the reports and duties, never patches (client/web/journeys.md, 3.1).
 use super::{Facts, Line, line::clone_act, line::clone_heard};
 use crate::host::{Duties, Host, Report, TabAct};
 use jig_client_shell_web::adapter::Asked;
@@ -6,7 +6,7 @@ use skein_lib::{Time, Wall};
 use skein_ui::Act;
 use skein_ui_web::{page::Page, transport::Carried};
 
-/// What crosses the host's seam, kept as recording lines (client/journeys.md, 3.1).
+/// What crosses the host's seam, kept as recording lines (client/web/journeys.md, 3.1).
 pub struct Recorder {
     file: Vec<u8>,
     turn: Option<(Time, Wall)>,
@@ -93,7 +93,7 @@ impl Recorder {
         self.keep(&Line::Mark(Some(page.html().into_bytes().into())));
     }
     /// The recording as it is now, closed by an end mark; recording goes on
-    /// (client/journeys.md, 3.1).
+    /// (client/web/journeys.md, 3.1).
     #[must_use]
     pub fn save(&self, page: &Page<'_>) -> Box<[u8]> {
         let mut file = self.file.clone();

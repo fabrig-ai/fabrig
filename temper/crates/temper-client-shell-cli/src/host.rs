@@ -1,4 +1,4 @@
-//! One call owns its files, pipes and signal subscription (client/tools.md, 8).
+//! One call owns its files, pipes and signal subscription (client/ctl/README.md, 6).
 use crate::{
     arguments::{self, Class},
     directory::Directory,
@@ -586,7 +586,7 @@ impl OneShot {
     }
     fn link_progress(&mut self, now: Time, wall: Wall) {
         // The call's deadline names its wait before a simultaneous transport
-        // timeout can turn a sent-once act into a lost answer (client/tools.md, 6.3).
+        // timeout can turn a sent-once act into a lost answer (client/ctl/results.md, 3).
         let deadline = self.status.is_none() && self.class == Class::Act && self.until.is_some_and(|at| now >= at);
         if !deadline && let Some(shell) = self.signing.as_mut().and_then(|s| s.shell.as_mut()) {
             shell.iterate(now, wall);
@@ -710,7 +710,7 @@ impl OneShot {
     }
     fn complete(&mut self, mut complete: Complete) {
         if complete.op.raw() & (TAG | FILES) == 0 {
-            // The native shell owns the act and sign-in sockets (client/tools.md, 6.3).
+            // The native shell owns the act and sign-in sockets (client/ctl/results.md, 3).
             if matches!(complete.kind, Op::Connect { .. }) && complete.result.is_ok() {
                 self.connected = Some(());
             }

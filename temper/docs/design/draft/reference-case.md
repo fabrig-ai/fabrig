@@ -115,7 +115,7 @@ P
 |---|---|---|---|
 | 22 | G | woken by C9's result, its last change: every change landed, every Left list made into a change, the tier's last run green. G makes X, the close-out: its producer, under the designer's charter, writes into g the status entries still open (project isolation upstream, from C8), the designs' Later sections, and folds the draft into the forge's design, removing it. X lands into g | the close-out (N16) |
 | 23 | L | X's result wakes G, which makes L, a change into main whose branch is g. L opens its pull request; CI, the full gate, fails one fuzzy test at its head. L's repair, an agent at g's tip, fixes it and pushes g under G's hold; CI passes at the new head | the goal checked whole; a repair on g (N3) |
-| 24 | L | queued, then first in main's queue. A chat's small fix landed meanwhile, so L lacks main's tip: the forge merges main into g cleanly, CI passes at the new head, and L merges at exactly that head, a merge commit. Landed, then verifying | the queue; a lazy update; a merge at its head (`forge.md`, sections 9 and 10) |
+| 24 | L | queued, then first in main's queue. A chat's small fix landed meanwhile, so L lacks main's tip: the forge merges main into g cleanly, CI passes at the new head, and L merges at exactly that head, a merge commit. Landed, then verifying | the queue; a lazy update; a merge at its head (`../domain/forge/queues.md` and `../domain/forge/README.md`, section 6) |
 
 ## 7. Act 5: after landing
 

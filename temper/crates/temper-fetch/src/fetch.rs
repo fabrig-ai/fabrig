@@ -1,16 +1,16 @@
-//! Streaming pinned binary fetch (protocol/setup.md, 6.6).
+//! Streaming pinned binary fetch (protocol/setup/owned.md, 6).
 use crate::{Origin, joined};
 use alloc::boxed::Box;
 use skein_forge::forgejo::pin::Binary;
 use skein_lib::{Decimal, Queue, Writer, sha256::Sha256};
 
-/// A pinned binary's progress name (protocol/setup.md, 6.6).
+/// A pinned binary's progress name (protocol/setup/owned.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Named {
     Forge(Binary),
     ClaudeCode,
 }
-/// The fetch's progress on stdout (protocol/setup.md, 6.6).
+/// The fetch's progress on stdout (protocol/setup/owned.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Fetched {
     pub binary: Named,
@@ -83,7 +83,7 @@ pub struct Pin {
     pub file: Box<[u8]>,
     pub bottle: Option<Bottle>,
 }
-/// The verified archive and its one binary member (protocol/setup.md, 6.6).
+/// The verified archive and its one binary member (protocol/setup/owned.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bottle {
     pub digest: [u8; 32],

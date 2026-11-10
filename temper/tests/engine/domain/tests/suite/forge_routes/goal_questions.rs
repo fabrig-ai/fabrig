@@ -1,5 +1,5 @@
 //! A goal's changes ask, settle their questions and land into its held branch
-//! (temper/docs/design/domain/forge.md, 8.11 and 11.1;
+//! (temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1;
 //! temper/docs/design/draft/reference-code-production.md, 8).
 use super::goal_branch::{branch_tip, forge_hold, goal_request};
 use super::questions::{replies, row};

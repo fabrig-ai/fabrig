@@ -1,4 +1,4 @@
-//! Playground acts and restart reset (temper/docs/design/protocol/setup.md, 8.4).
+//! Playground acts and restart reset (temper/docs/design/protocol/setup/playground.md).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -130,7 +130,7 @@ fn finish_forge_removal(d: &mut Driver) {
     d.send(engine::Event::Forge(Box::new(forge::Event::BoxRemoved { forge: 1 })));
     d.settle();
 }
-// A running playground resets on restart (temper/docs/design/protocol/setup.md, 8.4); settle its removal
+// A running playground resets on restart (temper/docs/design/protocol/setup/playground.md); settle its removal
 // before the retained-row oracle takes the story's final snapshot.
 fn end(d: &mut Driver, sign_in: u64) {
     application(d, sign_in, 82, forge::Ask::EndPlayground, false);

@@ -1,4 +1,4 @@
-//! Changes waiting on a person's approval (domain/forge.md, 8.12).
+//! Changes waiting on a person's approval (domain/forge/change/questions.md, 2).
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Wall};
 use temper_engine_domain_forge_change::State;
@@ -6,7 +6,7 @@ use temper_engine_domain_forge_change::State;
 use crate::{Domain, Limits, PanelApproval};
 
 /// A live change whose merge waits on a person's approval, before the people are joined
-/// (domain/forge.md, 8.12).
+/// (domain/forge/change/questions.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ApprovalWait {
     pub task: u64,
@@ -20,7 +20,7 @@ pub struct ApprovalWait {
     pub since: Wall,
     /// Whether its reviews were read whole.
     pub whole: bool,
-    /// The changes after it in its landing branch's order (domain/forge.md, section 9).
+    /// The changes after it in its landing branch's order (domain/forge/queues.md).
     pub behind: u32,
     /// Its enforcing approvals still short, in its panel's order, each with its people counted.
     pub short: Box<[PanelApproval]>,

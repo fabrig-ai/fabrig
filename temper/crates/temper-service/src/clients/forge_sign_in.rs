@@ -1,4 +1,4 @@
-//! Kept forges' browser sign-in facts (temper/docs/design/protocol/sign-in.md, 9.3 and 9.7).
+//! Kept forges' browser sign-in facts (temper/docs/design/protocol/openid-provider.md, 3 and 7).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Map, Writer};
 use temper_engine_domain_forge::Mode;

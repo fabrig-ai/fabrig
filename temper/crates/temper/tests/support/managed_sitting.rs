@@ -1,5 +1,5 @@
-//! The managed fake sitting (temper/docs/design/domain/testing.md, 2.6).
-//! Connect makes the person's App (temper/docs/design/protocol/setup.md, 17.2).
+//! The managed fake sitting (temper/docs/design/testing/process-tier.md).
+//! Connect makes the person's App (temper/docs/design/protocol/setup/github.md, 2).
 use super::{
     managed_client::{self, Mode},
     patience::Patience,

@@ -709,7 +709,7 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
 
 /// Writer/store oracle for selected families, exclusive walk order and page
 /// continuation. Census owners can repeat; its cursor names an index instead
-/// (temper/docs/design/domain/root.md, 9.1; jig/docs/design/domain/engine/README.md, 9).
+/// (temper/docs/design/domain/root.md, 8.1; jig/docs/design/domain/engine/README.md, 9).
 ///
 /// # Errors
 /// Returns the violated family, ordering or continuation obligation.

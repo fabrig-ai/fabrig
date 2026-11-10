@@ -1,4 +1,4 @@
-//! The check's evidence and lines, without io (protocol/setup.md, 8.4).
+//! The check's evidence and lines, without io (protocol/setup/playground.md).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::promises::{Allowance, Bounds, Breach, Decision, Profile, Promise, Verdict, Why};
 use skein_fake_forge_forgejo::routes;
@@ -38,7 +38,7 @@ pub enum Reason {
     DecisionsIncomplete,
 }
 impl Reason {
-    /// The check's words in protocol/setup.md, 8.4.
+    /// The check's words in protocol/setup/playground.md.
     #[must_use]
     pub fn text(self) -> &'static str {
         match self {
@@ -53,7 +53,7 @@ impl Reason {
     }
 }
 /// `Truncated` and `NoDecisions` cannot arise when the binary feeds decisions
-/// first and cuts the stream at a checkpoint (protocol/setup.md, "Its verdict").
+/// first and cuts the stream at a checkpoint (protocol/setup/README.md, "Its verdict").
 impl From<Why> for Reason {
     fn from(why: Why) -> Self {
         reason(&why)
@@ -71,7 +71,7 @@ fn reason(why: &Why) -> Reason {
 }
 
 /// The word temper's client writes with (temper-service's forge.rs:12;
-/// protocol/forge.md, section 4), framed as `skein_forge::marker` frames it.
+/// protocol/forge/README.md, section 3), framed as `skein_forge::marker` frames it.
 const WORD: &[u8] = b"temper";
 
 /// Read every row in temper's interval, with keys relative to jig's application

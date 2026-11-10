@@ -1,4 +1,4 @@
-//! The session's approvals (temper/docs/design/client/README.md, 3.5, 4.6).
+//! The session's approvals (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Family, Handle, Latest, Link, Told, Watchable, contract as c};
@@ -15,7 +15,7 @@ pub enum Yours {
 }
 
 /// A change waiting on a person's review on its forge
-/// (temper/docs/design/client/README.md, 4.6; temper/docs/design/client/forge.md, 4.1).
+/// (temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Row {
     pub task: u64,
@@ -117,7 +117,7 @@ pub(crate) fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request
     }
 }
 
-/// A whole approvals delivery, or the end of its watch (client/README.md, 4.6).
+/// A whole approvals delivery, or the end of its watch (client/forge/records.md).
 #[derive(Debug)]
 pub enum Event {
     Rows { rows: Box<[Row]>, more: u32 },

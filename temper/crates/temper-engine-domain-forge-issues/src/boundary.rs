@@ -1,4 +1,4 @@
-//! Inputs, committed projection and keyed requests (domain/forge.md, section 12).
+//! Inputs, committed projection and keyed requests (domain/forge/issues.md).
 //!
 //! The root supplies the goal's current plan and accepted milestones. The
 //! top keeps `Projected` beside the goal; this module holds no state and

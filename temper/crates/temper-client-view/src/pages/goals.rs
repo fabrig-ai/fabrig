@@ -1,4 +1,4 @@
-//! The project goals' page (temper/docs/design/client/README.md, 3.5).
+//! The project goals' page (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,
@@ -182,7 +182,7 @@ fn text(b: &mut Builder, role: Role, style: skein_ui::Style, value: &[u8]) {
     b.close();
 }
 
-/// A project's named way of carrying out a goal (client/README.md, 3.5).
+/// A project's named way of carrying out a goal (client/pages/README.md).
 #[derive(Debug)]
 pub struct Way {
     pub number: u32,
@@ -190,7 +190,7 @@ pub struct Way {
     pub line: Option<Box<[u8]>>,
 }
 
-/// Tracked templates in their configured number order (client/README.md, 3.5).
+/// Tracked templates in their configured number order (client/pages/README.md).
 #[must_use]
 pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
     let mut result = List::uncapped();
@@ -229,7 +229,7 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
     result
 }
 
-/// A template's name in the person's words (client/README.md, 3.5, 5.13).
+/// A template's name in the person's words (client/pages/README.md, client/pages/settings.md, 2).
 pub(crate) fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
     match name {
         b"goal" => words.say(Word::GoalTaskByTask, &[]),
@@ -238,7 +238,7 @@ pub(crate) fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
     }
 }
 
-/// A goal's state word and token (client/README.md, 3.5, 5.8).
+/// A goal's state word and token (client/pages/README.md, client/pages/goal.md, 2).
 pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
     match state {
         State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
@@ -252,7 +252,7 @@ pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
     }
 }
 
-/// One goal links its title, state and report to its task (client/README.md, 3.5).
+/// One goal links its title, state and report to its task (client/pages/README.md).
 pub(crate) fn row(
     b: &mut Builder,
     words: &Words,

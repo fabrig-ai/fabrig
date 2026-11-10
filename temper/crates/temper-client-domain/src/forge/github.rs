@@ -1,4 +1,4 @@
-//! An App's editable id and one-shot key (client/forge.md, 5.4).
+//! An App's editable id and one-shot key (client/forge/deployment.md).
 use super::{Limits, Request, Served, Side, forges};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};

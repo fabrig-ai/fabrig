@@ -1,5 +1,5 @@
-//! Views read stored settings in a project's scope (temper/docs/design/client/README.md, 5.16;
-//! temper/docs/design/domain/forge.md, 8.13; temper/docs/design/draft/ask-temper.status.md, Design departs).
+//! Views read stored settings in a project's scope (temper/docs/design/client/pages/chat/conversation.md, 3;
+//! temper/docs/design/domain/forge/change/branch-path.md; temper/docs/design/draft/ask-temper.status.md, Design departs).
 use crate::{Decision, Domain, ForgeReadAnswer, Limits, ways};
 use alloc::boxed::Box;
 use jig_domain_core::{documents, reads};

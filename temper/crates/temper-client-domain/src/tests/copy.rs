@@ -1,4 +1,4 @@
-//! The command’s Copy (temper/docs/design/client/README.md, 3.5).
+//! The command’s Copy (temper/docs/design/client/pages/README.md).
 use super::fixtures;
 use crate::{
     Action, Event, Request,

@@ -1,4 +1,4 @@
-//! The box's private started records (protocol/setup.md, 7.1).
+//! The box's private started records (protocol/setup/box.md, 1).
 //! `MakeDirectory` names one entry, so started is made beneath an opened box.
 use crate::{
     group_records::{Group, GroupFiles},

@@ -1,5 +1,5 @@
 //! Measure a charter's non-brief host part from the declarations and smith's counter
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 
 use alloc::boxed::Box;
 use skein_lib::Duration;

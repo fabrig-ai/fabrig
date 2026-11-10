@@ -759,7 +759,7 @@ fn a_refused_next_run_says_why() {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one table retains each hello cause and all ten bound clauses; client/README.md, 5.5"
+    reason = "one table retains each hello cause and all ten bound clauses; client/pages/accounts.md, 2"
 )]
 fn every_hello_refusal_keeps_its_cause_and_numbers() {
     use c::{AgentShortfall as S, Figures, HelloRefusal as F, HostKind as K, TaskWaitRefused as R};

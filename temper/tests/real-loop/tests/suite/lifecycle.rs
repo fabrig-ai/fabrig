@@ -33,7 +33,7 @@ fn a_service_stops_its_held_claude_turn_before_ending() {
                 ends_leaving(&[Leftover {
                     task: 1,
                     may_be: &[Left::HostedActive, Left::Running],
-                    why: "the held Claude Code turn the stop ends (protocol/README.md, 8)",
+                    why: "the held Claude Code turn the stop ends (protocol/README.md, 6)",
                 }]),
             ]);
             steps

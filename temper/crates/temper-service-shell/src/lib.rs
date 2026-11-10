@@ -1,4 +1,4 @@
-//! Serve's run, its host and its lines, for every binary that serves (temper/docs/design/protocol/README.md, 4.1 and 5).
+//! Serve's run, its host and its lines, for every binary that serves (temper/docs/design/protocol/binaries.md, 1 and temper/docs/design/protocol/components.md).
 use jig_protocol_config as config;
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -17,7 +17,7 @@ pub mod host;
 mod restart_fault;
 pub use host::{Host, ending};
 
-/// jig's form of the three directories (temper/docs/design/protocol/README.md, section 5).
+/// jig's form of the three directories (temper/docs/design/protocol/components.md).
 #[must_use]
 pub fn jig_directories(directories: &Directories) -> config::Directories {
     config::Directories::given(&directories.config, &directories.data, &directories.cache)
@@ -116,7 +116,7 @@ fn box_refusal(why: service::system::BoxRefusal) -> String {
     };
     format!("--box: {words}")
 }
-/// The first links' secrets on a boxed serve's standard input (protocol/setup.md, 7.1).
+/// The first links' secrets on a boxed serve's standard input (protocol/setup/box.md, 1).
 fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
     use std::io::Read;
     let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
@@ -144,7 +144,7 @@ pub struct Prepared {
     pub store: Box<[u8]>,
     pub line_bytes: u32,
 }
-/// The first links' secrets a boxed serve reads on its standard input (protocol/setup.md, 7.1).
+/// The first links' secrets a boxed serve reads on its standard input (protocol/setup/box.md, 1).
 pub struct Secrets {
     pub link: Option<skein_lib::Secret>,
     pub local: Option<skein_lib::Secret>,

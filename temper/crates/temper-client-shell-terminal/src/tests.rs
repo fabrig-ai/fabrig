@@ -134,7 +134,7 @@ fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
 fn the_native_preset_receives_every_supported_membership() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
-    // Small and Standard serve up to nine memberships (client/tools.md, 12).
+    // Small and Standard serve up to nine memberships (client/ctl/README.md, 9).
     for (count, accepted) in [(3, true), (9, true), (10, false)] {
         let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
         let mut reader = Reader::new(&parts.projects);

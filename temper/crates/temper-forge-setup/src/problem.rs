@@ -138,7 +138,7 @@ pub fn lines(problems: &Problems) -> Box<[u8]> {
     w.finish()
 }
 
-/// A run's inherited listener differs from the owned setup (protocol/setup.md, 6.4).
+/// A run's inherited listener differs from the owned setup (protocol/setup/owned.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Problem {
     Listener { found: core::net::SocketAddr, expected: core::net::SocketAddr },

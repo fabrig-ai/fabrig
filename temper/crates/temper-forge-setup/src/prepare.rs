@@ -1,4 +1,4 @@
-//! The owned preparation's one-request machine (protocol/setup.md, 6.3 and 13.1).
+//! The owned preparation's one-request machine (protocol/setup/owned.md, 3, and protocol/setup/testing.md, 1).
 use crate::{
     check::joined,
     ini,
@@ -218,7 +218,7 @@ impl Prepare {
         self.sign_in = sign_in;
         self
     }
-    /// A box's later preparation points its source here, last (setup.md, 6.3).
+    /// A box's later preparation points its source here, last (protocol/setup/owned.md, 3).
     #[must_use]
     pub fn with_source_address(mut self, discovery: Option<Box<[u8]>>, deadline: Duration) -> Self {
         self.source_address = discovery;

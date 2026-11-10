@@ -1,4 +1,4 @@
-//! The check's offline readers (protocol/setup.md, 8.4).
+//! The check's offline readers (protocol/setup/playground.md).
 use super::Check;
 use crate::directories::Directories;
 use crate::directories::jig_directories;
@@ -24,7 +24,7 @@ use temper_fake::check::{self, Reason};
 
 const COMMAND: &str = "temper fake forge check";
 
-/// The check's exit status and its two streams (protocol/setup.md, 8.4).
+/// The check's exit status and its two streams (protocol/setup/playground.md).
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Outcome {
     pub(crate) status: u8,

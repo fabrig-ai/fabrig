@@ -1,4 +1,4 @@
-//! Offered ways, in provider order (client/README.md, 3.5 and 5.5).
+//! Offered ways, in provider order (client/pages/README.md and client/pages/accounts.md, 2).
 use jig_client::contract as c;
 use skein_lib::List;
 
@@ -18,7 +18,7 @@ impl Way {
 }
 /// A cut catalogue still offers the facts it holds. At most three ways per provider.
 /// The scripted provider `demo` is never connectable, including before the
-/// playground read identifies its number (temper/docs/design/client/README.md, 3.5).
+/// playground read identifies its number (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder: c::AskAccountHolder) -> List<Way> {
     let mut ways = List::with_capacity(providers.len().checked_mul(3).expect("received providers fit"));

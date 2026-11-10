@@ -21,7 +21,7 @@ fn gone(role: Role, name: &[u8]) -> Step<Address> {
     }
 }
 
-// client/README.md 3.5 ConnectModel: a way the providers do not offer shows Choose.
+// client/pages/README.md ConnectModel: a way the providers do not offer shows Choose.
 #[test]
 fn an_unknown_provider_shows_choose() {
     let mut world = world();
@@ -29,7 +29,7 @@ fn an_unknown_provider_shows_choose() {
     follow(&mut world, client, vec![see(Role::Link, b"Add key"), gone(Role::Button, b"Add key")]);
 }
 
-// client/README.md 3.5 ConnectModel: deployment choice offers keys alone.
+// client/pages/README.md ConnectModel: deployment choice offers keys alone.
 #[test]
 fn deployment_choice_hides_the_personal_sign_in_way() {
     let mut world = world();
@@ -45,7 +45,7 @@ fn deployment_choice_hides_the_personal_sign_in_way() {
     );
 }
 
-// client/README.md 3.5 ConnectModel: each way offers Other ways beside its main button.
+// client/pages/README.md ConnectModel: each way offers Other ways beside its main button.
 #[test]
 fn all_ways_returns_key_details_to_choose() {
     let mut world = world();
@@ -62,7 +62,7 @@ fn all_ways_returns_key_details_to_choose() {
     );
 }
 
-// client/README.md 3.5 ConnectModel: a direct sign-in link offers its button without starting.
+// client/pages/README.md ConnectModel: a direct sign-in link offers its button without starting.
 #[test]
 fn direct_sign_in_link_waits_for_a_press() {
     let mut world = world();
@@ -79,7 +79,7 @@ fn direct_sign_in_link_waits_for_a_press() {
     );
 }
 
-// client/README.md 3.5 A model usable: the welcome keeps its frame and continues to Ready.
+// client/pages/README.md A model usable: the welcome keeps its frame and continues to Ready.
 #[test]
 fn welcome_model_keeps_its_frame_with_a_model_already_usable() {
     let mut world = world();
@@ -101,7 +101,7 @@ fn welcome_model_keeps_its_frame_with_a_model_already_usable() {
     );
 }
 
-// client/README.md 3.5 Its state: leaving the flow drops a pasted key first.
+// client/pages/README.md Its state: leaving the flow drops a pasted key first.
 #[test]
 fn leaving_the_flow_drops_a_pasted_key() {
     let mut world = world();
@@ -133,7 +133,7 @@ fn leaving_the_flow_drops_a_pasted_key() {
     );
 }
 
-// client/README.md 3.5 Ready: adding a key makes an account and offers Start a chat.
+// client/pages/README.md Ready: adding a key makes an account and offers Start a chat.
 #[test]
 fn adding_a_key_reaches_ready() {
     let mut world = world();
@@ -153,7 +153,7 @@ fn adding_a_key_reaches_ready() {
     );
 }
 
-// client/README.md 3.5 Choose and Details: a deployment key's card opens Details.
+// client/pages/README.md Choose and Details: a deployment key's card opens Details.
 #[test]
 fn deployment_key_choice_opens_details() {
     let mut world = world();
@@ -200,7 +200,7 @@ fn double_pressing_add_key_makes_one_source() {
     );
 }
 
-// client/README.md 3.5 Choose: the holder choice is kept across the flow's steps.
+// client/pages/README.md Choose: the holder choice is kept across the flow's steps.
 #[test]
 fn deployment_choice_is_kept_across_details_and_choose() {
     let mut world = world();
@@ -225,7 +225,7 @@ fn deployment_choice_is_kept_across_details_and_choose() {
     assert!(choice.styles.as_slice().contains(&temper_client_view::look::CONNECT_QUIET));
 }
 
-// client/README.md 3.5 Its state: moving between the flow's steps keeps its key's value.
+// client/pages/README.md Its state: moving between the flow's steps keeps its key's value.
 #[test]
 fn all_ways_keeps_the_key_until_the_flow_is_left() {
     let mut world = world();

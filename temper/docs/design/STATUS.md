@@ -10,7 +10,7 @@ request `tui-launchpad`, are built, with golden frames and the joint-world
 story from the launchpad through the streamed and committed answer
 (`client/README.status.md`). Its post-landing terminal walks and later
 surfaces remain deferred; the sign-in field takes `q` as text and
-Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
+Ctrl+C closes there (`client/tui/README.md`, sections 1 to 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, section 4 and `client/README.md`, section 5;
 `draft/tui.status.md`). Browser-approved sign-in's engine configuration,
 native client-root half and web page at `/terminal` are built, with twelve
 gallery states and joint-client stories; signed out with Google's way
@@ -22,35 +22,35 @@ old banner, cards, `files/brand.svg` and `#b8664e` gone, with two focused
 tests keeping them out. The design departs from the request in the top
 bar's link region, which the terminal prints, the GitHub App's setup
 pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
-follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
-9.1; `client/browser.status.md`, 2.5). Its render check's six misses are
+follows landing (`client/view.status.md`, 1; `client/forge/served.status.md`,
+1; `client/web/look.status.md`). Its render check's six misses are
 repaired by `look-round-22`: the welcome's top bar ends with the person's
 name and "Sign out"; while `me` is read the top bar stands over an empty
 busy main; the public pages offer "Sign in" with or without Google; the
 column's field names are 14 px; the night ground fills the window; and
 the Google endings take the typographic apostrophe. The welcome's bar
 before `me` lacks the welcome's look, and no test walks the heading's
-focus from that main (`client/browser.status.md`, 2.3 and 2.5;
+focus from that main (`client/web/README.status.md`, 2.3 and `client/web/look.status.md`;
 `protocol/sign-in.status.md`, 4.3). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
-with joint-world approval and refusal stories (`client/README.md`, 7.1).
+with joint-world approval and refusal stories (`client/README.md`, 4.1).
 The local box's private link file, holding the engine's local link
 alone so that a TUI never spends the printed link, bare command's
 address discovery, automatic sign-in, quiet fallback and bounded rereads
 are built, with the expiry note and joint-world renewal, sign-out and
 either-order stories; `serve.log` is not read for the file's secret
-(`protocol/setup.status.md`, 13.4). The note
+(`protocol/setup/testing.status.md`, 4). The note
 uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base
 colours, accent focus and scheme selection from COLORFGBG or a bounded
-OSC 11 query are built (`client/README.md`, 6.11 to 6.16). The user's
+OSC 11 query are built (`client/tui/README.md`, 1 to 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, 4). The user's
 requests of 2026-11-08 and the look request `tui-chat-title-below` are
 built: the band from the terminal's answered background, else dim words
 after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
-the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
+the box (`client/tui/README.md`, 2 to 3 and `client/tui/pages.md` and `client/tui/theme.md`; `draft/tui.status.md`).
 `temper box` in a terminal runs the TUI in front, by the look request
 `tui-box-front`: signed in by a link the box hands it, the welcome
 following the browser's steps, "Signed in as the owner" from the forges
@@ -58,22 +58,22 @@ document's `linked`, the playground's header and quiet line, a quit that
 asks while work runs and stops the box, and the box's state and `/log`,
 with goldens, joint-world stories and a focused box story on a
 pseudo-terminal; `--no-tui` and a box off a terminal run as before
-(`client/README.md`, 6.17; `protocol/setup.md`, 7.6). Its journey waits
+(`client/tui/box.md`; `protocol/setup/box.md`, 6). Its journey waits
 for `again` to start the box in the pseudo-terminal
 (`client/tui/journeys.status.md`, 8.3), and its real-terminal check
-follows landing (`client/README.md`, section 11).
+follows landing (`client/README.md`, section 5).
 The user's requests of 2026-11-09 are built: what is typed in the box
 shows from the first frame and the sign-in keeps it, Enter before it
 lands saying "Still signing in"; the box's words in the terminal's ink,
 the accent on "❯" alone, by skein's focused value's paint; `/theme`'s
 list of Auto, Light and Dark, the choice kept in the TUI's small store;
 `/quit`, `/exit` still taking it unlisted; and a notice standing 6
-seconds at the quiet line's right end (`client/README.md`, 6.13 to
-6.17). In front, Enter on the welcome's box with no command leaves
+seconds at the quiet line's right end (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, 4 and `client/tui/box.md`
+). In front, Enter on the welcome's box with no command leaves
 `/log`'s note standing, and the commands reference still names `/exit`
-(`client/README.status.md`, 6.14 and 6.17); the committed journeys'
+(`client/tui/pages.status.md` and `client/tui/box.status.md`); the committed journeys'
 `screen` keeps `dark` (`client/tui/journeys.status.md`, 3.2). Their
-real-terminal check follows landing (`client/README.md`, section 11).
+real-terminal check follows landing (`client/README.md`, section 5).
 The launchpad as drawn and views printed, the whole story's T1, are
 built by plan `tui-whole-t1`: the brief and `/brief`, Where you left off
 with each row's project and the person's newest goal, Needs you marked
@@ -82,16 +82,16 @@ with each row's project and the person's newest goal, Needs you marked
 and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
-(`client/README.md`, 6.13 to 6.15; `client/tui/journeys.md`, 9). A
+(`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
 design session, T2, is designed and not yet built: `/draft`, the draft
 in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/README.md`, 6.14, *A
+reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
 design session*; `client/README.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
 (`draft/surfaces.status.md`, 11); the blank row under the header is not
-yet drawn (`client/README.status.md`, 6.14), and the walk follows
+yet drawn (`client/tui/pages.status.md`), and the walk follows
 landing.
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
@@ -103,7 +103,7 @@ from the launchpad and answered (`client/tui/journeys.md`).
 `launchpad-chat` catches no growing answer. Call details, earlier-page
 loading, cards at their calls and the shared reader's read-once gap
 remain explicit
-(`client/README.md`, section 11; `draft/chat-reading.status.md`, 3).
+(`client/README.md`, section 5; `draft/chat-reading.status.md`, 3).
 The three journeys use a runtime directory apart from the box's and no
 COLORFGBG, so they exercise approval and the dark fallback with no band,
 and a chat's place is its address; their pages use the theme's
@@ -114,39 +114,39 @@ remains later work (`client/tui/journeys.md`, 3.1 and 11).
 The TUI's look requests stack on `tui-requests`, apart from the browser's
 `look-requests`; the same refresh script keeps either checked-out branch
 on `main` with its own lease and push target (`client/tui/journeys.md`,
-10; `client/journeys.md`, 7).
+10; `client/web/journeys.md`, 7).
 The user's look at those frames and the terminal and web checks follow
-landing (`client/README.md`, section 11; `client/browser.md`, section 5).
+landing (`client/README.md`, section 5; `client/web/README.md`, section 3).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
 reference and 10,662 on the stock, with guidance on cuts; continuation
-remains deferred (`protocol/configuration.md`, 13.8 and 11).
+remains deferred (`protocol/configuration/settings.md`, 7, and `protocol/configuration/README.md`, 9).
 The reference merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
 decision. Settings-position wording and progress from the repository's
-quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
-`domain/forge.md`, 8.4 and 20). Containment read as a count of
+quiet checks remain later work (`protocol/configuration/reference.md` and `protocol/configuration/README.md`, 9;
+`domain/forge/change/repairs.md` and `domain/forge/README.md`, 11). Containment read as a count of
 commits (skein's `Read::Range`) and a branch list's refusal naming its
-bound are designed and not built (`domain/forge.md`, 5.3;
-`domain/agent.md`, 4.3); the rest of the draft `forge-reads-targeted`
+bound are designed and not built (`domain/forge/keeping-up.md`, 3;
+`domain/agent/tools.md`); the rest of the draft `forge-reads-targeted`
 lags in the design (`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
 range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
-landing stories remain the after-landing check (`domain/forge.md`, 5.3
-and 20; `domain/agent.md`, sections 8 and 10). Goal's declaration directs
+landing stories remain the after-landing check (`domain/forge/keeping-up.md`, 3, and `domain/forge/README.md`, 11
+; `domain/agent/agents.md` and `domain/agent/README.md`, section 8). Goal's declaration directs
 a plain repository change to `change`; refused branch reads name their
 next reads. The owned-forge referee rejects a non-procedure delegate and
 names the chat's successful and failed committed calls. Focused tables
 hold those words; the real model's choice remains unobserved until after
-landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
-and 11). The Claude Code landing fixture takes `claude-haiku-5-5` by name
+landing (`domain/agent/tools.md` and `domain/agent/README.md`, 8; `testing/live-tier.md` and `testing/README.md`, 7
+). The Claude Code landing fixture takes `claude-haiku-5-5` by name
 at `low` in both selected charters; ChatGPT keeps stock row 7. Its focused
 settings table establishes no real launch or live landing; that proof
-follows landing (`domain/testing.md`, 2.7 and 11).
+follows landing (`testing/live-tier.md` and `testing/README.md`, 7).
 The standard brief follows stock charter 5 at 353,072 bytes;
-the larger requested brief remains undecided (`protocol/configuration.md`,
-11 and 13.4). The first
+the larger requested brief remains undecided (`protocol/configuration/README.md`, 9 and `protocol/configuration/stock.md`
+). The first
 milestone stands in the code (`README.md`). Each project has the stock's
 rule 1, with removal and reset returning to it; project patterns may
 name a branch across its repositories. The deployment has no stock rule.
@@ -164,8 +164,8 @@ own way's card and reference pane are gone; responsive paths share their
 look with replies. The design departs from the request `ask-temper-ways`
 in one drawing laid out by its width, the scene's caret and stops with
 no ARIA; temper/ui's rendered comparison follows
-landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
-13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
+landing (`domain/forge/change/branch-path.md`; `protocol/configuration/README.md`, 9 and `protocol/configuration/settings.md`, 2 to 3 and `protocol/configuration/stock.md` and `protocol/configuration/settings.md`, 4 to 7 and `protocol/configuration/reference.md` and `protocol/configuration/settings.md`, 8
+; `client/pages/README.md` and `client/pages/settings.md`, 2 and `client/pages/chat/conversation.md`, 3 and `client/README.md`, 5;
 `client/README.status.md`; `draft/stock-ways.status.md`). Its render
 check's eight misses are repaired by `look-round-24`: a path's marks
 take no outline, under 720 it is the request's picture scaled, an open
@@ -174,9 +174,9 @@ a card's "Asked to" is its charter's first sentence whole, CI's card
 names the required checks, every card's link opens a role's or a rule's
 page in How work runs' frame, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
-and the repairs' render check follows landing (`client/README.status.md`,
-3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13). Its last misses, and How work runs as
+and the repairs' render check follows landing (`client/pages/README.status.md` and `client/pages/chat/conversation.status.md`, 3
+; `client/web/look.status.md` and `client/web/gallery.status.md`, 1;
+`domain/forge/change/branch-path.status.md`). Its last misses, and How work runs as
 the final `how.html`, are `look-round-25`'s: the engine's path as
 amended, "conflict" and "resolve" at the front of the queue, the
 queue's update in the cards, "catch up" on a goal's branch, each stop
@@ -187,10 +187,10 @@ skein's linear fade of a mark's stroke (skein's `ui/scenes.md`, 2); the
 open card's place at 1000 px and on a phone, and four tabs two by two
 at 760 px and under; and CI's card naming the repository's workflows,
 which the forge reads at the landing branch's tip and keeps on its
-record. Their render check follows landing (`client/README.status.md`,
-4.6, 5.13 and 5.16; `client/browser.status.md`, 2.5;
-`domain/forge.status.md`, 4.7 and 8.13; `protocol/store.status.md`, 2;
-`domain/forge.md`, 20). How work runs, Settings' first tab, is the whole
+record. Their render check follows landing (`client/forge/records.status.md` and `client/pages/settings.status.md`, 2 and `client/pages/chat/conversation.status.md`, 3
+; `client/web/look.status.md`;
+`domain/forge/adoption.status.md`, 7 and `domain/forge/change/branch-path.status.md`; `protocol/store.status.md`, 2;
+`domain/forge/README.md`, 11). How work runs, Settings' first tab, is the whole
 story's milestone P3a, by plan `ui-p3a-how` and its repair
 `look-round-25`: the way the project runs, "Ask temper to change this",
 the ways as tabs over the path drawn as Ask temper's ways draw it,
@@ -199,8 +199,8 @@ goal's budget and the switches at its foot, its parts one pure
 function, with a fuzz test of their rules, the joint world's paths over
 CI and tiers and over neither, and six gallery states; its render check
 and walk follow landing. A role's model is among its opened terms, and
-the drafter is no role yet (`client/README.status.md`, 5.13;
-`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). A
+the drafter is no role yet (`client/pages/settings.status.md`, 2;
+`domain/forge/change/branch-path.status.md`; `draft/surfaces.status.md`, 7). A
 goal's path draws "design" in place of "plan", and a "close-out" after
 the landing, from kind 11, its template's work, the whole story's
 milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
@@ -213,16 +213,16 @@ its in-flight status by the project's close command (fabrig's settles
 changes, their Left sections, the landing and each main pull's CI
 selection, while its coordinator wakes for questions, escalations,
 failures, reds and words alone, with no landing, close-out or catch-up
-of its own (`domain/forge.status.md`, 11.2;
+of its own (`domain/forge/branches.status.md`, 2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
 the worker's frozen landing pin, run changed-package lints and focused
 tests with direct dependents, and identify inherited failures. The
 reference's coder and coordinator still ask for manual checks
-(`protocol/configuration.status.md`, 13.9).
+(`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
-at template 4 by number (`protocol/configuration.status.md`, 13.9;
-`domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
+at template 4 by number (`protocol/configuration/reference.status.md`;
+`domain/agent/agents.status.md`, 1; `testing/checks.status.md`, 5.1;
 `draft/surfaces.status.md`, 7). Words saved with a setting are the
 whole story's milestone P3e, by plan `ui-p3e-words`: kind 9, a
 charter's words, the stock's nine lines among them, and kind 10, a
@@ -233,8 +233,8 @@ How work runs; and a tier's description from the configuration, on its
 card and in `see settings gates`. Roles says no charter's words, which
 the help says it does, `see ways` no way's headline, and no record shows
 the user's review of Ask temper's sentence; the render check follows
-landing (`protocol/configuration.status.md`, 3 and 13.2;
-`client/README.status.md`, 5.13; `domain/agent.status.md`, 8.4.1;
+landing (`protocol/configuration/engine.status.md` and `protocol/configuration/settings.status.md`, 2;
+`client/pages/settings.status.md`, 2; `domain/agent/ask-temper.status.md`, 1;
 `draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). How
 work runs' What reaches you is the whole story's milestone P3b, by plan
 `ui-p3b-reaches`: the project's classes, kind 8, in three columns of
@@ -245,8 +245,8 @@ of the columns, the joint world's story across Stop asking's Apply and
 two gallery states. It departs from the mockups where they list what no
 class holds, and in "Asks you"'s order and small line; its render check
 and walk follow
-landing (`client/README.status.md`, 5.13; `client/browser.status.md`,
-2.5; `draft/surfaces.status.md`, 7 and 13). The rail, Work and
+landing (`client/pages/settings.status.md`, 2; `client/web/look.status.md`
+; `draft/surfaces.status.md`, 7 and 13). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -258,8 +258,8 @@ walk follow landing. Team shows from a project's second person, not yet
 for a standing role; the draft, redrawn after the plan's cut,
 adds a hairline and How work runs to To begin's rail and drops the words
 that still name Settings, which the design doesn't yet say
-(`client/README.status.md`, 3.5 and 5.3;
-`client/browser.status.md`, 2.3, 2.5 and 7.2;
+(`client/pages/README.status.md` and `client/view.status.md`, 3;
+`client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2;
 `draft/surfaces.status.md`, 2, 5, 8 and 10). Team is the whole story's
 milestone P4a, by plan `ui-p4a-team`: a project's people from its
 document, the reader first, each with their role and what waits on them,
@@ -271,13 +271,13 @@ render check and walk follow landing. No setting names the project's
 triager, so its line isn't drawn; areas, owners and a role's card are
 P4b's and P4c's, and the draft and `team/team.html`, redrawn after the
 plan's cut, word a box's role and the triager otherwise
-(`client/README.status.md`, 3.5; `client/browser.status.md`, 2.3, 2.5
-and 7.2; `draft/surfaces.status.md`, 6). Away on All projects, by
+(`client/pages/README.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
+; `draft/surfaces.status.md`, 6). Away on All projects, by
 plan `ui-away-all`, sets every project the person is in, each by its own
 `SetAway`, one after another, reads "Away on N of M" while they differ
 and toasts how many changed, with two gallery states; its render check
-and walk follow landing (`client/README.md`, 3.5 and 11;
-`client/README.status.md`, 3.5; `client/browser.status.md`, 7.2). Home and Needs you across
+and walk follow landing (`client/pages/README.md` and `client/README.md`, 5;
+`client/pages/README.status.md`; `client/web/gallery.status.md`, 2). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the
@@ -291,9 +291,9 @@ draft, redrawn after the plan's cut, words the byline across projects
 otherwise, and its phone's headline is shorter, which a repair takes; a
 need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
-(`client/README.md`, 3.5 and 11;
-`client/README.status.md`, 3.5; `client/browser.status.md`, 2.3 and
-7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). The phone is the
+(`client/pages/README.md` and `client/README.md`, 5;
+`client/pages/README.status.md`; `client/web/README.status.md`, 2.3, and `client/web/gallery.status.md`, 2
+; `draft/surfaces.status.md`, 3, 4, 11 and 14). The phone is the
 whole story's milestone P5a, by plan `ui-p5a-phone`: the tab bar from
 one pure rule over the rail's parts, "Needs" with its count, the Ask
 tab's tabs kept under Ask temper's page and its chats, Needs you's own
@@ -303,9 +303,9 @@ with a fuzz test of the tabs' rule and rows of the gallery's prints; an
 Ask temper chat's thread and the path's stops keep the mock's sizes, and
 the render check and walk follow landing. Tell temper is designed and
 not built, waiting for the engine to file a person's word as a finding
-and for a setting naming the project's triager (`client/README.md`, 3.5,
-5.3 and 11; `client/README.status.md`, 3.5; `client/browser.status.md`,
-2.5; `draft/surfaces.status.md`, 9, 10 and 14). What reaches a person is
+and for a setting naming the project's triager (`client/pages/README.md` and `client/view.md`, 3 and `client/README.md`, 5
+; `client/pages/README.status.md`; `client/web/look.status.md`
+; `draft/surfaces.status.md`, 9, 10 and 14). What reaches a person is
 the whole story's milestone N1, by plan `ui-reaches`: kind 8, a
 project's classes, judged by one pure crate, `temper-protocol-reaches`,
 with a fuzz test, its stock Agents review's table and each stock way
@@ -320,8 +320,8 @@ each need's why, Stop asking and Keep asking; and kind 7 without
 role's case waits for R1 and an asker's change's paths for N2; the TUI
 draws no why; Needs you's Decided head, a words offer's order and
 Home's spell with no row showing lag the design; its render check and
-walk follow landing (`domain/forge.status.md`;
-`client/README.status.md`, 3.5; `draft/what-reaches-you.status.md`;
+walk follow landing (`domain/forge/README.status.md`;
+`client/pages/README.status.md`; `draft/what-reaches-you.status.md`;
 `draft/surfaces.status.md`, 4). Only you is the whole story's milestone
 N3a, by plan `ui-n3a-only`: one pure read of the person's own accounts,
 a sign-in signed out or a login read as expiring listed apart on Needs
@@ -331,57 +331,57 @@ temper's engine, the density fuzz's part and four gallery states. What
 waits on a login, a forge's token and a person task asking an act wait
 for reads, the terminal's inbox lists none, and its item's look lags
 `needs.html`; its render check and walk follow landing
-(`client/README.status.md`, 3.5 and 5.5; `client/browser.status.md`,
-7.2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
+(`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
+2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
 4). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing, and its reading milestone, M2:
 `see`'s addresses of the project's work read as the chat's person, of
 its project alone, through jig's run read as its person, as tables of
-lines, with the reference page `see` (`domain/agent.md`, 8.4.1); its
+lines, with the reference page `see` (`domain/agent/ask-temper.md`, 1); its
 text names a charter, a role and a gate by number alone, and reads an
-inbox's words for questions alone (`domain/agent.status.md`). Its
+inbox's words for questions alone (`domain/agent/README.status.md`). Its
 remembering milestone, M4, stands too: `remember` keeps the person's
 lines in jig's party scope, each Ask temper brief carries them whole,
 a turn's read shows them and `remember`'s calls to the person alone, and
 the page "What temper remembers about you" reads, changes and deletes
-them (`domain/agent.md`, 8.4.4; `client/README.md`, 5.17). A fresh
+them (`domain/agent/ask-temper.md`, 4; `client/pages/remembered.md`). A fresh
 start's transcript tail shows `remember`'s calls to every reader, every
 task a person starts reads the list in its brief, not Ask temper's
 alone, and the page empties while it reads again
-(`domain/agent.status.md`; `draft/ask-temper.status.md`;
+(`domain/agent/README.status.md`; `draft/ask-temper.status.md`;
 `client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
 `ui-ask-drop`. Its walks follow landing. The views and sketches belong
 to M3b (`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
-rendered comparison follows landing (`client/browser.md`, section 5;
-`client/journeys.md`, section 10). On a phone, Ask temper's composer and
+rendered comparison follows landing (`client/web/README.md`, section 3;
+`client/web/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
 and tabs, and the history story, with its phone row, passes its runs
 alone; the gallery's tests exceed their 1 CPU s budget until a cost
-repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
+repair (`client/web/look.status.md` and `client/web/testing.status.md`, 6 and `client/web/gallery.status.md`, 3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
-landing (`client/journeys.md`, section 10).
+landing (`client/web/journeys.md`, section 10).
 The drafter, charter 12, and a design session, template 6, stand in the
 stock, the whole story's P6: given no repository and declared no `goal`,
 `change` or `delegate`, started on the web by the new chat with a draft
-where `me` lists template 6, and opened again in Split (`domain/agent.md`,
-4.2, 4.3 and 8.5; `protocol/configuration.md`, 13.4; `client/README.md`,
-3.5). A project made before it keeps a policy whose delegation names no
-charter 12 (`protocol/configuration.status.md`), `chat-draft`'s recording
-predates it (`client/journeys.status.md`), no walk on record has run a
+where `me` lists template 6, and opened again in Split (`domain/agent/charter.md`, 2 and `domain/agent/tools.md` and `domain/agent/agents.md`, 4
+; `protocol/configuration/stock.md`; `client/pages/README.md`
+). A project made before it keeps a policy whose delegation names no
+charter 12 (`protocol/configuration/README.status.md`), `chat-draft`'s recording
+predates it (`client/web/journeys.status.md`), no walk on record has run a
 real model on its words, and the terminal's `/draft` is the milestone T2's
 (`draft/surfaces.status.md`, 11; `draft/whole-story.execution.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
-reference keeps its numbered words without figures (`client/README.md`,
-3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
+reference keeps its numbered words without figures (`client/pages/README.md` and `client/README.md`, 5
+; `client/web/look.md` and `client/web/README.md`, 3; `domain/agent/agents.md`).
 A browser's other chat look is built: its terminal frame, commands, kept
 mode/theme/font, full screen, document, question list and compact cards,
 with nine gallery states. Terminal acts and closing lists advance the
@@ -394,13 +394,13 @@ case exactly, background presses do not focus the box, options do not
 select on hover, adjacent help notes share paragraph spacing, and Plex
 stays 14px on a phone; temper/ui owns these recorded departures. Its
 render and real-key comparisons follow landing, and compilation and print
-checks establish no rendered equality (`client/README.md`, 3.5 and 11;
-`client/browser.md`, 2.5, 7.2 and 5; `draft/look-requests.md`, 4 and 5).
+checks establish no rendered equality (`client/pages/README.md` and `client/README.md`, 5;
+`client/web/look.md` and `client/web/gallery.md`, 2 and `client/web/README.md`, 3; `draft/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
-(`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
+(`client/view.md`, section 1, and `client/README.md`, section 5). Jig carries per-wake reasons,
 charter parts, offered-message fences and a task's later LLM choice.
 Temper's settings form and ctl carry parts and later; the reference has
 four goal-charter parts, a first/later template choice and focused
@@ -413,84 +413,84 @@ landing subscriptions; an unknown task read explains when a result
 exists and directs the run to the specification. Host-call retries use
 smith's growing, capped backoff, and tasks given no LLM choice take
 their charter's selected effort. The draft's departures and open
-decisions remain (`client/tools.md`, section 5.3; `domain/root.md`,
-section 10; `protocol/llm.md`, section 4; `protocol/configuration.md`,
-13.9 and 11; `draft/per-wake.status.md`). Stock instructions hold forge
+decisions remain (`client/ctl/tools.md`, section 3; `domain/root.md`,
+section 9; `protocol/llm.md`, section 4; `protocol/configuration/reference.md` and `protocol/configuration/README.md`, 9
+; `draft/per-wake.status.md`). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
-(`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link
+(`domain/agent/agents.md`, 1; `protocol/configuration/stock.md`). Printed-link
 assertions count complete lines and carry filtered stderr; the reported
-second link's cause is unproved (`domain/testing.md`, 2.6 and 11).
+second link's cause is unproved (`testing/process-tier.md` and `testing/README.md`, 7).
 A person-started goal asks by
 a person task; its question in words draws under Needs you, on Home and in
 the goal's band, and its answer wakes the goal with those words. Permission
 is bounded by the requester's role, with instructions alone naming that
 requester; a chat-called goal keeps asking its chat. The requester-only
 permission, agreed-goal shape and after-landing observations remain deferred
-(`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+(`domain/agent/agents.md`, 2, and `domain/agent/README.md`, 8; `client/pages/README.md` and `client/pages/goal.md`, 2 and `client/README.md`, 5).
 Person-task questions read whole through `TaskText`, with context and
 choice buttons; short reads and cut message questions say so and link on.
 Goals opens the Draft-path sheet, which blocks an unfunded start and
 names open chats holding the pool. A goal's task bar counts landed change
 results; its row and headline say tasks done. More whole question bands,
 row landing counts and browser, walk and render checks remain later work
-(`client/README.md`, 3.5, 5.8, 5.14 and 11; `client/browser.md`, 5).
+(`client/pages/README.md` and `client/pages/goal.md`, 2 and 3 and `client/README.md`, 5; `client/web/README.md`, 3).
 Ctl distinguishes a retained decision from an unknown proposal, saying
 the latter may have been decided or replaced; returning decided first
 for an automatically replaced task proposal needs jig's decision history
-(`client/tools.md`, 7 and 14).
+(`client/ctl/README.md`, 5 and 11).
 A chat's heading shows its first sentence or line within 72 characters
 in both shells, retaining the whole name and, where cut, a hover hint;
 the crumbs yield to the bar's controls. Temper/ui's render comparison
-and a possible model-written title remain later work (`client/README.md`,
-3.5 and 11; `client/journeys.md`, sections 9 and 10).
+and a possible model-written title remain later work (`client/pages/README.md` and `client/README.md`, 5
+; `client/web/journeys.md`, sections 9 and 10).
 The Chats history story awaits Closed and All pressed by name across
 reload and Back; a Drafts button moving Closed as ways arrive remains a
-separate look decision (`client/browser.md`, 4.6 and 5).
+separate look decision (`client/web/testing.md`, 6, and `client/web/README.md`, 3).
 Fresh projects offer drafts;
 Ask temper chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar once To begin is gone. To begin has two
 steps, repository first, and cuts Home and Ask temper's navigation to
 Home, Ask temper and Settings. Home leaves Needs you and Chats out
 while either step remains; the populated and skipped states are covered
-(`client/README.status.md`, 3.5). The night switch,
+(`client/pages/README.status.md`). The night switch,
 kept browser look, day/night tokens and three night gallery states are
 built, with a day first visit and a separate chat-terminal palette.
 Temper/ui's rendered comparisons and browser reload row follow landing;
 system preference, a night placeholder and palette refinement remain
-later work (`client/browser.md`, sections 2.5 and 5;
-`client/journeys.md`, sections 9 and 10). The mock's drafts-off default remains
+later work (`client/web/look.md` and `client/web/README.md`, section 3;
+`client/web/journeys.md`, sections 9 and 10). The mock's drafts-off default remains
 a recorded departure; the fake-model `chat-draft` journey starts with
 drafts on, and the real-box checks follow landing (`client/README.md`,
-`client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
+`client/web/journeys.md`, `protocol/configuration/README.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
-on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
+on a laptop remains an after-landing measurement (`protocol/setup/README.md`, section 9).
 Serve's orderly stop cancels its worker's runs and waits for every agent
 to end, letting each end its program before the worker closes. The engine
 settles in-process agent claims as interrupted before draining, spending
 no try. The one-process chat and coding drain table checks unchanged
 tries, saved work and change counts across restart, with the coding
 attempt's new writer slot and checkout at its saved head
-(`protocol/README.md`, section 8). A worker stopped apart from its engine
+(`protocol/README.md`, section 6). A worker stopped apart from its engine
 still spends an agent try; changing that remains cluster work
-(`protocol/README.md`, 15.7). The
+(`protocol/cluster.md`, 7). The
 real-loop held-Claude-turn test checks the interrupt and both ends; the
 owned-forge live no-survivor proof remains after landing. Forced agent
-stops still need contained trees (`protocol/README.md`, sections 8 and 14;
-`protocol/setup.md`, 7.2 and 15;
-`protocol/setup.status.md`, **Not yet:** 7.2). The chat's
+stops still need contained trees (`protocol/README.md`, sections 6 and 11;
+`protocol/setup/box.md`, 2, and `protocol/setup/README.md`, 9;
+`protocol/setup/README.status.md`, **Not yet:** 7.2). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
-name the kind and missing member (`client/README.md`, `domain/agent.md`).
+name the kind and missing member (`client/README.md`, `domain/agent/README.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
 its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
 again. The design has its runs push Markdown straight to g as its design
 writers, recorded as g's own, and drops the `"run"` change
-(`domain/forge.md`, 11.3) [in flight: changes 94, 98]. The domain, checkout and real-loop stories use scripted models and
+(`domain/forge/branches.md`, 3) [in flight: changes 94, 98]. The domain, checkout and real-loop stories use scripted models and
 fake forge/git. Calls, briefs, batches and reports have their configured
 room: the reference takes payload 63,740 and output 48,000 after smith
 refuses the 128 KB pair at the transcript ceiling. Stock and reference
 workflow words and a saved start overtaken by a repair remain separate work
-(`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
+(`domain/agent/README.md`, `domain/forge/README.md`, `domain/worker.md`,
 `draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
@@ -499,43 +499,43 @@ shows and the landing log's trailers and verdicts are not (`domain/after-landing
 `protocol/store.md`), and a red range's probes walk its landings in
 order rather than bisect them (`domain/after-landing.md`); nor are
 findings, whole (`domain/findings.md`, with their families in
-`protocol/store.md` and their groups in `client/tools.md`). The
+`protocol/store.md` and their groups in `client/ctl/README.md`). The
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). A head behind its base takes it
+no story runs that (`domain/forge/README.md`). A head behind its base takes it
 however far behind, any listed commit or a range too large to list
 proving it lacks the base's tip, and Forgejo answers a long range's
-oldest page (`domain/forge.md`; skein's `forge/README.md`). Lost updates and prepares recover
+oldest page (`domain/forge/README.md`; skein's `forge/README.md`). Lost updates and prepares recover
 in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
-(`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
+(`domain/forge/README.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are
 settings of temper's kinds, but a project's landing and a
 repository's gates are still the document's
-(`protocol/configuration.md`, `domain/landing.md`), and the forge's
-world tells none of their stories (`domain/forge.md`,
-`domain/testing.md`). A goal's own branch and its landing are built,
-and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
+(`protocol/configuration/README.md`, `domain/landing.md`), and the forge's
+world tells none of their stories (`domain/forge/README.md`,
+`testing/README.md`). A goal's own branch and its landing are built,
+and its held landing's story runs (`domain/forge/README.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
-(`domain/forge.md`), and the foremen's
+(`domain/forge/README.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, and the domain world's restore stories and the
 joined client world's run, a setting reset to a default the forge does
-not report to jig keeping its state at restart (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+not report to jig keeping its state at restart (`protocol/configuration/README.md`,
+`client/ctl/README.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
-them only as the person gives them (`domain/agent.md`, 8.1 and 8.4).
+them only as the person gives them (`domain/agent/agents.md`, 1 and `domain/agent/ask-temper.md`).
 The settings family's own tools remain for a deployment's own charter;
 no stock charter holds that family without asking
-(`protocol/configuration.md`, 13.4). Seven stock models and their
+(`protocol/configuration/stock.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
 listing and Ask temper's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
@@ -544,11 +544,11 @@ agent's taskbar name the last readable completion's model and known effort
 in both shells, then the task's choice or template preview when none is
 held. A run with no readable named turn can leave an earlier model or
 preview; the browser check and a goal page's line remain later work, and
-the phone keeps its hidden byline (`client/README.md`, 3.5, 5.9 and 11).
+the phone keeps its hidden byline (`client/pages/README.md` and `client/pages/task.md`, 2 and `client/README.md`, 5).
 A chat's model or effort amendment
 answers its person's next words on the new choice; a model change within a
 resumable window first asks the window's model for a summary
-(`domain/agent.md`, `client/README.md`). An unusable account's fix remains
+(`domain/agent/README.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`).
 Forge account subjects and review lookups name both forge and user, and the
 Ask temper's inventory names each forge's known or unknown account. Setup
@@ -560,16 +560,16 @@ files-page review link and Later. Proposals and help state the accepted
 owned-Forgejo limit: agents and CI run as the person, so the rule stops
 mistakes, not a deliberate bypass. A retained link is not cleared on a
 start outside the box with the same sole owner; that scope gap remains
-(`domain/forge.md`, 4.6; `draft/forge-identity.md`, section 9).
+(`domain/forge/adoption.md`, 6; `draft/forge-identity.md`, section 9).
 The scripted composed story covers owned Forgejo; GitHub's full box
 story, real human reviews and rendered comparison remain unproved.
 Several members, pasted Apps, second accounts and containment remain
-later work (`domain/testing.md`, section 11; `client/README.md`, section 11;
-`protocol/setup.md`, section 15; `protocol/sign-in.md`, section 10).
+later work (`testing/README.md`, section 7; `client/README.md`, section 5;
+`protocol/setup/README.md`, section 9; `protocol/sign-in.md`, section 9).
 Ask temper's inventory is filtered, but whole charter reads still name models
 outside the offer and proposal validation accepts configured models outside it;
 Ask temper's instructions impose no offer restriction
-(`domain/agent.md`, `draft/model-catalogue.md`). Numbered model settings live
+(`domain/agent/README.md`, `draft/model-catalogue.md`). Numbered model settings live
 in the store, with binary stock defaults and endpoint limits in place of
 worker model lists; Settings has Models, with picker switches,
 adding by name, estimated prices and the omitted count. All models links to
@@ -577,9 +577,9 @@ that project's Models tab. Worker reads retain each account's list and
 narrow the offer; Settings shows read ages, failures and Read again, and
 Settings and All models mark newly read models for a week. The fake-worker
 story supplies no real-provider result; that observation remains deferred
-(`protocol/configuration.md`, section 11). An omitted-count-only read can
-leave Models' count stale until another Frame arrives (`client/README.md`,
-3.5). Page 07 keeps
+(`protocol/configuration/README.md`, section 9). An omitted-count-only read can
+leave Models' count stale until another Frame arrives (`client/pages/README.md`
+). Page 07 keeps
 one resolved default, the stock subscription clause, a lede about the offer
 and picker and a provider-neutral placeholder (`client/README.md`). Settings'
 select chevrons, sheet controls, connect actions and paths,
@@ -587,34 +587,34 @@ and Models' single-row add form have their requested rules and words.
 Copy public uses a 107 px minimum height instead of the requested
 `rows=4`, since the UI kit carries no rows attribute. Comparison of the
 request-owned parts of `connect-flows` and page 07 follows landing, owned
-by temper/ui (`client/README.md`, 11; `client/browser.md`, 5;
-`client/forge.md`, 10). The watch
+by temper/ui (`client/README.md`, 5; `client/web/README.md`, 3;
+`client/forge/README.md`, 8). The watch
 rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
 refused busy at its deadline. Ctl's deadline names the link, stream, read or
 act's outcome, with retention and retry words; request and watch retries
 span at most 2 s. A full-inbox message and same-key replay are covered, but
 the reported long-chat resume-refusal wait and settings silence remain
-unreproduced (`client/tools.md`). The service logs passes past 1 s, naming
+unreproduced (`client/ctl/README.md`). The service logs passes past 1 s, naming
 the longest stage and holding suppressed passes for its 10 s rate limit;
 the kernel's reap and submit remain outside that timing
 (`protocol/README.md`). A fair share, the other ineffective views
 overrides, precise Busy causes and the manual browser check remain deferred
-(`protocol/configuration.md`, `client/tools.md`). The limits' check
+(`protocol/configuration/README.md`, `client/ctl/README.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
-lacked and which model its charter refused (`domain/agent.md`). A
+lacked and which model its charter refused (`domain/agent/README.md`). A
 run that cannot deliver keeps the shell its charter grants, and on the
 fake box a fresh box's first goal alone writes its report
-(`domain/agent.md`). The reference is one profile a box is set up
+(`domain/agent/README.md`). The reference is one profile a box is set up
 with, its rules hold no note scope but the goal's, where its charter 5
 also notes in the repository's, the case's repository carries no
 CI or tiers' workflows, and no walk applies the case's project file
-(`protocol/configuration.md`). A fresh box holds the figures of the
+(`protocol/configuration/README.md`). A fresh box holds the figures of the
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
-them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+them (`protocol/configuration/README.md`), and the walk that request ends
+with has not passed (`protocol/setup/README.md`). The box's hour-long Forgejo
 session, source-address refresh, refused public/sign-in pair, empty
 repository-name handling and Linux lifetime wrapper are built. The
 signed-in box also takes its late handover before connecting, and the
@@ -622,47 +622,47 @@ story purse reads init's bare template. No results for the five
 `ui-restart-red` repair stories are supplied; the started cut alone
 uses a box without sign-in. A handover made by Forgejo restarting under
 a running serve stays deferred, and the live landing pair's setup-call
-counts disagree with its shared oracle (`protocol/setup.md`,
-`protocol/sign-in.md`, `domain/testing.md`). The
+counts disagree with its shared oracle (`protocol/setup/README.md`,
+`protocol/sign-in.md`, `testing/README.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run. Repository links and box-owned sign-in
 are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
 three laptop baseline cases remain unrepeated, and the exploratory busy
-authorization page without a request remains untraced (`protocol/setup.md`,
-`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
+authorization page without a request remains untraced (`protocol/setup/README.md`,
+`protocol/sign-in.md`, `client/forge/README.md`, `testing/README.md`). The cross-site
 restart authorization failure is local fetch admission loss: the client
 stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
-reply or failure, so authorization waits for room (`protocol/sign-in.md`,
-9.3). Startup readiness beyond that local admission remains separate
-work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
+reply or failure, so authorization waits for room (`protocol/openid-provider.md`,
+3). Startup readiness beyond that local admission remains separate
+work (`protocol/sign-in.md`, section 9). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
-reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words
+reads a spec in pieces of it (`protocol/setup/README.md`). A run reads a task's words
 in the room of the reply bound its worker names in its hello, else the local
 agent's, else `documents.text_bytes`. The six-row engine table covers those
 choices, a smaller worker bound, continuation and the journal ceiling; no
 real host or LLM is exercised, and real-deployment savings remain unobserved
 (`domain/root.status.md`, **Not yet:** 5.2). Worker-specific `see` rendering
-remains deferred (`domain/agent.md`, section 10). A charter is fitted to
+remains deferred (`domain/agent/README.md`, section 8). A charter is fitted to
 its worker's allowance, smith's 65,536 where the process has no local agent, as
 that section leaves it, and a resolution names a file too large for its brief
-(`domain/agent.md`; `domain/forge.md`). The worker-reply-bound
+(`domain/agent/README.md`; `domain/forge/README.md`). The worker-reply-bound
 draft's vision is carried in full by the design and its text is archived
 (`draft/archive/worker-reply-bound.status.md`). A live delegate counts no
 stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
-under another hold is said only once a release holds it again (`domain/forge.md`). A
+under another hold is said only once a release holds it again (`domain/forge/README.md`). A
 merged start has no real run on record (`domain/worker.md`), a commit leaves out a
 stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
-asks a run to name no commit off its branch (`domain/agent.md`). A head already behind
+asks a run to name no commit off its branch (`domain/agent/README.md`). A head already behind
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
 and a resume holding the landing tip makes no merge, but no record shows the next landing
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
-saves a change's wait and not a run the forge started (`domain/forge.md`). A resume on
+saves a change's wait and not a run the forge started (`domain/forge/README.md`). A resume on
 saved work keeps that work when its save lands nothing. A producer's clean merge is
 committed before its run; a conflict's start, the help page and stock charters explain
 its staged files. The parked producer's proof uses fake git and disk, with a delivery
@@ -673,14 +673,14 @@ A start smith refuses as busy spends no try, but `temper help task` still
 says an "invalid results" hold may mean a start refused before any turn,
 which spends a permanent try (`domain/worker.md`). Template 4's report
 reaches its run as at most 1,024 bytes, jig's contract text bound, where
-the reference gives it 63,738 (`protocol/configuration.md`).
+the reference gives it 63,738 (`protocol/configuration/README.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment
-proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
+proof still awaits the next landing plan (`domain/forge/README.md`). Hello refusals
 carry the fleet's reason and shortfall figures, sent as text and printed on the
 engine's stderr; the worker's own line keeps its reason code
-(`protocol/README.md`, 15.3). The worker reads its link on every pass,
+(`protocol/cluster.md`, 3). The worker reads its link on every pass,
 its entrance holding the engine's cap, and each side prints one line
 for each lost link or ended opening, naming the worker and why. A
 resumed start's committed calls are cut to the link's room, the newest
@@ -692,34 +692,34 @@ serve writing `worker unsent`, and the link and its pings go on;
 `standard` admits one by its inbox alone, and making it run is an open
 question, while a worker whose turn's frame passes its `io.output` is
 refused naming no bound (`domain/worker.md`, 4.1, 4.3 and 12;
-`protocol/configuration.status.md`, 7). Tasks
+`protocol/configuration/limits.status.md`). Tasks
 due together past the load slots stay due until a slot frees, a
 transcript window's later pages keep its first page's slot, and a turn
 too large for a load page reaches the core cut, so its run starts fresh
 from the tail with the turn's marker, spending no try. Whether a
 deployment's held goals took the path this closes is unproven, and no
 stop test shows the whole engine's stop within a bound
-(`domain/worker.md`, 3.1; `protocol/README.md`, 15.3 and 14;
-`domain/root.md`, 8). A lost kernel-chosen port is retried within 32
-attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
+(`domain/worker.md`, 3.1; `protocol/cluster.md`, 3, and `protocol/README.md`, 11;
+`domain/root.md`, 7). A lost kernel-chosen port is retried within 32
+attempts (`protocol/setup/box.md`, 5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
-starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
+starting before the read, each the `repair-green` plan's cut (`domain/forge/README.md`),
 and `change show`'s
-`held:` line calls a cancelled delegate failed (`domain/forge.md`). A failed
+`held:` line calls a cancelled delegate failed (`domain/forge/README.md`). A failed
 resolution's release holds again, a goal's issue can still take an empty title,
 and an asker's `finish` parks where the `producer-failure` request of 2026-11-05
-recommends refusing it at the call, that plan's cut (`domain/forge.md`). A repair
+recommends refusing it at the call, that plan's cut (`domain/forge/README.md`). A repair
 whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not
-connected pauses a repair with no bound, by that plan's cut (`domain/forge.md`).
+connected pauses a repair with no bound, by that plan's cut (`domain/forge/README.md`).
 No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do a live goal's delegates, which the fake box's model
+(`domain/forge/README.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
-`client/forge.md`, `client/tools.md`), the playground in the
+`client/forge/README.md`, `client/ctl/README.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand,
 and whose native replay of that walk's log differs now and then for a
 cause not yet found (`playground.md`), upgrades'
@@ -727,9 +727,9 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
 Publication help and ctl's completed answer say that chat words may show
-in titles; ctl has no preceding acknowledgement (`client/tools.md`).
+in titles; ctl has no preceding acknowledgement (`client/ctl/README.md`).
 Landings is underlined at a row's size, and a landing draws no zero stale-proof count
-(`client/browser.md`).
+(`client/web/README.md`).
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
@@ -740,7 +740,7 @@ each page and width from one boxed query, checks a wrapped text by its first
 quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
-(`client/browser.md`, `client/forge.md`).
+(`client/web/README.md`, `client/forge/README.md`).
 The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
 with story labels for failed steps; of those, only the call line's and
@@ -758,21 +758,21 @@ after red-82's opening, `long`'s words moving and `unanchored`'s anchor
 missing; it passed thirty runs alone, loaded and not, and the cause is
 unknown. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
-(`client/browser.md`). A stale view still rereads held Markdown and rebuilds
+(`client/web/README.md`). A stale view still rereads held Markdown and rebuilds
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
 parsed blocks and timing away-reader scans remain open (`client/README.md`,
 `draft/chat-reading.md`). The bundle travels gzipped and a
 placeholder paints first, but its fade takes 160 ms where the design has 200, and a
-stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
+stall before the module's answer draws no words (`client/web/README.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
-pages draw their own worlds, not the mock's scenario (`client/browser.md`).
+pages draw their own worlds, not the mock's scenario (`client/web/README.md`).
 Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where
 the box's group file holds a forge's kind alone
-(`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
+(`protocol/setup/README.md`, `protocol/forge/README.md`, `protocol/README.md`) and
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
-box (`domain/forge.md`), a project's Delete (`client/README.md`),
+box (`domain/forge/README.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
 no engine (`protocol/credentials.md`), and a closed change whose
 repository a removal erased leaves no project the Changes document
@@ -784,22 +784,22 @@ gives a forge's sign-in meta at `forge connect` where the user's
 request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
-loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a Forgejo connected as its admin on this
+loop's story (`client/ctl/README.md`) and a connected Forgejo made
+managed (`protocol/setup/README.md`); a Forgejo connected as its admin on this
 host has its hook, but no run on record shows one delivering, and the
 step test past one that delivers nothing asserts no read
-(`protocol/setup.md`); a
+(`protocol/setup/README.md`); a
 managed row set up failed offers Connect to ctl alone
-(`client/forge.md`), and the adoption form draws no read-only line
+(`client/forge/README.md`), and the adoption form draws no read-only line
 (`client/README.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
-(`protocol/setup.md`), a preparation keeps a runner's row when its
+(`protocol/setup/README.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
-request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
+request of 2026-11-05 has the uuid match (`protocol/setup/README.md`), `temper
 box` prints its link first and alone, but no story holds a connection
 waiting on its socket and then signing in, no run on record has its OSC 8
 link on a real terminal, and a first box from a binary
-with no browser does not say so (`protocol/setup.md`), and a
+with no browser does not say so (`protocol/setup/README.md`), and a
 held task names no run's or job's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
@@ -813,13 +813,13 @@ a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
-(`protocol/configuration.md`). A link jig's start cannot make, a
+(`protocol/configuration/README.md`). A link jig's start cannot make, a
 duplicate person's identity among them, refuses the start naming the
 record and what it links to, but the forge's link of its restored
-records still panics (`domain/root.md`, `domain/forge.md`,
+records still panics (`domain/root.md`, `domain/forge/README.md`,
 `protocol/README.md`). The render check of `ready-account-email` on a real
 sign-in and a real Claude Code login follows landing, owned by temper/ui
-(`client/README.md`, section 11). Ready draws no words for a
+(`client/README.md`, section 5). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its
@@ -830,39 +830,39 @@ goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). Home says what changed since the person
 last looked and the status agent is built, but a stock project's room is
 no brief's own, the reference names no charter 9, and a project's first run
-counts its span from the epoch (`domain/forge.md`,
-`protocol/configuration.md`). The Away switch,
+counts its span from the epoch (`domain/forge/README.md`,
+`protocol/configuration/README.md`). The Away switch,
 `decided`, Home's away form, Overturn and What reaches you are built, but the
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
 then hears nothing (`client/README.md`),
-and `decided` is declared past charter 1 (`domain/agent.md`). A chat's document,
+and `decided` is declared past charter 1 (`domain/agent/README.md`). A chat's document,
 its modes and tool line, Chats under Drafts and the rail's menu are built, and a
 goal starts from a document through the one sheet, which has none of the request
 `ui-chat-draft`'s Budget, "Plan, then wait for me" or line above the composer and
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
+has it keep no notes (`domain/agent/README.md`). A box with one kind of account runs on
 the first model it can use, and a run that can't start says why on its page and
 in `task show`, but no walk on record has a real box do either, a Chats row still
-says "Starting" (`client/README.md`, `client/tools.md`). Bounds refusals name
+says "Starting" (`client/README.md`, `client/ctl/README.md`). Bounds refusals name
 the bound and its figures in both shells and ctl; waiting-line command
 pointers are checked. The after-landing check, the terminal's non-waiting
 forge-key command and the settings reference's help pointer remain later
-work (`client/README.md`, section 11; `client/tools.md`, section 14).
+work (`client/README.md`, section 5; `client/ctl/README.md`, section 11).
 `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
-(`client/tools.md`). With no account serving the work `task show` says so in its
+(`client/ctl/README.md`). With no account serving the work `task show` says so in its
 header, waiting line and JSON, while its phase stays due. Failure holds point to
 the engine's log; keeping their text still needs the user's bound and readers
 (`domain/worker.md`). Setup suppresses the true protection warning without
 gaining access, and effort refusals name the effort locally only for models
-`me` shows (`client/tools.md`). A bounded `task amend` prints its call alone, but
+`me` shows (`client/ctl/README.md`). A bounded `task amend` prints its call alone, but
 a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
-(`client/tools.md`). A proposal of settings reaches a
+(`client/ctl/README.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card. A fresh
 proposal replaces the chat's own pending one; live cards draw application rows
 from the review and its proposal-value key, templates by name and activity as
@@ -884,7 +884,7 @@ its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
 account's trial names no model choice; a later trial and its retries name that
 account and a model it serves, with fake-provider stories for both orders and
 a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
-account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
+account's stopped sample and Ready's trial states (`client/web/README.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
 reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
 notice and its Model-step line (`draft/model-check.md`); no outcome of the required
@@ -899,18 +899,18 @@ with no project, which is the top bar's, and the tab's whole row leaving
 over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
 composer and a send leaves the focus there, but a suggested request's press asks the same on a phone,
 and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
-moves the focus while a heading drawn after its page waits (`client/browser.md`). The rename's form asks the focus beside an
+moves the focus while a heading drawn after its page waits (`client/web/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
-answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
+answer of 2026-11-06 asks one (`client/web/README.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). A chat's answer only grows, but
+takes the browser's margins (`client/web/README.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
 mark is a glyph that does not blink (`client/README.md`). The long-message
 read's decoder and retry chain is repaired and covered through the real engine;
 no manual proof on record checks it in both shells. Edits past 131,072 bytes
 keep a prefix and overflow count, losing the rest on a new drawing, where the
-`long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
+`long-words` request keeps every typed word (`client/view.md`, 4, and `client/pages/chat/conversation.md`, 2).
 The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, and a last block still open changes as it commits. A committed call or card
 before the first text replaces that text's nodes; the paragraph render proof at
@@ -924,23 +924,23 @@ task or a card is one sheet, but a closed chat hides every "Decision made", wher
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses an
 agent's task's Close (`client/README.md`), and a sheet's acts stand
-44 px on a phone, where that request has 38 (`client/browser.md`). A chat, a goal and an
+44 px on a phone, where that request has 38 (`client/web/README.md`). A chat, a goal and an
 agent's task say Pause, Resume and Close, an agent's task's departing from the request
 `ui-pause-close`, its Stop being a hold that stays one as Pause, but no browser test walks
 them or a message that resumes, and no test draws "Paused" on Home (`client/README.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
-answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
+answer as it stood (`domain/agent/README.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it,
 `welcome-set-up` keeps its fake box's link secret until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). Conversations are read
-by their log's edges (`client/README.md`, 5.15). A browser's agent page, including a goal's
+directories, not every path (`client/web/journeys.md`). Conversations are read
+by their log's edges (`client/pages/chat/conversation.md`, 2). A browser's agent page, including a goal's
 untracked page, scrolls its log with the brief through plan inside it;
 focused stylesheet and view tables hold that shape. The keys and layout
 rewalk follows landing, including opening at the end; a PgUp at the head
-while earlier lines load is not queued (`client/README.md`, 5.9 and 11).
+while earlier lines load is not queued (`client/pages/task.md`, 2, and `client/README.md`, 5).
 In the terminal PgUp and PgDn are lines followed
 by Enter and a chat opens, as in the TUI, whole or with 2,880 bytes held, a screen
 and a half of an 80 by 24 terminal, `lines` stays for jig's reference UI and
@@ -954,24 +954,24 @@ the profiled cost repairs, alongside fake preparation, page ordering,
 projection updates, protocol scheduling queries, gallery checks and the
 launcher. Remaining representation and algorithm work is deferred.
 Individual instruction savings establish no whole-suite CPU total, so the
-focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
-6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
+focused suite's 30 CPU s budget remains unproved (`testing/checks.md`, 1, and `testing/README.md`, 7
+). Deployment-world measurements sum to 81.892959 focused and
 130.202313 fuzzy CPU s for the measured packages alone; the whole focused
 total remains unknown. The whole fuzzy suite's three warm serial runs
 pass all 81 tests each, but their median is 125.579032 CPU s against the
 strategy's 120 (119.288299–127.664356, including the driver), within the 180
 to which the user raised the budget by half on 11-08, for now, to be revisited.
 The requested roughly 15 CPU s reduction and reliable headroom remain
-unachieved; gate accounting is distinct (`domain/testing.md`, sections 6,
-6.1 and 11). The real-loop focused median is 31.769481 CPU s against
+unachieved; gate accounting is distinct (`testing/checks.md` and `testing/README.md`, section 7
+). The real-loop focused median is 31.769481 CPU s against
 its standing 15 s ceiling. Eighteen named real-loop stories remain in
 fuzzy pending the user's placement decision. Exhaustive conformance cuts
 share their prefix, and the remaining representation, observation and
-profiling work is deferred (`domain/testing.md`, 5.2, 5.3, 6.1 and 11).
+profiling work is deferred (`testing/README.md`, 4.2 and `testing/reference-case.md` and `testing/checks.md`, 1 and `testing/README.md`, 7).
 The hangup/rebind and Linux killed-box stories moved whole
 into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
-(`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
+(`testing/process-tier.md`; `protocol/setup/testing.md`, 4).
 The process tier's three tests at a time await a passing whole run after landing,
 and no run on record reads the tier as it stands against its 540 CPU s.
 The fake box keeps two walks, `here_key`
@@ -983,35 +983,35 @@ record, and the sitting's driver still sets up its fake half otherwise
 than the test; the six tests that need a person name what in their
 reasons, and the playground's heap at start and the forge's two-change
 hint profile are bound in the focused suite, the heap on figures past a
-quarter above 11-03's (`domain/testing.md`, 2.6, 2.7 and 11;
+quarter above 11-03's (`testing/process-tier.md` and `testing/live-tier.md` and `testing/README.md`, 7;
 `playground.md`, 9). Story A walks in the one-process world, but its
 memory test stays ignored, since skein gives a service world's observer
 no way to keep its storage outside the process's span, and the cluster's
 4.6 process story stays ignored for a fixture that expects models in the
 startup configuration, so ws's drain stands on jig's tests alone
-(`playground.md`, 9; `domain/testing.md`, 2.6 and 5.3). The copy stories' world and the
+(`playground.md`, 9; `testing/process-tier.md` and `testing/reference-case.md`). The copy stories' world and the
 issuer's log story depart from the request `walks-lower`, and polling past a
 hook that delivers nothing stands on the forge's world alone
-(`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from
+(`testing/process-tier.md` and `testing/README.md`, 7; `protocol/setup/reconcile.md`, 6). Reusable listener ports come from
 process-held blocks below Linux's configured ephemeral range; macOS uses
 its default boundary, and the concurrent restart proof remains after
-landing (`domain/testing.md`). A fake sandbox keeps its ports across a
+landing (`testing/README.md`). A fake sandbox keeps its ports across a
 valid new choice, but a malformed test override still refuses a retained
-start (`protocol/setup.md`). The
+start (`protocol/setup/README.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
 GitHub proof has yet run on `fabrig-ai` alone, the held record's guard
 is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
-form the outward check does not match (`domain/testing.md`). The fresh
+form the outward check does not match (`testing/README.md`). The fresh
 Claude Code sitting's two settings applies are covered through ctl on
 the joined world's Claude catalogue, with a declared program account
 and model and charter readback. Its real Haiku launch at `low`, landing
-and restart remain after-landing proof (`domain/testing.md`, sections
-2.7 and 11). temper's one story on macOS has not run green
+and restart remain after-landing proof (`testing/live-tier.md` and `testing/README.md`, section 7
+). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
-(`domain/testing.md`). The forge's connect refusals that
+(`testing/README.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -1053,12 +1053,12 @@ Project-making's reproduced client stall is repaired: ctl, native and
 web presets take nine memberships in the mandatory `me`; reduced,
 whole-incident and stored-state stories check answers across a restart.
 The core stayed ready in that reproduction, leaving the reported public
-read's 503 unexplained (`domain/root.md`, section 13). Serve's gate-wait
+read's 503 unexplained (`domain/root.md`, section 12). Serve's gate-wait
 and recovery notes and journal-stop exits are built, as is ctl's sign-in
 not-ready line. The accepted distinct watch not-ready refusal and its
 ctl deadline line are absent; wire reasons and the browser membership
-check remain later work (`protocol/README.status.md`, 8.2;
-`client/tools.status.md`, 6.3; `client/tools.md`, section 14).
+check remain later work (`protocol/README.status.md`, 6.2;
+`client/ctl/results.status.md`, 3; `client/ctl/README.md`, section 11).
 
 Forgotten program accounts can be declared again under their name, with
 the host login check dispatched. Ctl and the web explain declarations'
@@ -1066,8 +1066,8 @@ name-taken and not-offered answers and a retry or resume's not-offered
 answer; ConnectModel recovers the person's own live name. The joined
 client-world story uses a fake worker. The request's broader wording
 for key and sign-in refusals remains deferred because their not-offered
-answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
-`client/README.md`, 5.5 and section 11).
+answer combines several causes (`client/ctl/areas.md` and `client/ctl/testing.md`, 2 and `client/ctl/README.md`, 11;
+`client/pages/accounts.md`, 2, and `client/README.md`, 5).
 
 The deployment's client, `temper-client`, is built (M1 of
 `draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
@@ -1078,7 +1078,7 @@ engine until M5 switches it to `temper-engine`, and runs after landing. It links
 accounts protocol and engine-side crates through an unused line of ctl's
 manifest, and no test yet holds its closure: its boundary row is M5's; its
 `--version` reads a build script of its own, not `temper-version`
-(`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
+(`protocol/binaries.status.md`; `client/README.status.md`, 2). The `commands`
 page names no command's binary (`draft/deployment-binaries.status.md`).
 
 The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
@@ -1095,7 +1095,7 @@ crates, named with their reason; the closure keeps the box's machine and
 the fakes' crates for the document's check (`draft/deployment-binaries.status.md`).
 `upgrade` waits on jig's rehearsal and going back, and the feature-off
 service is built only by the engine's own build, not the gate
-(`protocol/README.status.md`, 4.1 and 4.2; `release.status.md`, 3).
+(`protocol/binaries.status.md`, 1 and 2; `release.status.md`, 3).
 
 The deployment's agent, `temper-agent`, is built whole (M4): all six
 ranked items, none dropped, carried onto main by the
@@ -1106,8 +1106,8 @@ the engine's and the agent's closure rows pass by moving code, no
 row loosened: Claude Code's launcher is a crate of its own,
 `temper-launcher`; jig's form of the three directories is
 `temper-engine-shell`'s, out of `temper-shell`; and the agent's
-`--version` is `temper-version`'s (`protocol/README.status.md`, 4.1 to
-4.4; `protocol/setup.status.md`, 6.6 and section 11). Which of the
+`--version` is `temper-version`'s (`protocol/binaries.status.md`, 1 to 4
+; `protocol/setup/owned.status.md`, 6, and `protocol/setup/README.status.md`, 7). Which of the
 closures' two test shapes every binary's row takes is M5's
 (`draft/deployment-binaries.status.md`). The `agent-binary`
 plan is retired and its vision folded into the design; removal of
@@ -1123,32 +1123,32 @@ Design documents:
 - [`release.md`](release.status.md)
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/root.md`](domain/root.status.md)
-- [`domain/forge.md`](domain/forge.status.md)
+- [`domain/forge/README.md`](domain/forge/README.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
 - [`domain/worker.md`](domain/worker.status.md)
-- [`domain/agent.md`](domain/agent.status.md)
-- [`domain/testing.md`](domain/testing.status.md)
+- [`domain/agent/README.md`](domain/agent/README.status.md)
+- [`testing/README.md`](testing/README.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
-- [`protocol/configuration.md`](protocol/configuration.status.md)
+- [`protocol/configuration/README.md`](protocol/configuration/README.status.md)
 - [`protocol/credentials.md`](protocol/credentials.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/git.md`](protocol/git.status.md)
-- [`protocol/forge.md`](protocol/forge.status.md)
-- [`protocol/setup.md`](protocol/setup.status.md)
+- [`protocol/forge/README.md`](protocol/forge/README.status.md)
+- [`protocol/setup/README.md`](protocol/setup/README.status.md)
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/documentation.md`](protocol/documentation.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
 - [`client/README.md`](client/README.status.md)
-- [`client/forge.md`](client/forge.status.md)
-- [`client/browser.md`](client/browser.status.md)
-- [`client/journeys.md`](client/journeys.status.md)
+- [`client/forge/README.md`](client/forge/README.status.md)
+- [`client/web/README.md`](client/web/README.status.md)
+- [`client/web/journeys.md`](client/web/journeys.status.md)
 - [`client/tui/journeys.md`](client/tui/journeys.status.md)
-- [`client/tools.md`](client/tools.status.md)
+- [`client/ctl/README.md`](client/ctl/README.status.md)
 
 Drafts:
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)

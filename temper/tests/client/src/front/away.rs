@@ -1,4 +1,4 @@
-//! Away and a goal's host call share the roots (temper/docs/design/domain/testing.md, 6.3).
+//! Away and a goal's host call share the roots (temper/docs/design/testing/checks.md, 3).
 use super::{Joint, client, engine_limits, fixtures, walking};
 use jig_domain_people as people;
 use skein_lib::{Duration, ReplyTo, Token};

@@ -1,9 +1,9 @@
-//! A goal's report, read as bytes (temper/docs/design/client/README.md, 3.5).
+//! A goal's report, read as bytes (temper/docs/design/client/pages/README.md).
 use alloc::boxed::Box;
 use jig_client::contract::{self as c, NoteScope, Read, Text};
 use skein_lib::{List, Wall, bytes};
 
-/// A report note's description opens so (temper/docs/design/domain/agent.md, 8.3).
+/// A report note's description opens so (temper/docs/design/domain/agent/agents.md, 3).
 pub const OPENING: &[u8] = b"report: ";
 
 #[derive(Clone, Debug, PartialEq, Eq)]

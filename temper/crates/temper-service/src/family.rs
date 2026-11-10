@@ -1,4 +1,4 @@
-//! The forge family's records at the clients' boundary (client/README.md, 8).
+//! The forge family's records at the clients' boundary (client/engine.md).
 //! Trials: temper/docs/design/domain/trial.md, 6.
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
@@ -11,7 +11,7 @@ mod refusals;
 mod ways;
 pub use ways::ways_panel;
 
-// client/README.md, 4.6: connector documents and their wire share every bound.
+// client/forge/records.md: connector documents and their wire share every bound.
 const _: () = {
     assert!(forge::PULL_ADDRESS_BYTES == wire::ADDRESS_BYTES, "pull address bound");
     assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.first_ask_org, "first repository org bound");
@@ -24,7 +24,7 @@ const _: () = {
     assert!(forge::PANEL_NAME_BYTES == w::CEILINGS.change_panel_landing, "panel landing branch bound");
 };
 
-/// The start's deployment facts (temper/docs/design/client/README.md, 4.6).
+/// The start's deployment facts (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Deployment {
     pub welcome: bool,
@@ -510,7 +510,7 @@ pub fn to_root(
 }
 
 /// Encode the whole retained panel, deriving its public address from configuration
-/// (client/forge.md, 9.2). No domain record carries a deployment's web address.
+/// (client/forge/served.md, 2). No domain record carries a deployment's web address.
 #[must_use]
 pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let pull = match value.pull {
@@ -938,7 +938,7 @@ pub fn answer(
                         reason: match reason {
                             forge::AdoptionRefusal::NoSuchForge => w::ForgeReason::NoSuchForge,
                             forge::AdoptionRefusal::NotFound => w::ForgeReason::NotFound,
-                            // The client wire has no not-installed reason (client/README.md, 4.7).
+                            // The client wire has no not-installed reason (client/forge/family.md, 6).
                             forge::AdoptionRefusal::NotInstalled | forge::AdoptionRefusal::NoAccess => {
                                 w::ForgeReason::NoAccess
                             }
@@ -1323,7 +1323,7 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
     .ok()
 }
 
-/// A bounded path on this clients listener, checked before root admission (client/README.md, 8).
+/// A bounded path on this clients listener, checked before root admission (client/engine.md).
 pub(crate) fn return_path(path: &[u8]) -> bool {
     if path.is_empty() || path.len() > 512 || path.first() != Some(&b'/') || path.get(1) == Some(&b'/') {
         return false;
@@ -1739,7 +1739,7 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
     }
 }
 
-// temper/docs/design/protocol/forge.md, 2.2: a new forge carries its whole place.
+// temper/docs/design/protocol/forge/engine.md, 2: a new forge carries its whole place.
 fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> Option<forge::Making> {
     Some(match value {
         w::Making::Kept(value) => forge::Making::Kept(value.forge()),
@@ -1798,7 +1798,7 @@ fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
 }
 
 /// The kept row supplies progress and ids; settings supply the scripted model's public view.
-/// temper/docs/design/protocol/setup.md, 8.4.
+/// temper/docs/design/protocol/setup/playground.md.
 fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
     let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded playground cues"));
     for cue in &demo.cues {
@@ -1832,7 +1832,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
     tiers
 }
 
-/// Encode a typed forge read answer (temper/docs/design/client/README.md, 4.6).
+/// Encode a typed forge read answer (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
@@ -1996,7 +1996,7 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
 }
 
 /// The watcher's approvals document, each row's kind and files-page address from configuration,
-/// as a panel's pull request's are (client/README.md, 4.6; client/forge.md, 4.1).
+/// as a panel's pull request's are (client/forge/records.md; client/forge/README.md, 4.1).
 #[must_use]
 pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(32);

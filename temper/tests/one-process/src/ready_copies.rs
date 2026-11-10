@@ -1,5 +1,5 @@
-//! Ready's copies on the service (temper/docs/design/domain/testing.md, 2.5–2.6;
-//! temper/docs/design/domain/forge.md, 4.5; temper/docs/design/protocol/setup.md, 7.1).
+//! Ready's copies on the service (temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/process-tier.md;
+//! temper/docs/design/domain/forge/adoption.md, 5; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     copy::{self, Source},
     ctl::{Caller, Command},

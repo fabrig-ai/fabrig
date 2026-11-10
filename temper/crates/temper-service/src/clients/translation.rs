@@ -118,7 +118,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
 }
 
 /// Decode complete values at the schema ceilings before the root routes them
-/// (temper/docs/design/domain/root.md, 5.6).
+/// (temper/docs/design/domain/routing.md, 6).
 fn kind_values(items: &[core::settings::Item]) -> Result<Box<[root::KindValue]>, people::Refusal> {
     use core::settings as s;
     let ceilings = temper_client_protocol_wire::v1::CEILINGS;

@@ -97,7 +97,7 @@ or less sophisticated on macOS, and rough edges are fine.
   lands it.
 - **It is a story temper has:** `temper/crates/temper/tests/process.rs`,
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`,
-  in the process tier (`../domain/testing.md`, 2.6). macOS runs that
+  in the process tier (`../testing/process-tier.md`). macOS runs that
   story, never a copy of it, its agent review and its restart included:
   the restart is a graceful one.
 - **What the story's support takes on macOS,** each the simplest that
@@ -232,8 +232,8 @@ or less sophisticated on macOS, and rough edges are fine.
   The bottles' binaries stand alone (`any_skip_relocation`, no
   dependency beyond macOS's own libraries), and they are Homebrew's
   builds, not signed by Forgejo, pinned by digest as Linux's are.
-  Forgejo's listener is as `../protocol/setup.md`, 6.4 has it on macOS.
-- **`temper forge fetch` on macOS** extends `../protocol/setup.md`, 6.6,
+  Forgejo's listener is as `../protocol/setup/owned.md`, 4 has it on macOS.
+- **`temper forge fetch` on macOS** extends `../protocol/setup/owned.md`, 6,
   with each pin's bottle for macOS 15, the floor (3.4), which later
   systems run too; `DIGEST` is the pin's:
 
@@ -267,7 +267,7 @@ or less sophisticated on macOS, and rough edges are fine.
   the binary's, which a file already in the cache is held to. A pin is
   selected by platform, architecture and kind of file: `arm64` alone no
   longer says which.
-- **One version on both platforms** (`../protocol/setup.md`, 6.1): a pin
+- **One version on both platforms** (`../protocol/setup/owned.md`, 1): a pin
   moves only to versions with bottles, all its digests together, and
   the version check holds on macOS as on Linux, a bottle's first line
   checked when its pin is taken. The rule that a fetched binary is the
@@ -382,7 +382,7 @@ Linux-only list:
 - **Claude's Keychain and several accounts:** whether
   `CLAUDE_CONFIG_DIR` keeps two logins apart. Default: answered on a
   real Mac (2.3); until then, one Claude account per macOS user.
-- **A launchd agent for the box,** as `protocol/setup.md`, 7.4
+- **A launchd agent for the box,** as `../protocol/setup/box.md`, 4
   arranges systemd. Default: later.
 - **A pinned bottle gone from `ghcr.io`,** while a released temper
   still pins it (4.3). Default: the refusal, `mirror` and a binary given

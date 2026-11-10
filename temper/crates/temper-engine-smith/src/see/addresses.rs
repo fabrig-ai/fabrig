@@ -1,4 +1,4 @@
-//! The address table and its reference (temper/docs/design/domain/agent.md, 8.4.1;
+//! The address table and its reference (temper/docs/design/domain/agent/ask-temper.md, 1;
 //! temper/docs/design/protocol/documentation.md, 8).
 
 use skein_lib::{Overflow, Writer};

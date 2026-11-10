@@ -427,7 +427,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
     assert!(reader.is_empty(), "the declared record consumes every byte");
 }
 
-// The public wire's leading fields bind task references to envelope places (temper/docs/design/client/forge.md, 11.4).
+// The public wire's leading fields bind task references to envelope places (temper/docs/design/client/forge/README.md, 9.4).
 fn forge_references(row: usize, record: &[u8]) {
     let mut fields = Reader::new(record);
     assert_eq!(fields.u16(), Some(1), "the declared public record version");

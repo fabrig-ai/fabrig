@@ -1,4 +1,4 @@
-//! Template controls are filled before jig judges authority (client/tools.md, 5.5).
+//! Template controls are filled before jig judges authority (client/ctl/areas.md).
 use super::{Call, Failed, Limits, Prepared, Request, c, choice, empty, number, shapes, value, words};
 use crate::jig::call::Value;
 use crate::jig::render::Text;

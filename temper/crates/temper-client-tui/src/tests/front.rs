@@ -1,4 +1,4 @@
-//! The front's views (temper/docs/design/client/README.md, 6.17).
+//! The front's views (temper/docs/design/client/tui/box.md).
 use super::{fixtures as f, goldens, launchpad};
 use crate::{BoxLine, Scheme, Told, Tui, look, view};
 use jig_client::contract as c;

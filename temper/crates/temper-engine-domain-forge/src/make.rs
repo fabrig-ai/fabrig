@@ -1,4 +1,4 @@
-//! Forge-making acts and kept first intent (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
+//! Forge-making acts and kept first intent (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned.md, 7).
 use super::{Domain, setup_login, setup_repository};
 use crate::{
     Ask, Bot, Connection, EmptyIntent, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits,
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_domain_core::Carried;
 use skein_lib::{Duration, Env, Queue, Token};
 
-/// The bot identity reserved from person sign-in (protocol/sign-in.md, 9.9).
+/// The bot identity reserved from person sign-in (protocol/openid-provider.md, 9).
 pub const BOT_LOGIN: &[u8] = b"temper";
 pub const BOT_EMAIL: &[u8] = b"temper@temper.invalid";
 pub(crate) fn bot() -> Bot {

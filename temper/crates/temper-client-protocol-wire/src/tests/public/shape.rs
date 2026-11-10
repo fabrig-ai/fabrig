@@ -1,4 +1,4 @@
-//! Inspect the author-owned schema tree (temper/docs/design/client/forge.md, 11.4).
+//! Inspect the author-owned schema tree (temper/docs/design/client/forge/README.md, 9.4).
 #![expect(clippy::disallowed_types, reason = "the schema parser's author-owned tree uses String and Vec")]
 #![expect(clippy::disallowed_macros, reason = "the author-owned schema shape is a formatted text golden")]
 use alloc::{collections::BTreeSet, string::String};

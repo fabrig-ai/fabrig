@@ -1,4 +1,4 @@
-//! The real loop's synthetic issuer and browser (domain/testing.md, 2.4; skein's oauth/accounts.md, 5).
+//! The real loop's synthetic issuer and browser (testing/real-loop.md; skein's oauth/accounts.md, 5).
 use skein_fake_peers::{Transport, oauth};
 use skein_lib::Duration;
 

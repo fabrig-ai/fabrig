@@ -1,4 +1,4 @@
-//! Dismissals cross the real roots (temper/docs/design/domain/testing.md, 2.1;
+//! Dismissals cross the real roots (temper/docs/design/testing/README.md, 2.1;
 //! temper/docs/design/draft/to-begin.md, 5).
 use jig_client::{Answered, Key, contract as c};
 use jig_client_kit::harness::{App, ClientId, Duty, Front};

@@ -1,4 +1,4 @@
-//! Close producers (temper/docs/design/domain/forge.md, 8.1, 8.4).
+//! Close producers (temper/docs/design/domain/forge/change/README.md, 1, temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 
 fn close(requested: bool) -> (Change, Facts) {

@@ -48,7 +48,7 @@ same file, which is where merges collide.
 ## What pays it back
 
 Split by the design's parts, a plan per file: the forge domain by
-`temper/docs/design/domain/forge.md`'s procedures (change, landing,
+`temper/docs/design/domain/forge/README.md`'s procedures (change, landing,
 tiers, issues already have crates of their own), the root route into
 the `forge_route/` modules it has begun, the other files by their own
 concerns, and the oracle by the reference case's steps. `words.rs` may

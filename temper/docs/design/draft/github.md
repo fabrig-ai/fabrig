@@ -108,15 +108,15 @@ is open `github.md`, section 19.
 - **Replaced from the client:** a new token, a new App key. The new
   credential is kept, handed to the component, and the old one erased.
   Disconnecting is later (section 18).
-- **`temper ctl`** offers the same, as tools (`../client/tools.md`), so
+- **`temper ctl`** offers the same, as tools (`../client/ctl/README.md`), so
   that QA's agents and tests connect a forge as a person would.
 
 ### 2.2 Adding repositories, any time
 
 - **No repository is named at configuration or at connecting.** A
   project's owner adds repositories to the project from the client,
-  whenever they like, through the adoption form (`../client/README.md`,
-  4.4; `../client/forge.md`, 5.1).
+  whenever they like, through the adoption form (`../client/forge/family.md`,
+  4; `../client/forge/repositories.md`, 1).
 - **The form becomes a picker.** It lists, per connected forge, the
   repositories temper can reach and the project does not hold, and
   takes an owner and a name for one not listed. What temper can reach:
@@ -133,16 +133,16 @@ is open `github.md`, section 19.
   forge says so, the repository is listed, without a restart.
 - **The rest of the form is as it is:** role, home, prefix, landing
   branch, CI or checks, and what temper found there before the person
-  confirms (`../client/forge.md`, 5.1), with GitHub's rules in words
-  (section 10.3).
+  confirms (`../client/forge/repositories.md`, 1), with GitHub's rules in words
+  (`github.md`, section 10.3).
 - **Forgejo too.** setup's configured `orgs` go: access is per
   repository, at adoption (section 12.2).
 
 ### 2.3 Landing on its own
 
 - **The project's landing rules decide** whether temper lands
-  unattended (`../protocol/configuration.md`, section 3, `landing`;
-  `../domain/forge.md`, 8.7). Landing waits for people only where those
+  unattended (`../protocol/configuration/engine.md`, `landing`;
+  `../domain/forge/change/gates.md`, 2). Landing waits for people only where those
   rules ask for their approval.
 - **temper lands the forge's way:** a merge at the head its decision saw;
   on GitHub, where the branch requires its merge queue, the pull request
@@ -156,7 +156,7 @@ is open `github.md`, section 19.
   P11); required signed commits, by temper's commits made through the
   API (section 18); a code owner's review, by a person. Until then, its
   landings wait for a person, which the change's panel says
-  (`../client/forge.md`, 2.5). temper never changes a repository's
+  (`../client/forge/README.md`, 2.5). temper never changes a repository's
   rules.
 - **An approval that is not the person's** is possible later: an App's
   approval counts toward a ruleset's required approvals (section 11,
@@ -259,7 +259,7 @@ is open `github.md`, section 19.
   live with every deployment.
 - **Never the person.** GitHub refuses an author's approval of their own
   pull request, and temper tells its writes and their echoes from
-  others' by its user's id (`../domain/forge.md`, 5.2): acting as the
+  others' by its user's id (`../domain/forge/keeping-up.md`, 2): acting as the
   person would turn the person's own comments into echoes. The person's
   token is never asked for.
 - **Public, installed only through temper's link.** A private App can
@@ -304,7 +304,7 @@ is open `github.md`, section 19.
    engine answers an address on the clients' listener, with a one-time
    `state` tied to that request and the page's address to come back
    to, and the browser's tab goes there, as for a sign-in (the terminal
-   prints it and opens no browser; `../client/README.md`, 6.5).
+   prints it and opens no browser; `../client/line.md`, 5).
 2. **The manifest.** That address serves a page whose form posts the
    manifest to `https://github.com/settings/apps/new?state=<state>` as
    it loads: the App is always the person's own, and public, so it
@@ -437,7 +437,7 @@ token makes an App:
   hook to it (6.4); pushed deliveries, checked by `X-Hub-Signature-256`,
   and the log's are told apart by `guid`, and each hints once.
 - **QA does not need it.** QA's boxes run an owned Forgejo, whose
-  webhooks are on loopback (`../protocol/setup.md`, section 10).
+  webhooks are on loopback (`../protocol/setup/README.md`, section 6).
 
 ## 8. Credentials that expire
 
@@ -531,10 +531,10 @@ token makes an App:
   Forgejo. Just after a head moves, GitHub may answer `405` "Pull
   Request is not mergeable" in its place (section 11, P5): within
   `settle` of a move, a `405` is not known yet, and read again, as
-  Forgejo's not-mergeable-while-checking is (`../domain/forge.md`, 5.2).
+  Forgejo's not-mergeable-while-checking is (`../domain/forge/keeping-up.md`, 2).
 - **CI does not hold a merge** where no rule asks it to (P5). temper's
-  landing rules are its own enforcement (`../domain/forge.md`, section
-  4), so nothing changes.
+  landing rules are its own enforcement (`../domain/forge/adoption.md`
+  ), so nothing changes.
 - **The merge method** is the first the repository allows of merge,
   squash and rebase, unless the adoption names one (section 19).
 - **Updating from the base:** `PUT .../pulls/{n}/update-branch` with
@@ -553,7 +553,7 @@ token makes an App:
   is refused, and the change goes on as for a stale head. Its decision
   holds at the queue's door.
 - **GitHub's queue is then that branch's landing queue**
-  (`../domain/forge.md`, section 9): temper's own queue for the branch
+  (`../domain/forge/queues.md`): temper's own queue for the branch
   decides only what it enters and when. GitHub makes a merge group, a
   commit of its own on the base, runs CI on it (`merge_group`), and
   lands it.
@@ -566,9 +566,9 @@ token makes an App:
   and GitHub's others); `merge_group` `checks_requested` and `destroyed`
   (`merged`, `dequeued`). The change's panel says "in GitHub's merge
   queue" and its position, read from the entry
-  (`../client/forge.md`, 2.1).
+  (`../client/forge/README.md`, 2.1).
 - **Ejected,** a pull request dequeued for any reason but `MERGE` is a
-  repair, as a failed CI is (`../domain/forge.md`, 8.4). GitHub ejected
+  repair, as a failed CI is (`../domain/forge/change/repairs.md`). GitHub ejected
   a failed group about half a minute after its CI failed (P9).
 - **Merge queues exist** on org-owned public repositories, and private
   ones on GitHub Enterprise Cloud; elsewhere the branch merges directly.
@@ -607,10 +607,10 @@ token makes an App:
   CI off; naming checks makes those checks the gates in place of CI. This
   choice does not waive required checks or any other landing rule.
 - **Outside contributions** stay participating objects
-  (`../domain/forge.md`, section 13). A first-time contributor's CI
+  (`../domain/forge/README.md`, section 7). A first-time contributor's CI
   waits for a maintainer's approval on GitHub, which temper shows as a
   wait on a person. CI on GitHub's runners is GitHub's isolation:
-  setup.md's concern for CI's isolation is a self-hosted runner's.
+  ../protocol/setup/README.md's concern for CI's isolation is a self-hosted runner's.
 - **Context** reads any public repository on github.com, with no
   installation.
 
@@ -737,7 +737,7 @@ is cited by its probe's number across this document.
 
 ### 12.1 Connected
 
-- **What the person does on Forgejo** is setup.md's (section 4): a user
+- **What the person does on Forgejo** is ../protocol/setup/README.md's (`../protocol/setup/README.md`, section 4): a user
   for temper, not a site admin; its API token and its git token, with
   their scopes; its write access to each repository temper will adopt;
   optionally, hooks to temper's listener.
@@ -770,10 +770,10 @@ is cited by its probe's number across this document.
   adopting a repository on a managed forge first grants the bot write on
   it, as a collaborator (`PUT /api/v1/repos/{o}/{r}/collaborators/{bot}`),
   and makes its hook when the deployment has a webhooks' listener; then
-  the adoption reads as any other (`../domain/forge.md`, section 4).
+  the adoption reads as any other (`../domain/forge/adoption.md`).
   This is a plan of skein's setup beside reconcile, run by the same
   host with the admin's token. Reconcile's org steps narrow: step 5
-  makes an owned forge's orgs when missing (section 13), with no team,
+  makes an owned forge's orgs when missing (`github.md`, section 13), with no team,
   and step 6, each org's hook, goes. In their place, at each start, it
   checks and repairs each adopted repository's collaborator and hook.
 - **The picker** lists every repository the admin can see: all of the
@@ -799,7 +799,7 @@ is cited by its probe's number across this document.
 ## 13. Owned
 
 - **Preparing and running stay commands,** with their files:
-  `temper forge prepare` and `temper forge run` (setup.md, section 6).
+  `temper forge prepare` and `temper forge run` (../protocol/setup/owned.md).
   Forgejo's own secrets (`app.ini`, `state`) and the runner's are
   Forgejo's and the runner's to read, from files, as now; and so is the
   person's first password, `person_password`.
@@ -816,7 +816,7 @@ is cited by its probe's number across this document.
   start, and no credential is ever read from a file after.
 - **A new token at each preparation:** with the file gone once taken,
   each preparation makes the next, as it makes one now when the file is
-  missing (setup.md, 6.3, item 2). A box's every start so renews
+  missing (../protocol/setup/owned.md, 3, item 2). A box's every start so renews
   temper's admin's token, and one revoked on Forgejo is replaced at the
   next. `temper serve` started again alone, with no preparation before
   it, takes no file and runs on the store's token.
@@ -824,7 +824,7 @@ is cited by its probe's number across this document.
   and the hooks' secret. The forge's directory loses `api_token`,
   `git_token`, `user` and `webhook_secret`, and configuration's forge
   stops naming them (section 14).
-- **The box drops its reconcile steps** (setup.md, section 7): prepare,
+- **The box drops its reconcile steps** (../protocol/setup/box.md): prepare,
   Forgejo, its runner, `temper serve`. A token revoked under a running
   engine is made again by the engine's next reconcile, at its restart.
 - **The person's orgs:** `setup.orgs` goes. An owned setup keeps
@@ -845,7 +845,7 @@ is cited by its probe's number across this document.
   (12.2); its open question on short-lived git credentials answered
   (section 8); a GitHub App's key, and its installations' tokens, as
   rows.
-- **`../protocol/configuration.md`:** `forges[]` loses `api_token`,
+- **`../protocol/configuration/README.md`:** `forges[]` loses `api_token`,
   `user` and `webhook_secret`, and `kind` takes `"github"`, whose `api`,
   `transport` and `git` default to github.com's; `identities[]` loses
   `token`, and its `login` is the forge's (the Forgejo bot's,
@@ -853,24 +853,24 @@ is cited by its probe's number across this document.
   GitHub; `forge.writers` in the root's `Config` comes from the store
   (section 4); limits for the puller, the installations, the store's
   records and the manifest's routes.
-- **`../protocol/setup.md`:** the modes' table (who is given what, now
+- **`../protocol/setup/README.md`:** the modes' table (who is given what, now
   from the client); the layers' files (section 13), `admin_token` a
   handover the engine takes and removes, the only file `temper serve`
   reads of a setup; reconcile's host in the engine; `setup.orgs` gone,
-  `person.orgs` for owned; the box's steps; `../protocol/setup.md`, section 9's table, every
+  `person.orgs` for owned; the box's steps; `../protocol/setup/README.md`, section 5's table, every
   credential of the engine's in the store; GitHub (part B) in place of
   "Not here".
-- **`../protocol/forge.md`:** GitHub's dialect as temper uses it, the
+- **`../protocol/forge/README.md`:** GitHub's dialect as temper uses it, the
   delivery log as a hint feed, credentials at runtime.
-- **`../domain/forge.md`:** a forge connected or not (`../domain/forge.md`, section 4); the
+- **`../domain/forge/README.md`:** a forge connected or not (`../domain/forge/adoption.md`); the
   writer at runtime; adoption's org paragraph replaced by access at
   adoption on managed and owned forges (12.2); GitHub's rules and its
   merge queue as a landing queue (section 10).
-- **`../client/`:** the deployment's page (`../client/forge.md`, 5.4)
+- **`../client/`:** the deployment's page (`../client/forge/deployment.md`)
   with each forge's connection and its Connect, Replace, "Install on
   another account" and "Forget the admin's token"; the adoption form
-  (`../client/README.md`, 4.4) as a picker, with "not listed" and its
-  words; `../client/tools.md`'s tools for each.
+  (`../client/forge/family.md`, 4) as a picker, with "not listed" and its
+  words; `../client/ctl/README.md`'s tools for each.
 - **`../../help/`:** connecting GitHub; connecting Forgejo, each mode.
 
 ## 15. Where each piece goes
@@ -913,7 +913,7 @@ is cited by its probe's number across this document.
 ## 16. Order
 
 Each step lands working, and shows what it proved in the real loop
-(`../domain/testing.md`).
+(`../testing/README.md`).
 
 1. **The meeting point: temper lands on a GitHub-shaped fake.** GitHub's
    dialect for the calls temper makes, the fake's GitHub layer, the
@@ -985,7 +985,7 @@ Each step lands working, and shows what it proved in the real loop
   the hour. Three shapes: CI pending, heads pushed every five minutes,
   and main moving besides. Each states its total per hour and its
   requests by kind, and the base reads a shared read would save.
-- **The real loop** (`../domain/testing.md`, 2.4): GitHub connected
+- **The real loop** (`../testing/real-loop.md`): GitHub connected
   through the manifest flow, the browser's steps driven as requests;
   repositories added to a project later; a direct landing, and one
   through the merge queue with an ejection repaired; an approval rule
@@ -996,7 +996,7 @@ Each step lands working, and shows what it proved in the real loop
   fact, a record but the store's, a request or an answer
   (credentials.md, section 7).
 - **The browser's tier,** only for what is the browser's: the manifest
-  page's form posted to GitHub's address (`../client/browser.md`).
+  page's form posted to GitHub's address (`../client/web/README.md`).
 - **Live, outside every suite:** the conformance on github.com with the
   fixtures' App and repositories, credentials from the person's private
   directory, never the suites'. The person's part (rulesets, approvals,
@@ -1045,7 +1045,7 @@ Each step lands working, and shows what it proved in the real loop
 - **GitHub Enterprise Server:** the same dialect at another address, its
   own API versions.
 - **Forks:** temper's fork of an upstream on GitHub
-  (`../domain/forge.md`, section 14).
+  (`../domain/forge/README.md`, section 8).
 - **Signed commits:** temper's commits made through the API, which
   GitHub signs (P3, P10), for repositories that require them.
 - **The reviewer:** a second App of temper's whose approval counts

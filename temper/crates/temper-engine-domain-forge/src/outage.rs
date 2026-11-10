@@ -1,5 +1,5 @@
 //! Connector-owned fresh reads and never-sent writes ride a forge away
-//! (temper/docs/design/domain/forge.md, 5.11). All waits and reachability
+//! (temper/docs/design/domain/forge/keeping-up.md, 5). All waits and reachability
 //! marks are volatile; a restart asks afresh (section 16).
 use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, keep_entry};
 use alloc::boxed::Box;

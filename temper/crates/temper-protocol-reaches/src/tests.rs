@@ -1,4 +1,4 @@
-//! Tables for each area of the judgement (temper/docs/design/domain/forge.md, 5.10).
+//! Tables for each area of the judgement (temper/docs/design/domain/forge/attention.md, 6).
 #![expect(clippy::disallowed_methods, reason = "ordinary table fixtures build and inspect bounded tables")]
 #![expect(clippy::disallowed_types, reason = "ordinary table fixtures collect named rows")]
 #![expect(clippy::disallowed_macros, reason = "ordinary table fixtures use bounded vectors")]

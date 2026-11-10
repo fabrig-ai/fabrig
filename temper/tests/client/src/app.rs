@@ -345,7 +345,7 @@ impl App for Temper {
                 if let jig_client::contract::Ask::Release { task, .. } = ask.as_ref() {
                     sent.card = Some(observe::key(jig_client::contract::ObjectKey::Escalation(*task)));
                 }
-                // Preferences are rows, not deciding cards (client/README.md, 5.17).
+                // Preferences are rows, not deciding cards (client/pages/remembered.md).
                 // The scoped-note check still holds the revision delivered to this client.
                 if matches!(
                     ask.as_ref(),

@@ -1,4 +1,4 @@
-//! Close request admission and job encoding (temper/docs/design/domain/forge.md, 8.1;
+//! Close request admission and job encoding (temper/docs/design/domain/forge/change/README.md, 1;
 //! temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2).
 use super::{Domain, forge, tasks};
 use alloc::boxed::Box;
@@ -61,7 +61,7 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
 }
 
 // Exhausted job tries hold the producer when its escalation reaches the change
-// (temper/docs/design/domain/forge.md, 8.4).
+// (temper/docs/design/domain/forge/change/repairs.md).
 pub(super) fn failed(domain: &Domain, child: u64, kind: &tasks::MessageKind) -> bool {
     let Some(task) = domain.core.tasks.task(child) else { return false };
     if *kind != (tasks::MessageKind::Escalation { task: child, revision: task.revisions.hold }) {

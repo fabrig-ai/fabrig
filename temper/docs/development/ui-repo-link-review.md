@@ -1,8 +1,8 @@
 # A box's repository link: proof
 
 2026-11-06. Implementation and browser evidence for
-`temper/docs/design/protocol/sign-in.md`, 9.9, and
-`temper/docs/design/client/forge.md`, 5.4. This is not the separate security review.
+`temper/docs/design/protocol/openid-provider.md`, 9, and
+`temper/docs/design/client/forge/deployment.md`. This is not the separate security review.
 
 ## The real boundary
 
@@ -106,7 +106,7 @@ and its CPU budget remain for after landing.
 ## What remains for the security review
 
 Claude's separate review reads part 2 of the request and
-`temper/docs/design/protocol/sign-in.md`, 9.9. It must assess account linking
+`temper/docs/design/protocol/openid-provider.md`, 9. It must assess account linking
 and excluded identities; public-client redemption, exact redirects and PKCE;
 the printed link, strict cookie and browser-origin boundaries; another local
 process or browser tab; key and password file handling; source failure and

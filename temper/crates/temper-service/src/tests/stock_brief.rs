@@ -1,4 +1,4 @@
-//! Stock admission and measured construction (temper/docs/design/domain/agent.md, 4.3).
+//! Stock admission and measured construction (temper/docs/design/domain/agent/tools.md).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,

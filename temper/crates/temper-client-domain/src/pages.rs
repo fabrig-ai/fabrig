@@ -18,7 +18,7 @@ pub mod chat;
 pub mod members;
 pub mod remembered;
 pub mod roles;
-/// Whether the project's settings offer writing drafts (client/README.md, 5.13).
+/// Whether the project's settings offer writing drafts (client/pages/settings.md, 2).
 #[must_use]
 pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
     match root.forge().ways(project) {
@@ -27,7 +27,7 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
     }
 }
 /// Whether a chat offers "+ Draft": an Ask temper chat whatever its project's settings
-/// say, another while they offer drafts (client/README.md, 3.5).
+/// say, another while they offer drafts (client/pages/README.md).
 #[must_use]
 pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
     let asking = match root.pages.me(&root.client) {
@@ -62,7 +62,7 @@ pub mod team;
 pub mod terminal;
 pub mod welcome;
 pub mod work;
-/// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
+/// The chosen playground waits for its project membership (temper/docs/design/client/forge/family.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PlaygroundChoice {
     Idle,
@@ -189,7 +189,7 @@ pub enum Act {
     },
     AddClose,
     AddSubmit,
-    /// Skip this project's To begin (client/README.md, 3.5).
+    /// Skip this project's To begin (client/pages/README.md).
     SkipToBegin,
     /// Ready's name field.
     DefaultName {
@@ -217,7 +217,7 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
-    /// Show a tab of Ask temper's ways in place (client/README.md, 3.5).
+    /// Show a tab of Ask temper's ways in place (client/pages/README.md).
     WayTab {
         project: u32,
         tab: u32,
@@ -251,30 +251,30 @@ pub enum Act {
     },
     AddDraft,
     Send,
-    /// Open the task page's amendment editor (client/README.md, 5.11).
+    /// Open the task page's amendment editor (client/pages/task.md, 4).
     Amend,
-    /// Edit the amendment's specification (client/README.md, 5.11).
+    /// Edit the amendment's specification (client/pages/task.md, 4).
     AmendWords {
         words: Box<[u8]>,
     },
-    /// Toggle the goal's tracking (client/README.md, 5.11).
+    /// Toggle the goal's tracking (client/pages/task.md, 4).
     AmendTracked,
-    /// Edit the goal's priority (client/README.md, 5.11).
+    /// Edit the goal's priority (client/pages/task.md, 4).
     AmendPriority {
         priority: u32,
     },
-    /// Drop the open amendment (client/README.md, 5.11).
+    /// Drop the open amendment (client/pages/task.md, 4).
     DiscardAmendment,
-    /// Send the drafted amendment (client/README.md, 5.11).
+    /// Send the drafted amendment (client/pages/task.md, 4).
     SendAmendment,
-    /// Reread the task after a moved refusal (client/README.md, 5.11).
+    /// Reread the task after a moved refusal (client/pages/task.md, 4).
     AmendAgain,
     Pause,
     Resume,
     Stop,
-    /// Close the page's task: a chat's close, or a task page's cancel (client/README.md, 5.11).
+    /// Close the page's task: a chat's close, or a task page's cancel (client/pages/task.md, 4).
     Close,
-    /// Close this Ask temper chat and return to a fresh Ask temper page (client/README.md, 3.5).
+    /// Close this Ask temper chat and return to a fresh Ask temper page (client/pages/README.md).
     StartOver,
     DelegateFate {
         task: u64,
@@ -343,7 +343,7 @@ impl Default for Pages {
     }
 }
 impl Pages {
-    /// The look a person chose (client/README.md, 3.5, A chat's terminal).
+    /// The look a person chose (client/pages/README.md, A chat's terminal).
     #[must_use]
     pub const fn look(&self) -> terminal::Look {
         self.look
@@ -612,7 +612,7 @@ impl Pages {
 pub fn me_handle() -> Handle {
     Handle { asker: Owner::Pages.asker(), number: 0 }
 }
-/// Any act on the accounts page dismisses its transient confirmation (client/README.md, 3.5).
+/// Any act on the accounts page dismisses its transient confirmation (client/pages/README.md).
 pub(crate) fn acted(pages: &mut Pages) {
     if pages.accounts.added.take().is_some() {
         pages.accounts.added_from_connect = false;
@@ -2044,7 +2044,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     true
 }
 
-/// A waiting chat reads its subtree's questions in the terminal alone (client/README.md, 3.5).
+/// A waiting chat reads its subtree's questions in the terminal alone (client/pages/README.md).
 fn chat_inbox(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
     let filter = if pages.look.terminal {
         match (&pages.chat, pages.me(client)) {
@@ -2316,7 +2316,7 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
     }
 }
 
-// Work's filters keep the three page reads together (temper/docs/design/client/README.md, 3.5).
+// Work's filters keep the three page reads together (temper/docs/design/client/pages/README.md).
 fn work_project(address: &Address) -> Option<u32> {
     if let Address::Work { project, .. } | Address::Goals { project, .. } | Address::Changes { project } = address {
         Some(*project)
@@ -2371,7 +2371,7 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     }
 }
 
-/// Select the chosen playground once its record and membership arrive (temper/docs/design/client/README.md, 4.8).
+/// Select the chosen playground once its record and membership arrive (temper/docs/design/client/forge/family.md, 7).
 pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Option<u32>) {
     if pages.playground_choice == PlaygroundChoice::Waiting
         && let Some(project) = project
@@ -2708,7 +2708,7 @@ fn default_chosen(pages: &mut Pages, client: &Client) {
     }
 }
 
-/// The shared forges watch supplies Ready and Home (client/README.md, 3.5).
+/// The shared forges watch supplies Ready and Home (client/pages/README.md).
 fn copy_rows(env: &Env<Limits>, client: &Client) -> crate::forge::forges::State {
     use crate::forge::forges;
     match client.document(forges::handle()) {
@@ -2722,7 +2722,7 @@ fn copy_rows(env: &Env<Limits>, client: &Client) -> crate::forge::forges::State 
         Some(_) | None => forges::State::Unknown,
     }
 }
-/// Home makes repositories into the project under its own keys (client/README.md, 3.5).
+/// Home makes repositories into the project under its own keys (client/pages/README.md).
 fn add_submit(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
     use crate::forge;
     let Address::Home { project } = pages.address else { return };
@@ -2753,7 +2753,7 @@ fn add_submit(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Q
     }
 }
 
-/// Ready and Home ask copies under the same keys (client/README.md, 3.5).
+/// Ready and Home ask copies under the same keys (client/pages/README.md).
 fn copy_all(
     pages: &mut Pages,
     env: &Env<Limits>,
@@ -2796,7 +2796,7 @@ fn copy_all(
     }
 }
 
-/// A failed row keeps the source and adoption the person asked (client/README.md, 3.5, Home).
+/// A failed row keeps the source and adoption the person asked (client/pages/README.md, Home).
 fn copy_again(
     pages: &mut Pages,
     env: &Env<Limits>,
@@ -2846,7 +2846,7 @@ fn copy_again(
     }
 }
 
-/// Ready and Home share the ctl adoption (temper/docs/design/client/README.md, 3.5).
+/// Ready and Home share the ctl adoption (temper/docs/design/client/pages/README.md).
 fn adopt(pages: &mut Pages, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
     use crate::forge;
     let Some(first) = pages.welcome_first.clone() else { return };

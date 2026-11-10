@@ -1,11 +1,11 @@
-//! The person's own preferences (temper/docs/design/client/README.md, 5.17).
+//! The person's own preferences (temper/docs/design/client/pages/remembered.md).
 use super::{Request, activity::Asking};
 use crate::owner::Owner;
 use alloc::boxed::Box;
 use jig_client::{Answered, Client, Handle, Key, Outcome, Told, contract as c};
 use skein_lib::{List, Queue, Time, Wall};
 
-/// The person's own preferences (client/README.md, 5.17).
+/// The person's own preferences (client/pages/remembered.md).
 #[derive(Debug)]
 pub struct Remembered {
     party: Option<u64>,

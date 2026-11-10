@@ -1,4 +1,4 @@
-//! A tokens file's items (temper/docs/design/client/tools.md, 5.5).
+//! A tokens file's items (temper/docs/design/client/ctl/areas.md).
 use crate::jig::render::Text;
 use alloc::boxed::Box;
 use skein_lib::Secret;

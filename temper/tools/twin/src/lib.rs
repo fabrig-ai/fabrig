@@ -1,4 +1,4 @@
-//! A live run's twin (domain/testing.md, 4.1), read after a clean stop.
+//! A live run's twin (testing/fakes.md, 1), read after a clean stop.
 mod document;
 mod frames;
 

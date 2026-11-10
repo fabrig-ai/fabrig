@@ -1,4 +1,4 @@
-//! Reference landing settings (temper/docs/design/protocol/configuration.md, 13.9).
+//! Reference landing settings (temper/docs/design/protocol/configuration/reference.md).
 #![expect(clippy::disallowed_macros, reason = "the reference settings are compiled into their reader regression")]
 use super::fixtures;
 use crate::startup::{Problems, application, lines};
@@ -13,7 +13,7 @@ use temper_engine_domain_forge_tiers::Format;
 
 #[test]
 fn the_reference_landing_settings_decode() {
-    // configuration.md, 13.9: main and goal branches.
+    // protocol/configuration/reference.md: main and goal branches.
     const RULES: usize = 2;
     let items = file::decode(
         include_bytes!("../../../../docs/examples/reference/settings.json"),

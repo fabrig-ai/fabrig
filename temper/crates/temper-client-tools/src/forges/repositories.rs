@@ -1,4 +1,4 @@
-//! The picker's one fresh page (client/tools.md, 5.5).
+//! The picker's one fresh page (client/ctl/areas.md).
 use super::{Forges, REPOSITORIES, domain, finish};
 use crate::{
     jig::{

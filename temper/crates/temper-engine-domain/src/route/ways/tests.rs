@@ -1,4 +1,4 @@
-//! Gather the core and forge facts before deriving any words (temper/docs/design/domain/forge.md, 8.13).
+//! Gather the core and forge facts before deriving any words (temper/docs/design/domain/forge/change/branch-path.md).
 use super::*;
 use crate::tests::resume_fixture;
 use jig_domain_core as core;
@@ -140,7 +140,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the project inputs and the roles those inputs run")]
 fn inputs_gather_the_repository_start_and_readers_roles() {
-    // Kind 11 encodes two bools (temper/docs/design/protocol/configuration.md, 13.2).
+    // Kind 11 encodes two bools (temper/docs/design/protocol/configuration/settings.md, 2).
     const GOAL_BYTES: u32 = 2;
     let both = settings::TemplateGoal { design: true, close_out: true };
     for (name, adopted, home, goal, way, merge_job, (held, laid), expected_repository, expected_start) in [

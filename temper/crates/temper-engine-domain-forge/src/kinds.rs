@@ -1,6 +1,6 @@
 //! Judging, keeping and holding the forge's kinds
-//! (temper/docs/design/protocol/configuration.md, 13.2;
-//! temper/docs/design/domain/forge.md, 8.9 and section 16).
+//! (temper/docs/design/protocol/configuration/settings.md, 2;
+//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
 use alloc::boxed::Box;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
@@ -231,7 +231,7 @@ impl Domain {
 
     /// The stored defaults the stock last given no longer holds, kind 2's
     /// every-project entries (scope 0) left out as `give_settings_defaults`
-    /// leaves them out (temper/docs/design/protocol/configuration.md, 13.4).
+    /// leaves them out (temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn dropped_settings_defaults(&self) -> Box<[(u32, u32, u32)]> {
         let mut dropped = List::with_capacity(self.setting_rows.capacity());
@@ -246,7 +246,7 @@ impl Domain {
         dropped.into_boxed()
     }
 
-    /// Preserve changed defaults before a release replaces them (temper/docs/design/client/forge.md, 9).
+    /// Preserve changed defaults before a release replaces them (temper/docs/design/client/forge/served.md).
     pub fn remember_settings_defaults(&mut self, revision: u64, out: &mut Queue<Request>) {
         let mut replaced = List::uncapped();
         for (key, edit) in &self.setting_rows {
@@ -312,7 +312,7 @@ impl Domain {
     }
 
     /// Kind 6 of a project, or no route with none stored
-    /// (temper/docs/design/protocol/configuration.md, 13.2 and 13.4).
+    /// (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn project_questions(&self, project: u32) -> temper_engine_domain_forge_change::Route {
         use temper_engine_domain_forge_change::Route;
@@ -334,7 +334,7 @@ impl Domain {
     }
 
     /// Kind 8 of a project, or Agents review's stock table with none held
-    /// (temper/docs/design/protocol/configuration.md, 13.2 and 13.4).
+    /// (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn project_classes(&self, project: u32) -> temper_protocol_reaches::Classes {
         match self.setting(8, project, 1) {
@@ -355,7 +355,7 @@ impl Domain {
     }
 
     /// A charter's words as held: its change, else the stock's; none where removed or never given
-    /// (temper/docs/design/protocol/configuration.md, 13.2).
+    /// (temper/docs/design/protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn charter_words(&self, charter: u32) -> Option<&[u8]> {
         match self.setting(9, 0, charter) {
@@ -375,7 +375,7 @@ impl Domain {
         }
     }
 
-    /// A project's words as held, none with none stored (temper/docs/design/protocol/configuration.md, 13.2).
+    /// A project's words as held, none with none stored (temper/docs/design/protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn project_words(&self, project: u32) -> Option<&settings::ProjectWords> {
         match self.setting(10, project, 1) {
@@ -396,7 +396,7 @@ impl Domain {
     }
 
     /// A goal template's work as held: its change, else the stock's; none where removed
-    /// or never given (temper/docs/design/protocol/configuration.md, 13.2).
+    /// or never given (temper/docs/design/protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn template_goal(&self, template: u32) -> Option<TemplateGoal> {
         match self.setting(11, 0, template) {
@@ -422,7 +422,7 @@ impl Domain {
     }
 
     /// Given rules used when a project's hypothetical edit removes its own rule
-    /// (temper/docs/design/protocol/configuration.md, 13.4).
+    /// (temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn every_project_rules(&self) -> &[settings::Held] {
         &self.held_rules.every_project
@@ -430,7 +430,7 @@ impl Domain {
 
     /// Every rule a merge into a repository of `project` meets: the deployment's,
     /// then the project's by number, its rule N the every-project rule N while
-    /// the project has no value of its own set (temper/docs/design/protocol/configuration.md, 13.4).
+    /// the project has no value of its own set (temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn landing_rules(&self, project: u32) -> Box<[settings::Held]> {
         held_for_project(&self.held_rules, project)
@@ -446,7 +446,7 @@ impl Domain {
         }
     }
 
-    /// Read a set item's value before its next overwrite (temper/docs/design/client/forge.md, 9).
+    /// Read a set item's value before its next overwrite (temper/docs/design/client/forge/served.md).
     /// The caller verifies that the retained revision set this item.
     #[must_use]
     pub fn revision_setting(&self, kind: u32, scope: u32, number: u32, revision: u32) -> Option<&settings::SizedValue> {

@@ -8,17 +8,17 @@ pub struct Limits {
     /// The uses one account row names before it says how many more. jig's
     /// `AccountCounts` bounds what the client receives; what a row draws is temper's.
     pub row_uses: u32,
-    /// A conversation's window narrower than `document_bytes` (client/README.md, 5.15).
+    /// A conversation's window narrower than `document_bytes` (client/pages/chat/conversation.md, 2).
     /// `None` everywhere but the browser tier's bundle.
     pub window_bytes: Option<u64>,
 }
 impl Limits {
-    /// Parts in one text, including its unsplit remainder (client/README.md, 5.16).
+    /// Parts in one text, including its unsplit remainder (client/pages/chat/conversation.md, 3).
     #[must_use]
     pub const fn view_parts() -> u32 {
         16
     }
-    /// Unique views retained by a chat (client/README.md, 5.16).
+    /// Unique views retained by a chat (client/pages/chat/conversation.md, 3).
     #[must_use]
     pub const fn chat_views() -> u32 {
         32

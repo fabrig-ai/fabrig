@@ -1,4 +1,4 @@
-//! Runner connection configuration (protocol/setup.md, 6.3); the token stays in its private file.
+//! Runner connection configuration (protocol/setup/owned.md, 3); the token stays in its private file.
 use crate::{
     check::joined,
     ini::{flatten, socket},

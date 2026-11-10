@@ -1,4 +1,4 @@
-//! Revisioned ctl answers wake the real requesting goal (temper/docs/design/client/tools.md, 5.5;
+//! Revisioned ctl answers wake the real requesting goal (temper/docs/design/client/ctl/areas.md;
 //! jig/docs/design/client/domain/contract/requests.md, 2).
 use jig_domain_tasks as tasks;
 use temper_client_tools::jig::{
@@ -259,7 +259,7 @@ fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
     numbered_question();
 }
 
-// temper/docs/design/domain/agent.md, 8.2.
+// temper/docs/design/domain/agent/agents.md, 2.
 #[test]
 fn a_person_started_goal_asks_its_person_and_no_stranger() {
     // start_goal creates one root task; a refusal adds no live or ended child.

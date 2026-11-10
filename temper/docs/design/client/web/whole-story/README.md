@@ -13,7 +13,7 @@ section 13; `../../greenfield/README.md`).
 **They are current with what has landed:** night is the client's, from the
 moon at the rail's foot or the phone's top bar, or `#night` on a page's
 address; How work runs draws the path as Ask temper's ways do
-(`../../README.md`, 5.16), its tabs and stops working, by `whole-story.js`;
+(`../../pages/chat/conversation.md`, 3), its tabs and stops working, by `whole-story.js`;
 who acts is that path's marks, a person an orange ring, an agent an ink
 star, code a grey square, on the chips as on the path.
 

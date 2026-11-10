@@ -1,5 +1,5 @@
 //! Scrolling the repository sheet and measuring its phone geometry
-//! (temper/docs/design/client/README.md, 4.4; temper/docs/design/client/forge.md, 5.1).
+//! (temper/docs/design/client/forge/family.md, 4; temper/docs/design/client/forge/repositories.md, 1).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Command, Harness, Lent, Opens, Script, Sent, Stdin, Step, harness::Output};
 use skein_ui::Role;

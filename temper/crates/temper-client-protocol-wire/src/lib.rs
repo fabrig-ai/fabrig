@@ -1,5 +1,5 @@
-//! The forge family's client records (client/README.md, sections 4.6 and 8).
-//! Forge creation and playground reads: temper/docs/design/client/README.md, 4.6.
+//! The forge family's client records (client/forge/records.md and client/engine.md).
+//! Forge creation and playground reads: temper/docs/design/client/forge/records.md.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -10,13 +10,13 @@ extern crate alloc;
 pub mod v1;
 
 /// Kinds with typed settings values at temper's entrances
-/// (temper/docs/design/protocol/configuration.md, 13.2).
+/// (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
     kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7 || kind == 8 || kind == 9 || kind == 10 || kind == 11
 }
 
-/// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
+/// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
 #[rustfmt::skip]
 pub mod public_v1 {
     pub use crate::{PUBLIC_CHANGE, PUBLIC_LANDING, PUBLIC_LANDINGS, PUBLIC_VERSION};
@@ -28,21 +28,21 @@ pub mod source;
 mod public;
 pub use public::{public_bounds, public_limits};
 
-/// The visitor records' version (temper/docs/design/client/forge.md, 11.4).
+/// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
 pub const PUBLIC_VERSION: u16 = 1;
-/// A public change (temper/docs/design/client/forge.md, 11.1).
+/// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
-/// A project's public landings (temper/docs/design/client/forge.md, 11.1).
+/// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_LANDINGS: u16 = 2;
-/// A public landing through a member (temper/docs/design/client/forge.md, 11.1).
+/// A public landing through a member (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_LANDING: u16 = 3;
 
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 
-/// The forge connector's number on jig's client wire (client/README.md, 4.6).
+/// The forge connector's number on jig's client wire (client/forge/records.md).
 pub const FORGE: u16 = 1;
-/// The application's stable owners on jig's client wire (client/README.md, 4.6).
+/// The application's stable owners on jig's client wire (client/forge/records.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Owner {
     /// The forge's requests and records.
@@ -71,37 +71,37 @@ pub const fn owner(number: u16) -> Option<Owner> {
         _ => None,
     }
 }
-/// Every record's version, served by both ends (client/README.md, 4.6).
+/// Every record's version, served by both ends (client/forge/records.md).
 pub const CLIENT_VERSION: u32 = 16;
 
-/// The deployment's maximum number of forges (client/README.md, 4.6).
+/// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
-/// A party's dismissals on the wire (client/README.md, 4.6).
+/// A party's dismissals on the wire (client/forge/records.md).
 pub const DISMISSED: u32 = 8192;
-/// The maximum installations per GitHub forge (client/README.md, 4.6).
+/// The maximum installations per GitHub forge (client/forge/records.md).
 pub const INSTALLATIONS: u32 = 64;
-/// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
+/// The maximum repository makings per forge (temper/docs/design/client/forge/records.md).
 pub const MAKINGS: u32 = 64;
-/// The set up's maximum number of deferred copies (protocol/setup.md, 6.7).
+/// The set up's maximum number of deferred copies (protocol/setup/owned.md, 7).
 pub const FIRST_COPIES: u32 = 16;
-/// The last connect's maximum stop reason length (client/README.md, 4.6).
+/// The last connect's maximum stop reason length (client/forge/records.md).
 pub const CONNECT_WHY_BYTES: u32 = 256;
-/// The box's maximum setup failure line length (client/README.md, 4.6).
+/// The box's maximum setup failure line length (client/forge/records.md).
 pub const SET_UP_WHY_BYTES: u32 = 256;
 
-/// The playground's maximum number of suggested requests (client/README.md, 4.6).
+/// The playground's maximum number of suggested requests (client/forge/records.md).
 pub const CUES: u32 = 8;
-/// Each suggested request's maximum UTF-8 byte length (client/README.md, 4.6).
+/// Each suggested request's maximum UTF-8 byte length (client/forge/records.md).
 pub const CUE_BYTES: u32 = 256;
 
-/// The pull request address's maximum byte length (client/README.md, 4.6).
+/// The pull request address's maximum byte length (client/forge/records.md).
 pub const ADDRESS_BYTES: u32 = 2048;
-/// The change panel's maximum number of gates (client/README.md, 4.6).
+/// The change panel's maximum number of gates (client/forge/records.md).
 pub const GATES: u32 = 64;
-/// The queued change's maximum number of tasks ahead (client/README.md, 4.6).
+/// The queued change's maximum number of tasks ahead (client/forge/records.md).
 pub const TASKS_AHEAD: u32 = 64;
 
-/// A side's bounds on the forge family's fields (client/README.md, 4.4 and 4.6).
+/// A side's bounds on the forge family's fields (client/forge/family.md, 4 and client/forge/records.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
     pub segments: u32,
@@ -228,7 +228,7 @@ pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a complete playground answer, refusing empty cues (temper/docs/design/client/README.md, 4.6).
+/// Decode a complete playground answer, refusing empty cues (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
     let mut reader = Reader::new(bytes);
@@ -244,14 +244,14 @@ pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1:
     Some(record)
 }
 
-/// Encode the deployment's answer (temper/docs/design/client/README.md, 4.6).
+/// Encode the deployment's answer (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn deployment_answer(record: &v1::DeploymentAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete deployment answer (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete deployment answer (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_deployment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DeploymentAnswer> {
     let mut reader = Reader::new(bytes);
@@ -259,14 +259,14 @@ pub fn decode_deployment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1:
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode the program's environment (temper/docs/design/client/README.md, 4.6).
+/// Encode the program's environment (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn program_environment_answer(record: &v1::ProgramEnvironmentAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete program environment answer (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete program environment answer (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_program_environment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProgramEnvironmentAnswer> {
     let mut reader = Reader::new(bytes);
@@ -274,28 +274,28 @@ pub fn decode_program_environment_answer(bytes: &[u8], limits: &v1::Limits) -> O
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode which of the family's subjects is watched (client/README.md, 4.6).
+/// Encode which of the family's subjects is watched (client/forge/records.md).
 #[must_use]
 pub fn watching(record: &v1::Watching) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete family watch (client/README.md, 4.6).
+/// Decode one complete family watch (client/forge/records.md).
 #[must_use]
 pub fn decode_watching(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Watching> {
     let mut reader = Reader::new(bytes);
     let record = v1::Watching::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
-/// Encode the change's whole panel (client/README.md, 4.6; client/forge.md, 9.2).
+/// Encode the change's whole panel (client/forge/records.md; client/forge/served.md, 2).
 #[must_use]
 pub fn change_panel(record: &v1::ChangePanel) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a complete panel, refusing a queued place before 1 (client/README.md, 4.6).
+/// Decode a complete panel, refusing a queued place before 1 (client/forge/records.md).
 #[must_use]
 pub fn decode_change_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangePanel> {
     let mut reader = Reader::new(bytes);
@@ -311,7 +311,7 @@ pub fn decode_change_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Chan
     Some(record)
 }
 
-/// Decode one complete requesting (client/README.md, 4.6).
+/// Decode one complete requesting (client/forge/records.md).
 #[must_use]
 pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Requesting> {
     let mut reader = Reader::new(bytes);
@@ -362,7 +362,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
     Some(record)
 }
 
-// temper/docs/design/client/README.md, 4.6: managed addresses enter whole.
+// temper/docs/design/client/forge/records.md: managed addresses enter whole.
 fn valid_making(making: &v1::Making) -> bool {
     match making {
         v1::Making::Kept(_) => true,
@@ -382,7 +382,7 @@ fn valid_making(making: &v1::Making) -> bool {
     }
 }
 
-/// Encode the family's forges (client/README.md, 4.6).
+/// Encode the family's forges (client/forge/records.md).
 #[must_use]
 pub fn forges(record: &v1::Forges) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -390,7 +390,7 @@ pub fn forges(record: &v1::Forges) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Decode one complete forges (client/README.md, 4.6).
+/// Decode one complete forges (client/forge/records.md).
 #[must_use]
 pub fn decode_forges(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Forges> {
     let mut reader = Reader::new(bytes);
@@ -410,7 +410,7 @@ pub fn decode_forges(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Forges> {
     Some(record)
 }
 
-/// Encode a party's dismissals (client/README.md, 4.6).
+/// Encode a party's dismissals (client/forge/records.md).
 #[must_use]
 pub fn dismissals(record: &v1::Dismissals) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -418,7 +418,7 @@ pub fn dismissals(record: &v1::Dismissals) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Decode one complete dismissals document (client/README.md, 4.6).
+/// Decode one complete dismissals document (client/forge/records.md).
 #[must_use]
 pub fn decode_dismissals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Dismissals> {
     let mut reader = Reader::new(bytes);
@@ -426,7 +426,7 @@ pub fn decode_dismissals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Dismis
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Whether a runner label can be used as one workflow scalar (client/README.md, 8).
+/// Whether a runner label can be used as one workflow scalar (client/engine.md).
 #[must_use]
 pub fn runner_label(label: &[u8]) -> bool {
     if label.is_empty() || label.len() > 64 {
@@ -470,14 +470,14 @@ pub fn decode_landings_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::La
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a project's watched changes (temper/docs/design/client/README.md, 4.6).
+/// Encode a project's watched changes (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn changes_panel(record: &v1::ChangesPanel) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete changes view (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete changes view (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangesPanel> {
     let mut reader = Reader::new(bytes);
@@ -485,14 +485,14 @@ pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Cha
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a project's watched ways (temper/docs/design/client/README.md, 4.6).
+/// Encode a project's watched ways (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn ways_panel(record: &v1::WaysPanel) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a project's watched ways, whole (temper/docs/design/client/README.md, 4.6).
+/// Decode a project's watched ways, whole (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_ways_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::WaysPanel> {
     let mut reader = Reader::new(bytes);
@@ -500,14 +500,14 @@ pub fn decode_ways_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::WaysPa
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a requested view (temper/docs/design/client/README.md, 4.6).
+/// Encode a requested view (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn view_answer(record: &v1::ViewAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a requested view, whole (temper/docs/design/client/README.md, 4.6).
+/// Decode a requested view, whole (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_view_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ViewAnswer> {
     let mut reader = Reader::new(bytes);
@@ -515,14 +515,14 @@ pub fn decode_view_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ViewA
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// The approvals document's bytes (temper/docs/design/client/README.md, 4.6).
+/// The approvals document's bytes (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn approvals(record: &v1::Approvals) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// The approvals document, whole, with no trailing byte (temper/docs/design/client/README.md, 4.6).
+/// The approvals document, whole, with no trailing byte (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_approvals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Approvals> {
     let mut reader = Reader::new(bytes);
@@ -530,14 +530,14 @@ pub fn decode_approvals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Approva
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a party's project status (temper/docs/design/client/README.md, 4.6).
+/// Encode a party's project status (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn project_status(record: &v1::ProjectStatus) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete project status (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete project status (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_project_status(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProjectStatus> {
     let mut reader = Reader::new(bytes);
@@ -545,14 +545,14 @@ pub fn decode_project_status(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Pr
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a party's away rows (temper/docs/design/client/README.md, 4.6).
+/// Encode a party's away rows (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn aways(record: &v1::Aways) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete aways document (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete aways document (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_aways(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Aways> {
     let mut reader = Reader::new(bytes);
@@ -560,14 +560,14 @@ pub fn decode_aways(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Aways> {
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode a project's decisions (temper/docs/design/client/README.md, 4.6).
+/// Encode a project's decisions (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decisions(record: &v1::Decisions) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode one complete decisions document (temper/docs/design/client/README.md, 4.6).
+/// Decode one complete decisions document (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn decode_decisions(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Decisions> {
     let mut reader = Reader::new(bytes);
@@ -575,7 +575,7 @@ pub fn decode_decisions(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Decisio
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// Encode the current value of a forge setting (client/forge.md, 9).
+/// Encode the current value of a forge setting (client/forge/served.md).
 #[must_use]
 pub fn setting_answer(record: &v1::SettingAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -589,7 +589,7 @@ pub fn decode_setting_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Se
     let record = v1::SettingAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
-/// Encode the items of one pending proposal (client/forge.md, 9).
+/// Encode the items of one pending proposal (client/forge/served.md).
 #[must_use]
 pub fn proposal_items_answer(record: &v1::ProposalItemsAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -604,9 +604,9 @@ pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// A goal reads its work as a goal (temper/docs/design/domain/agent.md, 4.3.2).
+/// A goal reads its work as a goal (temper/docs/design/domain/agent/tools.md, 2).
 pub const GOAL_SCOPE: &[u8] =
     b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
-/// A goal asks for agreement before changes (temper/docs/design/domain/agent.md, 8.2).
+/// A goal asks for agreement before changes (temper/docs/design/domain/agent/agents.md, 2).
 pub const GOAL_AGREED: &[u8] =
     b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";

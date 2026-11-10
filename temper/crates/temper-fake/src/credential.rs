@@ -1,4 +1,4 @@
-//! The document form draws its own reproducible credentials (protocol/setup.md, 8.4).
+//! The document form draws its own reproducible credentials (protocol/setup/playground.md).
 use skein_lib::Rng;
 
 /// The model key's stream, apart from the domain and the admin token.

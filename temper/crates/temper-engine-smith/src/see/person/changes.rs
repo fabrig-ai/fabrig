@@ -1,4 +1,4 @@
-//! Forge facts in temper's words (temper/docs/design/domain/agent.md, 8.4.1).
+//! Forge facts in temper's words (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::{join, project_name, words};
 use alloc::boxed::Box;
 use skein_lib::List;

@@ -234,19 +234,19 @@ impl Domain {
         }
         saved
     }
-    /// A configured project's merge command (temper/docs/design/protocol/configuration.md, 3).
+    /// A configured project's merge command (temper/docs/design/protocol/configuration/engine.md).
     pub fn project_merge_job(&mut self, project: u32, merge_job: Box<[u8]>) -> bool {
         let Some((_, _, _, command, _)) = self.landing.projects.get_mut(&project) else { return false };
         *command = Some(merge_job);
         true
     }
-    /// A configured project's close command (temper/docs/design/domain/forge.md, 8.1).
+    /// A configured project's close command (temper/docs/design/domain/forge/change/README.md, 1).
     pub fn project_close_job(&mut self, project: u32, close_job: Box<[u8]>) -> bool {
         let Some((_, _, _, _, command)) = self.landing.projects.get_mut(&project) else { return false };
         *command = Some(close_job);
         true
     }
-    /// The project's optional close command (temper/docs/design/domain/forge.md, 8.1).
+    /// The project's optional close command (temper/docs/design/domain/forge/change/README.md, 1).
     #[must_use]
     pub fn close_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, _, command) = self.landing.projects.get(&project)?;
@@ -269,7 +269,7 @@ impl Domain {
         }
         None
     }
-    /// The project's optional merge command (temper/docs/design/protocol/configuration.md, 3).
+    /// The project's optional merge command (temper/docs/design/protocol/configuration/engine.md).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, command, _) = self.landing.projects.get(&project)?;
@@ -1730,7 +1730,7 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     }
 }
 /// A turn's merge belongs to its member's change; its effect is the landing's
-/// (domain/forge.md, 7.3; domain/landing.md, 8).
+/// (domain/forge/README.md, 5.3; domain/landing.md, 8).
 pub(crate) fn merged_owner(d: &Domain, task: u64, entry: u64) -> u64 {
     let Some(row) = d.landing.rows.get(&task) else {
         return task;

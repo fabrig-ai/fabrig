@@ -55,7 +55,7 @@
     or a held one kept (below), the component says `LinkSignedIn` to the
     application's startup, carrying nothing, so that an application can
     tell its people that the link was used, as a box's front end shows
-    (temper's `client/README.md`, 4.6). The local link, a `Mint`, a
+    (temper's `client/forge/records.md`). The local link, a `Mint`, a
     service's sign-in, an approval's take and every refusal say nothing.
     It is memory alone: what an application keeps of it is gone at a
     restart, as the links are.
@@ -120,7 +120,7 @@
     where the printed link is not enabled is dropped, no link being live.
     The first local link's secret may be given alike, `local_secret`, so
     that the startup can hand it to a native client it starts itself, as a
-    box hands its front end one (temper's `protocol/setup.md`, 7.6): taken
+    box hands its front end one (temper's `protocol/setup/box.md`, 6): taken
     in the first local link's draw's place, its `link_span` from that
     taking, no `LocalLink` said for it, spent and drawn again as any local
     link; refused at start for any length but 32 bytes, and dropped where

@@ -4,7 +4,7 @@ use crate::support;
 #[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
-    // Charter documents follow temper/docs/design/protocol/configuration.md, 13.7.
+    // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
     let fixture: serde_json::Value = serde_json::from_slice(include_bytes!("../fixtures/cluster/settings.json"))
         .expect("retained cluster settings overrides");
     let items = fixture["items"].as_array().expect("cluster settings items");
@@ -118,7 +118,7 @@ fn cluster_a_member_wait_can_defer_only_to_a_longer_world() {
 
 #[test]
 fn cluster_the_retained_charter_overrides_name_no_documents() {
-    // Charter documents follow temper/docs/design/protocol/configuration.md, 13.7.
+    // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
     // The process harness overlays these members on current settings before decoding whole values.
     let settings: serde_json::Value =
         serde_json::from_slice(include_bytes!("../fixtures/cluster/settings.json")).expect("cluster overrides JSON");

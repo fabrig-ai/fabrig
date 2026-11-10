@@ -1,5 +1,5 @@
 //! Procedure hint dependencies, independent of the client's keep reads
-//! (domain/forge.md, 5.2). Unknown facts cannot establish irrelevance.
+//! (domain/forge/keeping-up.md, 2). Unknown facts cannot establish irrelevance.
 use super::Domain;
 use crate::{ChangeRow, Topic, What};
 use alloc::boxed::Box;

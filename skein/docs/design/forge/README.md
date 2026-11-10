@@ -241,7 +241,7 @@ and no policy. Every type is a plain value.
   attempt's log: `End`, the end of its failed step's log, or of its
   whole log when no step failed; or `Start`, the first bytes of its
   whole log, where a CI's opening lines are, such as the selection line
-  a goal's report quotes (temper's `domain/forge.md`, 11.2). `File {
+  a goal's report quotes (temper's `domain/forge/branches.md`, 2). `File {
   head, path, max_bytes }` asks for the start of one file at a commit.
   Both are cut to `max_bytes`, or to what the answer has left (`forgejo.md`, 1.3), and
   say when they cut: a `Start` that cut kept the log's first bytes and
@@ -1074,7 +1074,7 @@ the suites (../testing/README.md, section 6).
 - **The conformance on macOS.** A bottle is the pin's version and another
   build (4.3), so what the conformance checks is Linux's binaries, and a
   bottle answers only to temper's one story
-  (`temper/docs/design/domain/testing.md`, 2.8). Default: so, until the
+  (`temper/docs/design/testing/README.md`, 2.8). Default: so, until the
   conformance joins the macOS workflow with skein's suites
   (`temper/docs/design/draft/macos.md`, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of

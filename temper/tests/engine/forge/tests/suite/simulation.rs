@@ -2219,7 +2219,7 @@ fn releases_without_a_cancelled_pull_post_no_reason() {
     }
 }
 
-/// A change watches its branch and its pull (domain/forge.md 5.1): the Closed
+/// A change watches its branch and its pull (domain/forge/keeping-up.md 1): the Closed
 /// its own cancellation wrote is no drift (8.6), before or after its outcome.
 fn watched_change(world: &mut World) -> (u64, top::Name) {
     world.adopt();
@@ -3112,7 +3112,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
 }
 
-// Removal retires every live watch (temper/docs/design/domain/forge.md, 4.1).
+// Removal retires every live watch (temper/docs/design/domain/forge/adoption.md, 1).
 #[test]
 fn a_removed_forge_reads_nothing_after() {
     let mut world = World::writerless(204);

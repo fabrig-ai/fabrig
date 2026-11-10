@@ -1,4 +1,4 @@
-//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge.md, 11.2).
+//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
 use crate::{Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
@@ -277,7 +277,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, reading: Reading, result: Result<bo
     out.push(Request::CloserChecked { task: reading.task });
 }
 
-// A squash's merge proves coverage of the head it landed (temper/docs/design/domain/forge.md, 11.2).
+// A squash's merge proves coverage of the head it landed (temper/docs/design/domain/forge/branches.md, 2).
 fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
     let landing = d.closing.rows.get(&task)?.closer.landing?;
     let row = d.change(landing)?;

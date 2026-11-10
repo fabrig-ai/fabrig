@@ -103,7 +103,7 @@ doing. Every other kind chooses parts: `question`,
   charters member) carries `"parts": [{"on": ["question"], "instructions":
   "..."}]`. An unknown kind, an always-offered kind, an empty `on` or a part
   past the limit refuses the change at its path. temper's settings form and `temper ctl
-  settings show` and `apply` carry them (`../client/tools.md`, 5.3).
+  settings show` and `apply` carry them (`../client/ctl/tools.md`, 3).
 
 ## 4. What a run is offered
 
@@ -172,7 +172,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   chooses the task's kept account again at its first later run, as any change
   of that provider does (jig's `domain/tasks/README.md`, section 3).
 - **Fresh runs only,** as parts are: a task whose charter resumes takes no
-  `later`. A change's `llm` (`../domain/agent.md`, 4.3.1) carries none, since a
+  `later`. A change's `llm` (`../domain/agent/tools.md`, 1) carries none, since a
   change's producers resume or finish in one activation.
 - **What shows it.** The task's document shows the choice its next run would
   take (jig's `client/domain/contract/documents.md`, 1).
@@ -187,8 +187,8 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
 
 ## 6. The goal's charter in parts
 
-The reference's goal charter, charter 5 (`../protocol/configuration.md`,
-13.9), is written in four parts, each holding what
+The reference's goal charter, charter 5 (`../protocol/configuration/reference.md`
+), is written in four parts, each holding what
 `reference-code-production.md`, section 13's rows say G reads and decides on
 those wakes:
 
@@ -238,7 +238,7 @@ KB every run reads today.
   repair for its owner, not this draft's.
 - **A charter too large to store says how large.** A change of settings refused
   because a charter's stored policy passes `root.journal.run_bytes`
-  (`../domain/root.md`, section 10) names the charter, its size and the bound,
+  (`../domain/root.md`, section 9) names the charter, its size and the bound,
   as a refused start already does. Today a change says only that the charter
   is out of shape.
 - **The reference's settings test** holds its charters within the stock
@@ -255,7 +255,7 @@ KB every run reads today.
    records.
 2. **temper:** its settings form and `temper ctl settings`, with section 8's
    refusal; the reference's charter 5 in parts, and template 4's later choice
-   (`../protocol/configuration.md`, 13.9).
+   (`../protocol/configuration/reference.md`).
 
 ## 10. Later
 

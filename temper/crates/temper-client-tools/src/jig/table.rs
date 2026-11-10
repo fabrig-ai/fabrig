@@ -10,13 +10,13 @@ pub struct Limits {
     pub ask_bytes: u64,
     pub result_bytes: u64,
     pub text: u32,
-    /// Most bytes of an act's words and a model's or effort's name, checked before sending (client/tools.md, 12).
+    /// Most bytes of an act's words and a model's or effort's name, checked before sending (client/ctl/README.md, 9).
     pub words: u32,
     pub part: u32,
     pub wait: Duration,
     pub wait_most: Duration,
 }
-/// A tool's notes are at most this many bytes (client/tools.md, 5.1).
+/// A tool's notes are at most this many bytes (client/ctl/tools.md, 1).
 pub const NOTES_BYTES: usize = 1_024;
 /// A tool and each of its argument forms, tried in order.
 #[derive(Debug)]

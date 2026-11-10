@@ -1,5 +1,5 @@
 //! Root store requests and terminals, with temper's decoded families.
-//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 use super::ranges;
 use ::core::mem::size_of;
 use alloc::boxed::Box;

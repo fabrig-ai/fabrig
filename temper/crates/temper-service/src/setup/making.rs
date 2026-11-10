@@ -1,4 +1,4 @@
-//! The connector's making rows run on the setup host (temper/docs/design/protocol/setup.md, 6.9).
+//! The connector's making rows run on the setup host (temper/docs/design/protocol/setup/owned.md, 9).
 use super::lifecycle::{self, Kind, Run};
 use alloc::boxed::Box;
 use skein_forge_setup::{host, reconcile};

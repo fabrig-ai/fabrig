@@ -1,5 +1,5 @@
-//! Home's entry looks cross the real roots (temper/docs/design/domain/testing.md,
-//! 2.1; temper/docs/design/domain/forge.md, 5.6; temper/docs/design/client/README.md, 3.5).
+//! Home's entry looks cross the real roots (temper/docs/design/testing/README.md,
+//! 2.1; temper/docs/design/domain/forge/attention.md, 2; temper/docs/design/client/pages/README.md).
 use jig_client::{Handle, Key, Latest};
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
@@ -35,7 +35,7 @@ const OTHER_PARTY: u64 = 4;
 const OTHER_SUBJECT: u64 = 8;
 const WATCH: Handle = Handle { asker: Owner::Forge.asker(), number: 2202 };
 const OFFLINE: Duration = Duration::from_millis(30);
-// temper/docs/design/domain/forge.md, 5.7: the root's status procedure.
+// temper/docs/design/domain/forge/attention.md, 3: the root's status procedure.
 const STATUS_PROCEDURE: u32 = 5;
 
 struct Probe {

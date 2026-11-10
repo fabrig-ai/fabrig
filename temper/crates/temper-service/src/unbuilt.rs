@@ -1,4 +1,4 @@
-//! Uninhabited worker types for an engine build (protocol/README.md, 4.1 and 5).
+//! Uninhabited worker types for an engine build (protocol/binaries.md, 1 and protocol/components.md).
 use crate::settings;
 
 #[derive(Debug)]

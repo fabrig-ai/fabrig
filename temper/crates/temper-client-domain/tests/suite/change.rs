@@ -186,7 +186,7 @@ mod tests {
         after.extend(deliver(&mut root, tree_watch, tree(&document)));
         (root, task_watch, tree_watch, after)
     }
-    // A signed-in client also watches the deployment's forges (client/forge.md); the
+    // A signed-in client also watches the deployment's forges (client/forge/README.md); the
     // change panel's watch is the family open whose record is a change watch.
     fn change_open(request: &jig_client::Down) -> Option<Token> {
         let jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } } = request else {
@@ -277,7 +277,7 @@ mod tests {
         ]
     }
 
-    // client/README.md 5.10: "the tasks ahead it names, nearest first" and
+    // client/pages/task.md 3: "the tasks ahead it names, nearest first" and
     // "and N more for those it does not name"; README 4.6 bounds names at 64.
     #[test]
     fn queue_keeps_nearest_names_and_counts_only_the_unnamed_remainder() {
@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(queue.unnamed, u32::MAX.saturating_sub(65), "largest unnamed remainder");
     }
 
-    // client/README.md 5.10: "Queued · 1st when first"; other side steps
+    // client/pages/task.md 3: "Queued · 1st when first"; other side steps
     // remain at their serving slot without inventing a queue place.
     #[test]
     fn first_has_place_one_and_nonqueue_steps_do_not_invent_places() {
@@ -335,8 +335,8 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: "Each fact is drawn as the panel supplies it";
-    // client/forge.md 9.2: subject names the page's task, in its project's scope.
+    // client/pages/task.md 3: "Each fact is drawn as the panel supplies it";
+    // client/forge/served.md 2: subject names the page's task, in its project's scope.
     #[test]
     fn another_tasks_panel_is_not_the_pages_panel() {
         let state = forge::panel::Panel {
@@ -398,7 +398,7 @@ mod tests {
         (root, document, tree)
     }
 
-    // client/README.md 5.10: "its children in the order they were made"
+    // client/pages/task.md 3: "its children in the order they were made"
     // (Read::Tasks by parent and the ended phase, QueryOrder::Ended, by number);
     // "Every procedure's task reads them, its panel shown or not."
     #[test]
@@ -423,7 +423,7 @@ mod tests {
         );
     }
 
-    // client/README.md 5.10: "one read out at a time; each ... read again when
+    // client/pages/task.md 3: "one read out at a time; each ... read again when
     // its tree or its document changes", including changes while a read is outstanding.
     #[test]
     fn tree_and_document_changes_coalesce_behind_one_read_and_keep_the_new_page() {
@@ -458,7 +458,7 @@ mod tests {
         assert!(!ended.reading && !ended.stale, "refresh finishes cleanly");
     }
 
-    // client/README.md 5.10: "read again when ... its document changes" even
+    // client/pages/task.md 3: "read again when ... its document changes" even
     // when there is no tree change and no watchable panel yet.
     #[test]
     fn a_document_change_alone_refreshes_the_ended_children() {
@@ -470,7 +470,7 @@ mod tests {
         assert_eq!(ended_reads(&requests).len(), 1, "document alone refreshes ended tasks");
     }
 
-    // client/README.md 5.10: "The page reads no older page"; the panel's
+    // client/pages/task.md 3: "The page reads no older page"; the panel's
     // records do not affect the ended query's first page.
     #[test]
     fn a_cut_ended_page_is_kept_without_following_its_cursor() {
@@ -488,7 +488,7 @@ mod tests {
         );
     }
 
-    // client/README.md 3.5 / 5.10: a page holds its own ended-child page;
+    // client/pages/README.md / 5.10: a page holds its own ended-child page;
     // an outstanding answer arriving after navigation cannot attach to a new task.
     #[test]
     fn an_old_ended_read_answer_cannot_attach_to_the_next_task() {
@@ -502,7 +502,7 @@ mod tests {
         assert!(page.ended.is_none(), "old ended page is not the new task's page");
     }
 
-    // client/README.md 3.5: "leaving it closes its handles" even if the
+    // client/pages/README.md: "leaving it closes its handles" even if the
     // native Open is acknowledged late; the abandoned panel must never reattach.
     #[test]
     fn a_late_open_acknowledgement_closes_an_abandoned_panel_watch() {

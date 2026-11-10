@@ -1,4 +1,4 @@
-//! The public walk in Chromium (temper/docs/design/client/browser.md, 8.4): the
+//! The public walk in Chromium (temper/docs/design/client/web/public.md, 4): the
 //! signed-out page with no stream, its public reads, and a 404 under the page's policy.
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Target};
 use skein_fake_person_browser::harness::Output;
@@ -218,7 +218,7 @@ impl Walk {
             assert!(text.contains(std::str::from_utf8(TITLE).expect("title")), "card shows the goal's title: {text}");
         }
         if matches!(self.page, Page::Landings) {
-            // The demo lands by the stock queue (temper/docs/design/client/browser.md, 8.4).
+            // The demo lands by the stock queue (temper/docs/design/client/web/public.md, 4).
             let shown = self.text.join("");
             assert!(Tier::public_landings_reads(&shown), "public landings page: {shown}");
         }

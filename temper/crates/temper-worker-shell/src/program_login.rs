@@ -1,4 +1,4 @@
-//! Terminal program login without deployment resources (protocol/credentials.md, 3; protocol/README.md, 4.5).
+//! Terminal program login without deployment resources (protocol/credentials.md, 3; protocol/binaries.md, 5).
 //! The caller prefixes a pre-exec failure with its program-login command. Smith's checked
 //! configuration reader may first emit its own secret-free `smith:` diagnostics.
 use std::{

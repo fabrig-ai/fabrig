@@ -1,4 +1,4 @@
-//! The real box's first block and held socket (temper/docs/design/protocol/setup.md, 7.2 and 13.4).
+//! The real box's first block and held socket (temper/docs/design/protocol/setup/box.md, 2, and temper/docs/design/protocol/setup/testing.md, 4).
 #[path = "../fake_backends/box_link.rs"]
 mod box_link;
 use box_link::command;

@@ -1376,14 +1376,14 @@ impl World {
     }
 
     /// Every connector call is unavailable in this interval; external changes
-    /// still reach the fake, without inventing a delivery (domain/forge.md, 5.11).
+    /// still reach the fake, without inventing a delivery (domain/forge/keeping-up.md, 5).
     pub fn unavailable(&mut self, from: Wall, until: Wall) {
         assert!(until > from);
         self.unavailable = Some((from, until));
     }
 
     /// Answer writes as timed out, then apply their copies after this delay.
-    /// Updates may arrive beyond their lifetime (domain/forge.md, 10).
+    /// Updates may arrive beyond their lifetime (domain/forge/README.md, 6).
     pub fn land_writes_late(&mut self, after: Duration) {
         self.forge_env.limits.landing = 1000;
         self.forge_env.limits.land_min = after;

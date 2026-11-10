@@ -1,4 +1,4 @@
-//! The shared decided region (temper/docs/design/client/README.md, 3.5, Decided for you).
+//! The shared decided region (temper/docs/design/client/pages/README.md, Decided for you).
 use crate::{
     frame::Bindings,
     look,

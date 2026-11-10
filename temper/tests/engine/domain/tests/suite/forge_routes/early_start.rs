@@ -1,4 +1,4 @@
-//! Early producers, their once rule and kept landings (temper/docs/design/domain/forge.md, 8.11).
+//! Early producers, their once rule and kept landings (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::goal_branch::{branch_tip, goal_request};
 use super::*;
 use temper_engine_domain_forge_change as change;

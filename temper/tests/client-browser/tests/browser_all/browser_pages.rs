@@ -1,6 +1,6 @@
 //! Only a browser shows Back and Forward, a replaced history entry, the composer's focus,
 //! a filter's address across a reload, and an address that's no page; the page's own bounds
-//! on the box's Me (client/browser.md, 4.6, item 11). A run of calls' folded line, the picker's
+//! on the box's Me (client/web/testing.md, 6, item 11). A run of calls' folded line, the picker's
 //! menu, keys in a text area, a details dismissed by a press or Escape, the panic page,
 //! and where project rename returns focus stay here too.
 use skein_browser::boundary::Key;
@@ -11,7 +11,7 @@ use temper_client_browser_world::{
     ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Stories, Tier, WITHIN, first_chat, reader_opens, reading,
 };
 
-/// Sending keeps the focus in the composer, by a press or a key (client/README.md, 3.5).
+/// Sending keeps the focus in the composer, by a press or a key (client/pages/README.md).
 #[test]
 fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let tier = Tier::new("composer").with_model().with_model_picker();
@@ -166,7 +166,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         see(tier.states().live),
         temper_client_browser_world::connected(),
         // The rail comes with the page once `me` is read; until then the main is empty and busy
-        // (temper/docs/design/client/README.md, 5.1).
+        // (temper/docs/design/client/view.md, 1).
         see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
@@ -354,7 +354,7 @@ fn closing_project_rename_returns_focus_to_the_summary() {
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
-/// One `temper box`, three chats through ctl, a page load for each story (client/browser.md, 4.6, item 14).
+/// One `temper box`, three chats through ctl, a page load for each story (client/web/testing.md, 6, item 14).
 #[test]
 fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     let tier = Tier::reading("reading");

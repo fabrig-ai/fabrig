@@ -1,5 +1,5 @@
 //! Charter documents gathered at one branch head and retained for line cuts
-//! (temper/docs/design/protocol/configuration.md, 13.7).
+//! (temper/docs/design/protocol/configuration/settings.md, 6).
 
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};

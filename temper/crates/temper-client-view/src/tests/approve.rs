@@ -1,4 +1,4 @@
-//! The approval column and frame (temper/docs/design/client/README.md, 3.5, 5.1 and 5.12).
+//! The approval column and frame (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and 6).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,

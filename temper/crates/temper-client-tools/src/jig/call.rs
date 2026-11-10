@@ -2,12 +2,12 @@
 use super::{key::Name, subject::Condition};
 use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ProposalKey, QueryOrder, TurnName};
-/// The client tools' carried key bound (client/tools.md, 12).
+/// The client tools' carried key bound (client/ctl/README.md, 9).
 pub const PROGRAM_NAME: u32 = jig_client::contract::PROGRAM_NAME;
 /// jig's protocol/configuration.md program-adapter names are at most 32 bytes.
 pub const PROGRAM_ADAPTER: u32 = 32;
 pub const KEY_BYTES: u32 = 4096;
-/// Whole moved records, client/tools.md, 12.
+/// Whole moved records, client/ctl/README.md, 9.
 pub const MOVED_BYTES: u32 = 128 * 1024;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Call {

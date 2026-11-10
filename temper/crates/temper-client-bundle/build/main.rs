@@ -1,4 +1,4 @@
-//! Builds the browser's bundle and writes the list `src/lib.rs` includes (client/browser.md, 2.6), unless
+//! Builds the browser's bundle and writes the list `src/lib.rs` includes (client/web/README.md, 2.6), unless
 //! `TEMPER_BUNDLE` is `none`.
 use std::{
     env, fs,

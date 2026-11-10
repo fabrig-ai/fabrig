@@ -1,5 +1,5 @@
 //! Engine-shaped first-run transcripts: owner lifecycle rows, generated Person
-//! inputs, assistant calls, and Person results (client/README.md, 3.5).
+//! inputs, assistant calls, and Person results (client/pages/README.md).
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 pub const CSV: &[u8] = b"Add CSV export to widget";

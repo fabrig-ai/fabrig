@@ -1,4 +1,4 @@
-//! The report's ordered CI reads (temper/docs/design/domain/forge.md, 11.2).
+//! The report's ordered CI reads (temper/docs/design/domain/forge/branches.md, 2).
 use crate::{Closer, LOG_START_BYTES, selection_line};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, JobAttempt, LogPart, Read};

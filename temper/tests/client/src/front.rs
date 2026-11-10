@@ -1,5 +1,5 @@
 //! Real engine root on its direct store driver, with jig's protocol correlation.
-//! Forge records and playground scripts (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 10).
+//! Forge records and playground scripts (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/testing.md).
 pub mod account_acts;
 mod away;
 mod dismissed;
@@ -111,7 +111,7 @@ pub struct Joint {
     sign_outs: BTreeMap<ClientId, VecDeque<Option<u64>>>,
     truth: jig_client_kit::joint::truth::Truth,
 }
-/// Typed replies observed by a scripted run (temper/docs/design/domain/testing.md, 6.3).
+/// Typed replies observed by a scripted run (temper/docs/design/testing/checks.md, 3).
 #[derive(Debug)]
 pub enum HostAnswer {
     See(Box<engine::SeeAnswer>),
@@ -254,13 +254,13 @@ fn restored_forges(store: Store, bootstrap: engine::Config, config: &engine::Con
     store
 }
 impl Joint {
-    /// Shipped page watch sets beside a third client (temper/docs/design/protocol/configuration.md, 7).
+    /// Shipped page watch sets beside a third client (temper/docs/design/protocol/configuration/limits.md).
     #[must_use]
     pub fn with_watch_room(seed: u64, limits: &client::Limits) -> Self {
         Self::with_watch_room_streams(seed, limits, 8)
     }
 
-    /// A bounded room for the Busy and recovery stories (protocol/configuration.md, 7).
+    /// A bounded room for the Busy and recovery stories (protocol/configuration/limits.md).
     #[must_use]
     pub fn with_watch_room_streams(seed: u64, limits: &client::Limits, streams: u32) -> Self {
         let delegates = fixtures::WATCH_ROOM_DELEGATES;
@@ -339,7 +339,7 @@ impl Joint {
         self.detach(client);
     }
 
-    /// Open protocol watches, leaving closing ones out (temper/docs/design/protocol/configuration.md, 7).
+    /// Open protocol watches, leaving closing ones out (temper/docs/design/protocol/configuration/limits.md).
     #[must_use]
     pub fn open_watches(&self) -> usize {
         self.transport.watches().len()
@@ -461,7 +461,7 @@ impl Joint {
     }
 
     /// The next chat run's reply, written in these pieces: the first is sent at the
-    /// run's assignment and each later part at one `release_reply` (testing.md 6.3).
+    /// run's assignment and each later part at one `release_reply` (testing/checks.md 3).
     pub fn reply_in_pieces(&mut self, pieces: &'static [&'static [u8]]) {
         assert!(self.reply_script.is_none() && self.held_reply.is_none(), "one scripted reply at a time");
         assert!(!pieces.is_empty() && pieces.iter().all(|piece| !piece.is_empty()), "a reply has nonempty pieces");
@@ -641,7 +641,7 @@ impl Joint {
     }
 
     /// Four retained Ask temper chats sharing the fixture's allowance, with two-row
-    /// activity pages and the TUI's pasted-link sign-in (client/README.md, 10).
+    /// activity pages and the TUI's pasted-link sign-in (client/testing.md).
     #[must_use]
     pub fn with_asking_printed_link(seed: u64, limits: client::Limits) -> Self {
         let mut joint = Self::asking_chats(seed, limits, false, 1, 4);
@@ -798,7 +798,7 @@ impl Joint {
         Self::with_engine(seed, &limits, store, [config, restart], &engine_limits, 1)
     }
     /// Ask temper's stock charter and template in the joined world
-    /// (temper/docs/design/domain/agent.md, 8.4).
+    /// (temper/docs/design/domain/agent/ask-temper.md).
     #[must_use]
     pub fn with_asking(seed: u64, limits: client::Limits, member: bool) -> Self {
         Self::with_asking_projects(seed, limits, member, 1)
@@ -1180,12 +1180,12 @@ impl Joint {
         })
     }
 
-    /// client/README.md, 8 and 10: a pushed change lands through CI and an agent gate.
+    /// client/engine.md and client/testing.md: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
         Self::change_landing(seed, limits, None, false, false)
     }
-    /// domain/testing.md, 6.3: the deployment also waits for the project's owner's review.
+    /// testing/checks.md, 3: the deployment also waits for the project's owner's review.
     #[must_use]
     pub fn with_change_approval(seed: u64, limits: &client::Limits) -> Self {
         Self::change_landing(seed, limits, None, false, true)
@@ -1212,7 +1212,7 @@ impl Joint {
         const SETTINGS_DEPTH: u32 = 3;
         const SETTINGS_OWNERS: u32 = 2;
         const SLOTS: u32 = 1;
-        // domain/forge.md, 8.4: six descendants, plus the change itself.
+        // domain/forge/change/repairs.md: six descendants, plus the change itself.
         const CHANGE_DESCENDANTS: u32 = 6;
         const TREE_TASKS: u32 = CHANGE_DESCENDANTS + 1;
         use jig_domain_authority as a;
@@ -1223,7 +1223,7 @@ impl Joint {
             }
             let connector = config.core.connectors[0];
             // Same agent gate and rule as forge_routes.rs's configured_policy
-            // (domain/forge.md, 8.3 and 8.7), on the client world's repository.
+            // (domain/forge/change/gates.md, 1 and 2), on the client world's repository.
             let mut landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                 connector,
                 kind: 4,
@@ -1294,7 +1294,7 @@ impl Joint {
             limits.tasks.depth = 3;
             limits.tasks.parameters = 5;
             // A gate's brief names its pull, branch, base and hexadecimal head,
-            // alongside the task's byte parameters (domain/forge.md, 8.3).
+            // alongside the task's byte parameters (domain/forge/change/gates.md, 1).
             limits.tasks.spec_bytes = 384;
             limits.tasks.contract_choices = 2;
             limits.tasks.executor_kinds = 3;
@@ -1438,7 +1438,7 @@ impl Joint {
     ) -> Self {
         let (transport, component) = Self::client_parts(&configs[1], limits);
         let hello = Self::worker_hello(&configs[1], engine_limits, slots, refuse_hello);
-        // protocol/configuration.md, 7: documents fit the client this world serves.
+        // protocol/configuration/limits.md: documents fit the client this world serves.
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);

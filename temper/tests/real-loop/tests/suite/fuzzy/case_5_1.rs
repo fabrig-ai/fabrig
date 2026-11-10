@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): held chat, retained question, fresh conventions.
+//! Retained first-edition story (testing/reference-case.md): held chat, retained question, fresh conventions.
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -14,7 +14,7 @@ fn a_held_director_keeps_the_owners_question_and_its_fresh_run_reads_the_new_rul
     // check: its charter starts every run fresh. The four hours are a person's
     // release, never a timer; the new shape's rules are words checked, never
     // judged. Kit is context, mounted read-only, and the person's edit is a push
-    // to main, not a change through temper (domain/testing.md, 5.3's 5.1 row).
+    // to main, not a change through temper (testing/reference-case.md's 5.1 row).
     let ran = run_cluster_forge(
         &["ws", "s1"],
         &[],

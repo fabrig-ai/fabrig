@@ -1,4 +1,4 @@
-//! Record-driven forge runtimes (temper/docs/design/protocol/forge.md, 2.2).
+//! Record-driven forge runtimes (temper/docs/design/protocol/forge/engine.md, 2).
 use super::fixtures;
 use crate::{Service, forge};
 use skein_lib::{List, Secret, Token};

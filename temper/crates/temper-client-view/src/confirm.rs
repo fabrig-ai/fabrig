@@ -79,7 +79,7 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
     controls_at(b, root, card, words, bindings, false);
 }
 
-/// Browser card acts share the terminal's admissions, reasons and outcomes (client/README.md, 3.5).
+/// Browser card acts share the terminal's admissions, reasons and outcomes (client/pages/README.md).
 pub(crate) fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
     controls_at(b, root, card, words, bindings, true);
 }
@@ -500,7 +500,7 @@ fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {
     }
 }
 
-/// An answer returned to a card (temper/docs/design/client/README.md, 3.5).
+/// An answer returned to a card (temper/docs/design/client/pages/README.md).
 pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
     if let Outcome::Answered(Answered::Jig(Answer::Done(value))) = outcome {
         words.outcome(b, value);
@@ -554,7 +554,7 @@ pub(crate) fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindi
     true
 }
 
-/// Feedback keeps its status and explanatory paragraph (temper/docs/design/client/README.md, 3.5).
+/// Feedback keeps its status and explanatory paragraph (temper/docs/design/client/pages/README.md).
 pub(crate) fn feedback(b: &mut Builder, line: &crate::shared::Feedback) {
     b.open(Role::Status);
     if line.refused {

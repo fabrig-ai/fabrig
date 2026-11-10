@@ -4399,7 +4399,7 @@ fn no_state_reads_of_zero(sample: &Sample, view: &temper_client_view::View) {
     }
 }
 // A browser's button, tab and option show their name as their text (skein/docs/design/ui/web/elements.md), so text under one
-// is more words; recommended/default/new tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
+// is more words; recommended/default/new tags and All models' count are intentional children (temper/docs/design/client/pages/README.md).
 fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temper_client_view::View) {
     let nodes = view.tree().nodes();
     for (index, node) in nodes.iter().enumerate() {

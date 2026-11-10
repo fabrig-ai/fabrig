@@ -70,7 +70,7 @@ pub fn forge(
 }
 fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
     use temper_engine_domain_forge::{PanelStep, ReviewRead};
-    // Last judged reviews are unsaved observations (domain/forge.md, 8.7).
+    // Last judged reviews are unsaved observations (domain/forge/change/gates.md, 2).
     panel.unmapped_reviews = Box::new([]);
     for approval in &mut panel.approvals {
         approval.read = ReviewRead::Unread;
@@ -91,7 +91,7 @@ fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
 }
 
 /// Routing rebuilds connection, setup and installation observations at startup
-/// (temper/docs/design/domain/forge.md, 4.1). Adopted rows persist.
+/// (temper/docs/design/domain/forge/adoption.md, 1). Adopted rows persist.
 #[must_use]
 pub fn forges(mut document: temper_engine_domain_forge::Forges) -> temper_engine_domain_forge::Forges {
     for row in &mut document.rows {

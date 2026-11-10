@@ -49,7 +49,7 @@ pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
 
 /// Two owned projects, using To begin's second seeded project's shape
-/// (temper/docs/design/domain/testing.md, 6.3; temper/docs/design/client/README.md, 3.5).
+/// (temper/docs/design/testing/checks.md, 3; temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn across_configuration() -> (engine::Config, engine::Limits) {
     let mut config = temper_engine_domain_world::walking::config(SEED);
@@ -554,7 +554,7 @@ pub fn read(
 pub fn project() -> temper_client_domain::Address {
     temper_client_domain::Address::Home { project: 1 }
 }
-/// Start a change from the rail's new box (temper/docs/design/client/README.md, 5.3).
+/// Start a change from the rail's new box (temper/docs/design/client/view.md, 3).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
@@ -1006,7 +1006,7 @@ pub fn finished_goal(front: &mut Joint) -> u64 {
     goal
 }
 /// Read the engine's supplied budget, including availability, without computing it in the story.
-/// A point read also serves ended tasks, whose watches have ended (client/README.md, 5.8).
+/// A point read also serves ended tasks, whose watches have ended (client/pages/goal.md, 2).
 pub fn task_budget(front: &mut Joint, task: u64) -> jig_domain_core::documents::BudgetLine {
     use jig_domain_core::{documents::Document, reads};
     let driver = &mut front.engine;
@@ -1365,7 +1365,7 @@ const ADOPT_KEY: [u8; 16] = [43; 16];
 const ADOPT_DIGEST: [u8; 32] = [43; 32];
 const REPOSITORY_PARAMETER: u32 = 1;
 const GOAL_REPOSITORY_ID: u32 = 7;
-// A task names its repository by the forge and id, packed (domain/forge.md, 4).
+// A task names its repository by the forge and id, packed (domain/forge/adoption.md).
 const GOAL_REPOSITORY: u64 = temper_engine_domain_forge::tag(ADOPT_FORGE, GOAL_REPOSITORY_ID);
 fn adopt_goal_repository(driver: &mut Driver) {
     let mut request = temper_engine_domain_world::fixtures::adoption(ADOPT_FORGE);
@@ -1510,7 +1510,7 @@ pub fn done_task(printed: &temper_client_tools::jig::Printed) -> u64 {
         .expect("task number")
 }
 
-/// tools.md, 12: two 16 KiB parts within the tools' 32 KiB text bound.
+/// client/ctl/README.md, 9: two 16 KiB parts within the tools' 32 KiB text bound.
 pub const LARGE_TURN_TEXT: usize = 24_576;
 #[must_use]
 pub fn codec_for(limits: &jig_client::DomainLimits) -> jig_protocol_transcript::Limits {
@@ -1950,7 +1950,7 @@ const PERSON_TEMPLATES: u32 = 3;
 const PERSON_ANSWERS: u32 = 16;
 // One whole report reservation plus the joined question fixtures' 512 bytes.
 const PERSON_INBOX_BYTES: u32 = PERSON_RESULT_WORDS + 512;
-// The person question's report contract (temper/docs/design/domain/agent.md, 8.2).
+// The person question's report contract (temper/docs/design/domain/agent/agents.md, 2).
 const PERSON_RESULT_WORDS: u32 = 4096;
 // Three report payloads and the retained task fields fit within 32 KiB.
 const PERSON_TRANSCRIPT_BYTES: u32 = 32_768;

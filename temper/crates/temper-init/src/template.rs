@@ -1,9 +1,9 @@
 //! The first-run document names machine parts and seeds no project
-//! (temper/docs/design/protocol/setup.md, 8.3), with whole JSON string placeholders.
+//! (temper/docs/design/protocol/setup/init.md, 3), with whole JSON string placeholders.
 //! The pinned jig and smith parsers require positive prices, so demo uses their
-//! minimum (one per million) until they admit setup.md 8.3's zero prices.
-//! Embedding these fixed templates is init's job (setup.md, 8.2); they are not runtime inputs.
-#![expect(clippy::disallowed_macros, reason = "init embeds its default documents, as setup.md 8.2 requires")]
+//! minimum (one per million) until they admit protocol/setup/init.md 3's zero prices.
+//! Embedding these fixed templates is init's job (protocol/setup/init.md, 2); they are not runtime inputs.
+#![expect(clippy::disallowed_macros, reason = "init embeds its default documents, as protocol/setup/init.md 2 requires")]
 
 use crate::{Bare, Directories, Facts, path};
 use alloc::boxed::Box;

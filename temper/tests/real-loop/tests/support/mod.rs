@@ -1,4 +1,4 @@
-//! Rail steps shared by the terminal stories (temper/docs/design/client/README.md, 5.3).
+//! Rail steps shared by the terminal stories (temper/docs/design/client/view.md, 3).
 use temper_real_loop_world::{calls::Step, terminal};
 
 pub fn start_change(drafts: bool) -> Vec<Step> {

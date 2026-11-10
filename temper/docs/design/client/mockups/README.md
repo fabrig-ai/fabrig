@@ -16,10 +16,10 @@ and which pages are under the rules below yet.
   for what it draws (the user, 10-26): where a mockup differs from what
   temper draws, the mockup is reconciled to temper, gradually, and a
   built page's look is tuned on its journey's print
-  (`../journeys.md`, section 7). For what is not built yet, a page's
+  (`../web/journeys.md`, section 7). For what is not built yet, a page's
   look, its parts and their order, its words and where each act leads
   are its mockup's. The client's documents (`../README.md`,
-  `../forge.md`, `../browser.md`) hold what a page reads, watches and
+  `../forge/README.md`, `../web/README.md`) hold what a page reads, watches and
   does, and cite the mockup for the rest. The two agree: a change to
   one changes the other in the same landing, and a disagreement found
   is settled, never recorded.
@@ -78,7 +78,7 @@ hovering one shows its citation.
 | Source | What it is | Its citation |
 |---|---|---|
 | Engine fact | what jig or temper keeps or computes, and the client can read | the design section that defines it, and its record and field: jig's `client/domain/contract/README.md`, 5.1, `Account.display` |
-| Configuration | what the deployment's configuration gives | its key, and `../../protocol/configuration.md`'s section |
+| Configuration | what the deployment's configuration gives | its key, and `../../protocol/configuration/README.md`'s section |
 | As written | words a person or an agent wrote, with the writer | the writer, and when |
 
 - **The UI's own words** are unmarked, and name no workflow: a
@@ -120,7 +120,7 @@ hovering one shows its citation.
 - **The look:** `style.css`, `terminal-chat.css` and
   `terminal-pages.css` sketch the look of what is not built yet; the
   product's is `temper.css`, tuned on the journeys' prints
-  (`../browser.md`, 2.5; `../journeys.md`), to which these sheets are
+  (`../web/look.md`; `../web/journeys.md`), to which these sheets are
   reconciled. `mockup.css` is the mockups' own bar and marks, never the
   product.
 

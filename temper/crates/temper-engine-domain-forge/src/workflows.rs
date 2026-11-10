@@ -1,14 +1,14 @@
 //! CI workflow names at the landing branch's tip
-//! (temper/docs/design/domain/forge.md, 4.7).
+//! (temper/docs/design/domain/forge/adoption.md, 7).
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Env, List, Map, Queue, Set, Token};
 
 use crate::{Domain, Kind, Limits, Request, Stored};
 
-/// A repository's most workflow names (temper/docs/design/domain/forge.md, 4.7).
+/// A repository's most workflow names (temper/docs/design/domain/forge/adoption.md, 7).
 pub const WORKFLOWS: usize = 16;
-/// A workflow file name's most bytes (temper/docs/design/domain/forge.md, 4.7).
+/// A workflow file name's most bytes (temper/docs/design/domain/forge/adoption.md, 7).
 pub const WORKFLOW_BYTES: usize = 255;
 
 const GITHUB: &[u8] = b".github/workflows";

@@ -1,4 +1,4 @@
-//! A chat from first words through its change landing and closure (client/README.md, 3.5 and 5.7).
+//! A chat from first words through its change landing and closure (client/pages/README.md and client/view.md, 5).
 use jig_client_kit::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
@@ -90,7 +90,7 @@ fn printed(world: &ChatWorld, person: jig_client_kit::harness::ClientId) -> Stri
     String::from_utf8(print.text.as_slice().to_vec()).expect("printed UTF-8")
 }
 
-// client/README.md, 5.7; domain/forge.md, 8.2–8.8: the chat delegates an already pushed
+// client/view.md, 5; domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/README.md, 3–4 and domain/forge/change/gates.md, 2 and domain/forge/change/README.md, 5: the chat delegates an already pushed
 // branch to the landing procedure; CI and the review gate still run in the real engine.
 fn delegate_change(front: &mut temper_client_world::front::Joint, chat: u64) -> u64 {
     use jig_domain_tasks as tasks;

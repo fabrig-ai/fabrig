@@ -1,4 +1,4 @@
-//! One bounded table for the last tree, with typed form input (client/README.md, 5.2).
+//! One bounded table for the last tree, with typed form input (client/view.md, 2).
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Act, Binding};
@@ -32,7 +32,7 @@ pub enum Meaning {
     SetupField(forge::forges::SetupField),
     Copies,
 }
-/// The row owning the settings' last request (client/README.md, 5.13).
+/// The row owning the settings' last request (client/pages/settings.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WaysRow {
     Drafts,

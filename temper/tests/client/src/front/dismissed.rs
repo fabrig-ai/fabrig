@@ -1,4 +1,4 @@
-//! Distinct people in the dismissal stories (temper/docs/design/domain/testing.md, 2.1).
+//! Distinct people in the dismissal stories (temper/docs/design/testing/README.md, 2.1).
 use super::{Joint, client, engine_limits, fixtures, translate};
 use jig_client_kit::harness::{ClientId, Observed};
 use jig_domain_people as people;

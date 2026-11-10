@@ -204,7 +204,7 @@ fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) 
     (driver, parked)
 }
 
-/// temper/docs/design/domain/root.md, 8: a large window turn starts fresh,
+/// temper/docs/design/domain/root.md, 7: a large window turn starts fresh,
 /// with its place kept in the tail, without spending a preparation try.
 #[test]
 fn a_window_with_a_large_turn_starts_fresh_from_the_tail_that_fits() {
@@ -334,7 +334,7 @@ fn large_window_row(limits: &engine::Limits, name: &str, bytes: u32, around: boo
     }
 }
 
-/// temper/docs/design/domain/root.md, 8 and 9.1: due windows wait for load room.
+/// temper/docs/design/domain/root.md, 7 and 8.1: due windows wait for load room.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_load_their_window() {
     for window_len in [1, 3] {
@@ -395,7 +395,7 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
     }
 }
 
-/// temper/docs/design/domain/root.md, 8: later pages keep the first page's slot.
+/// temper/docs/design/domain/root.md, 7: later pages keep the first page's slot.
 #[test]
 fn a_window_of_any_length_loads_while_another_load_holds_a_slot() {
     for window_len in [2, 3, 7] {
@@ -532,7 +532,7 @@ fn failed_preparation(run: &engine::Assignment, preparation: engine::Preparation
 }
 
 // A permanent preparation failure names its repository beside the answer;
-// the root reports it as a fact of the attempt (domain/root.md, 7.4).
+// the root reports it as a fact of the attempt (domain/root.md, 6.4).
 #[test]
 fn a_permanent_preparation_failure_is_reported_as_a_fact_of_its_attempt() {
     let (mut driver, run) = Driver::chat();

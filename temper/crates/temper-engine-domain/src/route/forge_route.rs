@@ -183,7 +183,7 @@ fn permission_number(permission: skein_forge::api::Permission) -> u16 {
     }
 }
 
-/// The project's role for a collaborator's forge permission (domain/forge.md, 4).
+/// The project's role for a collaborator's forge permission (domain/forge/adoption.md).
 fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Permission) -> Option<people::Role> {
     let number = permission_number(permission);
     let mappings = domain.core.permission_roles.get(&project)?;
@@ -196,7 +196,7 @@ fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Perm
 }
 
 /// Who a forge's user is in a project: the one lookup, by forge and user
-/// (domain/forge.md, 4). The link's person first, else the party whose key names
+/// (domain/forge/adoption.md). The link's person first, else the party whose key names
 /// that pair, with their role there, else unknown.
 pub(super) fn forge_person(domain: &Domain, project: u32, forge: u16, user: u64) -> Option<(u64, people::Role)> {
     if let Some(link) = domain.forge.link(forge)
@@ -228,7 +228,7 @@ pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, perso
     Some(user)
 }
 
-/// A person's account on each forge of the project's repositories (domain/agent.md, 8.1).
+/// A person's account on each forge of the project's repositories (domain/agent/agents.md, 1).
 pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[super::PersonForge]> {
     let repositories = domain.forge.readable_repositories(project);
     let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
@@ -252,7 +252,7 @@ pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[
 }
 
 /// Whether a party counts as a person for approvals on a forge of a project: known
-/// there, as a user who isn't its retained writer (domain/forge.md, 4 and 8.9).
+/// there, as a user who isn't its retained writer (domain/forge/adoption.md and domain/forge/change/gates.md, 3).
 pub(super) fn forge_human(domain: &Domain, project: u32, forge: u16, person: u64) -> bool {
     match person_forge_user(domain, project, forge, person) {
         Some(user) => !domain.forge.is_writer(forge, user),
@@ -1092,7 +1092,7 @@ fn write_holding(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> 
 }
 
 /// Name the forge branches a new task will own before the hub admits its batch
-/// (temper/docs/design/domain/forge.md, 2 and 11.1).
+/// (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
 #[expect(
     clippy::too_many_arguments,
     reason = "task identity, symbols and specification arrive from separate admitted carriers"
@@ -1238,7 +1238,7 @@ fn implicit_task_holdings(
 }
 
 /// A landing into a held branch belongs to its holder's requester subtree
-/// (temper/docs/design/domain/forge.md, 11.1).
+/// (temper/docs/design/domain/forge/branches.md, 1).
 fn check_landing_holder(
     domain: &Domain,
     env: &Env<Limits>,
@@ -1381,7 +1381,7 @@ pub(crate) fn project_goal(domain: &mut Domain, env: &Env<Limits>, feed: &jig_do
     }));
 }
 
-/// Move live changes with their goal, independently of its issue projection (domain/forge.md, 9).
+/// Move live changes with their goal, independently of its issue projection (domain/forge/queues.md).
 fn goal_priorities(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed) {
     let priority = i32::try_from(feed.goal.priority).unwrap_or(i32::MAX);
     for task in &feed.plan {
@@ -1613,7 +1613,7 @@ struct GoalMembers {
 }
 
 /// Whether `task` is in `goal`'s subtree below it: its requesters, task by
-/// task, reach `goal` (temper/docs/design/domain/forge.md, 7.2).
+/// task, reach `goal` (temper/docs/design/domain/forge/README.md, 5.2).
 fn in_subtree(domain: &Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
     let mut current = task;
     for _ in 0..task.depth {
@@ -2201,7 +2201,7 @@ fn describe_change_effect(
 }
 
 /// Branch writes use the stored hold name for jig's writer slot
-/// (temper/docs/design/domain/forge.md, 11.1).
+/// (temper/docs/design/domain/forge/branches.md, 1).
 /// Authority names remain separate: every additional authority resource needs a grant.
 fn change_effect_hold(domain: &Domain, env: &Env<Limits>, task: u64, kind: u16) -> Option<tasks::Name> {
     let row = domain.forge.change(task)?;
@@ -2246,7 +2246,7 @@ fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::Change
     }
 }
 
-/// A release of the account for a goal's making reads its branch again (domain/forge.md, 11.1).
+/// A release of the account for a goal's making reads its branch again (domain/forge/branches.md, 1).
 /// Capture the source before jig restores the held phase; failed releases change nothing.
 pub(crate) fn step_core(
     domain: &mut Domain,
@@ -2416,7 +2416,7 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
     }
 }
 
-// A delegate's task, including between attempts, suspends its change's stall (domain/forge.md, 8.4).
+// A delegate's task, including between attempts, suspends its change's stall (domain/forge/change/repairs.md).
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, kind)) = row.delegate else { return false };
@@ -2435,7 +2435,7 @@ fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     }
 }
 
-// A task between attempts is not a run in progress (temper/docs/design/domain/forge.md, 8.4).
+// A task between attempts is not a run in progress (temper/docs/design/domain/forge/change/repairs.md).
 fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, _)) = row.delegate else { return false };
@@ -2512,7 +2512,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 }
                 repairs = Some(commit);
             }
-            // The close request is parameter 17 (temper/docs/design/domain/forge.md, 8.1).
+            // The close request is parameter 17 (temper/docs/design/domain/forge/change/README.md, 1).
             tasks::Parameter::Bytes { name: 17, value } => close = Some(value.clone()),
             tasks::Parameter::Bytes { name: 16, value } => {
                 let Some(commit) = catch_up_commit(value) else { return false };
@@ -2695,7 +2695,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     true
 }
 
-// Both a due procedure and a CI hold read the same coherent snapshot (domain/forge.md, 8.4).
+// Both a due procedure and a CI hold read the same coherent snapshot (domain/forge/change/repairs.md).
 fn change_step(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2796,7 +2796,7 @@ fn own_hold(task: &tasks::TaskRecord) -> bool {
 }
 
 /// The code-2 procedure's repository and landing parameters, shared by chat
-/// changes and deployment queue repairs (domain/agent.md, 4.3.1).
+/// changes and deployment queue repairs (domain/agent/tools.md, 1).
 fn change_parameters(connector: u16, provider: skein_forge::api::Repository, base: Box<[u8]>) -> [tasks::Parameter; 2] {
     [
         tasks::Parameter::Resource { name: 1, connector, resource: forge::tag(provider.forge, provider.repository) },
@@ -2925,7 +2925,7 @@ pub(crate) enum ChangeRefused {
 }
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
-/// Plan members require the control family (domain/agent.md, 4.3.1).
+/// Plan members require the control family (domain/agent/tools.md, 1).
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3208,7 +3208,7 @@ fn change_repository(domain: &Domain, project: u32, named: Option<&[u8]>) -> Res
     Ok(chosen.ok_or(tasks::Refusal::Unknown)?.clone())
 }
 
-/// Resolve the nearest held goal branch through the requester chain (domain/forge.md, 11.1).
+/// Resolve the nearest held goal branch through the requester chain (domain/forge/branches.md, 1).
 fn change_goal_branch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3239,7 +3239,7 @@ fn change_goal_branch(
     Ok(None)
 }
 
-/// Keep ordinary child destinations on their held goal branch (domain/forge.md, 11.1).
+/// Keep ordinary child destinations on their held goal branch (domain/forge/branches.md, 1).
 fn change_destination(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3294,7 +3294,7 @@ fn change_landing(
     }
 }
 
-/// Resolve the requester's held branch before building any delegate (domain/forge.md, 8.1).
+/// Resolve the requester's held branch before building any delegate (domain/forge/change/README.md, 1).
 fn change_branch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3589,7 +3589,7 @@ fn change_delegate(
     let row = domain.forge.change(task)?;
     let context = domain.core.tasks.delegation(task)?;
     let mut authority = child_authority(&context)?;
-    // domain/agent.md, 8: only producing, repairs and resolutions may ask.
+    // domain/agent/agents.md: only producing, repairs and resolutions may ask.
     authority.tools.0 &= !domain.core.settings.tools.settings;
     let asking = match kind {
         forge_change::Delegate::Produce
@@ -3771,7 +3771,7 @@ Report the branch and head you produced; only the change task reports landing af
 
 /// The producer's brief: the change's words, then its scope, if the spec's
 /// bound has room for both beside its branches; the words alone otherwise.
-/// domain/agent.md, 8: a review holds only the run's existing reads.
+/// domain/agent/agents.md: a review holds only the run's existing reads.
 fn gate_authority(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3806,7 +3806,7 @@ fn review_failure(row: &forge::ChangeRow, number: u64, head: skein_forge::api::C
     None
 }
 
-/// domain/forge.md, 8.3: identity precedes the change's words and pull section.
+/// domain/forge/change/gates.md, 1: identity precedes the change's words and pull section.
 fn review_words(
     row: &forge::ChangeRow,
     gate: u64,
@@ -3822,7 +3822,7 @@ fn review_words(
         }
     }
     let mut words = List::with_capacity(room);
-    // domain/forge.md, 8.3: the retry's own context precedes the common review words.
+    // domain/forge/change/gates.md, 1: the retry's own context precedes the common review words.
     if let Some(failure) = review_failure(row, gate, *head) {
         append(&mut words, b"This review is asked again at the same head: the first review failed: ");
         append(&mut words, failure);
@@ -3887,7 +3887,7 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
     Some(writer.finish())
 }
 
-/// domain/forge.md, 8.4: both sides keep their intended content.
+/// domain/forge/change/repairs.md: both sides keep their intended content.
 fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
     let words = concat!(
         "Resolve the merge conflict. Preserve the requested change and unrelated content ",
@@ -3935,7 +3935,7 @@ const REPAIR_PRESERVATION: &[u8] = concat!(
 )
 .as_bytes();
 
-/// domain/forge.md, 8.4: a cut task read still names what the repair repairs.
+/// domain/forge/change/repairs.md: a cut task read still names what the repair repairs.
 fn repair_words(
     row: &forge::ChangeRow,
     why: forge_change::Repair,
@@ -4025,7 +4025,7 @@ pub(super) fn append_change_replies(
     relay::apply(domain, env, task, decision)
 }
 
-/// Feedback names the question route and answer form (domain/forge.md, 8.1, 8.11).
+/// Feedback names the question route and answer form (domain/forge/change/README.md, 1, domain/forge/change/questions.md, 1).
 fn takes_no_messages(requester: tasks::Party, route: forge_change::Route, limit: u32) -> Box<[u8]> {
     let mut words = List::with_capacity(limit);
     if route != forge_change::Route::None {
@@ -4127,7 +4127,7 @@ fn change_landing_words(
     for part in parts {
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
-    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 6).
+    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 5).
     if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
     {
         append(&mut out, b"\n");
@@ -4497,7 +4497,7 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
 }
 
 // The deployment cancels the procedure through its task control path
-// (temper/docs/design/domain/forge.md, 4.1).
+// (temper/docs/design/domain/forge/adoption.md, 1).
 fn cancel_change(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Cancel {
@@ -4507,7 +4507,7 @@ fn cancel_change(domain: &mut Domain, task: u64) {
     }));
 }
 
-// The deployment records the vanished CI cause through the task's release path (domain/forge.md, 8.4).
+// The deployment records the vanished CI cause through the task's release path (domain/forge/change/repairs.md).
 fn end_change_hold(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Release {
@@ -4630,7 +4630,7 @@ fn cancel_change_producer(domain: &Domain, task: u64) -> ProcedureStep {
 }
 
 /// A pushed dependency or one going on from kept can enable a waiting producer
-/// (domain/forge.md, 8.11). Jig owns the live pending dependency list.
+/// (domain/forge/change/questions.md, 1). Jig owns the live pending dependency list.
 fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
     let Some(upstream) = domain.forge.change(dependency) else { return };
     let Some(repository) = domain.forge.repository(upstream.repository) else { return };
@@ -5222,7 +5222,7 @@ pub(crate) fn outputs(
             }
             forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
-                    // domain/forge.md, 8.5: let the procedure retain its precise
+                    // domain/forge/change/README.md, 3: let the procedure retain its precise
                     // hold and current step before holding the task. A generic
                     // hold here prevents its pending wake from running.
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
@@ -5390,7 +5390,7 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::ProjectAfter { goal, when } => {
-                // A step that met the full outbox ends with a timer (temper/docs/design/domain/forge.md, 12).
+                // A step that met the full outbox ends with a timer (temper/docs/design/domain/forge/issues.md).
                 if let Some(when) = when {
                     domain.forge.projection_after(goal, when);
                 } else if domain.forge.full_outbox_met() && !domain.forge.effect_room(&env.limits.forge, 0) {
@@ -5475,7 +5475,7 @@ fn admission_refused(domain: &mut Domain, task: u64) -> bool {
     true
 }
 
-/// Installation is missing access, not a transient busy adoption (domain/forge.md, 4.3).
+/// Installation is missing access, not a transient busy adoption (domain/forge/adoption.md, 3).
 fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
     match error {
         skein_forge::api::Error::NotConnected
@@ -5997,7 +5997,7 @@ fn route_resource(
 }
 
 /// Parameter 16 uses the forge's padded commit and lowercase spelling
-/// (temper/docs/design/domain/forge.md, 8.1).
+/// (temper/docs/design/domain/forge/change/README.md, 1).
 fn catch_up_commit(text: &[u8]) -> Option<[u8; 32]> {
     if text.len() != 40 && text.len() != 64 {
         return None;
@@ -6018,7 +6018,7 @@ fn catch_up_commit(text: &[u8]) -> Option<[u8; 32]> {
     Some(commit)
 }
 
-/// temper/docs/design/domain/forge.md, 8.1: parameter 16 carries canonical commit text.
+/// temper/docs/design/domain/forge/change/README.md, 1: parameter 16 carries canonical commit text.
 #[cfg(test)]
 #[test]
 fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {

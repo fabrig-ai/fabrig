@@ -1,4 +1,4 @@
-//! Browser needs words, roles and acts (temper/docs/design/client/README.md, 3.5).
+//! Browser needs words, roles and acts (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,

@@ -1,4 +1,4 @@
-//! A project's status subject and look request (temper/docs/design/client/README.md, 4.6).
+//! A project's status subject and look request (temper/docs/design/client/forge/records.md).
 use super::{Limits, wire_limits};
 use jig_client::{Ask, Family, Watchable, contract as c};
 use temper_client_protocol_wire::{self as wire, v1 as w};

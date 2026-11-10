@@ -1,4 +1,4 @@
-//! A change's relay of its agents' questions (temper/docs/design/domain/forge.md, 8.11).
+//! A change's relay of its agents' questions (temper/docs/design/domain/forge/change/questions.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 

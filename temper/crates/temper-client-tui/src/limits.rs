@@ -1,4 +1,4 @@
-//! The screens' and chat page's bound (temper/docs/design/client/README.md, 6.14 and 6.17).
+//! The screens' and chat page's bound (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
 use crate::words::Word;
 use temper_client_domain::Limits as Domain;
 

@@ -1,4 +1,4 @@
-//! The provider clients joined to Forgejo (protocol/sign-in.md, 9.7).
+//! The provider clients joined to Forgejo (protocol/openid-provider.md, 7).
 use super::super::read;
 use crate::startup::{Problems, What};
 use alloc::boxed::Box;

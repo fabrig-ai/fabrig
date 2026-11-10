@@ -1,4 +1,4 @@
-//! Pure terminal words and targets (protocol/setup.md, 7.2).
+//! Pure terminal words and targets (protocol/setup/box.md, 2).
 use crate::{
     layout::{self, Placed},
     lines::joined,
@@ -20,7 +20,7 @@ pub enum Fact {
     Stopping,
     Stopped,
 }
-/// Where a policy fact is placed (temper/docs/design/protocol/setup.md, 7.2).
+/// Where a policy fact is placed (temper/docs/design/protocol/setup/box.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Place {
     Terminal,
@@ -58,7 +58,7 @@ pub const REFUSAL: &[u8] = b"box: serve: sign-in link too long\n";
 /// Largest fixed item, also allowing the ten-byte UTC prefix.
 pub const FIXED_BYTES: u32 = 256;
 
-/// How a sign-in link reaches the box's stdout (temper/docs/design/protocol/setup.md, 7.2).
+/// How a sign-in link reaches the box's stdout (temper/docs/design/protocol/setup/box.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LinkForm {
     /// The URL alone on its line: a pipe, a file or `TERM=dumb`.

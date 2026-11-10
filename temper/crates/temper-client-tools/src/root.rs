@@ -1,4 +1,4 @@
-//! The tools' shared client and exhaustive owner routing (client/tools.md, 4).
+//! The tools' shared client and exhaustive owner routing (client/ctl/README.md, 4).
 use crate::jig::{self, runner};
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Told};
@@ -108,7 +108,7 @@ impl Root {
         &self.client
     }
     /// The latest call's act, or the kept act it joined, last answered for retry
-    /// (client/tools.md, 6.3). An in-flight retry keeps that last answer.
+    /// (client/ctl/results.md, 3). An in-flight retry keeps that last answer.
     #[must_use]
     pub fn last_retry(&self) -> Option<jig_client::Retry> {
         let (prefix, _) = self.patience.last_key_value()?;

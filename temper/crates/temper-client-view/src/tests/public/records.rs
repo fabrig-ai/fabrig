@@ -1,4 +1,4 @@
-//! Public wire records used by the anonymous view (temper/docs/design/client/browser.md, 8.4).
+//! Public wire records used by the anonymous view (temper/docs/design/client/web/public.md, 4).
 use super::{PROJECT, TASK};
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Writer};

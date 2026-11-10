@@ -44,7 +44,7 @@
 
       // Managed: run by its owner as a service, temper set up on it with
       // a site admin's token. `through`: its people sign in through
-      // temper, its OpenID provider (protocol/sign-in.md, section 9).
+      // temper, its OpenID provider (protocol/openid-provider.md).
       forges: [
         { n: 1, kind: 'Forgejo', name: 'Forgejo at git.example.com', web: 'https://git.example.com', mode: 'managed', state: 'connected', login: 'temper', id: 3, through: true,
           load: { used: 22, rate: 600, window: 'minute', reserve: 60, uses: [['fresh reads', 12], ['writes', 4], ['keeping up', 6], ['the slow pass', 0]], outbox: { waiting: 0, uncertain: 0 }, hooks: [['work/hello', -2]] } },

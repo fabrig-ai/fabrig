@@ -1,4 +1,4 @@
-//! Restart and shutdown bounds (temper/docs/design/protocol/configuration.md, 7;
+//! Restart and shutdown bounds (temper/docs/design/protocol/configuration/limits.md;
 //! temper/docs/design/protocol/documentation.md, 8).
 use skein_lib::Duration;
 /// The box limits, durations in milliseconds at configuration boundaries.

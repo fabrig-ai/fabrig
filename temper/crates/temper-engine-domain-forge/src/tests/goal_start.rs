@@ -1,4 +1,4 @@
-//! A goal's design writer (temper/docs/design/domain/forge.md, 11.3).
+//! A goal's design writer (temper/docs/design/domain/forge/branches.md, 3).
 use super::*;
 
 const GOAL: u64 = 7;

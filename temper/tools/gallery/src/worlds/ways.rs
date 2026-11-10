@@ -1,4 +1,4 @@
-//! Hand-made ways documents and page presses (temper/docs/design/client/browser.md, 7.2).
+//! Hand-made ways documents and page presses (temper/docs/design/client/web/gallery.md, 2).
 use super::{Address, Domain, Event, FirstRun, List, Queue, Request, Then, c, doc, step, world_in_layout};
 use skein_lib::{RequestEnvelope, Token, Writer, bytes};
 use temper_client_domain::{Action, pages::Act};

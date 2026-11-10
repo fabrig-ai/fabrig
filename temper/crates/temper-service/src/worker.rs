@@ -83,7 +83,7 @@ pub struct Worker {
     stopping: bool,
     pub(super) aborted: Option<()>,
 }
-// Socket workers own their endpoint and service ending (protocol/README.md, 15).
+// Socket workers own their endpoint and service ending (protocol/cluster.md).
 #[derive(Debug)]
 enum Connection {
     InProcess(io::Name),
@@ -240,7 +240,7 @@ impl Worker {
         }
     }
     /// Whether every agent process the worker spawned has closed, one still
-    /// spawning among them (protocol/README.md, section 8).
+    /// spawning among them (protocol/README.md, section 6).
     pub(crate) fn agents_ended(&self) -> bool {
         self.processes.is_empty()
     }
@@ -659,7 +659,7 @@ impl Worker {
         );
         self.answered(settled);
     }
-    /// A list launch by the run's form (protocol/README.md, section 7).
+    /// A list launch by the run's form (protocol/README.md, section 5).
     fn list_launch(&self) -> Option<host::ListLaunch> {
         let arguments: Box<[Box<[u8]>]> = match self.arguments.as_ref() {
             [internal, agent, configuration]

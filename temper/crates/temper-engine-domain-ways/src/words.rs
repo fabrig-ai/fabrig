@@ -1,4 +1,4 @@
-//! Agent card words (temper/docs/design/domain/forge.md, 8.13).
+//! Agent card words (temper/docs/design/domain/forge/change/branch-path.md).
 use alloc::boxed::Box;
 use skein_lib::bytes;
 

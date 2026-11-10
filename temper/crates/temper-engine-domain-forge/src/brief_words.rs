@@ -1,9 +1,9 @@
-//! Fixed reasons and counts for section reads (temper/docs/design/domain/forge.md, 8.4).
+//! Fixed reasons and counts for section reads (temper/docs/design/domain/forge/change/repairs.md).
 //! A forge away pauses preparation without spending a try (section 5.11).
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error};
 
-/// How a section's unread reason counts (temper/docs/design/domain/forge.md, 8.4).
+/// How a section's unread reason counts (temper/docs/design/domain/forge/change/repairs.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BriefFate {
     Capacity,
@@ -11,7 +11,7 @@ pub enum BriefFate {
     Permanent,
 }
 
-/// Words for a section that could not be read (temper/docs/design/domain/forge.md, 8.4).
+/// Words for a section that could not be read (temper/docs/design/domain/forge/change/repairs.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BriefUnread {
     pub fate: BriefFate,

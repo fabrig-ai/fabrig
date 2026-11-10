@@ -909,7 +909,7 @@ pub(crate) fn substitute(call: &str) -> Vec<String> {
     words
 }
 
-/// Every pointer in a run's waiting explanation names an available command (client/tools.md, 6.1).
+/// Every pointer in a run's waiting explanation names an available command (client/ctl/results.md, 1).
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

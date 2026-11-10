@@ -1,9 +1,9 @@
-//! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup.md, 7.2).
-//! Source retries follow temper/docs/design/protocol/sign-in.md, 9.9.
+//! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup/box.md, 2).
+//! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
 use crate::machine::{BoxKind, Machine};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-/// The word carried by a group's step lines (protocol/setup.md, 7.3).
+/// The word carried by a group's step lines (protocol/setup/box.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Stage {
     Fetch,
@@ -28,7 +28,7 @@ pub struct Group {
     pub kind: Option<BoxKind>,
     pub remover: Option<Step>,
     pub forge: u16,
-    /// Owned opaque bytes the box uses to name the group on the terminal (protocol/setup.md, 7.3).
+    /// Owned opaque bytes the box uses to name the group on the terminal (protocol/setup/box.md, 3).
     pub label: Box<[u8]>,
     /// `recorded` whether its `started` writes the box's record: an owned forge's does, the demo's does not.
     pub recorded: bool,
@@ -41,7 +41,7 @@ pub struct Steps {
     pub always: Box<[Step]>,
     pub asked: Box<[Group]>,
 }
-/// How the box runs a step (protocol/setup.md, 7.2).
+/// How the box runs a step (protocol/setup/box.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
     Once,
@@ -75,7 +75,7 @@ impl Step {
             started_notice: Box::new([]),
         }
     }
-    /// Its group goes on however it ends (setup.md, 7.2).
+    /// Its group goes on however it ends (protocol/setup/box.md, 2).
     #[must_use]
     pub fn ending_ignored(mut self) -> Self {
         self.ignore_ending = true;
@@ -95,7 +95,7 @@ impl Step {
     }
     /// The listening sockets given to this step, in descriptor order from fd 3.
     /// Port zero stays the step's own bind: its kernel-chosen address cannot
-    /// be claimed by a `Listen` naming port zero (protocol/setup.md, 7.1).
+    /// be claimed by a `Listen` naming port zero (protocol/setup/box.md, 1).
     #[must_use]
     pub fn listening(mut self, addrs: Box<[core::net::SocketAddr]>) -> Self {
         let mut listeners = List::with_capacity(u32::try_from(addrs.len()).expect("bounded listeners"));
@@ -151,10 +151,10 @@ fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Step {
     Step::new(bytes::copy_of(b"serve"), arguments.into_boxed(), Kind::Long).listening(listeners)
 }
 
-/// The argument a slot names its forge by; the box puts the bound number in its place (temper/docs/design/protocol/setup.md, 7.1).
+/// The argument a slot names its forge by; the box puts the bound number in its place (temper/docs/design/protocol/setup/box.md, 1).
 pub const FORGE_ARGUMENT: &[u8] = b"$forge";
 
-/// The owned kind's slot and serve (temper/docs/design/protocol/setup.md, 7.1).
+/// The owned kind's slot and serve (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
 pub fn kinds(
     machine: &Machine,

@@ -382,7 +382,7 @@ pub struct RestoringProof {
     pub last_answer: Option<u64>,
 }
 
-/// One configured model and its deployment-unit prices (domain/agent.md, 4.6).
+/// One configured model and its deployment-unit prices (domain/agent/charter.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Model {
     pub provider: u32,

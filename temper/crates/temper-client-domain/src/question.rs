@@ -1,4 +1,4 @@
-//! A question's line form (temper/docs/design/domain/agent.md, 8.2).
+//! A question's line form (temper/docs/design/domain/agent/agents.md, 2).
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
@@ -145,7 +145,7 @@ fn join_all(lines: &[&[u8]]) -> Box<[u8]> {
 }
 
 /// A person task a goal asks in its words: addressed to a person, a report its contract
-/// (temper/docs/design/client/README.md, 3.5; temper/docs/design/domain/agent.md, 8.2).
+/// (temper/docs/design/client/pages/README.md; temper/docs/design/domain/agent/agents.md, 2).
 #[must_use]
 pub fn in_words(task: &jig_client::contract::PersonTask) -> bool {
     use jig_client::contract::{PersonAddress, TaskContractDocument};

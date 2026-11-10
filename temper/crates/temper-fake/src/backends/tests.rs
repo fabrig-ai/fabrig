@@ -202,7 +202,7 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
 }
 
 /// The fake box must write and revise the same document as the demo model
-/// (temper/docs/design/client/journeys.md, 9).
+/// (temper/docs/design/client/web/journeys.md, 9).
 #[test]
 fn the_fake_box_keeps_the_demos_two_document_turns() {
     let (temper, agent, paths, peers) = fixture();
@@ -566,7 +566,7 @@ fn written_anthropic_entries_are_replaced_once() {
     }
 }
 
-/// A fresh catalogue read must preserve every stock choice (temper/docs/design/protocol/configuration.md, 13.1).
+/// A fresh catalogue read must preserve every stock choice (temper/docs/design/protocol/configuration/settings.md, 1).
 #[test]
 fn the_templates_list_patterns_keep_every_stock_model() {
     for template in [

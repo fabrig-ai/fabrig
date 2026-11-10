@@ -1,4 +1,4 @@
-//! Failed section reads in a repair's paired brief (temper/docs/design/domain/forge.md, 8.4).
+//! Failed section reads in a repair's paired brief (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 use jig_domain_core::{documents, reads};
 use skein_forge::api::Error;

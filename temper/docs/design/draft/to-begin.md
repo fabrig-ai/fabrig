@@ -7,7 +7,7 @@ first-run steps, made small, with "Skip". What shows is computed from
 the project's state, so a refresh, another device or a restart shows
 the same; "Skip" is the one thing kept, by the engine, for the person.
 The look is tuned on the person's `look-requests` branch
-(`../client/journeys.md`, 7), as the request `project-home-onboarding`
+(`../client/web/journeys.md`, 7), as the request `project-home-onboarding`
 draws it, and landed apart from this draft.
 
 ## 1. In one page
@@ -86,7 +86,7 @@ draws it, and landed apart from this draft.
 - **The second step names how changes land,** the project's own
   landing setting (`../domain/landing.md`, section 13) and its home's
   checks as the adoption set them. By queue, the default, it says
-  temper's merge queue (`../domain/forge.md`, 8.2): checked at its
+  temper's merge queue (`../domain/forge/change/README.md`, 2): checked at its
   head, brought up to date with main and checked again if main moved,
   merged at exactly that head. That queue, and its checks, are what a
   project of many changes lands through, more than a forge's own
@@ -134,7 +134,7 @@ draws it, and landed apart from this draft.
   is people's, as `Binding` is. Written by the person's request,
   erased with its project or its party; bounded by the members times
   the projects.
-- **A FORGE request, `Dismiss { what }`** (`../client/README.md`, 4.6),
+- **A FORGE request, `Dismiss { what }`** (`../client/forge/records.md`),
   "Skip" in the view, from any party with a role in the project; a
   second is answered as the first. The client reads the person's
   dismissals, live, so another device's Home drops "To begin" when the
@@ -146,7 +146,7 @@ draws it, and landed apart from this draft.
   in the rail. A skip is never undone, and needs no undoing.
 - **One mechanism for later dismissals:** the plan's first use, a card
   that waits to be dismissed, is the client's open question
-  (`../client/README.md`, section 11); if it is chosen, it is another
+  (`../client/README.md`, section 5); if it is chosen, it is another
   kind of `Dismissed`, keyed by its account.
 
 ## 6. Its order

@@ -1,4 +1,4 @@
-//! The TUI's arguments and start (temper/docs/design/client/README.md, 6.11 and 6.12).
+//! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
 use crate::{
     limits,
     run::{Run, Settings},

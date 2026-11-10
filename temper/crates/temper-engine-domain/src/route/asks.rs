@@ -544,7 +544,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     }
 }
 
-/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge.md, 8.9).
+/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge/change/gates.md, 3).
 fn hold_changed_charter(
     domain: &mut Domain,
     task: u64,

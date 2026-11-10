@@ -1,4 +1,4 @@
-//! The last scan (temper/docs/design/client/journeys.md, 3.7–3.8).
+//! The last scan (temper/docs/design/client/web/journeys.md, 3.7–3.8).
 use super::{Line, Originals, Streams, Undecoded, fields_mut};
 use skein_lib::bytes::find;
 mod join;
@@ -33,7 +33,7 @@ pub struct Found {
     pub what: What,
 }
 
-/// Seek originals, their digests, and the shapes of journeys.md, 3.7.
+/// Seek originals, their digests, and the shapes of client/web/journeys.md, 3.7.
 #[must_use]
 pub fn bytes(bytes: &[u8], originals: &Originals) -> Option<What> {
     if original(bytes, originals) { Some(What::Original) } else { shape(bytes).map(What::Shape) }
@@ -50,7 +50,7 @@ pub fn original(bytes: &[u8], originals: &Originals) -> bool {
     }
     false
 }
-/// Seek the shapes of journeys.md, 3.7.
+/// Seek the shapes of client/web/journeys.md, 3.7.
 #[must_use]
 pub fn shape(bytes: &[u8]) -> Option<Shape> {
     shapes::scan(bytes)

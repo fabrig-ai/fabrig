@@ -1,4 +1,4 @@
-//! The chat-work request's hand-made conversation in an isolated world (client/browser.md, 7.2).
+//! The chat-work request's hand-made conversation in an isolated world (client/web/gallery.md, 2).
 use super::{base_task, c, doc, limits, text};
 use skein_lib::{List, Token, Wall};
 

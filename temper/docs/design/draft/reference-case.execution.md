@@ -8,7 +8,7 @@ executes a part of the drafts and writes its own design as it goes.
 `notes.md` holds the reasons for the choices cited here, N1 to N23;
 where the design lags each is the drafts' statuses.
 
-Unqualified, `forge.md`, `landing.md`, `after-landing.md`, `agent.md`
+Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
 and `worker.md` are temper's `../domain/` documents; jig's and smith's
 are named as theirs.
 
@@ -87,8 +87,8 @@ section 14 it adds.
 
 - **The playground's reset closed out**: its draft ported into the
   design and archived. Done: the milestones' designers
-  find the documents they edit (`forge.md`, temper's
-  `../protocol/configuration.md`, jig's `domain/tasks/README.md`) free of its
+  find the documents they edit (`../domain/forge/README.md`, temper's
+  `../protocol/configuration/README.md`, jig's `domain/tasks/README.md`) free of its
   Departs entries.
 - **Designers write the design** (the user, 2026-11-02): a milestone's
   designers write their family's design with the words of its changes,
@@ -115,11 +115,11 @@ section 14 it adds.
   section 3); a
   result's bound past the settings schema's cap.
 - **Design, temper's:** g as the goal's, not a change's, a change from
-  outside G's subtree refused (`forge.md`, sections 2 and 11, and 11.1);
-  `change`'s landing branch, dependencies and batch (`agent.md`, 4.3.1;
-  `forge.md`, 8.1); checking and updating by the landing branch's rule
-  (`forge.md`, 8.2 steps 3 and 6, 8.7, section 10); a result's words
-  carrying the producer's report (`forge.md`, 8.2 step 7).
+  outside G's subtree refused (`../domain/forge/README.md`, section 2 and `../domain/forge/branches.md`);
+  `change`'s landing branch, dependencies and batch (`../domain/agent/tools.md`, 1;
+  `../domain/forge/change/README.md`, 1); checking and updating by the landing branch's rule
+  (`../domain/forge/change/README.md`, 2 steps 3 and 6, 8.7, `../domain/forge/README.md`, section 6); a result's words
+  carrying the producer's report (`../domain/forge/change/README.md`, 2 step 7).
 - **Builds:** jig (templates, holds, writer slots, wake policies,
   limits); temper's forge connector and `change`; the landing rule for
   goal branches beside main's, kept in the document's
@@ -141,11 +141,11 @@ section 14 it adds.
   way into main, what moves g while L lives, its bounds, main's queue,
   a small change); `reference-code-production.md`, section 12 (ready to
   land, L made).
-- **Design:** `forge.md`, 8.1 (a change on its requester's held branch)
+- **Design:** `../domain/forge/change/README.md`, 1 (a change on its requester's held branch)
   and 8.5 (a move by its requester's other delegates is its new head,
-  not drift); `forge.md`, section 11 and `after-landing.md`, section 6
+  not drift); `../domain/forge/branches.md` and `after-landing.md`, section 6
   (g deleted as its goal closes if a change landed it, kept otherwise);
-  `agent.md`, 4.3.1 (`mine`).
+  `../domain/agent/tools.md`, 1 (`mine`).
 - **Builds:** temper's change procedure on a held branch, and g's
   deletion as G's hold is released.
 - **Configures:** the coordinator's charter: L, its escalations, changes
@@ -160,9 +160,9 @@ section 14 it adds.
 - **Executes:** `reference-code-production.md`, sections 2 and 5 (the
   cut, designers as changes, a family's batch as its design lands, a
   spec, a revision of the design) and 12 (the close-out).
-- **Design:** `agent.md`, 4.3.1 and `forge.md`, 8.1 and 8.9 (`change`
+- **Design:** `../domain/agent/tools.md`, 1 and `../domain/forge/change/README.md`, 1, and `../domain/forge/change/gates.md`, 3 (`change`
   naming its producer's charter and an LLM choice per role); temper's
-  `../protocol/configuration.md`, 13.2 (the forge's charters); jig's
+  `../protocol/configuration/settings.md`, 2 (the forge's charters); jig's
   `domain/tasks/README.md`, section 4, jig's `protocol/configuration.md`, 3.1
   and jig's `domain/engine/settings.md`, 4 (a batch's LLM choices checked
   against its charter's models); jig's `domain/model.md`, 7.1 (a plan's
@@ -171,12 +171,12 @@ section 14 it adds.
   charter, an LLM choice per role); jig's check of them; temper's
   kinds as settings, on jig's application settings (jig's
   `domain/engine/settings.md`, 5 to 7), built once for both: the landing
-  rules, out of `Config`'s `landing` member (`../domain/root.md`, 5.5,
-  5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
-  13.2 and 13.3), and the forge's charters, out of `Config`'s
+  rules, out of `Config`'s `landing` member (`../domain/routing.md`, 5 and 6, and `../domain/root.md`, 5
+  ; `../domain/forge/change/gates.md`, 3; temper's `../protocol/configuration/settings.md`,
+  2 and 3), and the forge's charters, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
-  charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
-  temper's `../protocol/configuration.md`, 13.2), moved here from M1
+  charter of their own (`../domain/root.md`, 5; `../domain/forge/change/README.md`, 1, and `../domain/forge/change/gates.md`, 3;
+  temper's `../protocol/configuration/settings.md`, 2), moved here from M1
   (the user, 2026-11-02); M4's sub-agents reachable from temper: the
   box's smith profile declares one conversation, so every `sub_agent` is refused as too
   many, and `ctl`'s LLM choice for a task names no sub-agents.
@@ -211,10 +211,10 @@ section 14 it adds.
 - **Executes:** `reference-code-production.md`, sections 8 (a change
   relays its agents' questions) and 9 (holds escalated to G and passed
   up to the person), and 13's wakes on them.
-- **Design:** `agent.md`, 8.2 and `forge.md`, 8.1 (a change's questions;
+- **Design:** `../domain/agent/agents.md`, 2 and `../domain/forge/change/README.md`, 1 (a change's questions;
   the Message family for its producer, repairs and resolutions);
-  `agent.md`, 4.3.1 (`questions`); temper's `../protocol/configuration.md`,
-  13.2 (the foreman's charter) and section 13 (the `questions` setting
+  `../domain/agent/tools.md`, 1 (`questions`); temper's `../protocol/configuration/settings.md`,
+  2 (the foreman's charter) and `../protocol/configuration/settings.md` (the `questions` setting
   and its bound).
 - **Builds:** temper's change procedure: the relay, a foreman per
   question, the bound, an answer held until a dependency lands; a
@@ -230,7 +230,7 @@ section 14 it adds.
 - **Executes:** `reference-code-production.md`, section 7, and section
   6, step 1's kept start.
 - **Design:** `worker.md`, 4.1 and section 5 (a checkout from g's tip
-  with its dependencies' pushed heads merged in); `forge.md`, section 8
+  with its dependencies' pushed heads merged in); `../domain/forge/change/README.md`
   (the early start, its once rule, its refusal on a conflict, an
   amendment refused for dropping a dependency started from); `landing.md`,
   4.1 (a dependent started kept); jig's `domain/connectors.md`, 6.1 (a
@@ -251,11 +251,11 @@ section 14 it adds.
   `domain/model.md`, 3.2, `jig/docs/design/domain/tasks/lifecycle.md`, 3.1, `jig/docs/design/domain/engine/executors.md`,
   5 and `jig/docs/design/domain/hosts/hub.md`, 9; `worker.md`, 4.4); temper's worker
   declares no kind yet. The merge job is not
-  designed: `landing.md`, 5.3, `forge.md`, 8.4 and section 10, temper's
+  designed: `landing.md`, 5.3, `../domain/forge/change/repairs.md` and `../domain/forge/README.md`, 6, temper's
   `../protocol/tooling.md`, sections 1 and 4, and
-  `../protocol/configuration.md`, section 13 (`merge_job`); nor a
-  catch-up change into g (`forge.md`, section 10 and 11.1), the merge
-  job its producer (`agent.md`, 4.3.1).
+  `../protocol/configuration/settings.md` (`merge_job`); nor a
+  catch-up change into g (`../domain/forge/README.md`, section 6, and `../domain/forge/branches.md`, section 1), the merge
+  job its producer (`../domain/agent/tools.md`, 1).
 - **Builds, in two parts:** M7a, jobs in jig and temper's worker, from
   M0, as already designed; M7b, the merge job and its three uses: a
   merge into g and a catch-up (after M1), L's update (after M2). M7b
@@ -277,7 +277,7 @@ section 14 it adds.
 - **Design:** `after-landing.md`, sections 1 and 3: a tier names the
   branches it follows, main's follow main (N5). The rest is designed:
   its families (temper's `../protocol/store.md`), its groups in `ctl`
-  (`../client/tools.md`), skein's `Read::Artifact` and `Read::Commits`.
+  (`../client/ctl/README.md`), skein's `Read::Artifact` and `Read::Commits`.
 - **Builds:** temper's tiers, runs, verdicts and a change living to
   cleared; skein's reads.
 - **Configures:** main's tiers, the slow suites; the verification bound,
@@ -293,7 +293,7 @@ section 14 it adds.
   `reference-landing.md`, section 6 (a red to its goal, triage, a repair
   into main naming it, cleared by it): `after-landing.md`, section 7.
 - **Design:** `after-landing.md`, sections 1 to 3 (a goal branch's tier,
-  judging no landing, its reds as news); `agent.md`, 4.3.1 and
+  judging no landing, its reds as news); `../domain/agent/tools.md`, 1 and
   `after-landing.md`, section 7 (`repairs`).
 - **Builds:** temper's g's tier, a red's news to its goal, `repairs`.
 - **Configures:** g's tier (the gate without its slowest suites,
@@ -307,8 +307,8 @@ section 14 it adds.
 
 - **Executes:** what is left: `reference-code-production.md`, section 14
   whole, as one reference profile, its limits sized for a goal of a
-  hundred changes (N21: temper's `../protocol/configuration.md`, 13.4
-  and section 7, `agent.md`, 4.3.1, jig's `domain/engine/settings.md`, 9).
+  hundred changes (N21: temper's `../protocol/configuration/stock.md` and `../protocol/configuration/limits.md`
+  , `../domain/agent/tools.md`, 1, jig's `domain/engine/settings.md`, 9).
   It revisits `.temper/pre-pr` with numbers (the user, 2026-11-02): M1's
   first edition runs the format check and the old-form counts, with no
   build, and the coding agent's charter asks for clippy and the changed
@@ -338,9 +338,9 @@ section 14 it adds.
 - **No shared design milestone** (the user, 2026-11-02). Where
   milestones extend one section, each adds its own part, and a designer
   that meets another milestone's design there builds on it as it lands:
-  `agent.md`, 4.3.1, `change`'s parameters (M1, M2, M3, M5, M7, M9);
-  `forge.md`, 8.1 (M1, M2, M3, M5); temper's
-  `../protocol/configuration.md`, section 13 (M3, M5, M7, M9); the
+  `../domain/agent/tools.md`, 1, `change`'s parameters (M1, M2, M3, M5, M7, M9);
+  `../domain/forge/change/README.md`, 1 (M1, M2, M3, M5); temper's
+  `../protocol/configuration/settings.md` (M3, M5, M7, M9); the
   coordinator's charter (all but M8).
 - **Walks go one at a time:** they share the held logins, one live run
   at a time (`v0.1.0.md`, 2.2), so they queue where builds run side by

@@ -1,4 +1,4 @@
-//! Independent scenarios from client/README.md 3.5, 4.8, 5.5–5.6 and client/forge.md 5.4.
+//! Independent scenarios from client/pages/README.md and client/forge/family.md, 7 and client/pages/accounts.md, 2 and client/pages/welcome.md, 2 and client/forge/deployment.md.
 use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
@@ -11,7 +11,7 @@ use temper_client_world::{
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
-// client/forge.md 5.4: fetching, preparing, starting, connecting, making/adopting.
+// client/forge/deployment.md: fetching, preparing, starting, connecting, making/adopting.
 const SETUP_STEPS: usize = 5;
 // The owned forge in the public harness fixtures.
 const OWNED_FORGE: u16 = 1;

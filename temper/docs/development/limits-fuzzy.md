@@ -236,5 +236,5 @@ This closing task neither repairs nor attributes it.
 
 O's existing ignored stalled-startup story and manual memory measurement stay
 ignored. The focused-suite overage and real-loop scripted-story placement
-remain in `temper/docs/design/domain/testing.status.md`; this fuzzy-cost
+remain in `temper/docs/design/testing/README.status.md`; this fuzzy-cost
 account changes neither. No slow tier, walk or product driver ran.

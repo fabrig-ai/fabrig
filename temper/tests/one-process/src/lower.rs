@@ -1,4 +1,4 @@
-//! Lower owners of service composition behaviors (temper/docs/design/domain/testing.md, 2.4).
+//! Lower owners of service composition behaviors (temper/docs/design/testing/real-loop.md).
 use temper_playground::{
     machine::{Machine, SignalHost},
     programs,

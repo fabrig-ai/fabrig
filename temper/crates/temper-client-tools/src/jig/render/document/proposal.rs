@@ -1,4 +1,4 @@
-//! Proposal reads and the settings review supplied by wire 19 (client/tools.md, 5.2).
+//! Proposal reads and the settings review supplied by wire 19 (client/ctl/tools.md, 2).
 use super::{Cut, Limits, Text, settings};
 use crate::jig::runner::{
     proposal::{INVENTORY, slot},
@@ -809,7 +809,7 @@ fn inventory(reading: &Reading) -> Option<&c::SettingsDocument> {
         _ => None,
     }
 }
-// client/README.md, 5.13 and 11; jig/docs/design/domain/engine/settings.md, 4.
+// client/pages/settings.md, 2, and client/README.md, 5; jig/docs/design/domain/engine/settings.md, 4.
 const EFFECT: &[u8] = b"New work follows this from the moment it is accepted. Nothing restarts.\n\
 --running stays (default): let running tasks finish on their revision.\n\
 --running moves: move compatible tasks at their next run; a live run continues until it ends.\n\

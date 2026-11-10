@@ -1,4 +1,4 @@
-//! The shipped TUI host on the engine (temper/docs/design/client/README.md, 10).
+//! The shipped TUI host on the engine (temper/docs/design/client/testing.md).
 use jig_client::ApprovalCode;
 use jig_client_kit::harness::{App, ClientId, FrontFault, Settings, World};
 use skein_lib::{Duration, Queue, Secret, Token, Wall};

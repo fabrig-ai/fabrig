@@ -1,5 +1,5 @@
 //! Fit a charter's brief to the room its run leaves
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 
 #![no_std]
 #![forbid(unsafe_code)]
@@ -10,7 +10,7 @@ use skein_lib::{Decimal, List, Writer};
 use smith_domain_run as run;
 
 /// Fit the brief after the workspace is prepared, using the receiving run's
-/// bounds and schema costs (temper/docs/design/domain/agent.md, 4.3).
+/// bounds and schema costs (temper/docs/design/domain/agent/tools.md).
 pub fn fit_brief(charter: &mut run::Charter, workspace: Option<&run::Workspace>, limits: &run::Limits) {
     let Some(room) = run::brief_room(charter, workspace, limits) else { return };
     let owned = charter
@@ -22,7 +22,7 @@ pub fn fit_brief(charter: &mut run::Charter, workspace: Option<&run::Workspace>,
 
 /// Fit gathered sections to a total decoded charter ownership allowance before
 /// assignment admission. Fixed instructions, tools and contracts stay whole;
-/// the caller reserves any additional encoded framing (domain/agent.md, 4.3).
+/// the caller reserves any additional encoded framing (domain/agent/tools.md).
 pub fn fit_brief_bytes(charter: &mut run::Charter, bytes: u64) {
     let owned = charter.owned_bytes().expect("bounded charter ownership").min(bytes);
     fit(charter, u64::MAX, owned);

@@ -1,4 +1,4 @@
-//! The new chat's session layout and start (temper/docs/design/client/README.md, 3.5).
+//! The new chat's session layout and start (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

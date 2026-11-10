@@ -1,4 +1,4 @@
-//! Reference reconciliation before Switch (domain/root.md, 9.1; protocol/store.md, 2).
+//! Reference reconciliation before Switch (domain/root.md, 8.1; protocol/store.md, 2).
 use crate::{Domain, Key, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
@@ -222,7 +222,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            // Change panels outlive tasks (temper/docs/design/domain/forge.md, 8.8).
+            // Change panels outlive tasks (temper/docs/design/domain/forge/change/README.md, 5).
             Stored::Change(row) => self.repository(RecordKind::Change, row.repository),
             Stored::Issue(row) => {
                 self.repository(RecordKind::Issue, row.repository)?;
@@ -231,7 +231,7 @@ impl Reconciliation {
                     None => false,
                 };
                 // Failed projections settle at goal close, even with an unfinished
-                // or absent desired view (domain/forge.md, 12).
+                // or absent desired view (domain/forge/issues.md).
                 if !row.failed && !row.state.closed && !ending {
                     self.task(RecordKind::Issue, row.goal, Some(row.repository.forge))?;
                 }
@@ -253,7 +253,7 @@ impl Reconciliation {
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
-            // Landing history outlives tasks (domain/forge.md, 7.2).
+            // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
             Stored::Forge(_)
@@ -344,7 +344,7 @@ impl Domain {
     }
 
     // History survives removal without retaining its repository's row
-    // (temper/docs/design/domain/forge.md, 4.1).
+    // (temper/docs/design/domain/forge/adoption.md, 1).
     const fn historical_repository(kind: RecordKind) -> bool {
         match kind {
             RecordKind::BranchHead
@@ -384,7 +384,7 @@ impl Domain {
     }
 
     fn closing_projection_entry(&self, task: u64, entry: u64) -> bool {
-        // Closing projections outlive their goals (domain/forge.md, 12).
+        // Closing projections outlive their goals (domain/forge/issues.md).
         // The pending identity reconstructs ownership without a live task.
         match self.issues.get(&task) {
             Some(row) if row.pending == Some(entry) => match &row.desired {

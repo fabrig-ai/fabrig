@@ -1,4 +1,4 @@
-//! Stop asking and Keep asking on a need's reason (temper/docs/design/client/README.md, 3.5, Needs you).
+//! Stop asking and Keep asking on a need's reason (temper/docs/design/client/pages/README.md, Needs you).
 use super::{
     Pages,
     needs::{self, Need, Toasted, Why},
@@ -16,7 +16,7 @@ use jig_client::{Key, Outcome, Told, contract as c};
 use skein_lib::{Decimal, Env, List, Queue, Token, Wall, bytes};
 use temper_protocol_reaches::{Classes, Kind, Offer, Reach, Reason, Subject, narrowed, offers};
 
-/// Seven days of Keep asking, in wall-clock nanoseconds (client/README.md, 3.5).
+/// Seven days of Keep asking, in wall-clock nanoseconds (client/pages/README.md).
 const KEEP_NS: u64 = 604_800_000_000_000;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -242,7 +242,7 @@ fn keep(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
 }
 /// The proposal's durable reason uses the same subject plurals as the view's shared object
-/// (client/README.md, 3.5, Stop asking).
+/// (client/pages/README.md, Stop asking).
 fn proposal_reason(root: &Domain, open: &Open, classes: &Classes, bound: u32) -> Option<c::Text> {
     let me = root.pages.me(&root.client)?;
     let mut project = None;

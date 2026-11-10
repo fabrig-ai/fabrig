@@ -1,4 +1,4 @@
-//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/README.md, 6.14 and 7.1).
+//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages.md and temper/docs/design/client/README.md, 4.1).
 use crate::{
     Browser, Event, Local, Own, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},
@@ -345,7 +345,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     }
     view.built = Some((root_shown, revision));
 }
-/// The signed-in tree from data alone (client/README.md, 6.14).
+/// The signed-in tree from data alone (client/tui/pages.md).
 pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
     view.tick = match &signed.body {
@@ -470,7 +470,7 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
     }
 }
 
-/// The shared commands narrowed to the TUI's screen (client/README.md, 6.14, Offered).
+/// The shared commands narrowed to the TUI's screen (client/tui/pages.md, Offered).
 #[must_use]
 pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::pages::terminal::Command]> {
     use temper_client_domain::pages::terminal::Command;
@@ -509,7 +509,7 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
     commands.into_boxed()
 }
 
-/// The launchpad's selection keys (temper/docs/design/client/README.md, 6.14).
+/// The launchpad's selection keys (temper/docs/design/client/tui/pages.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Arrow {
     Up,
@@ -556,12 +556,12 @@ fn has_needs(root: &Domain) -> bool {
         None => false,
     }
 }
-/// The launchpad's walk key on the tree last built (client/README.md, 6.14).
+/// The launchpad's walk key on the tree last built (client/tui/pages.md).
 #[must_use]
 pub fn walk_key(view: &View) -> Option<Event> {
     if view.walkable { Some(Event::Own { command: Own::Needs }) } else { None }
 }
-/// A chat's number among the displayed left-off rows (client/README.md, 6.14).
+/// A chat's number among the displayed left-off rows (client/tui/pages.md).
 #[must_use]
 pub fn chat_number(view: &View, number: u32) -> Option<u64> {
     for (task, kind) in &view.left_off {
@@ -572,12 +572,12 @@ pub fn chat_number(view: &View, number: u32) -> Option<u64> {
     }
     None
 }
-/// The whole web address of the displayed focus (client/README.md, 6.14).
+/// The whole web address of the displayed focus (client/tui/pages.md).
 #[must_use]
 pub fn focus(view: &View) -> Option<&[u8]> {
     view.focus.as_deref()
 }
-/// The TUI's own commands in their offered order (client/README.md, 6.14).
+/// The TUI's own commands in their offered order (client/tui/pages.md).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
     let mut commands = List::with_capacity(7);

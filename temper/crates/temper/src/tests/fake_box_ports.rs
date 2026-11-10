@@ -1,4 +1,4 @@
-//! Fresh fake boxes leave a person's preferred ports free (protocol/setup.md, 7.5).
+//! Fresh fake boxes leave a person's preferred ports free (protocol/setup/box.md, 5).
 use super::{Directories, bytes, make_private, prepare};
 use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt};
 

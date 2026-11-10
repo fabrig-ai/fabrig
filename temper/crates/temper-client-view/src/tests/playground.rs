@@ -90,7 +90,7 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
         ("forge alone", f::PROJECT, false),
     ] {
         let mut root = f::playground_root(Address::Chat { task: 1 }, project, model);
-        // While it runs a chat's page has no line; while it is leaving, the line (client/README.md, 5.1).
+        // While it runs a chat's page has no line; while it is leaving, the line (client/view.md, 1).
         assert!(f::find(f::page_view(&root).tree(), Role::Region, b"Playground").is_none(), "{row}");
         f::root_event(&mut root, Event::Act { action: Action::Forge(temper_client_domain::forge::Act::EndPlayground) });
         let view = f::page_view(&root);
@@ -346,7 +346,7 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
             }
         }
         assert_eq!(accounts.is_some(), project != f::PROJECT);
-        // Outside the chats pane the line shows while it is leaving alone (client/README.md, 5.1).
+        // Outside the chats pane the line shows while it is leaving alone (client/view.md, 1).
         if !chats && !leaving {
             assert!(playground.is_none());
             continue;

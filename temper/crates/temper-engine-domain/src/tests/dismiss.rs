@@ -1,4 +1,4 @@
-//! `PersonFact` admission and durability (temper/docs/design/domain/forge.md, 5.5).
+//! `PersonFact` admission and durability (temper/docs/design/domain/forge/attention.md, 1).
 use crate::{
     Application, ApplicationAnswer, Delivery, Domain, Event, Limits, PartyInput, PartyRequest, Request, StoreInput,
     StoreRequest,

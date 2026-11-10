@@ -1,4 +1,4 @@
-//! An agent's task's lineage, brief, run and conversation (client/README.md, 5.9).
+//! An agent's task's lineage, brief, run and conversation (client/pages/task.md, 2).
 use crate::{
     frame::Bindings,
     look,
@@ -80,7 +80,7 @@ pub(crate) fn main(
         b.open(Role::Slot);
         b.style(look::THREAD);
         super::task::amendment(b, root, words, bindings);
-        // A browser's log is the one scroller, holding the column (client/README.md, 5.9);
+        // A browser's log is the one scroller, holding the column (client/pages/task.md, 2);
         // a terminal prints the column around its log.
         let scroller = words.shell == Shell::Browser;
         if scroller {

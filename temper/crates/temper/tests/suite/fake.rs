@@ -1,5 +1,5 @@
 //! The QA runner starts the shipped binary, then reads files and serves requests.
-//! Fake issuer cap logging: temper/docs/design/domain/testing.md, 2.6.
+//! Fake issuer cap logging: temper/docs/design/testing/process-tier.md.
 use crate::{listeners, support};
 use serde_json::{Value, json};
 use skein_world::{Deadline, Expired};

@@ -1,5 +1,5 @@
 #!/bin/sh
-# A person's sitting (domain/testing.md, 2.7): fresh ChatGPT sign-in and real stories.
+# A person's sitting (testing/live-tier.md): fresh ChatGPT sign-in and real stories.
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 if [ "${1-}" = rung-b0-offline ]; then
     [ "$#" -eq 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh rung-b0-offline' >&2; exit 2; }
     export NEXTEST_DOUBLE_SPAWN=0
-    # No live account is admitted by the offline proofs (domain/testing.md, 2.6).
+    # No live account is admitted by the offline proofs (testing/process-tier.md).
     exec ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --test proof_live --profile process-temper --no-fail-fast
 fi
 case ${1-} in
@@ -102,7 +102,7 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = ru
     store=$(readlink -f -- "$store")
     if [ "$rung" = true ]; then export TEMPER_LIVE_STORE="$store"; fi
     if [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
-        # A held record moved in by ctl account import (client/tools.md, 5.5), which removes it.
+        # A held record moved in by ctl account import (client/ctl/areas.md), which removes it.
         [ "$rerun" = false ] || { printf '%s\n' 'a held account moves into a fresh store only' >&2; exit 2; }
         # Its path goes to ctl account import alone, never into this script's words.
         if [ -L "$TEMPER_LIVE_ACCOUNT" ] || [ ! -f "$TEMPER_LIVE_ACCOUNT" ]; then

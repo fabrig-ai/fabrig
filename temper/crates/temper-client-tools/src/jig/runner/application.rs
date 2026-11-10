@@ -1,4 +1,4 @@
-//! Application settings reads through the host's family hooks (client/tools.md, 4).
+//! Application settings reads through the host's family hooks (client/ctl/README.md, 4).
 use super::{Out, Runner, reads};
 use crate::jig::rows;
 use alloc::{boxed::Box, collections::BTreeMap};

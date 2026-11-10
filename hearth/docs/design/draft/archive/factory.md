@@ -65,8 +65,8 @@ what is open.
   database developed with temper, called `stoa` here, is the example.
 - **Deploying is landing.** The desired state is the IaC repository's
   main branch. A change to it goes through the forge's change procedure,
-  landing queue and gates (`../domain/forge.md`, sections 8 and 9).
-  Machines then converge to what landed (section 9). Promotion from
+  landing queue and gates (`temper/docs/design/domain/forge/change/README.md` and `temper/docs/design/domain/forge/queues.md`).
+  Machines then converge to what landed (`factory.md`, section 9). Promotion from
   staging to production is another change, gated on verdicts from
   staging.
 - **Immutable systems.** A machine runs a root filesystem built from a
@@ -115,8 +115,8 @@ temper ──"run this experiment at this head" (active)────────
 - **Through the forge, passively.** The lab watches the repositories it
   is given, runs experiments by its own rules (section 8), posts
   statuses at heads and files findings as issues. A status at a head is
-  already a fact temper's gates read, as CI's is (`../domain/forge.md`,
-  8.3), so temper's forge connector does not grow. Anyone on the forge
+  already a fact temper's gates read, as CI's is (`temper/docs/design/domain/forge/change/gates.md`,
+  1), so temper's forge connector does not grow. Anyone on the forge
   can consume it: a person, or another factory.
 - **Through a connector, actively.** When a coordinator wants "benchmark
   this branch against main" as a step of its plan, not as a gate, temper

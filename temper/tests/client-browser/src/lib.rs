@@ -1,4 +1,4 @@
-//! The browser tier (client/browser.md, 4.3): Chromium against `temper serve`, on a scratch deployment whose
+//! The browser tier (client/web/testing.md, 3): Chromium against `temper serve`, on a scratch deployment whose
 //! forge and LLM endpoint are unreached, or the box's first-run demo with its own fakes, serving the
 //! bundle scripts/browser.sh builds. Its helpers are jig's
 //! `tests/client-browser/src/lib.rs`'s, for temper's binary and bundle.
@@ -82,7 +82,7 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
-/// Open the rail's new box and choose a change (temper/docs/design/client/README.md, 5.3).
+/// Open the rail's new box and choose a change (temper/docs/design/client/view.md, 3).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -159,7 +159,7 @@ fn live() -> Find {
     Find::exactly_named(Role::Button, b"Owner")
 }
 /// Read the positive Live DOM marker, which the project rail hides from accessibility
-/// (temper/docs/design/client/README.md, 5.3), after the page's readiness observation.
+/// (temper/docs/design/client/view.md, 3), after the page's readiness observation.
 #[must_use]
 pub fn connected() -> Step {
     Step::Keep {
@@ -206,7 +206,7 @@ impl Tier {
         Self { scratch, forged: forgery::request(), command: "box" }
     }
     /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
-    /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/browser.md, 4.3).
+    /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/web/testing.md, 3).
     #[must_use]
     pub fn reading(name: &str) -> Self {
         let tier = Self::demo(name);
@@ -424,7 +424,7 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
 }
 
 /// The welcome's own provider on the same issuer, whose one subject would renew on the first
-/// provider (temper/docs/design/client/browser.md, 4.2). Provider 2 has its own stock models.
+/// provider (temper/docs/design/client/web/testing.md, 2). Provider 2 has its own stock models.
 fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
     value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
         "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"fake",

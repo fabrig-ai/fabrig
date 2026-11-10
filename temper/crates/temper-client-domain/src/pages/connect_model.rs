@@ -1,4 +1,4 @@
-//! Connect one more model account; shared with the welcome (temper/docs/design/client/README.md, 3.5).
+//! Connect one more model account; shared with the welcome (temper/docs/design/client/pages/README.md).
 use super::{
     Pages, Request as Output,
     accounts::{self, Broken, Way, request::Request},
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
 use temper_client_protocol_wire::{self as wire, v1 as w};
-/// A program’s "I’ve signed in" (temper/docs/design/client/README.md, 3.5, A way’s page).
+/// A program’s "I’ve signed in" (temper/docs/design/client/pages/README.md, A way’s page).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
     Idle,
@@ -95,7 +95,7 @@ pub const fn model_way(way: Way) -> ModelWay {
     }
 }
 /// Whether this person holds a source of this provider and kind
-/// (temper/docs/design/client/README.md, 3.5, `ConnectModel`, Choose).
+/// (temper/docs/design/client/pages/README.md, `ConnectModel`, Choose).
 #[must_use]
 pub fn connected(root: &crate::Domain, way: Way) -> bool {
     let Some(me) = accounts::current_me(root.client()) else { return false };
@@ -116,7 +116,7 @@ pub fn connected(root: &crate::Domain, way: Way) -> bool {
     }
     false
 }
-/// The first unconnected offered way; none when every way is connected (README.md, 3.5).
+/// The first unconnected offered way; none when every way is connected (client/pages/README.md).
 #[must_use]
 pub fn default_way(ways: &skein_lib::List<Way>, root: &crate::Domain) -> Option<Way> {
     for way in ways {
@@ -199,7 +199,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
     None
 }
 impl ConnectModel {
-    /// The owner's `program_environment`, empty until answered (temper/docs/design/client/README.md, 4.6).
+    /// The owner's `program_environment`, empty until answered (temper/docs/design/client/forge/records.md).
     #[must_use]
     pub fn program_environment(&self) -> &[u8] {
         match &self.program_environment {
@@ -208,7 +208,7 @@ impl ConnectModel {
         }
     }
 
-    /// Whether the owner’s environment was decoded, including an empty default (client/README.md, 4.6).
+    /// Whether the owner’s environment was decoded, including an empty default (client/forge/records.md).
     #[must_use]
     pub const fn program_environment_answered(&self) -> bool {
         self.program_environment.is_some()
@@ -268,7 +268,7 @@ impl ConnectModel {
         }
     }
 
-    /// Whether the shell refused this sign-in's tab (temper/docs/design/client/README.md, 3.5).
+    /// Whether the shell refused this sign-in's tab (temper/docs/design/client/pages/README.md).
     #[must_use]
     pub const fn tab_refused(&self) -> bool {
         self.tab_refused || self.request.kept_refused()
@@ -625,7 +625,7 @@ impl Default for ConnectModel {
     }
 }
 
-/// A standalone way lands only after its own successful ending (client/README.md, 3.5).
+/// A standalone way lands only after its own successful ending (client/pages/README.md).
 pub(crate) fn added(pages: &Pages, client: &Client) -> Option<accounts::Added> {
     let way = way(pages, client)?;
     let page = pages.connect_model()?;

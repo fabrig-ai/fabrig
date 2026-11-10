@@ -1,4 +1,4 @@
-//! The page while a plan's sign-in waits (temper/docs/design/client/README.md, 3.5).
+//! The page while a plan's sign-in waits (temper/docs/design/client/pages/README.md).
 use super::{accounts as account_view, welcome_model};
 use crate::{
     accounts::{
@@ -18,7 +18,7 @@ use temper_client_domain::{
 #[path = "../tests/sign_in_wait.rs"]
 mod tests;
 
-/// Whether the browser refused the press's tab (temper/docs/design/client/README.md, 3.5).
+/// Whether the browser refused the press's tab (temper/docs/design/client/pages/README.md).
 pub(super) const fn tab_refused(page: &ConnectModel) -> bool {
     page.tab_refused()
 }

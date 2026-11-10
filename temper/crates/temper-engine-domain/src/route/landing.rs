@@ -1,6 +1,6 @@
 //! Test worlds' landing rules translated to the forge's defaults. These values
 //! belong to the application; people carries only authority requirements
-//! (domain/forge.md, 8.7; jig's domain/authority.md, sections 6 and 10).
+//! (domain/forge/change/gates.md, 2; jig's domain/authority.md, sections 6 and 10).
 
 use alloc::boxed::Box;
 use jig_domain_authority::Pattern;

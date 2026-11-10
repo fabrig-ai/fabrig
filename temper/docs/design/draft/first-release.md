@@ -65,7 +65,7 @@ file `../release.md`'s. Nothing here is adopted.
 
 - **Our own Forgejo, a systemd service,** owned or managed from temper's
   point of view. As designed, an owned Forgejo is one temper fetches and
-  starts itself (`../protocol/setup.md`); a Forgejo that systemd runs and
+  starts itself (`../protocol/setup/README.md`); a Forgejo that systemd runs and
   temper administers may be closer to managed. Which one it is is open
   (section 12).
 - **GitHub is a push mirror.** Its issues and pull requests are off, or
@@ -73,7 +73,7 @@ file `../release.md`'s. Nothing here is adopted.
 - **It is where code is read.** Casual visitors browse commits, diffs and
   pull requests there; dev.fabrig.ai links to them and shows no code.
 - **Its owned Forgejo's upgrades** already have a path: a dump before the
-  migration, pins that refuse a downgrade (`../protocol/setup.md`). Its
+  migration, pins that refuse a downgrade (`../protocol/setup/README.md`). Its
   backups cover the whole forge directory.
 - **Public issues are untrusted text.** Once they can reach agents, an
   agent acts on an issue only after a maintainer has accepted it.

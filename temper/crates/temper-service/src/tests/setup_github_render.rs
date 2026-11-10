@@ -1,4 +1,4 @@
-//! The shipped tools render the family's retained records (temper/docs/design/client/tools.md, 5.5).
+//! The shipped tools render the family's retained records (temper/docs/design/client/ctl/areas.md).
 use super::*;
 use jig_client::{self as client, contract as c};
 use temper_client_tools::{self as tools, root as cli};

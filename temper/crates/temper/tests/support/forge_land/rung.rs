@@ -1,4 +1,4 @@
-//! The ladder's real-model walks and their process proof (domain/testing.md, 2.7).
+//! The ladder's real-model walks and their process proof (testing/live-tier.md).
 //!
 //! Like `forge_land`'s oracle, this driver uses bounded child commands. Its box
 //! outlives the test on interruption so proof-live's final return hook can still
@@ -120,7 +120,7 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 }
 
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
-/// recipe (temper/docs/development/qa.md, 3; protocol/configuration.md, 13.8),
+/// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
 /// before the first start.
 pub fn deployment(paths: &[PathBuf; 3]) {
     let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
@@ -505,7 +505,7 @@ impl Driver {
 }
 
 /// The guard's return through the installed give-back, which a box still up answers
-/// (temper/docs/design/domain/testing.md, 2.7).
+/// (temper/docs/design/testing/live-tier.md).
 pub fn return_through_hook(binary: &Path, store: &Path) -> Result<(), String> {
     let client = store.join("client");
     let mut driver = Driver::owned(store, &client);
@@ -890,7 +890,7 @@ fn fund_project(driver: &mut Driver, project: &str) -> Result<(), String> {
     let current = driver.ctl(&["project", "show", project], None)?;
     let period = current["policy"]["period_spend"].as_u64().ok_or("project period spend")?.max(1_005_888);
     let owner = owner_role(&current)?["period_spend"].as_u64().ok_or("owner period spend")?.max(928_512);
-    // Funding raises run project first, then pool (client/tools.md, 5.3).
+    // Funding raises run project first, then pool (client/ctl/tools.md, 3).
     // Keep the current policy when it already funds the rung's work.
     driver.ctl(&["project", "fund", project, &period.to_string(), "--key", "rung-project-funds"], None)?;
     driver.ctl(&["project", "fund", project, &owner.to_string(), "--role", "0", "--key", "rung-role-funds"], None)?;

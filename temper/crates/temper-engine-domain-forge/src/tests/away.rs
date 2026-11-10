@@ -1,4 +1,4 @@
-//! Away and decision rules (temper/docs/design/domain/forge.md, 5.8, 5.9).
+//! Away and decision rules (temper/docs/design/domain/forge/attention.md, 4, 5).
 use super::*;
 use jig_domain_people::ApplicationScope;
 use skein_lib::ReplyTo;

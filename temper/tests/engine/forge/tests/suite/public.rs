@@ -1,4 +1,4 @@
-//! Visitor stories against the independent forge (temper/docs/design/client/forge.md, 11.5).
+//! Visitor stories against the independent forge (temper/docs/design/client/forge/README.md, 9.5).
 use skein_lib::Reader;
 use temper_client_protocol_wire::public_v1 as w;
 use temper_engine_domain_forge as top;

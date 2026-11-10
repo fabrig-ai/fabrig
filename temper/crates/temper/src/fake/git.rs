@@ -1,4 +1,4 @@
-//! The fake git core on this process's files, pipes and forge route (domain/testing.md, 4.3).
+//! The fake git core on this process's files, pipes and forge route (testing/fakes.md, 3).
 use skein_io::kernel::{Exit, Fd, Spawn};
 use skein_shell::Host as _;
 use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};

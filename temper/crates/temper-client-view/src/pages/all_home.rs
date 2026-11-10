@@ -1,4 +1,4 @@
-//! Home on All projects (temper/docs/design/client/README.md, 3.5, Home on All projects).
+//! Home on All projects (temper/docs/design/client/pages/README.md, Home on All projects).
 use super::{ask, home};
 use crate::{
     frame::Bindings,

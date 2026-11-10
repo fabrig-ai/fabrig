@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): an answered plan, fresh owner and depth-zero sub-owner.
+//! Retained first-edition story (testing/reference-case.md): an answered plan, fresh owner and depth-zero sub-owner.
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -19,7 +19,7 @@ fn an_owners_answered_plan_starts_a_sub_owner_under_a_deadline_that_cannot_deleg
     // to every next run, with no fresh-next-run call (temper's
     // crates/temper-engine-smith/src/calls.rs:42-59 and jig's
     // crates/jig-domain-core/src/routing/run_preparation.rs:123-138). A1's milestone work,
-    // the four hours and the sixteen stay out (domain/testing.md, 5.3).
+    // the four hours and the sixteen stay out (testing/reference-case.md).
     let ran = run_cluster_forge(
         &["ws", "s1"],
         &[],

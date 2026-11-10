@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-09. What fabrig's `.temper/pre-pr` runs when a run
 delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
-8.1; temper's `temper/docs/design/protocol/configuration.md`, 13.9), written
+8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`. Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
@@ -96,7 +96,7 @@ hears every failure; the verdict is section 6's.
 
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
-   (`temper/docs/design/protocol/configuration.md`, 13.9). No build.
+   (`temper/docs/design/protocol/configuration/reference.md`). No build.
 2. **The counted baselines:** `(cd TREE && python3 -I -B scripts/old_forms.py)`
    for each of skein, smith, jig, temper and hearth, against the private
    index, as before.

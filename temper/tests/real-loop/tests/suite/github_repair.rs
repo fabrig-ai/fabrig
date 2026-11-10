@@ -1,4 +1,4 @@
-//! A failed GitHub check is repaired at a new head (domain/testing.md, 2.4).
+//! A failed GitHub check is repaired at a new head (testing/real-loop.md).
 use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
 use skein_fake_llm_domain::api::Scripts;
@@ -19,7 +19,7 @@ const REPAIR_CUE: &[u8] = b"Repair the failed CI on the change branch";
 // Producer, five repair turns and the review fit within sixteen units.
 // The review keeps B2's four-unit floor.
 const REPAIR_CHANGE_SPEND: u64 = 16;
-// Jig's delegate and forge-read families (domain/agent.md, 4.3).
+// Jig's delegate and forge-read families (domain/agent/tools.md).
 const REPAIR_TOOLS: u64 = 513;
 
 fn repair_log() -> Box<[u8]> {
@@ -97,7 +97,7 @@ fn repair_fixture() -> github::Fixture {
 
 #[test]
 fn a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once() {
-    // QA: domain/forge.md 8.2-8.4, 8.7; domain/testing.md 2.4; Q1.
+    // QA: domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/gates.md, 2; testing/real-loop.md; Q1.
     let ran = run_github(repair_fixture(), repair_scripts, repair_acts);
     let records = ran.github().observations();
     let seeded_main = records

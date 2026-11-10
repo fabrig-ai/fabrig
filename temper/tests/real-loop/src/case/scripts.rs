@@ -1,4 +1,4 @@
-//! The reference case's judgements, played word for word (domain/testing.md, 5.3).
+//! The reference case's judgements, played word for word (testing/reference-case.md).
 use super::{
     A, A_REPORT, A_SPEC_PREFIX, A_SPEC_SUFFIX, ANSWERED, ASKED, Agent, DESIGN_DELEGATED, DESIGN_DOC, DESIGN_LINE,
     DESIGN_REPORT, DESIGN_SPEC, DESIGN_TITLE, DESIGN_WORDS, DIRECTOR, DIRECTOR_REPORT, GREEN_LIGHT,
@@ -417,7 +417,7 @@ pub fn step_4_6(_forge: SocketAddr) -> Box<[Script]> {
     ])
 }
 
-// Act 2, step 5.1 (domain/testing.md, 5.3)
+// Act 2, step 5.1 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_1(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -474,7 +474,7 @@ pub fn step_5_1_rules() -> Box<[Box<[Rule]>]> {
     Box::new([Box::new(resumed), Box::new(director), Box::new([])])
 }
 
-// Act 2, step 5.3 (domain/testing.md, 5.3)
+// Act 2, step 5.3 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_3(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -515,7 +515,7 @@ pub fn step_5_3(_forge: SocketAddr) -> Box<[Script]> {
     ])
 }
 
-// Act 2, step 5.2 (domain/testing.md, 5.3)
+// Act 2, step 5.2 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_2_rules() -> Box<[Box<[Rule]>]> {
     use super::{BOWNER, BOWNER_REPORT, H1, HELPER, IMPLEMENTER, IMPLEMENTER_RESULT, OWNER};
@@ -637,7 +637,7 @@ pub fn step_5_2(forge: SocketAddr) -> Box<[Script]> {
     ])
 }
 
-// Act 2, step 5.5 (domain/testing.md, 5.3)
+// Act 2, step 5.5 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_5(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -731,7 +731,7 @@ pub fn step_5_5_rules() -> Box<[Box<[Rule]>]> {
     Box::new([Box::new([]), Box::new(planner), Box::new([])])
 }
 
-// Act 2, step 5.4 (domain/testing.md, 5.3)
+// Act 2, step 5.4 (testing/reference-case.md)
 fn direction_owner(forge: SocketAddr, spec: &str, spend: u64, notes: u32, tasks: u32) -> Value {
     json!({
         "executor":{"kind":"agent","charter":1},"tracked":{"priority":1},
@@ -929,7 +929,7 @@ fn batch_held(hold: &[u8], mut turn: Turn) -> Turn {
     turn
 }
 
-// Act 3, step 6.5 (domain/testing.md, 5.3)
+// Act 3, step 6.5 (testing/reference-case.md)
 #[must_use]
 pub fn step_6_5(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -1079,7 +1079,7 @@ pub fn step_6_5_rules() -> Box<[Box<[Rule]>]> {
     ])
 }
 
-// Act 3, step 6.4 (domain/testing.md, 5.3)
+// Act 3, step 6.4 (testing/reference-case.md)
 #[must_use]
 pub fn step_6_4(forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -1189,7 +1189,7 @@ fn finish_change(mut work: Turn, title: &str, body: &str) -> Turn {
     work
 }
 
-// Act 3, step 6.7 (domain/testing.md, 5.3)
+// Act 3, step 6.7 (testing/reference-case.md)
 #[must_use]
 pub fn step_6_7(_forge: SocketAddr) -> Box<[Script]> {
     use super::{
@@ -1293,7 +1293,7 @@ pub fn step_6_7_rules() -> Box<[Box<[Rule]>]> {
     ])
 }
 
-// Act 3, step 6.6 (domain/testing.md, 5.3)
+// Act 3, step 6.6 (testing/reference-case.md)
 #[must_use]
 pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
     use super::waiting::{
@@ -1364,7 +1364,7 @@ pub fn step_6_6_rules() -> Box<[Box<[Rule]>]> {
     ])
 }
 
-// Act 3, step 6.8 (domain/testing.md, 5.3).
+// Act 3, step 6.8 (testing/reference-case.md).
 #[must_use]
 pub fn step_6_8(forge: SocketAddr) -> Box<[Script]> {
     use super::qa::{

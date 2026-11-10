@@ -13,7 +13,7 @@
 //! 600 s in the second shape. Totals allow two fast/slow passes per endpoint
 //! at the boundary: +/-12*(7*N+1) requests/hour. Fake replies take no time.
 //! Busy changes have a one-update budget, reserved for their turn
-//! (temper/docs/design/domain/forge.md, 8.2),
+//! (temper/docs/design/domain/forge/change/README.md, 2),
 //! so these read-only traffic measurements do not issue pre-CI updates.
 use std::{
     collections::{BTreeMap, BTreeSet},

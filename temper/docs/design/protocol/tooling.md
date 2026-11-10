@@ -4,10 +4,10 @@ Provisional, 2026-11-10. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
 that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1),
 the `merge` command any project may name for the merge job
-(`../domain/forge.md`, 8.4), and the `close` command any project may name
-for a goal's closer (`../domain/forge.md`, 11.2); what temper gives them,
+(`../domain/forge/change/repairs.md`), and the `close` command any project may name
+for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
-(`../domain/worker.md`, 4.4). What is open is section 7.
+(`../domain/worker.md`, 4.4). What is open is `tooling.md`, section 7.
 
 ## 1. In one page
 
@@ -89,12 +89,12 @@ what they write, and how they end. temper runs them as jobs on a worker
 
 ### 4.1 `merge`
 
-The merge job's command (`../domain/forge.md`, 8.4; `../domain/worker.md`,
+The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker.md`,
 4.4): it settles the conflicts the project's rules know (a counted
 baseline recounted, a generated file made again), with no model.
 
-- **Named by the project's `merge_job`** (`configuration.md`, section
-  3), a path in the repository being merged, run from the merge in
+- **Named by the project's `merge_job`** (`configuration/engine.md`
+  ), a path in the repository being merged, run from the merge in
   progress, not from the home: the files it settles and the scripts
   that settle them are that repository's. A command file left in
   conflict, or absent from the merge, is the command's failure.
@@ -123,7 +123,7 @@ baseline recounted, a generated file made again), with no model.
 - **`result.json`, exit 3:** `{"settled": [PATH], "left": [PATH]}`:
   nothing is committed or pushed, and the change makes a resolution in
   a merge in progress of the same base, its words carrying this result
-  (`../domain/forge.md`, 8.4); nothing of the job's directory is kept.
+  (`../domain/forge/change/repairs.md`); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, as `prepare`'s. The bound is the merge kind's
   result bound, 512 bytes in the small profile (`../domain/worker.md`,
@@ -140,15 +140,15 @@ text form; another form refuses the change's start (2026-11-04).
 
 ### 4.2 `close`
 
-The close job's command (`../domain/forge.md`, 11.2; `../domain/worker.md`,
+The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker.md`,
 4.4): it settles, with no model, what a goal leaves in its branch once
 every change of it has ended, before the goal's landing takes the branch
 into its base. fabrig's settles the goal's in-flight status entries
 (fabrig's `DESIGN.md`, section 2); another project's may settle what it
 keeps of a goal's work in its own files.
 
-- **Named by the project's `close_job`** (`configuration.md`, section
-  3), a path in the goal's branch's repository, as `merge_job` is: the
+- **Named by the project's `close_job`** (`configuration/engine.md`
+  ), a path in the goal's branch's repository, as `merge_job` is: the
   files it settles and the scripts that settle them are that
   repository's. A command file absent from the branch is the command's
   failure.
@@ -171,10 +171,10 @@ keeps of a goal's work in its own files.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
-  change ends with no change (`../domain/forge.md`, 8.1).
+  change ends with no change (`../domain/forge/change/README.md`, 1).
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, its stderr's last `tooling_log_bytes` kept; the
-  close change's producer fails and holds it (`../domain/forge.md`, 8.4),
+  close change's producer fails and holds it (`../domain/forge/change/repairs.md`),
   which escalates to the goal (11.2 there). A tag naming no change of the
   request is a failure of fabrig's.
 - **Deterministic by contract,** as `merge`: the same tree and request
@@ -206,7 +206,7 @@ limit of the worker's jobs (`../domain/worker.md`, 4.4).
 
 - **The worker's `PATH` and its jobs' limits as configuration:** section
   2's `PATH` and section 6's limits have no member of the worker's
-  (`configuration.md`, section 4) and no override (`configuration.md`, section 7). The first kind built, `merge`, keeps them the
+  (`configuration/README.md`, section 3) and no override (`configuration/limits.md`). The first kind built, `merge`, keeps them the
   profile's constants, so they stay open until a deployment needs
   another.
 - **A command's own network:** whether a worker gives it none, so that

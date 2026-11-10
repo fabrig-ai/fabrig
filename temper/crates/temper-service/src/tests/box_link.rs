@@ -230,7 +230,7 @@ fn a_fetched_line_it_cannot_read_is_named() {
 }
 #[test]
 fn the_longest_fetched_line_fits_the_least_line_bound() {
-    // setup.md, 7.1: LF included, with u16::MAX and two u64::MAX values.
+    // protocol/setup/box.md, 1: LF included, with u16::MAX and two u64::MAX values.
     const LEAST_LINE_BYTES: u32 = 64;
     let bytes = b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n";
     let mut link = Link::new(LEAST_LINE_BYTES, true);

@@ -1,4 +1,4 @@
-//! Evidence directory reads: `temper/docs/design/domain/testing.md`, 6.5.4.
+//! Evidence directory reads: `temper/docs/design/testing/checks.md`, 5.4.
 use crate::evidence;
 use skein_scratch::{Scratch, paths};
 use std::fs;

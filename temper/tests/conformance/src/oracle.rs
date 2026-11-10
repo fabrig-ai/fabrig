@@ -1,4 +1,4 @@
-//! Public readback through the conformance harness (temper testing.md, 2).
+//! Public readback through the conformance harness (temper testing/README.md, 2).
 use crate::{Event, Temper};
 use jig_conformance::{Harness, referee::Violation};
 use jig_domain_core::{documents, reads};

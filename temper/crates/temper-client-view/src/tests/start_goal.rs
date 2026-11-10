@@ -1,4 +1,4 @@
-//! The sheet reached through the domain's acts (client/README.md, 5.14).
+//! The sheet reached through the domain's acts (client/pages/goal.md, 3).
 use super::fixtures as f;
 use crate::{frame::Bindings, look, words::Words};
 use jig_client::contract as c;

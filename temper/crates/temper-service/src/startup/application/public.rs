@@ -1,4 +1,4 @@
-//! The public browser origin (protocol/sign-in.md, 2.2; protocol/configuration.md, 3).
+//! The public browser origin (protocol/sign-in.md, 2.2; protocol/configuration/engine.md).
 use alloc::boxed::Box;
 use skein_lib::Writer;
 

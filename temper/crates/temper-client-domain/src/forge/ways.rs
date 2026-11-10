@@ -1,4 +1,4 @@
-//! The session's settings and project values (temper/docs/design/client/README.md, 5.13).
+//! The session's settings and project values (temper/docs/design/client/pages/settings.md, 2).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Latest, Link, Readable, Readout, Told, contract as c};
@@ -203,7 +203,7 @@ impl Side {
             Some(Asked::Ways(_) | Asked::Classes(_)) | None => None,
         }
     }
-    /// The open or shown need's project's classes (client/README.md, 5.13): stock with no value; None until read or refused.
+    /// The open or shown need's project's classes (client/pages/settings.md, 2): stock with no value; None until read or refused.
     #[must_use]
     pub fn classes(&self, project: u32) -> Option<&Classes> {
         let slot = self.classes_slot(project)?;
@@ -752,7 +752,7 @@ pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
     first
 }
 
-/// Reconcile only proposals on the current chat or inbox page (client/README.md, 5.13).
+/// Reconcile only proposals on the current chat or inbox page (client/pages/settings.md, 2).
 pub(crate) fn proposals(
     side: &mut Side,
     cards: Option<&List<crate::pages::inbox::Card>>,

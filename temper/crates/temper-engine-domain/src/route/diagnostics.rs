@@ -1,4 +1,4 @@
-//! Volatile refusal observations (temper/docs/design/domain/agent.md, 8).
+//! Volatile refusal observations (temper/docs/design/domain/agent/agents.md).
 //! No admission decision depends on diagnostic room.
 use super::{CallKey, Domain};
 use alloc::boxed::Box;

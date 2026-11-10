@@ -1,4 +1,4 @@
-//! A project's decisions (temper/docs/design/client/README.md, 4.6).
+//! A project's decisions (temper/docs/design/client/forge/records.md).
 use super::{Limits, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Watchable, contract as c};
@@ -37,7 +37,7 @@ pub fn overturn(project: u32, number: u32, limits: &Limits) -> Option<Ask> {
 
 #[must_use]
 pub fn overturn_words(question: &[u8], took: &[u8]) -> Box<[u8]> {
-    // The smallest deployed composer admits 512 bytes (client/README.md, 5.4).
+    // The smallest deployed composer admits 512 bytes (client/view.md, 4).
     // Keep the choice and instruction whole, cutting the question at a character boundary.
     let lead = b"I overturn your decision. ";
     let between = b" You took ";

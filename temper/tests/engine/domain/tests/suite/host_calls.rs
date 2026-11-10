@@ -1,5 +1,5 @@
 //! Calls answered at decode, as errors or successes, leave no commit and
-//! no record (domain/root.md, 5.2; protocol/documentation.md, 5).
+//! no record (domain/routing.md, 2; protocol/documentation.md, 5).
 use jig_domain_host as host;
 use jig_domain_link::EndpointBound;
 use jig_domain_tasks as tasks;
@@ -379,7 +379,7 @@ fn task_reads_do_not_settle_over_a_mutation_call() {
 }
 
 // Designer changes and the charter-7 close-out share delegation admission
-// (temper/docs/design/domain/agent.md, 4.3.1).
+// (temper/docs/design/domain/agent/tools.md, 1).
 #[test]
 fn a_change_authority_refusal_names_producer_and_settings() {
     let (mut world, chat) = producer_refusal_world();
@@ -558,10 +558,10 @@ fn task_report_selectors_render_complete_retained_continuations() {
 }
 
 // temper/docs/design/draft/reference-code-production.md, 8;
-// temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/people/README.md, 7.
+// temper/docs/design/protocol/configuration/reference.md; jig/docs/design/domain/people/README.md, 7.
 type PersonWorld = temper_engine_domain_world::forge_routes::World;
 
-// temper/docs/design/protocol/configuration.md, 13.9: the closer reads CI selection;
+// temper/docs/design/protocol/configuration/reference.md: the closer reads CI selection;
 // a coordinator's result part handles failures and escalations.
 #[test]
 fn reference_goal_leaves_ci_selection_to_its_closer() {
@@ -600,7 +600,7 @@ fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> 
     resumed
 }
 
-// temper/docs/design/protocol/configuration.md, 13.9: delivered rules and retained
+// temper/docs/design/protocol/configuration/reference.md: delivered rules and retained
 // evidence stay in producer reports; scripted choices do not prove model compliance.
 #[test]
 fn producers_keep_unresolved_acceptance_evidence_in_left() {
@@ -622,7 +622,7 @@ fn producers_keep_unresolved_acceptance_evidence_in_left() {
     }
 }
 
-// temper/docs/design/protocol/configuration.md, 13.9: scripted replacement records
+// temper/docs/design/protocol/configuration/reference.md: scripted replacement records
 // exercise delivered charters and retained reports, without real-model compliance.
 #[test]
 fn help_trimming_requires_existing_fact_preservation_evidence() {
@@ -698,7 +698,7 @@ fn assert_help_preservation_instructions(run: &engine::Assignment) {
     }
 }
 
-// temper/docs/design/protocol/configuration.md, 13.9: scripted choices check
+// temper/docs/design/protocol/configuration/reference.md: scripted choices check
 // instruction delivery and evidence retention, not real-model compliance.
 #[test]
 fn producers_keep_missing_row_timings_in_left() {
@@ -1464,7 +1464,7 @@ fn person_fallback_refusals(world: &mut PersonWorld, goal: &engine::Assignment) 
     assert_eq!(person_needs(world), 0, "neither refused fallback creates a person task");
 }
 
-// temper/docs/design/domain/root.md, 5.2.
+// temper/docs/design/domain/routing.md, 2.
 const WINDOW: u32 = 512;
 const REPLY: u32 = 2048;
 const SMALL: u32 = 1024;
@@ -1554,7 +1554,7 @@ fn read_task_whole(
     }
 }
 
-/// A read-room row (temper/docs/design/domain/root.md, 5.2): the local
+/// A read-room row (temper/docs/design/domain/routing.md, 2): the local
 /// agent's bound, the one the run's worker names, the spec, and what the
 /// root answers: its reply bound, the first page's word bytes where
 /// pinned, and the calls to read it whole where pinned.
@@ -1644,7 +1644,7 @@ fn task_reads_take_their_workers_reply_bound() {
     }
 }
 
-// temper/docs/design/domain/root.md, 5.2 and domain/agent.md, 4.3.
+// temper/docs/design/domain/routing.md, 2 and domain/agent/tools.md.
 #[test]
 fn a_goal_reads_a_whole_design_result_in_practical_pages() {
     const PRACTICAL_REPLY: u32 = 16_384;
@@ -1684,7 +1684,7 @@ fn a_goal_reads_a_whole_design_result_in_practical_pages() {
     }
 }
 
-// temper/docs/design/protocol/configuration.md, 13.9: only the closer closes the goal.
+// temper/docs/design/protocol/configuration/reference.md: only the closer closes the goal.
 fn assert_no_coordinator_close_out(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
     let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";

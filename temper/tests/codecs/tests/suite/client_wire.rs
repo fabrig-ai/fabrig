@@ -1,4 +1,4 @@
-//! jig's core refusal remains opaque in the forge family (client/README.md, 4.6).
+//! jig's core refusal remains opaque in the forge family (client/forge/records.md).
 use jig_client_protocol_wire as jig;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1;

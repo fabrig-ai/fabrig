@@ -1,4 +1,4 @@
-//! The document's machine parts and the box's kinds (temper/docs/design/protocol/configuration.md, 3; temper/docs/design/protocol/setup.md, 7.1).
+//! The document's machine parts and the box's kinds (temper/docs/design/protocol/configuration/engine.md; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     check::joined,
     problem::Problems,
@@ -51,7 +51,7 @@ impl MemberObject {
     }
 }
 
-/// What a box runs a forge's group as (temper/docs/design/protocol/setup.md, 7.1).
+/// What a box runs a forge's group as (temper/docs/design/protocol/setup/box.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxKind {
     Owned,
@@ -185,7 +185,7 @@ fn machine(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option
     };
     Some(Machine { owned, fake, github })
 }
-/// The entry a kind's forge runs with (protocol/setup.md, 8), if its machine part exists.
+/// The entry a kind's forge runs with (protocol/setup/init.md), if its machine part exists.
 #[must_use]
 pub fn entry(machine: &Machine, forge: u16, kind: BoxKind, directories: &config::Directories) -> Option<Entry> {
     let mode = match kind {
@@ -230,7 +230,7 @@ pub fn directory(forge: u16, kind: BoxKind) -> Box<[u8]> {
     };
     joined(&[prefix, Decimal::of(u64::from(forge)).as_bytes()])
 }
-/// The group's kind word and a line feed (temper/docs/design/protocol/setup.md, 7.1).
+/// The group's kind word and a line feed (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
 pub fn group_file(kind: BoxKind) -> Box<[u8]> {
     joined(&[kind.word(), b"\n"])

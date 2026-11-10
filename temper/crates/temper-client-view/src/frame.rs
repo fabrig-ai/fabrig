@@ -1,4 +1,4 @@
-//! temper's frames and project switcher (temper/docs/design/client/README.md, 5.1 and 5.3).
+//! temper's frames and project switcher (temper/docs/design/client/view.md, 1 and 3).
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
@@ -470,7 +470,7 @@ fn project_repository(
     }
     b.close();
 }
-// The switcher's forms (temper/docs/design/client/README.md, 5.3).
+// The switcher's forms (temper/docs/design/client/view.md, 3).
 fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
     use crate::words::Word;
     let switcher = root.pages().switcher();
@@ -560,7 +560,7 @@ pub(crate) fn behind(root: &Domain) -> bool {
     me_behind || page_behind
 }
 
-/// The project a page's frame is the rail of (temper/docs/design/client/README.md, 5.1).
+/// The project a page's frame is the rail of (temper/docs/design/client/view.md, 1).
 pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: &crate::sign_in::Ways) -> Option<u32> {
     if let Address::Welcome { .. } = root.pages().address() {
         return None;
@@ -576,7 +576,7 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
     root.pages().project()
 }
 
-/// The rail (temper/docs/design/client/README.md, 5.3).
+/// The rail (temper/docs/design/client/view.md, 3).
 #[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
 pub(crate) fn rail(
     b: &mut Builder,
@@ -666,7 +666,7 @@ pub(crate) fn rail(
 }
 
 /// The rail's person: a line in the terminal, a menu in a browser
-/// (temper/docs/design/client/README.md, 5.3).
+/// (temper/docs/design/client/view.md, 3).
 fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
     use crate::words::{Shell, Word};
     let Some(me) = root.pages().me(root.client()) else { return };
@@ -693,7 +693,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
     }
 }
 
-/// The shared switch and browser chip (temper/docs/design/client/README.md, 3.5, Away).
+/// The shared switch and browser chip (temper/docs/design/client/pages/README.md, Away).
 fn away(
     b: &mut Builder,
     root: &Domain,
@@ -762,7 +762,7 @@ fn away(
     b.close();
 }
 
-/// A phone's tab bar, the browser's alone (temper/docs/design/client/README.md, 5.3).
+/// A phone's tab bar, the browser's alone (temper/docs/design/client/view.md, 3).
 pub(crate) fn tabbar(
     b: &mut Builder,
     root: &Domain,
@@ -1064,7 +1064,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
     b.close();
 }
 
-/// The playground's reset line (temper/docs/design/client/README.md, 5.1).
+/// The playground's reset line (temper/docs/design/client/view.md, 1).
 pub(crate) fn playground_banner(
     b: &mut Builder,
     root: &Domain,
@@ -1133,7 +1133,7 @@ pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::
     }
 }
 
-/// The session's transient status and held answer's Undo (client/README.md, 3.5).
+/// The session's transient status and held answer's Undo (client/pages/README.md).
 #[expect(clippy::too_many_lines, reason = "the session toast draws every answered act in one exhaustive dispatch")]
 pub(crate) fn toast(
     b: &mut Builder,

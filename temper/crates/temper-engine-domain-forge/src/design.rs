@@ -1,4 +1,4 @@
-//! A goal's design writers live beside its slot (domain/forge.md, 11.3).
+//! A goal's design writers live beside its slot (domain/forge/branches.md, 3).
 use super::{
     Domain, Env, Handoff, Hold, Limits, List, LostReadState, LostWriterKind, Name, PendingLost, Queue, Request, Token,
     Writer, child, emit, goal_branch, lost_failed, save_hold, to_client,
@@ -73,7 +73,7 @@ pub(super) fn branch_written(d: &Domain, name: &Name, ending: Option<u64>) -> bo
     false
 }
 
-/// A goal's unused run holding releases without a forge write (forge.md, 11.3).
+/// A goal's unused run holding releases without a forge write (domain/forge/branches.md, 3).
 pub(super) fn unused_goal_run(d: &Domain, name: &Name) -> bool {
     if d.branch_head(name).is_some() {
         return false;

@@ -1,4 +1,4 @@
-//! B0's approval and landing path on the fake peers (domain/testing.md, 2.4).
+//! B0's approval and landing path on the fake peers (testing/real-loop.md).
 //! Until temper-playground exists, its story documents live in tests/fixtures/b0.
 //! The recorded documents retain the question, CSV edit and successful source review.
 use crate::{

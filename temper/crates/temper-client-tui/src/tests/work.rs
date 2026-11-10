@@ -1,4 +1,4 @@
-//! Working chats read by the front (temper/docs/design/client/README.md, 6.17).
+//! Working chats read by the front (temper/docs/design/client/tui/box.md).
 use super::{
     fixtures as f,
     foot::{TaskState, root_state},
