@@ -5,7 +5,7 @@
 #![expect(clippy::mod_module_files, reason = "the route split keeps dispatch in routing/mod.rs")]
 
 pub(crate) mod application_routes;
-mod children;
+pub(crate) mod children;
 pub(crate) mod effect;
 pub(crate) mod ended_marks;
 pub(crate) mod flight;
@@ -609,14 +609,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, crate::TurnProof { turn, cumulative, read }, body, refused)
         }
-        Event::AnswerPayload { run, attempt, payload, cumulative, end, saved, invalid_saved, read, refused } => {
+        Event::AnswerPayload { run, attempt, payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused } => {
             route_answer_payload(
                 core,
                 &env.limits.tasks,
                 work,
                 run,
                 attempt,
-                run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, read, refused },
+                run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused },
             )
         }
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {

@@ -10,6 +10,7 @@ pub(crate) struct Answer {
     pub end: tasks::End,
     pub saved: Option<Box<[tasks::SavedResource]>>,
     pub invalid_saved: bool,
+    pub unusable_history: bool,
     pub read: Option<u64>,
     pub refused: Box<[u64]>,
 }
@@ -22,7 +23,7 @@ pub(crate) fn route_answer_payload(
     attempt: Token,
     answer: Answer,
 ) -> Queue<Request> {
-    let Answer { payload, cumulative, end, saved, invalid_saved, read, refused } = answer;
+    let Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused } = answer;
     let refused = refused.as_ref();
     if !core.current_proof(run.raw(), attempt.raw()) {
         let mut out = Queue::uncapped();
@@ -51,6 +52,10 @@ pub(crate) fn route_answer_payload(
                         refused: Box::from(refused),
                         offered: proof.offered,
                     })));
+                }
+                if unusable_history {
+                    // Only this window's history closes it (jig/docs/design/domain/engine.md, 7.2).
+                    core.close_window(run.raw());
                 }
                 (cumulative, end, saved)
             }

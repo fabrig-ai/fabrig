@@ -237,6 +237,8 @@ impl Core {
             return self.restore_failure.is_none();
         }
         if self.counters.deployment().commits == 0 && !self.settings_restore.held {
+            // A first start judges held hellos against the seeded settings too (engine.md, 8).
+            self.tell_settings(env);
             return true;
         }
         for (&(proposer, proposal), value) in &self.settings_proposals {
@@ -366,9 +368,13 @@ impl Core {
             return;
         }
         let needs = super::fleet_needs::current(self, &env.limits);
-        let mut fleet_out = Queue::uncapped();
-        crate::routing::step::step_fleet(self, env, fleet::Event::Needs(needs), &mut fleet_out);
-        assert!(fleet_out.is_empty(), "needs replacement retains running attempts");
+        let mut work = Queue::uncapped();
+        let mut fleet_out = crate::routing::children::route_fleet(self, env, &mut work, fleet::Event::Needs(needs));
+        assert!(work.is_empty(), "restored needs start no task work");
+        for _ in 0..fleet_out.len() {
+            assert!(!self.start_opened(), "only the start can release held hellos");
+            self.start.held.push(fleet_out.pop().expect("held hello outputs"));
+        }
     }
 
     fn restored_items(&self) -> List<Item> {

@@ -202,6 +202,16 @@ pub(crate) fn engine_document(inherited: &Inherited, document: &[u8]) -> Proc {
 pub(crate) fn worker(root: kernel::Fd) -> Proc {
     worker_configured(root, false, false, false)
 }
+/// A shutdown story keeps an independent workspace directory for its replacement worker.
+pub(crate) fn worker_restarting(inherited: &Inherited) -> Proc {
+    let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
+    let mut proc = worker(root);
+    let Proc::Worker(host) = &mut proc else { unreachable!("worker factory") };
+    host.service.adopt_signals(inherited.signal).expect("worker signal source");
+    host.restart_root = Some(inherited.roots.iter().find(|(name, _)| name.as_ref() == b"replacement").expect("replacement root").1);
+    proc
+}
+
 pub(crate) fn worker_bad_charter(root: kernel::Fd) -> Proc {
     worker_configured(root, true, false, false)
 }
@@ -338,6 +348,13 @@ fn secrets(grants: &mut Vec<Box<[u8]>>, grant: &jig_protocol_worker_wire::Grant)
 }
 
 impl Wire {
+    /// A replacement service has a new operation namespace; observations stay.
+    pub(crate) fn restarted(&mut self) {
+        self.completed.clear();
+        self.streams.clear();
+        self.channel = None;
+    }
+
     pub(crate) fn hello_sent(&self) -> bool {
         self.frames.iter().any(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Hello.number())
     }
@@ -496,8 +513,12 @@ impl Wire {
 pub(crate) struct Machine(pub(crate) skein_fake_machine::Machine);
 impl skein_world::Machine for Machine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, kernel::Error> {
-        assert_eq!(path, b"state");
-        Ok(skein_sim::Handle::new(self.0.reopen_root(0).raw()))
+        let root = match path {
+            b"state" => 0,
+            b"worker" => 2,
+            _ => panic!("channel story root"),
+        };
+        Ok(skein_sim::Handle::new(self.0.reopen_root(root).raw()))
     }
     fn close_root(&mut self, root: skein_sim::Handle) {
         self.0.close(skein_fake_machine::Opened::new(root.raw()));

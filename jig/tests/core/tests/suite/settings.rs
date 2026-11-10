@@ -2222,6 +2222,43 @@ fn a_checks_refusal_keeps_the_held_reserve_until_revision_advancement() {
     fixtures::finish_chat(&mut world, 0, b"The compatible reserve permits completion");
 }
 
+#[test]
+fn a_hello_before_settings_restore_uses_the_stored_reserve_and_adopts_its_run() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let edit = check_reserve_edit(&world, 60);
+    changed(&change(&mut world, signed, 106, 1, Box::new([edit])), 2);
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+    let task = held_goal(&mut world, signed, 107);
+    checks_hello(&mut world, 7);
+    let attempt = world.assigned.as_ref().expect("worker admitted by stored reserve").attempt;
+    seed_restart_accounts(&mut world);
+    let mut config = held_restart_configuration();
+    config.core.workers_in_process = false;
+    config.core.defaults.charters[0].policy.modify = true;
+    config.core.defaults.charters[0].policy.time = Duration::from_secs(120);
+    config.core.defaults.charters[0].policy.reserve_time = Duration::from_secs(10);
+    world.hold_restore_pages = true;
+    world.restart_with(config);
+    let mut bounds = jig_test_profile::fixtures::bounds();
+    bounds.checks = Duration::from_secs(60);
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+        worker: 0, channel: Token::new(7), hello: Hello { jobs: Box::new([]), bounds,
+            stop_bound: Duration::from_millis(1), slots: 1, workstreams: Box::new([]),
+            hosting: Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
+        },
+    })));
+    assert_eq!(world.domain.core().fleet.workers(), 0, "no admission before restored settings");
+    assert!(world.domain.core().fleet.hello_refusals().is_empty(), "no early refusal");
+    world.finish_restore_pages();
+    assert!(world.domain.ready());
+    assert_eq!(world.domain.core().fleet.workers(), 1);
+    assert!(world.domain.core().fleet.hello_refusals().is_empty());
+    let row = fixtures::live_row(&world, task);
+    assert_eq!(row.attempt, attempt);
+    assert_eq!(row.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Running { attempt }));
+}
+
 fn check_reserve_edit(world: &World, seconds: u64) -> settings::Item {
     let mut charter = world.domain.settings().charter(1).expect("charter").clone();
     charter.policy.modify = true;

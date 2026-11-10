@@ -773,6 +773,8 @@ pub enum Event {
         end: tasks::End,
         saved: Option<Box<[tasks::SavedResource]>>,
         invalid_saved: bool,
+        /// Unusable resume history retains its own typed reason (jig/docs/design/domain/hosts.md, 6.3).
+        unusable_history: bool,
         read: Option<u64>,
         refused: Box<[u64]>,
     },

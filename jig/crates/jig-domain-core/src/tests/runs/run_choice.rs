@@ -446,6 +446,7 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
             end: tasks::End::Failed(tasks::Class::Run),
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
             read: None,
             refused: Box::new([]),
         },
@@ -1243,9 +1244,33 @@ fn invalid_start_answer(attempt: u64, refused: &[u64]) -> Event {
         end: tasks::End::Failed(tasks::Class::Invalid),
         saved: None,
         invalid_saved: false,
+            unusable_history: false,
         read: None,
         refused: refused.into(),
     }
+}
+
+#[test]
+fn a_priced_interruption_keeps_saved_work_and_spends_no_try() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    let before = core.tasks.task(OPEN_TASK).expect("claimed task").clone();
+    let saved: Box<[tasks::SavedResource]> = Box::new([tasks::SavedResource {
+        connector: 1, path: Box::new([b"kept-work".as_slice().into()]),
+    }]);
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, cumulative, saved: work, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::Recheck;
+    *cumulative = 3;
+    *work = Some(saved.clone());
+    let _out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, answer);
+    let task = core.tasks.task(OPEN_TASK).expect("interrupted task");
+    assert_eq!(task.tries, before.tries);
+    assert_eq!(task.refusals, before.refusals);
+    assert_eq!(task.numbers.spent, before.numbers.spent.checked_add(3).expect("answer spend"));
+    assert_eq!(task.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(task.saved, saved);
+    assert_eq!(core.tasks.run_context(OPEN_TASK).expect("next preparation").saved, saved);
 }
 
 #[test]
@@ -1520,6 +1545,7 @@ fn an_invalid_start_spends_a_try_across_fences_and_endings() {
                         end: tasks::End::Failed(tasks::Class::Invalid),
                         saved: None,
                         invalid_saved,
+                        unusable_history: false,
                         read,
                         refused: Box::from(refused),
                     },
@@ -1692,6 +1718,7 @@ fn an_answer_whose_followups_pass_the_batch_bytes_is_invalid() {
                 },
                 saved: None,
                 invalid_saved: false,
+            unusable_history: false,
                 read: None,
                 refused: Box::new([]),
             },

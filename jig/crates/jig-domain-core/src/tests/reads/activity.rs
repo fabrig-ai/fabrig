@@ -152,6 +152,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
             end: tasks::End::Parked,
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
         },
     ));
     let lines: Vec<_> = records
@@ -200,6 +201,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
             end: tasks::End::Parked,
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
         },
     );
     assert!(repeated.iter().all(|row| match row {
@@ -377,6 +379,7 @@ fn an_answers_refusals_are_committed_with_its_terminal() {
             end: tasks::End::Parked,
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
         },
     );
     assert!(records.iter().any(|row| match row {
