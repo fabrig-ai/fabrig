@@ -30,7 +30,8 @@ pub(super) fn queued(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Q
     w.uncertain = true;
     out.push(Request::Progress { entry: w.entry.clone() });
     out.push(Request::Outcome { entry: number, task: w.entry.task, outcome: Outcome::Queued });
-    super::wait(d, number, Phase::Queued, env.now.saturating_add(env.limits.poll));
+    let at = crate::keep::poll_at(&d.keep, &env.limits, env.now, w.entry.repository, env.limits.poll);
+    super::wait(d, number, Phase::Queued, at);
 }
 pub(super) fn looked(d: &mut Domain, env: &Env<Limits>, number: u64, pull: api::Pull, out: &mut Queue<Request>) {
     let w = d.outbox.entries.get_mut(&number).expect("queued look owns entry");
@@ -40,9 +41,13 @@ pub(super) fn looked(d: &mut Domain, env: &Env<Limits>, number: u64, pull: api::
     } else if pull.state == api::State::Closed {
         super::finish(d, env, number, Outcome::Failed(Error::Closed), out);
     } else if pull.queued.is_some() {
-        let delay = if w.look.hinted { env.limits.hinted } else { env.limits.poll };
+        let at = if w.look.hinted {
+            env.now.saturating_add(env.limits.hinted)
+        } else {
+            crate::keep::poll_at(&d.keep, &env.limits, env.now, w.entry.repository, env.limits.poll)
+        };
         w.look.hinted = false;
-        super::wait(d, number, Phase::Queued, env.now.saturating_add(delay));
+        super::wait(d, number, Phase::Queued, at);
     } else {
         let head = match w.entry.effect.write {
             api::Write::Merge { head, .. } => head,

@@ -15,7 +15,7 @@ fn readback_rows() -> [(Request, a::Answer, a::Read, Select); 7] {
         (
             Request::CreateIssue { at: at(), title: boxed(b"title"), body: boxed(b"body") },
             a::Answer::Created(9),
-            a::Read::Item { number: 9, after: 0 },
+            a::Read::Item { number: 9, after: 0, since: None },
             Select::Document,
         ),
         (
@@ -45,7 +45,7 @@ fn readback_rows() -> [(Request, a::Answer, a::Read, Select); 7] {
         (
             Request::EditIssue { at: at(), number: 1, title: None, body: None, state: Some(d::IssueState::Closed) },
             a::Answer::Done,
-            a::Read::Item { number: 1, after: 0 },
+            a::Read::Item { number: 1, after: 0, since: None },
             Select::Document,
         ),
         (

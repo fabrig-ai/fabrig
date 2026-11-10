@@ -285,7 +285,9 @@ fn push_export(world: &mut World, branch: &[u8], path: &[u8], producer_words: &[
 }
 
 fn opened_note(world: &mut World, number: u64) -> Box<[u8]> {
-    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number, after: 0 })) else {
+    let raw::Answer::Item { item, .. } =
+        world.external(1, raw::Op::Read(raw::Read::Item { number, after: 0, since: None }))
+    else {
         panic!("pull item")
     };
     format!("PR: {}\nOpened: {}ns\n", item.number, item.created.as_nanos()).into_bytes().into()
@@ -342,6 +344,7 @@ fn finish_repaired_story(
     note: Box<[u8]>,
 ) {
     let review = next(&mut world, 3);
+    world.drain_cut();
     world.restart_same();
     world.until(Until::Ready);
     finish(

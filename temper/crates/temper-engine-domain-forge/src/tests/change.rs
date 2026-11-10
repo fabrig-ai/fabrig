@@ -113,7 +113,6 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
         outputs(&mut d, Event::Names { task: fixtures::CHANGE, resources: Box::new([name.clone()]) });
-        fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         outputs(
             &mut d,

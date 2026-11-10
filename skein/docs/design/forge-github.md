@@ -157,16 +157,17 @@ the call fails `TooLarge` when a 50th page still has a next.
 | Call | Requests | Answer from |
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all[&since=<since>]&sort=updated&direction=asc&per_page=<size>&page=<page>` | omit `since` at zero: an epoch `since` lists nothing; otherwise send the UTC bound, inclusive. Each row a `Summary`: `number`; a `pull_request` member makes it a pull, and its `merged_at` makes one closed merged; `state`; `user.id`; `labels[].name`; `updated_at`; `title`; `body` (null as empty) and its key. A row of the other kind than the call's is skipped, and counts toward the page. Rows of one second are put in order of number before the page answers. `more` from `Link`; `now` from `Date` |
-| `Read::Item { number, after }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?per_page=<size>&page=<n>` from page 1, until the answer is full or a page has no next | the issue as a `Summary`; its comments with ids above `after`, oldest first, as forge.md 5.2's: `id`, `user.id`, `created_at`, `body` and its key, provenance, revision; `more` when one is left |
+| `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?[since=<since>&]per_page=<size>&page=<n>` from page 1, `since` only when not 0, until the answer is full or a page has no next | the issue as a `Summary`; its comments with ids above `after`, oldest first, as forge.md 5.2's: `id`, `user.id`, `created_at`, `body` and its key, provenance, revision; `more` when one is left |
 | `Read::Pull { number }` | `GET R/pulls/<number>`; `GET R/commits/<head.sha>/status?per_page=1`; `GET R/commits/<head.sha>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; `GQ pull` when the pull is open and the repository's owner an organization, or merged (`merge_commit_sha` is absent at the pin) | `number`; `state`, `merged` making it merged; `head.ref`, `base.ref`, `head.sha`, `base.sha`; `merged` from `merge_commit_sha`, else `mergeCommit.oid`; `mergeable`, null as false; `requested_reviewers[].id`; `queued` from `mergeQueueEntry.position`; `dequeued` from the last `RemovedFromMergeQueueEvent`'s `reason`; `Ci` from both (4.4) |
 | `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's `draft/github.md`, 18) |
 | `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?per_page=<size>&page=<page>` | as forge.md 5.2; `state` mapped `APPROVED` to `Approve`, `CHANGES_REQUESTED` to `RequestChanges`, `COMMENTED` and `DISMISSED` to `Comment`; `PENDING` and a null `submitted_at` skipped, counting toward the page; `commit_id`; `official` when `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` (section 15) |
 | `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?per_page=<size>&page=<page>` | `Ci` from `state` and `total_count`, 0 being `None`; each `statuses[]` row: `updated_at`, `context`, `state`, `description`, `target_url`; no job; `more` from `Link` |
 | `Read::Remarks { number, review, page }` | `GET R/pulls/<number>/reviews/<review>/comments?per_page=<size>&page=<page>` | `id`, `user.id`, `path`, `line`, else `original_line`, else 0, `body`; `more` from `Link` |
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.sha` |
-| `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, past it `TooLarge`; an empty prefix is `Empty` before any GET |
+| `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, with no row bound (forge.md, 3.7), past it `TooLarge`; an empty prefix is `Empty` before any GET |
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; for each file, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forge.md 5.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=<size>`; for each file, the raw reads at `before` and `after` | `files[].filename` with its sides; `commits[].sha`; `contains_before` when `behind_by` is 0; `TooLarge` when the listed commits are fewer than `total_commits`, or `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
+| `Read::Range { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `total_commits` as `commits`; the one commit and the files it lists skipped as they stream |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
 | `Read::Job { attempt, max_bytes, part }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; for `End`, the log's last `max_bytes` bytes (10), for `Start`, its first (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
 | `Read::File { head, path, max_bytes }` | the raw read of `path` at `head` | the first `max_bytes` bytes, `truncated` when more came; `Missing` on a `404`, and on a JSON answer (a directory's listing) |
@@ -193,7 +194,7 @@ looks for a branch it dropped (`Read::Branches { prefix }`, 5.3's row).
 - **The raw read** is `GET R/contents/<path>?ref=<commit>` with `Accept:
   application/vnd.github.raw+json`, the path's slashes kept: a `200`
   that is not JSON is the file's bytes, a `404` an absent side.
-- **No `Range`.** skein sends none: a file and a log are read through,
+- **No `Range` header.** skein sends none: a file and a log are read through,
   and cut as they stream (section 6). The signed job-log blob honours
   Range; skein requests the whole body.
 - **The keep-up listing** is as Forgejo's (forge.md, 5.2), in GitHub's
@@ -585,8 +586,9 @@ and `login`. REST's `GET /user` is a `403` on that token
   `Answered.free`: GitHub does not count it (`etag-304-free`). The
   fact uses an installation token's two reads of an unchanging repository,
   with the first ETag on the second and the same remaining rate. A changing
-  delivery log may answer a new body instead. The dialect sends its
-  validator on the delivery log's first page alone (9.3).
+  delivery log may answer a new body instead. Every read sends the
+  validators the component kept for it (forge-connection.md, 4.6), the
+  delivery log's first page among them (9.3).
 
 ## 9. Deliveries
 

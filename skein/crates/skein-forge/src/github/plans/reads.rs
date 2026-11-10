@@ -32,7 +32,7 @@ enum Read {
     Branch { branch: Box<[u8]> },
     Branches { prefix: Box<[u8]> },
     Items { since: skein_lib::Time, page: u32, kind: Option<api::Kind> },
-    Item { number: u64, after: u64 },
+    Item { number: u64, after: u64, since: skein_lib::Time },
     Pull { number: u64 },
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     Statuses { commit: api::Commit, page: u32 },
@@ -123,7 +123,7 @@ impl Plan {
             api::Read::Branch { branch } => Read::Branch { branch },
             api::Read::Branches { prefix } => Read::Branches { prefix },
             api::Read::Items { since, page, kind } => Read::Items { since, page, kind },
-            api::Read::Item { number, after } => Read::Item { number, after },
+            api::Read::Item { number, after, since } => Read::Item { number, after, since },
             api::Read::Pull { number } => Read::Pull { number },
             api::Read::PullFor { head, base } => Read::PullFor { head, base },
             api::Read::Statuses { commit, page } => Read::Statuses { commit, page },
@@ -184,8 +184,8 @@ impl Plan {
                 if prefix.is_empty() {
                     return Err(api::Error::Empty);
                 }
-                let capacity = size::capacity(bounds, crate::measure::STRING_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
+                let capacity = size::byte_capacity(bounds, crate::measure::STRING_BYTES)?;
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
                 self.rows = List::with_capacity(capacity);
             }
             Read::Items { .. } | Read::Item { .. } => self.issue_admission(bounds)?,
@@ -535,9 +535,6 @@ impl Plan {
             document::Row::Branch(name) => {
                 if !name.starts_with(prefix) {
                     return Ok(());
-                }
-                if self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge);
                 }
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {

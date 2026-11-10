@@ -2254,16 +2254,20 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
 
 #[test]
 fn idle_forge_call_cost_does_not_follow_old_issue_history() {
+    let issue = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Issue(1) };
     let mut small = World::new(47);
     small.preload_history(2);
     small.adopt();
     small.event(top::Event::Names {
         task: 1,
-        resources: Box::new([top::Name {
-            forge: REPO.forge,
-            repository: REPO.repository,
-            what: top::What::Branch(Box::new([Box::from(&b"main"[..])])),
-        }]),
+        resources: Box::new([
+            top::Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: top::What::Branch(Box::new([Box::from(&b"main"[..])])),
+            },
+            issue.clone(),
+        ]),
     });
     small.run_for(60);
     let before = small.calls();
@@ -2275,11 +2279,14 @@ fn idle_forge_call_cost_does_not_follow_old_issue_history() {
     large.adopt();
     large.event(top::Event::Names {
         task: 1,
-        resources: Box::new([top::Name {
-            forge: REPO.forge,
-            repository: REPO.repository,
-            what: top::What::Branch(Box::new([Box::from(&b"main"[..])])),
-        }]),
+        resources: Box::new([
+            top::Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: top::What::Branch(Box::new([Box::from(&b"main"[..])])),
+            },
+            issue,
+        ]),
     });
     large.run_for(60);
     let before = large.calls();

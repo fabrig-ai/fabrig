@@ -65,7 +65,7 @@ fn unavailable_calls_answer_503() {
     assert_eq!(h.status(), 503);
     h.fake_env.limits.unavailable = 0;
     assert_eq!(
-        h.call(fixtures::PERSON, Op::Read(Read::Item { number: FIRST_PULL, after: 0 })),
+        h.call(fixtures::PERSON, Op::Read(Read::Item { number: FIRST_PULL, after: 0, since: None })),
         Err(a::Error::Missing(a::What::Item))
     );
 }
@@ -207,7 +207,7 @@ fn fault_write(h: &mut Harness, closed: bool, status: Option<u16>, row: &str) {
         assert_eq!(h.status(), status, "{row}");
     }
     h.fake_env.limits.timeouts = 0;
-    let Ok(a::Answer::Item { item, .. }) = h.call(2, Op::Read(Read::Item { number: 1, after: 0 })) else {
+    let Ok(a::Answer::Item { item, .. }) = h.call(2, Op::Read(Read::Item { number: 1, after: 0, since: None })) else {
         panic!("{row}: write happened")
     };
     assert_eq!(item.number, 1, "{row}");
@@ -309,7 +309,7 @@ fn an_unpaged_thread_past_the_projection_budget_is_refused() {
         created: Time::ZERO,
         edited: None,
     }]));
-    let request = Request::Comments { at: fixtures::at(), number: 1 };
+    let request = Request::Comments { at: fixtures::at(), number: 1, since: None };
     let mut limits = fixtures::limits();
     limits.documents.writer.length = 1024;
     assert_eq!(
@@ -416,7 +416,9 @@ fn an_issue_title_edit_answers_201_and_reads_back() {
     assert_eq!(h.status(), 201);
     let Document::Issue(issue) = h.decoded(&request).document else { panic!("issue response") };
     assert_eq!(&*issue.title, b"after");
-    let Ok(a::Answer::Item { item, .. }) = h.call(fixtures::PERSON, Op::Read(Read::Item { number, after: 0 })) else {
+    let Ok(a::Answer::Item { item, .. }) =
+        h.call(fixtures::PERSON, Op::Read(Read::Item { number, after: 0, since: None }))
+    else {
         panic!("edited issue")
     };
     assert_eq!(&*item.title, b"after");

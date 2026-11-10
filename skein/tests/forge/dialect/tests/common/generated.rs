@@ -50,7 +50,15 @@ pub fn requests() -> Vec<(&'static str, Request)> {
         ("repo-hook-edit", Request::EditRepoHook { at: repo(), id: 7, hook: hook() }),
         ("repo-hook-delete", Request::DeleteRepoHook { at: repo(), id: 7 }),
     ]);
-    rows.push(("pulls", Request::Pulls { at: forgejo::specimen(), page: Page { page: Some(1), limit: Some(2) } }));
+    rows.push((
+        "pulls",
+        Request::Pulls {
+            at: forgejo::specimen(),
+            head: Some(Box::from(*b"work")),
+            base: Some(Box::from(*b"main")),
+            page: Page { page: Some(1), limit: Some(2) },
+        },
+    ));
     rows.push(("delete-hook", Request::DeleteOrgHook { org: Box::from(*b"ensemble"), id: 1 }));
     let mut seen = Vec::new();
     rows.retain(|row| {
@@ -217,7 +225,12 @@ fn extra(seed: u64, compact: bool) -> Vec<Reply> {
         if compact { Box::from([]) } else { Box::from([cases::items::pull(false)]) };
     rows.push(Reply {
         name: "pulls",
-        request: Some(Request::Pulls { at: forgejo::specimen(), page: forgejo::page(1, 2) }),
+        request: Some(Request::Pulls {
+            at: forgejo::specimen(),
+            head: Some(Box::from(*b"work")),
+            base: Some(Box::from(*b"main")),
+            page: forgejo::page(1, 2),
+        }),
         document: Document::Listed { skipped: 0 },
         rows: pulls.iter().cloned().map(Row::Pull).collect(),
         answer: Answer::Pulls(pulls),

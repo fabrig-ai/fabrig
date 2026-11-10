@@ -11,18 +11,22 @@ pub(crate) fn answered_repository(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let row = d.keep.repos.get(&key).expect("call owns repository");
+    let polled = super::poll_at(&d.keep, &env.limits, env.now, key, env.limits.poll);
+    let row = d.keep.repos.get_mut(&key).expect("call owns repository");
     if !row.active {
         d.keep.repos.remove(&key).expect("inactive repository exists");
         return;
     }
+    if core::mem::replace(&mut row.dropping, false) {
+        return;
+    }
     let mut progress = match row.state {
         Scan::Busy(progress) => progress,
+        Scan::Off => return,
         Scan::Idle | Scan::Due(_) | Scan::Waiting(_) => unreachable!("repository terminal while busy"),
     };
     let Ok(answer) = result else {
-        d.keep.repos.get_mut(&key).expect("repository remains").state = Scan::Waiting(progress);
-        d.alarms.arm(Alarm::Repository(key), env.now.saturating_add(env.limits.backoff)).expect("one repository alarm");
+        wait_repository(d, env, key, progress);
         return;
     };
     match answer {
@@ -48,10 +52,8 @@ pub(crate) fn answered_repository(
                         progress.page = match progress.page.checked_add(1) {
                             Some(page) => page,
                             None => {
-                                row.state = Scan::Waiting(Progress::first(row.record.mark));
-                                d.alarms
-                                    .arm(Alarm::Repository(key), env.now.saturating_add(env.limits.backoff))
-                                    .expect("one repository alarm");
+                                let restart = Progress::first(row.record.mark);
+                                wait_repository(d, env, key, restart);
                                 return;
                             }
                         };
@@ -66,11 +68,12 @@ pub(crate) fn answered_repository(
                 } else {
                     progress.newest
                 });
+                row.retry = skein_lib::Duration::ZERO;
                 row.state = Scan::Idle;
                 row.fresh = Fresh::Complete;
-                let interval = if row.hinted { env.limits.hinted } else { env.limits.poll };
+                let next = if row.hinted { env.now.saturating_add(env.limits.hinted) } else { polled };
                 row.hinted = false;
-                d.alarms.arm(Alarm::Repository(key), env.now.saturating_add(interval)).expect("one repository alarm");
+                d.alarms.arm(Alarm::Repository(key), next).expect("one repository alarm");
             }
             out.push(Request::Save { record: Stored::Repository(row.record) });
         }
@@ -105,6 +108,12 @@ pub(crate) fn answered_repository(
         | Answer::Located { .. }
         | Answer::Done => unreachable!("listing answer shape"),
     }
+}
+fn wait_repository(d: &mut Domain, env: &Env<Limits>, key: Repository, progress: Progress) {
+    let row = d.keep.repos.get_mut(&key).expect("repository remains");
+    row.state = Scan::Waiting(progress);
+    let wait = super::retry_wait(&mut row.retry, &env.limits);
+    d.alarms.arm(Alarm::Repository(key), env.now.saturating_add(wait)).expect("one repository alarm");
 }
 fn listed(
     d: &mut Domain,
@@ -175,6 +184,7 @@ pub(crate) fn answered_resource(
         Answer::Item { item, comments, more } => item_answered(d, env, key, item, comments, more, out),
         Answer::Pull(pull) => {
             let row = d.keep.live.get_mut(key).expect("resource remains");
+            super::taken(row, phase);
             row.presence = super::Presence::Present;
             let changed = row.record.cached.pull.as_ref() != Some(&pull);
             row.record.cached.pull = Some(pull.clone());
@@ -190,8 +200,12 @@ pub(crate) fn answered_resource(
             }
         }
         Answer::Reviews { reviews, more } => reviews_answered(d, env, key, phase, reviews, more, out),
-        Answer::Commit(commit) => branch_answered(d, env, key, commit, out),
+        Answer::Commit(commit) => {
+            super::taken(d.keep.live.get_mut(key).expect("resource remains"), phase);
+            branch_answered(d, env, key, commit, out);
+        }
         Answer::Compare { before, after, contains_before, .. } => {
+            super::taken(d.keep.live.get_mut(key).expect("resource remains"), phase);
             branch_compared(d, env, key, before, after, contains_before, out);
         }
         Answer::Items { .. }
@@ -267,6 +281,7 @@ fn item_answered(
         return;
     }
     let row = d.keep.live.get_mut(key).expect("resource remains");
+    super::taken(row, Phase::Object);
     if let What::Issue(_) = key.what {
         row.presence = super::Presence::Present;
     }
@@ -342,6 +357,7 @@ fn reviews_answered(
             return;
         }
     }
+    super::taken(d.keep.live.get_mut(key).expect("resource remains"), phase);
     let mut delivered = List::with_capacity(env.limits.rows);
     for review in reviews {
         let row = d.keep.live.get(key).expect("resource remains");
@@ -428,13 +444,23 @@ fn remember(stamps: &mut List<Delivery>, wanted: Delivery) -> bool {
     stamps.push(wanted).is_ok()
 }
 fn branch_answered(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Commit, out: &mut Queue<Request>) {
-    let row = d.keep.live.get(key).expect("resource remains");
+    let row = d.keep.live.get_mut(key).expect("resource remains");
+    if let Some((before, after)) = row.refused.comparison
+        && (row.record.cached.tip != Some(before) || commit != after)
+    {
+        row.refused.comparison = None;
+    }
     if row.writer
         && row.record.cached.tip != Some(commit)
         && let Some(before) = row.record.cached.tip
     {
         let row = d.keep.live.get_mut(key).expect("resource remains");
-        row.state = State::Due(Phase::BranchCompare { before, after: commit }, Priority::Fresh);
+        let phase = Phase::BranchCompare { before, after: commit };
+        if row.refused.contains(phase) {
+            rest_resource(d, env, key);
+        } else {
+            row.state = State::Due(phase, Priority::Fresh);
+        }
         return;
     }
     branch_observed(d, env, key, commit, false, out);
@@ -510,13 +536,36 @@ fn failed_resource(
             out.push(Request::Changed { resource: key.clone(), result: Err(error) });
         }
         row.presence = super::Presence::Missing;
+        super::taken(row, phase);
         rest_resource(d, env, key);
         return;
     }
     out.push(Request::Changed { resource: key.clone(), result: Err(error) });
     let row = d.keep.live.get_mut(key).expect("resource remains");
+    if error == Error::TooLarge {
+        if !row.hinted {
+            row.refused.set(phase, true);
+        }
+        skip_resource(d, env, key, phase);
+        return;
+    }
     row.state = State::Waiting(phase, Priority::Slow);
-    d.alarms.arm(Alarm::Resource(row.alarm), env.now.saturating_add(env.limits.backoff)).expect("one resource alarm");
+    let wait = super::retry_wait(&mut row.retry, &env.limits);
+    d.alarms.arm(Alarm::Resource(row.alarm), env.now.saturating_add(wait)).expect("one resource alarm");
+}
+pub(super) fn skip_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource, phase: Phase) {
+    let row = d.keep.live.get_mut(key).expect("resource remains");
+    match phase {
+        Phase::Object => match key.what {
+            What::Pull(_) => row.state = State::Due(Phase::Pull, super::priority(row)),
+            What::Issue(_) => rest_resource(d, env, key),
+            What::Repository | What::Branch(_) => unreachable!("item phase"),
+        },
+        Phase::Pull if row.record.watch.participating && row.inbox.reviews_needed => {
+            row.state = State::Due(Phase::Reviews(row.record.review_page), super::priority(row));
+        }
+        Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchCompare { .. } => rest_resource(d, env, key),
+    }
 }
 fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     let row = d.keep.live.get_mut(key).expect("resource remains");
@@ -535,6 +584,7 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
             What::Branch(_) | What::Issue(_) | What::Repository => env.limits.slow,
         }
     };
+    let hinted = row.hinted;
     row.hinted = false;
     row.state = State::Idle;
     let next = env.now.saturating_add(interval);
@@ -543,5 +593,7 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     } else {
         next
     };
-    d.alarms.arm(Alarm::Resource(row.alarm), next).expect("one resource alarm");
+    let alarm = row.alarm;
+    let next = if hinted { next } else { super::fallen_back(&d.keep, &env.limits, env.now, key.repository, next) };
+    d.alarms.arm(Alarm::Resource(alarm), next).expect("one resource alarm");
 }

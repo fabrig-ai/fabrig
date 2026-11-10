@@ -94,9 +94,10 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
         | Request::EditRepoHook { .. }
         | Request::DeleteRepoHook { .. }
         | Request::CreateUser { .. } => return Err(a::Error::Refused),
-        Request::CreateIssue { .. } => {
-            (a::Read::Item { number: number(answer).ok_or(a::Error::Refused)?, after: 0 }, Select::Document)
-        }
+        Request::CreateIssue { .. } => (
+            a::Read::Item { number: number(answer).ok_or(a::Error::Refused)?, after: 0, since: None },
+            Select::Document,
+        ),
         Request::OpenPull { .. } => {
             (a::Read::Pull { number: number(answer).ok_or(a::Error::Refused)? }, Select::Document)
         }
@@ -106,7 +107,9 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
         Request::PostReview { number: pull, .. } => {
             (a::Read::Pull { number: *pull }, Select::Review(number(answer).ok_or(a::Error::Refused)?))
         }
-        Request::EditIssue { number, .. } => (a::Read::Item { number: *number, after: 0 }, Select::Document),
+        Request::EditIssue { number, .. } => {
+            (a::Read::Item { number: *number, after: 0, since: None }, Select::Document)
+        }
         Request::PostStatus { commit, context, .. } => (
             a::Read::Checks { commit: routes::commit(commit).ok_or(a::Error::Missing(a::What::Commit))? },
             Select::Status(context.clone()),

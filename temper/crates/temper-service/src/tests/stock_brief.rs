@@ -110,16 +110,16 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 44_333, 355_628),
-        (1, true, 42_243, 357_718),
-        (2, false, 29_353, 370_608),
-        (4, false, 25_919, 374_042),
-        (5, false, 43_511, 356_450),
-        (6, false, 27_143, 372_818),
-        (9, false, 24_586, 375_375),
-        (10, false, 24_301, 375_660),
+        (1, false, 44_403, 355_558),
+        (1, true, 42_313, 357_648),
+        (2, false, 29_423, 370_538),
+        (4, false, 25_989, 373_972),
+        (5, false, 43_581, 356_380),
+        (6, false, 27_213, 372_748),
+        (9, false, 24_656, 375_305),
+        (10, false, 24_371, 375_590),
         (11, true, 11_985, 387_976),
-        (12, true, 27_691, 372_270),
+        (12, true, 27_761, 372_200),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
@@ -180,7 +180,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
     // Charter 5's room leaves this margin beyond the framed brief.
-    const COORDINATOR_MARGIN: u32 = 1_906;
+    const COORDINATOR_MARGIN: u32 = 1_836;
     const MARGIN: u32 = 195;
     const OTHER: u32 = 768;
     let configuration = configured();
@@ -189,7 +189,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 356_450);
+    assert_eq!(room, 356_380);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - COORDINATOR_MARGIN));

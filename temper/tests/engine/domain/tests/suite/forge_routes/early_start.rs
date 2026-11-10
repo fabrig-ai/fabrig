@@ -644,6 +644,11 @@ fn a_dependent_change_starts_early_on_its_dependencys_pushed_head() {
     world.fake_env.limits.settle_max = Duration::ZERO;
     finish(&mut world, &producer_c3, b"Add C3");
     for _ in 0..STEPS {
+        // Keep the scripted check outstanding until the observed cut, irrespective
+        // of how many unrelated keeping calls the two fresh-read chains make.
+        if let Some(pull) = change_row(&world, c2).pull {
+            fake::check(&mut world.fake, &world.fake_env, b"org/repo", pull, Duration::from_secs(20));
+        }
         world.tick();
         if change_row(&world, c3).pull.is_some() {
             break;
