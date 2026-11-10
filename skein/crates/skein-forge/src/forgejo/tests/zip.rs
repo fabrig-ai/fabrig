@@ -122,5 +122,5 @@ fn an_archive_holds_at_its_byte_bound() {
         zip::read(&bytes, FILE_BYTES, bound),
         Ok(zip::File { path: Box::from(*b"failed.txt"), bytes: Box::from(FILE), truncated: false })
     );
-    assert_eq!(zip::read(&bytes, FILE_BYTES, bound - 1), Err(Error::TooLarge));
+    assert_eq!(zip::read(&bytes, FILE_BYTES, bound - 1), Err(Error::TooLarge(crate::api::Excess::unnamed())));
 }

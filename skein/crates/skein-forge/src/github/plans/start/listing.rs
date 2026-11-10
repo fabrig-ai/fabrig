@@ -1,4 +1,5 @@
 //! Every page of the App's installations (forge-github.md, 8.3).
+use crate::api::Excess;
 use super::{Event, State, Step, api, capacity, document, keep_installation, plan};
 use crate::github::{plans::Heard, request::Request};
 use alloc::boxed::Box;
@@ -59,7 +60,7 @@ impl Listing {
             Some(Event::Done { document, next }) => match document {
                 document::Document::Rows => {
                     if next {
-                        self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                        self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                         return Ok(Some(self.send()));
                     }
                     let rows = core::mem::replace(&mut self.rows, List::with_capacity(0));

@@ -1,4 +1,5 @@
 //! Single-attempt writes and read prerequisites (forge-github.md, 4.2 and 7).
+use crate::api::Excess;
 use super::{
     Body, Failure, Heard, failure as read_failure,
     plan::{Bounds, Exchange, Step},
@@ -264,8 +265,8 @@ impl Plan {
         if self.mutating() {
             return api::Error::Timeout;
         }
-        if read_failure::malformed(error) == api::Error::TooLarge {
-            api::Error::TooLarge
+        if read_failure::malformed(error) == api::Error::TooLarge(Excess::unnamed()) {
+            api::Error::TooLarge(Excess::unnamed())
         } else {
             api::Error::Unavailable
         }
@@ -388,13 +389,13 @@ impl Plan {
             return Err(self.invalid());
         }
         if len_u64(pull.reviewers.len()) > u64::from(bounds.rows) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         let Ok(pull) = super::reading::pull(pull, api::Ci::None) else {
             return Err(self.invalid());
         };
-        if crate::measure::pull(&pull).ok_or(api::Error::TooLarge)? > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+        if crate::measure::pull(&pull).ok_or(api::Error::TooLarge(Excess::unnamed()))? > u64::from(bounds.answer_bytes) {
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         if self.stage == Stage::VerifyUpdate {
             return Err(if Some(pull.commit) != self.pinned {
@@ -583,7 +584,7 @@ fn marked(word: &[u8], key: &[u8], body: &[u8], bounds: Bounds) -> Result<Box<[u
     if !crate::marker::valid_word(word) {
         return Err(api::Error::Refused);
     }
-    crate::marker::encode(word, key, body, bounds.body_bytes).ok_or(api::Error::TooLarge)
+    crate::marker::encode(word, key, body, bounds.body_bytes).ok_or(api::Error::TooLarge(Excess::unnamed()))
 }
 
 fn matches_rate(error: api::Error) -> bool {
@@ -594,7 +595,7 @@ fn matches_rate(error: api::Error) -> bool {
         | api::Error::Forbidden
         | api::Error::Missing
         | api::Error::MissingJob
-        | api::Error::TooLarge
+        | api::Error::TooLarge(_)
         | api::Error::Empty
         | api::Error::Full
         | api::Error::Exists

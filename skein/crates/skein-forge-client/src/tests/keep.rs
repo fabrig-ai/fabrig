@@ -67,7 +67,7 @@ fn a_full_batch_is_refused_before_any_partial_admission() {
     let mut h = Harness::new();
     h.env.limits.resources = 1;
     h.keep(Box::new([watch(issue(), true), watch(branch(), false)]));
-    assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge)]);
+    assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))]);
     assert!(h.records.is_empty());
     assert!(!h.domain.is_ready());
 }
@@ -517,7 +517,7 @@ fn inbox_overflow_never_partially_delivers_or_advances_a_page() {
     let read = h.one();
     let saved = h.record(&issue()).clone();
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false });
-    assert_eq!(h.failures.as_slice(), &[Error::TooLarge]);
+    assert_eq!(h.failures.as_slice(), &[Error::TooLarge(skein_forge::api::Excess::unnamed())]);
     assert!(h.news.is_empty());
     assert_eq!(h.record(&issue()), &saved);
     h.env.limits.inbox = 2;

@@ -211,7 +211,7 @@ impl Plan {
             Body::Empty => None,
             Body::Malformed(crate::forgejo::decode::Malformed::Bound { .. }) => {
                 return Err(self.error(if self.asked() == Asked::BeforeWrite {
-                    api::Error::TooLarge
+                    api::Error::TooLarge(api::Excess::unnamed())
                 } else {
                     api::Error::Timeout
                 }));
@@ -280,7 +280,7 @@ impl Plan {
         match document.ok_or(self.error(api::Error::Timeout))? {
             d::Document::Repository(repository) => {
                 let Ok(id) = u32::try_from(repository.id) else {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Forge, u64::from(u32::MAX), repository.id)));
                 };
                 if id != self.repository.repository {
                     return Err(self.error(api::Error::Timeout));

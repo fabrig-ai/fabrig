@@ -47,7 +47,7 @@ fn a_config_counts_each_writer_at_writer_bytes() {
     const WRITERS: [Writer; 2] = [WRITER, OTHER_FORGE];
     // LIMITS.op_bytes is 256; the two writers fill LIMITS.repositories.
     const NAMESPACE_BYTES: usize = 256 - WRITERS.len() * crate::measure::WRITER_BYTES;
-    for (namespace_bytes, expected) in [(NAMESPACE_BYTES, Ok(())), (NAMESPACE_BYTES + 1, Err(Error::TooLarge))] {
+    for (namespace_bytes, expected) in [(NAMESPACE_BYTES, Ok(())), (NAMESPACE_BYTES + 1, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())))] {
         let config = Config { namespace: skein_lib::bytes::zeroed(namespace_bytes), writers: Box::new(WRITERS) };
         let result = match Domain::configured(&LIMITS, 0, config) {
             Ok(_) => Ok(()),

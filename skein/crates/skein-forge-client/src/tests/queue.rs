@@ -268,7 +268,7 @@ fn a_queued_merge_restored_is_read_at_once_and_never_sent() {
 }
 #[test]
 fn a_queued_merge_whose_look_fails_backs_off_and_never_fails() {
-    for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge, Error::Unavailable, Error::Forbidden] {
+    for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge(skein_forge::api::Excess::unnamed()), Error::Unavailable, Error::Forbidden] {
         let mut h = Harness::new();
         let mut look = queued(&mut h);
         for _ in 0..=h.env.limits.write_attempts {

@@ -1,12 +1,12 @@
 //! Admission validation and payload caps (forge-client.md, section 2.3).
 use crate::Limits;
-use skein_forge::api::{Answer, Op, Read, Write};
+use skein_forge::api::{Answer, Bound, Excess, Op, Read, Write};
 use skein_lib::{len_u64, usize_of};
-pub(crate) fn op(value: &Op, l: &Limits) -> bool {
+pub(crate) fn op(value: &Op, l: &Limits) -> Result<(), Excess> {
     match value {
         Op::Read(Read::Job { max_bytes, .. } | Read::File { max_bytes, .. } | Read::Artifact { max_bytes, .. }) => {
             if *max_bytes == 0 || *max_bytes > l.answer_bytes {
-                return false;
+                return Err(Excess::exact(Bound::AnswerBytes, u64::from(l.answer_bytes), u64::from(*max_bytes)));
             }
         }
         Op::Read(_) | Op::Write(_) => {}
@@ -16,12 +16,13 @@ pub(crate) fn op(value: &Op, l: &Limits) -> bool {
         Op::Write(value) => write(value, l).is_some(),
     };
     if !valid {
-        return false;
+        return Err(Excess::unnamed());
     }
-    let held = skein_forge::measure::op(value);
-    match held {
-        Some(held) => held <= u64::from(l.op_bytes),
-        None => false,
+    let held = skein_forge::measure::op(value).ok_or(Excess::unnamed())?;
+    if held > u64::from(l.op_bytes) {
+        Err(Excess::exact(Bound::OpBytes, u64::from(l.op_bytes), held))
+    } else {
+        Ok(())
     }
 }
 pub(crate) fn read(value: &Read) -> Option<u64> {
@@ -90,8 +91,17 @@ pub(crate) fn write(value: &Write, l: &Limits) -> Option<u64> {
     }
     skein_forge::measure::write(value)
 }
-pub(crate) fn answer(value: &Answer, l: &Limits) -> bool {
-    crate::measure::answer_rows(value, l.rows) && within(skein_forge::measure::answer(value), l.answer_bytes)
+pub(crate) fn answer(value: &Answer, l: &Limits) -> Result<(), Excess> {
+    let rows = len_u64(skein_forge::measure::answer_list_rows(value));
+    if rows > u64::from(l.rows) {
+        return Err(Excess::exact(Bound::Rows, u64::from(l.rows), rows));
+    }
+    let bytes = skein_forge::measure::answer(value).ok_or(Excess::unnamed())?;
+    if bytes > u64::from(l.answer_bytes) {
+        Err(Excess::exact(Bound::AnswerBytes, u64::from(l.answer_bytes), bytes))
+    } else {
+        Ok(())
+    }
 }
 pub(crate) fn cached(value: &crate::Cached, l: &Limits) -> bool {
     let item = match &value.item {

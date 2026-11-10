@@ -55,7 +55,7 @@ fn recovery(error: skein_forge::api::Error) -> &'static [u8] {
         Error::NotConnected | Error::NotInstalled => b"; reconnect the forge or accept its installation, then release",
         Error::Missing | Error::MissingJob => b"; restore the missing target or correct its name, then release",
         Error::Busy => b"; waiting for local admission; retries automatically",
-        Error::TooLarge => b"; reduce the response or operation size, then release",
+        Error::TooLarge(_) => b"; reduce the response or operation size, then release",
         Error::Unavailable
         | Error::Timeout
         | Error::RateLimited { .. }

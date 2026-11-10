@@ -113,10 +113,10 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
     for (name, moves, ancestry, conflict) in [
         ("one_page", 1, None, false),
         ("past_a_page", 17, None, false),
-        ("too_large", 1, Some(Err(Error::TooLarge)), false),
+        ("too_large", 1, Some(Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))), false),
         ("one_page_in_conflict", 1, None, true),
         ("past_a_page_in_conflict", 17, None, true),
-        ("too_large_in_conflict", 1, Some(Err(Error::TooLarge)), true),
+        ("too_large_in_conflict", 1, Some(Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))), true),
     ] {
         let mut world = World::with_goal_room(280, 16, 4096);
         prepare_goal_history(&mut world, 2, 1, 1);

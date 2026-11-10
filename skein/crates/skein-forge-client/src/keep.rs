@@ -222,14 +222,14 @@ fn scan_busy(state: Scan) -> bool {
 }
 fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
     if watches.len() > usize_of(l.resources) {
-        return Err(Error::TooLarge);
+        return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
     }
     if !k.ready || k.failed {
         return Err(Error::Busy);
     }
     for (index, watch) in watches.iter().enumerate() {
         if !valid_resource(&watch.resource, l) {
-            return Err(Error::TooLarge);
+            return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
         }
         if watch.participating {
             match watch.resource.what {

@@ -804,7 +804,7 @@ fn describe_agent(
         }
     };
     let name =
-        resource_name(adopted, &resource, env.limits.authority.segments).ok_or(skein_forge::api::Error::TooLarge)?;
+        resource_name(adopted, &resource, env.limits.authority.segments).ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
     let form = match described.form {
         forge::EffectForm::Creation => EffectForm::Creation,
         forge::EffectForm::Transition => EffectForm::Transition,
@@ -5389,7 +5389,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
         | skein_forge::api::Error::Unavailable
         | skein_forge::api::Error::Timeout
         | skein_forge::api::Error::RateLimited { .. } => people::Outcome::Again(people::Again::Busy),
-        skein_forge::api::Error::TooLarge | skein_forge::api::Error::Full => {
+        skein_forge::api::Error::TooLarge(_) | skein_forge::api::Error::Full => {
             people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Resource })
         }
         skein_forge::api::Error::NotInstalled

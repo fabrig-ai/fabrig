@@ -188,12 +188,12 @@ impl Plan {
         forge: u16,
         tables: &mut Tables,
     ) -> Result<State, api::Error> {
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
         match row {
             d::Row::Status(status) => match state {
                 State::Listing { mut checks, page } => {
                     if self.count > self.limit {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(api::Excess::unnamed()));
                     }
                     if let Some(user) = &status.creator {
                         tables.keep_user(forge, user.id, user.login.clone());
@@ -203,13 +203,13 @@ impl Plan {
                     checks.size = checks
                         .size
                         .checked_add(crate::forgejo::plans::reads::size::answer(&answer, bounds.rows)?)
-                        .ok_or(api::Error::TooLarge)?;
+                        .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                     if checks.size > u64::from(bounds.answer_bytes) {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: checks.size, exact: false }));
                     }
                     match checks.statuses.push(value) {
                         Ok(()) => Ok(State::Listing { checks, page }),
-                        Err(_) => Err(api::Error::TooLarge),
+                        Err(_) => Err(api::Error::TooLarge(api::Excess::unnamed())),
                     }
                 }
                 State::RunLookup { .. }
@@ -222,7 +222,7 @@ impl Plan {
             d::Row::Run(value) => match state {
                 State::RunLookup { checks, run_number, job_index, mut run, missing } => {
                     if self.count > 1 {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(api::Excess::unnamed()));
                     }
                     let commit =
                         reading::commit(value.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
@@ -348,7 +348,7 @@ impl Plan {
                 };
             }
             Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge });
+                return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge(api::Excess::unnamed()) });
             }
             Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
         };
@@ -370,7 +370,7 @@ impl Plan {
                     }
                     Shape::Checks => {
                         if self.count == self.limit {
-                            page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                            page = page.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                             let step = self.send(r::Request::CombinedStatus {
                                 at: self.row.at(),
                                 commit: self.row.id(checks.head),

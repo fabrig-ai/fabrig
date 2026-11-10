@@ -75,7 +75,7 @@ pub(in crate::tests) fn refused_read(read: Read) {
     let mut h = Harness::new(LIMITS);
     assert_eq!(
         h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }).as_ref(),
-        &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) }],
+        &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }],
         "{read:?}"
     );
     assert!(h.send().is_none());

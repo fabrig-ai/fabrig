@@ -1,4 +1,5 @@
 //! A named artifact, its run commit, and one bounded ZIP (forge.md, 5.2).
+use crate::api::Excess;
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
@@ -77,7 +78,7 @@ impl Plan {
                     return Err(api::Error::InvalidAnswer);
                 }
                 if self.max > bounds.answer_bytes || value.size_in_bytes > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
                 *id = Some(value.id);
                 Ok(())
@@ -112,7 +113,7 @@ impl Plan {
             State::Zip { head } => match body {
                 Body::Raw { bytes, more } => {
                     if more {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(Excess::unnamed()));
                     }
                     let file = crate::forgejo::zip::read(&bytes, self.max, bounds.answer_bytes)?;
                     step = Step::Done(Ok(api::Answer::File {
@@ -134,7 +135,7 @@ fn invalid(body: Body) -> api::Error {
     match body {
         Body::Malformed(
             crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-        ) => api::Error::TooLarge,
+        ) => api::Error::TooLarge(Excess::unnamed()),
         Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => api::Error::InvalidAnswer,
     }
 }

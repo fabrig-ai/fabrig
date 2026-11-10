@@ -539,17 +539,17 @@ fn write_inner_overflow_is_timeout() {
 #[test]
 fn read_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0 }));
-    assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge)));
+    assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
     for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));
-        assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+        assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
     }
 }
 
 #[test]
 fn open_pull_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Write(write_cases::open_pull()));
-    assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+    assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
 }
 
 #[test]
@@ -622,7 +622,7 @@ fn file_sides_past_remaining_room_are_too_large() {
     for (read, answers, sends) in side_cases() {
         let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
         replies(&mut run, answers);
-        assert_eq!(run.answer(200, FULL_RAW), Step::Done(Err(Error::TooLarge)));
+        assert_eq!(run.answer(200, FULL_RAW), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
         run.assert_sent(sends);
     }
 }
@@ -735,7 +735,7 @@ fn branch_prefix_past_eight_matches_is_too_large() {
         body.put(br#""}"#).unwrap();
     }
     body.put(b"]").unwrap();
-    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge)));
+    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
 }
 
 #[test]
@@ -801,7 +801,7 @@ fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
         );
         run.begin();
         let row = Row::User(User { id: 7, login: Box::from(&b"writer"[..]), is_admin: false, full_name: Box::new([]) });
-        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge))));
+        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
         assert_eq!(run.tables().user(REPO.forge, 7), kept);
     }
 }

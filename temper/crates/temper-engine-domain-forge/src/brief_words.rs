@@ -43,7 +43,7 @@ pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
         Error::Forbidden => (BriefFate::Permanent, b"the forge forbids this read"),
         Error::NotInstalled => (BriefFate::Permanent, b"the forge App is not installed"),
         Error::Missing | Error::MissingJob => (BriefFate::Permanent, b"the forge has no such object"),
-        Error::TooLarge => (BriefFate::Permanent, b"the answer is past the client's limit"),
+        Error::TooLarge(_) => (BriefFate::Permanent, b"the answer is past the client's limit"),
         Error::Empty
         | Error::Full
         | Error::Exists

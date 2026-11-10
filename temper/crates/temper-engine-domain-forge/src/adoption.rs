@@ -272,7 +272,7 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
     let repository = pending.repository;
     let invalid = !d.repositories.contains_key(&repository) && d.repositories.len() == env.limits.repositories;
     if invalid {
-        adopted(d, out, reply_to, Err(api::Error::TooLarge));
+        adopted(d, out, reply_to, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
         return;
     }
     if let Some(existing) = d.repositories.get(&repository)
@@ -292,7 +292,7 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         return;
     }
     if request.checks.len() > skein_lib::usize_of(env.limits.change_policy.gates) || request.checks.contains(&0) {
-        adopted(d, out, reply_to, Err(api::Error::TooLarge));
+        adopted(d, out, reply_to, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
         return;
     }
     for (index, check) in request.checks.iter().enumerate() {
@@ -462,13 +462,13 @@ fn adoption_collaborators(
         Ok(api::Answer::Collaborators { collaborators, more }) => {
             for person in collaborators {
                 if pending.collaborators.push(person).is_err() {
-                    adopted(d, out, owner, Err(api::Error::TooLarge));
+                    adopted(d, out, owner, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
                     return;
                 }
             }
             if more {
                 let Some(next) = page.checked_add(1) else {
-                    adopted(d, out, owner, Err(api::Error::TooLarge));
+                    adopted(d, out, owner, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
                     return;
                 };
                 pending.stage = AdoptionStage::Collaborators(next);
@@ -644,7 +644,7 @@ pub(crate) fn making_asked(
         return;
     }
     if invalid_fields(&adoption, &env.limits) {
-        adopted(d, out, request, Err(api::Error::TooLarge));
+        adopted(d, out, request, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
         return;
     }
     if d.forge_ended(repository.forge) || !d.writers.contains_key(&repository.forge) {

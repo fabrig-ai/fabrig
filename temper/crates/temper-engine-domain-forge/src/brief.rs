@@ -351,7 +351,7 @@ pub(crate) fn brief_answer(
             }
             comparison(&mut fetch)
         }
-        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Files => {
+        Err(skein_forge::api::Error::TooLarge(_)) if fetch.stage == BriefStage::Files => {
             refused(fetch.owner, fetch.stage, error, out);
             append(&mut fetch.words, b"[files omitted from page ");
             append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
@@ -367,7 +367,7 @@ pub(crate) fn brief_answer(
             comparison_words(&mut fetch, files, commits);
             None
         }
-        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Compare => {
+        Err(skein_forge::api::Error::TooLarge(_)) if fetch.stage == BriefStage::Compare => {
             refused(fetch.owner, fetch.stage, error, out);
             append(&mut fetch.words, b"[comparison omitted: forge client limit exceeded]\n");
             None

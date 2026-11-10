@@ -197,7 +197,7 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>, 
         {
             return file_read_bounded(value, cap, forge);
         }
-        if read.as_ref() == &Err(api::Error::TooLarge) && (tool == b"read_file" || tool == b"read_pull_files") {
+        if read.as_ref() == &Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())) && (tool == b"read_file" || tool == b"read_pull_files") {
             return file_read_refusal(tool, None, cap, forge);
         }
         if tool == b"read_compare" {
@@ -226,7 +226,7 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>, 
 }
 
 fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
-    if read == &Err(api::Error::TooLarge) {
+    if read == &Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())) {
         let mut text = Text::new();
         text.add(b"This comparison is too large to return whole. Its commit ids were read; another id won't help. Never retry with a changed or guessed id.\n")
             .expect("compare refusal");
@@ -1386,7 +1386,7 @@ fn forge_read(
         Err(refusal) => {
             text.add(b"Forge read failed: ")?;
             forge_error(text, *refusal)?;
-            if *refusal == api::Error::TooLarge {
+            if *refusal == api::Error::TooLarge(skein_forge::api::Excess::unnamed()) {
                 text.add(b". The answer passed ")?;
                 forge_rows(text, forge)?;
                 text.add(b" or ")?;
@@ -1455,7 +1455,7 @@ fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
         api::Error::Forbidden => text.add(b"forbidden"),
         api::Error::Missing => text.add(b"missing"),
         api::Error::MissingJob => text.add(b"job missing"),
-        api::Error::TooLarge => text.add(b"too large"),
+        api::Error::TooLarge(_) => text.add(b"too large"),
         api::Error::Empty => text.add(b"empty"),
         api::Error::Full => text.add(b"full"),
         api::Error::Exists => text.add(b"already exists"),

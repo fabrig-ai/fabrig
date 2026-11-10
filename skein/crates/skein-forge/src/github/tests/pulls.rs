@@ -1,3 +1,4 @@
+use crate::api::Excess;
 use super::fixtures::{self, bytes, decode, limits};
 use crate::{
     api,
@@ -279,7 +280,7 @@ fn github_pull_runs_page_by_link() {
     for page in 1u32..50 {
         assert_eq!(call.runs(&[], true), Some(Step::send(runs_request(page.checked_add(1).unwrap(), 8))));
     }
-    assert_eq!(call.runs(&[], true), failed(api::Error::TooLarge));
+    assert_eq!(call.runs(&[], true), failed(api::Error::TooLarge(Excess::unnamed())));
     let mut call = runs_started();
     for page in 1u32..50 {
         assert_eq!(call.runs(&[], true), Some(Step::send(runs_request(page.checked_add(1).unwrap(), 8))));
@@ -354,7 +355,7 @@ fn github_pull_failures() {
     }
     for (malformed, error) in [
         (Malformed::Value { field: b"state" }, api::Error::InvalidAnswer),
-        (Malformed::Bound { field: b"requested_reviewers" }, api::Error::TooLarge),
+        (Malformed::Bound { field: b"requested_reviewers" }, api::Error::TooLarge(Excess::unnamed())),
     ] {
         let mut call = started(api::Read::Pull { number: 5 });
         call.head(false);
@@ -370,7 +371,7 @@ fn github_pull_failures() {
         assert_eq!(call.heard(Heard::Row(row)), failed(api::Error::InvalidAnswer));
     }
     let mut call = runs_started();
-    assert_eq!(call.runs(&[api::Check::Passed; 9], false), failed(api::Error::TooLarge));
+    assert_eq!(call.runs(&[api::Check::Passed; 9], false), failed(api::Error::TooLarge(Excess::unnamed())));
 }
 #[test]
 fn github_pull_for_prefers_open() {
@@ -482,7 +483,7 @@ fn github_statuses_bounds() {
             &[fixtures::context(api::Check::Passed), fixtures::context(api::Check::Passed)],
             false
         ),
-        failed(api::Error::TooLarge)
+        failed(api::Error::TooLarge(Excess::unnamed()))
     );
     let context = fixtures::context(api::Check::Passed);
     let measured = crate::measure::answer(&api::Answer::Statuses {
@@ -509,7 +510,7 @@ fn github_statuses_bounds() {
         if fits {
             assert_eq!(status_answer(result).1.len(), 1);
         } else {
-            assert_eq!(result, failed(api::Error::TooLarge));
+            assert_eq!(result, failed(api::Error::TooLarge(Excess::unnamed())));
         }
     }
     for field in [0u8, 1, 2] {
@@ -521,7 +522,7 @@ fn github_statuses_bounds() {
             _ => unreachable!(),
         }
         for read in [statuses(1), api::Read::Pull { number: 5 }, pull_for()] {
-            assert_eq!(Call::new(read, small, true).begin(), Err(api::Error::TooLarge));
+            assert_eq!(Call::new(read, small, true).begin(), Err(api::Error::TooLarge(Excess::unnamed())));
         }
     }
     let mut small = bounds();
@@ -529,7 +530,7 @@ fn github_statuses_bounds() {
     small.page_size = 100;
     let mut call = Call::new(statuses(1), small, true);
     assert_eq!(call.begin(), Ok(Step::send(combined_request(1, 1))));
-    assert_eq!(call.combined(api::Check::Passed, 2, &[context.clone(), context], false), failed(api::Error::TooLarge));
+    assert_eq!(call.combined(api::Check::Passed, 2, &[context.clone(), context], false), failed(api::Error::TooLarge(Excess::unnamed())));
     let mut call = started(statuses(1));
     assert_eq!(status_answer(call.combined(api::Check::Pending, 0, &[], false)), (api::Ci::None, Box::from([]), false));
     let mut small = bounds();
@@ -539,7 +540,7 @@ fn github_statuses_bounds() {
     let mut pull = fixtures::pull(5);
     pull.head = Box::from(&[b'x'; 100][..]);
     pull.base = Box::from(&[b'y'; 100][..]);
-    assert_eq!(call.pull(&pull), failed(api::Error::TooLarge));
+    assert_eq!(call.pull(&pull), failed(api::Error::TooLarge(Excess::unnamed())));
 }
 #[test]
 fn github_statuses_failures() {
@@ -652,7 +653,7 @@ fn github_pull_graphql_answer_bounds() {
         if fits {
             assert_eq!(call.graphql(&graphql_row()), Some(Step::Done(Ok(answer.clone()))));
         } else {
-            assert_eq!(call.graphql(&graphql_row()), failed(api::Error::TooLarge));
+            assert_eq!(call.graphql(&graphql_row()), failed(api::Error::TooLarge(Excess::unnamed())));
         }
     }
 }

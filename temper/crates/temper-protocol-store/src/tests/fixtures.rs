@@ -502,7 +502,7 @@ pub fn errors() -> [(skein_forge::api::Error, u8); 18] {
         (Error::Forbidden, 3),
         (Error::Missing, 4),
         (Error::MissingJob, 5),
-        (Error::TooLarge, 6),
+        (Error::TooLarge(skein_forge::api::Excess::unnamed()), 6),
         (Error::Empty, 7),
         (Error::Full, 8),
         (Error::Exists, 9),

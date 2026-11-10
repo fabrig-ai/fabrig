@@ -1679,7 +1679,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         } else {
             assert_eq!(
                 result.err(),
-                Some(skein_forge::api::Error::TooLarge),
+                Some(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
                 "a larger base is refused before retaining it"
             );
         }
@@ -1843,7 +1843,7 @@ fn configured_forges_are_bounded_at_construction() {
     Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], false).unwrap();
     assert_eq!(
         Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), false).unwrap_err(),
-        skein_forge::api::Error::TooLarge
+        skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())
     );
 }
 

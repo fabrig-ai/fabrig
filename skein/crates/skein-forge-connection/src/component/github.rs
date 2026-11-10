@@ -294,7 +294,7 @@ impl Common {
                                             reading.page = next;
                                             Ok(())
                                         }
-                                        None => Err(api::Error::TooLarge),
+                                        None => Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
                                     }
                                 } else {
                                     reading.complete = true;

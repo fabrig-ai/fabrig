@@ -174,7 +174,7 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
     } else if !crate::identity::connected(d, entry.repository) {
         Some(Error::Forbidden)
     } else if !valid(&entry, &env.limits) {
-        Some(Error::TooLarge)
+        Some(Error::TooLarge(skein_forge::api::Excess::unnamed()))
     } else if d.outbox.entries.len() >= env.limits.entries {
         Some(Error::Busy)
     } else {

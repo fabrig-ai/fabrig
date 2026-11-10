@@ -649,19 +649,19 @@ impl Domain {
                 .key(&config.namespace, l.client.op_bytes)
                 .is_none()
         {
-            return Err(skein_forge::api::Error::TooLarge);
+            return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
         }
         let (configured, forge_number) = crate::forges::document(l.forges, forges)?;
         let mut credentials = Map::with_capacity(l.forges);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
             }
         }
         let mut writers = Map::with_capacity(l.client.repositories);
         for writer in &config.writers {
             if writers.insert(writer.forge, writer.author).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
             }
         }
         Ok(Domain {
@@ -698,7 +698,7 @@ impl Domain {
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
-            names: Map::with_capacity(l.tasks.checked_add(l.repositories).ok_or(skein_forge::api::Error::TooLarge)?),
+            names: Map::with_capacity(l.tasks.checked_add(l.repositories).ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?),
             holds: Map::with_capacity(l.holds),
             subscriptions: Map::with_capacity(l.subscriptions),
             goal_files: Map::with_capacity(l.changes),
@@ -740,7 +740,7 @@ impl Domain {
             landing: crate::landing::State::new(l),
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
-            setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
+            setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?),
             setting_stock: None,
             held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
@@ -763,7 +763,7 @@ impl Domain {
             close_kind: None,
             projection_due: Map::with_capacity(l.issues),
             full_outbox_met: false,
-            change_due: Map::with_capacity(l.changes.checked_add(l.tasks).ok_or(skein_forge::api::Error::TooLarge)?),
+            change_due: Map::with_capacity(l.changes.checked_add(l.tasks).ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?),
             procedure_wakes: Map::with_capacity(l.changes),
             settling: Map::with_capacity(l.changes),
         })
@@ -3417,7 +3417,7 @@ fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Er
                 change::Status::Passed
             }
         }
-        Err(skein_forge::api::Error::TooLarge) => change::Status::Failed,
+        Err(skein_forge::api::Error::TooLarge(_)) => change::Status::Failed,
         Ok(_) | Err(_) => change::Status::Unknown,
     }
 }

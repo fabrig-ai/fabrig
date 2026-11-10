@@ -1,4 +1,5 @@
 //! User resolution precedes a permission request only on a users-table miss.
+use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Stage, Step, Tables, api, document};
 
 impl Plan {
@@ -69,20 +70,20 @@ impl Plan {
         let document::Row::Collaborator(row) = row else {
             return Err(api::Error::InvalidAnswer);
         };
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.collaborators.len() >= bounds.rows {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
-        self.size = self.size.checked_add(16).ok_or(api::Error::TooLarge)?;
+        self.size = self.size.checked_add(16).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size, exact: false }));
         }
         if let Some(login) = row.login {
             tables.keep_user(self.repository.forge, row.id, login);
         }
         match self.collaborators.push(api::Collaborator { user: row.id, permission: row.permission }) {
             Ok(()) => Ok(()),
-            Err(_) => Err(api::Error::TooLarge),
+            Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
         }
     }
     pub(super) fn collaborators_done(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {

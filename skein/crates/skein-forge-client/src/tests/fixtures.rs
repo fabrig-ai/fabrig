@@ -49,7 +49,7 @@ impl Harness {
         } else {
             Op::Read(Read::Pull { number: owner })
         };
-        assert!(crate::bounds::op(&op, &self.env.limits));
+        assert!(crate::bounds::op(&op, &self.env.limits).is_ok());
         calls::queue(&mut self.domain.calls, calls::Owner::Read(Token::new(owner)), REPO, op, priority);
     }
     pub(in crate::tests) fn send(&mut self) -> Option<Sent> {

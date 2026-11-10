@@ -428,7 +428,7 @@ fn fault(error: Error) -> Fault {
         | Error::Timeout
         | Error::RateLimited { .. }
         | Error::Forbidden
-        | Error::TooLarge
+        | Error::TooLarge(_)
         | Error::Full
         | Error::Exists
         | Error::Circular

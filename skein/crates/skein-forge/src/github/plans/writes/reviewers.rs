@@ -1,4 +1,5 @@
 //! Both differences and every login are retained before the first mutation (forge-github.md, 4.2).
+use crate::api::Excess;
 use super::{Bounds, Plan, Request, Stage, Step, Tables, api};
 use crate::github::{document, request};
 use alloc::boxed::Box;
@@ -15,10 +16,10 @@ pub(super) struct Reviewers {
 }
 
 fn ids_fit(ids: &[u64], bounds: Bounds) -> Result<u32, api::Error> {
-    let count = u32::try_from(ids.len()).ok().ok_or(api::Error::TooLarge)?;
-    let bytes = u64::from(count).checked_mul(8).ok_or(api::Error::TooLarge)?;
+    let count = u32::try_from(ids.len()).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+    let bytes = u64::from(count).checked_mul(8).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
     if count > bounds.rows || bytes > u64::from(bounds.answer_bytes) {
-        return Err(api::Error::TooLarge);
+        return Err(api::Error::TooLarge(Excess::unnamed()));
     }
     Ok(count)
 }
@@ -71,18 +72,18 @@ impl Plan {
         let mut remove = List::with_capacity(current_count);
         for id in desired {
             if !pull.reviewers.contains(id) && !add.as_slice().contains(id) {
-                add.push(*id).ok().ok_or(api::Error::TooLarge)?;
+                add.push(*id).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
             }
         }
         for id in &pull.reviewers {
             if !desired.contains(id) && !remove.as_slice().contains(id) {
-                remove.push(*id).ok().ok_or(api::Error::TooLarge)?;
+                remove.push(*id).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
             }
         }
-        let count = add.len().checked_add(remove.len()).ok_or(api::Error::TooLarge)?;
-        let bytes = u64::from(count).checked_mul(8).ok_or(api::Error::TooLarge)?;
+        let count = add.len().checked_add(remove.len()).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+        let bytes = u64::from(count).checked_mul(8).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if count > bounds.rows || bytes > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         if count == 0 {
             return self.terminal(api::Answer::Done, bounds);
@@ -114,34 +115,34 @@ impl Plan {
                     if !request::reviewers_fit(reviewers.additions.as_slice(), bounds.body_bytes)
                         || !request::reviewers_fit(reviewers.removals.as_slice(), bounds.body_bytes)
                     {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(Excess::unnamed()));
                     }
                     let (number, _) = self.reviewers_given().ok_or(api::Error::InvalidAnswer)?;
                     return Ok(Some(self.reviewers_mutation(number)?));
                 }
             }
         }
-        Err(api::Error::TooLarge)
+        Err(api::Error::TooLarge(Excess::unnamed()))
     }
     fn reviewers_login(&mut self, login: &[u8], bounds: Bounds) -> Result<(), api::Error> {
         let reviewers = self.reviewers.as_mut().ok_or(api::Error::InvalidAnswer)?;
-        let width = u64::try_from(crate::measure::STRING_BYTES).ok().ok_or(api::Error::TooLarge)?;
+        let width = u64::try_from(crate::measure::STRING_BYTES).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         let length = len_u64(login.len());
         reviewers.bytes = reviewers
             .bytes
             .checked_add(width)
-            .ok_or(api::Error::TooLarge)?
+            .ok_or(api::Error::TooLarge(Excess::unnamed()))?
             .checked_add(length)
-            .ok_or(api::Error::TooLarge)?;
+            .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if reviewers.bytes > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         let logins = if reviewers.additions.len() < reviewers.add.len() {
             &mut reviewers.additions
         } else {
             &mut reviewers.removals
         };
-        logins.push(Box::from(login)).ok().ok_or(api::Error::TooLarge)
+        logins.push(Box::from(login)).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))
     }
     pub(super) fn reviewers_user(
         &mut self,

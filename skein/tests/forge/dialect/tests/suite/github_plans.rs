@@ -98,7 +98,7 @@ fn github_plans_locate_keeps_the_row() {
     for (id, expected) in [
         (7, Ok(api::Answer::Located { repository: 7 })),
         (u64::from(u32::MAX), Ok(api::Answer::Located { repository: u32::MAX })),
-        (u64::from(u32::MAX) + 1, Err(api::Error::TooLarge)),
+        (u64::from(u32::MAX) + 1, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))),
         (0, Err(api::Error::InvalidAnswer)),
     ] {
         let key = api::Repository { repository: 0, ..KEY };
@@ -150,7 +150,7 @@ fn github_plans_settings_refresh_the_row() {
     );
     assert_eq!(tables.repository(KEY), Some(&tables::repository(&document)));
     for (id, error) in
-        [(8, api::Error::InvalidAnswer), (0, api::Error::InvalidAnswer), (u64::MAX, api::Error::TooLarge)]
+        [(8, api::Error::InvalidAnswer), (0, api::Error::InvalidAnswer), (u64::MAX, api::Error::TooLarge(skein_forge::api::Excess::unnamed()))]
     {
         let mut plan = started(api::Read::Settings, bounds(), &mut tables);
         assert_eq!(done(&mut plan, Document::Repository(repository(id)), bounds(), &mut tables), ended(Err(error)));
@@ -235,7 +235,7 @@ fn github_plans_branches_past_the_bound() {
             Ok(Some(Step::send(branches_request(2, per_page))))
         );
         head(&mut plan, false, bounds, &mut tables);
-        assert_eq!(name(&mut plan, second, bounds, &mut tables), ended(Err(api::Error::TooLarge)));
+        assert_eq!(name(&mut plan, second, bounds, &mut tables), ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
     }
 }
 
@@ -391,7 +391,7 @@ fn github_plans_transport_failures() {
 fn github_plans_malformed_body() {
     for (body, error) in [
         (Body::Malformed(Malformed::Shape { field: b"id" }), api::Error::InvalidAnswer),
-        (Body::Malformed(Malformed::Bound { field: b"log" }), api::Error::TooLarge),
+        (Body::Malformed(Malformed::Bound { field: b"log" }), api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
         (Body::Raw { bytes: Box::from(*b"bytes"), more: true }, api::Error::InvalidAnswer),
         (Body::Empty, api::Error::InvalidAnswer),
         (Body::Document(Document::Rows), api::Error::InvalidAnswer),
@@ -448,7 +448,7 @@ fn github_plans_page_size_and_empty_listing() {
         let mut tables = Tables::new(0, 0);
         assert_eq!(
             read_plan(api::Read::Branches { prefix: Box::from(&b"m"[..]) }).begin(bounds, b"example-app", &mut tables),
-            Err(api::Error::TooLarge)
+            Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))
         );
     }
 }
@@ -461,7 +461,7 @@ fn github_plans_page_row_bound() {
     for _ in 0..bounds().page_size {
         assert_eq!(name(&mut plan, b"a", bounds(), &mut tables), Ok(None));
     }
-    assert_eq!(name(&mut plan, b"a", bounds(), &mut tables), ended(Err(api::Error::TooLarge)));
+    assert_eq!(name(&mut plan, b"a", bounds(), &mut tables), ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
 }
 
 #[test]
@@ -490,7 +490,7 @@ fn github_plans_settings_answer_bound() {
                 rebase: true,
             })),
         ),
-        (3, Err(api::Error::TooLarge)),
+        (3, Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))),
     ] {
         let bounds = Bounds { answer_bytes, ..bounds() };
         let mut tables = Tables::new(2, 2);
@@ -603,7 +603,7 @@ fn github_branch_prefix_ninth_match_exceeds_eight_rows() {
         for index in [page * 2 - 2, page * 2 - 1] {
             let result = name(&mut plan, &numbered_prefix(b"temper/", index), bounds, &mut tables);
             if index == 8 {
-                assert_eq!(result, ended(Err(api::Error::TooLarge)));
+                assert_eq!(result, ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
                 return;
             }
             assert_eq!(result, Ok(None));

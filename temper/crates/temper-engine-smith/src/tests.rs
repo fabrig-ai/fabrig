@@ -2994,7 +2994,7 @@ fn compare_answer(
 #[expect(clippy::disallowed_methods, reason = "the test inspects the host guidance as UTF-8 text")]
 fn read_compare_too_large_names_bounds_and_paged_fallback() {
     use skein_forge::api::Error;
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))));
     let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     let text = core::str::from_utf8(rendered.text()).expect("compare guidance is UTF-8");
@@ -3066,7 +3066,7 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
     use skein_forge::api::Error;
     const SMALL_CAP: u32 = 64; // Too short for the bounds and uncertainty together.
     const STOCK_TEXT: &[u8] = b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.";
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))));
     for (forge, expected) in [
         (ForgeReadBounds::STOCK, STOCK_TEXT),
         (ForgeReadBounds { rows: 3, answer_bytes: 4096 }, b"Forge read failed: too large. The answer passed forge.client.rows (3) or forge.client.answer_bytes (4096); which one is unknown.".as_slice()),
@@ -3341,7 +3341,7 @@ fn file_and_pull_rendering_boundaries() {
         }
     }
     for tool in [b"read_file".as_slice(), b"read_pull_files"] {
-        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge)));
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());

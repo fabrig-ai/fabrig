@@ -179,7 +179,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 (pull, translate::commit(world.branch(b"temper/51")))
             },
             "files",
-            api::Error::TooLarge,
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
             None,
         ),
     ];
@@ -245,7 +245,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 format!("Head: {pinned}"),
                 "Title: Change".into(),
                 "Description".into(),
-                "[files omitted from page 1: past the forge client's limit; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
+                "[files omitted from page 1: past forge.client.answer_bytes (4096): at least 4097 bytes; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
             ] {
                 assert!(text.contains(&context), "missing context {context}: {text}");
             }

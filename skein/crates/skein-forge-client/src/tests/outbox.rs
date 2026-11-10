@@ -338,7 +338,7 @@ fn comparison_overflow_leaves_update_uncertain_without_another_write() {
     let find = h.one();
     h.answer(find, Ok(Answer::Pull(pull([3; 32]))));
     let compare = h.one();
-    h.answer(compare, Err(Error::TooLarge));
+    h.answer(compare, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())));
     assert_eq!(h.writes, 1);
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
     assert!(h.store.get(&1).is_some());

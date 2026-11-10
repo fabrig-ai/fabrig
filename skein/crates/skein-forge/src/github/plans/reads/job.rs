@@ -1,4 +1,5 @@
 //! One attempt's metadata, followed by its log redirect (forge-github.md, 10).
+use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document};
 use crate::github::{header::Head, plans::plan::Retention, redirect};
 use alloc::boxed::Box;
@@ -28,10 +29,10 @@ impl Plan {
             return Err(api::Error::MissingJob);
         }
         let step_bytes = match &job.step {
-            Some(step) => u32::try_from(step.name.len()).or(Err(api::Error::TooLarge))?,
+            Some(step) => u32::try_from(step.name.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?,
             None => 0,
         };
-        self.raw_cap = max_bytes.min(bounds.answer_bytes.checked_sub(step_bytes).ok_or(api::Error::TooLarge)?);
+        self.raw_cap = max_bytes.min(bounds.answer_bytes.checked_sub(step_bytes).ok_or(api::Error::TooLarge(Excess::unnamed()))?);
         self.job_step = job.step;
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
         let request = Request::JobLog { owner: row.owner.clone(), name: row.name.clone(), id: attempt.job };

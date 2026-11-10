@@ -1,0 +1,485 @@
+    Checking skein-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/21474836480/fabrig/skein/crates/skein-forge)
+    Checking skein-forge-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/21474836480/fabrig/skein/crates/skein-forge-client)
+error: unnecessary qualification
+  --> skein/crates/skein-forge-client/src/domain.rs:49:45
+   |
+49 |             return Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `-D unused-qualifications` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(unused_qualifications)]`
+help: remove the unnecessary path segments
+   |
+49 -             return Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
+49 +             return Err(api::Error::TooLarge(api::Excess::unnamed()));
+   |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep/answer.rs:238:69
+    |
+238 |         failed_resource(d, env, key, Phase::Object, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+    |                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+238 -         failed_resource(d, env, key, Phase::Object, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+238 +         failed_resource(d, env, key, Phase::Object, Error::TooLarge(api::Excess::unnamed()), out);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep/answer.rs:245:77
+    |
+245 |                 failed_resource(d, env, key, Phase::Object, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+    |                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+245 -                 failed_resource(d, env, key, Phase::Object, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+245 +                 failed_resource(d, env, key, Phase::Object, Error::TooLarge(api::Excess::unnamed()), out);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep/answer.rs:323:61
+    |
+323 |         failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+323 -         failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+323 +         failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep/answer.rs:330:69
+    |
+330 |                 failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+    |                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+330 -                 failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+330 +                 failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep/answer.rs:341:65
+    |
+341 |             failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+    |                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+341 -             failed_resource(d, env, key, phase, Error::TooLarge(skein_forge::api::Excess::unnamed()), out);
+341 +             failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep.rs:225:36
+    |
+225 |         return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+225 -         return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
+225 +         return Err(Error::TooLarge(api::Excess::unnamed()));
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/keep.rs:232:40
+    |
+232 |             return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+232 -             return Err(Error::TooLarge(skein_forge::api::Excess::unnamed()));
+232 +             return Err(Error::TooLarge(api::Excess::unnamed()));
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/outbox.rs:177:30
+    |
+177 |         Some(Error::TooLarge(skein_forge::api::Excess::unnamed()))
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+177 -         Some(Error::TooLarge(skein_forge::api::Excess::unnamed()))
+177 +         Some(Error::TooLarge(api::Excess::unnamed()))
+    |
+
+error: could not compile `skein-forge-client` (lib) due to 9 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/contracts.rs:298:98
+    |
+298 | ...   let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
+    |                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+298 -                 let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
+298 +                 let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) };
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/contracts.rs:408:77
+    |
+408 |         &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
+    |                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+408 -         &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
+408 +         &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/contracts.rs:434:98
+    |
+434 | ...er: Token::new(9), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+434 -     assert_eq!(got.as_ref(), &[Request::Read { owner: Token::new(9), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
+434 +     assert_eq!(got.as_ref(), &[Request::Read { owner: Token::new(9), result: Err(Error::TooLarge(api::Excess::unnamed())) }]);
+    |
+
+error: unnecessary qualification
+  --> skein/crates/skein-forge-client/src/tests/keep.rs:70:57
+   |
+70 |     assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))]);
+   |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: remove the unnecessary path segments
+   |
+70 -     assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))]);
+70 +     assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge(api::Excess::unnamed()))]);
+   |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/keep.rs:520:57
+    |
+520 |     assert_eq!(h.failures.as_slice(), &[Error::TooLarge(skein_forge::api::Excess::unnamed())]);
+    |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+520 -     assert_eq!(h.failures.as_slice(), &[Error::TooLarge(skein_forge::api::Excess::unnamed())]);
+520 +     assert_eq!(h.failures.as_slice(), &[Error::TooLarge(api::Excess::unnamed())]);
+    |
+
+error: unnecessary qualification
+  --> skein/crates/skein-forge-client/src/tests/locate.rs:12:44
+   |
+12 |     terminal(&requests, 1, Error::TooLarge(skein_forge::api::Excess::unnamed()));
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: remove the unnecessary path segments
+   |
+12 -     terminal(&requests, 1, Error::TooLarge(skein_forge::api::Excess::unnamed()));
+12 +     terminal(&requests, 1, Error::TooLarge(api::Excess::unnamed()));
+   |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/outbox.rs:341:43
+    |
+341 |     h.answer(compare, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())));
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+341 -     h.answer(compare, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())));
+341 +     h.answer(compare, Err(Error::TooLarge(api::Excess::unnamed())));
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/queue.rs:271:73
+    |
+271 |     for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge(skein_forge::api::Excess::unnamed()), Error::Unavailable, E...
+    |                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+271 -     for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge(skein_forge::api::Excess::unnamed()), Error::Unavailable, Error::Forbidden] {
+271 +     for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge(api::Excess::unnamed()), Error::Unavailable, Error::Forbidden] {
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests/recovery.rs:393:81
+    |
+393 |             &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+393 -             &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
+393 +             &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:200:25
+    |
+200 |         Error::TooLarge(skein_forge::api::Excess::unnamed()),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+200 -         Error::TooLarge(skein_forge::api::Excess::unnamed()),
+200 +         Error::TooLarge(api::Excess::unnamed()),
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:357:66
+    |
+357 |     terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge(skein_forge::api::Excess::unnamed()));
+    |                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+357 -     terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge(skein_forge::api::Excess::unnamed()));
+357 +     terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge(api::Excess::unnamed()));
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:483:25
+    |
+483 |         Error::TooLarge(skein_forge::api::Excess::unnamed()),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+483 -         Error::TooLarge(skein_forge::api::Excess::unnamed()),
+483 +         Error::TooLarge(api::Excess::unnamed()),
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:644:105
+    |
+644 | ....expect_err("invalid config"), Error::TooLarge(skein_forge::api::Excess::unnamed()));
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+644 -         assert_eq!(Domain::configured(&LIMITS, 0, config).expect_err("invalid config"), Error::TooLarge(skein_forge::api::Excess::unnamed()));
+644 +         assert_eq!(Domain::configured(&LIMITS, 0, config).expect_err("invalid config"), Error::TooLarge(api::Excess::unnamed()));
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:652:25
+    |
+652 |         Error::TooLarge(skein_forge::api::Excess::unnamed())
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+652 -         Error::TooLarge(skein_forge::api::Excess::unnamed())
+652 +         Error::TooLarge(api::Excess::unnamed())
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:683:102
+    |
+683 | ...er: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+683 -     assert_eq!(refused.as_ref(), &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
+683 +     assert_eq!(refused.as_ref(), &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]);
+    |
+
+error: unnecessary qualification
+   --> skein/crates/skein-forge-client/src/tests.rs:704:86
+    |
+704 |         let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
+    |                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: remove the unnecessary path segments
+    |
+704 -         let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
+704 +         let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge(api::Excess::unnamed())) };
+    |
+
+error: unnecessary qualification
+  --> skein/crates/skein-forge-client/src/tests/turn.rs:50:81
+   |
+50 |         assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::TooLarge(skein_forge::api::Excess::unnamed())))]);
+   |                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: remove the unnecessary path segments
+   |
+50 -         assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::TooLarge(skein_forge::api::Excess::unnamed())))]);
+50 +         assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::TooLarge(api::Excess::unnamed())))]);
+   |
+
+error: called `assert!` with `Result::is_ok`
+  --> skein/crates/skein-forge-client/src/tests/fixtures.rs:52:9
+   |
+52 |         assert!(crate::bounds::op(&op, &self.env.limits).is_ok());
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&op, &self.env.limits).unwrap()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+   = note: requested on the command line with `-D clippy::assertions-on-result-states`
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests/recovery.rs:671:13
+    |
+671 |     assert!(!crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+    = note: `-D clippy::nonminimal-bool` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::nonminimal_bool)]`
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests/recovery.rs:670:5
+    |
+670 |     assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: use of a disallowed macro `alloc::format`
+   --> skein/crates/skein-forge-client/src/tests.rs:400:24
+    |
+400 | ...   assert_eq!(format!("{error:?}"), format!("TooLarge(Excess {{ bound: Rows, limit: 8, size: {}, exact: true }})", file_rows.max...
+    |                  ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: no formatting in step code
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#disallowed_macros
+    = note: requested on the command line with `-D clippy::disallowed-macros`
+
+error: use of a disallowed macro `alloc::format`
+   --> skein/crates/skein-forge-client/src/tests.rs:400:46
+    |
+400 | ...rror:?}"), format!("TooLarge(Excess {{ bound: Rows, limit: 8, size: {}, exact: true }})", file_rows.max(commit_rows)));
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: no formatting in step code
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#disallowed_macros
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests.rs:555:13
+    |
+555 |     assert!(!crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests.rs:554:5
+    |
+554 |     assert!(crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests.rs:572:13
+    |
+572 |     assert!(!crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests.rs:573:13
+    |
+573 |     assert!(!crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests.rs:585:13
+    |
+585 |     assert!(!crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests.rs:571:5
+    |
+571 |     assert!(crate::bounds::answer(&protection, &LIMITS).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::answer(&protection, &LIMITS).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests.rs:584:5
+    |
+584 |     assert!(crate::bounds::answer(&checks, &LIMITS).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::answer(&checks, &LIMITS).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+  --> skein/crates/skein-forge-client/src/tests/turn.rs:53:5
+   |
+53 |     assert!(crate::bounds::op(&api::Op::Write(dispatch()), &LIMITS).is_ok());
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&api::Op::Write(dispatch()), &LIMITS).unwrap()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+  --> skein/crates/skein-forge-client/src/tests/turn.rs:61:5
+   |
+61 |     assert!(crate::bounds::op(&api::Op::Write(status), &LIMITS).is_ok());
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&api::Op::Write(status), &LIMITS).unwrap()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+  --> skein/crates/skein-forge-client/src/tests/turn.rs:67:5
+   |
+67 |     assert!(crate::bounds::op(&api::Op::Write(write), &crate::Limits { op_bytes: 1024, ..LIMITS }).is_ok());
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&api::Op::Write(write), &crate::Limits { op_bytes: 1024, ..LIMITS }).unwrap()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests/turn.rs:159:5
+    |
+159 |     assert!(crate::bounds::op(&api::Op::Read(artifact_read(LIMITS.answer_bytes)), &LIMITS).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&api::Op::Read(artifact_read(LIMITS.answer_bytes)), &LIMITS).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests/turn.rs:160:5
+    |
+160 |     assert!(crate::bounds::op(&api::Op::Read(commit_read()), &LIMITS).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::op(&api::Op::Read(commit_read()), &LIMITS).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests/turn.rs:182:13
+    |
+182 |     assert!(!crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: this boolean expression can be simplified
+   --> skein/crates/skein-forge-client/src/tests/turn.rs:187:13
+    |
+187 |     assert!(!crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_ok());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#nonminimal_bool
+
+error: called `assert!` with `Result::is_ok`
+   --> skein/crates/skein-forge-client/src/tests/turn.rs:185:5
+    |
+185 |     assert!(crate::bounds::answer(&Answer::Commits { commits: Box::new([value.clone()]), more: false }, &LIMITS).is_ok());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `crate::bounds::answer(&Answer::Commits { commits: Box::new([value.clone()]), more: false }, &LIMITS).unwrap()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_result_states
+
+error: could not compile `skein-forge-client` (lib test) due to 46 previous errors

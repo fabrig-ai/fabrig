@@ -1,3 +1,4 @@
+use crate::api::Excess;
 use super::*;
 use skein_lib::Duration;
 
@@ -287,20 +288,20 @@ fn github_reviewers_plan_bounds_before_mutation() {
         if succeeds {
             assert_eq!(sent(step), mutation(true, &[b"a"]));
         } else {
-            assert_eq!(step, ended(Err(api::Error::TooLarge)));
+            assert_eq!(step, ended(Err(api::Error::TooLarge(Excess::unnamed()))));
         }
     }
     let mut tables = cached_tables();
     let b = Bounds { rows: 1, ..bounds() };
     let mut plan = write_plan(reviewers(&[2, 3]));
-    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge));
+    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
     let b = Bounds { answer_bytes: 7, ..bounds() };
     let mut plan = write_plan(reviewers(&[2]));
-    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge));
+    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
     let mut plan = write_plan(reviewers(&[]));
     begin(&mut plan, &mut tables);
     head(&mut plan, 200, &mut tables);
-    assert_eq!(finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables), ended(Err(api::Error::TooLarge)));
+    assert_eq!(finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
 }
 
 #[test]

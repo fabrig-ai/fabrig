@@ -390,7 +390,7 @@ fn keep_refuses_invalid_branch_names() {
         let watch = kept::watch(Resource { repository: REPO, what: What::Branch(branch) }, false);
         assert_eq!(
             h.step(Event::Keep { owner: Token::new(1), watches: Box::new([watch]) }).as_ref(),
-            &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge) }]
+            &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
         );
         assert!(h.domain.cached(&kept::branch()).is_none());
         assert!(h.send().is_none());
@@ -667,8 +667,8 @@ fn comment_and_review_finds_require_believed_original_keys() {
 #[test]
 fn oversized_and_lost_write_answers_are_uncertain() {
     let branches = Answer::Branches(Box::new([Box::from(&b"kit"[..])]));
-    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }));
-    assert!(!crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }));
+    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }).is_ok());
+    assert!(!crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }).is_ok());
     for (name, answer, error) in
         [("oversized", Ok(branches), Error::InvalidAnswer), ("lost", Err(Error::Timeout), Error::Timeout)]
     {

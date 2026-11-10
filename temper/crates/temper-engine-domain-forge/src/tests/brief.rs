@@ -817,7 +817,7 @@ fn each_unread_error_has_its_count_and_fixed_words() {
         (Error::NotInstalled, Permanent, b"the forge App is not installed"),
         (Error::Missing, Permanent, b"the forge has no such object"),
         (Error::MissingJob, Permanent, b"the forge has no such object"),
-        (Error::TooLarge, Permanent, b"the answer is past the client's limit"),
+        (Error::TooLarge(skein_forge::api::Excess::unnamed()), Permanent, b"the answer is past the client's limit"),
         (Error::Full, Permanent, b"the forge refused this read"),
         (Error::Stale, Permanent, b"the forge refused this read"),
         (Error::Refused, Permanent, b"the forge refused this read"),

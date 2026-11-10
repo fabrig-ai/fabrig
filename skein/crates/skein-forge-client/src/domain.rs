@@ -46,7 +46,7 @@ impl Domain {
     /// authenticated writer account used for each forge.
     pub fn configured(l: &Limits, seed: u64, config: crate::Config) -> Result<Domain, api::Error> {
         if !crate::identity::valid(&config, l) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
         }
         Ok(Self::construct(l, seed, Some(config)))
     }
@@ -221,8 +221,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             let op = api::Op::Read(read);
             let refusal = if empty_prefix {
                 Some(api::Error::Empty)
-            } else if !bounds::op(&op, &env.limits) {
-                Some(api::Error::TooLarge)
+            } else if let Err(excess) = bounds::op(&op, &env.limits) {
+                Some(api::Error::TooLarge(excess))
             } else if d.calls.is_full() || (d.keep.is_ready() && calls::background_owed(&d.calls, env)) {
                 Some(api::Error::Busy)
             } else {

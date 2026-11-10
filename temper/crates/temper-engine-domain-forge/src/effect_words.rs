@@ -110,7 +110,7 @@ pub(crate) fn error_words(error: Error) -> &'static [u8] {
         Error::Protected => b"forge protection refused the write",
         Error::Missing => b"target missing",
         Error::MissingJob => b"job attempt missing",
-        Error::TooLarge => b"configured size bound exceeded",
+        Error::TooLarge(_) => b"configured size bound exceeded",
         Error::Empty => b"empty operation",
         Error::Full => b"forge has no room",
         Error::Exists => b"target already exists",

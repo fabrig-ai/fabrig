@@ -1267,7 +1267,7 @@ impl World {
             skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })
                 if self.read_script.comparisons_too_large =>
             {
-                Some(Err(skein_forge::api::Error::TooLarge))
+                Some(Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())))
             }
             skein_forge::api::Op::Read(skein_forge::api::Read::Commits { .. }) => self.read_script.ancestry.clone(),
             _ => None,

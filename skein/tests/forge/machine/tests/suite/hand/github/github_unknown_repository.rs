@@ -434,7 +434,7 @@ fn repository_id_above_the_vocabulary_bound_is_too_large() {
     let mut h = candidates();
     begin(&mut h, branch());
     h.answer(FORGE, &f::ok(TOO_LARGE));
-    answered(&mut h, 1, Err(Error::TooLarge));
+    answered(&mut h, 1, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())));
     assert_eq!(count(&h, b"GET /repositories/1 "), 1);
 }
 

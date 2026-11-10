@@ -295,7 +295,7 @@ fn answers_exceeding_configured_admission_bounds_are_refused_consistently() {
         ],
         |cases| {
             for (name, read, answer, bytes) in cases {
-                let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
+                let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
                 assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
             }
         },
@@ -405,7 +405,7 @@ fn keep_count_refusal_precedes_restore_busy() {
     let watches = watches.into_boxed();
     assert_eq!(
         h.step(Event::Keep { owner: Token::new(1), watches }).as_ref(),
-        &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge) }]
+        &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]
     );
 }
 
@@ -431,7 +431,7 @@ fn read_size_refusal_precedes_full_slab() {
         repository: REPO,
         read: Read::Branch { branch: Box::new([b'a'; OVER_BRANCH_BYTES]) },
     });
-    assert_eq!(got.as_ref(), &[Request::Read { owner: Token::new(9), result: Err(Error::TooLarge) }]);
+    assert_eq!(got.as_ref(), &[Request::Read { owner: Token::new(9), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
 }
 
 #[test]

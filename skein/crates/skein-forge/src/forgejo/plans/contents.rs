@@ -139,10 +139,10 @@ impl Plan {
         answer_bytes.saturating_sub(u32::try_from(self.size).expect("checked answer size"))
     }
     fn check_size(&self, bounds: Bounds) -> Result<(), api::Error> {
-        if self.size > u64::from(bounds.answer_bytes) { Err(api::Error::TooLarge) } else { Ok(()) }
+        if self.size > u64::from(bounds.answer_bytes) { Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size, exact: false })) } else { Ok(()) }
     }
     fn add_size(&mut self, size: u64, bounds: Bounds) -> Result<(), api::Error> {
-        self.size = self.size.checked_add(size).ok_or(api::Error::TooLarge)?;
+        self.size = self.size.checked_add(size).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
         self.check_size(bounds)
     }
     pub fn heard(
@@ -210,7 +210,7 @@ impl Plan {
                             return Err(if *field == b"log" {
                                 api::Error::InvalidAnswer
                             } else {
-                                api::Error::TooLarge
+                                api::Error::TooLarge(api::Excess::unnamed())
                             });
                         }
                         Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
@@ -258,7 +258,7 @@ impl Plan {
                     let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
                     self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
                     match &mut sides.ask {
-                        Ask::Compare { commits, .. } => commits.push(commit).or(Err(api::Error::TooLarge))?,
+                        Ask::Compare { commits, .. } => commits.push(commit).or(Err(api::Error::TooLarge(api::Excess::unnamed())))?,
                         Ask::Pull { .. } => return Err(api::Error::InvalidAnswer),
                     }
                     State::Compare(sides)
@@ -308,8 +308,8 @@ impl Plan {
         }
         self.add_size(skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len())), bounds)?;
         let value = api::File { path: file.filename.clone(), before: None, after: None };
-        sides.files.push(value).or(Err(api::Error::TooLarge))?;
-        sides.changed.push(file).or(Err(api::Error::TooLarge))?;
+        sides.files.push(value).or(Err(api::Error::TooLarge(api::Excess::unnamed())))?;
+        sides.changed.push(file).or(Err(api::Error::TooLarge(api::Excess::unnamed())))?;
         Ok(sides)
     }
     #[expect(
@@ -451,7 +451,7 @@ impl Plan {
             None => None,
             Some(Body::Raw { bytes, more }) => {
                 if more {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1), exact: false }));
                 }
                 Some(bytes)
             }

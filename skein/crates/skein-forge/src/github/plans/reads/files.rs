@@ -1,4 +1,5 @@
 //! Raw file retention is an instruction on the dialect's exchange.
+use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api};
 use crate::github::plans::plan::{Exchange, Retention};
 use alloc::boxed::Box;
@@ -42,10 +43,10 @@ impl Plan {
         }
         if self.stage == Stage::Before || self.stage == Stage::After {
             if more {
-                return Err(api::Error::TooLarge);
+                return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1), exact: false }));
             }
             if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
-                return Err(api::Error::TooLarge);
+                return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size.saturating_add(skein_lib::len_u64(bytes.len())), exact: false }));
             }
             self.keep_bytes(0, &[&bytes], bounds)?;
             return self.side_done(Some(bytes), bounds);
@@ -57,7 +58,7 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         };
         if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         if path.is_empty() {
             return Err(api::Error::InvalidAnswer);
@@ -131,18 +132,18 @@ impl Plan {
                     return Err(api::Error::InvalidAnswer);
                 }
                 if self.files.commits.len() >= self.limit || self.files.commits.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
                 self.keep_bytes(32, &[], bounds)?;
                 if self.files.commits.push(commit).is_err() {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
             }
             crate::github::document::Row::File(file) => {
                 if self.files.descriptors.len() >= bounds.rows
                     || (self.stage == Stage::Compare && self.files.descriptors.len() >= 299)
                 {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
                 if self.stage == Stage::FileListing {
                     self.page_row(bounds)?;
@@ -158,17 +159,17 @@ impl Plan {
                 let previous_bytes = skein_lib::len_u64(previous.len());
                 let width = path_bytes
                     .checked_add(64)
-                    .ok_or(api::Error::TooLarge)?
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?
                     .checked_add(previous_bytes)
-                    .ok_or(api::Error::TooLarge)?;
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 self.files.descriptor_size =
-                    self.files.descriptor_size.checked_add(width).ok_or(api::Error::TooLarge)?;
+                    self.files.descriptor_size.checked_add(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.files.descriptor_size > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.files.descriptor_size, exact: false }));
                 }
                 self.keep_bytes(64, &[&file.path], bounds)?;
                 if self.files.descriptors.try_push(file).is_err() {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
             }
             crate::github::document::Row::CommitMessage(_)
@@ -203,7 +204,7 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         }
         if comparison.total_commits > u64::from(self.files.commits.len()) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         self.files.contains = comparison.behind_by == 0;
         self.next_file(bounds)
@@ -252,9 +253,9 @@ impl Plan {
         };
         self.stage = if before { Stage::Before } else { Stage::After };
         self.raw_cap =
-            u32::try_from(u64::from(bounds.answer_bytes).checked_sub(self.size).ok_or(api::Error::TooLarge)?)
+            u32::try_from(u64::from(bounds.answer_bytes).checked_sub(self.size).ok_or(api::Error::TooLarge(Excess::unnamed()))?)
                 .ok()
-                .ok_or(api::Error::TooLarge)?;
+                .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         Ok(Some(self.send_raw(request, Retention::Whole { bytes: self.raw_cap })))
     }
     pub(super) fn side_done(&mut self, bytes: Option<Box<[u8]>>, bounds: Bounds) -> Result<Option<Step>, api::Error> {
@@ -275,7 +276,7 @@ impl Plan {
     fn finish_file(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let file = self.files.current.take().ok_or(api::Error::InvalidAnswer)?;
         if self.files.files.push(file).is_err() {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         self.next_file(bounds)
     }

@@ -215,7 +215,7 @@ pub fn error(error: forge::Error, now: Time) -> client::Error {
             | forge::What::Page
             | forge::What::Review => client::Error::Missing,
         },
-        forge::Error::TooLarge => client::Error::TooLarge,
+        forge::Error::TooLarge => client::Error::TooLarge(skein_forge::api::Excess::unnamed()),
         forge::Error::Full => client::Error::Full,
         forge::Error::Exists | forge::Error::AlreadyQueued(_) => client::Error::Exists,
         forge::Error::Circular | forge::Error::Refused => client::Error::Refused,

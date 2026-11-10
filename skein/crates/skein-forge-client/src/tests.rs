@@ -197,7 +197,7 @@ fn full_and_oversized_admission_answer_once_without_an_api_call() {
     terminal(
         &h.step(Event::Read { owner: Token::new(3), repository: REPO, read: Read::Branch { branch: value } }),
         3,
-        Error::TooLarge,
+        Error::TooLarge(skein_forge::api::Excess::unnamed()),
     );
     let sent = h.one();
     assert!(h.send().is_none());
@@ -354,7 +354,7 @@ fn input_rows_are_checked_before_scanning_or_forwarding_them() {
         files: Box::new([]),
         commits: Box::new([[0; 32]; 5]),
     };
-    terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge);
+    terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge(skein_forge::api::Excess::unnamed()));
 }
 
 #[test]
@@ -394,7 +394,13 @@ fn compare_files_and_commits_each_fit_eight_rows() {
             commits: commits.into_boxed(),
         };
         assert!(skein_forge::measure::answer(&answer).unwrap() < u64::from(h.env.limits.answer_bytes));
-        let expected = if admitted { Ok(answer.clone()) } else { Err(Error::TooLarge) };
+        if !admitted {
+            let requests = h.answer(&sent, 1, Ok(answer));
+            let [Request::Read { result: Err(error), .. }] = requests.as_ref() else { panic!("a refusal: {requests:?}") };
+            assert_eq!(format!("{error:?}"), format!("TooLarge(Excess {{ bound: Rows, limit: 8, size: {}, exact: true }})", file_rows.max(commit_rows)));
+            continue;
+        }
+        let expected = Ok(answer.clone());
         assert_eq!(
             h.answer(&sent, 1, Ok(answer)).as_ref(),
             &[Request::Read { owner: Token::new(1), result: expected }],
@@ -474,7 +480,7 @@ fn job_logs_are_bounded_and_pinned_to_the_failing_attempt() {
             read: Read::Job { part: api::LogPart::End, attempt, max_bytes: LIMITS.answer_bytes + 1 },
         }),
         5,
-        Error::TooLarge,
+        Error::TooLarge(skein_forge::api::Excess::unnamed()),
     );
 }
 #[test]
@@ -545,8 +551,8 @@ fn confirmed_write_terminals_do_not_invent_update_commits_or_branch_success() {
     assert!(crate::api::accepts(&branch, &Answer::Branch(api::BranchCreation::Exists)));
     assert!(!crate::api::accepts(&branch, &Answer::Done));
     let edit = Op::Write(Write::Edit { number: 1, title: None, body: Some(Box::from(&b"body"[..])) });
-    assert!(crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }));
-    assert!(!crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }));
+    assert!(crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }).is_ok());
+    assert!(!crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }).is_ok());
 }
 #[test]
 fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
@@ -562,9 +568,9 @@ fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
         approvals: 2,
         dismiss_stale: true,
     }));
-    assert!(crate::bounds::answer(&protection, &LIMITS));
-    assert!(!crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }));
-    assert!(!crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }));
+    assert!(crate::bounds::answer(&protection, &LIMITS).is_ok());
+    assert!(!crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }).is_ok());
+    assert!(!crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }).is_ok());
     let status = api::Status {
         at: Time::ZERO,
         context: Box::from(&b"ci"[..]),
@@ -575,8 +581,8 @@ fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
     };
     let checks = Answer::Checks(Box::new([status]));
     assert!(crate::api::accepts(&Op::Read(Read::Checks { commit: [1; 32] }), &checks));
-    assert!(crate::bounds::answer(&checks, &LIMITS));
-    assert!(!crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }));
+    assert!(crate::bounds::answer(&checks, &LIMITS).is_ok());
+    assert!(!crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }).is_ok());
 }
 
 #[test]
@@ -635,7 +641,7 @@ fn deployment_config_and_decoded_key_frames_are_checked() {
         },
     ];
     for config in configs {
-        assert_eq!(Domain::configured(&LIMITS, 0, config).expect_err("invalid config"), Error::TooLarge);
+        assert_eq!(Domain::configured(&LIMITS, 0, config).expect_err("invalid config"), Error::TooLarge(skein_forge::api::Excess::unnamed()));
     }
     let config = crate::Config {
         namespace: Box::from(&b"kit"[..]),
@@ -643,7 +649,7 @@ fn deployment_config_and_decoded_key_frames_are_checked() {
     };
     assert_eq!(
         Domain::configured(&Limits { op_bytes: 1, ..LIMITS }, 0, config).expect_err("oversized config"),
-        Error::TooLarge
+        Error::TooLarge(skein_forge::api::Excess::unnamed())
     );
 }
 
@@ -674,7 +680,7 @@ fn file_reads_are_pinned_bounded_and_charged_to_the_fresh_lane() {
         repository: REPO,
         read: Read::File { head: [3; 32], path: Box::from(&b"file"[..]), max_bytes: LIMITS.answer_bytes + 1 },
     });
-    assert_eq!(refused.as_ref(), &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) }]);
+    assert_eq!(refused.as_ref(), &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }]);
     assert!(h.send().is_none());
 }
 
@@ -695,7 +701,7 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
             log: Box::from(&[b'x'; 4096][..length]),
             truncated: false,
         };
-        let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge) };
+        let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) };
         assert_eq!(
             h.answer(&sent, 1, Ok(answer)).as_ref(),
             &[Request::Read { owner: Token::new(1), result: expected }],

@@ -1,4 +1,5 @@
 //! One bounded page of review comments.
+use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document};
 use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
@@ -35,23 +36,23 @@ impl Plan {
         self.keep_bytes(64, &[&remark.path, &remark.body], bounds)?;
         match self.remarks.push(remark) {
             Ok(()) => Ok(()),
-            Err(_) => Err(api::Error::TooLarge),
+            Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
         }
     }
     pub(super) fn page_row(&mut self, bounds: Bounds) -> Result<(), api::Error> {
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.count > bounds.rows {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         Ok(())
     }
     pub(super) fn keep_bytes(&mut self, width: u64, fields: &[&[u8]], bounds: Bounds) -> Result<(), api::Error> {
-        let mut size = self.size.checked_add(width).ok_or(api::Error::TooLarge)?;
+        let mut size = self.size.checked_add(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         for field in fields {
-            size = size.checked_add(len_u64(field.len())).ok_or(api::Error::TooLarge)?;
+            size = size.checked_add(len_u64(field.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         if size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: size, exact: false }));
         }
         self.size = size;
         Ok(())
@@ -105,7 +106,7 @@ impl Plan {
         self.keep_bytes(128, &[key, &review.body], bounds)?;
         match self.reviews.push(review) {
             Ok(()) => Ok(()),
-            Err(_) => Err(api::Error::TooLarge),
+            Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
         }
     }
     pub(super) fn reviews_done(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {

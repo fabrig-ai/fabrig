@@ -1,4 +1,5 @@
 //! The App's setup exchanges, without repository tables (forge-github.md, 8.1–8.4).
+use crate::api::Excess;
 use super::{Body, Heard, failure, plan};
 use crate::{
     api,
@@ -229,37 +230,37 @@ fn keep_installation(
         | Row::Run(_)
         | Row::Comment(_) => return Err(api::Error::InvalidAnswer),
     };
-    *count = count.checked_add(1).ok_or(api::Error::TooLarge)?;
+    *count = count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
     if *count > crate::github::pin::PAGE_CAP || rows.len() >= bounds.rows {
-        return Err(api::Error::TooLarge);
+        return Err(api::Error::TooLarge(Excess::unnamed()));
     }
     *bytes = add(*bytes, &row.login, b"", bounds)?;
     match rows.push(row) {
         Ok(()) => Ok(()),
-        Err(_) => Err(api::Error::TooLarge),
+        Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
     }
 }
 
 // Answer bytes: one STRING_BYTES overhead per row, plus login for installations,
 // or login + name for reachable repositories. All lengths and sums fit u32.
 fn capacity(bounds: plan::Bounds) -> Result<u32, api::Error> {
-    let width = u32::try_from(measure::STRING_BYTES).or(Err(api::Error::TooLarge))?;
-    let room = bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge)?;
+    let width = u32::try_from(measure::STRING_BYTES).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
+    let room = bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
     Ok(bounds.rows.min(room))
 }
 fn add(bytes: u32, login: &[u8], name: &[u8], bounds: plan::Bounds) -> Result<u32, api::Error> {
-    let login = u32::try_from(login.len()).or(Err(api::Error::TooLarge))?;
-    let name = u32::try_from(name.len()).or(Err(api::Error::TooLarge))?;
-    let width = u32::try_from(measure::STRING_BYTES).or(Err(api::Error::TooLarge))?;
+    let login = u32::try_from(login.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
+    let name = u32::try_from(name.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
+    let width = u32::try_from(measure::STRING_BYTES).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
     let bytes = bytes
         .checked_add(login)
-        .ok_or(api::Error::TooLarge)?
+        .ok_or(api::Error::TooLarge(Excess::unnamed()))?
         .checked_add(name)
-        .ok_or(api::Error::TooLarge)?
+        .ok_or(api::Error::TooLarge(Excess::unnamed()))?
         .checked_add(width)
-        .ok_or(api::Error::TooLarge)?;
+        .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
     if bytes > bounds.answer_bytes {
-        return Err(api::Error::TooLarge);
+        return Err(api::Error::TooLarge(Excess::unnamed()));
     }
     Ok(bytes)
 }
