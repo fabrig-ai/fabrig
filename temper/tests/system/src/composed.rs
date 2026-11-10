@@ -36,6 +36,7 @@ use temper_worker_domain_world::protocol as worker_protocol;
 mod agreement;
 #[cfg(test)]
 mod chat;
+pub mod close_job;
 mod link;
 mod long_chat;
 pub mod merge_job;
@@ -98,6 +99,7 @@ enum Adoption {
 pub struct World {
     seed: u64,
     merge_job: Option<merge_job::Story>,
+    close_job: Option<close_job::Story>,
     scripts: VecDeque<Script>,
     parked: std::collections::BTreeMap<u64, Process>,
     period_budget: u64,
@@ -449,12 +451,13 @@ impl World {
         limits.fleet.grace = worker_limits.stop_bound.saturating_add(Duration::from_secs(1));
         assert!(engine::valid(&limits));
         assert!(worker::valid(&worker_limits));
-        let kinds = if config.core.jobs.is_empty() { Box::new([]) } else { temper_service::limits::job_kinds() };
+        let kinds = close_job::worker_kinds(&config.core.jobs, &mut worker_limits);
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             seed,
             merge_job: None,
+            close_job: None,
             scripts: VecDeque::new(),
             parked: std::collections::BTreeMap::new(),
             period_budget: config.core.defaults.rules.period_spend,
@@ -855,7 +858,7 @@ impl World {
     fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         let event = match request {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
-                engine::HostRequest::Decode { to, call, .. } => review::decode(to, &call),
+                engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
                     return Ok(vec![temper_service::settings_note(to, *call, &body, &self.root.catalogue())]);
                 }
@@ -1070,7 +1073,9 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            Delivery::AssignedJob { channel, job, workspace } => self.assigned_job(channel, job, workspace.as_ref()),
+            Delivery::AssignedJob { channel, job, workspace } => {
+                self.assign_story_job(channel, job, workspace.as_ref());
+            }
             other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
@@ -1261,8 +1266,9 @@ impl World {
             | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
-            worker::Request::Job { owner, op } => self.job_operation(owner, op),
+            worker::Request::Job { owner, op } => self.story_job_operation(owner, op),
             worker::Request::Hello(hello) => {
+                self.close_hello(&hello);
                 if let Some(story) = &mut self.merge_job {
                     story.hello = hello.jobs.to_vec();
                 }
@@ -1317,6 +1323,7 @@ impl World {
                 self.forge.at(self.env.now);
                 let op = forge_operation(op);
                 self.observe_merge_fetch(&op);
+                self.observe_close_io(&op);
                 let done =
                     git::perform_within(&mut self.forge, &mut self.disk, op, self.worker_env.limits.checkout.conflicts);
                 self.worker_events.push_back(worker::Event::Done { owner, done });

@@ -241,7 +241,7 @@ impl Service {
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = core_config(&settings.jig, seeds);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
-        core.jobs = limits::merge_jobs(&settings.jig.limits);
+        core.jobs = limits::jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
             kinds_stock: settings.kinds_stock,

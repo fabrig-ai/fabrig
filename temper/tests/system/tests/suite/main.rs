@@ -14,3 +14,5 @@ mod next_turn;
 mod supplied_instructions;
 
 mod merge_job;
+
+mod close_job;

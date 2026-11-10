@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
 pub use names::{NAMES, Name, Unit, find};
 pub use reference::{engine_reference, reference};
-use skein_lib::Duration;
+use skein_lib::{Duration, List};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 /// The checkout's configured bounds (protocol/configuration.md, 7).
@@ -632,15 +632,52 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The worker root's job kinds: the merge kind alone (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's bounds (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) const CLOSE_SPEC_BYTES: u32 = 16_384;
+pub(crate) const CLOSE_RESULT_BYTES: u32 = 512;
+pub(crate) const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
+
+/// The close job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn close_bound() -> JobBound {
+    JobBound {
+        kind: JobKind(temper_engine_domain_forge::CLOSE_KIND),
+        spec: CLOSE_SPEC_BYTES,
+        result: CLOSE_RESULT_BYTES,
+        deadline: CLOSE_DEADLINE,
+    }
+}
+
+/// Declare close only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
+    let bound = close_bound();
+    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+        Box::new([bound])
+    } else {
+        Box::new([])
+    }
+}
+
+/// The engine's declared kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
+    let mut jobs = List::with_capacity(2);
+    for bound in merge_jobs(jig).iter().chain(close_jobs(jig).iter()) {
+        jobs.push(*bound).expect("two built job kinds");
+    }
+    jobs.into_boxed()
+}
+
+/// The worker root's job kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
 #[cfg(feature = "worker")]
 #[must_use]
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
-    Box::new([temper_worker_domain::tooling::Kind {
-        bound: merge_bound(),
-        verb: b"merge".as_slice().into(),
-        delivers: true,
-    }])
+    Box::new([
+        temper_worker_domain::tooling::Kind { bound: merge_bound(), verb: b"merge".as_slice().into(), delivers: true },
+        temper_worker_domain::tooling::Kind { bound: close_bound(), verb: b"close".as_slice().into(), delivers: true },
+    ])
 }
 
 #[cfg(test)]

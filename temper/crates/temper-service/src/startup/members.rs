@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 110] = [
+pub static MEMBERS: [Member; 111] = [
     Member {
         shape: "document",
         name: "engine",
@@ -530,6 +530,15 @@ pub static MEMBERS: [Member; 110] = [
         bound: "relative repository path without parent segments; 1 to 4,096 bytes",
         required: false,
         line: "The merge command’s path from the repository root; see The merge command, below.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "close_job",
+        kind: "text",
+        bound: "relative repository path without parent segments; 1 to 4,096 bytes",
+        required: false,
+        line: "The close command’s path from the repository root; see temper help configuration’s close command.",
         gone: None,
     },
     Member {

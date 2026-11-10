@@ -1228,9 +1228,52 @@ mod merge_tests {
             panic!("ready declares capabilities");
         };
         assert_eq!(
-            hello.jobs.as_ref(),
-            [JobBound { kind: JobKind(3), spec: 4_096, result: 512, deadline: skein_lib::Duration::from_secs(600) }]
+            hello.jobs.first(),
+            Some(&JobBound {
+                kind: JobKind(3),
+                spec: 4_096,
+                result: 512,
+                deadline: skein_lib::Duration::from_secs(600)
+            })
         );
+    }
+
+    /// temper/docs/design/domain/worker.md, 4.4.
+    #[test]
+    fn the_production_worker_declares_the_close_kind() {
+        let mut worker = crate::tests::fixtures::worker();
+        let mut out = skein_lib::Queue::uncapped();
+        temper_worker_domain::step(&mut worker.root, &worker.env, temper_worker_domain::Event::Ready, &mut out);
+        let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
+            panic!("ready declares capabilities");
+        };
+        let close =
+            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
+        assert_eq!(hello.jobs.as_ref(), [crate::limits::merge_bound(), close]);
+        let kinds = crate::limits::job_kinds();
+        assert_eq!(kinds.len(), 2);
+        let kind = &kinds[1];
+        assert_eq!(kind.bound, close);
+        assert_eq!(kind.verb.as_ref(), b"close");
+        assert!(kind.delivers);
+    }
+
+    /// temper/docs/design/domain/worker.md, 4.4.
+    #[test]
+    fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
+        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+        let bound = crate::limits::close_bound();
+        let merge = crate::limits::merge_bound();
+        jig.core.tasks.spec_bytes = bound.spec;
+        jig.core.tasks.result_bytes = bound.result;
+        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
+        jig.core.tasks.spec_bytes = bound.spec - 1;
+        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge]);
+        jig.core.tasks.spec_bytes = bound.spec;
+        jig.core.tasks.result_bytes = bound.result - 1;
+        assert!(crate::limits::jobs(&jig).is_empty());
+        jig.core.tasks.result_bytes = bound.result;
+        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
     }
 
     /// temper/docs/design/domain/worker.md, 4.4.
