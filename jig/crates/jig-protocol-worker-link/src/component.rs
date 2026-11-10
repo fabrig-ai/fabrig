@@ -1,4 +1,5 @@
-//! Opening, loss and redial transitions (protocol/channel.md, 4 and 10.1).
+//! Opening, admission, loss and redial transitions
+//! (jig/docs/design/protocol/channel.md, 4 and 10.1).
 use crate::{
     Event, Limits, Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request,
     backoff::Backoff,
@@ -15,7 +16,7 @@ use jig_domain_host as host;
 use jig_domain_link::Hello;
 use jig_protocol_worker_wire::{self as wire, sizes};
 use skein_channel::{self as channel, Closed, Machine, Role};
-use skein_lib::{Decimal, List, Queue, Secret, Time, Token, Writer, bytes};
+use skein_lib::{Decimal, Duration, List, Queue, Secret, Time, Token, Writer, bytes};
 
 #[derive(Debug)]
 pub struct Credential {
@@ -106,7 +107,7 @@ impl Component {
                         self.completed(out);
                         return;
                     }
-                    let span = self.backoff.next();
+                    let span = self.redial_wait();
                     self.phase = Phase::Idle { at: now.saturating_add(span) };
                     out.push(Request::Fact { why: Loss::Unreachable });
                 }
@@ -283,12 +284,12 @@ impl Component {
                 self.grace.lost(now, self.limits.grace);
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
-                let span = self.backoff.next();
+                let span = self.redial_wait();
                 now.saturating_add(span)
             }
             Phase::Opening { .. } => {
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
-                let span = self.backoff.next();
+                let span = self.redial_wait();
                 now.saturating_add(span)
             }
             Phase::Idle { at } => at,
@@ -507,7 +508,6 @@ impl Component {
                         | Phase::Open { .. }
                         | Phase::Closing { .. }) => other,
                     };
-                    self.grace.clear();
                     if let Some(connection) = self.phase.connection() {
                         connection.live(now, &self.limits);
                     }
@@ -568,12 +568,14 @@ impl Component {
         if kind == 0x0184 {
             let record = wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body));
             match record {
-                Ok(record)
-                    if self.busy.add(now, Token::new(record.task()), Token::new(record.attempt()), record.number()) =>
-                {
-                    self.command(channel::Request::Read);
+                Ok(record) => {
+                    self.admitted();
+                    if self.busy.add(now, Token::new(record.task()), Token::new(record.attempt()), record.number()) {
+                        self.command(channel::Request::Read);
+                    } else {
+                        self.lose(now, Loss::Busy, out);
+                    }
                 }
-                Ok(_) => self.lose(now, Loss::Busy, out),
                 Err(_) => {
                     self.command(channel::Request::Refuse { reason: REFUSED_FRAMING, text: Box::new([]) });
                     self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
@@ -584,6 +586,7 @@ impl Component {
         let mut parts = Queue::uncapped();
         match translate::down(kind, body, &limits, now, &mut parts, &mut self.next_part, out) {
             Some(down) => {
+                self.admitted();
                 let forward = match &down {
                     host::LinkDown::Relayed { run, attempt, call, .. } => self.relays.end(*run, *attempt, call),
                     host::LinkDown::TurnKept { run, attempt, turn } => {
@@ -619,6 +622,25 @@ impl Component {
                 let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
                 assert!(started, "a body arrives on an open channel");
             }
+        }
+    }
+    fn admitted(&mut self) {
+        match self.phase {
+            Phase::Open { hello: true, .. } => self.grace.clear(),
+            Phase::Open { hello: false, .. }
+            | Phase::Idle { .. }
+            | Phase::Connecting
+            | Phase::Opening { .. }
+            | Phase::Closing { .. } => {}
+        }
+    }
+    fn redial_wait(&mut self) -> Duration {
+        let span = self.backoff.next();
+        if self.grace.next().is_some() {
+            let quarter = self.limits.grace.as_nanos().checked_div(4).expect("nonzero divisor");
+            span.min(Duration::from_nanos(quarter))
+        } else {
+            span
         }
     }
     fn send_logins(&mut self) {
@@ -701,7 +723,7 @@ impl Component {
                 connection.quiet();
                 connection.stall = None;
                 out.push(Request::Lost);
-                let span = self.backoff.next();
+                let span = self.redial_wait();
                 out.push(Request::Fact { why });
                 started = true;
                 Phase::Closing {
@@ -711,7 +733,7 @@ impl Component {
                 }
             }
             Phase::Opening { connection, .. } => {
-                let span = self.backoff.next();
+                let span = self.redial_wait();
                 out.push(Request::Fact { why });
                 started = true;
                 Phase::Closing {
