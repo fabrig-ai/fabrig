@@ -548,7 +548,9 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 }
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+    let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, limits)?;
+    fixtures::restore_needs(&mut core.fleet, limits, needs);
     core.people.start_restore(Wall::EPOCH);
     let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
     for project in projects {
@@ -3571,6 +3573,7 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
         end: tasks::End::Parked,
         saved: None,
         invalid_saved: false,
+        unusable_history: false,
     };
     let mut out = step(&mut core, &env, event);
     let Request::Now(answer) = out.pop().unwrap() else { panic!("payload drop") };
@@ -3898,6 +3901,19 @@ pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: cra
         };
     }
     panic!("bounded fixture start");
+}
+
+/// Completed-start fixtures drive empty fleet readiness as the shell does.
+pub(crate) fn settle_fleet(domain: &mut fleet::Domain, env: &Env<fleet::Limits>) {
+    for _ in 0_u8..4 {
+        if !domain.is_ready() {
+            return;
+        }
+        let mut out = Queue::uncapped();
+        fleet::resume(domain, env, &mut out);
+        assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
+    }
+    assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");
 }
 
 fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {

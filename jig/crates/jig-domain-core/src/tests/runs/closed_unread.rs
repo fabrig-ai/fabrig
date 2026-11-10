@@ -41,23 +41,27 @@ fn an_unread_closed_tail_continues_the_brief_without_counting() {
 }
 
 #[test]
-fn an_unread_open_tail_on_a_transient_retry_continues_without_counting() {
-    let (mut core, _) = unread_window(1, false);
-    let before = core.tasks.task(1).unwrap().tries;
-    let mut work = Queue::with_capacity(2);
-    let requests = transcript_unread(&mut core, &mut work, 1);
-    assert!(requests.is_empty());
-    assert_fresh(&core, &mut work);
-    assert_eq!(core.tasks.task(1).unwrap().tries, before);
-    assert_eq!(core.contexts.get(&1).unwrap().tries.transient, 1, "the retry cannot resume");
+fn an_unread_open_window_after_a_transient_try_counts_once_and_closes() {
+    assert_open_unread_counts(1);
 }
 
 #[test]
 fn an_unread_open_window_without_a_transient_retry_counts_once() {
-    let (mut core, limits) = unread_window(0, false);
+    assert_open_unread_counts(0);
+}
+
+fn assert_open_unread_counts(before: u32) {
+    let (mut core, limits) = unread_window(before, false);
     let mut work = Queue::with_capacity(2);
     let requests = transcript_unread(&mut core, &mut work, 1);
-    assert_eq!(requests.len(), 2);
+    let mut saved = false;
+    for request in &requests {
+        if let Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof)))) = request {
+            saved = proof.window.expect("unread window retained").closed;
+        }
+    }
+    assert!(saved, "closure is saved in the failure decision");
+    assert!(core.proofs.get(&1).unwrap().window.unwrap().closed);
     let Some(Work::Event(Event::Tasks(
         event @ tasks::Event::PreparationCounted { task: 1, class: tasks::Class::Transient, .. },
     ))) = work.pop()
@@ -68,5 +72,5 @@ fn an_unread_open_window_without_a_transient_retry_counts_once() {
     assert!(!core.contexts.contains_key(&1));
     assert!(!core.transcripts.contains_key(&1));
     send_task(&mut core, &limits, event);
-    assert_eq!(core.tasks.task(1).unwrap().tries.transient, 1);
+    assert_eq!(core.tasks.task(1).unwrap().tries.transient, before.checked_add(1).expect("one counted failure"));
 }
