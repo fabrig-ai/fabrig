@@ -1,6 +1,7 @@
 mod approval;
 mod box_line;
 mod chat;
+mod choices;
 mod commands;
 mod event;
 mod fixtures;

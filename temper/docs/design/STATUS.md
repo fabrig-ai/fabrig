@@ -82,8 +82,12 @@ with each row's project and the person's newest goal, Needs you marked
 and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
-(`client/README.md`, 6.13 to 6.15; `client/tui/journeys.md`, 9). The
-team lines, `/draft`, `/talk` and `/tell` are T2's and T3's, the brief
+(`client/README.md`, 6.13 to 6.15; `client/tui/journeys.md`, 9). A
+design session, T2, is designed and not yet built: `/draft`, the draft
+in a side pane that skein's full-screen shell lays beside the body, a
+reply's choices as a prompt and `/goal` (`client/README.md`, 6.14, *A
+design session*; `client/README.status.md`). The
+team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
 (`draft/surfaces.status.md`, 11); the blank row under the header is not

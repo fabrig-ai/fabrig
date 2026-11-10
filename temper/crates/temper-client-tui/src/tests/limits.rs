@@ -278,7 +278,7 @@ fn the_trees_fit_their_limits() {
                     task,
                     project: name.into(),
                     title: title.as_bytes().into(),
-                    kind: launchpad::LeftKind::Chat { number: u32::try_from(task + 1).unwrap() },
+                    kind: launchpad::LeftKind::Chat { number: u32::try_from(task + 1).unwrap(), session: false },
                     at: b"Fri 18:40".as_slice().into(),
                     state: b"waiting on you".as_slice().into(),
                 })

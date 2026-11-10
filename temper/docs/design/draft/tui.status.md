@@ -2,8 +2,9 @@
 
 2026-11-09. Where the design lags or departs from [tui.md](tui.md).
 
-- **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags. 3 and 7: of the direction, the side pane and
-  drafting, a need from elsewhere on a chat, the line above its box, the
+- **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
+  `../client/README.md`, 6.14, *A design session*, as `surfaces.md`, 11.2
+  revises them. 3 and 7: of the direction, a need from elsewhere on a chat, the line above its box, the
   web's hand-off, a page's terminal command to copy, and the project
   chosen from a checkout; approval between hosts and managing sign-ins;
   all await the user's refinement, and `../client/README.md`, section 11
@@ -72,8 +73,8 @@
     box takes commands alone, rather than still asking temper, because
     template 5 needs a project (`../client/README.md`, 6.14). No engine
     fact or projectless chat was added. The newest live chat has no
-    ", draft" suffix because Home reads no document and TUI drafting is
-    deferred. The shared Home state says "waiting on you", and the
+    ", draft" suffix because Home reads no document; a design session's
+    row says ", a design session" (`../client/README.md`, 6.14). The shared Home state says "waiting on you", and the
     shared running line says "✦ Working", rather than the frames'
     "waiting on your words" and "✦ working", so both clients use their
     shared words. Active commands carry the focus mark and accent over

@@ -54,6 +54,7 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
+    reply: Box<[Event]>,
     left_off: List<(u64, launchpad::LeftKind)>,
     selected_event: Option<Event>,
     authority: Box<[u8]>,
@@ -75,6 +76,7 @@ impl View {
             shown: 0,
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
+            reply: Box::default(),
             left_off: List::with_capacity(3),
             selected_event: None,
             authority: Box::default(),
@@ -284,6 +286,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
     if sign_in_drawn(root, tui) {
+        view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
         view.left_off.clear();
@@ -376,6 +379,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         }
         Body::Chat(_) | Body::Welcome(_) => {}
     }
+    view.reply.clone_from(&signed.foot.reply);
     view.box_empty = match &signed.foot.composer {
         Some(composer) => composer.value.is_empty(),
         None => false,
@@ -404,7 +408,29 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
 /// What Escape makes in the tree last built.
 #[must_use]
 pub fn escape(view: &View) -> Option<Event> {
-    view.escape.clone()
+    match &view.escape {
+        Some(event) => Some(event.clone()),
+        None => view.reply_aside(),
+    }
+}
+impl View {
+    /// Set aside the reply on the tree last built, even behind typed words.
+    #[must_use]
+    pub fn reply_aside(&self) -> Option<Event> {
+        self.reply.last().cloned()
+    }
+}
+
+/// A reply's numbered event on the tree last built, even behind typed words.
+#[must_use]
+pub fn reply_number(view: &View, words: &[u8]) -> Option<Event> {
+    for (index, event) in view.reply.iter().enumerate() {
+        let number = skein_lib::Decimal::of(u64::try_from(index).ok()?.checked_add(1)?);
+        if number.as_bytes() == words {
+            return Some(event.clone());
+        }
+    }
+    None
 }
 /// Decode against the displayed tree alone.
 #[must_use]
@@ -466,11 +492,15 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
     for command in Command::ALL {
         let screen = match command {
             Command::Model | Command::Effort => project && picker,
+            Command::Draft => match root.pages().chat() {
+                Some(chat) => chat.draft.is_some() || chat.writing,
+                None => false,
+            },
             Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Help | Command::Exit => true,
-            Command::Draft | Command::Goal | Command::Font | Command::Theme => false,
+            Command::Goal | Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
@@ -536,7 +566,7 @@ pub fn walk_key(view: &View) -> Option<Event> {
 pub fn chat_number(view: &View, number: u32) -> Option<u64> {
     for (task, kind) in &view.left_off {
         match kind {
-            launchpad::LeftKind::Chat { number: held } if *held == number => return Some(*task),
+            launchpad::LeftKind::Chat { number: held, .. } if *held == number => return Some(*task),
             launchpad::LeftKind::Chat { .. } | launchpad::LeftKind::Goal => {}
         }
     }
@@ -550,7 +580,7 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/README.md, 6.14).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(6);
+    let mut commands = List::with_capacity(7);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
@@ -565,6 +595,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
             && !tui.quitting();
         for command in Own::ALL {
             let offered = match command {
+                Own::Draft => temper_client_domain::pages::drafts_offered(root, project),
                 Own::Change | Own::Ask | Own::Open => true,
                 Own::Theme => false,
                 Own::Brief => brief,

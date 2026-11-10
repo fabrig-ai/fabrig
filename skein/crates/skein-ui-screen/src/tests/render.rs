@@ -3,6 +3,7 @@ use crate::{Cell, Focus, Frame, Paint, Position, Size, render};
 use skein_ui::{Builder, EntryKind, Role, State, Tree};
 
 // The specification's frame sizes; the extra narrow case leaves only borders.
+const SIDE: Size = Size { columns: 60, rows: 16 };
 const OPTIONS: Size = Size { columns: 60, rows: 14 };
 const BANDS: Size = Size { columns: 40, rows: 12 };
 const BANDS_SMALL: Size = Size { columns: 20, rows: 5 };
@@ -74,6 +75,8 @@ fn every_role_state_and_property_is_laid() {
 fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
     use core::fmt::Write;
     let mut failures = String::new();
+    let side = fixtures::side(true);
+    let side_none = fixtures::side(false);
     let entries = fixtures::entries();
     let options = fixtures::options(false, false, true);
     let following = fixtures::following(30, Some(1), false, false);
@@ -85,6 +88,8 @@ fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
     let roles = fixtures::roles();
     let theme = fixtures::theme();
     for (name, tree, size, node, caret, expected) in [
+        ("side", &side, SIDE, Some(fixtures::id(&side, b"Draft")), 0, include_bytes!("golden/side.txt").as_slice()),
+        ("side-none", &side_none, SIDE, None, 0, include_bytes!("golden/side-none.txt").as_slice()),
         (
             "entries",
             &entries,
@@ -198,6 +203,10 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
     fixtures::button(&mut b, b"Old");
     b.close();
     let requests = fixtures::finish(b);
+    let side = fixtures::side(true);
+    let side_none = fixtures::side(false);
+    let draft = fixtures::id(&side, b"Draft");
+    let later = fixtures::id(&side, b"Later");
     let scroll = fixtures::scroll();
     let fields = fixtures::fields();
     let theme = fixtures::theme();
@@ -208,6 +217,33 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
     let small = SCROLL;
     let large = OVERSIZED;
     for (name, tree, initial, size, most, expected, cursor) in [
+        (
+            "side focus does not move the following body",
+            &side,
+            Focus { node: Some(draft), ..Focus::default() },
+            SIDE,
+            SIDE,
+            Focus { node: Some(draft), scroll: 20, rows: 12, follow: true, ended: 1, ..Focus::default() },
+            Some(Position { row: 3, column: 41 }),
+        ),
+        (
+            "clipped side focus is not brought into view",
+            &side,
+            Focus { node: Some(later), ..Focus::default() },
+            SIDE,
+            SIDE,
+            Focus { node: Some(later), scroll: 20, rows: 12, follow: true, ended: 1, ..Focus::default() },
+            None,
+        ),
+        (
+            "without a side the log wraps at the frame width",
+            &side_none,
+            Focus::default(),
+            SIDE,
+            SIDE,
+            Focus { scroll: 4, rows: 12, follow: true, ended: 1, ..Focus::default() },
+            None,
+        ),
         (
             "new request",
             &requests,
@@ -731,6 +767,58 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
     let box_narrow = Size { columns: 28, rows: 2 };
     let title_size = Size { columns: 40, rows: 2 };
     for (name, tree, size, expected, cells) in [
+        (
+            "first side in preorder alone is laid",
+            fixtures::side_regions(&[fixtures::SIDE, fixtures::SIDE]),
+            Size { columns: 20, rows: 3 },
+            "Body      │ First\n          │\n          │\n",
+            &[
+                (Position { row: 0, column: 10 }, Cell { glyph: '│', paint: border_paint }),
+                (Position { row: 2, column: 19 }, Cell { glyph: ' ', paint: fixtures::REGION_PAINT }),
+            ][..],
+        ),
+        (
+            "a region without a look stays in the body before the side",
+            fixtures::side_regions(&[skein_ui::Region { owner: fixtures::OWNER, number: 99 }, fixtures::SIDE]),
+            Size { columns: 20, rows: 3 },
+            "Body      │ Second\nFirst     │\n          │\n",
+            &[][..],
+        ),
+        (
+            "side width rounds down at odd columns",
+            fixtures::side_regions(&[fixtures::SIDE]),
+            Size { columns: 19, rows: 3 },
+            "Body      │ First\n          │\n          │\n",
+            &[(Position { row: 0, column: 10 }, Cell { glyph: '│', paint: border_paint })][..],
+        ),
+        (
+            "a zero-width side draws nothing and stays out of body measure",
+            fixtures::side_regions(&[fixtures::SIDE]),
+            Size { columns: 1, rows: 5 },
+            "B\no\nd\ny\n\n",
+            &[][..],
+        ),
+        (
+            "divider exhausts side width",
+            fixtures::side_regions(&[fixtures::SIDE]),
+            Size { columns: 2, rows: 5 },
+            "B│\no│\nd│\ny│\n │\n",
+            &[][..],
+        ),
+        (
+            "padding exhausts side width",
+            fixtures::side_regions(&[fixtures::SIDE]),
+            Size { columns: 6, rows: 3 },
+            "Bod│\ny  │\n   │\n",
+            &[(Position { row: 0, column: 4 }, Cell { glyph: ' ', paint: fixtures::REGION_PAINT })][..],
+        ),
+        (
+            "bottom and top leave no rows for the side",
+            fixtures::side(true),
+            Size { columns: 20, rows: 1 },
+            "Ready\n",
+            &[][..],
+        ),
         (
             "spaced options menu",
             fixtures::spaced_options(),
