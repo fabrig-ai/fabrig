@@ -1105,7 +1105,10 @@ class Plan:
                         token = cite.token if resolved == target and how != "suffix-ambiguous" else self.styled(
                             after, source, target, cite.token, qualify_owner, is_code)
                         start, _ = self.reference_span(cite)
-                        self.edit(start, start, qualify_owner + "'s ")
+                        pre = self.lines(path)[start.line - 1][:start.column - 1]
+                        named = re.search(r"(?i)\b" + qualify_owner + r"\s+$", pre)
+                        owner_start = start._replace(column=named.start() + 1) if named else start
+                        self.edit(owner_start, start, qualify_owner + "'s ")
                     elif cite.kind == "anchor" and target == source:
                         token = ""
                     elif target == cite.target and source == path and resolved == target and how != "suffix-ambiguous":
