@@ -6,15 +6,16 @@ Exit 0 on success, 2 on a map error or a git failure. Changes are staged, never 
 """
 import collections
 import fnmatch
+import html
 import importlib.util
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
 import unicodedata
+from urllib.parse import quote, unquote
 
 # Isolated Python does not put the script's directory on sys.path.
 _spec = importlib.util.spec_from_file_location("citations", Path(__file__).with_name("citations.py"))
@@ -106,7 +107,7 @@ def number_key(number):
 
 def slug(text):
     text = re.sub(r"^#{1,6}\s+|\s+#+\s*$", "", text.strip()).lower()
-    text = re.sub(r"<[^>]*>", "", text)
+    text = html.unescape(re.sub(r"<[^>]*>", "", text))
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
     return "".join(ch for ch in text if ch in "-_ " or unicodedata.category(ch)[0] in "LNM").replace(" ", "-")
 
@@ -140,11 +141,13 @@ class Plan:
 
     def read(self, path):
         if path not in self.texts:
-            self.texts[path] = (self.root / path).read_text(encoding="utf-8", errors="replace")
+            with (self.root / path).open(encoding="utf-8", errors="surrogateescape", newline="") as fh:
+                self.texts[path] = fh.read()
         return self.texts[path]
 
     def lines(self, path):
-        return self.read(path).splitlines(keepends=True)
+        parts = self.read(path).split("\n")
+        return [part + "\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
 
     def validate(self):
         seen, files, directories = set(), {}, []
@@ -197,6 +200,15 @@ class Plan:
             if dst not in self.tracked and (self.root / dst).exists():
                 self.errors.append(f"destination exists and is not moved away: {dst}")
             self.check_parents(dst)
+        directory_destinations = {}
+        for e in directories:
+            if e.dst in directory_destinations:
+                self.errors.append(f"two directory sources onto one destination: {directory_destinations[e.dst]}, {e.src} -> {e.dst}")
+            directory_destinations[e.dst] = e.src
+            existing = [p for p in self.tracked if p.startswith(e.dst)]
+            moved_away = existing and all(p in self.moves for p in existing)
+            if (self.root / e.dst).exists() and e.src != e.dst and not moved_away:
+                self.errors.append(f"destination exists and is not moved away: {e.dst}")
         self.final_tracked = set(occupied)
         for e, _ in self.sections:
             if e.dst not in self.final_tracked:
@@ -206,6 +218,10 @@ class Plan:
                     self.errors.append(f"destination exists and is not moved away: {e.dst}")
                 self.check_parents(e.dst)
             self.final_tracked.add(e.dst)
+        for dst in sorted(set(self.moves.values()) | {e.dst for e, _ in self.sections}):
+            for parent in Path(dst).parents:
+                if str(parent) in self.final_tracked:
+                    self.errors.append(f"destination parent is a file: {parent}")
         if self.errors:
             return
         self.rows = self.layout()
@@ -222,6 +238,8 @@ class Plan:
         for parent in Path(dst).parents:
             if str(parent) == ".":
                 break
+            if str(parent) in self.moves:
+                continue
             if (self.root / parent).is_symlink() or ((self.root / parent).exists() and not (self.root / parent).is_dir()):
                 self.errors.append(f"destination parent is not a directory: {parent}")
 
@@ -353,9 +371,11 @@ class Plan:
 
     def rewrite(self):
         before = c.Tree(str(self.root), self.tracked)
+        before.docs = [p for p, _ in c.walk(str(self.root), every_md=True) if p in self.tracked]
         after = c.Tree(str(self.root), self.final_tracked)
-        after.docs = sorted(p for p in self.final_tracked if p.endswith(".md"))
-        anchors = {}
+        after.docs = [self.moves.get(p, p) for p in before.docs]
+        after.docs += sorted(p for p in self.final_tracked if p.endswith(".md") and p not in after.docs)
+        old_slugs, anchors = {}, {}
         for path, rows in self.rows.items():
             for name, origin in slugs(rows).items():
                 anchors[origin] = (path, name)
@@ -369,17 +389,32 @@ class Plan:
                 source = self.text_destination(path, cite.start.line)
                 if cite.kind == "path":
                     self.consumed[path].append((cite.start, cite.end))
+                anchor_destination = None
+                if cite.link and "#" in cite.link.tail and cite.target and cite.target.endswith(".md"):
+                    if cite.target not in old_slugs:
+                        old_slugs[cite.target] = slugs([Row(cite.target, i, line)
+                                                       for i, line in enumerate(self.lines(cite.target), 1)])
+                    anchor_token = cite.link.tail.partition("#")[2]
+                    anchor = unquote(anchor_token)
+                    origin = old_slugs[cite.target].get(anchor)
+                    anchor_destination = anchors.get(origin)
+                affected = (source != path or cite.target in self.moves
+                            or any(self.target(t, n.value) != (t, n.value)
+                                   for n in cite.numbers for t in n.targets))
+                if anchor_destination:
+                    affected = affected or anchor_destination != (cite.target, anchor)
+                if cite.kind == "path" and cite.target:
+                    affected = affected or c.resolve(after, source, cite.token, cite.owner, is_code)[0] != cite.target
+                if not affected:
+                    continue
                 destinations, ambiguous = [], False
                 for n in cite.numbers:
-                    candidates = {self.target(t, n.value) for t in n.targets}
+                    targets = n.targets or ((c.doc_of_status(cite.target),) if cite.target else ())
+                    candidates = {self.target(t, n.value) for t in targets}
                     if len(candidates) > 1:
                         ambiguous = True
                     destinations.append(next(iter(candidates)) if len(candidates) == 1 else None)
                 if ambiguous:
-                    affected = source != path or any(self.target(t, n.value) != (t, n.value)
-                                                     for n in cite.numbers for t in n.targets)
-                    if not affected:
-                        continue
                     self.manual(cite, "ambiguous bare section" if cite.kind == "section-self" else "ambiguous section")
                     continue
                 files = {d[0] for d in destinations if d is not None}
@@ -405,17 +440,20 @@ class Plan:
                             self.edit(n.start, n.end, dest[1])
                 elif cite.target:
                     target = next(iter(files)) if files else self.moves.get(cite.target, cite.target)
+                    if files and cite.target.endswith(".status.md"):
+                        if target != self.moves.get(c.doc_of_status(cite.target), c.doc_of_status(cite.target)):
+                            self.manual(cite, "status citation follows labels to move")
+                            continue
+                        target = self.moves.get(cite.target, cite.target)
                     tail = cite.link.tail if cite.link else ""
-                    if cite.link and "#" in tail and cite.target.endswith(".md"):
-                        query, _, anchor = tail.partition("#")
-                        old_rows = [Row(cite.target, i, line) for i, line in enumerate(self.lines(cite.target), 1)]
-                        origin = slugs(old_rows).get(anchor)
-                        if origin in anchors:
-                            anchor_target, name = anchors[origin]
-                            if files and anchor_target != target:
-                                self.manual(cite, "split citation (anchor and sections)")
-                                continue
-                            target, tail = anchor_target, query + "#" + name
+                    if anchor_destination:
+                        anchor_target, name = anchor_destination
+                        if files and anchor_target != target:
+                            self.manual(cite, "split citation (anchor and sections)")
+                            continue
+                        if "%" in anchor_token:
+                            name = quote(name)
+                        target, tail = anchor_target, tail.partition("#")[0] + "#" + name
                     resolved, how = c.resolve(after, source, cite.token, cite.owner, is_code)
                     if cite.kind == "anchor" and target == source:
                         token = ""
@@ -460,7 +498,11 @@ class Plan:
                 glob = self.moves.get(glob, glob)
             parts = target.split()
             if len(parts) == 2 and re.fullmatch(c.NUM, parts[1]):
-                parts = list(self.target(parts[0], parts[1]))
+                destinations = [self.target(p, parts[1]) for p in parts[0].split("|")]
+                if len({n for _, n in destinations}) > 1:
+                    self.by_hand.add(f"{c.ALLOW}:{ln}: split allow target: {target}")
+                    continue
+                parts = ["|".join(p for p, _ in destinations), destinations[0][1]]
             else:
                 parts = [self.moves.get(p, p) for p in parts]
             target = " ".join(parts)
@@ -481,6 +523,8 @@ class Plan:
                     tokens[old[len(f'{home}/docs/design/'):]] = old
         if not tokens:
             return
+        tokens.update({"/" + old: old for old in self.moves})
+        tokens.update({"./" + token: old for token, old in list(tokens.items()) if not token.startswith("/")})
         pattern = re.compile(r"(?<![\w./-])(?:" + "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True)) + r")(?![\w/-])")
         for path in sorted(self.tracked):
             # Credential-shaped files are never opened by this advisory scan.
@@ -489,7 +533,7 @@ class Plan:
             raw = (self.root / path).read_bytes()
             if b"\0" in raw:
                 continue
-            for ln, line in enumerate(raw.decode("utf-8", errors="replace").splitlines(), 1):
+            for ln, line in enumerate(raw.decode("utf-8", errors="surrogateescape").splitlines(), 1):
                 edits = [(a, b) for (number, a, b) in self.edits.get(path, {}) if number == ln]
                 for m in pattern.finditer(line):
                     consumed = [(a.column - 1, b.column - 1) for a, b in self.consumed.get(path, [])
@@ -567,10 +611,10 @@ def apply(plan, contents):
                 locations[src] = dst
             for path, text in sorted(contents.items()):
                 mkdir((root / path).parent)
-                (root / path).write_text(text, encoding="utf-8", newline="")
+                (root / path).write_text(text, encoding="utf-8", errors="surrogateescape", newline="")
             changed = sorted(set(plan.moves.values()) | set(contents))
             if changed:
-                git("add", "-A", "--", *changed)
+                git("add", "-A", "--", *(f":(literal){p}" for p in changed))
         except (OSError, subprocess.CalledProcessError):
             # Gather before restoring, since destinations can also be sources.
             for i, (src, loc) in enumerate(locations.items()):
@@ -586,7 +630,7 @@ def apply(plan, contents):
             # Files rewritten after moving need their original text, too.
             for src in locations:
                 if src in plan.texts:
-                    (root / src).write_text(plan.texts[src], encoding="utf-8", newline="")
+                    (root / src).write_text(plan.texts[src], encoding="utf-8", errors="surrogateescape", newline="")
             for path, data in original.items():
                 (root / path).write_bytes(data)
             git("read-tree", "HEAD")
