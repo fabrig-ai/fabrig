@@ -408,6 +408,10 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         }
         temper_service::Note::BriefReadRefused { task, section, stage, error } => {
             let error = match error {
+                Some(skein_forge::api::Error::TooLarge(excess)) => format!(
+                    "TooLarge: past {}",
+                    String::from_utf8_lossy(&temper_engine_domain_forge::bound_words(excess))
+                ),
                 Some(error) => format!("{error:?}"),
                 None => "None".into(),
             };

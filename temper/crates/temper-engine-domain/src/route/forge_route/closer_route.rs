@@ -43,11 +43,6 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => contains,
         Some(Err(_)) => {
-            domain.forge.wait_change(
-                &super::super::environment_forge(env),
-                task,
-                Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))),
-            );
             submit(domain, task, ProcedureStep::new(StepEnd::Wait));
             return;
         }

@@ -1,6 +1,6 @@
 //! Forge-owned brief sections, gathered from current provider facts
 //! (jig's domain/connectors.md, section 9).
-use crate::brief_words::{self, BOUNDS, BUSY, MOVED, ROOM, UNNAMED};
+use crate::brief_words::{self, bounds, busy, moved, room, unnamed};
 use crate::{BriefCommit, BriefItem, BriefRead, BriefSource, Domain, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -133,7 +133,7 @@ pub fn hex(byte: u8) -> [u8; 2] {
 
 pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRead {
     if parts == 0 {
-        return BriefRead::Failed(BOUNDS);
+        return BriefRead::Failed(bounds());
     }
     let kept = words.bytes.as_slice().len().min(skein_lib::usize_of(bytes));
     let start = if words.tail { words.bytes.as_slice().len().saturating_sub(kept) } else { 0 };
@@ -194,20 +194,20 @@ pub(super) fn brief_pull(
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
     let Some(row) = domain.change_for_pull(item.repository, item.number) else {
-        return Some(BriefRead::Failed(UNNAMED));
+        return Some(BriefRead::Failed(unnamed()));
     };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(MOVED));
+        return Some(BriefRead::Failed(moved()));
     }
     if parts == 0 {
-        return Some(BriefRead::Failed(BOUNDS));
+        return Some(BriefRead::Failed(bounds()));
     }
     if domain.brief_fetches.len() == domain.brief_fetches.capacity() {
-        return Some(BriefRead::Failed(ROOM));
+        return Some(BriefRead::Failed(room()));
     }
     let repository = row.repository;
     let mode = pull_mode(&row.change.state, &row.change.clean);
-    let Some(words) = pull_identity(domain, row, head, bytes) else { return Some(BriefRead::Failed(UNNAMED)) };
+    let Some(words) = pull_identity(domain, row, head, bytes) else { return Some(BriefRead::Failed(unnamed())) };
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
         owner,
@@ -217,7 +217,7 @@ pub(super) fn brief_pull(
         parts,
         bytes,
         stage: BriefStage::Item,
-        read: skein_forge::api::Read::Item { number: item.number, after: 0 },
+        read: skein_forge::api::Read::Item { number: item.number, after: 0, since: skein_lib::Time::ZERO },
         refused: None,
         deadline: None,
         mode,
@@ -239,7 +239,7 @@ pub(super) fn brief_pull(
         event: skein_forge_client::Event::Read {
             owner: call,
             repository,
-            read: skein_forge::api::Read::Item { number: item.number, after: 0 },
+            read: skein_forge::api::Read::Item { number: item.number, after: 0, since: skein_lib::Time::ZERO },
         },
     });
     // The brief child waits for the connector's bounded answer.
@@ -251,6 +251,7 @@ pub(crate) fn brief_answer(
     domain: &mut Domain,
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+    rows: u32,
     out: &mut Queue<Request>,
 ) -> bool {
     if domain.document_fetches.contains_key(&owner) {
@@ -280,7 +281,7 @@ pub(crate) fn brief_answer(
             append(&mut fetch.words, b"\nTitle: ");
             append(&mut fetch.words, &item.title);
             if fetch.words.left > 0 {
-                crate::held::ready(domain, fetch.owner, BriefRead::Failed(UNNAMED), out);
+                crate::held::ready(domain, fetch.owner, BriefRead::Failed(unnamed()), out);
                 return true;
             }
             append(&mut fetch.words, b"\nBody: ");
@@ -351,25 +352,29 @@ pub(crate) fn brief_answer(
             }
             comparison(&mut fetch)
         }
-        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Files => {
+        Err(skein_forge::api::Error::TooLarge(excess)) if fetch.stage == BriefStage::Files => {
             refused(fetch.owner, fetch.stage, error, out);
             append(&mut fetch.words, b"[files omitted from page ");
             append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
-            append(&mut fetch.words, b": past the forge client's limit; read_pull_files from page ");
+            append(&mut fetch.words, b": past ");
+            append(&mut fetch.words, &crate::bound_words(excess));
+            append(&mut fetch.words, b"; read_pull_files from page ");
             let next_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
             append(&mut fetch.words, &decimal(u64::from(next_page)));
             append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
             comparison(&mut fetch)
         }
-        Ok(skein_forge::api::Answer::Compare { before, after, files, commits, .. })
+        Ok(skein_forge::api::Answer::Compare { before, after, files, ahead, changed, .. })
             if fetch.stage == BriefStage::Compare && Some((before, after)) == fetch.comparison =>
         {
-            comparison_words(&mut fetch, files, commits);
+            comparison_words(&mut fetch, files, ahead, changed, rows);
             None
         }
-        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Compare => {
+        Err(skein_forge::api::Error::TooLarge(excess)) if fetch.stage == BriefStage::Compare => {
             refused(fetch.owner, fetch.stage, error, out);
-            append(&mut fetch.words, b"[comparison omitted: forge client limit exceeded]\n");
+            append(&mut fetch.words, b"[comparison omitted: past ");
+            append(&mut fetch.words, &crate::bound_words(excess));
+            append(&mut fetch.words, b"]\n");
             None
         }
         Ok(skein_forge::api::Answer::Reviews { reviews, .. }) if fetch.stage == BriefStage::Reviews => {
@@ -452,7 +457,7 @@ pub(crate) fn brief_answer(
                 BriefStage::Job => unreachable!("job failures keep their check's marker"),
             };
             append(&mut fetch.words, marker);
-            append(&mut fetch.words, unread.words);
+            append(&mut fetch.words, &unread.words);
             append(&mut fetch.words, b"]\n");
             None
         }
@@ -540,44 +545,52 @@ fn comparison(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     }
 }
 
-/// Comparison contents follow the pinned pull identity and gathered diff.
-fn comparison_words(
-    fetch: &mut BriefFetch,
-    files: Box<[skein_forge::api::File]>,
-    commits: Box<[skein_forge::api::Commit]>,
-) {
-    match fetch.mode {
-        PullMode::Conflict(_) | PullMode::Semantic(_) => {
-            append(&mut fetch.words, b"What landed in the base:\n");
-            for commit in commits {
-                append(&mut fetch.words, &crate::commit_text(&commit));
-                append(&mut fetch.words, b"\n");
-            }
-            for file in files {
-                append(&mut fetch.words, b"Base file: ");
-                append(&mut fetch.words, &file.path);
-                append(&mut fetch.words, b"\n");
-                if match fetch.mode {
-                    PullMode::Conflict(_) => true,
-                    PullMode::Review | PullMode::Semantic(_) | PullMode::Other => false,
-                } {
-                    for changed in &fetch.changed {
-                        if changed == &file.path {
-                            append(&mut fetch.words, b"Conflicting file: ");
-                            append(&mut fetch.words, &file.path);
-                            append(&mut fetch.words, b"\n");
-                        }
-                    }
+/// Comparison names follow the pinned pull identity and gathered diff (forge.md, 8.4).
+fn comparison_words(fetch: &mut BriefFetch, files: Box<[Box<[u8]>]>, ahead: u64, changed: u64, rows: u32) {
+    let base = match fetch.mode {
+        PullMode::Conflict(_) | PullMode::Semantic(_) => true,
+        PullMode::Review | PullMode::Other => false,
+    };
+    if base {
+        append(&mut fetch.words, b"What landed in the base: ");
+        append(&mut fetch.words, &decimal(ahead));
+        append(&mut fetch.words, b" commits\n");
+    } else {
+        append(&mut fetch.words, b"Against base:\n");
+    }
+    for path in &files {
+        if base {
+            append(&mut fetch.words, b"Base file: ");
+        }
+        append(&mut fetch.words, path);
+        append(&mut fetch.words, b"\n");
+        if let PullMode::Conflict(_) = fetch.mode {
+            for own in &fetch.changed {
+                if own == path {
+                    append(&mut fetch.words, b"Conflicting file: ");
+                    append(&mut fetch.words, path);
+                    append(&mut fetch.words, b"\n");
                 }
             }
         }
-        PullMode::Review | PullMode::Other => {
-            append(&mut fetch.words, b"Against base:\n");
-            for file in files {
-                append(&mut fetch.words, &file.path);
-                append(&mut fetch.words, b"\n");
-            }
-        }
+    }
+    let left = changed.saturating_sub(skein_lib::len_u64(files.len()));
+    if left > 0 {
+        append(&mut fetch.words, b"[");
+        append(&mut fetch.words, &decimal(left));
+        append(
+            &mut fetch.words,
+            if base {
+                b" more base files not listed: past forge.client.rows ("
+            } else {
+                b" more files not listed: past forge.client.rows ("
+            },
+        );
+        append(&mut fetch.words, &decimal(u64::from(rows)));
+        append(
+            &mut fetch.words,
+            if base { b"); read them in your checkout]\n" } else { b"); read_pull_files lists them]\n" },
+        );
     }
 }
 
@@ -595,7 +608,7 @@ pub(crate) fn gather(
     out: &mut Queue<Request>,
 ) {
     if bytes > limit {
-        crate::held::ready(domain, owner, BriefRead::Failed(BOUNDS), out);
+        crate::held::ready(domain, owner, BriefRead::Failed(bounds()), out);
         return;
     }
     let read = match source {
@@ -605,8 +618,8 @@ pub(crate) fn gather(
         }
         BriefSource::Home { repository } => Some(match domain.repository(repository) {
             Some(home) if parts > 0 => home_access_reason(&home.owner, &home.name, bytes),
-            Some(_) => BriefRead::Failed(BOUNDS),
-            None => BriefRead::Failed(UNNAMED),
+            Some(_) => BriefRead::Failed(bounds()),
+            None => BriefRead::Failed(unnamed()),
         }),
         BriefSource::Ci { item, head } => brief_ci(domain, owner, item, head, parts, bytes, max_job_bytes, out),
         BriefSource::Reviews { item, head } => brief_reviews(domain, owner, item, head, None, parts, bytes, out),
@@ -696,16 +709,16 @@ pub(super) fn brief_reviews(
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
     let Some(row) = domain.change_for_pull(item.repository, item.number) else {
-        return Some(BriefRead::Failed(UNNAMED));
+        return Some(BriefRead::Failed(unnamed()));
     };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(MOVED));
+        return Some(BriefRead::Failed(moved()));
     }
     if parts == 0 {
-        return Some(BriefRead::Failed(BOUNDS));
+        return Some(BriefRead::Failed(bounds()));
     }
     if domain.brief_fetches.len() == domain.brief_fetches.capacity() {
-        return Some(BriefRead::Failed(ROOM));
+        return Some(BriefRead::Failed(room()));
     }
     let repository = row.repository;
     let mut words = BriefWords::with_capacity(bytes, false);
@@ -768,17 +781,17 @@ pub(super) fn brief_ci(
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
     let Some(row) = domain.change_for_pull(item.repository, item.number) else {
-        return Some(BriefRead::Failed(UNNAMED));
+        return Some(BriefRead::Failed(unnamed()));
     };
-    let change::State::Repairing { .. } = row.change.state else { return Some(BriefRead::Failed(MOVED)) };
+    let change::State::Repairing { .. } = row.change.state else { return Some(BriefRead::Failed(moved())) };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(MOVED));
+        return Some(BriefRead::Failed(moved()));
     }
     if parts == 0 {
-        return Some(BriefRead::Failed(BOUNDS));
+        return Some(BriefRead::Failed(bounds()));
     }
     if domain.brief_fetches.len() == domain.brief_fetches.capacity() {
-        return Some(BriefRead::Failed(ROOM));
+        return Some(BriefRead::Failed(room()));
     }
     let repository = row.repository;
     let words = BriefWords::with_capacity(bytes, false);
@@ -929,7 +942,7 @@ pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<
         if let Some(ci) = fetch.ci {
             crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
         } else {
-            crate::held::ready(domain, fetch.owner, BriefRead::Failed(BUSY), out);
+            crate::held::ready(domain, fetch.owner, BriefRead::Failed(busy()), out);
         }
     }
 }

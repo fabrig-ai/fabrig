@@ -268,7 +268,13 @@ fn a_queued_merge_restored_is_read_at_once_and_never_sent() {
 }
 #[test]
 fn a_queued_merge_whose_look_fails_backs_off_and_never_fails() {
-    for error in [Error::Timeout, Error::InvalidAnswer, Error::TooLarge, Error::Unavailable, Error::Forbidden] {
+    for error in [
+        Error::Timeout,
+        Error::InvalidAnswer,
+        Error::TooLarge(api::Excess::unnamed()),
+        Error::Unavailable,
+        Error::Forbidden,
+    ] {
         let mut h = Harness::new();
         let mut look = queued(&mut h);
         for _ in 0..=h.env.limits.write_attempts {
@@ -329,4 +335,47 @@ fn a_restored_queued_merge_whose_first_look_fails_still_lets_the_outbox_finish()
     assert_eq!(h.outbox_done, 1);
     assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9 }));
     assert_eq!(h.writes, 1);
+}
+
+#[test]
+fn a_queued_merge_is_looked_at_after_the_fallback_while_its_repository_hears() {
+    use super::fixtures::keep::{Harness, branch, watch};
+    use super::{LIMITS, at};
+    use crate::{Effect, Entry, Limits};
+    const FALLBACK: Duration = Duration::from_secs(120);
+    let mut h =
+        Harness::with_limits(Limits { fallback: FALLBACK, slow: Duration::from_secs(1000), rate: 100, ..LIMITS });
+    h.keep(Box::new([watch(branch(), false)]));
+    let read = h.one();
+    h.answer(read, Answer::Commit([1; 32]));
+    h.event(Event::Make {
+        entry: Entry {
+            effect: Effect {
+                write: Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style },
+                condition: Condition::Merge { base: Box::from(&b"main"[..]) },
+            },
+            ..super::fixtures::entry(Write::Close { number: 9 })
+        },
+    });
+    h.clock();
+    let check = h.one();
+    h.answer(check, Answer::Pull(pull([1; 32])));
+    let sent = h.one();
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
+    h.answer(sent, Answer::Queued);
+    assert_eq!(h.domain.next_deadline(), Some(at(220)));
+    h.fire(220);
+    let look = h.one();
+    assert_eq!(look.op, Op::Read(Read::Pull { number: 9 }));
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
+    h.answer(look, still_queued_answer());
+    assert_eq!(h.domain.next_deadline(), Some(at(340)));
+    // A hint naming the entry still reads at hinted, including in flight.
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
+    assert_eq!(h.domain.next_deadline(), Some(at(221)));
+    h.fire(221);
+    let look = h.one();
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
+    h.answer(look, still_queued_answer());
+    assert_eq!(h.domain.next_deadline(), Some(at(222)));
 }

@@ -360,8 +360,9 @@ fn idle_cost_is_independent_of_ten_times_the_history() {
     let mut empty = World::new(Settings::calm(1));
     let mut old = World::new(Settings { history: 20, ..Settings::calm(1) });
     let watch = Watch { resource: Resource { repository: REPO, what: What::Repository }, participating: false };
-    empty.keep(Box::new([watch.clone()]));
-    old.keep(Box::new([watch]));
+    let item = Watch { resource: Resource { repository: REPO, what: What::Issue(1) }, participating: false };
+    empty.keep(Box::new([watch.clone(), item.clone()]));
+    old.keep(Box::new([watch, item]));
     empty.run_for(20);
     old.run_for(20);
     assert_eq!(empty.stats().calls, old.stats().calls);

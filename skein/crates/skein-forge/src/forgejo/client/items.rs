@@ -83,9 +83,13 @@ fn target(request: &Request, out: &mut Target) {
             issue_query(out, *state, *kind, *since, *sort, *page);
         }
         Request::Issue { at, number } => out.numbered(at, b"/issues/", *number),
-        Request::Comments { at, number } => {
+        Request::Comments { at, number, since } => {
             out.numbered(at, b"/issues/", *number);
             out.put(b"/comments");
+            if let Some(since) = since {
+                out.put(b"?since=");
+                out.segment(&time::write(*since));
+            }
         }
         Request::Pull { at, number } => out.numbered(at, b"/pulls/", *number),
         Request::PullFor { at, base, head } => pull_for(out, at, base, head),

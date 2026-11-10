@@ -45,8 +45,8 @@ impl Domain {
     /// Root configuration comes from its durable deployment identity and the
     /// authenticated writer account used for each forge.
     pub fn configured(l: &Limits, seed: u64, config: crate::Config) -> Result<Domain, api::Error> {
-        if !crate::identity::valid(&config, l) {
-            return Err(api::Error::TooLarge);
+        if let Err(excess) = crate::identity::check(&config, l) {
+            return Err(api::Error::TooLarge(excess));
         }
         Ok(Self::construct(l, seed, Some(config)))
     }
@@ -91,6 +91,18 @@ impl Domain {
             facts: Queue::with_capacity(l.facts),
             lost: 0,
         }
+    }
+    /// The owner's next poll, stretched while the repository hears
+    /// (forge-client.md, 4.1). Reads state and changes none.
+    #[must_use]
+    pub fn poll_at(
+        &self,
+        limits: &Limits,
+        now: Time,
+        repository: api::Repository,
+        interval: skein_lib::Duration,
+    ) -> Time {
+        keep::poll_at(&self.keep, limits, now, repository, interval)
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -221,8 +233,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             let op = api::Op::Read(read);
             let refusal = if empty_prefix {
                 Some(api::Error::Empty)
-            } else if !bounds::op(&op, &env.limits) {
-                Some(api::Error::TooLarge)
+            } else if let Err(excess) = bounds::op(&op, &env.limits) {
+                Some(api::Error::TooLarge(excess))
             } else if d.calls.is_full() || (d.keep.is_ready() && calls::background_owed(&d.calls, env)) {
                 Some(api::Error::Busy)
             } else {

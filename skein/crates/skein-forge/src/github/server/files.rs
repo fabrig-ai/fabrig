@@ -67,6 +67,8 @@ fn compare_json(
     json.object_start();
     json.key(b"total_commits");
     json.unsigned(row.total_commits);
+    json.key(b"ahead_by");
+    json.unsigned(row.ahead_by);
     json.key(b"behind_by");
     json.unsigned(row.behind_by);
     if let Some(base) = row.merge_base {

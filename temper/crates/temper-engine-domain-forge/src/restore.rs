@@ -96,7 +96,8 @@ pub(super) fn named_payload(l: &Limits, answer: &CallPayload) -> Result<(), Rest
     }
     Ok(())
 }
-// The largest list in an answer, including lists nested within returned rows.
+// The largest row-bounded list, including nested lists. Branch names are
+// bounded by bytes alone (skein/docs/design/forge.md, 3.7).
 fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
     use skein_forge::api::Answer;
     match answer {
@@ -128,12 +129,12 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
         Answer::Reviews { reviews, .. } => count(reviews.len()),
         Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => count(statuses.len()),
         Answer::Remarks { remarks, .. } => count(remarks.len()),
-        Answer::Branches(branches) => count(branches.len()),
         Answer::PullFiles { files, .. } => count(files.len()),
-        Answer::Compare { files, commits, .. } => count(files.len()).max(count(commits.len())),
+        Answer::Compare { files, .. } => count(files.len()),
         Answer::Protection(Some(value)) => count(value.contexts.len()),
         Answer::Collaborators { collaborators, .. } => count(collaborators.len()),
-        Answer::Protection(None)
+        Answer::Branches(_)
+        | Answer::Protection(None)
         | Answer::Located { .. }
         | Answer::Commit(_)
         | Answer::Job { .. }

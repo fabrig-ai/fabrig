@@ -285,7 +285,24 @@ def nextest(packages, root, env, expression=None, build=False):
         return code, errors
 
 
-def inherited(base_id, git_dir, data, lints, tests, errors, root, env):
+def refresh(root, paths):
+    """Make surviving changed inputs newer than shared artifacts (section 5)."""
+    stamp = time.time_ns()
+    for name in paths:
+        path = root / name
+        if path.is_file() and path.resolve().is_relative_to(root):
+            os.utime(path, ns=(path.stat().st_atime_ns, stamp))
+
+
+def inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths):
+    """Restore head freshness after any base judgment (section 5)."""
+    try:
+        return judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths)
+    finally:
+        refresh(root, paths)
+
+
+def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
     """Judge only failures seen at head, in a kept detached worktree (section 5)."""
     base_env = env.copy()
     base_env.pop('GIT_INDEX_FILE', None)
@@ -301,6 +318,7 @@ def inherited(base_id, git_dir, data, lints, tests, errors, root, env):
         code, log = run(['git'] + arguments, cwd, base_env)
         if code:
             return 'base could not judge: ' + log
+    refresh(worktree, paths)
     try:
         base_data = metadata(worktree, base_env)
     except (OSError, ValueError, RuntimeError) as error:
@@ -436,7 +454,7 @@ def main():
                     _, found = timed('tests', lambda: nextest(tests, root, env), pending)
                     errors += found
                 if any(e['key'] is not None or e['name'] == 'build' for e in errors):
-                    why = inherited(base_id, git_dir, data, lints, tests, errors, root, env)
+                    why = inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths)
                 for name, seconds in pending.items():
                     prefixes = ('clippy ', 'check clippy') if name == 'clippy' else ('test ', 'build', 'check nextest')
                     found = [e for e in errors if e['name'].startswith(prefixes)]

@@ -23,15 +23,16 @@ fn check_update(h: &mut writing::Harness, pull: api::Pull) {
 fn look_update(h: &mut writing::Harness, head: [u8; 32], found: bool) {
     check_update(h, writing::pull(head));
     let compare = h.one();
-    assert_eq!(compare.op, Op::Read(Read::Compare { before: head, after: [2; 32] }));
+    assert_eq!(compare.op, Op::Read(Read::Commits { before: head, after: [2; 32], page: 1 }));
     h.answer(
         compare,
-        Ok(Answer::Compare {
-            before: head,
-            after: [2; 32],
-            contains_before: false,
-            files: Box::new([]),
-            commits: if found { Box::new([]) } else { Box::new([[2; 32]]) },
+        Ok(Answer::Commits {
+            commits: if found {
+                Box::new([])
+            } else {
+                Box::new([api::CommitMessage { id: [2; 32], parents: Box::new([]), message: Box::new([]) }])
+            },
+            more: false,
         }),
     );
 }
@@ -189,13 +190,16 @@ fn restart_reads_before_settling_the_outbox() {
     assert_eq!(listing.op, Op::Read(Read::Items { since: at(fixture::START_AT), page: 1, kind: None }));
     h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(fixture::START_AT) });
     let object = h.one();
-    assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: u64::MAX }));
+    assert_eq!(
+        object.op,
+        Op::Read(Read::Item { number: 9, after: u64::MAX, since: skein_lib::Time::from_nanos(u64::MAX) })
+    );
     h.answer(object, fixture::empty_item());
     assert_eq!(h.fresh_done, 1);
     assert!(h.send().is_none());
     h.event(Event::SettleOutbox);
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(find, fixture::empty_item());
     assert_eq!(h.outbox_done, 1);
     assert!(h.send().is_none());
@@ -387,10 +391,18 @@ fn keep_refuses_invalid_participation() {
 fn keep_refuses_invalid_branch_names() {
     for branch in [Box::from(&b""[..]), fixture::repeated(b'a', fixture::EXCESS_OP_BYTES)] {
         let mut h = fixture::ready();
+        let length = skein_lib::len_u64(branch.len());
         let watch = kept::watch(Resource { repository: REPO, what: What::Branch(branch) }, false);
         assert_eq!(
             h.step(Event::Keep { owner: Token::new(1), watches: Box::new([watch]) }).as_ref(),
-            &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge) }]
+            &[Request::Kept {
+                owner: Token::new(1),
+                result: Err(Error::TooLarge(if length == 0 {
+                    api::Excess::unnamed()
+                } else {
+                    api::Excess::exact(api::Bound::OpBytes, 256, length)
+                }))
+            }]
         );
         assert!(h.domain.cached(&kept::branch()).is_none());
         assert!(h.send().is_none());
@@ -431,8 +443,10 @@ fn oversized_hints_read_nothing() {
         ),
     ] {
         let mut h = kept::Harness::new();
-        h.keep(Box::new([kept::watch(resource, false)]));
-        h.clock();
+        h.keep(Box::new([kept::watch(resource.clone(), false)]));
+        if resource != kept::branch() {
+            h.clock();
+        }
         let sent = h.one();
         h.answer(sent, answer);
         while h.domain.pop_fact().is_some() {}
@@ -540,7 +554,7 @@ fn rate_refused_writes_save_a_new_attempt() {
     );
     h.answer(resent, Err(Error::Timeout));
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     assert_eq!(
         h.store.get(&1).expect("find keeps attempt").attempt.expect("attempt").deadline,
         at(fixture::RETRY_DEADLINE)
@@ -579,7 +593,7 @@ fn echo_landing_rearms_the_resting_resource() {
         assert_eq!(h.domain.next_deadline(), Some(at(fixture::HINT_AT)), "{name}");
         h.fire(fixture::HINT_AT);
         let object = h.one();
-        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0 }), "{name}");
+        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0, since: kept::summary().updated }), "{name}");
         let mut own = kept::comment(9);
         own.author = 1;
         h.answer(
@@ -667,8 +681,8 @@ fn comment_and_review_finds_require_believed_original_keys() {
 #[test]
 fn oversized_and_lost_write_answers_are_uncertain() {
     let branches = Answer::Branches(Box::new([Box::from(&b"kit"[..])]));
-    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }));
-    assert!(!crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }));
+    crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }).expect("fits");
+    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }).is_err());
     for (name, answer, error) in
         [("oversized", Ok(branches), Error::InvalidAnswer), ("lost", Err(Error::Timeout), Error::Timeout)]
     {
@@ -681,7 +695,7 @@ fn oversized_and_lost_write_answers_are_uncertain() {
         fixture::failed_fact(&mut h, error);
         assert_eq!(h.store.get(&1).expect("uncertain entry saved").failures, 1, "{name}");
         assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)], "{name}");
-        assert_eq!(h.one().op, Op::Read(Read::Item { number: 9, after: 0 }), "{name}");
+        assert_eq!(h.one().op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }), "{name}");
         assert_eq!(h.writes, 1, "{name}");
     }
 }

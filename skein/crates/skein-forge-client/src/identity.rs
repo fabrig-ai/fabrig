@@ -51,32 +51,46 @@ pub struct Config {
 }
 
 pub(crate) fn valid(config: &Config, l: &Limits) -> bool {
-    if config.namespace.is_empty()
-        || config.namespace.len() > usize::from(u16::MAX)
-        || config.writers.len() > usize_of(l.repositories)
-    {
-        return false;
+    check(config, l).is_ok()
+}
+
+pub(crate) fn check(config: &Config, l: &Limits) -> Result<(), api::Excess> {
+    if config.namespace.is_empty() {
+        return Err(api::Excess::unnamed());
     }
-    let bytes = config.writers.len().checked_mul(crate::measure::WRITER_BYTES);
-    let bytes = match bytes {
+    if config.namespace.len() > usize::from(u16::MAX) {
+        return Err(api::Excess::exact(
+            api::Bound::Forge,
+            u64::from(u16::MAX),
+            skein_lib::len_u64(config.namespace.len()),
+        ));
+    }
+    if config.writers.len() > usize_of(l.repositories) {
+        return Err(api::Excess::exact(
+            api::Bound::Forge,
+            u64::from(l.repositories),
+            skein_lib::len_u64(config.writers.len()),
+        ));
+    }
+    let bytes = match config.writers.len().checked_mul(crate::measure::WRITER_BYTES) {
         Some(bytes) => bytes.checked_add(config.namespace.len()),
         None => None,
     };
-    match bytes {
-        Some(bytes) if bytes <= usize_of(l.op_bytes) => {}
-        Some(_) | None => return false,
+    let bytes = bytes.ok_or(api::Excess::unnamed())?;
+    if bytes > usize_of(l.op_bytes) {
+        return Err(api::Excess::exact(api::Bound::OpBytes, u64::from(l.op_bytes), skein_lib::len_u64(bytes)));
     }
     for (index, writer) in config.writers.iter().enumerate() {
         if writer.author == 0 {
-            return false;
+            return Err(api::Excess::unnamed());
         }
         for previous in config.writers.get(..index).expect("enumerated writer index") {
             if previous.forge == writer.forge {
-                return false;
+                return Err(api::Excess::unnamed());
             }
         }
     }
-    true
+    Ok(())
 }
 
 pub(crate) fn writer(d: &Domain, repo: api::Repository, author: u64) -> bool {

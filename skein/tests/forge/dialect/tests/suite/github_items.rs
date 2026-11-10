@@ -75,7 +75,14 @@ fn issue_request() -> Request {
     Request::Issue { owner: Box::from(*b"acme"), name: Box::from(*b"widgets"), number: 3 }
 }
 fn comments_request(page: u32, per_page: u32) -> Request {
-    Request::Comments { owner: Box::from(*b"acme"), name: Box::from(*b"widgets"), number: 3, page, per_page }
+    Request::Comments {
+        owner: Box::from(*b"acme"),
+        name: Box::from(*b"widgets"),
+        number: 3,
+        page,
+        per_page,
+        since: None,
+    }
 }
 struct Call {
     plan: Plan,
@@ -125,7 +132,7 @@ fn started(read: api::Read, bounds: Bounds) -> Call {
     call
 }
 fn comments_started(bounds: Bounds, after: u64) -> Call {
-    let mut call = started(api::Read::Item { number: 3, after }, bounds);
+    let mut call = started(api::Read::Item { number: 3, after, since: Time::ZERO }, bounds);
     let size = bounds.page_size.min(bounds.rows).min(bounds.answer_bytes / 96).min(pin::PAGE_CAP);
     assert_eq!(call.done(Document::Issue(issue(3))), Ok(Some(Step::send(comments_request(1, size)))));
     call.head(false);
@@ -182,13 +189,18 @@ fn github_items_first_request() {
         Bounds { rows: 0, ..default_bounds() },
         Bounds { answer_bytes: 127, ..default_bounds() },
     ] {
-        assert_eq!(Call::new(items(None), bounds, false).begin(), Err(api::Error::TooLarge));
+        let Err(api::Error::TooLarge(_)) = Call::new(items(None), bounds, false).begin() else {
+            panic!("expected a typed size refusal");
+        };
     }
-    assert_eq!(
-        Call::new(api::Read::Item { number: 3, after: 0 }, Bounds { answer_bytes: 95, ..default_bounds() }, false)
-            .begin(),
-        Err(api::Error::TooLarge)
-    );
+    let Err(api::Error::TooLarge(_)) = Call::new(
+        api::Read::Item { number: 3, after: 0, since: skein_lib::Time::ZERO },
+        Bounds { answer_bytes: 95, ..default_bounds() },
+        false,
+    )
+    .begin() else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn github_items_answer() {
@@ -240,7 +252,9 @@ fn github_items_kind_skips_count_toward_the_page() {
         assert_eq!(call.row(Row::Issue(pull)), Ok(None));
         let mut third = issue(3);
         third.pull = third_pull;
-        assert_eq!(call.row(Row::Issue(third)), failed(api::Error::TooLarge));
+        let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.row(Row::Issue(third)) else {
+            panic!("expected a typed size refusal");
+        };
     }
     let mut call = started(items(Some(api::Kind::Pull)), default_bounds());
     call.row(Row::Issue(issue(1))).unwrap();
@@ -280,7 +294,9 @@ fn github_items_bounds() {
     for bound in [Bounds { rows: 1, ..default_bounds() }, Bounds { answer_bytes: 269, ..default_bounds() }] {
         let mut call = started(items(None), bound);
         assert_eq!(call.row(Row::Issue(issue(1))), Ok(None));
-        assert_eq!(call.row(Row::Issue(issue(2))), failed(api::Error::TooLarge));
+        let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.row(Row::Issue(issue(2))) else {
+            panic!("expected a typed size refusal");
+        };
     }
     let mut call = started(items(Some(api::Kind::Pull)), Bounds { answer_bytes: 135, ..default_bounds() });
     let mut row = issue(1);
@@ -304,7 +320,7 @@ fn github_items_without_date_is_invalid() {
 }
 #[test]
 fn github_item_reads_issue_then_comments() {
-    let mut call = Call::new(api::Read::Item { number: 3, after: 2 }, default_bounds(), true);
+    let mut call = Call::new(api::Read::Item { number: 3, after: 2, since: Time::ZERO }, default_bounds(), true);
     assert_eq!(call.begin(), Ok(Step::send(issue_request())));
     call.head(false);
     assert_eq!(call.done(Document::Issue(issue(3))), Ok(Some(Step::send(comments_request(1, 8)))));
@@ -367,9 +383,9 @@ fn github_item_reads_issue_then_comments() {
     assert_eq!(comments[3].revision, u64::from_be_bytes(skein_lib::sha256::digest(&long)[..8].try_into().unwrap()));
     assert!(comments[3].body.is_empty());
     assert_eq!(comments[3].key, None);
-    let mut call = started(api::Read::Item { number: 3, after: 0 }, default_bounds());
+    let mut call = started(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, default_bounds());
     assert_eq!(call.done(Document::Issue(issue(4))), failed(api::Error::InvalidAnswer));
-    let mut call = Call::new(api::Read::Item { number: 3, after: 0 }, default_bounds(), false);
+    let mut call = Call::new(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, default_bounds(), false);
     assert_eq!(call.begin(), Ok(Step::send(Request::Repository { id: 7 })));
     call.head(false);
     assert_eq!(call.done(Document::Repository(repository())), Ok(Some(Step::send(issue_request()))));
@@ -379,7 +395,7 @@ fn github_item_pages_by_link() {
     let bounds = Bounds { page_size: 2, ..default_bounds() };
     // Finish a skipped first page with a next link.
     let mut call = {
-        let mut c = started(api::Read::Item { number: 3, after: 2 }, bounds);
+        let mut c = started(api::Read::Item { number: 3, after: 2, since: Time::ZERO }, bounds);
         c.done(Document::Issue(issue(3))).unwrap();
         c.head(true);
         c
@@ -401,7 +417,7 @@ fn github_item_answer_full_sets_more() {
         Bounds { rows: 2, page_size: 2, ..default_bounds() },
         Bounds { answer_bytes: 200, page_size: 1, ..default_bounds() },
     ] {
-        let mut call = started(api::Read::Item { number: 3, after: 0 }, bounds);
+        let mut call = started(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, bounds);
         call.done(Document::Issue(issue(3))).unwrap();
         call.head(true);
         let size = bounds.page_size.min(bounds.rows).min(bounds.answer_bytes / 96);
@@ -419,7 +435,7 @@ fn github_item_answer_full_sets_more() {
     }
     // The byte cut ignores the later rows within this page and never follows Link.
     let bounds = Bounds { page_size: 3, answer_bytes: 288, ..default_bounds() };
-    let mut call = started(api::Read::Item { number: 3, after: 0 }, bounds);
+    let mut call = started(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, bounds);
     call.done(Document::Issue(issue(3))).unwrap();
     call.head(true);
     for id in 1..=3 {
@@ -435,16 +451,23 @@ fn github_item_answer_full_sets_more() {
     let bounds = Bounds { rows: 1, ..default_bounds() };
     let mut call = comments_started(bounds, 0);
     call.row(Row::Comment(comment(1))).unwrap();
-    assert_eq!(call.row(Row::Comment(comment(2))), failed(api::Error::TooLarge));
-    let mut call = started(api::Read::Item { number: 3, after: 0 }, Bounds { answer_bytes: 96, ..default_bounds() });
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.row(Row::Comment(comment(2))) else {
+        panic!("expected a typed size refusal");
+    };
+    let mut call = started(
+        api::Read::Item { number: 3, after: 0, since: skein_lib::Time::ZERO },
+        Bounds { answer_bytes: 96, ..default_bounds() },
+    );
     let mut row = issue(3);
     row.body = Description::Kept(Box::from([b'x'; 90]));
-    assert_eq!(call.done(Document::Issue(row)), failed(api::Error::TooLarge));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.done(Document::Issue(row)) else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn github_item_failures() {
     for at_comments in [false, true] {
-        let mut call = Call::new(api::Read::Item { number: 3, after: 0 }, default_bounds(), true);
+        let mut call = Call::new(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, default_bounds(), true);
         call.begin().unwrap();
         if at_comments {
             call.head(false);
@@ -453,7 +476,7 @@ fn github_item_failures() {
         assert_eq!(call.heard(Heard::Head { status: 404, head: Head::new() }), failed(api::Error::Missing));
         assert_eq!(call.tables.repository(KEY), None);
     }
-    let mut call = Call::new(api::Read::Item { number: 3, after: 0 }, default_bounds(), true);
+    let mut call = Call::new(api::Read::Item { number: 3, after: 0, since: Time::ZERO }, default_bounds(), true);
     call.begin().unwrap();
     let mut head = Head::new();
     head.date = Some(Wall::from_nanos(1_000_000_000));
@@ -466,7 +489,10 @@ fn github_item_failures() {
     }
     for (body, error) in [
         (Body::Malformed(Malformed::Shape { field: b"id" }), api::Error::InvalidAnswer),
-        (Body::Malformed(Malformed::Bound { field: b"labels" }), api::Error::TooLarge),
+        (
+            Body::Malformed(Malformed::Bound { field: b"labels" }),
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
+        ),
         (Body::Empty, api::Error::InvalidAnswer),
         (Body::Raw { bytes: Box::from([]), more: false }, api::Error::InvalidAnswer),
         (Body::Document(Document::Issue(issue(3))), api::Error::InvalidAnswer),

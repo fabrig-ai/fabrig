@@ -333,35 +333,18 @@ fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
     settle_read(&mut world, to, answer);
     assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
     world.until(Until::Ready);
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: b"read-ends".as_slice().into(), commit: 1 }));
-    let mut heads = vec![head];
-    for bytes in [b'y', b'z'] {
-        let next = fake::advance(
-            &mut world.fake,
-            &world.fake_env,
-            b"org/repo",
-            b"read-ends",
-            b"generated",
-            &vec![bytes; GENERATED_BYTES],
-            1,
-        )
-        .expect("distinct endpoint");
-        heads.push(translate::commit(next));
-    }
-    for (index, after) in heads.iter().enumerate() {
-        for repeat in 0..2 {
-            let after = String::from_utf8(engine::commit_text(after).to_vec()).expect("after");
-            let before = String::from_utf8(engine::commit_text(&translate::commit(1)).to_vec()).expect("before");
-            let input = format!(r#"{{"before":"{before}","after":"{after}"}}"#);
-            let number = 20 + u32::try_from(index).expect("three pairs") * 2 + repeat;
-            let (to, answer) = render_read(&mut world, &goal, number, b"read_compare", input.as_bytes());
-            let measured = answer_size(&answer) + b"read_compare".len();
-            let errors = world.call_errors.len();
-            settle_read(&mut world, to, answer);
-            assert_eq!(world.call_errors.len(), errors + 1, "compare {number}, measured {measured}");
-            assert_render_refusal(&mut world, &goal, b"read_compare", "core.call_answer_bytes", measured);
-        }
-    }
+    let after = String::from_utf8(engine::commit_text(&head).to_vec()).expect("after");
+    let before = String::from_utf8(engine::commit_text(&translate::commit(1)).to_vec()).expect("before");
+    let input = format!(r#"{{"before":"{before}","after":"{after}"}}"#);
+    let (to, answer) = render_read(&mut world, &goal, 20, b"read_compare", input.as_bytes());
+    let jig_domain_core::SettledAnswer::Host { error, body } = &answer else { panic!("compare answer") };
+    assert!(!error);
+    assert!(core::str::from_utf8(body).unwrap().contains("generated\n"));
+    let errors = world.call_errors.len();
+    let answered = world.answers.len();
+    settle_read(&mut world, to, answer);
+    assert_eq!(world.call_errors.len(), errors, "names-only compare fits despite large contents");
+    assert_eq!(world.answers.len(), answered + 1);
     rendered_read_edges();
     rendered_read_journal();
 }

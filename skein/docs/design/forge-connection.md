@@ -311,16 +311,13 @@ refusals are 5.1's.
   whose repository has no path kept resolves it (4.2), and one that
   needs a login not held looks it up (4.3). A locate, which finds a
   repository by owner and name, names repository 0 (forge.md, 3).
-- GitHub File keeps the requested head within the answer bound; Compare and
-  PullFiles keep whole file bodies to their bound, with PullFiles reading
-  each before side at the merge base.
+- GitHub File keeps the requested head within the answer bound; PullFiles keeps whole file bodies to their bound, reading each before side at the merge base, and Compare keeps names alone (forge.md, 3.2).
 - **Cost** is the component's count, never a plan's (forge.md, 4.2): one
   for each request whose first byte was written, the requests that
   resolve a path or a login included. It goes up with the one terminal
   (forge.md, section 5.4). Beside it go `free`, how many of those
   requests the forge answered `304`, which its rate does not count
-  (always 0 until a call's read takes a validator, forge-github.md,
-  section 8.5), and `rate`, the window the forge reported on the call's
+  (4.6), and `rate`, the window the forge reported on the call's
   last answer, when it reported one:
   `Rate { limit, remaining, reset_at }`, wall seconds, per installation
   on GitHub.
@@ -469,6 +466,42 @@ and port of `Location`, and its target is the path and query.
   stops at the runner's failed-process line while the connection drains
   cleanup within `body_bytes_in` (forge-github.md, 10). Head and job-tail
   retention keep their bounds and meaning.
+
+### 4.6 Conditional reads
+
+A read of something unchanged costs the forge a `304` and no body.
+
+- **What is kept.** For each request of a call's plan that reads
+  (`GET`), the component keeps, per forge, the last answer's validators,
+  its `ETag` and its `Last-Modified`, each at most `VALIDATOR_BYTES`
+  of printable ASCII (forge.md, 3.3), else that one is not kept, with
+  the answer as it arrived: its head's fields the plans read (paging's
+  among them) and its body. It is keyed by the request: its path
+  and query and the identity it was sent as (the forge's token, or a
+  GitHub installation), so one installation's answer never answers
+  another's read. An answer with neither validator keeps nothing, so
+  where the forge sends none, as Forgejo's branch JSON, nothing changes.
+- **What is sent.** A request with a kept entry carries `If-None-Match`
+  with its `ETag` and `If-Modified-Since` with its `Last-Modified`,
+  whichever it has.
+- **A `304`** is answered from the kept answer, decoded by the step as
+  that `200` was: the call's answer is the one the forge
+  would have sent, and it counts as a read, for the client's keep as any
+  answer does. The request counts in the call's cost and in its `free`
+  (4.1). A `304` to a request sent with no validator, or whose entry
+  is gone, is an invalid answer, as today.
+- **A `200`** replaces the entry, or drops it when the answer has no
+  validator; any other answer leaves it as it is.
+- **Bounded, oldest out.** The entries, their keys, validators, heads
+  and bodies, take at most `kept_bytes` in all, the owner's `calls`
+  times its `answer_bytes` (7.2), no figure of its own. An answer past
+  `kept_bytes` is not kept. To
+  keep a new one, the entries used least recently go first, never one
+  a request in flight was sent with. Entries live in memory alone: a
+  restart, or a forge's ending, drops them, and the next reads are
+  whole.
+- **Every read takes them,** in both dialects, the delivery log's first
+  page among them (6.5).
 
 ## 5. Credentials and their renewal
 
@@ -734,7 +767,9 @@ The component's own; their values are the owner's.
   bytes, enough for a tokenizer chunk or its largest literal; each refill
   is bounded by its remaining room.
 - **What is kept,** the dialect's (forge.md, section 4.1):
-  `string_bytes`, `body_bytes`, `inner` and `target_bytes`.
+  `string_bytes`, `body_bytes`, `inner` and `target_bytes`; and
+  `kept_bytes`, the conditional reads' entries in all (4.6), which the
+  owner sets to its `calls` times its `answer_bytes`.
 - **Time:** `deadline`, a call's and each request's of a forge's own,
   from when it is asked; `start_backoff` and `start_backoff_max`;
   `renew_before`, how long before an installation token's expiry it is
@@ -761,9 +796,7 @@ watches), and io's caps. A plan is handed only what it reads: a
 listing's page size, `body_bytes`, `rows` and `answer_bytes`. A page
 size is the least of `rows`, the forge's page cap, and `answer_bytes`
 over the listing's largest row, measured from `string_bytes`,
-`body_bytes` and `inner`. Compare pages commit ids, each 32 bytes,
-by the same rule. Its commits and files each fit `rows`; together their
-bytes fit `answer_bytes` (forge-github.md, 4.1).
+`body_bytes` and `inner`. Compare reads one page and keeps its paths while they fit `rows` and `answer_bytes`, counting the rest (forge-github.md, 4.1).
 
 ### 7.4 Checked at start
 
@@ -1061,10 +1094,6 @@ The owner's domain owes:
 - **Runtime DNS** for a job log's origin. Its address is resolved once,
   at start (4.5), so a host whose address moves is refused until the
   owner restarts. Default: until io resolves names (io.md, section 4).
-- **`free` stays 0** until one of a call's reads takes a validator.
-  Default: only the log's first page takes one (6.5), and the client's
-  reads take none; a read that adds one says so in forge-github.md,
-  section 8.5.
 - **A listener over TLS,** for a forge on another host, waits for
   skein-tls's server side (tls.md). Default: that forge polls alone
   until then.

@@ -109,8 +109,11 @@ pub enum Read {
         page: u32,
         kind: Option<Kind>,
     },
-    /// Read item.
-    Item { number: u64, after: u64 },
+    /// An item and its comments with ids above `after`.
+    /// `since` is at or before the update of every comment above `after`;
+    /// the dialect sends it as the forge's filter. Zero sends no filter.
+    /// `after` stays the answer's check; an owner knowing no time sends zero.
+    Item { number: u64, after: u64, since: Time },
     /// Read pull.
     Pull { number: u64 },
     /// The open matching pull, else the oldest.
@@ -128,7 +131,7 @@ pub enum Read {
     Branches { prefix: Box<[u8]> },
     /// Read pull files.
     PullFiles { number: u64, head: Commit, page: u32 },
-    /// Whole bounded comparison; `TooLarge` means unknown overlap.
+    /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
     /// Provider descriptions and links, with a failing job's attempt.
     Checks { commit: Commit },
@@ -214,7 +217,8 @@ pub enum Answer {
     /// The observed head must equal the request's head.
     PullFiles { head: Commit, files: Box<[File]>, more: bool },
     /// Return compare.
-    Compare { before: Commit, after: Commit, contains_before: bool, files: Box<[File]>, commits: Box<[Commit]> },
+    /// Names, counts and containment of two commits; no contents (forge.md, 3.2 and 3.3).
+    Compare { before: Commit, after: Commit, ahead: u64, behind: u64, files: Box<[Box<[u8]>]>, changed: u64 },
     /// Return checks.
     Checks(Box<[Status]>),
     /// Bytes from one pinned job attempt, cut to the requested byte budget.
@@ -272,6 +276,40 @@ pub enum EntryKind {
     /// A git submodule.
     Submodule,
 }
+/// What a refused call or answer passed (forge.md, 3.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Excess {
+    pub bound: Bound,
+    pub limit: u64,
+    pub size: u64,
+    pub exact: bool,
+}
+impl Excess {
+    /// A check that kept no figure.
+    #[must_use]
+    pub const fn unnamed() -> Self {
+        Self { bound: Bound::Unnamed, limit: 0, size: 0, exact: false }
+    }
+    /// What had been read when a bound stopped the read.
+    #[must_use]
+    pub const fn at_least(bound: Bound, limit: u64, size: u64) -> Self {
+        Self { bound, limit, size, exact: false }
+    }
+    /// A whole measured against its bound.
+    #[must_use]
+    pub const fn exact(bound: Bound, limit: u64, size: u64) -> Self {
+        Self { bound, limit, size, exact: true }
+    }
+}
+/// The bound a `TooLarge` names (forge.md, 3.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Bound {
+    OpBytes,
+    AnswerBytes,
+    Rows,
+    Forge,
+    Unnamed,
+}
 /// A typed refusal or failure of one forge call.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
@@ -288,7 +326,7 @@ pub enum Error {
     /// The requested job attempt is absent.
     MissingJob,
     /// The request or answer exceeds a configured bound.
-    TooLarge,
+    TooLarge(Excess),
     /// The requested operation has no content, including an empty branch prefix.
     Empty,
     /// The provider has no room for this operation.

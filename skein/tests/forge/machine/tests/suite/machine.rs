@@ -117,7 +117,7 @@ fn a_repository_level_404_is_resolved_again_by_id() {
             Answer::case("GET /api/v1/repos/fixture/specimen/branches/main", "branch"),
         ],
     );
-    world.call(1, fixtures::REPO, Op::Read(Read::Item { number: 999, after: 0 }));
+    world.call(1, fixtures::REPO, Op::Read(Read::Item { number: 999, after: 0, since: skein_lib::Time::ZERO }));
     world.run_for(SECOND);
     world.call(2, fixtures::REPO, fixtures::branch());
     world.run_for(SECOND);

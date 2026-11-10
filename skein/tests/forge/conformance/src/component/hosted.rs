@@ -81,6 +81,7 @@ impl Hosted {
             hinted: Duration::from_secs(1),
             slow: Duration::from_secs(40),
             settle: Duration::from_secs(30),
+            fallback: Duration::ZERO,
             facts: 16,
         };
         let limits = skein_forge_connection::Limits {

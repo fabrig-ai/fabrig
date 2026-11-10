@@ -71,7 +71,11 @@ fn a_required_section_missing_fails_the_brief_and_drops_its_token() {
         [GatherRequest::Failed {
             brief: Token::new(1),
             why: GatherMissing::Failed,
-            failure: GatherFailure { fate: GatherFate::Transient, section: b"section", words: b"unavailable" }
+            failure: GatherFailure {
+                fate: GatherFate::Transient,
+                section: b"section",
+                words: Box::from(b"unavailable".as_slice())
+            }
         }]
     );
     assert!(world.closed(Token::new(2)));
@@ -181,7 +185,7 @@ fn a_required_section_missing_at_the_deadline_fails_before_completion() {
             failure: GatherFailure {
                 fate: GatherFate::Transient,
                 section: b"section",
-                words: b"not gathered by its deadline"
+                words: Box::from(b"not gathered by its deadline".as_slice())
             }
         }]
     );
@@ -189,7 +193,7 @@ fn a_required_section_missing_at_the_deadline_fails_before_completion() {
 }
 
 fn failure(fate: GatherFate, section: &'static [u8], words: &'static [u8]) -> GatherFailure {
-    GatherFailure { fate, section, words }
+    GatherFailure { fate, section, words: Box::from(words) }
 }
 
 fn named_connector(token: u64, name: &'static [u8], required: bool, priority: u16) -> Planned {
@@ -307,7 +311,7 @@ fn a_required_connectors_failure_passes_through_unchanged() {
         let mut world = World::new(LIMITS);
         begin(&mut world, Box::new([connector(2, true, 0)]), LIMITS.brief_bytes);
         let why = failure(fate, b"pull", b"words");
-        let asked = world.step(GatherEvent::Missing { brief: Token::new(1), section: Token::new(2), why });
+        let asked = world.step(GatherEvent::Missing { brief: Token::new(1), section: Token::new(2), why: why.clone() });
         let done = world.settle(asked);
         assert_eq!(done, [GatherRequest::Failed { brief: Token::new(1), why: GatherMissing::Failed, failure: why }]);
         assert!(world.closed(Token::new(2)));

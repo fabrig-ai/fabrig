@@ -703,7 +703,7 @@ pub const fn reason(error: skein_forge::api::Error) -> AdoptionRefusal {
         skein_forge::api::Error::Forbidden => AdoptionRefusal::NoAccess,
         skein_forge::api::Error::Refused => AdoptionRefusal::Refused,
         skein_forge::api::Error::Busy => AdoptionRefusal::InFlight,
-        skein_forge::api::Error::TooLarge | skein_forge::api::Error::Full => AdoptionRefusal::TooLarge,
+        skein_forge::api::Error::TooLarge(_) | skein_forge::api::Error::Full => AdoptionRefusal::TooLarge,
         skein_forge::api::Error::NotInstalled => AdoptionRefusal::NotInstalled,
         skein_forge::api::Error::NotConnected
         | skein_forge::api::Error::Unavailable
@@ -2203,7 +2203,7 @@ pub enum Request {
         task: u64,
         attempt: u64,
         resource: Name,
-        reason: &'static [u8],
+        reason: Box<[u8]>,
     },
     /// An entry settled or remains uncertain; root routes the task's news.
     Outcome {

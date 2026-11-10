@@ -1,4 +1,5 @@
 use super::fixtures::{decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -773,7 +774,9 @@ fn github_post_bounds_and_failures() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(post(b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge));
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn github_post_original_key_find() {
@@ -786,7 +789,8 @@ fn github_post_original_key_find() {
         ("2026-10-20T08:00:01Z", api::Provenance::Revised),
         ("", api::Provenance::Unknown),
     ] {
-        let mut find = Plan::new(KEY, api::Op::Read(api::Read::Item { number: NUMBER, after: 0 }));
+        let mut find =
+            Plan::new(KEY, api::Op::Read(api::Read::Item { number: NUMBER, after: 0, since: skein_lib::Time::ZERO }));
         begin(&mut find, &mut tables);
         head(&mut find, 200, &mut tables);
         let (_, issue) = decode(Kind::Issue, br#"{"number":9007199254740993,"state":"open","user":{"id":9007199254740993},"updated_at":"2026-10-20T08:00:00Z","title":"alice","body":"text"}"#, 7, &limits());
@@ -868,7 +872,9 @@ fn github_review_self_approval_and_bounds() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(review(api::Verdict::Comment, b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge));
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
     for body in
         [Body::Empty, Body::Document(Document::Done), Body::Malformed(decoding::Malformed::Missing { field: b"id" })]
     {
@@ -1099,7 +1105,10 @@ fn github_update_422_and_first_failure() {
     }
     for (body, error) in [
         (Body::Malformed(decoding::Malformed::Missing { field: b"head" }), api::Error::Unavailable),
-        (Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }), api::Error::TooLarge),
+        (
+            Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }),
+            api::Error::TooLarge(Excess::unnamed()),
+        ),
         (Body::Empty, api::Error::Unavailable),
     ] {
         let mut tables = cached_tables();
@@ -1121,8 +1130,8 @@ fn github_update_422_and_first_failure() {
     for (pull, call_bounds, error) in [
         (document::Pull { number: 1, ..update_pull() }, bounds(), api::Error::Unavailable),
         (document::Pull { head_commit: [255; 32], ..update_pull() }, bounds(), api::Error::Unavailable),
-        (update_pull(), Bounds { rows: 0, ..bounds() }, api::Error::TooLarge),
-        (update_pull(), Bounds { answer_bytes: 1, ..bounds() }, api::Error::TooLarge),
+        (update_pull(), Bounds { rows: 0, ..bounds() }, api::Error::TooLarge(Excess::unnamed())),
+        (update_pull(), Bounds { answer_bytes: 1, ..bounds() }, api::Error::TooLarge(Excess::unnamed())),
     ] {
         let mut tables = cached_tables();
         let mut plan = write_plan(update());
@@ -1201,9 +1210,9 @@ fn update_contains(tables: &mut Tables, current: api::Commit, behind: u64, chunk
         &begin(&mut compare, tables),
         Method::Get,
         if current == commit() {
-            b"/repos/acme/widgets/compare/abcdef0123456789abcdef0123456789abcdef01...0123456789abcdef0123456789abcdef01234567?per_page=4"
+            b"/repos/acme/widgets/compare/abcdef0123456789abcdef0123456789abcdef01...0123456789abcdef0123456789abcdef01234567?per_page=1"
         } else {
-            b"/repos/acme/widgets/compare/abcdef0123456789abcdef0123456789abcdef01...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=4"
+            b"/repos/acme/widgets/compare/abcdef0123456789abcdef0123456789abcdef01...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=1"
         },
         None,
         Some(Kind::Compare),
@@ -1215,40 +1224,21 @@ fn update_contains(tables: &mut Tables, current: api::Commit, behind: u64, chunk
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     };
     let json = alloc::fmt::format(format_args!(
-        r#"{{"total_commits":1,"behind_by":{behind},"commits":[{{"sha":"{sha}"}}],"files":[{{"filename":"dir/file"}}]}}"#
+        r#"{{"total_commits":1,"ahead_by":1,"behind_by":{behind},"commits":[{{"sha":"{sha}"}}],"files":[{{"filename":"dir/file"}}]}}"#
     ));
     let (rows, document) = decode(Kind::Compare, json.as_bytes(), chunk, &limits());
     for row in &rows {
         assert_eq!(compare.heard(Heard::Row(row.clone()), bounds(), WORD, tables), Ok(None));
     }
-    let mut next = finish(&mut compare, Body::Document(document.unwrap()), tables).unwrap();
-    for (commit, bytes) in [(before, b"base".as_slice()), (current, b"updated".as_slice())] {
-        let Some(Step::Send(exchange)) = next else { panic!("raw side") };
-        assert_eq!(
-            exchange.request,
-            Request::Raw {
-                owner: Box::from(*b"acme"),
-                name: Box::from(*b"widgets"),
-                path: Box::from(*b"dir/file"),
-                commit
-            }
-        );
-        let Some(crate::github::plans::plan::Retention::Whole { .. }) = exchange.retention else {
-            panic!("whole file retention")
-        };
-        head(&mut compare, 200, tables);
-        next = finish(&mut compare, Body::Raw { bytes: Box::from(bytes), more: false }, tables).unwrap();
-    }
-    let Some(Step::Done(Ok(api::Answer::Compare { before: observed, after, contains_before, files, commits }))) = next
+    let next = finish(&mut compare, Body::Document(document.unwrap()), tables).unwrap();
+    let Some(Step::Done(Ok(api::Answer::Compare { before: observed, after, ahead, behind, files, changed }))) = next
     else {
         panic!("comparison")
     };
     assert_eq!((observed, after), (before, current));
-    assert_eq!(commits.as_ref(), &[current]);
-    let file = files.first().unwrap();
-    assert_eq!(file.before.as_deref(), Some(b"base".as_slice()));
-    assert_eq!(file.after.as_deref(), Some(b"updated".as_slice()));
-    contains_before
+    assert_eq!((ahead, changed), (1, 1));
+    assert_eq!(files.as_ref(), &[Box::from(b"dir/file".as_slice())]);
+    behind == 0
 }
 #[test]
 fn github_update_202_and_proof() {

@@ -159,7 +159,11 @@ impl Seen {
                 forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
             let api::Answer::Pulls(pulls) = forge
                 .domain
-                .inspect(&forge.config, repository, &api::Read::OpenPulls { page: 1, limit: 32 })
+                .inspect(
+                    &forge.config,
+                    repository,
+                    &api::Read::OpenPulls { head: None, base: None, page: 1, limit: 32 },
+                )
                 .expect("outside open-pulls read")
             else {
                 panic!("open pulls")

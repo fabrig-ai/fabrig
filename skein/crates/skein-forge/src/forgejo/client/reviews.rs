@@ -120,9 +120,18 @@ fn target(request: &Request, out: &mut Target) {
             out.segment(login);
             out.put(b"/permission");
         }
-        Request::Pulls { at, page } => {
+        Request::Pulls { at, head, base, page } => {
             out.repo(at);
-            out.put(b"/pulls?state=open&sort=oldest");
+            out.put(b"/pulls?state=open");
+            if let Some(head) = head {
+                out.put(b"&head=");
+                out.segment(head);
+            }
+            if let Some(base) = base {
+                out.put(b"&base=");
+                out.segment(base);
+            }
+            out.put(b"&sort=oldest");
             out.page(*page, true);
         }
         Request::PullFiles { .. }

@@ -472,6 +472,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     hinted: Duration::from_secs(1),
     slow: Duration::from_secs(40),
     settle: Duration::from_secs(30),
+    fallback: Duration::ZERO,
     facts: 16,
 };
 const FORGE_LIMITS: forge::Limits = forge::Limits {

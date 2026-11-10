@@ -1,5 +1,6 @@
 //! One page for the repository picker (forge-github.md, 8.3).
 use super::{Event, Page, State, Step, add, api, capacity, document, plan};
+use crate::api::Excess;
 use crate::github::{pin, plans::Heard, request::Request};
 use skein_lib::List;
 
@@ -23,7 +24,7 @@ impl Reachable {
         }
         let limit = pin::PAGE_CAP.min(bounds.page_size).min(bounds.rows);
         if self.per_page == 0 || self.per_page > limit {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         self.rows = List::with_capacity(capacity(bounds)?.min(self.per_page));
         self.state.sending();
@@ -65,12 +66,12 @@ impl Reachable {
                     | document::Row::Comment(_) => return Err(api::Error::InvalidAnswer),
                 };
                 if self.rows.len() >= self.per_page || self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
                 self.bytes = add(self.bytes, &row.login, &row.name, bounds)?;
                 match self.rows.push(row) {
                     Ok(()) => Ok(None),
-                    Err(_) => Err(api::Error::TooLarge),
+                    Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
                 }
             }
             Some(Event::Done { document, next }) => match document {

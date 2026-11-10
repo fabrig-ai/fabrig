@@ -501,7 +501,9 @@ fn github_peer_serves_repository_reads_and_writes_over_the_shared_forge() {
         )
         .expect("issue created");
     assert!(matches!(made, api::Answer::Created(1)));
-    let read = world.plan(&token, api::Op::Read(api::Read::Item { number: 1, after: 0 })).expect("issue read");
+    let read = world
+        .plan(&token, api::Op::Read(api::Read::Item { number: 1, after: 0, since: Time::ZERO }))
+        .expect("issue read");
     let api::Answer::Item { item, .. } = read else { panic!("issue read") };
     assert_eq!(item.title.as_ref(), b"A shared issue");
     let fd = world.open(false);

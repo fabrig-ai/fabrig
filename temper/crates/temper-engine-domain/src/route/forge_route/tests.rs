@@ -1120,7 +1120,7 @@ fn a_goals_failed_reread_routes_a_resource_hold_with_its_cause() {
         task,
         attempt: 4,
         resource,
-        reason: b"forge policy refused the operation",
+        reason: Box::from(b"forge policy refused the operation".as_slice()),
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -3883,6 +3883,85 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
         assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
     }
+}
+
+#[test]
+fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
+    use super::{Work, forge, forge_change as change, tasks};
+    use skein_lib::Queue;
+    let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let template = fixture.core.tasks.task(task).unwrap().clone();
+    let (mut domain, env) = two_forges();
+    domain.core.tasks = tasks::Domain::new(
+        &env.limits.tasks,
+        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+        7,
+        0,
+        Box::new([]),
+        Box::new([]),
+    );
+    let mut waiting = template.clone();
+    waiting.number = 7;
+    waiting.phase = tasks::Phase::Active(tasks::Active::Due);
+    waiting.dependencies = Box::new([8]);
+    waiting.waiting_on = Box::new([8]);
+    let mut upstream = template;
+    upstream.number = 8;
+    upstream.phase = tasks::Phase::Active(tasks::Active::Idle);
+    for row in [waiting, upstream] {
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
+            &mut Queue::uncapped(),
+        );
+    }
+    let forge_env = super::super::environment_forge(&env);
+    let mut upstream = change_row(None);
+    upstream.task = 8;
+    upstream.change.task = 8;
+    upstream.branch = b"temper/8".as_slice().into();
+    for row in [change_row(None), upstream] {
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut Queue::uncapped(),
+        );
+    }
+    // The current asynchronous step began before the dependency's first push.
+    let stale = super::change_step(&domain, &env, 7, 1, change_row(None).repository, b"main", false);
+    let forge::Event::StepChange { pending, .. } = stale else { panic!("change step") };
+    assert_eq!(
+        pending.as_ref(),
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]
+    );
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore {
+            record: forge::Stored::BranchHead(forge::BranchHead {
+                name: forge::Name {
+                    forge: 3,
+                    repository: 1,
+                    what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
+                },
+                commit: SHA1,
+                owned: true,
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
+    // A head notification must update the outstanding step, not send an idle-only wake.
+    forge_request(&mut domain, &env, forge::Request::StepDependents { task: 8 });
+    let Some(Work::Forge(forge::Event::StepChange { task: 7, pending, .. })) = domain.work.pop() else {
+        panic!("a dependency wake refreshes the already-due step");
+    };
+    assert_eq!(
+        pending.as_ref(),
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]
+    );
+    assert!(domain.work.is_empty());
 }
 
 #[test]

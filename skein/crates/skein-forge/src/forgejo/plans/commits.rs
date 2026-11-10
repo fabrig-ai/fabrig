@@ -6,6 +6,7 @@ use super::{
     reading,
     tables::{Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     forgejo::{document as d, request::Request},
@@ -30,10 +31,17 @@ impl Plan {
         row: Repository,
         bounds: Bounds,
     ) -> Result<Self, api::Error> {
-        let skip =
-            page.checked_sub(1).ok_or(api::Error::Empty)?.checked_mul(bounds.page_size).ok_or(api::Error::TooLarge)?;
+        let skip = page
+            .checked_sub(1)
+            .ok_or(api::Error::Empty)?
+            .checked_mul(bounds.page_size)
+            .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if skip >= bounds.rows {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::Rows,
+                u64::from(bounds.rows),
+                u64::from(skip).saturating_add(1),
+            )));
         }
         let capacity = bounds.rows.min(
             bounds
@@ -93,15 +101,20 @@ impl Plan {
         let format = self.row.object_format;
         let id = reading::commit(value.id, format).ok_or(api::Error::InvalidAnswer)?;
         if value.parents.len() > usize_of(bounds.rows) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::exact(
+                api::Bound::Rows,
+                u64::from(bounds.rows),
+                len_u64(value.parents.len()),
+            )));
         }
-        let mut parents = List::with_capacity(u32::try_from(value.parents.len()).or(Err(api::Error::TooLarge))?);
+        let mut parents =
+            List::with_capacity(u32::try_from(value.parents.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?);
         for parent in value.parents {
             parents.push(reading::commit(parent, format).ok_or(api::Error::InvalidAnswer)?).expect("one parent per id");
         }
         let value = api::CommitMessage { id, parents: parents.into_boxed(), message: value.message };
-        let size = commit_bytes(&value).ok_or(api::Error::TooLarge)?;
-        self.given = self.given.checked_add(1).ok_or(api::Error::TooLarge)?;
+        let size = commit_bytes(&value).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+        self.given = self.given.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if size > u64::from(bounds.answer_bytes) {
             self.commits.clear();
             self.held = 0;
@@ -110,7 +123,8 @@ impl Plan {
         // Each removal gives up a newer commit; the kept length bounds the drain.
         for _ in 0..self.commits.len() {
             if self.commits.room() > 0
-                && self.held.checked_add(size).ok_or(api::Error::TooLarge)? <= u64::from(bounds.answer_bytes)
+                && self.held.checked_add(size).ok_or(api::Error::TooLarge(Excess::unnamed()))?
+                    <= u64::from(bounds.answer_bytes)
             {
                 break;
             }
@@ -120,7 +134,7 @@ impl Plan {
                 .checked_sub(commit_bytes(&newer).expect("kept commit bytes fit"))
                 .expect("held counts every kept commit");
         }
-        self.held = self.held.checked_add(size).ok_or(api::Error::TooLarge)?;
+        self.held = self.held.checked_add(size).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         self.commits.push(value);
         Ok(())
     }
@@ -134,15 +148,24 @@ impl Plan {
             }
             Body::Malformed(
                 crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-            ) => return Err(api::Error::TooLarge),
+            ) => return Err(api::Error::TooLarge(Excess::unnamed())),
             Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => {
                 return Err(api::Error::InvalidAnswer);
             }
         }
-        let end = self.skip.checked_add(bounds.page_size).ok_or(api::Error::TooLarge)?;
+        let end = self.skip.checked_add(bounds.page_size).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         let needed = self.given.min(end);
         if self.commits.len() < needed {
-            return Err(api::Error::TooLarge);
+            let excess = if needed > bounds.rows {
+                Excess::at_least(api::Bound::Rows, u64::from(bounds.rows), u64::from(needed))
+            } else {
+                Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(bounds.answer_bytes),
+                    u64::from(bounds.answer_bytes).saturating_add(1),
+                )
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         let more = self.given > end;
         let count = needed.saturating_sub(self.skip);

@@ -151,8 +151,6 @@ impl State {
             | Node::Entry
             | Node::FileRows
             | Node::FileRow
-            | Node::CompareCommits
-            | Node::CompareCommit
             | Node::CompareFiles
             | Node::CompareFile
             | Node::MergeBase
@@ -375,8 +373,6 @@ impl State {
                 | Node::Entry
                 | Node::FileRows
                 | Node::FileRow
-                | Node::CompareCommits
-                | Node::CompareCommit
                 | Node::CompareFiles
                 | Node::CompareFile
                 | Node::MergeBase

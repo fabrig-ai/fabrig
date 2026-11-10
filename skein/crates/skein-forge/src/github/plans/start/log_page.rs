@@ -1,5 +1,6 @@
 //! One conditional or cursor page of the App's log (forge-github.md, 9.3).
 use super::{Event, State, Step, api, document, plan};
+use crate::api::Excess;
 use crate::github::{header, log, pin, plans::Heard, request::Request};
 use skein_lib::{List, len_u64};
 
@@ -20,14 +21,14 @@ impl LogPage {
     }
     pub fn begin(&mut self, bounds: plan::Bounds) -> Result<Step<log::Listed>, api::Error> {
         self.state.admission()?;
-        let width = u32::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge))?;
+        let width = u32::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
         self.limit = bounds
             .page_size
             .min(bounds.rows)
             .min(pin::PAGE_CAP)
-            .min(bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge)?);
+            .min(bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?);
         if self.limit == 0 {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         self.rows = List::with_capacity(self.limit);
         self.state.sending();
@@ -69,10 +70,15 @@ impl LogPage {
                     Some(validator) => validator.as_bytes().len(),
                     None => 0,
                 };
-                self.bytes = u64::try_from(cursor.checked_add(validator).ok_or(api::Error::TooLarge)?)
-                    .or(Err(api::Error::TooLarge))?;
+                self.bytes =
+                    u64::try_from(cursor.checked_add(validator).ok_or(api::Error::TooLarge(Excess::unnamed()))?)
+                        .or(Err(api::Error::TooLarge(Excess::unnamed())))?;
                 if self.bytes > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(bounds.answer_bytes),
+                        self.bytes,
+                    )));
                 }
             }
             Heard::Head { .. } | Heard::Row(_) | Heard::Done(_) | Heard::Failed(_) => {}
@@ -100,17 +106,17 @@ impl LogPage {
                     | document::Row::Entry { .. }
                     | document::Row::File(_) => return Err(api::Error::InvalidAnswer),
                 };
-                let mut size = u64::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge))?;
-                size = size.checked_add(len_u64(row.event.len())).ok_or(api::Error::TooLarge)?;
+                let mut size = u64::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge(Excess::unnamed())))?;
+                size = size.checked_add(len_u64(row.event.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if let Some(action) = &row.action {
-                    size = size.checked_add(len_u64(action.len())).ok_or(api::Error::TooLarge)?;
+                    size = size.checked_add(len_u64(action.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 }
-                self.bytes = self.bytes.checked_add(size).ok_or(api::Error::TooLarge)?;
+                self.bytes = self.bytes.checked_add(size).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.rows.len() >= self.limit
                     || self.bytes > u64::from(bounds.answer_bytes)
                     || self.rows.push(row).is_err()
                 {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess::unnamed()));
                 }
                 Ok(None)
             }

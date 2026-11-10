@@ -797,7 +797,6 @@ fn a_merge_into_a_watched_goal_branch_saves_the_clients_advanced_tip() {
     take(&mut d);
     fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     outputs(&mut d, Event::Names { task: GOAL, resources: Box::new([name(GOAL_BRANCH)]) });
-    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
     let watched = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));

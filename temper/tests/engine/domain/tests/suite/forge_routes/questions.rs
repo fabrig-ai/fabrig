@@ -357,6 +357,93 @@ fn a_producers_question_goes_up_and_the_answer_comes_down() {
     );
 }
 
+/// temper/docs/design/domain/agent.md, 6: an unchecked push is the next brief's head.
+#[test]
+fn a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head() {
+    let (mut world, requester, change, producer) = up_world(None);
+    // The producer and landing branch change the same file, requiring a resolution.
+    temper_engine_domain_world::kinds::produce(&mut world, change, &producer);
+    let branch = row(&world, change).branch.clone();
+    let landing = row(&world, change).base.clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &landing, b"file", b"base moved", 1)
+        .expect("base conflicts with the producer");
+    let resolution = super::reviews::next_assignment(&mut world, 3);
+    assert_eq!(
+        row(&world, change).delegate,
+        Some((
+            resolution.task,
+            temper_engine_domain_forge_change::Delegate::Resolve {
+                base: translate::commit(world.fake.branch(b"org/repo", &landing).expect("base head")),
+            }
+        ))
+    );
+    let previous = world.fake.branch(b"org/repo", &branch).expect("producer head");
+    let base = world.fake.branch(b"org/repo", &landing).expect("base head");
+    let saved = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        previous,
+        base,
+        Box::new([raw::File {
+            path: b"file".as_slice().into(),
+            content: b"resolved work in progress".as_slice().into(),
+        }]),
+        b"Unchecked: work in progress, saved before a question",
+    )
+    .expect("the worker commits the unchecked resolved tree");
+    assert_eq!(
+        world.external(
+            2,
+            raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(previous) })
+        ),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    let question = ask(&mut world, &resolution, change);
+    let state = row(&world, change).change.state.clone();
+    // A save returns the same pushed-head part as a delivery, without a checked result.
+    let event = world.protocol.answer(
+        CHANNEL,
+        resolution.task,
+        resolution.attempt,
+        0,
+        tasks::End::Parked,
+        engine::Parts {
+            pushed: Box::new([forge_top::Pushed {
+                tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                commit: translate::commit(saved),
+            }]),
+            ..engine::Parts::none()
+        },
+    );
+    world.send(event);
+    world.until(Until::Ready);
+    assert_eq!(row(&world, change).change.state, state, "a save leaves the resolution unfinished");
+    answer(&mut world, &requester, change, CALL + 1);
+    let resumed = super::reviews::next_assignment(&mut world, 4);
+    assert_eq!(resumed.task, resolution.task, "the same resolution continues");
+    assert!(resumed.attempt > resolution.attempt);
+    assert!(resumed.messages.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }));
+    let pull = resumed
+        .sections
+        .iter()
+        .find_map(|section| {
+            if section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull)
+                && let engine::BriefBody::Text(words) = &section.body
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .expect("resumed resolution reads its pull section");
+    let head = forge_top::commit_text(&translate::commit(saved));
+    assert!(contains(pull, &head), "{}", String::from_utf8_lossy(pull));
+    assert!(contains(pull, b"resolved work in progress"));
+    assert_eq!(row(&world, change).change.last_head, Some(translate::commit(saved)));
+    assert_eq!(live_task(&world, resolution.task).tries, tasks::Tries::NONE);
+    world.close();
+}
+
 #[test]
 fn the_change_merges_nothing_while_its_question_is_up() {
     let (mut world, _, change, producer) = up_world(None);
