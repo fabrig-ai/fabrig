@@ -732,6 +732,9 @@ fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
     assert!(!world.writes.iter().any(|write| matches!(write,
         skein_forge::api::Write::Merge { number: pull, .. } if *pull == number)));
     assert_eq!(branch_tip(&mut world, &branch), head, "the outside move is kept");
+    // The slow branch observation can outlive the small profile's sign-in.
+    world.signed_in = None;
+    world.sign_in();
     cancel_task(&mut world, goal.task);
     assert_eq!(world.merges, PLAN_MERGES);
     world.close();
