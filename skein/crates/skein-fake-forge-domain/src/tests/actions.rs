@@ -363,7 +363,7 @@ fn ci_job(id: u64, run: u64, index: u32, attempt: u32) -> Job {
         name: copy_of(b"ci"),
         state: crate::api::RunState::Completed,
         conclusion: Some(crate::api::Conclusion::Failure),
-        steps: crate::actions::steps(b"ci", Failing::Workflow, None, None),
+        steps: crate::actions::steps(b"ci", Failing::Workflow, None, None, &[]),
     }
 }
 
@@ -740,4 +740,44 @@ fn a_seed_replays_workflow_latency_runner_faults_and_reruns() {
             "seed {seed}"
         );
     }
+}
+
+#[test]
+fn a_context_opening_begins_its_jobs_whole_log() {
+    let mut configured = setup();
+    configured.checks.passes = 0;
+    configured.checks.contexts = names(&[b"ci", b"fmt"]);
+    let mut h = Harness::with(CALM, configured);
+    crate::set_opening(&mut h.domain, REPOSITORY, b"ci", b"selection: full\n");
+    let work = h.commit(FIRST, &[(b"src", b"one")]);
+    h.push(ENGINE, b"work", work).unwrap();
+    h.settle();
+    assert_eq!(
+        h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: None })),
+        Answer::File(skein_lib::bytes::concat(&[b"selection: full\n", WHOLE_LOG]))
+    );
+    assert_eq!(
+        h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: Some(0) })),
+        Answer::File(copy_of(b"selection: full\nset up ci\n"))
+    );
+    assert_eq!(
+        h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: Some(1) })),
+        Answer::File(copy_of(WORKFLOW_LOG))
+    );
+    let Answer::Job { steps, .. } = h.ok(PERSON, read(Read::Job { job: 1 })) else { unreachable!("job") };
+    assert_eq!(steps.first().unwrap().log.as_ref(), b"selection: full\nset up ci\n");
+    let Answer::File(other) = h.ok(PERSON, read(Read::Log { job: 2, attempt: 1, step: None })) else {
+        unreachable!("other job")
+    };
+    assert!(other.starts_with(b"set up fmt\n"));
+    crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[]);
+    assert_eq!(h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: None })), Answer::File(copy_of(WHOLE_LOG)));
+    crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[b'x'; 32]);
+    let Answer::File(full) = h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: None })) else {
+        unreachable!("bounded opening")
+    };
+    assert!(full.starts_with(&[b'x'; 32]));
+    assert!(
+        std::panic::catch_unwind(move || crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[b'x'; 33])).is_err()
+    );
 }

@@ -54,6 +54,8 @@ pub(crate) struct Repository {
     pub(crate) revisions: u64,
     pub(crate) checks: Checks,
     pub(crate) failing: Box<[crate::api::Failing]>,
+    pub(crate) opening: Box<[Box<[u8]>]>,
+    pub(crate) opening_limit: u32,
     pub(crate) protection: Option<Protection>,
     /// Whether a subscriber hears of its changes.
     pub(crate) hooked: bool,
@@ -170,8 +172,11 @@ impl Repository {
         hooked: bool,
     ) -> Repository {
         let mut failing = List::with_capacity(u32::try_from(checks.contexts.len()).expect("bounded contexts"));
+        let mut opening: List<Box<[u8]>> =
+            List::with_capacity(u32::try_from(checks.contexts.len()).expect("bounded contexts"));
         for _ in &checks.contexts {
             failing.push(crate::api::Failing::Workflow).expect("one per context");
+            opening.push(Box::new([])).expect("one per context");
         }
         Repository {
             gone: false,
@@ -197,6 +202,8 @@ impl Repository {
             revisions: 0,
             checks,
             failing: failing.into_boxed(),
+            opening: opening.into_boxed(),
+            opening_limit: limits.content_bytes,
             protection,
             hooked,
             reachable: true,
