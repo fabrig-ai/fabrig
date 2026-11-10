@@ -312,6 +312,7 @@ members = [
     "temper/crates/temper-engine-smith",
     "temper/crates/temper-engine",
     "temper/crates/temper-engine-domain-forge-change",
+    "temper/crates/temper-engine-domain-forge-closer",
     "temper/crates/temper-engine-domain-forge-landing",
     "temper/crates/temper-engine-domain-forge-tiers",
     "temper/crates/temper-engine-domain-ways",
@@ -611,6 +612,7 @@ temper-worker-shell = { path = "temper/crates/temper-worker-shell" }
 temper-service-shell = { path = "temper/crates/temper-service-shell" }
 temper-engine-smith = { path = "temper/crates/temper-engine-smith" }
 temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain-forge-change" }
+temper-engine-domain-forge-closer = { path = "temper/crates/temper-engine-domain-forge-closer" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }
 temper-engine-domain-forge-tiers = { path = "temper/crates/temper-engine-domain-forge-tiers" }
 temper-engine-domain-ways = { path = "temper/crates/temper-engine-domain-ways" }
