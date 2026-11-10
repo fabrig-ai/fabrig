@@ -148,7 +148,11 @@ fn a_fill_past_what_is_left_of_the_body_is_answered_by_its_end() {
     let (_, requests) = machine.down(Request::Body(Down::Demand { read: Read::Fill(16), room: 0 }));
     assert_eq!(requests, [Down::Demand { read: Read::Fill(6), room: 0 }], "no fill past the body");
     let (events, requests) = machine.bytes(b"defghi");
-    assert_eq!(events, [Event::Body(Up::End), Event::Done(Reuse::Keep)], "a read larger than what is left (runtime/lib.md, 7)");
+    assert_eq!(
+        events,
+        [Event::Body(Up::End), Event::Done(Reuse::Keep)],
+        "a read larger than what is left (runtime/lib.md, 7)"
+    );
     assert!(requests.is_empty());
     assert_eq!(machine.client.waiting(), Waiting::Call);
 }

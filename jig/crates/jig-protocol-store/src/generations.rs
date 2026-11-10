@@ -430,7 +430,10 @@ pub(crate) fn copied(copying: &mut Copying, arrived: Arrived, below: &mut crate:
     copying.progress = progress;
     progress
 }
-#[expect(clippy::too_many_lines, reason = "exhaustive copy transitions, one file request in flight (protocol/store/opening.md 2)")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "exhaustive copy transitions, one file request in flight (protocol/store/opening.md 2)"
+)]
 fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file::Request>) -> Progress {
     match core::mem::replace(&mut copying.step, CopyStep::Finished) {
         CopyStep::Generation => {

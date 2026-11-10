@@ -250,7 +250,10 @@ impl Patcher {
         Ok(())
     }
     /// Walks at most `3 * capacity.nodes + 1` frames, stopping for one value.
-    #[expect(clippy::should_implement_trait, reason = "data/codec/patches.md, 6 names this stopped machine entry point next")]
+    #[expect(
+        clippy::should_implement_trait,
+        reason = "data/codec/patches.md, 6 names this stopped machine entry point next"
+    )]
     pub fn next(&mut self) -> Result<Step, Halt> {
         let result = self.build.advance(&self.old);
         if result.is_err() {

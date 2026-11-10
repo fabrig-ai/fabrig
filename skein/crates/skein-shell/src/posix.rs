@@ -7,7 +7,10 @@
 //! Poll borrows one initialized, exclusive pollfd until return, retains no
 //! pointer and takes no descriptor ownership.
 
-#![expect(unsafe_code, reason = "POSIX calls take integers or borrow storage only until return (runtime/readiness.md, 5)")]
+#![expect(
+    unsafe_code,
+    reason = "POSIX calls take integers or borrow storage only until return (runtime/readiness.md, 5)"
+)]
 
 pub(crate) mod files;
 pub(crate) mod group;

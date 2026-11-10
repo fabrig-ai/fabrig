@@ -4,7 +4,10 @@
 //!
 //! Libproc fills a local PID array bounded by its supplied size and retains no pointer.
 
-#![expect(unsafe_code, reason = "kill takes checked integers; libproc borrows a bounded PID array (runtime/readiness.md, 5)")]
+#![expect(
+    unsafe_code,
+    reason = "kill takes checked integers; libproc borrows a bounded PID array (runtime/readiness.md, 5)"
+)]
 
 use crate::posix::group::negative_group;
 pub(crate) use crate::posix::group::{group_live, process_live, signal_group};

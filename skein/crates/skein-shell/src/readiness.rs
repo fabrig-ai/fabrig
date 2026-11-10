@@ -647,7 +647,10 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::disallowed_types, reason = "the inherited descriptor in this test is a std File (runtime/shell.md, 8)")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the inherited descriptor in this test is a std File (runtime/shell.md, 8)"
+    )]
     fn a_regular_file_pipe_read_completes_without_interest() {
         use std::io::{Seek, SeekFrom, Write};
         use std::os::fd::AsRawFd;
@@ -724,7 +727,10 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::disallowed_types, reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell.md, 6.3)")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell.md, 6.3)"
+    )]
     #[expect(
         clippy::disallowed_methods,
         reason = "skein's round: reads the child marker for the isolated ignored-hangup test"

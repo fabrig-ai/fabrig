@@ -168,7 +168,10 @@ impl fmt::Display for Refusal {
 #[expect(clippy::type_complexity, reason = "runtime/shell.md, 6.5 takes byte environment pairs without a wrapper type")]
 #[cfg_attr(
     target_pointer_width = "64",
-    expect(clippy::result_large_err, reason = "runtime/shell.md, 6.5 returns the refused setting with its documentation")
+    expect(
+        clippy::result_large_err,
+        reason = "runtime/shell.md, 6.5 returns the refused setting with its documentation"
+    )
 )]
 pub fn resolve(
     settings: &Settings,
@@ -285,7 +288,10 @@ pub fn arguments() -> Box<[Box<[u8]>]> {
 
 /// The process's environment, as bytes, in the kernel's order.
 #[must_use]
-#[expect(clippy::type_complexity, reason = "runtime/shell.md, 6.5 returns byte environment pairs without a wrapper type")]
+#[expect(
+    clippy::type_complexity,
+    reason = "runtime/shell.md, 6.5 returns byte environment pairs without a wrapper type"
+)]
 #[cfg(unix)]
 #[expect(
     clippy::disallowed_methods,

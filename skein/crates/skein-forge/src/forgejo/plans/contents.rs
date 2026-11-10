@@ -486,14 +486,20 @@ impl Plan {
         (State::Ended, Step::Done(Ok(answer)))
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn listed(body: Option<Body>) -> Result<(), api::Error> {
     match document(body)? {
         d::Document::Listed { .. } => Ok(()),
         _ => Err(api::Error::InvalidAnswer),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn comparison(body: Option<Body>) -> Result<d::Compare, api::Error> {
     match document(body)? {
         d::Document::Compare(value) => Ok(value),

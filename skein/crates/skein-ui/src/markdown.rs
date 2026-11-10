@@ -299,7 +299,10 @@ fn inline_words(line: &[u8], depth: u32) -> bool {
     false
 }
 
-#[expect(clippy::too_many_lines, reason = "the closing fence joins the existing Markdown line machine (ui/markdown.md, 1)")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the closing fence joins the existing Markdown line machine (ui/markdown.md, 1)"
+)]
 fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &mut Blocks, builder: &mut Builder) {
     let raw = input.get(start..end).expect("line is in input");
     let raw = raw.strip_suffix(b"\r").unwrap_or(raw);

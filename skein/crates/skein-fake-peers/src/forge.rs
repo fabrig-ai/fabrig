@@ -66,7 +66,10 @@ pub enum Observation {
 }
 
 /// The kinds of outside records a peer keeps (testing/fakes/forge.md, section 5).
-#[expect(clippy::struct_excessive_bools, reason = "each outside record kind is kept independently (testing/fakes/forge.md, 5)")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each outside record kind is kept independently (testing/fakes/forge.md, 5)"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Kept {
     pub connections: bool,

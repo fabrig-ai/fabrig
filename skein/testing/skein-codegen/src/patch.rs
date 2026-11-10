@@ -217,7 +217,11 @@ impl fmt::Display for Finding {
                 write!(f, "{family}: kept version {version} lags the current text; {RUN}")
             }
             Self::Version { family, verdict, kept, current } => {
-                write!(f, "{family}: version {current} over kept {kept} is {} (data/codec/command.md, 5)", verdict_name(*verdict))
+                write!(
+                    f,
+                    "{family}: version {current} over kept {kept} is {} (data/codec/command.md, 5)",
+                    verdict_name(*verdict)
+                )
             }
             Self::Changed { path } => write!(f, "{}: landed, and changed or gone", path.display()),
             Self::PatchGap { missing } => write!(f, "patch {missing:04} missing"),

@@ -388,7 +388,10 @@ fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
     );
     let engine::Delivery::Panel { panel, .. } = watch(&mut driver, sign_in, 1, 85, 921) else { unreachable!() };
     let forge::PanelStep::Queued { place, ahead } = &panel.step else { panic!("still queued: {panel:?}") };
-    assert_eq!(*place, 36, "design domain/forge/change/README.md 5: a newly opened panel must compute the queue's new place");
+    assert_eq!(
+        *place, 36,
+        "design domain/forge/change/README.md 5: a newly opened panel must compute the queue's new place"
+    );
     assert_eq!(ahead.len(), 35);
 }
 

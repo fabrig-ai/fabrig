@@ -137,7 +137,10 @@ impl Hmac {
     }
 }
 
-#[expect(clippy::missing_fields_in_debug, reason = "runtime/lib.md, 6.2: the count of bytes hashed, never the key or its pads")]
+#[expect(
+    clippy::missing_fields_in_debug,
+    reason = "runtime/lib.md, 6.2: the count of bytes hashed, never the key or its pads"
+)]
 impl core::fmt::Debug for Hmac {
     /// `Hmac { hashed: N }`, counting the message's bytes alone.
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

@@ -148,7 +148,10 @@ pub struct WorkspaceTools {
 
 /// One core charter with its explicit tool rights.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent run grants and workspace facts (domain/hosts/charters.md)")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent run grants and workspace facts (domain/hosts/charters.md)"
+)]
 pub struct Charter {
     pub mode: smith_domain_run::Mode,
     pub instructions: Box<[u8]>,
