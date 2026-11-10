@@ -32,6 +32,31 @@ fn the_deployment_document_is_one_temper_serve_starts() {
 }
 
 #[test]
+fn resumes_have_a_floor_without_raising_turn_carriers() {
+    for turn in [65_536_u32, 4_194_304] {
+        let mut document = documents::world_document();
+        documents::turn_bounds::apply(&mut document, turn);
+        let turn = u64::from(turn);
+        let resume = (turn + 4).max(4_194_304);
+        let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
+        let engine = &document["engine"]["limits"]["overrides"];
+        assert_eq!(engine["core.resume_bytes"], resume);
+        for hub in [engine, &document["workers"][0]["limits"]["overrides"]] {
+            assert_eq!(hub["hub.transcript_bytes"], window);
+            assert_eq!(hub["hub.turn_bytes"], turn);
+            assert_eq!(hub["hub.turn_queue_bytes"], 8 * turn);
+        }
+        let root = &document["application"]["limits"]["overrides"];
+        assert_eq!(root["root.journal.transcript_bytes"], resume);
+        assert_eq!(root["root.loads.transcript_bytes"], turn);
+        let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
+        assert_eq!(root["root.loads.bytes"], loaded);
+        assert_eq!(root["root.loads.reply_bytes"], loaded);
+        assert_eq!(root["root.loads.read_bytes"], 2 * turn);
+    }
+}
+
+#[test]
 fn one_seed_derives_every_seed() {
     let seven = documents::seeds(7);
     assert_eq!(seven, documents::seeds(7));

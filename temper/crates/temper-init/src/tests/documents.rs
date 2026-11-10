@@ -8,6 +8,31 @@ fn set(value: &mut Value, path: &str, replacement: Value) {
 }
 
 #[test]
+fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
+    let facts = fixtures::facts();
+    let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
+    for files in [boxed.files.as_ref(), bare.as_ref()] {
+        let document = parse(file_bytes(files, b"temper.json"));
+        let limits = &document["engine"]["limits"];
+        let profile = jig_protocol_config::profile(match limits["profile"].as_str().unwrap() {
+            "small" => jig_protocol_config::Profile::Small,
+            "standard" => jig_protocol_config::Profile::Standard,
+            other => panic!("unknown profile {other}"),
+        });
+        let grace = limits["overrides"]["fleet.grace_ms"].as_u64().unwrap_or(profile.core.fleet.grace.as_nanos() / 1_000_000);
+        for worker in document["workers"].as_array().unwrap() {
+            assert_eq!(worker["graces"], json!({"grace_ms":60000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}));
+            let stop = 5_000 + 15_000 + worker["graces"]["grace_ms"].as_u64().unwrap()
+                + worker["graces"]["agent_stop_ms"].as_u64().unwrap().max(worker["graces"]["delivery_ms"].as_u64().unwrap())
+                + worker["graces"]["save_ms"].as_u64().unwrap();
+            assert_eq!(stop, 86_000);
+            assert!(stop < grace);
+        }
+    }
+}
+
+#[test]
 fn the_box_has_room_for_reference_creating_executors() {
     let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let written = parse(content(&answered, b"temper.json"));

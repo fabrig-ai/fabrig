@@ -59,6 +59,18 @@ fn sent(engine: &mut crate::engine::Engine, channel: u64, hello: Option<HelloRef
 }
 
 #[test]
+fn a_check_reserve_refusal_names_the_setting_on_the_wire_and_in_the_line() {
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.notes.clear();
+    let hello = Some(agent(A::Checks { charter: 2 }, Some(Figures { required: 60_000, offered: 90_000 })));
+    let words = b"charter 2: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout";
+    assert_eq!(sent(engine, 7, hello).as_ref(), words);
+    assert!(words.len() <= 256);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::HelloRefused { channel: 7, text: words.as_slice().into() }));
+}
+
+#[test]
 fn each_refusal_says_its_words() {
     let mut service = fixtures::started();
     let engine = service.engine.as_mut().expect("engine");
