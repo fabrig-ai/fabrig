@@ -129,6 +129,22 @@ fn admit_worker(
     true
 }
 
+#[derive(Hash, Debug)]
+pub(crate) struct HeldHello {
+    channel: Token,
+    worker: u32,
+    hello: Hello,
+}
+
+/// Judge held hellos in arrival order only against restored needs (engine.md, 8).
+pub(crate) fn needs_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    domain.needs_restored = true;
+    for _ in 0..domain.held_hellos.len() {
+        let held = domain.held_hellos.pop().expect("held hello count");
+        hello(domain, env, held.channel, held.worker, held.hello, out);
+    }
+}
+
 /// Hello, on a new channel: the worker is in contact, or turned away.
 #[expect(clippy::too_many_lines, reason = "one hello admits a host and its immutable endpoint evidence atomically")]
 pub(crate) fn hello(
@@ -139,6 +155,15 @@ pub(crate) fn hello(
     hello: Hello,
     out: &mut Queue<Request>,
 ) {
+    if !domain.needs_restored {
+        for held in &domain.held_hellos {
+            if held.channel == channel {
+                return;
+            }
+        }
+        domain.held_hellos.push(HeldHello { channel, worker, hello });
+        return;
+    }
     let limits = &env.limits;
     let engine = channel == Token::new(0);
     let reserved = match domain.engine_hello {
@@ -291,6 +316,12 @@ fn refuse(
 /// Lost: the worker's attempts are kept for the grace, adrift. A channel
 /// the fleet does not know never said hello, or was turned away.
 pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: &mut Queue<Request>) {
+    for _ in 0..domain.held_hellos.len() {
+        let held = domain.held_hellos.pop().expect("held hello count");
+        if held.channel != channel {
+            domain.held_hellos.push(held);
+        }
+    }
     if channel == Token::new(0) {
         return;
     }

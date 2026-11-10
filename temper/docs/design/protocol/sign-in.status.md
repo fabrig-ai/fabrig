@@ -1,6 +1,6 @@
 # sign-in: status
 
-2026-11-08. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-10. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain
@@ -80,3 +80,4 @@ unchanged. Local `Lost` uses the busy page, as section 9.3 now records.
   reproduces a page lacking it after a connect, and no process story
   connects with `--web`, as that walk does. Which of the two stands is
   the user's, not yet decided.
+

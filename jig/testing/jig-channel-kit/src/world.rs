@@ -65,6 +65,7 @@ pub struct Outcome {
     pub waited: bool,
     pub windows: u32,
     pub resumed_turns: Option<u32>,
+    pub resumed_tries: Option<jig_domain_tasks::Tries>,
     pub identity_kept: bool,
     pub heartbeats: u32,
     pub channel_closed: bool,
@@ -121,6 +122,12 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let _store_root = machine.lay(&[]);
     let client_root = machine.lay(&[]);
     let root = (!matches!(script.story, crate::stories::Story::Opening(_))).then(|| machine.lay(&[]));
+    let root = if matches!(script.story, crate::stories::Story::Shutdown) {
+        machine.close(root.expect("worker root to reopen through startup"));
+        None
+    } else {
+        root
+    };
     let mut harness = skein_world::World::new(settings.seed, settings.config, referee, skein_world::Memory::Unchecked)
         .with_machine(Machine(machine));
     launch(&mut harness, root, &script, before_cut);
@@ -202,6 +209,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         channel_closed: procs.iter().any(|proc| matches!(proc, Proc::Engine(host) if host.wire.closed)),
         windows: u32::try_from(turns.iter().filter(|turn| turn.opens_window).count().saturating_sub(1)).expect("window count"),
         resumed_turns: assignments.last().map(|assignment| transcript_count(assignment.transcript())),
+        resumed_tries: views.resumed_tries,
         identity_kept: assignments.last().is_some_and(|next| assignments[0].identity() == next.identity()),
         activity_seen: views.activity_seen,
         text_bytes: views.text_bytes,
@@ -264,7 +272,7 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
             answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Transient)
         } else if matches!(scenario, crate::stories::Story::InvalidTranscript) || matches!(scenario, crate::stories::Story::Window) && attempt <= 2 {
             answer.end == jig_domain_tasks::End::Parked
-        } else if matches!(scenario, crate::stories::Story::BeyondGrace | crate::stories::Story::Shutdown) { answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Agent) } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
+        } else if matches!(scenario, crate::stories::Story::BeyondGrace) || matches!(scenario, crate::stories::Story::Shutdown) && attempt == 1 { answer.end == jig_domain_tasks::End::Recheck } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
     ))
 }
 pub(crate) fn pending_turn(store: &Store) -> bool {
@@ -490,6 +498,7 @@ pub(crate) struct Views {
     pub(crate) query_submissions: Option<u32>,
     pub(crate) held_turn_submissions: Option<u32>,
     pub(crate) refusal_message_submissions: Option<u32>,
+    pub(crate) resumed_tries: Option<jig_domain_tasks::Tries>,
     pub(crate) providers_before: (Option<u32>, Vec<(u32, u32, u32)>),
     pub(crate) providers_after: (Option<u32>, Vec<(u32, u32, u32)>),
 }
@@ -527,12 +536,12 @@ fn make_referee(
         expected_turns: match script.story {
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
-            | crate::stories::Story::Shutdown
             | crate::stories::Story::Cuts { .. } => 0,
             crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
             crate::stories::Story::Drain
+            | crate::stories::Story::Shutdown
             | crate::stories::Story::ApplicationGeneration
             | crate::stories::Story::Key { .. }
             | crate::stories::Story::Providers
@@ -698,6 +707,14 @@ fn spawn_channel_side(
         });
     } else if let crate::stories::Story::Opening(case) = script.story {
         harness.spawn(|| Proc::Probe(Box::new(crate::relay::Peer::opening(case))));
+    } else if matches!(script.story, crate::stories::Story::Shutdown) {
+        harness.spawn_restartable(
+            vec![
+                skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
+                skein_world::StartupRoot { name: b"replacement".as_slice().into(), path: b"worker".as_slice().into() },
+            ],
+            processes::worker_restarting,
+        );
     } else {
         let factory = if matches!(script.story, crate::stories::Story::Providers) {
             processes::worker_providers
@@ -815,7 +832,7 @@ pub(crate) fn provider_choices(store: &Store) -> (Option<u32>, Vec<(u32, u32, u3
 fn expected_answers(story: crate::stories::Story) -> usize {
     match story {
         crate::stories::Story::Window => 3,
-        crate::stories::Story::InvalidTranscript => 2,
+        crate::stories::Story::InvalidTranscript | crate::stories::Story::Shutdown => 2,
         _ => 1,
     }
 }

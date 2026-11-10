@@ -245,8 +245,22 @@ fn a_repair_whose_checks_cannot_be_read_starts_on_its_pull() {
 
 #[test]
 fn a_repair_with_the_forge_not_connected_pauses() {
+    repair_pauses(Error::NotConnected, b"pull: the forge is not connected");
+}
+
+#[test]
+fn a_repair_with_the_forge_away_pauses_without_spending_a_try() {
+    for (error, reason) in [
+        (Error::Unavailable, b"pull: the forge could not be reached".as_slice()),
+        (Error::Timeout, b"pull: the forge did not answer in time".as_slice()),
+    ] {
+        repair_pauses(error, reason);
+    }
+}
+
+fn repair_pauses(error: Error, reason_words: &[u8]) {
     let (mut world, _chat, producer, branch) = world();
-    world.fail_brief_reads = Some((true, false, Error::NotConnected));
+    world.fail_brief_reads = Some((true, false, error));
     start(&mut world, &producer, &branch);
     let allowance = world.env.limits.tasks.retries.permanent.retries;
     let mut observed = Vec::new();
@@ -261,7 +275,7 @@ fn a_repair_with_the_forge_not_connected_pauses() {
     }
     let row = repair(&world).expect("repair task");
     assert!(
-        matches!(&row.retry_notice, Some(tasks::RetryNotice::Refused { count, reason: Some(reason) }) if *count > allowance && reason.as_ref() == b"pull: the forge is not connected"),
+        matches!(&row.retry_notice, Some(tasks::RetryNotice::Refused { count, reason: Some(reason) }) if *count > allowance && reason.as_ref() == reason_words),
         "{:?}",
         row.retry_notice
     );
@@ -271,7 +285,7 @@ fn a_repair_with_the_forge_not_connected_pauses() {
     assert_eq!(row.attempt, 0);
     assert_eq!(world.assigned.len(), 2);
     let task = row.number;
-    assert!(observed.iter().any(|fact| matches!(fact, engine::Fact::BriefFailed { task: failed, counts: "capacity", reason } if *failed == task && reason.as_ref() == b"pull: the forge is not connected")));
+    assert!(observed.iter().any(|fact| matches!(fact, engine::Fact::BriefFailed { task: failed, counts: "capacity", reason } if *failed == task && reason.as_ref() == reason_words)));
     world.fail_brief_reads = None;
     for _ in 0..STEPS {
         world.tick();

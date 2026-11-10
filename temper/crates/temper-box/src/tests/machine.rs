@@ -1613,7 +1613,7 @@ fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
             before: 0,
             steps: Box::new([
                 (Stage::Run, step(b"forge", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into())),
-                (Stage::Source, step(b"source", Kind::Once).ending_ignored()),
+                (Stage::Source, step(b"source", Kind::Source)),
             ]),
         }]),
     };
@@ -1635,6 +1635,8 @@ fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
     machine.input(Time::ZERO, Input::Exited { step: 1, exit: Exit::Code(0) }, &mut out);
     take_effects(&mut out);
     machine.input(Time::ZERO, Input::Closed { step: 1 }, &mut out);
+    assert_eq!(out.pop(), Some(Order::Source { step: 1, first: true }));
+    machine.input(Time::ZERO, Input::SourceEnded { step: 1, added: true }, &mut out);
     assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::GroupStarted { forge: 37 } }));
     assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 37 } }));
     assert!(out.is_empty());
@@ -1950,10 +1952,7 @@ fn ignored_source_ending(ending: Option<Exit>) {
             recorded: false,
             forge: 9,
             before: 0,
-            steps: Box::new([
-                (Stage::Run, step(b"forgejo", Kind::Long)),
-                (Stage::Run, step(b"source", Kind::Once).ending_ignored()),
-            ]),
+            steps: Box::new([(Stage::Run, step(b"forgejo", Kind::Long)), (Stage::Run, step(b"source", Kind::Source))]),
         }]),
     });
     let mut machine = Machine::new(&limits::small(), &placed).unwrap();
@@ -1971,15 +1970,154 @@ fn ignored_source_ending(ending: Option<Exit>) {
     } else {
         machine.input(Time::ZERO, Input::NotStarted { step: 1 }, &mut out);
     }
+    assert_eq!(pop_effect(&mut out), Some(Order::Source { step: 1, first: true }));
+    machine.input(Time::ZERO, Input::SourceEnded { step: 1, added: false }, &mut out);
     assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
     assert!(effects_empty(&out));
     assert!(machine.outcome().is_none(), "the box keeps running");
-    machine.fire(Time::from_nanos(1_000_000_000), &mut out);
-    assert!(effects_empty(&out), "the source is never restarted");
+    let retry = Time::ZERO.saturating_add(limits::small().backoff);
+    machine.fire(retry, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 1 }));
+    machine.input(retry, Input::Started { step: 1 }, &mut out);
+    machine.input(retry, Input::Exited { step: 1, exit: Exit::Code(0) }, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 1 }));
+    machine.input(retry, Input::Closed { step: 1 }, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Source { step: 1, first: false }));
+    machine.input(retry, Input::SourceEnded { step: 1, added: true }, &mut out);
+    assert!(effects_empty(&out), "a retry never completes the group's start twice");
+    assert!(machine.next_deadline().is_none(), "added ends the retries");
     machine.input(Time::ZERO, Input::Ask { forge: 9 }, &mut out);
     assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
     assert!(effects_empty(&out));
 }
+#[test]
+fn source_retries_cap_the_wait_without_giving_up_and_stop_with_the_group() {
+    use super::fixtures::step;
+    use crate::{layout, machine::Machine};
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let placed = layout::flatten(Steps {
+        always: Box::new([]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: None,
+            label: b"Forge 9".as_slice().into(),
+            recorded: true,
+            forge: 9,
+            before: 0,
+            steps: Box::new([(Stage::Source, step(b"source", Kind::Source))]),
+        }]),
+    });
+    let limits =
+        limits::Limits { backoff: Duration::from_millis(2), backoff_max: Duration::from_millis(5), ..limits::small() };
+    let mut machine = Machine::new(&limits, &placed).unwrap();
+    let mut out = Queue::uncapped();
+    let mut now = Time::ZERO;
+    machine.start(now, &[], &mut out);
+    machine.input(now, Input::Ask { forge: 9 }, &mut out);
+    take_effects(&mut out);
+    for (attempt, millis) in [2, 4, 5, 5, 5, 5, 5, 5].into_iter().enumerate() {
+        machine.input(now, Input::NotStarted { step: 0 }, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Source { step: 0, first: attempt == 0 }));
+        machine.input(now, Input::SourceEnded { step: 0, added: false }, &mut out);
+        take_effects(&mut out);
+        now = now.saturating_add(Duration::from_millis(millis));
+        if attempt == 0 {
+            assert!(machine.next_deadline().is_none(), "the group is not standing until its record is written");
+            machine.fire(now, &mut out);
+            assert!(effects_empty(&out), "no retry before started");
+            machine.input(now, Input::Written { forge: 9 }, &mut out);
+            take_effects(&mut out);
+        }
+        assert_eq!(machine.next_deadline(), Some(now));
+        machine.fire(now, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 0 }));
+        assert!(machine.outcome().is_none(), "source failures never spend the long-step restart allowance");
+    }
+    machine.input(now, Input::NotStarted { step: 0 }, &mut out);
+    take_effects(&mut out);
+    machine.input(now, Input::SourceEnded { step: 0, added: false }, &mut out);
+    machine.input(now, Input::Stop { forge: 9 }, &mut out);
+    take_effects(&mut out);
+    assert!(machine.next_deadline().is_none(), "stop disarms the retry");
+    machine.fire(now.saturating_add(limits.backoff_max), &mut out);
+    assert!(effects_empty(&out));
+    machine.input(now, Input::Ask { forge: 9 }, &mut out);
+    take_effects(&mut out);
+    machine.input(now, Input::NotStarted { step: 0 }, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Source { step: 0, first: true }));
+    machine.input(now, Input::SourceEnded { step: 0, added: false }, &mut out);
+    machine.input(now, Input::Written { forge: 9 }, &mut out);
+    assert_eq!(
+        machine.next_deadline(),
+        Some(now.saturating_add(limits.backoff)),
+        "a new group life starts at the first wait"
+    );
+    take_effects(&mut out);
+    now = now.saturating_add(limits.backoff);
+    machine.fire(now, &mut out);
+    machine.input(now, Input::Started { step: 0 }, &mut out);
+    take_effects(&mut out);
+    machine.input(now, Input::Stop { forge: 9 }, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Signal { step: 0 }));
+    assert_eq!(
+        machine.next_deadline(),
+        Some(now.saturating_add(limits.grace)),
+        "a running retry still has its shutdown grace"
+    );
+    machine.input(now, Input::Exited { step: 0, exit: Exit::Code(1) }, &mut out);
+    machine.input(now, Input::Closed { step: 0 }, &mut out);
+    assert!(machine.next_deadline().is_none());
+    assert!(machine.outcome().is_none());
+}
+
+#[test]
+fn a_record_failure_disarms_the_source_retry_and_a_new_start_gets_its_first_ending() {
+    use super::fixtures::step;
+    use crate::{
+        layout,
+        machine::{Machine, Said, Why},
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let placed = layout::flatten(Steps {
+        always: Box::new([]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: None,
+            label: b"Forge 9".as_slice().into(),
+            recorded: true,
+            forge: 9,
+            before: 0,
+            steps: Box::new([(Stage::Source, step(b"source", Kind::Source))]),
+        }]),
+    });
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut out = Queue::uncapped();
+    machine.start(Time::ZERO, &[], &mut out);
+    for added in [false, true] {
+        machine.input(Time::ZERO, Input::Ask { forge: 9 }, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 0 }));
+        take_effects(&mut out);
+        machine.input(Time::ZERO, Input::NotStarted { step: 0 }, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Source { step: 0, first: true }));
+        machine.input(Time::ZERO, Input::SourceEnded { step: 0, added }, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Record { forge: 9 }));
+        if added {
+            machine.input(Time::ZERO, Input::Written { forge: 9 }, &mut out);
+            assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
+        } else {
+            machine.input(Time::ZERO, Input::NotWritten { forge: 9 }, &mut out);
+            assert_eq!(
+                pop_effect(&mut out),
+                Some(Order::Say { said: Said::Failed { forge: 9, why: Why::NotWritten } })
+            );
+        }
+        assert!(machine.next_deadline().is_none());
+        assert!(effects_empty(&out));
+    }
+}
+
 #[test]
 fn an_ignored_source_nonzero_exit_starts_the_group_and_keeps_the_box_running() {
     ignored_source_ending(Some(Exit::Code(1)));

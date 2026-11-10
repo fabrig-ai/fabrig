@@ -832,8 +832,8 @@ fn each_unread_error_has_its_count_and_fixed_words() {
     let rows: &[(Error, BriefFate, &[u8])] = &[
         (Error::Busy, Capacity, b"the forge client is busy"),
         (Error::NotConnected, Capacity, b"the forge is not connected"),
-        (Error::Unavailable, Transient, b"the forge could not be reached"),
-        (Error::Timeout, Transient, b"the forge did not answer in time"),
+        (Error::Unavailable, Capacity, b"the forge could not be reached"),
+        (Error::Timeout, Capacity, b"the forge did not answer in time"),
         (Error::RateLimited { after: Duration::from_secs(1) }, Transient, b"the forge is limiting calls"),
         (Error::InvalidAnswer, Permanent, b"the forge's answer did not match its read"),
         (Error::Forbidden, Permanent, b"the forge forbids this read"),

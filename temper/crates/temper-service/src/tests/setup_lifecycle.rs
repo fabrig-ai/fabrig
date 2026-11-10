@@ -1812,9 +1812,9 @@ fn uninstalled_store() -> crate::store::Store {
     kept_record(&mut store, 1, Item::Origin, &origin);
     store
 }
-fn restore(store: crate::store::Store) -> (crate::Service, Face) {
+fn restore(store: crate::store::Store) -> (Box<crate::Service>, Face) {
     let config = github_config(8, Duration::from_secs(3600), None);
-    let mut service = local_service(config, store);
+    let mut service = Box::new(local_service(config, store));
     load_routing(&mut service);
     let mut face = Face::new();
     // Hold the connection's fake socket before the shell restores the root.

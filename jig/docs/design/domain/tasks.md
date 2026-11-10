@@ -441,7 +441,10 @@ turn and no call, counts as not started: no try is spent on it. Nor is
 one on a host in the engine's own process when that engine stops
 (engine.md, 6.1): its attempt ends interrupted, as a recheck ends, with
 no try spent and no backoff, keeping the turns and calls it committed,
-and the task is due again. A kept
+and the task is due again. Nor is a run its host cancelled for lost
+contact or for the host's own shutdown (hosts.md, 6.6), whose answer
+ends its attempt interrupted in the same way, with the saved work it
+names kept for the next attempt. A kept
 task is never due, and a run of it that finishes done parks instead
 (5.7).
 

@@ -71,6 +71,12 @@ impl Harness {
     }
 
     fn with_versions(limits: Limits, versions: u32, needs: crate::Needs) -> Harness {
+        let mut h = Self::unrestored(limits, versions, needs.clone());
+        assert!(h.step(Event::Needs(needs)).is_empty());
+        h
+    }
+
+    fn unrestored(limits: Limits, versions: u32, needs: crate::Needs) -> Harness {
         let out = Queue::uncapped();
         let mut domain = Domain::new(&limits, versions, needs);
         let mut names = List::with_capacity(limits.configured_workers);

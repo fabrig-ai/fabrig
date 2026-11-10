@@ -1541,6 +1541,45 @@ wire's records alone (`../draft/what-reaches-you.md`, sections 2 to 5).
   strictly, the narrowed table still asks, and the need it raises next
   names that one.
 
+### 5.11 A forge away
+
+A forge that stops answering for a while (connections refused, a 502 or
+a 503, timeouts), because it restarts, fails or its host is down, and
+then answers again, is ridden: nothing temper holds fails or is held for
+an outage that ends, and what changed meanwhile is read once it is
+back. The forge stays connected throughout: connected is its access
+(4.1), not whether it answers.
+
+- **Keeping reads** wait and read again as skein's `forge-client.md`,
+  section 4 has them.
+- **Fresh reads are asked again.** A fresh read that ends `Unavailable`
+  or `Timeout` once the client has spent its attempts (skein's
+  `forge-client.md`, section 5) is asked again by the step that asked
+  it, after a wait that starts at `forge.client.backoff_ms`, doubles
+  after each such ending in a row to at most `forge.client.slow_ms`, and
+  is set back by an answer. Meanwhile the change, the landing, the
+  goal's branch or the lost writer whose read it is stays where it was:
+  no `ResourceUnavailable` or `EffectFailed` hold is made for it, and
+  the wait counts toward no stall (8.4). A refusal for its inputs
+  (`TooLarge`, `Forbidden`, `Refused`) and `Missing` keep their own
+  rules.
+- **Writes are never sent blind.** One the client holds uncertain is
+  found as its class says (section 6). One the client fails
+  `Unavailable`, never sent, once it has spent its attempts, is
+  committed again by the connector, as one failed `NotConnected` is
+  (4.1), after a wait as a fresh read's: its purpose gives it the same
+  key, so nothing is made twice.
+- **CI is read again.** A checks read (5.3) that ends `Unavailable` or
+  `Timeout` is asked again as any fresh read is, never dropped. And once
+  a forge answers again after such an ending, each CI subscription on
+  its repositories reads its head's checks afresh, so a status posted
+  while it was away is read whether a delivery comes or not.
+- **A run followed counts no lifetime unseen.** A gate's or a tier's run
+  (`landing.md`, `after-landing.md`) is lost for not being found only
+  once a read has answered without it past its lifetime: reads that end
+  `Unavailable` or `Timeout` are waited out, and neither a runner fault
+  nor a retry is spent for them.
+
 ## 6. Effects
 
 Every effect is committed into the outbox and made by `client`, in
@@ -1562,7 +1601,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | 8 | create an issue | a creation, with a key | unrecoverable | by its key, among the issues changed since the entry's start |
 | 13 | edit, close, reopen an issue | a set | idempotent | written again |
 | 14 | set a pull request's reviewers | a set | idempotent | written again |
-| 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made | the branch exists at that commit |
+| 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made; but a goal's own branch, which temper alone makes, is conditional: made again while none of its name exists (11.1) | the branch exists at that commit |
 | 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
 
 - **The outbox is bounded** by the connector's `entries` limit: no entry
@@ -1611,7 +1650,9 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   comment, issue or branch found by its key, or by the state it
   leads to, is made; one not found by its deadline holds its task for a
   person, and is never sent again by temper on its own. The client makes
-  the find (skein's `forge-client.md`, section 7).
+  the find (skein's `forge-client.md`, section 7). A goal's own branch is
+  the exception: found at its commit it is made, found at another its
+  making fails for good, and not found it is made again (11.1).
 - **Keys are carried** in what temper creates: a marker at the head of a
   body, a comment or a review, hidden where the forge renders it (skein's
   `forge.md`, section 6; temper's word and namespace,
@@ -1664,7 +1705,9 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   a forbidden write are each typed, and go to the procedure that asked,
   never retried blind. A forge not connected is not a failure of the
   procedure's: the entry fails at once, `NotConnected`, and is committed
-  again once the forge connects (4.1).
+  again once the forge connects (4.1). A forge away is none either: an
+  entry the client fails `Unavailable`, never sent, is committed again
+  after a wait that grows (5.11).
 - **A stop settles first** (root.md, 9.2): told to settle, the connector
   tells its client to (skein's `forge-client.md`, 7.8), so no write
   starts and none is tried again; a committed entry's notification is
@@ -3734,6 +3777,20 @@ own, never a change's:
   refuses, and made at the home's default branch's tip as the hold is
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
+- **Made whatever restarts.** temper alone makes and deletes a goal's
+  own branch, so its making is conditional (section 6): while the goal
+  holds the branch and none of its name exists, it is made, and never
+  reset once it exists. A restart reads each held goal branch afresh
+  (section 16): there, it is the goal's; missing, with its making's
+  entry restored, that entry settles as its class says, its find
+  answering not found sending it again at its commit; missing, with no
+  entry (the restart cut its making before it committed one), the
+  connector asks the root for a fresh entry number, as a taking's effect
+  is given one, reads the default branch's tip and makes it there. A
+  forge away while it is made is ridden (5.11), never a failure. A goal
+  held for its making that fails for good is made again when a person
+  releases that hold: the release reads the branch, as a restart does,
+  and makes it if it is still missing.
 - **Written by change, and by the goal's design:** each of the goal's
   changes lands into it as its landing branch, and the goal's own runs
   push their design and status documents to it (11.3); code reaches it
@@ -4237,9 +4294,11 @@ restored change is judged by the rules as they are. temper's steps:
 2. it settles its outbox, each entry as its class says (section 6): a
    pull request found by its branches, a merge by its pull request's
    state (merged, in the forge's merge queue, or neither), a creation by
-   its key after the entry's start, a set written again; one not found
-   waits for the retry deadline its last attempt committed, and an
-   unrecoverable one holds its task for a person;
+   its key after the entry's start, a goal's own branch by its name, a
+   set written again; one not found waits for the retry deadline its
+   last attempt committed, and is then sent again, its conditions
+   checked as at any attempt, unless it is unrecoverable, which holds
+   its task for a person; a goal's own branch is made again (11.1);
 3. it steps every change once, and every goal's issue. A change reads
    its recorded pull request by number. Without a number, it reads by
    branches and accepts an open pull request, or a closed or merged one
@@ -4598,3 +4657,15 @@ whole.
   so such a request starts no repair. Whether a landing should repair it as a
   change does, from the remarks of a person reviewing a whole goal, is undecided.
   Default: so, until a request asks.
+- **CI asked again at an unchanged head** (8.4; `landing.md`): a landing or a
+  change whose CI failed for an infrastructure fault, not the change, cannot
+  have its CI run again until a new commit or a cancel; a person's ask, and a
+  repair's verdict that the cause is outside the change, would rerun a change's
+  failed jobs or supersede a landing's failed receipt. It needs a client
+  request, stored retry state and a repair's contract, so the restart work of
+  2026-11-10 left it for a plan of its own. Default: a new commit or a cancel.
+- **A keyed creation lost across a restart** (section 6, 16): a review, a
+  comment or an issue whose answer a restart lost, and that its find does not
+  see by its deadline, holds its task for a person, though a find that read
+  everything since its start makes a second one unlikely. Default: so; only a
+  goal's own branch is made again.

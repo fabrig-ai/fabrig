@@ -224,6 +224,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             end: tasks::End::Parked,
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
         },
     );
     for connector in [1, 1, 99] {
@@ -278,6 +279,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
             },
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
         },
     );
     for _ in 0..outputs.len() {

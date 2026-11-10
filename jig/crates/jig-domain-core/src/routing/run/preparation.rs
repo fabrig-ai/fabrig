@@ -158,10 +158,10 @@ pub(crate) fn workspace_prepared(
             },
         );
     }
+    // A task's earlier tries do not close this window (jig/docs/design/domain/engine.md, 7.2).
     let resume = !transcript.closed
         && !transcript.cut
         && core.charter_of(task).policy.resume
-        && context.tries.transient == 0
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
     let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
     let charter = core.charter_of(task);
@@ -554,7 +554,7 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// Load the saved window for its tail even when a transient retry cannot resume it.
+/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine.md, 7.2).
 fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
     let proof = core.proofs.get(&context.task)?;
     let window = proof.window?;
@@ -831,19 +831,17 @@ pub(crate) fn transcript_loaded(
 }
 
 pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
-    let retry = match core.contexts.get(&task) {
-        Some(context) => context.tries.transient > 0,
-        None => false,
-    };
     if let Some(transcript) = core.transcripts.get(&task)
-        && (transcript.closed || retry)
+        && transcript.closed
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
-        return route_preparation_failed(
+        // An unread open window counts once and closes in that decision (engine.md, 7.2).
+        core.close_window(task);
+        let mut out = route_preparation_failed(
             core,
             work,
             task,
@@ -853,6 +851,12 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
                 words: Box::from(b"its window could not be read".as_slice()),
             },
         );
+        if let Some(proof) = core.proofs.get(&task) {
+            out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(
+                proof.clone(),
+            )))));
+        }
+        return out;
     }
     Queue::uncapped()
 }

@@ -193,9 +193,50 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
                 | host::RunFailure::Limited { .. }
                 | host::RunFailure::Refused { .. },
             ) => tasks::End::Failed(tasks::Class::Run),
-            host::Failure::Agent(_) | host::Failure::Cancelled(_) => tasks::End::Failed(tasks::Class::Agent),
+            host::Failure::Cancelled(host::Reason::Contact | host::Reason::Shutdown) => tasks::End::Recheck,
+            host::Failure::Agent(_) | host::Failure::Cancelled(host::Reason::Engine) => {
+                tasks::End::Failed(tasks::Class::Agent)
+            }
         },
         host::Ending::Ended { .. } => unreachable!("ended payloads leave for the routing"),
+    }
+}
+
+/// Unusable resume history keeps its own reason (jig/docs/design/domain/hosts.md, 6.3).
+pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
+    match ending {
+        host::Ending::Refused(host::Refusal::Invalid(
+            host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
+        ))
+        | host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Transcript), .. } => true,
+        host::Ending::Refused(
+            host::Refusal::Busy
+            | host::Refusal::Invalid(
+                host::Invalid::Charter
+                | host::Invalid::Grants
+                | host::Invalid::Messages
+                | host::Invalid::Start { cause: host::StartCause::Other | host::StartCause::Grants, .. },
+            ),
+        )
+        | host::Ending::Failed {
+            failure:
+                host::Failure::Unprepared(_)
+                | host::Failure::Agent(_)
+                | host::Failure::Cancelled(_)
+                | host::Failure::Run(
+                    host::RunFailure::Exceeded(_)
+                    | host::RunFailure::Model
+                    | host::RunFailure::Budget
+                    | host::RunFailure::Policy
+                    | host::RunFailure::Cancelled
+                    | host::RunFailure::Stale
+                    | host::RunFailure::Limited { .. }
+                    | host::RunFailure::Refused { .. },
+                ),
+            ..
+        }
+        | host::Ending::Parked { .. }
+        | host::Ending::Ended { .. } => false,
     }
 }
 

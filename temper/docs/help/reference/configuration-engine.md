@@ -227,7 +227,7 @@ Shape: `programs`. Paths: `workers[].programs`. The worker's local source-login 
 
 Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its engine.
 
-- `grace_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Gives the grace after losing the engine.
+- `grace_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 60000. Gives the grace after losing the engine.
 - `agent_stop_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 5000. Gives the stop grace of an agent's process tree.
 - `delivery_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the deadline for a delivery.
 - `save_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the grace for saving the worker's state.

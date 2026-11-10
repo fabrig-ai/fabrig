@@ -1,4 +1,5 @@
 //! Serve's box pipe (temper/docs/design/protocol/forge.md, 2.8).
+//! Source retries are independent of setup asks (temper/docs/design/protocol/sign-in.md, 9.9).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Queue, Token, Writer, bytes};
@@ -253,11 +254,8 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     };
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
-        (None, Reply::Source(..)) => true,
-        (
-            Some(Ask::Start(active)),
-            Reply::Step(..) | Reply::Fetched(..) | Reply::Source(..) | Reply::Started(_) | Reply::Failed(..),
-        )
+        (None | Some(Ask::Start(_) | Ask::End(_)), Reply::Source(..)) => true,
+        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Fetched(..) | Reply::Started(_) | Reply::Failed(..))
         | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };

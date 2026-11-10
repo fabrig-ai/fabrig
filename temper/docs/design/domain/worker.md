@@ -81,6 +81,35 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   slots and refuses every assignment as busy; it gives up the turns and
   answers it keeps, counted, only once no run is left and the engine is
   still out of reach past the grace.
+- **An engine's restart costs a run nothing.** The grace is the
+  engine-away bound, `graces.grace_ms` in the worker's configuration
+  (`../protocol/configuration.md`, section 4), sized to outlast an
+  engine's restart. While it runs, the worker keeps hosting every run,
+  keeps what they send, and redials no further apart than a quarter of
+  the grace; it stops only once the engine admits a hello (jig's
+  `protocol/channel.md`, 10.1). The restarted engine holds that hello
+  until its stored settings are restored, so its check is the store's
+  (jig's `domain/engine.md`, section 8), then adopts each attempt the
+  worker lists that its store holds as claimed: the run goes on in the
+  same attempt, its kept turns and answers committed as they arrive, and
+  its relayed calls answered on the new channel (jig's
+  `domain/hosts.md`, 6.6). Nothing is cancelled and nothing starts
+  again.
+- **Past the bound, an interruption.** A run cancelled for lost contact
+  saves its work first and answers `Cancelled(Contact)`; the engine ends
+  the attempt interrupted, with no try spent, and the next attempt, on
+  any worker, resumes from its transcript (jig's `domain/engine.md`,
+  7.2) and starts its checkout from the work it saved (section 5).
+- **A worker's restart loses no work.** Stopped, it cancels each run for
+  shutdown, saving its work first, and answers `Cancelled(Shutdown)`, an
+  interruption as above, before it gives up its link (jig's
+  `domain/hosts.md`, 6.7). Killed, it saves nothing more: the engine
+  holds its runs for its grace, then ends them lost, and each next
+  attempt resumes from its committed transcript and its last saved work
+  (section 5). Either way the next attempt may be on this worker once it
+  is back, or on another. A run's start messages leave its task's inbox
+  only through a committed turn's read fence (jig's `domain/tasks.md`,
+  8.2), so a run lost before its first turn hands them all to the next.
 
 ## 3. Structure
 

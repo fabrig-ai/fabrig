@@ -58,6 +58,8 @@ fn startup(
             recipe: None,
             rules: None,
             cue: false,
+            placement_hold: true,
+            holds: Vec::new(),
             release: None,
             released: None,
         })))
