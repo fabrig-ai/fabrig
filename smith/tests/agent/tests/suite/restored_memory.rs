@@ -1,6 +1,6 @@
 //! Root and caller ownership at Start, Complete and concrete Turn boundaries.
 //! Typed Wait/text neighbours keep provider grammar and transport outside this domain measurement.
-//! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 13;
+//! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 12;
 //! smith/docs/design/protocol/limits.md, section 11.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

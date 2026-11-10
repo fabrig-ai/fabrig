@@ -1,4 +1,4 @@
-//! A local git operation carried by host-owned children (protocol/hosts.md,
+//! A local git operation carried by host-owned children (protocol/host.md,
 //! section 5.5). This adapter keeps git's typed command sequence, two bounded
 //! output captures and child/pipe tokens until IO proves them closed. It
 //! never decides delivery policy. `new`, `from_io` and `fire` translate one

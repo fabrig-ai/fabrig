@@ -1,6 +1,6 @@
 //! One logical credentials probe is two simultaneous attempt processes.
 //! Only generation numbers survive the product's bounded private-record reader
-//! and codec; no token value reaches a diagnostic or result (benchmarks.md, 11.1).
+//! and codec; no token value reaches a diagnostic or result (benchmarks/catalogue.md, 1).
 
 use crate::{Fault, Mismatch, bound, credential, refuse_if};
 use std::path::{Path, PathBuf};

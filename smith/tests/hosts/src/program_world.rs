@@ -1,5 +1,5 @@
 //! A host driving source operations beside the hosted program fake
-//! (protocol/hosts.md, section 2; protocol/programs.md, section 8).
+//! (protocol/host.md, section 2; protocol/programs.md, section 8).
 //! The shared world owns scheduling, teardown, memory and replay mechanics.
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};

@@ -1,4 +1,4 @@
-//! Program paths and source bindings (protocol/hosts.md, sections 5.2 and 5.4).
+//! Program paths and source bindings (protocol/host.md, sections 5.2 and 5.4).
 //! Resolution opens no login and runs no program; `locate` uses supplied paths.
 use super::super::{Refusal, Settings};
 use super::input;

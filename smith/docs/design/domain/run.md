@@ -3,9 +3,9 @@
 Provisional, 2026-10-05, revised 2026-11-02. What a smith run is, as a
 domain layer: one activation of an agent, from the charter its host gives
 it to the answer it gives back. It is the child domain `smith-domain-run`,
-composed with its sessions by `smith-domain` (README.md, section 4). The
+composed with its sessions by `smith-domain` (README.md, section 2). The
 mechanics are those of skein's `programming-model.md`. What is still open
-is listed in section 15.
+is listed in section 13.
 
 ## 1. In one page
 
@@ -83,8 +83,8 @@ What the host gives a run to set it up:
   text (3.3): a chat, a researcher, a coordinator, a reviewer with a
   lens, an operator, a producer of a change. A host gives its own;
   smith's shell gives the task role, one text for chats and for tasks,
-  when its settings give none (`docs/design/shell.md`, sections 5.2 and
-  6.6).
+  when its settings give none (`../shell/settings.md`, sections 1.2 and
+  2.6).
 - **Brief:** titled sections of text, in order, that the host wrote for
   why the run runs, already fitted to the host's budget for them. A host
   that keeps typed context renders it; smith reads only titles and text.
@@ -98,7 +98,7 @@ What the host gives a run to set it up:
   checks (8.1); smith's defaults when absent.
 - **Budget:** what the whole run may spend across all its sessions, in
   the host's unit, with each model's prices; its wall time; its turns, a
-  loop guard; and the reserve it keeps for finishing (section 9).
+  loop guard; and the reserve it keeps for finishing (`budget.md`).
 - **LLMs:** the endpoint and model the main session runs on, and the
   others sub-agents may use, each with its prices, the window of input it
   may use and the most output a completion may have, as the host chose
@@ -155,11 +155,11 @@ The run composes its main session's system text: the instructions, the
 role (3.1), first; the brief's sections; then the sections about its
 own mechanics, because those are what it enforces: the workspace, if
 any, and what it may write; the tools; each directory's guide; the
-checks; the budget (`## Budget`, 9.2); sub-agents, when granted (5.3);
+checks; the budget (`## Budget`, `budget.md`, 2); sub-agents, when granted (5.3);
 how to finish in Finite (the contract, as the LLM must meet it), or how to
 reply in Open; and how waiting works, when `wait` is granted. The domain decides what each says and in which order, and
 writes it as text, as it writes the results and problems of the run's
-own tools and the host's, and the notes it appends (9.2), so a
+own tools and the host's, and the notes it appends (`budget.md`, 2), so a
 transcript keeps exactly what the LLM was told. The workspace tools'
 outcomes stay typed (tools.md, section 4).
 
@@ -244,11 +244,11 @@ that is not empty, or a message.
 - **Awaiting.** A run with an empty brief, no message and `wait` granted
   opens nothing: no session, and no request to a provider. It tells its
   host it is waiting, and the first message opens main, as its opening.
-  Its time awaiting counts against its wall time (section 9), and it
+  Its time awaiting counts against its wall time (`budget.md`), and it
   parks at its charter's waiting time like any waiting run, having taken
   no turn; its host starts it again with the message that wakes it
   (3.2). A run whose ordinary time runs out while it awaits parks then,
-  as any waiting run does, having nothing to finish (9.1).
+  as any waiting run does, having nothing to finish (`budget.md`, 1).
 - **Instructions only.** A run with an empty brief, no message and no
   `wait` has only its instructions to go on, and opens on them, with the
   instruction to begin the work they describe.
@@ -310,13 +310,13 @@ that is not empty, or a message.
 7. **Judges** a declared result against the contract (section 7). A
    violation goes back to the LLM as a tool error it can fix; it does not
    end the run.
-8. **Accounts** every session it opens against one budget (section 9),
+8. **Accounts** every session it opens against one budget (`budget.md`),
    its sub-agents' included, keeps a reserve for finishing, and winds
-   down when the rest runs out (9.1).
+   down when the rest runs out (`budget.md`, 1).
 9. **Ends once.** It closes its sessions, waits for what is in flight to
-   settle, and answers its host (section 10). A cancel from the host takes
+   settle, and answers its host (section 9). A cancel from the host takes
    the same path.
-10. **Reports** facts as it goes (section 11).
+10. **Reports** facts as it goes (section 10).
 
 ## 5. Tools
 
@@ -387,13 +387,13 @@ section 6).
   max_seconds? }`: the brief the child works on; the tool families it
   gets, no wider than the asker's; the LLM it runs on; and the turns and
   seconds it asks for. Its effective share is what it asked, each part
-  clamped to what is left above the reserve when it asks (9.1), or all of
+  clamped to what is left above the reserve when it asks (`budget.md`, 1), or all of
   that when it asked for none. Its spend share follows the same rule:
   never asked for, so all of the spend left above the reserve when it
   asks, and never shown, since the host's unit means nothing to a model.
   No formula ties spend to the turns or seconds asked:
   - asked turns already bound a child's spend, since each completion
-    reserves its maximum cost (section 9);
+    reserves its maximum cost (`budget.md`);
   - children open at once share the ordinary pool, and every completion
     reserves from the run's one budget, so together they never pass it.
   The brief takes the charter's place in the child's window, so a brief
@@ -417,7 +417,7 @@ section 6).
   (protocol/llm.md, section 4).
 - **Told its share.** The child's system text has `## Your share`: its
   effective turns and seconds, the most its answer may hold, and that its
-  last turn has no tools. Like main's `## Budget` (9.2), it says what was
+  last turn has no tools. Like main's `## Budget` (`budget.md`, 2), it says what was
   set at open, never what is left.
 - **A final turn.** The run gives each child, at open, a final-turn note
   and a wrap-up allowance of time: the smaller of the policy value
@@ -430,12 +430,12 @@ section 6).
   gives that answer to its parent with `stop: budget`: an answer that its
   share ended, not one the child chose to give. Its parent hears it like
   any other answer. A child returns unanswered only when it fails or is
-  closed (9.1).
+  closed (`budget.md`, 1).
 - **The result.** The child's final message, up to the answer cap it was
   told, `answer_bytes`, the outcome's room (protocol/limits.md, 3.10), then
   a usage line the run writes: whether the child stopped for its budget,
   what it used, in turns and time, and the turns and time the run has left
-  above its reserve (9.2).
+  above its reserve (`budget.md`, 2).
   - **A cut answer** keeps its head to the cap, cut at a character's
     boundary, and its marker says how much was left out and how to read
     it. The child has closed when it answers, so nothing continues it: the
@@ -467,7 +467,7 @@ section 6).
   The lease follows from how calls are scheduled and from these cancels;
   naming it lets a later step change who holds it while keeping what it
   means. The first such step, a read-only parent working beside one
-  writing child, is a later document's (section 15).
+  writing child, is a later document's (section 13).
 - **Focused briefs.** Main's system text says how to delegate: a child
   starts cold, knowing only its brief, the guides, its tools and its
   share, so a brief names the paths, the decisions already made and the
@@ -502,7 +502,7 @@ host tool for it, as temper's `delegate` does.
   main only; sub-agents never receive them.
 - **Host-requested finish.** Each message carries `finish_requested`, false
   for ordinary words. Only admission of a true message puts Open into the
-  existing wind-down (9.1), waking Listening or Waiting. Start-carried and
+  existing wind-down (`budget.md`, 1), waking Listening or Waiting. Start-carried and
   preparation-time requests retain this effect until main can act. The next
   successful text reply publishes its fence and parks; unread words retain
   their existing terminal. Refusals change no policy, and repeats never renew
@@ -526,7 +526,7 @@ host tool for it, as temper's `delegate` does.
   - **unread:** the run answered without reading it, whether it was still
     queued or offered to a turn that was never told.
 
-  The answer carries the final fence (section 10), so a host in any
+  The answer carries the final fence (section 9), so a host in any
   placement knows which went unread; what it does with them is its policy
   (host.md, section 5). No message is dropped in silence.
 - **A finish crossing a message.** In a run whose charter grants `wait`,
@@ -536,7 +536,7 @@ host tool for it, as temper's `delegate` does.
   `wait`, a finish is judged as it comes, and what was queued goes
   unread.
 - **A cancel is not a message.** It is the host's, and ends the run
-  (section 10).
+  (section 9).
 - **Waiting.** A run whose work depends on what comes next (a chat on its
   person, a coordinator on its delegates) calls `wait`. With messages
   queued, the call is answered at once, with them. Otherwise its result
@@ -545,7 +545,7 @@ host tool for it, as temper's `delegate` does.
   completion. Meanwhile the run tells its host it is waiting, naming its
   fence, and its host holds it, the watchdog paused; the run is idle only
   when that fence covers every message its host sent (host.md, section
-  4). Time spent waiting counts against wall time (section 9).
+  4). Time spent waiting counts against wall time (`budget.md`).
 - **Open text replies.** Main ending a turn with nonempty assistant text
   under an EndTurn stop has replied. Reasoning, metadata and refusal blocks
   do not count as assistant text. After the real turn is told, queued
@@ -568,7 +568,7 @@ host tool for it, as temper's `delegate` does.
 - **Parking.** Past its charter's waiting time it parks: every turn it
   took is sent, and it answers parked. A run whose ordinary time runs out
   while it waits parks too: it has nothing to finish, so it does not
-  wind down (9.1). Its state is its transcript, which the host already
+  wind down (`budget.md`, 1). Its state is its transcript, which the host already
   has, so it hands over nothing else. A run that parks while its `wait`
   is withheld tells its last turn without that call's result. Resumed, it
   supplies that result in its first request, with the messages that wake
@@ -601,7 +601,7 @@ host tool for it, as temper's `delegate` does.
   is told with them, its fence naming the last. Nothing in flight is
   interrupted and nothing already sent changes, so the prefix holds and
   every rule above stands. The run's threshold notes on its budget take
-  the same path, as text the run wrote, with no name (9.2).
+  the same path, as text the run wrote, with no name (`budget.md`, 2).
 
 ## 7. Results
 
@@ -758,7 +758,7 @@ open.
 - **Granted only with `deliver`,** so only in a Finite run: a charter
   that grants `save` without `deliver` is refused at the entrance
   (charter.md, section 2). smith's local host grants none
-  (protocol/hosts.md, 5.5).
+  (../protocol/host.md, 5.5).
 - **No input.** `save` takes an empty object: it carries none of the
   result's fields, since it is no result.
 - **A delivery without its checks.** A save takes the lease over the
@@ -779,166 +779,14 @@ open.
   winding down offers it no more: a save asked while main is closing or
   the run is winding down is answered cancelled.
 
-## 9. Budget and spend
-
-- **One budget per run,** in the host's unit: what the run may spend
-  across all its sessions, sub-agents' included; with wall time and
-  turns. It is checked at the entrance against the agent's `Limits`; a
-  run that asks for more is refused, naming what was too large and the
-  most the agent admits.
-- **Each part has a role.** Time bounds how long the work takes and spend
-  what it costs: those are what a run plans by, and what its model is
-  told (9.2). Turns are a loop guard, set generously, never the unit of
-  planning, since a turn's worth differs across tools and providers.
-- **Wall time runs from admission.** Preparing, awaiting a first message
-  and waiting for one all count against it (section 6).
-- **Spend is real.** Every host prices completions. A host that pays a
-  flat rate prices them notionally, so spend still bounds the work and
-  weighs uncached input as a metered host's would; such prices are for
-  the budget, not a bill.
-- **Every rate is positive:** input, cached input, output, and cache
-  writes when priced apart. Every completion uses a token, and its charge
-  is rounded upwards (session.md, section 6), so each costs at least one
-  unit: spend bounds how many completions a run makes as well as what
-  they cost, and neither a completion's maximum cost nor the reserve's
-  spend is ever zero. A charter that prices any model at zero at any rate
-  is refused at the entrance, naming the rate. A model that costs nothing
-  per token, a local one or one paid by subscription, is priced
-  notionally, as any flat-rate host's is.
-- **Prices are the charter's,** per model: integer amounts for input,
-  cached input, cache writes and output per a number of tokens, cache
-  writes at the input's rate unless priced apart. Each completion is
-  priced as it is made (session.md, section 6). The unit means nothing to
-  smith: it is temper's deployment unit, or what the local host's
-  configuration says.
-- **Shares.** Each session the run opens gets a share of what is left
-  (main all of it, a sub-agent its effective share, 5.3), and per-kind
-  token caps as its limits. When what is left above the reserve is spent,
-  the run winds down (9.1).
-- **Reserved before it is made.** Before each completion, its
-  sub-agents' included, a session reserves that completion's maximum
-  cost from the run's budget: the input it sends and the output its
-  `max_tokens` allows, at its model's prices. The input's maximum counts
-  what the agent sends as at most one token per byte, plus an allowance
-  its limits give for what the protocol layer and the provider add. Each
-  input token is reserved at the highest of the input, cached and
-  cache-write rates, since the provider, not smith, decides which each
-  token is. No order among the rates is required. When
-  the completion ends, the difference is returned. A completion whose
-  maximum does not fit what is left to it is not made: ordinary work
-  that does not fit above the reserve starts the wind-down (9.1), and a
-  completion that does not fit what is left at all ends the run for its
-  budget. So a run never spends past its budget, and stops a little early
-  rather than late. All of it is inside the run, with no call to its
-  host.
-- **On a program backend,** the program makes each completion, so
-  none is reserved before it is made. Each is priced as it is reported,
-  at the charter's prices, and counted as a turn; one that passes the
-  ordinary pool is taken by the reserve, and its overrun is recorded as
-  spend (protocol/programs.md, 5.7). The run still never spends past
-  its budget by more than one completion.
-- **A compaction is a completion** like any other (session.md, section
-  8): reserved, priced, and counted as a turn.
-- **Spend is told:** cumulative in each turn, and whole in the answer.
-
-### 9.1 The reserve and the wind-down
-
-- **Deferred wind-down work follows reclaim.**
-  `wind_down_promoted_after_reclaim` makes successive child closes and
-  main's finishing yield ready only in the next iteration. The run world
-  holds this under load in `smith-run-world`,
-  `orders::wind_down_promoted_after_reclaim_closes_children_once` and
-  `orders::wind_down_promoted_after_reclaim_defers_main_yield`.
-
-- **The reserve** is the charter's `reserve { turns, time }`, which the
-  product's presets give a default (`docs/design/shell.md`). Its spend is
-  derived: its turns, each at the main model's maximum completion cost
-  (its window of input at its highest input rate, and its most output).
-  When the charter's contract allows a change, the reserve's time holds
-  at least one run of the checks (`check_timeout`, protocol/limits.md,
-  2.3). A finish in the wind-down then always has time to check what it
-  delivers, and a charter whose reserve cannot is refused at the
-  entrance, naming both. A budget that
-  cannot hold its reserve is refused at the entrance.
-- **The ordinary pool** is what is left above the reserve, in each part
-  of the budget. Main's ordinary work and every sub-agent's share draw
-  from it; only main's finishing draws on the reserve.
-- **The wind-down** begins when the ordinary pool is spent in any part:
-  turns or time down to the reserve's, or a completion whose maximum does
-  not fit above it. It is for a run that is working. A run waiting for a
-  message when its ordinary time runs out, or awaiting its first, parks
-  instead (section 6): it has nothing to finish until a message comes,
-  and its host decides what wakes it. The run's budget is in one of two
-  stages, ordinary or winding down, and the change is a fact (section
-  11).
-  An admitted Open finish request also starts this phase (section 6), with
-  an explicit host cause and a host-request note, without charging spend or
-  claiming budget exhaustion. It uses the same reserve and hard deadline.
-  1. Live sub-agents are closed and settled, each call answered once,
-     and their jobs end with them (session.md, section 5). Main's own
-     jobs run on: a `finish` that delivers, or a `deliver`, cancels them
-     before its checks (8.1), and the run's end, which closes main's
-     session, cancels any left.
-  2. In Open, main gets the reserve's completions for a last text reply,
-     with no tool choice. The note says to reply with what it has and
-     promise no later work. A successful text end publishes its fence
-     and parks, including with unread words queued (section 6).
-     In Finite, main then gets at most the reserve's turns of completions,
-     the first with the run's note that the budget is spent and it is to finish now
-     with what it has. They offer only `finish`, `deliver` when granted,
-     granted `wait` to park until another message,
-     and host tools whose declaration sets `reserve`: the same tool definitions
-     are sent, and the note names the reserve host tools for meeting outstanding
-     obligations. The model is told to choose among those only (session.md, section 5).
-  3. A result accepted then is accepted (section 10). A main that has not
-     finished when the reserve's turns are used, or its time is out,
-     answers failed for its budget.
-
-  On a program backend, the program's turn is ended and the note sent
-  as its next user message. The program's tools are not narrowed, so
-  the agent refuses every call but `finish`, granted `deliver`, granted `wait` and host tools
-  declared for the reserve from then on,
-  each as an invalid call is answered (protocol/programs.md, 5.7).
-  An Open run on a program backend gets its last reply as
-  protocol/programs.md, 5.9 says.
-- **A sub-agent's share** runs out on its own: its final turn (5.3) ends
-  it, and its parent goes on.
-
-### 9.2 What the model is told
-
-All of it is text the run writes, kept in the transcript, and computed
-from the domain's clock, so a world sees it exactly. Durations are told in whole
-seconds, rounded down, so a share or what is left is never overstated. A
-time under a second that is not zero is told as less than a second. The
-exact values are the facts', in milliseconds (protocol/events.md).
-
-- **`## Budget`,** in main's system text: its wall time and turns as they
-  stand when it opens; that spend is bounded too; the reserve and the
-  wind-down; and how sub-agents draw on what is above the reserve (5.3).
-- **`## Your share`,** in a sub-agent's (5.3).
-- **A usage line** at the end of every sub-agent's result: whether the
-  child stopped for its budget (5.3), what it used, in turns and time,
-  and the turns and time the run has left above its reserve.
-- **Open replies,** under `## Replying` (section 6), and a last-reply note
-  in place of Finite finishing instructions (9.1).
-- **The waking instruction** (section 6) scopes prior exhaustion to the earlier
-  activation and names the fresh allowance in `## Budget`.
-- **The wind-down's note** (9.1) and **a child's final-turn note** (5.3),
-  appended.
-- **Threshold notes,** with messages mid-work (section 6): as the run's
-  time and turns pass set marks, a note saying what is left.
-
-No amount of spend is shown: the host's unit means nothing to a model
-(section 15).
-
-## 10. The answer
+## 9. The answer
 
 A run answers once, after every turn it counts, with its final fence:
 the last message it read (section 6).
 
 - **accepted,** with its result, its turn count and what it spent; also
   when the budget forced its finish, the result accepted in the wind-down
-  (9.1);
+  (`budget.md`, 1);
 - **parked,** with its turn count and what it spent;
 - **failed,** typed so the host can act without reading prose: the model
   (a provider's failure past its retries, with its class, the endpoint
@@ -956,7 +804,7 @@ the last message it read (section 6).
   compaction's answer gave no summary (session.md, section 8.2)), the
   budget (naming what ran out, how much of it the run used and its
   bound, each in its own unit: turns, spend in the host's unit, or the
-  run's wall time as its time budget counts it, section 9), policy (a
+  run's wall time as its time budget counts it, `budget.md`), policy (a
   call or result the run refused
   to make), cancelled, stale, or a transcript it could not resume; each
   with what it spent.
@@ -970,7 +818,7 @@ what is beyond the limits; the start's messages are refused with it. A
 cancel from the host ends the run along the same path; a change its
 finish delivered meanwhile is still its result (8.4).
 
-## 11. Facts
+## 10. Facts
 
 Each child domain pushes what happened as typed, content-free facts into
 an uncapped queue (programming-model.md, section 3), so no fact is lost
@@ -993,9 +841,9 @@ taken by the step that emits it, never when a sink takes it:
 - a message received, or refused with its reason, then read by a told
   turn or unread at the answer, so every message's terminal is a fact;
 - the budget, as it stands at each charge, and its stage, ordinary or
-  winding down, when it changes (9.1); and, as a sub-agent's return
+  winding down, when it changes (`budget.md`, 1); and, as a sub-agent's return
   writes its usage line, the values that line tells, with the call
-  (9.2);
+  (`budget.md`, 2);
 - text arriving from the LLM, counted, never carried. Live content
   (protocol/channel.md, section 4) is not a fact: it goes beside the
   domain, at the host's ask.
@@ -1015,7 +863,7 @@ dropped. Nothing the agent decides depends on a fact: a sink may slow the
 run, never change what it does. What must be delivered (turns, calls,
 the answer, what was spent) is not a fact.
 
-## 12. Below the domain
+## 11. Below the domain
 
 - **Schemas and decoding:** the protocol layer owns the schemas of
   smith's tools, `finish`'s generated from the contract, and passes the
@@ -1034,7 +882,7 @@ the answer, what was spent) is not a fact.
   read as text, checks run
   as contained processes with deadlines and their output's tail.
 
-## 13. The world
+## 12. The world
 
 The run's world runs the domain against neighbours that share none of
 its types (testing-strategy.md, section 4): a scripted session, whose
@@ -1134,7 +982,7 @@ These are domain-speed stories under a deterministic clock and seed,
 within the focused suite's budget; the fuzzy suite draws message
 timings, budgets and shares within its own (`docs/design/testing.md`).
 
-## 15. Open questions
+## 13. Open questions
 
 - **A silent check** (8.1): feedback carries only what its process
   wrote and the machine read. Progress messages belong to the repository's
@@ -1151,7 +999,7 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
   policy answers failed; whether refusal wants a kind of its own.
 - **Conventions' home:** in the charter, as here, or in the agent's
   configuration, with the charter overriding.
-- **Spend in `## Budget`:** none is shown (9.2), since the host's unit
+- **Spend in `## Budget`:** none is shown (`budget.md`, 2), since the host's unit
   means nothing to a model; whether a share of it, as a fraction, would
   help a model plan.
 - **A forced acceptance, marked:** whether the answer says that an

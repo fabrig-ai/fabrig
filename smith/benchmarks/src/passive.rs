@@ -1,5 +1,5 @@
 //! Passive names are a closed author vocabulary, never arbitrary waived text.
-//! `name` preserves the check's wire spelling (benchmarks.md, section11.2).
+//! `name` preserves the check's wire spelling (../../docs/design/benchmarks/README.md, section11.2).
 
 use serde::Deserialize;
 

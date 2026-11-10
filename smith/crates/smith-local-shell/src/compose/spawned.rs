@@ -1,5 +1,5 @@
 //! The generated spawned configuration, written and closed before its launch.
-//! Contract: shell.md, section 5.4; protocol/events.md, section 2.
+//! Contract: shell/settings.md, section 1.4; protocol/events.md, section 2.
 use super::{AgentKind, Refused, files::check_path, root};
 use crate::command::Usage;
 use crate::startup::Failure;

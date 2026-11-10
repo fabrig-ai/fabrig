@@ -20,7 +20,7 @@ pub use crate::conventions::Conventions;
 
 pub use crate::host::{HostEffect, HostTool};
 
-/// What the host keeps for main to finish with (smith/docs/design/domain/run.md, section 9.1).
+/// What the host keeps for main to finish with (smith/docs/design/domain/budget.md, section 1).
 /// Spend is derived from main's completions and is never supplied separately.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reserve {

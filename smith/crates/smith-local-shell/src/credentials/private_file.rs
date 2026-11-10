@@ -1,4 +1,4 @@
-//! Private credential directories and startup store answers (shell.md, 7.2).
+//! Private credential directories and startup store answers (shell/credentials.md, 2).
 //! The shell makes and checks the directory; skein owns the durable write and closes.
 use skein_io::file;
 use skein_lib::Duration;

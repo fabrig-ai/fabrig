@@ -1,6 +1,6 @@
 //! Cache outcomes are logical triplets of canonical, like-input repetitions.
 //! One repetition keeps exact reported counts; only three repetitions decide
-//! the median and pooled miss rate (benchmarks.md, sections 11.1 and 11.5).
+//! the median and pooled miss rate (benchmarks/catalogue.md, sections 1 and 5).
 
 use serde::{Deserialize, Serialize};
 

@@ -1,7 +1,7 @@
 //! One write guard keeps resolved user tool directories and no credentials.
 //! `Guard::write_path` resolves existing ancestors before permitting a write;
 //! `check_credential_record` refuses refresh tokens without returning their
-//! contents (testing.md, section 2.3; benchmarks.md, section 10). Callers check
+//! contents (testing.md, section 2.3; ../../docs/design/benchmarks/README.md, section 10). Callers check
 //! every destination immediately before writing; this guard never reads a login.
 
 use crate::{Fault, credential, input, io};

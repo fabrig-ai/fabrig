@@ -1,8 +1,8 @@
 # Running the product
 
 `smith` resumes a workspace chat and runs its agent in the same process.
-The contracts are [shell.md](../design/shell.md),
-[protocol/hosts.md](../design/protocol/hosts.md) and
+The contracts are [shell.md](../design/shell/README.md),
+[protocol/hosts.md](../design/protocol/host.md) and
 [domain/host.md](../design/domain/host.md).
 
 ## Commands
@@ -76,7 +76,7 @@ source supplies its public-client registration under `[accounts.NAME]`:
 `scope` and `token_format` (`json` or `form`). Optional `trust` chooses
 DER or PEM roots for the token endpoint; otherwise machine roots apply.
 No preset supplies a registration. Missing keys are refused at check and
-startup. See [shell.md, section 7](../design/shell.md) for those fields.
+startup. See [shell.md, section 7](../design/shell/README.md) for those fields.
 
 `login` shows the authorization address for a sign-in account and waits for
 the browser redirect. Private records live under

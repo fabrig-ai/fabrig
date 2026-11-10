@@ -1,6 +1,6 @@
 //! Seeded statistics retain the sampled values and never infer missing metrics.
 //! `interleave`, `bootstrap_ratio`, `pass_interval` and `audit_sample` implement
-//! benchmarks.md, section 9, using skein's recorded seed for every draw.
+//! ../../docs/design/benchmarks/README.md, section 9, using skein's recorded seed for every draw.
 
 use std::collections::BTreeSet;
 
@@ -9,7 +9,7 @@ use skein_lib::Rng;
 
 use crate::{Bound, Fault, Input, Measure, bound, input, refuse_if};
 
-/// A repository comparison's range claim (benchmarks.md, sections 3.1 and 9).
+/// A repository comparison's range claim (../../docs/design/benchmarks/README.md, sections 3.1 and 9).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "state", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum LargeEffect {

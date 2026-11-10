@@ -2,7 +2,7 @@
 //! `summarise` reads only versioned attempt results, samples audits with its seed
 //! and compares like task inputs; `baseline` freezes one configuration and tier.
 //! Drift asks for another comparison, never declares a regression
-//! (benchmarks.md, sections 5.4, 8 and 9).
+//! (../../docs/design/benchmarks/README.md, sections 5.4, 8 and 9).
 
 mod compare;
 

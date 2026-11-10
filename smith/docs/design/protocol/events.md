@@ -52,7 +52,7 @@ their writer and their reader are `smith-events` (README.md, section
 
 - **Who writes it.** The process that runs a run: the agent process
   writes its trace (agent.md, section 5), and the product writes the
-  stream of the run its inline agent composes (hosts.md, section 5.6). A
+  stream of the run its inline agent composes (host.md, section 5.6). A
   host that spawns an agent hears its facts on the channel (channel.md,
   section 8), which carries them in its own codec, not as this stream.
   The product's stream is the local service's. With the inline agent it
@@ -63,7 +63,7 @@ their writer and their reader are `smith-events` (README.md, section
   process's, in its own trace when the configuration names one (below).
 - **Where it goes.** To standard output under `smith exec --json`, and to
   a trace file when the configuration names one (agent.md, section 4;
-  `docs/design/shell.md`). A process writing both writes the same records
+  `../shell/README.md`). A process writing both writes the same records
   to each; each destination is a sink of its own, with its own count of
   loss (5.2). When the product spawns its agent, the product's stream
   goes to the configured trace file, and the agent process's own trace
@@ -77,7 +77,7 @@ their writer and their reader are `smith-events` (README.md, section
   with the fact it belongs to.
 - **Time.** `t_ms` is milliseconds since the process started, on the
   monotonic clock, taken when the event happened: a fact's at the step
-  that made it (domain/run.md, section 11), a measurement's when it was
+  that made it (domain/run.md, section 10), a measurement's when it was
   taken. Durations within a record are on the same clock.
   `session.started` holds the wall clock once, so a reader can place the
   stream in the world.
@@ -121,7 +121,7 @@ conversation, which is `conversation`.
 | `wall_ms` | integer | the wall clock at the process's start, in milliseconds since the Unix epoch |
 | `agent` | object | `name` and `version`: the agent name and release version |
 | `mode` | string | `agent`, a spawned agent process; `exec`, headless; or `chat`, interactive |
-| `chat` | string, optional | the product's chat, by its name, under `exec` and `chat` (`docs/design/shell.md`, section 4) |
+| `chat` | string, optional | the product's chat, by its name, under `exec` and `chat` (`../shell/commands.md`) |
 | `pid` | integer | the process's id |
 | `profile` | string | the profile's name (limits.md, section 1) |
 | `capture` | string | the capture policy: `none`, `calls` or `everything` (5.3) |
@@ -137,7 +137,7 @@ drops captured records and counts the omissions; native facts remain lossless.
 
 | Field | Type | What it is |
 |---|---|---|
-| `exit` | integer | the code the process exits with: for the product, one of `docs/design/shell.md`, 4.3, written once its own output, `-o`'s file among it, has been written or has failed; for an agent process, 0 once it answered and 1 when it could not (agent.md, section 6) |
+| `exit` | integer | the code the process exits with: for the product, one of `../shell/commands.md`, 3, written once its own output, `-o`'s file among it, has been written or has failed; for an agent process, 0 once it answered and 1 when it could not (agent.md, section 6) |
 | `answered` | bool | whether every run it held answered |
 | `teardown_ms` | integer or null | from the last answer to the end: `Answered` to `Closed` (agent.md, section 6) |
 | `aborted` | bool | a termination signal turned graceful closes into aborts |
@@ -163,7 +163,7 @@ also writes an `operator` notice saying that usage could not be read.
 | `resumed` | bool | main opens from a transcript |
 | `messages` | integer | the start's messages (domain/run.md, 3.2) |
 | `main` | model | main's LLM (3.10) |
-| `budget` | object | `turns`, `spend`, `time_ms`, and `reserve`: `turns`, `time_ms` and its derived `spend` (domain/run.md, 9.1) |
+| `budget` | object | `turns`, `spend`, `time_ms`, and `reserve`: `turns`, `time_ms` and its derived `spend` (../domain/budget.md, 1) |
 | `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, none on either backend (programs.md, section 2); `wait`, `deliver` and `save`, bools; `host`, the host tools declared |
 | `contract` | list | the result forms the contract allows: `report`, `verdict`, `change`, `failure` |
 
@@ -173,10 +173,10 @@ refused at the entrance, which has no `run.started`:
 | Field | Type | What it is |
 |---|---|---|
 | `run` | integer | |
-| `status` | string | `accepted`, `parked`, `failed` or `refused` (domain/run.md, section 10) |
+| `status` | string | `accepted`, `parked`, `failed` or `refused` (domain/run.md, section 9) |
 | `failure` | answer failure | for `failed` and `refused` (3.10) |
 | `result` | object | for `accepted`: `form` and, for a verdict, `label`; `text` and `fields` under `everything` |
-| `wind_down` | bool | the answer came in the wind-down (domain/run.md, 9.1) |
+| `wind_down` | bool | the answer came in the wind-down (../domain/budget.md, 1) |
 | `turns` | integer | the turns told in this activation |
 | `spent` | integer | what the run spent, in the host's unit |
 | `usage` | usage | the run's totals, every conversation's included (3.10) |
@@ -262,7 +262,7 @@ attempt, retries included.
 it streams, before its block completes. It is content: a destination's
 stream carries it only under `everything`, and a front end in the
 process that shows words as they come asks for it for itself
-(`docs/design/shell.md`, 4.1). Neither asking, it is not made. It is
+(`../shell/commands.md`, 1). Neither asking, it is not made. It is
 counted like any record that is not authoritative, and its block, once
 complete, is in `response.completed`.
 
@@ -379,14 +379,14 @@ each with `start_refused`, before its `run.completed`.
 
 **`budget`,** a snapshot of the run's budget each time a completion is
 charged, when its stage changes, and as a sub-agent's return writes its
-usage line (domain/run.md, 9.2): that record holds the values the line
+usage line (../domain/budget.md, 2): that record holds the values the line
 tells, and names the call. The record that enters the wind-down is the
 one whose `stage` is `wind_down` first.
 
 | Field | Type | What it is |
 |---|---|---|
 | `run` | integer | |
-| `stage` | string | `ordinary`, or `wind_down` once the ordinary pool is spent (domain/run.md, 9.1) |
+| `stage` | string | `ordinary`, or `wind_down` once the ordinary pool is spent (../domain/budget.md, 1) |
 | `turns`, `spend`, `time_ms` | object | each `used` and `limit` |
 | `reserve` | object | `turns`, `time_ms` and `spend` |
 | `call` | string, optional | the `sub_agent` call whose return wrote the usage line this record tells; absent on every other `budget` record |
@@ -456,7 +456,7 @@ when it is about one; and the kind's fields.
   its `exit` when it exited and, as content, its `detail`
   (programs.md, 5.6); or with
   `which`, a fault of the model's own answer, `refused`, `truncated` or
-  `malformed`, domain/run.md, section 10), `budget` (with `which`: `turns`,
+  `malformed`, domain/run.md, section 9), `budget` (with `which`: `turns`,
   `spend` or `time`, and `used` and `bound` in its unit: a count, the
   host's unit, or milliseconds of the run's wall time), `policy`, `cancelled` (with `dropped`), `stale`,
   `transcript` (with `reason`), `agent` (with `ended`) or `host` (with
@@ -500,8 +500,8 @@ when it is about one; and the kind's fields.
 | Record | Fed by |
 |---|---|
 | `session.started` | the shell: the wall clock, the process id, the agent name and version; the configuration: profile, capture and delivery; the service's effective limits (limits.md, section 9); the machine's containment |
-| `run.started` | the run's fact that it was admitted (domain/run.md, section 11), with the charter's main model, budget, reserve, tools and contract |
-| `run.completed` | the run's answer (domain/run.md, section 10), where the stream's writer meets it: the agent service as it sends it, or the local service as its local domain receives it from its agent: status, typed failure, result, turns, spend and the final fence; the run's usage totals; a refusal at the entrance |
+| `run.started` | the run's fact that it was admitted (domain/run.md, section 10), with the charter's main model, budget, reserve, tools and contract |
+| `run.completed` | the run's answer (domain/run.md, section 9), where the stream's writer meets it: the agent service as it sends it, or the local service as its local domain receives it from its agent: status, typed failure, result, turns, spend and the final fence; the run's usage totals; a refusal at the entrance |
 | `conversation.opened`, `.closed` | the run's facts that a conversation opened or closed, with its parent, a child's effective share and clamp reasons; the session's end, with its turns and usage |
 | `response.started` | the session's fact that a completion started (its attempt, messages and output); the domain's content under capture |
 | `response.completed` | the session's facts that a completion answered, failed, was cancelled or will be retried, and its usage and charge; the LLM component's measures of the encoded request, its first byte and its largest gap (llm.md, section 6); the domain's content under capture |
@@ -514,7 +514,7 @@ when it is about one; and the kind's fields.
 | `notice` | the domain's notices of accounts; the session's dropped reasoning item; the service's measured sizes against their limits; the shell's containment and aborted teardown; a host kit's evidence of its agent's exit |
 | `session.ended` | the shell: the exit code, the teardown's span and whether it aborted, each sink's loss, the counts emitted, and the kernel's resource usage of the process and its reaped children |
 
-What the domain owes these records is domain/run.md, section 11's: no
+What the domain owes these records is domain/run.md, section 10's: no
 record is a guess from text, and none is derived from a channel's
 projection.
 
@@ -570,7 +570,7 @@ projection.
   usage), typed, through a bounded queue, whatever the destinations'
   capture. It is best effort: what it cannot hold is dropped and counted,
   and it never holds the run back. Nothing it takes is serialized or read
-  back from a destination (`docs/design/shell.md`, 4.1).
+  back from a destination (`../shell/commands.md`, 1).
 
 ### 5.3 The capture policy
 
@@ -623,7 +623,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   each happened, the provider's id for each call, a child's effective
   share, its clamps and its usage, every message's terminal, the
   compactions, each job's end that no answer reported, and the budget
-  (domain/run.md, section 11;
+  (domain/run.md, section 10;
   domain/session.md).
 - **skein owes:**
   - its JSON writer and reader (skein's `json.md`);
@@ -647,7 +647,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   Before the first release the version stays fixed (skein's `codec.md`,
   section 5); a reader test refuses a golden line of another version.
 - **Conformance,** in the agent's simulated world (agent.md, section 8)
-  and the local host's (hosts.md, section 7). The referee reads the
+  and the local host's (host.md, section 7). The referee reads the
   stream through `smith-events`' reader, as a consumer does, and checks:
   - `session.started` first and `session.ended` last;
   - one `run.completed` per run, equal to the host's answer;
@@ -675,9 +675,9 @@ The vocabulary is pre-release, like every format (README.md, section 8).
     unchanged.
 - **End to end:** `smith exec --json` against the fake provider: the
   stream reads whole, and the exit code agrees with `run.completed`
-  (`docs/design/shell.md`).
+  (`../shell/README.md`).
 - **Its consumers** read through the same reader: the live tests, and
-  the benchmarks' harness (`docs/design/benchmarks.md`).
+  the benchmarks' harness (`../benchmarks/README.md`).
 
 ## 10. Open questions
 

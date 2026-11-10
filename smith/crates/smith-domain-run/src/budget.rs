@@ -1,12 +1,12 @@
-//! Scalar host-unit ceilings and exact accounting (smith/docs/design/domain/run.md,
-//! sections 9 and 10). Sessions price usage; the run never reprices it.
+//! Scalar host-unit ceilings and exact accounting (smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9
+//! ). Sessions price usage; the run never reprices it.
 
 use crate::charter::{Llm, Reserve};
 use alloc::boxed::Box;
 
 use skein_lib::Duration;
 
-/// A part of a run's budget supplied by its host (smith/docs/design/domain/run.md, section 9).
+/// A part of a run's budget supplied by its host (smith/docs/design/domain/budget.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Part {
     /// Its completions.
@@ -28,7 +28,7 @@ pub enum Ceiling {
     Time(Duration),
 }
 
-/// Why the agent refuses a budget before effects (smith/docs/design/domain/run.md, sections 4 and 9).
+/// Why the agent refuses a budget before effects (smith/docs/design/domain/run.md, section 4 and smith/docs/design/domain/budget.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BudgetRefusal {
     /// A part asks for more than the agent admits.
@@ -43,7 +43,7 @@ pub enum BudgetRefusal {
     Completion { most: u64 },
 }
 
-/// A model rate that the host must price above zero (smith/docs/design/domain/run.md, section 9).
+/// A model rate that the host must price above zero (smith/docs/design/domain/budget.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Rate {
     /// New input.
@@ -115,7 +115,7 @@ pub enum Set {
     Deadline,
 }
 
-/// The run's budget stage, recorded for its watchers (smith/docs/design/domain/run.md, section 9.1).
+/// The run's budget stage, recorded for its watchers (smith/docs/design/domain/budget.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Stage {
     /// Work draws on the ordinary pool.
@@ -126,7 +126,7 @@ pub enum Stage {
 }
 
 /// Host-supplied rates: Session charges reported usage; Run derives completion
-/// maxima from them (smith/docs/design/domain/run.md, section 9). Absent cache-write pricing uses
+/// maxima from them (smith/docs/design/domain/budget.md). Absent cache-write pricing uses
 /// the input rate. The run refuses zero rates or a zero unit before discovery;
 /// Session keeps its own generic charging policy.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -353,7 +353,7 @@ impl Budget {
 
 /// Whether a run may start, shared by the entrance, local host and `smith check`.
 /// A change contract supplies its configured check deadline; other contracts
-/// supply none (smith/docs/design/domain/run.md, sections 4 and 9.1).
+/// supply none (smith/docs/design/domain/run.md, section 4, and smith/docs/design/domain/budget.md, section 1).
 pub fn admit(
     budget: &Budget,
     reserve: Reserve,
@@ -386,7 +386,7 @@ pub fn admit(
 
 /// Main's full input window at the highest input rate and output at its rate,
 /// rounded up once.
-/// Contract: smith/docs/design/domain/run.md, sections 9 and 9.1.
+/// Contract: smith/docs/design/domain/budget.md.
 #[must_use]
 pub fn most_costly(main: &Llm) -> Option<u64> {
     let input = u128::from(main.window).checked_mul(u128::from(main.prices.reserved_input()))?;

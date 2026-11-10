@@ -5,7 +5,7 @@
 //! referee or provider script is copied here. Two accepted names per world fit
 //! the existing six-turn script: observed 0→99 and 99→7 pairs span the sweep,
 //! never a claimed single 0→99→7 conversation.
-//! Contract: smith/docs/design/domain/run.md, sections 6, 10, 13; skein/docs/foundation/testing-strategy.md,
+//! Contract: smith/docs/design/domain/run.md, sections 6, 9, 12; skein/docs/foundation/testing-strategy.md,
 //! sections 3, 6, 7 and 8; skein/docs/foundation/programming-model.md, section 10.2.
 
 use skein_lib::{Duration, Rng, Time, Token};

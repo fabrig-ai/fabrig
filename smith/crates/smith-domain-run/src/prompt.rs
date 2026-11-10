@@ -1,7 +1,7 @@
 //! Main receives literal host instructions; a fresh Open main receives its
 //! ordered titled Brief as the first user message, a Finite main in system text;
-//! a child receives only its caller's raw task (smith/docs/design/domain/run.md, sections 3.1,
-//! 3.3, 3.4, 5.3 and 9.2). Both then receive selected guides, run mechanics and
+//! a child receives only its caller's raw task (smith/docs/design/domain/run.md, sections 3.1, 3.3, 3.4 and 5.3, and smith/docs/design/domain/budget.md, section 2
+//! ). Both then receive selected guides, run mechanics and
 //! budget prose fixed at their opening.
 //! `opening` composes a fresh main brief or begin instruction and its bounded message offer;
 //! with concrete history, it scopes prior exhaustion to its activation before offering waking messages.
@@ -402,7 +402,7 @@ pub(crate) fn child(
 }
 
 /// Maximum new immutable budget/share prose, measured at scalar maxima without allocation.
-/// The profile adds this to its other fixed prompt bytes (smith/docs/design/domain/run.md, section 9.2).
+/// The profile adds this to its other fixed prompt bytes (smith/docs/design/domain/budget.md, section 2).
 #[must_use]
 pub fn budget_prompt_bytes() -> Option<u64> {
     let mut main = Text::measuring();

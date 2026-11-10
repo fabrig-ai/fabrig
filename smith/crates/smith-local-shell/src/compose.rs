@@ -1,4 +1,4 @@
-//! Product startup and the selected local composition (shell.md, sections 4 and 9).
+//! Product startup and the selected local composition (shell/commands.md and shell/README.md, section 5).
 //! Resolution owns model/account selection; the shell opens named resources and
 //! carries one kernel from the stdin phase into the local host's run.
 use crate::{

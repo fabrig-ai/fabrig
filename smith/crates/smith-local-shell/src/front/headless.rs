@@ -1,4 +1,4 @@
-//! One headless run's result and operator status (shell.md, sections 4.2–4.3).
+//! One headless run's result and operator status (shell/commands.md, sections 2–3).
 //! It keeps the last told text and answer's counters; credentials and event
 //! records are never known here. Failure words remain the shared notice renderer's.
 use skein_lib::Duration;

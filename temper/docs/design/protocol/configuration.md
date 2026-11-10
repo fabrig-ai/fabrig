@@ -1385,7 +1385,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   temper's parts, not Claude Code's own MCP-attached overhead.
 
 - **A cut sub-agent answer's rest** (13.8): smith's `domain/run.md`,
-  section 15 leaves retention for a continuation undecided. Default:
+  section 13 leaves retention for a continuation undecided. Default:
   derive the answer room from the payload and ask a new child, narrower,
   for omitted material; temper declares no continuation setting.
 - **A terminal approved at a public name** (3, clients): Google on the

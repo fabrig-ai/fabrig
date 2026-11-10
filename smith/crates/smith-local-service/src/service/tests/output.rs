@@ -1,4 +1,4 @@
-//! Output close handoffs and private-store lifecycle (shell.md, sections 4.2 and 9).
+//! Output close handoffs and private-store lifecycle (shell/commands.md, section 2, and shell/README.md, section 5).
 
 use super::{Service, local};
 use skein_fake_machine::{How, Is, Item, Machine, Opened};

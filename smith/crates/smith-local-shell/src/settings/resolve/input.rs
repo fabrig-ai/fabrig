@@ -1,4 +1,4 @@
-//! Required catalog fields and their source-preserving defaults (shell.md, 5.2).
+//! Required catalog fields and their source-preserving defaults (shell/settings.md, 1.2).
 use super::super::{Origin, Problem, Refusal, Settings, Sourced};
 use toml::Value;
 

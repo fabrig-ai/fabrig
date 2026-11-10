@@ -1,5 +1,5 @@
 //! Named plain roots and their observed files in the simulated composition
-//! (smith/docs/design/protocol/hosts.md, 5.5).
+//! (smith/docs/design/protocol/host.md, 5.5).
 use super::{Files, Placement, World};
 use crate::process::PlainDirectory;
 use skein_fake_machine::How;

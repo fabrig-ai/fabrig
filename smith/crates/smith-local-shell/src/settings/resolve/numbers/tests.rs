@@ -33,7 +33,7 @@ fn checked(name: &str) -> Result<(), Refusal> {
     refuse_collisions(&settings, &[(name.into(), 7)])
 }
 
-// shell.md, section 5.2 bounds account names at 32 bytes.
+// shell/settings.md, section 1.2 bounds account names at 32 bytes.
 const NAME_BYTES: usize = 32;
 
 #[test]

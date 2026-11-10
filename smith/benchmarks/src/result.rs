@@ -1,7 +1,7 @@
 //! Versioned attempt evidence, retaining observations and explicit gaps only.
 //! `read_result` refuses other versions; `classify_smith_exit` reconciles the
-//! observed answer, deadline and exit (benchmarks.md, sections 8.1 and 8.3;
-//! shell.md, section 4.3). No measurement is borrowed from another scope.
+//! observed answer, deadline and exit (../../docs/design/benchmarks/README.md, sections 8.1 and 8.3;
+//! shell/commands.md, section 3). No measurement is borrowed from another scope.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -121,7 +121,7 @@ pub struct Timing {
     pub record: TimeRecord,
 }
 
-/// Main-conversation durations reported by the adapter (benchmarks.md, section 8.1).
+/// Main-conversation durations reported by the adapter (../../docs/design/benchmarks/README.md, section 8.1).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct TimeRecord {
@@ -169,7 +169,7 @@ pub struct Counts {
     pub message_terminals: BTreeMap<String, Measure<u64>>,
 }
 
-/// Exact delegation supplied by an agent adapter (benchmarks.md, section 8.1).
+/// Exact delegation supplied by an agent adapter (../../docs/design/benchmarks/README.md, section 8.1).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Delegation {

@@ -194,7 +194,7 @@ Beside them, smith's components, by the agent capability:
 `smith-protocol-llm`, over skein's `skein-llm-connection`, in a process
 that runs `smith-inline-agent`, with `smith-protocol-machine` on a
 worker (`llm.md`); `smith-host-protocol` on a worker with agent
-processes (smith's `protocol/hosts.md`, sections 2 and 3).
+processes (smith's `protocol/host.md`, sections 2 and 3).
 
 - **The client itself is not a component of these:** `jig-client`, the
   client the application holds, with its domain, `jig-client-domain`,
@@ -453,7 +453,7 @@ Each is generic, and says nothing about jig.
   entrance, the answer's final fence, and content-free facts (smith's
   `protocol/channel.md`, sections 3 to 8); the host domain and its host
   half, `smith-host-protocol`, with the agent process and its shell as a
-  library, `smith-agent-shell` (smith's `protocol/hosts.md`, section 3);
+  library, `smith-agent-shell` (smith's `protocol/host.md`, section 3);
   the parent face (smith's `domain/host.md`, 9.4); `smith-inline-agent`,
   with its LLM component, serving many runs' completions with one table
   of grants, and its machine component; and smith's codecs between bytes
@@ -468,7 +468,7 @@ Each is generic, and says nothing about jig.
   unauthorized notices; the program backend, which runs Claude Code
   with its own login and its built-in tools asking smith's policy; and
   the host half's sources, login checks and sign-outs (smith's
-  `protocol/channel.md`, section 6; `protocol/hosts.md`, section 2;
+  `protocol/channel.md`, section 6; `smith/docs/design/protocol/host.md`, section 2;
   `protocol/programs.md`, sections 3 to 5).
 - **Not asked: a completion's result contract.** A protocol layer that
   runs `smith-inline-agent` keeps each slot's beside smith's LLM

@@ -310,7 +310,7 @@ its root chooses otherwise:
 
 A read of an account's list (accounts.md, 3.7) takes the same queue: the engine
 names an endpoint and a grant, and the root's agent capability has smith's host
-half run the agent's one request (smith's `protocol/hosts.md`, section 2). It
+half run the agent's one request (smith's `protocol/host.md`, section 2). It
 takes no slot and no workspace, and its answer, the rows or a typed failure, goes
 up with the read's number. The hub hears the grant's name alone; its value comes
 from the worker's table, as a run's does. A link lost cancels it and sends nothing.
@@ -524,7 +524,7 @@ Typed, so the engine can act on them without reading prose:
   workstream holds its workspace), or permanent until something changes
   on a system, naming the resource the workspace says;
 - **the run failed,** as it reports it (smith's `domain/run.md`,
-  section 10), or because the source of an LLM account it needs turned
+  section 9), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
   is no failure of its task's (tasks.md, 5.5; accounts.md, 3.5);
 - **the agent failed:** it could not be started, it exited or was dropped
@@ -625,7 +625,7 @@ translation between them is exhaustive, without a wildcard.
 
 ### 6.5 Facts
 
-What the run reports as it goes (smith's `domain/run.md`, section 11)
+What the run reports as it goes (smith's `domain/run.md`, section 10)
 goes up to the engine for live views, and, from agent processes, feeds
 their watchdog. Forwarding is best effort: a bounded queue, what does not
 fit dropped and counted, sent on an open link only, after the hello.
@@ -942,7 +942,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
 - **Budget, models, waiting:** the run's budget, its turns, spend and
   time, its spend reserved from its task at its claim, in the
   deployment's unit, and its reserve of turns and time for finishing
-  (smith's `domain/run.md`, 9.1); its models, from its task's LLM choice
+  (smith's `domain/budget.md`, 1); its models, from its task's LLM choice
   (tasks.md, section 3), the main session's and those its sub-agents may
   use, each with its effort, on an endpoint named as the agent's
   configuration names it, with its window, its output and its prices
@@ -951,8 +951,8 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   endpoint names no account (accounts.md, 3.4; smith's
   `protocol/programs.md`, section 3); the charter's waiting time, and
   whether a run resumes its transcript or starts fresh.
-- **What jig asks of smith's budget** (smith's `domain/run.md`, 9 and
-  9.1): before each completion, its sub-agents' included, smith reserves
+- **What jig asks of smith's budget** (smith's `domain/budget.md`
+  ): before each completion, its sub-agents' included, smith reserves
   that completion's most (its input at the highest input rate, its
   output at the output rate) from the run's budget, and returns the
   difference when the completion ends. When the ordinary part of the
@@ -1079,7 +1079,7 @@ refused busy, as at its entrance: no failure, placed again
   tree, with proof that the tree is empty after it stops; smith's channel
   over its pipes, `smith-channel` its codec, its host half
   `smith-host-protocol`, a component of the worker's protocol layer
-  (smith's `protocol/hosts.md`, section 2). The agent may be a command of
+  (smith's `protocol/host.md`, section 2). The agent may be a command of
   the application's own binary that runs smith's agent shell
   (`smith-agent-shell`).
 - **Workspaces' io:** the application's.

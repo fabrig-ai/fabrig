@@ -1,4 +1,4 @@
-//! Durable record replacement and its one committed retry (protocol/hosts.md, 5.3).
+//! Durable record replacement and its one committed retry (protocol/host.md, 5.3).
 //! The pending state retains retry bytes and the continuation until durability settles.
 use super::Terminal;
 use super::{

@@ -1,6 +1,6 @@
 //! Before/after evidence uses verified frozen arms and the prepared suite dispatcher.
 //! Builds are an explicit build step; live dispatch never builds or
-//! reads agent credentials itself (benchmarks.md sections4.2/10).
+//! reads agent credentials itself (../../docs/design/benchmarks/README.md sections4.2/10).
 
 use std::path::Path;
 

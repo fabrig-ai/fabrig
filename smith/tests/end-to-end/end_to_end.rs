@@ -642,7 +642,7 @@ fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
 
 /// What an ephemeral run left in the scratch runtime directory, where its
 /// private directory is made; none is ever made under the state directory
-/// (smith/docs/design/shell.md 4.2).
+/// (smith/docs/design/shell/commands.md 2).
 fn ephemeral_directories(scratch: &Scratch) -> Vec<std::path::PathBuf> {
     let state = std::fs::read_dir(scratch.path().join("state")).into_iter().flatten();
     assert!(

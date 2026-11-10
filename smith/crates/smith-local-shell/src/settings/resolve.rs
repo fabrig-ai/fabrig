@@ -1,4 +1,4 @@
-//! Catalog inheritance and the run's model/account selection (shell.md, 5.2).
+//! Catalog inheritance and the run's model/account selection (shell/settings.md, 1.2).
 //! Selection retains settings and account descriptors, never credentials. `select`
 //! opens no endpoint; composition and relationship checks follow selection.
 use super::Settings;

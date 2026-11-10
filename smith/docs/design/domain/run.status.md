@@ -13,7 +13,7 @@ process-world story checks a real child's 3,000-byte answer reaching
 main whole, without a cut marker or omitted tool bytes. The canonical
 feedback table checks every stop, zero and maximum cut counts, and the
 usage suffix. Retaining a cut answer's rest for a continuation remains
-section 15's open question; the run keeps no rest beyond the cap.
+section 13's open question; the run keeps no rest beyond the cap.
 
 Section 5.3's room has ten scripted program-world rows: two to six
 calls at a room of five, with program and credential
@@ -38,7 +38,7 @@ output tail. The given span is retained when the check starts, bounded
 by both `check_timeout` and the call's remaining time, and is printed
 for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
-a silent check still has no output to report (section 15).
+a silent check still has no output to report (section 13).
 
 ## Gaps and departures
 
@@ -47,12 +47,12 @@ a silent check still has no output to report (section 15).
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
-  offers queued messages only at main's opening and when main yields
-  (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
-  marks the budget's thresholds.
 - **Departs:** 3.3: the workspace's section renders as `## Checkout`, and
   the system text says "the checkout" (`smith-domain-run/src/prompt.rs`,
   `render_checkout`). The user's request of 2026-11-04 asks that the word
   stay only where git's checkout is meant, and that behaviour not change;
   this text is what the LLM reads, so it stays (15).
+- **Not yet:** 6: messages mid-work and threshold notes. The run
+  offers queued messages only at main's opening and when main yields
+  (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
+  marks the budget's thresholds.

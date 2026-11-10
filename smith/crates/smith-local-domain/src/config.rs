@@ -2,8 +2,8 @@
 //! sections 5 and 8; domain/run.md, sections 3.1 and 5.3). Configuration owns text,
 //! model names and result policy, but neither credential secrets nor files.
 //! `charter` copies those choices without consulting time or the workspace.
-//! One-turn reserve admission stays with the real run entrance (domain/run.md,
-//! section 9.1); local startup retains budget ceilings and completion affordability.
+//! One-turn reserve admission stays with the real run entrance (domain/budget.md,
+//! section 1); local startup retains budget ceilings and completion affordability.
 
 use alloc::boxed::Box;
 use skein_lib::List;

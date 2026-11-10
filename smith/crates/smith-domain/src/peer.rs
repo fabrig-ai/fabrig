@@ -10,7 +10,7 @@
 //! calls are concrete provider id/name/input/replay with Historical classification.
 //! The peer never knows provider syntax, credential secrets or host effects.
 //!
-//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 13; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 12; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use core::mem::size_of;
 

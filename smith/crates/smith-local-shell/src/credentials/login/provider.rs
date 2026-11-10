@@ -1,4 +1,4 @@
-//! One explicit sign-in or revocation, under the record lock (shell.md, 4.5–4.6).
+//! One explicit sign-in or revocation, under the record lock (shell/commands.md, 5–6).
 use super::super::{Account, Directory, host_id, registration, sign_in};
 use super::{Environment, LoginOutcome};
 use crate::settings::Settings;

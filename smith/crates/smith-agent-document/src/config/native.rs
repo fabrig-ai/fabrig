@@ -1,5 +1,5 @@
 //! Native endpoint resolution and bounded trust loading before channel startup.
-//! Contract: smith/docs/design/shell.md, section 2; smith/docs/design/protocol/agent.md, section 4.
+//! Contract: smith/docs/design/shell/README.md, section 2; smith/docs/design/protocol/agent.md, section 4.
 #[cfg(unix)]
 use super::document::TrustDocument;
 use super::{

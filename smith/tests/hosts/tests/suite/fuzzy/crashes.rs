@@ -1,5 +1,5 @@
 //! Every scheduling cut of one hosted run, plus seeded scheduler variation,
-//! is replayed with the child crashing there (protocol/hosts.md, section 7).
+//! is replayed with the child crashing there (protocol/host.md, section 7).
 
 #[cfg(test)]
 mod tests {

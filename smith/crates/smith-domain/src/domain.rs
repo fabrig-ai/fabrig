@@ -5,8 +5,8 @@
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
 //! acknowledgements, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
-//! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, sections 2, 3, 10,
-//! 13; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
+//! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, sections 2, 3, 9,
+//! 12; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
 //! Facts are kept losslessly in uncapped queues and drained by their queued count.
 //!

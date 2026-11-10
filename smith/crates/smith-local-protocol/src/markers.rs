@@ -1,4 +1,4 @@
-//! Original merge-conflict files for a local delivery (protocol/hosts.md,
+//! Original merge-conflict files for a local delivery (protocol/host.md,
 //! section 5.5; domain/host.md, section 8). The adapter retains the bounded
 //! original paths and one read position. It never surveys unrelated files,
 //! decides a delivery, or owns a descriptor. `new`, `start` and `from_file`

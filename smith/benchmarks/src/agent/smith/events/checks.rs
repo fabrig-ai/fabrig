@@ -1,5 +1,5 @@
 //! Task predicates are evaluated over typed records, with unavailable evidence
-//! retained explicitly (benchmarks.md, sections3.2/11.1).
+//! retained explicitly (../../../../../docs/design/benchmarks/README.md, sections3.2/11.1).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -375,7 +375,7 @@ fn provider_failure(observer: &Observer, minimum: u16, maximum: u16, detail_boun
                 };
             };
             found_terminal = true;
-            // The retired client fallback contains no provider text (benchmarks.md 11.1).
+            // The retired client fallback contains no provider text (benchmarks/catalogue.md 1).
             let generated_detail = detail
                 .strip_prefix(b"provider HTTP error ")
                 .is_some_and(|digits| !digits.is_empty() && digits.iter().all(u8::is_ascii_digit));

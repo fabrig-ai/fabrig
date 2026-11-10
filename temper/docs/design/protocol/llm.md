@@ -60,7 +60,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   (configuration.md, section 5; jig's `protocol/service.md`, section 6).
   It reads smith's agent configuration, dials the endpoints it declares,
   and takes its run's grants from smith's host half (smith's
-  `protocol/hosts.md`, section 2).
+  `protocol/host.md`, section 2).
 - **What a call does is smith's:** its session retries a failed
   completion, and its run holds the budget (jig's `protocol/llm.md`,
   sections 1 and 3).

@@ -1,5 +1,5 @@
 //! Shared-fake root/run/session messages and replay histories.
-//! Contract: smith/docs/design/domain/run.md, sections 6, 10 and 13; smith/docs/design/domain/session.md, section 3;
+//! Contract: smith/docs/design/domain/run.md, sections 6, 9 and 12; smith/docs/design/domain/session.md, section 3;
 //! skein/docs/foundation/testing-strategy.md, sections 2.3 and 7.
 
 use skein_fake_llm_domain::api::Part;

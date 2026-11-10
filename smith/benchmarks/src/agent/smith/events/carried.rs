@@ -1,6 +1,6 @@
 //! Compaction joins its parent's owed calls, captured results and next window.
 //! Only retained prompts and completions establish what crossed the window;
-//! absent capture stays unavailable (benchmarks.md 3.2; domain/session.md 8.2).
+//! absent capture stays unavailable (../../../../../docs/design/benchmarks/README.md 3.2; domain/session.md 8.2).
 
 use smith_events::{Block, ConversationKind, ConversationOpened, Event, Outcome, Record};
 

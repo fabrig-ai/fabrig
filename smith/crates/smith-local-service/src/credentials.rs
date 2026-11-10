@@ -1,4 +1,4 @@
-//! Account sources and private keeper routing (protocol/hosts.md, 5.4).
+//! Account sources and private keeper routing (protocol/host.md, 5.4).
 //! The driver owns records, exchanges and holds. This owner keeps source
 //! descriptors, socket and private file routing. Env
 //! records are handed in once; refresh bytes stay in private sign-in records.

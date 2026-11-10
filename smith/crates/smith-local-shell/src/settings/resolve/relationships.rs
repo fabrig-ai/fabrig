@@ -1,4 +1,4 @@
-//! Map native comparisons to settings paths and origins (shell.md, section 5.3).
+//! Map native comparisons to settings paths and origins (shell/settings.md, section 1.3).
 //! Refusals keep typed sides; rules are never recovered from diagnostic strings.
 use super::super::{BudgetComparison, Origin, Problem, Refusal, Relationship, Settings};
 use super::{input, models::Model};

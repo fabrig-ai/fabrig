@@ -1,5 +1,5 @@
 //! reserve transitions, child terminals and final requests at run boundaries.
-//! Contract: smith/docs/design/domain/run.md, sections 9.1 and 13.
+//! Contract: smith/docs/design/domain/budget.md, section 1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::Duration;
 use skein_world::domain::Verdict;

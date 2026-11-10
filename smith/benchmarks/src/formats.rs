@@ -1,5 +1,5 @@
 //! Strict TOML reads retain no state beyond their returned document.
-//! Each refusal names its file and key path (benchmarks.md, section 5).
+//! Each refusal names its file and key path (../../docs/design/benchmarks/README.md, section 5).
 
 use std::path::Path;
 

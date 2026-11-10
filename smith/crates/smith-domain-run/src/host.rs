@@ -1,5 +1,5 @@
 //! Generic host-tool declarations and bounded relay lifecycle (smith/docs/design/domain/run.md,
-//! sections 3, 5.2 and 12). State retains one immutable operation name, tool,
+//! sections 3, 5.2 and 11). State retains one immutable operation name, tool,
 //! effect and protocol-attested input through deadline-bounded retries. It never knows
 //! schemas' meaning, host policy, provider IDs or delivery state. A withdrawal
 //! requests relay settlement; only a terminal releases that relay.

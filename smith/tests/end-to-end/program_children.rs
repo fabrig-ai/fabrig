@@ -1,5 +1,5 @@
 //! Program-account sub-agents through the shipped product (smith/docs/design/protocol/programs.md,
-//! section 5.10; smith/docs/design/shell.md, section 5.2). Each scratch keeps the fake's whole
+//! section 5.10; smith/docs/design/shell/settings.md, section 1.2). Each scratch keeps the fake's whole
 //! story and account observations; these tests use no person's login or real endpoint.
 
 use super::support;

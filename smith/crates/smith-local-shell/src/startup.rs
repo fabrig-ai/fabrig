@@ -1,5 +1,5 @@
 //! Shared product refusals, startup entropy and local service derivation.
-//! Contract: shell.md, sections 4, 5.3 and 9; protocol/limits.md, section 4.
+//! Contract: shell/commands.md and shell/settings.md, section 1.3 and shell/README.md, section 5; protocol/limits.md, section 4.
 use smith_host_domain as host;
 use smith_host_protocol as protocol;
 use smith_local_domain as local;

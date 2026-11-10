@@ -1,5 +1,5 @@
 //! Deliberately bad boundary transcripts must fail the independent referee
-//! (skein/docs/foundation/testing-strategy.md, section 7; smith/docs/design/domain/run.md, section 13).
+//! (skein/docs/foundation/testing-strategy.md, section 7; smith/docs/design/domain/run.md, section 12).
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::{Referee, Verdict};

@@ -1,5 +1,5 @@
 //! The host's list answer right, through the shipped child and fake's list
-//! (smith/docs/design/protocol/hosts.md, 2).
+//! (smith/docs/design/protocol/host.md, 2).
 #[cfg(test)]
 mod tests {
     use skein_lib::Duration;

@@ -1,4 +1,4 @@
-//! Configuration admission without run state (smith/docs/design/shell.md, section 2.6).
+//! Configuration admission without run state (smith/docs/design/shell/README.md, section 2.6).
 
 use crate::Limits;
 use skein_io as io;

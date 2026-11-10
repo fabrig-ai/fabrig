@@ -218,8 +218,8 @@ A completion's prompt is built from what the domain gives:
   offered the same definitions for its life. Which of them a completion
   may call is skein's neutral `ToolChoice`: `Auto`; `None`, for a child's
   final turn and for a compaction (2.2); or `Only(names)`, for a
-  wind-down's `finish` and, when granted, `deliver` (domain/run.md,
-  section 9). A dialect that cannot express `Only` renders `Auto`, and
+  wind-down's `finish` and, when granted, `deliver` (../domain/budget.md
+  ). A dialect that cannot express `Only` renders `Auto`, and
   the session answers a call outside the set as not run.
 - **`finish`'s schema is generated from the contract** (charter.md, 2.1).
   It has:
@@ -640,7 +640,7 @@ All run in virtual time, in milliseconds each, within the focused suite.
   mid-conversation, whether appended guidance goes there.
 - **Anthropic's cache lifetime:** a parent idle while its child runs past
   the lifetime loses its tail's entry; the lifetime is measured again
-  with the `cache-reuse/idle-gap` variant (benchmarks.md; skein's `llm.md`).
+  with the `cache-reuse/idle-gap` variant (../benchmarks/README.md; skein's `llm.md`).
 - **A replaced call and preserved thinking:** Anthropic's current models
   check that thinking sent back belongs to an unedited history. A cut or
   oversized call sent back with an empty input changes its turn as the

@@ -1,5 +1,5 @@
 //! Calibration gates smoke selection and probe regressions, keeping raw results.
-//! Contract: benchmarks.md, sections 3.1, 9 and 11.5.
+//! Contract: ../../../docs/design/benchmarks/README.md, sections 3.1 and 9, and benchmarks/catalogue.md, section 5.
 
 use std::collections::BTreeSet;
 

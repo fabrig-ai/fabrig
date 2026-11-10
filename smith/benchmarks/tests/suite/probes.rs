@@ -441,7 +441,7 @@ fn smoke_listing_is_a_minimum_and_shell_stays_exact() {
                 })
                 .expect("authored tool cardinality")
         };
-        assert_eq!(count("list"), smith_bench::Count::AtLeast(1), "benchmarks.md 11.1 requires a listing");
+        assert_eq!(count("list"), smith_bench::Count::AtLeast(1), "benchmarks/catalogue.md 1 requires a listing");
         assert!(!count("list").holds(0));
         assert!(count("list").holds(1));
         assert!(count("list").holds(2));

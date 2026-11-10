@@ -1,5 +1,5 @@
 //! Expected durable changes for these Smith scratch stories (testing.md,
-//! section 6; protocol/hosts.md, sections 5.3–5.4). Only named chat, token and
+//! section 6; protocol/host.md, sections 5.3–5.4). Only named chat, token and
 //! checkout outputs may change; original records and fixture files stay put.
 
 use std::collections::{BTreeMap, BTreeSet};

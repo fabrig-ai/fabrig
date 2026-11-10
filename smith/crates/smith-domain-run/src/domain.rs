@@ -1,5 +1,5 @@
 //! The run child domain's state and its entry points (smith/docs/design/domain/run.md, sections
-//! 3, 5, 6 and 10; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! 3, 5, 6 and 9; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains seeded admission randomness, runs, conversations, delegated calls,
 //! alarms, deferred wind-down effects and uncapped facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]

@@ -1,4 +1,4 @@
-//! Scripted agent domain world (smith/docs/design/domain/run.md, section 13).
+//! Scripted agent domain world (smith/docs/design/domain/run.md, section 12).
 //! It keeps schedules, pending boundary requests, checkout bytes and observations.
 //! It never knows provider grammar or transport bytes. Entry points start a
 //! charter, drive the typed fake LLM, inject parent input, and return host

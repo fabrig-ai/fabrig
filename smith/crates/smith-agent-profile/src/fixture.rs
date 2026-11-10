@@ -1,5 +1,5 @@
 //! Small admitted configuration values and one model declaration for composition tests.
-//! No service is constructed here (smith/docs/design/shell.md, section 2.6).
+//! No service is constructed here (smith/docs/design/shell/README.md, section 2.6).
 
 use crate::{Config, ProgramBackend};
 use alloc::boxed::Box;

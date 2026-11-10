@@ -1,4 +1,4 @@
-//! Product arguments parsed before startup reads (shell.md, sections 4 and 5.1).
+//! Product arguments parsed before startup reads (shell/commands.md and shell/settings.md, section 1.1).
 //! The parser keeps only named shared flags and ordered overrides; it knows no
 //! settings or credentials. `parse` returns one command or a usage refusal.
 use std::{ffi::OsString, path::PathBuf};
@@ -15,7 +15,7 @@ pub struct Shared {
     pub dirs: Vec<Dir>,
 }
 
-/// One `--dir NAME=PATH[:ro|rw]`, sent by the caller beside the working directory; four in all (shell.md, section 4).
+/// One `--dir NAME=PATH[:ro|rw]`, sent by the caller beside the working directory; four in all (shell/commands.md).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dir {
     pub name: String,

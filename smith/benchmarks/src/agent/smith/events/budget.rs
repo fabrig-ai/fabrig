@@ -3,7 +3,7 @@
 //! their usage retains the return-time budget. Missing capture or links remain
 //! unavailable. Millisecond projections retain their submillisecond uncertainty,
 //! never guessed nanoseconds (domain/run.md, sections5.3/9.2; protocol/events.md,
-//! sections3.4/3.6/3.8; benchmarks.md, section11.1).
+//! sections3.4/3.6/3.8; ../../../../../docs/design/benchmarks/README.md, section11.1).
 
 use std::collections::{BTreeMap, BTreeSet};
 

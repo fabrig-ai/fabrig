@@ -1,4 +1,4 @@
-//! Program checks for check and startup (shell.md, 4.4 and 5.3;
+//! Program checks for check and startup (shell/commands.md, 4, and shell/settings.md, 1.3;
 //! protocol/programs.md, 3). Keeps redacted states, never a program's login.
 //! `check` asks sequentially, with the runner's deadline and service environment.
 use super::{Credential, Directory, program_source};

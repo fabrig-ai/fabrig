@@ -4,7 +4,7 @@ Provisional, 2026-10-19, revised 2026-11-02. How smith's agent runs a run on an 
 in place of its own loop: the program, Claude Code first, runs as the
 agent's child, signed in by the person through the program's own flow,
 and the agent adapts it both ways. The agent process is agent.md's, the
-host's side hosts.md's, and what a run is domain/run.md's. What is still
+host's side host.md's, and what a run is domain/run.md's. What is still
 open is section 9.
 
 ## 1. In one page
@@ -46,7 +46,7 @@ open is section 9.
 ## 2. One agent process, two backends
 
 - **Nothing above the agent changes.** A host's half spawns one agent
-  process per run (agent.md, section 1; hosts.md, section 3), and the
+  process per run (agent.md, section 1; host.md, section 3), and the
   channel, the host's domain and the host see the same records whichever
   backend runs the run.
 - **The direct backend** is the agent's own loop: its sessions make
@@ -59,7 +59,7 @@ open is section 9.
   command line, settings and input (section 5), and what the program
   says becomes smith's turns, calls, notices and answer.
 - **The child is inside the run's containment.** The agent's tree is the
-  run's (hosts.md, section 1), so a cancel, a drop or the host's stop
+  run's (host.md, section 1), so a cancel, a drop or the host's stop
   ends the program with the run, and its own children with it. An
   agent that aborts closes nothing (skein's `shell.md`, section 13), so
   on Linux each program process is started to die with its agent (5.1).
@@ -124,7 +124,7 @@ open is section 9.
   control byte is no email, and the answer stays usable.
 - **The check is smith's,** in two places:
   - **the host's half** checks a program source when its host asks
-    (hosts.md, section 2), so that a host places a run on a program only
+    (host.md, section 2), so that a host places a run on a program only
     where the login is usable. When to ask is the host's: smith's local
     host checks its program accounts at startup (domain/host.md,
     section 8);
@@ -139,11 +139,11 @@ open is section 9.
 - **Once per host and source:** `claude auth login`, run in the source's
   environment (4.2), on a terminal the person holds. A host's setup may
   hand that command the terminal, as `smith login` does
-  (`docs/design/shell.md`, 4.5); over SSH the person pastes the code
+  (`../shell/commands.md`, 5); over SSH the person pastes the code
   Claude Code shows.
 - **Signing out** is `claude auth logout`, run the same way: by the
   person on the terminal, or by the host's half when its host asks
-  (hosts.md, section 2).
+  (host.md, section 2).
 - **Nothing of smith's holds the login:** no grant, record, setting,
   transcript, trace, event or environment of smith's holds it, nor a
   token `claude setup-token` makes. The only thing smith reads is the
@@ -428,7 +428,7 @@ open is section 9.
   contract, such as an Open run's, is offered `finish` over MCP as on
   the direct backend. A turn with neither is a model that named no
   tool, nudged as on the direct backend, and failed *malformed* past its
-  nudges (domain/run.md, section 10).
+  nudges (domain/run.md, section 9).
 
 ### 5.6 Failures and notices
 
@@ -438,7 +438,7 @@ open is section 9.
   final `result`'s `api_error_status`. The account is *limited*: the agent
   sends the limited notice, with the reset only when given (channel.md,
   section 4), and the run ends failed for its account (domain/run.md,
-  section 10). It is never retried, and never moved to another source.
+  section 9). It is never retried, and never moved to another source.
 - **A login lost,** mid-run or at the start's check (section 3), not
   signed in or signed in otherwise, is *unauthorized*: the agent sends
   the unauthorized notice, and the run ends failed for its account,
@@ -475,13 +475,13 @@ open is section 9.
   neither used nor given as `--max-budget-usd`.
 - **No completion is reserved before it is made,** since the program
   makes it. The run's reserve, at least one of main's completions at its
-  most (domain/run.md, 9.1), takes a completion that passes the ordinary
+  most (../domain/budget.md, 1), takes a completion that passes the ordinary
   pool, and its overrun is recorded as spend.
 - **The wind-down:** when the ordinary pool is spent in any part, the
   agent ends the program's turn with an interrupt (5.9) and sends one
   user message,
   the run's note that the budget is spent and to finish now
-  (domain/run.md, 9.1). From then on the agent refuses every call but
+  (../domain/budget.md, 1). From then on the agent refuses every call but
   `finish`, granted `deliver` and `wait`, and host tools declared for the reserve:
   a built-in's at its permission
   prompt (5.4), and its own server's tools' as it answers them, each
@@ -548,7 +548,7 @@ whose text replies wait and whose activation parks, on a program. The
 adapter tells the run's domain what the program said, a turn ended with
 its text and its `result`, an interrupted turn ended; the domain decides
 the reply, the waiting, the parking and the wind-down, as on the direct
-backend (domain/run.md, sections 6, 7.2 and 9.1).
+backend (../domain/run.md, sections 6 and 7.2, and ../domain/budget.md, section 1).
 
 - **Launched as 5.1 says,** but with no result contract: no
   `--json-schema`, and of the run's own tools only `wait`, since Open
@@ -592,7 +592,7 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
   unanswered are answered as not run, and the next user message, if
   any, follows.
 - **The wind-down,** the budget spent or the host's finish request
-  (domain/run.md, 9.1): the agent ends the program's turn with an
+  (../domain/budget.md, 1): the agent ends the program's turn with an
   interrupt, sends the run's note as its next user message, and refuses every call
   from then on (5.7). The domain says when main yields for the note,
   so that a reply crossing the note is told from the one after it: the
@@ -641,7 +641,7 @@ backend.
 
   The child's initial user message includes the activation number, rendered
   in bounded decimal text. A later activation may reuse a child ordinal
-  (domain/run.md, section 15), but its first message differs, so its
+  (domain/run.md, section 13), but its first message differs, so its
   program session is fresh. Main keeps its first message and resumes as
   5.8 says.
 
@@ -676,7 +676,7 @@ backend.
   cancel is (5.7), and its private files are removed. A child closed
   early, its call withdrawn at its deadline, the run winding down or
   cancelled, is stopped as a cancel is, and returns unanswered as on
-  the direct backend (domain/run.md, 9.1).
+  the direct backend (../domain/budget.md, 1).
 - **Its failures are its call's.** A child whose program cannot start,
   exits before its answer or sends what does not decode (5.6) fails as
   a direct child whose completion fails does, and its call is answered
@@ -858,7 +858,7 @@ the next turn of that same cued script (decided 2026-11-02).
   model's (5.6).
 - **Runs at once on one login:** whether runs that share a
   configuration directory interfere. Default: one at a time where the
-  host can choose (`docs/design/benchmarks.md`, section 10). A run's
+  host can choose (`../benchmarks/README.md`, section 10). A run's
   own children share main's (5.10), which the live suite checks.
 - **Writing children on a program backend:** whether a child may be
   granted modify or shell there, holding the run's lease (domain/run.md,

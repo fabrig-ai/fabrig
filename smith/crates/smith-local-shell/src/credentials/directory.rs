@@ -1,4 +1,4 @@
-//! Credential paths under one base (protocol/hosts.md, 5.4; shell.md, 7.2).
+//! Credential paths under one base (protocol/host.md, 5.4; shell/credentials.md, 2).
 //! `of` and `default_in` take the caller's environment; no files are opened.
 use crate::settings::Settings;
 use std::{ffi::OsStr, path::PathBuf};

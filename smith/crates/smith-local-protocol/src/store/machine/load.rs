@@ -1,4 +1,4 @@
-//! Metadata and the two bounded record passes (protocol/hosts.md, 5.3).
+//! Metadata and the two bounded record passes (protocol/host.md, 5.3).
 //! Header traversal selects the transcript window before record bytes enter its budget.
 use super::Terminal;
 use super::{

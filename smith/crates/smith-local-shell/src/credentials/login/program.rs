@@ -1,4 +1,4 @@
-//! Hand the terminal to program sign-in, then ask the host half (shell.md, 4.5–4.6).
+//! Hand the terminal to program sign-in, then ask the host half (shell/commands.md, 5–6).
 use super::super::{Directory, program_source};
 use super::{Environment, LoginOutcome};
 use crate::settings::Settings;

@@ -9,7 +9,7 @@ protocol:
   to one;
 - `smith-local-protocol`, the protocol layer of smith's own local host.
 
-The contract is domain/host.md's.
+The contract is ../domain/host.md's.
 
 ## 1. In one page
 
@@ -30,7 +30,7 @@ The contract is domain/host.md's.
 - **The agent's tree is the run's containment.** The tree a host spawns the
   agent in holds everything the run starts, the agent's own trees
   included. The run is gone when that tree is proved empty
-  (domain/host.md, section 4).
+  (../domain/host.md, section 4).
 - **The local host is a host like any other.** Its protocol layer adds:
   - a person at a terminal, or a prompt given once;
   - settings, which are the shell's;
@@ -54,7 +54,7 @@ The contract is domain/host.md's.
   - numbers, names, effects and deadlines, typed;
   - the turns, the result and the delivery's fields, decoded into the
     vocabulary's typed values, since the domain never parses
-    (domain/host.md, section 3);
+    (../domain/host.md, section 3);
   - a host tool's input, as the bytes the LLM wrote, for the host's own
     protocol layer to read.
 
@@ -63,13 +63,13 @@ The contract is domain/host.md's.
   cancel.
   Named live and Start-carried messages preserve `finish_requested` through
   both spawned and inline adapters. False is ordinary text; only the run's
-  admission can apply a true bit (domain/run.md, section 6).
+  admission can apply a true bit (../domain/run.md, section 6).
 - **Reads are the domain's.** After the opening, the half reads the agent's
   channel only when `smith-host-domain` asks, one read at a time, and reads
   nothing ahead. Each read is answered once: by one record, one live piece
   or the channel's end. A read the domain holds back holds the agent back,
   as when a run goes past its window (channel.md, section 7;
-  domain/host.md, section 6). Opening and send outcomes do not answer or
+  ../domain/host.md, section 6). Opening and send outcomes do not answer or
   withdraw a read. Cancel leaves an outstanding read in place. A ping or
   an unsupported-kind notice is the channel's own (skein's `channel.md`,
   section 6), and the half reads on for the same demand. An end that comes
@@ -80,7 +80,7 @@ The contract is domain/host.md's.
   the value, a credential's scheme or a program source's name. The half
   fills in the value from its host's credentials as it encodes
   (channel.md, section 6), and refuses one whose form is not its grant's,
-  so no domain of the host's holds a credential (domain/host.md, section
+  so no domain of the host's holds a credential (../domain/host.md, section
   7).
 - **Checking a program source.** Before running the program, the half
   inspects the programs directory and then its named source directory,
@@ -134,7 +134,7 @@ layer spawns a contained tree:
   the host's choice;
 - **the pipes:** standard input and output for the channel, and standard
   error, whose tail the half keeps for the domain's report of how the agent
-  ended (domain/host.md, section 4);
+  ended (../domain/host.md, section 4);
 - **room for the agent's own trees** inside its tree, so they are held,
   stopped and proved empty with it (skein's `io.md`, 6.2–6.4).
 
@@ -153,7 +153,7 @@ once its pipes are closed.
   never dropped: `exit`, the code the agent exited with or the signal
   that ended it. The domain pairs it with the steps it took, as `forced`:
   none, terminated or killed. So an agent killed past its grace, one that
-  crashed and one that exited cleanly are told apart (domain/host.md,
+  crashed and one that exited cleanly are told apart (../domain/host.md,
   section 4).
 - **No signal to an agent that answered** until its exit grace has
   passed: after its answer it closes what it owns and exits by itself
@@ -176,14 +176,14 @@ what its host's protocol layer would do:
 ## 5. The local host's protocol layer
 
 `smith-local-protocol` is the protocol layer of `smith-local-domain`
-(domain/host.md, section 8).
+(../domain/host.md, section 8).
 
 ### 5.1 The terminal
 
 - **The person's words are messages.** A line the person enters is one
   message, and a line ending in a backslash continues it. The first line
   of a chat with no live run starts one, carried in its start; later
-  lines go to the live run as they are entered (domain/host.md, section
+  lines go to the live run as they are entered (../domain/host.md, section
   8).
 - **The run's words are shown** as its turns arrive: the LLM's text, each
   tool it calls by name, and how each ended.
@@ -202,27 +202,27 @@ what its host's protocol layer would do:
   failure is shown as a fixed message or as a type's debug text, and none
   enters a turn or a prompt.
 - **Lines not delivered** are shown by name after a cancel, a failure or
-  a refusal, then dropped (domain/host.md, section 8).
+  a refusal, then dropped (../domain/host.md, section 8).
 - **While the run waits,** having read every line sent to it, a prompt
   says so.
 - **Interrupting:**
   - the first interrupt is the run's cancel;
-  - a second, before the run has answered, drops the run (domain/host.md,
+  - a second, before the run has answered, drops the run (../domain/host.md,
     9.2), or, for a spawned agent, stops its tree.
 - **Headless,** with no person at the terminal: the result goes to
   standard output and the human status to standard error, or, when
   asked, the event stream (events.md) goes to standard output instead
-  (`docs/design/shell.md`).
+  (`../shell/README.md`).
 
 ### 5.2 Configuration
 
-- **The local host's settings are the shell's** (`docs/design/shell.md`):
+- **The local host's settings are the shell's** (`../shell/README.md`):
   TOML, strict and bounded, layered from built-in defaults through the
   user's file, the repository's `.smith/`, overrides and flags, with
   provider presets that supply endpoints and known models' declared
   values. They cover:
   - accounts, each with its provider and its source, and the account
-    each endpoint runs on (`docs/design/shell.md`, 5.2);
+    each endpoint runs on (`../shell/settings.md`, 1.2);
   - the credentials directory, and the programs' paths;
   - prices;
   - a budget;
@@ -231,7 +231,7 @@ what its host's protocol layer would do:
   - a result contract, a report by default;
   - the commands' environment.
 - **A workspace may override them** for itself. Where settings are kept,
-  and in which format, is the binary's (`docs/development/local-host.md`).
+  and in which format, is the binary's (`../../development/local-host.md`).
 - **The local host puts the effective values in each run's charter,** so
   the domain enforces what the host chose. For a spawned agent it also
   writes the agent's configuration, as generated JSON (agent.md, section
@@ -275,14 +275,14 @@ checked at creation and retains its empty Load and known-file cleanup,
 without marker IO. Jig-held transcripts are outside this check.
 
 - **Each chat** has a directory under smith's state directory
-  (`docs/design/shell.md`).
+  (`../shell/README.md`).
 - **One store, one chat at a time.** The chat store's root is the
   workspace's chats, under smith's state directory, and it holds one chat
   at a time, named by one path component within its bounds. It selects
   another only when idle, no activation live and no store work in
   flight: it forgets what it remembered of the old chat, then loads the
   other, making it, private, when `/new` starts it
-  (`docs/design/shell.md`, 4.1). An `--ephemeral` chat's store holds its
+  (`../shell/commands.md`, 1). An `--ephemeral` chat's store holds its
   one chat in its private directory, and selects no other.
 - **Each turn** is a file of its own, numbered by its place in the
   conversation, and written durably: the file and its directory are
@@ -290,7 +290,7 @@ without marker IO. Jig-held transcripts are outside this check.
 - **A chat's transcript** is its turns' files, in order, from the last
   turn whose record had `opens_window` (channel.md, section 4;
   transcript.md, section 3), with the chat's run identity, given in every
-  start (domain/host.md, section 8). Earlier windows' files are kept for
+  start (../domain/host.md, section 8). Earlier windows' files are kept for
   the person to read, and never sent back.
 - **Answers the transcript lacks** are kept the same way, until a waking
   prompt has told the LLM of them and a turn has been kept after it.
@@ -302,15 +302,15 @@ without marker IO. Jig-held transcripts are outside this check.
 
 ### 5.4 Signing in
 
-Each account's source is the one its settings give it (domain/host.md,
+Each account's source is the one its settings give it (../domain/host.md,
 section 7), and its records and keys are kept in the credentials
-directory, each record under its lock (`docs/design/shell.md`, section
-7):
+directory, each record under its lock (`../shell/credentials.md`
+):
 
 - **`sign_in`, smith's own,** with skein's OAuth client and its driver
   (skein's `oauth.md`, section 6), as a public client with the
-  registration its provider's preset carries (`docs/design/shell.md`,
-  section 7). The authorization page's address is shown at the
+  registration its provider's preset carries (`../shell/credentials.md`
+  ). The authorization page's address is shown at the
   terminal, and the redirect comes back to a loopback listener bound to
   127.0.0.1, on a port drawn for each sign-in unless the settings fix
   one. A redirect registered as `localhost` is accepted, and compared
@@ -329,21 +329,21 @@ directory, each record under its lock (`docs/design/shell.md`, section
   grant: the charter's LLMs on it name no account, so the start carries
   no grant for them and their calls carry no credential (charter.md,
   section 2; channel.md, section 6).
-- **Another program's login is never read** (`docs/design/shell.md`,
-  section 7).
+- **Another program's login is never read** (`../shell/credentials.md`
+  ).
 
 - **A credential's value goes nowhere else:** not into settings shown, a
   trace or an event.
 - **At the end,** the local host cancels a sign-in still waiting for the
   person before it closes the OAuth driver, since a close lets work in
-  progress finish (skein's `programming-model.md`, section 5.2). A
+  progress finish (skein's `../foundation/programming-model.md`, section 5.2). A
   termination signal after the answer aborts the driver with every other
   component.
 
 ### 5.5 Delivering in place
 
 The local host's charters grant `deliver` by its configuration and never
-`save` (domain/run.md, 8.5): a commit in place is already what a save
+`save` (../domain/run.md, 8.5): a commit in place is already what a save
 would keep. A save asked of it all the same, by a charter of another
 writer's, is refused, saying that this host does not save.
 
@@ -355,7 +355,7 @@ writer's, is refused, saying that this host does not save.
   the rest, in order.
 - **Nothing is pushed** unless the configuration says so.
 - **A plain directory's files** are kept as they are, and delivered says so.
-  Whether they changed, which the run's *nothing* needs (domain/run.md,
+  Whether they changed, which the run's *nothing* needs (../domain/run.md,
   section 8.2), the host learns from a snapshot of the tree before the run,
   its paths and its files' digests, compared with the tree at delivery.
   The snapshot is bounded, in entries, a path's bytes and a file's bytes,
@@ -379,7 +379,7 @@ writer's, is refused, saying that this host does not save.
     delivery goes on or fails as usual.
   - Still unknown: the delivery fails with the reason *unknown*. The host
     keeps its intent, and the next start settles it and tells the run what
-    landed (domain/run.md, section 6).
+    landed (../domain/run.md, section 6).
 
 ### 5.6 The agent
 
@@ -387,7 +387,7 @@ writer's, is refused, saying that this host does not save.
   `smith-inline-agent` as its child, and `smith-local-service` composes
   it with the effects, routing its requests to `smith-protocol-llm` and
   `smith-protocol-machine` in its own protocol layer and lending the LLM
-  component its credentials directly (domain/host.md, section 9). Its
+  component its credentials directly (../domain/host.md, section 9). Its
   facts and content are drained every pass into the event stream
   (events.md).
 - **A spawned agent, as a capability:** `smith-host-domain` with
@@ -399,7 +399,7 @@ writer's, is refused, saying that this host does not save.
   backend (programs.md, section 2), so the product spawns `smith-agent`,
   with its generated configuration, for a run whose account's source is
   a program; every other run stays inline. Spawning every run, as a
-  setting, waits on contained trees (domain/host.md, section 12).
+  setting, waits on contained trees (../domain/host.md, section 12).
 - **Grace.** A spawned agent's exit grace is derived from the agent's
   teardown bound, which io's close deadlines make (agent.md, section 6;
   skein's `shell.md`, section 13), with a margin above it; a setting
@@ -452,7 +452,7 @@ writer's, is refused, saying that this host does not save.
     `forced`;
   - an answered agent that exits within its grace, never signalled;
   - standard error's tail in the report.
-- **The local host,** as domain/host.md, section 10 tells its stories, now
+- **The local host,** as ../domain/host.md, section 10 tells its stories, now
   with its protocol layer:
   - lines at a scripted terminal, and notices observed by kind;
   - chats resumed from files across runs of the binary, after a

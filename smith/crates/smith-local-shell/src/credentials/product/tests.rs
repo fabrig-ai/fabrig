@@ -1,4 +1,4 @@
-//! The callback's product limits admit a browser navigation (shell.md, 6.2).
+//! The callback's product limits admit a browser navigation (shell/settings.md, 2.2).
 use skein_http::server::{self, Call, Error, Event, Limits, Request, Server};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Intake, Queue, Time, Wall};

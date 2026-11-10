@@ -1,6 +1,6 @@
 //! Scope checks join conversation identities and emitted child returns.
 //! Prompt tokens are the disjoint input/cache counts; absent values stay unknown
-//! (protocol/events.md, section3.10; benchmarks.md, section11.1).
+//! (protocol/events.md, section3.10; ../../../../../docs/design/benchmarks/README.md, section11.1).
 
 use std::collections::{BTreeMap, BTreeSet};
 

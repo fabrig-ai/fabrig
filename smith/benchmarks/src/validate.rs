@@ -1,5 +1,5 @@
 //! Validate hidden graders on private seeds and reference overlays, without an
-//! agent or credentials (benchmarks.md, sections 3.1, 5.2 and 10).
+//! agent or credentials (../../docs/design/benchmarks/README.md, sections 3.1, 5.2 and 10).
 
 use std::fs;
 use std::os::unix::fs::DirBuilderExt;

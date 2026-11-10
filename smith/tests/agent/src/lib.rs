@@ -1,5 +1,5 @@
 //! The agent, run, session and tools together on a scripted typed host
-//! (smith/docs/design/domain/run.md, section 13; smith/docs/design/domain/host.md, sections 2 and 10;
+//! (smith/docs/design/domain/run.md, section 12; smith/docs/design/domain/host.md, sections 2 and 10;
 //! skein/docs/foundation/testing-strategy.md, sections 2.2, 6 and 7).
 //!
 //! The world keeps time, seeds, a fake checkout, a provider face, boundary

@@ -297,7 +297,7 @@ pub(crate) fn encode_reply(
 }
 
 /// The form a service-owned value lends, checked against its grant
-/// (protocol/hosts.md, section 2).
+/// (protocol/host.md, section 2).
 pub fn grant_form(value: &smith_protocol_translate::GrantValue) -> Result<host::Form, Error> {
     use smith_protocol_translate::GrantValue;
     match value {

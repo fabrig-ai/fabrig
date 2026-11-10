@@ -1,7 +1,7 @@
 //! Visibility retains the last child-usage values told before a report.
 //! Model reports compare that text, independently of later budget charges.
 //! Smith's comparison joins each returned call to its writing-step Budget.
-//! (benchmarks.md, section 11.1; domain/run.md, section 9.2).
+//! (benchmarks/catalogue.md, section 1; domain/budget.md, section 2).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;

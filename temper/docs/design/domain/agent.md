@@ -924,7 +924,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 ### 4.6 Budget, models, waiting
 
 - **Budget:** the run's turns, spend and time, with its reserve of turns
-  and time for finishing (smith's `domain/run.md`, 9.1), from its
+  and time for finishing (smith's `domain/budget.md`, 1), from its
   charter in configuration, at the task's revision; its spend is what
   its task has left, capped per run, reserved at its claim, in the
   deployment's unit (jig's `domain/hosts.md`, section 8).

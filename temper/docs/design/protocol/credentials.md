@@ -439,7 +439,7 @@ sources in its holder's order. temper configures the LLM providers
     unless a block is malformed (skein's `shell.md`, 6.2). Temper redirects
     and suppresses none of them.
   - It reads nothing of the login. The host's half checks it (smith's
-    `protocol/programs.md`, section 3; smith's `protocol/hosts.md`,
+    `protocol/programs.md`, section 3; smith's `protocol/host.md`,
     section 2) at its hello, when told of a new source, on its holder's
     check and at its interval (jig's `domain/accounts.md`, 3.4), and the
     accounts page shows the state.
@@ -462,7 +462,7 @@ sources in its holder's order. temper configures the LLM providers
   programs refreshing one login race (smith's `protocol/programs.md`, section 9,
   runs at once on one login).
 - **A program's sign-out** is the host's half's, on each host, by the
-  program's own (smith's `protocol/hosts.md`, section 2; jig's
+  program's own (smith's `protocol/host.md`, section 2; jig's
   `domain/accounts.md`, 3.4), when its holder signs the source out or
   removes it from the client.
 - **What temper does not do:** configure an account, sign one in at a

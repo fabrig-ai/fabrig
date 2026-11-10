@@ -1,5 +1,5 @@
 //! The local host's terminal, durable chat store, and workspace adapters
-//! (smith/docs/design/protocol/hosts.md, section 5). The terminal retains bounded
+//! (smith/docs/design/protocol/host.md, section 5). The terminal retains bounded
 //! continued lines and interrupt state; the store retains acknowledged chat
 //! records; git, plain-tree and marker adapters retain bounded operations until
 //! their terminals arrive. These adapters know no model policy or credential values.

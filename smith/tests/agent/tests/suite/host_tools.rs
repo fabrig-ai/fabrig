@@ -1,5 +1,5 @@
 //! Real composed-domain opaque-host stories and positive-first outside-history
-//! controls (smith/docs/design/domain/run.md, sections 5.2 and 13; skein/docs/foundation/testing-strategy.md, section 7).
+//! controls (smith/docs/design/domain/run.md, sections 5.2 and 12; skein/docs/foundation/testing-strategy.md, section 7).
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::assert_replays;

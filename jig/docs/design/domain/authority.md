@@ -480,7 +480,7 @@ would. Project 0 names no project and has no policy (people.md, section
   and time for finishing: its turns, time and reserve its charter's, its
   spend reserved from what its task has left in the commit that claims
   it, capped per run by the deployment. The agent enforces it exactly
-  (smith's `domain/run.md`, 9 and 9.1; hosts.md, section 8): it reserves
+  (smith's `domain/budget.md`; hosts.md, section 8): it reserves
   each completion's maximum cost before making it, winds down on its
   reserve when the rest is spent, and ends for its budget a completion
   that does not fit what is left at all. On a program backend, which

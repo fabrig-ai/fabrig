@@ -227,7 +227,7 @@ jobs of every earlier window and activation.
 ## 6. Versions
 
 - **Version 7 is current** (`transcript-v7.schema`). The local host
-  records its layout in each chat's `format` (protocol/hosts.md, 5.3), so
+  records its layout in each chat's `format` (host.md, 5.3), so
   a local chat whose layout differs is refused as an older store.
 - **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
@@ -351,7 +351,7 @@ other.
   - **the local host's store,** `smith-local-store`
     (`smith-local-protocol`'s `local-store-v1.schema`: its state, its
     turns and its deliveries), read after an upgrade by smith's local
-    host alone (protocol/hosts.md, 5.3). It is kept like the turn from
+    host alone (host.md, 5.3). It is kept like the turn from
     the baseline, under an owner of its own, `smith-local`, since an
     owner's patches and kept texts are one crate's (skein's `codec.md`,
     12.1); its `Turn.body` already says `holds smith-transcript Turn`, so
@@ -373,7 +373,7 @@ other.
   whose bytes are pieces says so, `hits: bytes 2097152 pieces Hit` in
   `Found`, in place in `transcript-v6.schema`, version 6 unmoved; the
   word moves the family's layout, no byte and no Rust. The local host
-  records that layout in each chat's `format` (protocol/hosts.md, 5.3),
+  records that layout in each chat's `format` (host.md, 5.3),
   so a local chat made before the word is refused as an older store,
   as every store before the baseline is. Every other
   `bytes` of a turn is opaque: a provider's replay and opaque blocks, a

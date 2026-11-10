@@ -1,6 +1,6 @@
 //! The records that cross the boundary with the run's parent, the top-level
 //! domain (skein/docs/foundation/programming-model.md, section 4.5). The run defines them; its parent depends on it.
-//! Contracts: smith/docs/design/domain/run.md, sections 3, 5, 6, 8, 9 and 10;
+//! Contracts: smith/docs/design/domain/run.md, sections 3, 5, 6 and 8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9;
 //! smith/docs/design/protocol/channel.md, sections 4, 5 and 7; smith/docs/design/protocol/transcript.md, section 2.
 //!
 //! All three of the run's faces cross here:
@@ -11,7 +11,7 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 9).
 //! - io's, for what the run itself does in its workspace, which the parent
 //!   routes to and from the protocol layer. A [`Request::Read`] is ended by
 //!   exactly one [`Event::Read`], a [`Request::Probe`] by one
@@ -30,7 +30,7 @@
 //!   the run runs the race: past it, the run stops work before submission and
 //!   returns it as timed out once that settles. A submitted delivery always
 //!   owes its host terminal, including after withdrawal or expiry;
-//!   caller-only expiry does not decide the run's shutdown (smith/docs/design/domain/run.md, 8.2 and 10).
+//!   caller-only expiry does not decide the run's shutdown (smith/docs/design/domain/run.md, 8.2 and 9).
 //!
 //! A request's `owner` is the run's token for what asked: the run itself for
 //! a read or a probe, or a delivery call for a check and its abort or host
@@ -887,7 +887,7 @@ pub enum CompletionEvidence {
     Response { status: Option<u16> },
 }
 
-/// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/run.md, section 10).
+/// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/run.md, section 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Report {
     pub code: Box<[u8]>,
@@ -1027,7 +1027,7 @@ pub enum Invalid {
     Outcome,
     /// The host's budget was refused before effects, naming its part and bound.
     Budget(crate::BudgetRefusal),
-    /// A model is unpriced at this rate, refused before effects (smith/docs/design/domain/run.md, section 9).
+    /// A model is unpriced at this rate, refused before effects (smith/docs/design/domain/budget.md).
     Price(crate::Rate),
     /// A model is undeclared, its effective window/output are zero or above its
     /// declaration, its spare is negative, or the charter repeats a model or exceeds its model count.

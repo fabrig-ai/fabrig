@@ -1,5 +1,5 @@
-//! One local chat and its spawned or colocated agent (protocol/hosts.md,
-//! sections 5–6; protocol/README.md, sections 5–6). The service keeps local
+//! One local chat and its spawned or colocated agent (protocol/host.md, sections 5–6
+//! ; protocol/README.md, sections 5–6). The service keeps local
 //! policy and the selected lower components, a credential-value
 //! table, and internal routing queues. Host IO owns terminal and
 //! delivery descriptors; each lower layer has its own operation tokens.

@@ -1,4 +1,4 @@
-//! One chat directory selected between serial store operations (protocol/hosts.md, section 5.3).
+//! One chat directory selected between serial store operations (protocol/host.md, section 5.3).
 //! The old root stays owned until its replacement opens; both roots settle on close.
 use super::{Action, Box, Map, Queue, State, Store, Token, file, kernel, local};
 

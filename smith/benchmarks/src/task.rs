@@ -1,6 +1,6 @@
 //! Strict task documents, retaining only the manifest and no runtime state.
 //! `read_task` refuses unknown keys with a file and key path; task checks are
-//! closed enums, following benchmarks.md, sections 3.2 and 5.2.
+//! closed enums, following ../../docs/design/benchmarks/README.md, sections 3.2 and 5.2.
 
 use crate::{Fault, input};
 use std::collections::BTreeMap;
@@ -275,7 +275,7 @@ pub struct Estimate {
     pub tokens: u64,
 }
 
-/// The binary, attempts and frozen inputs written by calibrate (benchmarks.md, section 5.2).
+/// The binary, attempts and frozen inputs written by calibrate (../../docs/design/benchmarks/README.md, section 5.2).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Calibration {

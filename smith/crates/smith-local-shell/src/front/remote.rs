@@ -1,4 +1,4 @@
-//! Spawned main's text and told-turn recovery (shell.md, section 4.1;
+//! Spawned main's text and told-turn recovery (shell/commands.md, section 1;
 //! protocol/channel.md, section 4). The front retains only a capped byte
 //! prefix for one retry, never a transcript or provider timing. `piece`
 //! joins bytes before decoding; `told` finishes the prefix and its status.

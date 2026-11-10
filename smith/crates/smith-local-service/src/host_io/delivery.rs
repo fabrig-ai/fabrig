@@ -1,4 +1,4 @@
-//! Git, marker and plain-directory IO retained by the host (protocol/hosts.md, section 5.5).
+//! Git, marker and plain-directory IO retained by the host (protocol/host.md, section 5.5).
 //! Snapshots are complete or unknown; policy receives typed terminals only.
 use super::{HostIo, git_limits, plain_limits};
 use alloc::boxed::Box;
@@ -19,7 +19,7 @@ pub(super) struct Capture {
 }
 
 /// The one file inspection at a time; every file terminal that is neither the store's nor a
-/// closing root's belongs to it (protocol/hosts.md, section 5.5).
+/// closing root's belongs to it (protocol/host.md, section 5.5).
 #[derive(Debug)]
 pub(super) enum Inspection {
     /// No inspection in flight.

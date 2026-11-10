@@ -66,7 +66,7 @@ without agents has none of this. What is still open is listed in section
   account: accounts are made at runtime (`configuration.md`, section 3).
 - **The budget is smith's to hold** within each run: it reserves each
   completion's most before making it and winds down on its reserve, so a
-  run never spends past its budget (smith's `domain/run.md`, 9 and 9.1).
+  run never spends past its budget (smith's `domain/budget.md`).
   The core places no run smith would refuse for its budget
   (`../domain/authority.md`, section 7), and sees spend in the turns it
   commits.
@@ -373,7 +373,7 @@ engine's protocol layer
   half check each login once told its sources, when told of a new
   source, on its holder's check, and at the configured interval
   (`configuration.md`, section 4), and reports what changed (smith's
-  `protocol/hosts.md`, section 2; the check's answers are smith's
+  `protocol/host.md`, section 2; the check's answers are smith's
   `protocol/programs.md`, section 3). The fleet places a run on a program
   source only on a host that reports its login usable.
 - **A person's logins keep a host to that person's runs.** A host that
@@ -382,7 +382,7 @@ engine's protocol layer
   person's deployment is unaffected (`../domain/accounts.md`, 3.4).
 - **Signing out or removing a program source** has each worker's host
   half run the program's own sign-out in the source's configuration
-  directory (smith's `protocol/hosts.md`, section 2; the command is
+  directory (smith's `protocol/host.md`, section 2; the command is
   smith's `protocol/programs.md`, 4.1); the answer names each host that
   did not (`channel.md`, 5.1).
 - **The engine's own slots never take a program source:**
