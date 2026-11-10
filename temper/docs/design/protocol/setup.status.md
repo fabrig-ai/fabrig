@@ -1,6 +1,6 @@
 # setup: status
 
-2026-11-09. Where temper's code lags or departs from [setup.md](setup.md).
+2026-11-10. Where temper's code lags or departs from [setup.md](setup.md).
 
 Sections 6.6 and 11's shared fetch and launcher are present:
 `temper-fetch` owns the machine and Claude pin, `temper-fetch-shell`
@@ -161,3 +161,7 @@ documents and the owned example. The service table checks that the
 approval setting reaches an ask. The TUI's browser flow and recorded
 approval journey are present. Its fresh-box terminal check remains
 later work in section 15 and `../client/README.md`, section 11.
+
+- **Not yet:**
+  - 7.1 and 7.2: the `source` step runs once, a listed source counts as
+    served, and a failed step is not run again. [in flight: change 71]
