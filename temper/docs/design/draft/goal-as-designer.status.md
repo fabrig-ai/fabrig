@@ -30,6 +30,17 @@ section 11). The stock's figures stay as they are.
   - 2, 7: `../protocol/configuration.md`, 13.9: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell.
   - 9: `../protocol/configuration.md`, 13.4: stock instructions are held in `temper-service`'s source.
 - **Design departs:**
+  - 2, 7, 10: `goal-runs-itself.md`, sections 1 to 7, replaces the
+    agent's landing, close-out and finish with a closer: jig makes it
+    when nothing is left to await, and temper settles the status tags,
+    lands the goal and reports (`../domain/forge.md`, 11.2). The design
+    writes status up front, with no close-out change after landing.
+    The goal has no main-landing subscription or catch-ups; its agent
+    wakes for judgement, with reds reaching it through its branch's
+    tiers. This settles section 10's landing-and-close-out question by
+    code rather than tasks made up front with `after`. The user's
+    2026-11-10 draft decides it: a model for judgement, code for
+    mechanisms.
   - 4: a run resuming saved work starts from that saved tree, rather than
     from g's current tip with r merged in (`../domain/forge.md`, 11.1
     and 20; `../domain/worker.md`, sections 5 and 12). The goal-delivery
@@ -38,7 +49,9 @@ section 11). The stock's figures stay as they are.
     stale; reconciliation remains deferred.
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
-  - 10: all of it.
+  - 10: a spec past one call, a foreman before a repair, what a
+    designer reads of goals beside it, and a goal's own notes across
+    its runs remain open.
 
 - **Design departs:** 3: `../protocol/configuration.md`, 13.9 requires
   confirmed landing of every required design change into g before
