@@ -45,7 +45,7 @@
   height: auto;
 }
 
-/* A flow's plain default (skein/docs/design/ui/scenes.md, 5): an owner's stylesheet may restyle it. */
+/* A flow's plain default (ui/scenes.md, 5): an owner's stylesheet may restyle it. */
 [data-drawn] > svg .skein-ui-flow-name,
 [data-drawn] > svg .skein-ui-flow-caption {
   fill: currentColor;
