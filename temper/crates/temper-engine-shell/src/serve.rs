@@ -76,7 +76,7 @@ pub fn program_environment(
 fn member(document: &skein_json::Document, at: u32, key: &[u8]) -> u32 {
     read::Object::new(document, at).expect("named checked object").member(document, key).expect("named checked member")
 }
-fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
+pub(crate) fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
     let source = file
         .map_or(skein_shell::Trust::Machine { ssl_cert_file: None }, |file| skein_shell::Trust::Der(path(file).into()));
     let roots = skein_shell::read_trust_roots(

@@ -8,6 +8,67 @@ const FIRST_ENTRY: u64 = fixtures::OPEN + 1;
 const LATER_ENTRY: u64 = FIRST_ENTRY + 1;
 const LATER_BRANCH: &[u8] = b"temper/52";
 
+#[test]
+fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
+    use skein_forge::api::{Answer, Error};
+    use temper_engine_domain_forge_change as c;
+    let mut d = domain();
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.effect = c::EffectResult::None;
+    row.pull = Some(1);
+    row.change.state = c::State::Checking { head: fixtures::HEAD };
+    row.change.since = Wall::from_nanos(env.wall.as_nanos() - Duration::from_secs(10).as_nanos());
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    fixtures::step_change(&mut d);
+    let mut pull = fixtures::open_pull();
+    pull.ci = skein_forge::api::Ci::Pending;
+    for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(pull)] {
+        fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let (call, checks) = fixtures::next_at(&mut d, &env);
+    fixtures::answer_at(&mut d, &env, call, Err(Error::Unavailable));
+    fixtures::advance(&mut d, &mut env, Duration::from_secs(100));
+    let (again, op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(op, checks);
+    fixtures::answer_at(&mut d, &env, again, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+    let since = d.change(fixtures::CHANGE).expect("checking").change.since;
+    assert_eq!(
+        env.wall.as_nanos() - since.as_nanos(),
+        Duration::from_secs(10).as_nanos(),
+        "only ten answered seconds count"
+    );
+    let mut out = Queue::uncapped();
+    // The pull and checks agree that CI is pending.
+    for answer in [
+        fixtures::checks(skein_forge::api::Check::Pending),
+        Answer::Commits { commits: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false },
+    ] {
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+    }
+    let until = Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(20).as_nanos());
+    let mut waiting = false;
+    for request in &out {
+        assert!(
+            !matches!(request, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }),
+            "{out:?}"
+        );
+        if let Request::ChangeDecision { decision: c::Decision::Wait { until: Some(deadline) }, .. } = request {
+            waiting |= *deadline == until;
+        }
+    }
+    assert!(waiting, "twenty answered seconds remain before the stall: {out:?}");
+    assert_eq!(d.change(fixtures::CHANGE).expect("still waiting").change.since, since);
+}
+
 fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     use skein_forge::api::{Answer, State};
     use temper_engine_domain_forge_change as change;

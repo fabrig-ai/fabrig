@@ -270,6 +270,56 @@ fn a_tracked_goal_naming_its_own_goal_branch_holds_it_made_at_mains_tip() {
 }
 
 #[test]
+fn releasing_a_goals_failed_making_reads_and_makes_its_branch_again() {
+    for (failed_write, present) in [(false, false), (false, true), (true, false), (true, true)] {
+        let mut world = adopted_world();
+        let request = goal_request(&world, true);
+        let people::Outcome::Created { first: goal, .. } = ask(&mut world, GOAL_REQUEST, request) else {
+            panic!("goal created")
+        };
+        let mut refused = false;
+        for _ in 0..STEPS {
+            for event in &mut world.events {
+                if let engine::Event::Forge(event) = event
+                    && let forge_top::Event::Client(skein_forge_client::Event::Answered { result, .. }) = event.as_mut()
+                    && ((!failed_write && *result == Err(skein_forge::api::Error::Missing))
+                        || (failed_write && matches!(result, Ok(skein_forge::api::Answer::Branch(_)))))
+                {
+                    // A terminal refusal at the read or creation boundary.
+                    *result = Err(skein_forge::api::Error::Forbidden);
+                    refused = true;
+                }
+            }
+            world.tick();
+            if matches!(live_task(&world, goal).phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }) {
+                break;
+            }
+        }
+        assert!(refused, "the goal branch read or creation was refused");
+        assert!(matches!(live_task(&world, goal).phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }));
+        world.until(Until::Ready);
+        let branch = format!("temper/{goal}/g{goal}").into_bytes().into_boxed_slice();
+        if failed_write {
+            world.external(2, raw::Op::Write(raw::Write::DeleteBranch { branch: branch.clone() }));
+        }
+        let tip = if present {
+            world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+            fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"present", 2)
+                .expect("existing branch")
+        } else {
+            branch_tip(&mut world, b"main")
+        };
+        let revision = live_task(&world, goal).revisions.hold;
+        ask(&mut world, CHAT_REQUEST, people::Ask::Release { project: 1, task: goal, revision, again: None });
+        world.until(Until::Ready);
+        assert_eq!(branch_tip(&mut world, &branch), tip, "a present branch is never reset");
+        assert!(!matches!(live_task(&world, goal).phase, tasks::Phase::Held { .. }));
+        assert_eq!(forge_hold(&world, &branch).expect("goal's hold").writer, None);
+        world.close();
+    }
+}
+
+#[test]
 fn a_goal_without_push_authority_inspects_g_without_a_delivery_or_writer() {
     let mut world = adopted_world();
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal batch") };

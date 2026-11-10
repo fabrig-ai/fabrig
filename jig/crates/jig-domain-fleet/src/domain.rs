@@ -21,6 +21,7 @@ pub(crate) enum EngineHello {
 
 /// The fleet's state.
 #[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent settings restore, load, turn and placement readiness")]
 pub struct Domain {
     pub(crate) versions: u32,
     pub(crate) reads: crate::reads::Reads,
@@ -30,6 +31,9 @@ pub struct Domain {
     /// The workers in contact, and their channels' names.
     pub(crate) channels: Slab<Channel>,
     pub(crate) needs: crate::Needs,
+    pub(crate) needs_restored: bool,
+    /// One per channel, in hello order; the root bounds channels (engine.md, 8).
+    pub(crate) held_hellos: Queue<channel::HeldHello>,
     pub(crate) engine_hello: EngineHello,
     /// Latest actual refusals, independent of history and cleared only by same-kind admission.
     pub(crate) standing_engine: Option<crate::HelloRefusalRecord>,
@@ -164,6 +168,8 @@ impl Domain {
             worker_names: crate::Membership::empty(),
             cleanup_programs: Box::new([]),
             needs,
+            needs_restored: false,
+            held_hellos: Queue::uncapped(),
             engine_hello: EngineHello::Expected,
             standing_engine: None,
             standing_worker: None,
@@ -515,7 +521,10 @@ impl Domain {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Draining { channel } => channel::draining(domain, channel),
-        Event::Needs(needs) => crate::needs::replace(domain, &env.limits, needs),
+        Event::Needs(needs) => {
+            crate::needs::replace(domain, &env.limits, needs);
+            channel::needs_restored(domain, env, out);
+        }
         Event::CleanupPrograms { names } => {
             domain.cleanup_programs = names;
             domain.placing = true;

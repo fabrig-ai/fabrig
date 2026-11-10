@@ -7,6 +7,7 @@ use crate::{documents, fakes};
 fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
+    assert!(value["engine"]["limits"]["overrides"]["core.resume_bytes"].as_u64().unwrap() >= 4_194_304);
     assert_eq!(
         value["engine"]["limits"]["overrides"]["io.output"],
         value["workers"][0]["limits"]["overrides"]["io.output"]
@@ -28,6 +29,31 @@ fn the_deployment_document_is_one_temper_serve_starts() {
     );
     if let Err(problems) = result {
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
+    }
+}
+
+#[test]
+fn resumes_have_a_floor_without_raising_turn_carriers() {
+    for turn in [65_536_u32, 4_194_304] {
+        let mut document = documents::world_document();
+        documents::turn_bounds::apply(&mut document, turn);
+        let turn = u64::from(turn);
+        let resume = (turn + 4).max(4_194_304);
+        let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
+        let engine = &document["engine"]["limits"]["overrides"];
+        assert_eq!(engine["core.resume_bytes"], resume);
+        for hub in [engine, &document["workers"][0]["limits"]["overrides"]] {
+            assert_eq!(hub["hub.transcript_bytes"], window);
+            assert_eq!(hub["hub.turn_bytes"], turn);
+            assert_eq!(hub["hub.turn_queue_bytes"], 8 * turn);
+        }
+        let root = &document["application"]["limits"]["overrides"];
+        assert_eq!(root["root.journal.transcript_bytes"], resume);
+        assert_eq!(root["root.loads.transcript_bytes"], turn);
+        let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
+        assert_eq!(root["root.loads.bytes"], loaded);
+        assert_eq!(root["root.loads.reply_bytes"], loaded);
+        assert_eq!(root["root.loads.read_bytes"], 2 * turn);
     }
 }
 
@@ -79,7 +105,9 @@ fn the_owned_values_equal_the_test_kits_values() {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
     assert_eq!(owned, source);
-    assert_eq!(documents::WORKER_DOCUMENT, channel::WORKER_DOCUMENT);
+    let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
+    worker["workers"][0]["graces"]["grace_ms"] = 60_000.into();
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(documents::WORKER_DOCUMENT).expect("worker JSON"), worker);
 
     let mut profile = smith_agent_process_world::profile();
     profile.policy.host_tools =

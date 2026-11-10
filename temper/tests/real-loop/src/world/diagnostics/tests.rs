@@ -77,6 +77,7 @@ fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
         &mut world,
         WORKERS,
         &[],
+        skein_lib::Duration::from_millis(10),
         &scratch,
         || crate::llm::scripted(Box::new([])),
         Some((crate::case::fixture(), crate::case::scripts::step_4_1, crate::case::scripts::step_4_1_rules)),

@@ -507,6 +507,41 @@ fn the_roots_facts_are_drained_and_counted_after_each_step() {
 }
 
 #[test]
+fn a_restored_assignment_uses_the_stored_deployment_identity_not_the_new_seed() {
+    use temper_engine_domain as root;
+    let previous = fixtures::ready().engine.unwrap();
+    let stored_id = previous.domain.deployment().id;
+    let mut seeds = fixtures::seeds();
+    seeds.deployment = [9; 16];
+    assert_ne!(seeds.deployment, stored_id);
+    let mut settings = fixtures::engine();
+    fixtures::fill_files(&mut settings);
+    let mut service = crate::Service::engine(settings, &seeds, None, fixtures::forge_runtime()).unwrap();
+    service.engine.as_mut().unwrap().store = previous.store;
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    assert_eq!(engine.domain.deployment().id, stored_id);
+    assert_eq!(engine.workers.encoding.deployment, seeds.deployment);
+    engine.workers.forges = fixtures::forge_table(&fixtures::forges());
+    let run = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    let expected = jig_protocol_charter::run_identity(&stored_id, run.task, run.conversation);
+    crate::route::request(
+        engine,
+        root::Request::Worker(root::WorkerRequest::Deliver(root::Delivery::Assigned {
+            channel: Token::new(8),
+            assignment: run,
+        })),
+    );
+    let run = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } =
+        engine.workers.encoded_assignment(engine.env.now, Token::new(8), run, &engine.values).unwrap()
+    else {
+        panic!("assignment encodes")
+    };
+    assert_eq!(assignment.assignment.identity, expected, "the wire identity uses the restored deployment id");
+}
+
+#[test]
 fn a_worker_assignment_uses_the_services_configured_forges() {
     use temper_engine_domain as root;
     let mut service = fixtures::started();

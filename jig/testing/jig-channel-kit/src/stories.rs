@@ -65,6 +65,7 @@ fn script(story: Story) -> crate::world::Script {
     if matches!(
         story,
         Story::Drain
+            | Story::Shutdown
             | Story::Providers
             | Story::Progress
             | Story::Call

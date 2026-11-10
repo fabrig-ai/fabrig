@@ -165,7 +165,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             true,
             b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
         ),
-        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 5.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\ncharter 10.model: not in the agent's configuration under the same name\ncharter 11.model: not in the agent's configuration under the same name\ncharter 12.model: not in the agent's configuration under the same name\n"),
+        ("model", true, false, b"engine.charters[0].model: not in the agent's configuration under the same name"),
     ] {
         let mut agent = fixtures::startup_agent();
         if !endpoints {
@@ -174,8 +174,23 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
         if !models {
             agent.bounds.endpoints = Box::new([]);
         }
-        let found = started(&document, &fixtures::files(), &agent);
-        assert_eq!(&*lines(&found), expected, "row {row}");
+        let result = fixtures::start(
+            &document,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &agent,
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        );
+        if models {
+            assert_eq!(&*lines(&result.err().expect("endpoint is deployment configuration")), expected, "row {row}");
+        } else {
+            let mut service = result.expect("a charter model shortfall warns");
+            assert_eq!(service.notes().pop(), Some(crate::Note::StartupWarning { line: expected.into() }));
+            assert_eq!(service.notes().pop(), None, "one selected warning");
+        }
     }
 }
 #[test]
@@ -511,9 +526,19 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         }
         let mut problems = Problems::empty();
         checks::agent(&engine, &agent, &mut problems);
+        assert!(problems.is_empty(), "charter models do not refuse the start");
+        let core = config::core(&engine, [7; 16], 7);
+        let warnings = checks::admission(&core, &engine, &agent, &mut problems);
+        assert!(problems.is_empty());
+        assert_eq!(warnings.problems.len(), 1);
         assert_eq!(
-            &*lines(&problems),
-            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 5.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\ncharter 10.model: not in the agent's configuration under the same name\ncharter 11.model: not in the agent's configuration under the same name\ncharter 12.model: not in the agent's configuration under the same name\n"
+            &*lines(&warnings),
+            if window {
+                b"engine.charters[0].model: needs a context window of 8192 tokens; the agent offers 1 tokens\n"
+                    .as_slice()
+            } else {
+                b"engine.charters[0].model: needs 1024 output tokens; the agent offers 1 tokens\n".as_slice()
+            }
         );
     }
 }
@@ -579,6 +604,24 @@ fn fixed_redirects() -> [crate::startup::RedirectPort; 2] {
 }
 
 #[test]
+fn charter_admission_shortfalls_warn_but_do_not_hide_deployment_refusals() {
+    let mut agent = fixtures::startup_agent();
+    agent.bounds.turns = 1;
+    let engine = fixtures::guard_engine().jig;
+    let core = config::core(&engine, [7; 16], 7);
+    let mut found = Problems::empty();
+    let warnings = checks::admission(&core, &engine, &agent, &mut found);
+    assert!(found.is_empty(), "charter bounds belong to stored settings: {found:?}");
+    assert_eq!(
+        core::str::from_utf8(&lines(&warnings)).unwrap(),
+        "engine.charters[0].turns: needs 64 turns; the agent's profile.policy.max_turns allows 1\n"
+    );
+    agent.bounds.message_bytes = 0;
+    checks::admission(&core, &engine, &agent, &mut found);
+    assert!(core::str::from_utf8(&lines(&found)).unwrap().contains("messages (tasks.message_bytes)"));
+}
+
+#[test]
 fn admission_names_global_and_time_requirements_with_their_units() {
     use skein_lib::Duration;
     for (time, waiting, spend, inbox, unacknowledged, expected) in [
@@ -588,7 +631,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             100,
             8,
             8,
-            "charter 1.time_ms: needs 3600000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
+            "engine.charters[0].time_ms: needs 3600000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
         ),
         (
             28_800_000,
@@ -596,7 +639,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             256,
             8,
             8,
-            "charter 1.waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
+            "engine.charters[0].waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
         ),
         (
             28_800_000,
@@ -604,7 +647,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             9,
             8,
             8,
-            "rules.maximum_run_spend: needs a spend allowance of 256; the agent's profile.policy.max_spend allows 9\n",
+            "engine.rules.maximum_run_spend: needs a spend allowance of 256; the agent's profile.policy.max_spend allows 9\n",
         ),
         (
             28_800_000,
@@ -632,8 +675,32 @@ fn admission_names_global_and_time_requirements_with_their_units() {
         let engine = fixtures::guard_engine().jig;
         let core = config::core(&engine, [7; 16], 7);
         let mut found = Problems::empty();
-        checks::admission(&core, &engine, &agent, &mut found);
-        assert_eq!(&*lines(&found), expected.as_bytes());
+        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        let (reported, empty) =
+            if expected.starts_with("engine.limits") { (&found, &warnings) } else { (&warnings, &found) };
+        assert!(empty.is_empty(), "{empty:?}");
+        assert_eq!(&*lines(reported), expected.as_bytes());
+    }
+}
+
+#[test]
+fn missing_and_small_charter_models_warn_at_their_configuration_path() {
+    for (window, output, expected) in [
+        (None, 8192, "engine.charters[0].model: not in the agent's configuration under the same name\n"),
+        (Some(1), 8192, "engine.charters[0].model: needs a context window of 8192 tokens; the agent offers 1 tokens\n"),
+        (Some(1_048_576), 1, "engine.charters[0].model: needs 1024 output tokens; the agent offers 1 tokens\n"),
+    ] {
+        let mut agent = fixtures::startup_agent();
+        agent.bounds.endpoints = match window {
+            None => Box::new([]),
+            Some(window) => Box::new([jig_domain_link::EndpointBound { endpoint: 1, window, output }]),
+        };
+        let engine = fixtures::guard_engine().jig;
+        let core = config::core(&engine, [7; 16], 7);
+        let mut found = Problems::empty();
+        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        assert!(found.is_empty(), "{found:?}");
+        assert!(core::str::from_utf8(&lines(&warnings)).unwrap().starts_with(expected));
     }
 }
 

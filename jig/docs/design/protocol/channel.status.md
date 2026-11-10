@@ -115,3 +115,4 @@ whose smallest resumed start passes the room (`limits.rs`). The wire's
   value or one held by a killed host. The plan chooses this limit because
   those grants arrive through the same `Assignment` and `Granted` frames as
   the covered stories; extending coverage remains section 14's question.
+

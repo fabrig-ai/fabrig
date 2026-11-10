@@ -349,3 +349,4 @@ Sections 3, 13.2, 13.4 and 13.9's close job setting, coordinator policy and
 instructions, template 4's closer and reference delegation are built.
 `temper-service`'s stock tables check the configured editions; the
 engine-domain world's goal closer stories exercise their composition.
+

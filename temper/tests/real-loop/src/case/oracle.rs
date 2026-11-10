@@ -1513,9 +1513,11 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
         "the complete journal must order every run beginning after the previous ending, with no attempt left open",
     );
     let director = task_document(observed, Read::HangEnded);
+    // A shutdown interrupts without spending a try (domain/worker.md, 2);
+    // tasks journals that recheck as refused, not as an agent failure.
     let retried = matches!(attempts.as_slice(), [Some(first), Some(next)] if first != next)
         && matches!(endings.as_slice(), [first, next]
-            if text(first, "/end/failed/class") == "agent" && text(next, "/end") == "finished");
+            if text(first, "/end") == "refused" && text(next, "/end") == "finished");
     step_check(
         &mut misses,
         "4.6",
@@ -1527,7 +1529,7 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
             && text(director, "/chip/phase") == "ended"
             && text(director, "/result/value/report/bytes") == HANG_REPORT,
         REPLACED,
-        "the chat must have exactly two ordered attempts, failed as agent then finished, and end with its report",
+        "the chat must have exactly two ordered attempts, interrupted (refused) then finished, and end with its report",
     );
     let read = check_activity(observed, Read::HangQuestionRead)
         .iter()
@@ -1631,7 +1633,7 @@ mod restart_tests {
         let events = [
             json!({"run_ended":{"attempt":8,"end":"finished"}}),
             json!({"run_began":{"attempt":8}}),
-            json!({"run_ended":{"attempt":7,"end":{"failed":{"class":"agent"}}}}),
+            json!({"run_ended":{"attempt":7,"end":"refused"}}),
             json!({"run_began":{"attempt":7}}),
         ];
         let mut documents = BTreeMap::new();
@@ -1704,6 +1706,15 @@ mod restart_tests {
     #[test]
     fn a_restarted_chat_meets_the_checkpoint() {
         assert_met(&step_4_6(&met()));
+    }
+    #[test]
+    fn a_shutdown_interruption_is_not_an_agent_failure() {
+        let mut observed = met();
+        observed.documents.get_mut(&Read::HangActivityOlder).expect("first ending")["rows"][0]["event"]["owner"]["source"]
+            ["line"]["run_ended"]["end"] = json!({"failed":{"class":"agent"}});
+        let misses = step_4_6(&observed);
+        assert_eq!(misses.len(), 1);
+        assert_eq!(misses[0].promise, REPLACED);
     }
     #[test]
     fn restart_promises_report_independent_failures_together() {

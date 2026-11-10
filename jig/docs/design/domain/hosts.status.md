@@ -80,3 +80,4 @@ Section 12 defers the general message-rendering allowance.
   the request keeps behaviour unchanged; `inbox_sender` starts from
   `Party::sender` (the code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+

@@ -18,7 +18,7 @@ fn cases() -> Box<[(Option<HelloRefused>, &'static [u8])]> {
         (Some(agent(A::Turns { charter: 3 }, figures)), b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32"),
         (Some(agent(A::Time { charter: 3 }, figures)), b"charter 3: needs 64 ms of run time; the agent's profile.policy.max_time allows 32 ms"),
         (Some(agent(A::Waiting { charter: 3 }, figures)), b"charter 3: needs 64 ms of waiting; the agent's profile.policy.max_waiting allows 32 ms"),
-        (Some(agent(A::Checks { charter: 3 }, figures)), b"charter 3: needs checks within 64 ms; the agent's profile.policy.check_timeout is 32 ms"),
+        (Some(agent(A::Checks { charter: 3 }, figures)), b"charter 3: needs checks within 64 ms; the agent's profile.policy.check_timeout is 32 ms; raise charter 3's reserve_time (temper help settings) or lower the timeout"),
         (Some(agent(A::Spend, figures)), b"needs a spend allowance of 64; the agent's profile.policy.max_spend allows 32"),
         (Some(agent(A::Message, figures)), b"needs 64-byte messages (tasks.message_bytes); the agent offers 32 (tool_payload less 2)"),
         (Some(agent(A::Inbox, figures)), b"needs an inbox of 64 (tasks.run_inbox); the agent's profile.policy.inbox allows 32"),
@@ -56,6 +56,18 @@ fn sent(engine: &mut crate::engine::Engine, channel: u64, hello: Option<HelloRef
     };
     assert_eq!(actual, Token::new(channel));
     text
+}
+
+#[test]
+fn a_check_reserve_refusal_names_the_setting_on_the_wire_and_in_the_line() {
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.notes.clear();
+    let hello = Some(agent(A::Checks { charter: 2 }, Some(Figures { required: 60_000, offered: 90_000 })));
+    let words = b"charter 2: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout";
+    assert_eq!(sent(engine, 7, hello).as_ref(), words);
+    assert!(words.len() <= 256);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::HelloRefused { channel: 7, text: words.as_slice().into() }));
 }
 
 #[test]

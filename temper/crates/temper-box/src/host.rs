@@ -1,5 +1,6 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
 //! Kind files and removers follow temper/docs/design/protocol/setup.md, 7.1.
+//! Source outcomes follow temper/docs/design/protocol/sign-in.md, 9.9.
 use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},
@@ -121,10 +122,6 @@ enum SourceEnd {
     NotStarted,
 }
 #[derive(Debug)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "Restart notification is independent of spawn, hold and source logging."
-)]
 struct Child {
     owner: Option<Token>,
     process: Option<Token>,
@@ -140,7 +137,7 @@ struct Child {
     tail: Tail,
     source: Option<Source>,
     source_ending: Option<SourceEnd>,
-    source_logged: bool,
+    source_said: Option<Source>,
     restarting: bool,
 }
 impl Child {
@@ -159,7 +156,7 @@ impl Child {
             tail: Tail::new(tail_lines),
             source: None,
             source_ending: None,
-            source_logged: false,
+            source_said: None,
             restarting: false,
             ready: match step.ready() {
                 Some(address) => Some(Ready::new(address)),
@@ -424,6 +421,9 @@ impl Service {
             Some(
                 Order::Say { said: Said::Started { forge } } | Order::Terminal { fact: Fact::GroupStarted { forge } },
             ) => Some(*forge),
+            Some(Order::Source { step, .. }) => {
+                Some(self.steps.get(*step).expect("source step").asked.expect("source group").forge)
+            }
             Some(_) | None => None,
         };
         if let Some(forge) = forge
@@ -448,7 +448,7 @@ impl Service {
                     && (self.front_running() || self.deferred.is_empty())
                     && (self.tail_candidate(*fact).is_some() || self.say_room(1))
             }
-            Some(Order::Say { .. }) => self.reply_ready(),
+            Some(Order::Say { .. } | Order::Source { .. }) => self.reply_ready(),
             Some(
                 Order::Spawn { .. }
                 | Order::Withdraw { .. }
@@ -862,6 +862,13 @@ impl Service {
     fn source_line(&mut self, forge: u16, wall: Wall) -> Option<Box<[u8]>> {
         let step = self.source_step(forge)?;
         let state = self.children.get_mut(step).expect("source child");
+        if let Some(outcome) = &state.source_said {
+            return Some(pipe::source(forge, outcome));
+        }
+        Some(self.source_ending(step, forge, wall))
+    }
+    fn source_ending(&mut self, step: usize, forge: u16, wall: Wall) -> Box<[u8]> {
+        let state = self.children.get_mut(step).expect("source child");
         if state.source.is_none() {
             let why = match state.source_ending {
                 Some(SourceEnd::Exited(exit)) => pipe::exited(b"source", exit),
@@ -871,16 +878,20 @@ impl Service {
             state.source = Some(Source::Failed(why));
         }
         let outcome = state.source.as_ref().expect("source outcome");
-        if !state.source_logged {
-            state.source_logged = true;
+        if state.source_said.as_ref() != Some(outcome) {
+            state.source_said = Some(outcome.clone());
             if let Source::Failed(why) = outcome {
                 let label = layout::label(&self.steps, forge).expect("source group's label");
                 let line = lines::joined(&[label, b": no sign-in through temper: ", why, b"\n"]);
                 self.box_lines.push(self.formatter.notice(&line, wall));
             }
         }
-        Some(pipe::source(forge, outcome))
+        pipe::source(forge, outcome)
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Dispatch each lifecycle order with its source wall, including drained source outcomes."
+    )]
     fn order(&mut self, order: Order, wall: Wall) {
         match order {
             Order::Withdraw { step } => {
@@ -897,6 +908,29 @@ impl Service {
                     self.source_line(forge, wall);
                 }
                 self.terminal_fact(fact, wall);
+            }
+            Order::Source { step, first } => {
+                let forge = self.steps.get(step).expect("source step").asked.expect("source group").forge;
+                let state = self.children.get_mut(step).expect("source child");
+                if first {
+                    state.source_said = None;
+                }
+                let previous = state.source_said.clone();
+                let line = self.source_ending(step, forge, wall);
+                let state = self.children.get(step).expect("source child");
+                let added = state.source == Some(Source::Added);
+                let changed = match previous {
+                    Some(previous) => pipe::source(forge, &previous) != line,
+                    None => true,
+                };
+                if !first
+                    && changed
+                    && let Some(control) = &mut self.control
+                    && control.sink.room()
+                {
+                    control.sink.push(line).expect("source reply room checked");
+                }
+                self.input(Input::SourceEnded { step, added });
             }
             Order::Record { forge } => self.records.write(forge),
             Order::WriteGroup { forge, kind } => self.records.write_group(forge, kind),
@@ -1019,7 +1053,7 @@ impl Service {
                         return true;
                     }
                 }
-                Order::Say { .. } => return self.reply_ready(),
+                Order::Say { .. } | Order::Source { .. } => return self.reply_ready(),
                 Order::Spawn { .. }
                 | Order::Withdraw { .. }
                 | Order::Hold { .. }
@@ -1240,7 +1274,6 @@ impl Service {
                 state.tail.reset();
                 state.source = None;
                 state.source_ending = None;
-                state.source_logged = false;
                 self.serial = self.serial.checked_add(1).expect("spawn serial");
                 let owner = Token::new(self.serial);
                 state.owner = Some(owner);
