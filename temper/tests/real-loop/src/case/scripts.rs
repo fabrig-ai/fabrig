@@ -47,11 +47,28 @@ pub fn step_4_1_rules() -> Box<[Box<[Rule]>]> {
     Box::new([Box::new(director), Box::new(a), Box::new([]), Box::new([])])
 }
 
-/// The opener's rules followed by one empty table per check script.
+/// The opener and check judge fresh input, including messages beside tool results.
 #[must_use]
 pub fn step_4_1_4_3_rules() -> Box<[Box<[Rule]>]> {
     let mut rules = step_4_1_rules().into_vec();
-    rules.extend([Box::<[Rule]>::default(), Box::default(), Box::default()]);
+    // A due timer can arrive beside subscribe's result, and B's report beside
+    // cancel's result. Read those messages before choosing another wait.
+    let check = [
+        (super::B_REPORT, 6),
+        (CROSSED, 6),
+        (&format!("{}: ", super::CHECK), 4),
+        (super::BENCHMARK_RUNNING, 2),
+        ("Subscription ", 3),
+        ("Done", 5),
+        (BEGIN, 0),
+        ("", 1),
+    ]
+    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    let b = [(super::CHECK_REASON, 3), (CROSSED, 3), (DELEGATED, 1), (BEGIN, 0), ("", 2)]
+        .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    rules.push(Box::new(check));
+    rules.push(Box::new(b));
+    rules.push(Box::default());
     rules.into_boxed_slice()
 }
 
@@ -1540,6 +1557,52 @@ mod tests {
                 assert_eq!(name, b"wait", "ordinary fresh landing must not replay an older crossed finish");
                 assert_eq!(arguments, json!({}));
             }
+        }
+    }
+
+    #[test]
+    fn case_4_3_reads_messages_beside_working_results_before_waiting() {
+        use super::super::{B_REPORT, BENCHMARK, CHECK, CHECK_REASON, CHECK_REPORT};
+        let cases = [
+            (Agent::Check, "Subscription 12 added".to_owned(), "wait", json!({})),
+            (
+                Agent::Check,
+                format!("Subscription 12 added\n{CHECK}: \n"),
+                "cancel",
+                json!({"target":BENCHMARK,"reason":CHECK_REASON}),
+            ),
+            (Agent::Check, format!("{CHECK}: \n"), "cancel", json!({"target":BENCHMARK,"reason":CHECK_REASON})),
+            (
+                Agent::Check,
+                format!("Done\n{B_REPORT}"),
+                "finish",
+                json!({"form":"report","text":CHECK_REPORT,"fields":{}}),
+            ),
+            (Agent::Check, "Done".to_owned(), "wait", json!({})),
+            (
+                Agent::B,
+                format!("Tasks introduced\n{CHECK_REASON}"),
+                "finish",
+                json!({"form":"report","text":B_REPORT,"fields":{}}),
+            ),
+        ];
+        for (agent, fresh, tool, arguments) in cases {
+            let reply = answer(step_4_1_4_3(([127, 0, 0, 1], 3000).into()), step_4_1_4_3_rules(), agent, &fresh);
+            let calls: Vec<_> = reply
+                .parts
+                .iter()
+                .filter_map(|part| match part {
+                    api::Part::ToolCall { name, arguments, .. } => Some((name.as_ref(), arguments.as_ref())),
+                    api::Part::Opaque { .. } | api::Part::Text { .. } | api::Part::ToolOutput { .. } => None,
+                })
+                .collect();
+            assert_eq!(calls.len(), 1, "one judgement for {agent:?}: {fresh}");
+            assert_eq!(calls[0].0, tool.as_bytes(), "{agent:?}: {fresh}");
+            assert_eq!(
+                serde_json::from_slice::<Value>(calls[0].1).expect("arguments"),
+                arguments,
+                "{agent:?}: {fresh}"
+            );
         }
     }
 

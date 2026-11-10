@@ -1387,18 +1387,10 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
         &mut misses,
         "4.3",
         timer.is_some_and(|(subscription, _message)| {
-            let result = format!("Subscription {subscription} added");
-            let wake = format!("\n{CHECK}: \n");
-            queries.iter().position(|told| contains(&told.words, &result)).is_some_and(|at| {
-                !contains(&queries[at].words, &wake)
-                    && queries[at + 1..].iter().any(|told| {
-                        contains(&told.words, &wake)
-                            && contains(&told.words, "Messages arrived. Read them before continuing.")
-                    })
-            })
+            queries.iter().any(|told| check_timer_delivery(told, subscription))
         }),
         TIMER,
-        "after the subscription result, a later director query must contain the timer's empty wake and live wait result",
+        "the director must read the timer's empty wake after its subscription result, in that query or a later one",
     );
     step_check(
         &mut misses,
@@ -1466,6 +1458,70 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
         "the check director must hear B's result and end with its check report",
     );
     misses
+}
+
+// Smith offers queued messages beside settled tool results, including subscribe's
+// result (smith/docs/design/domain/run.md, 6). A live wait is only one delivery seam.
+fn check_timer_delivery(told: &Told, subscription: u64) -> bool {
+    use skein_fake_llm_domain::api::{Part, Role};
+    let result = format!("Subscription {subscription} added");
+    let wake = format!("{}: ", super::CHECK);
+    let mut subscribed = false;
+    for message in &told.history {
+        if message.role != Role::User {
+            continue;
+        }
+        for part in &message.parts {
+            match part {
+                Part::ToolOutput { output, is_error: false, .. } if contains(output, &result) => subscribed = true,
+                Part::Text { text }
+                    if subscribed && text.split(|byte| *byte == b'\n').any(|line| line == wake.as_bytes()) =>
+                {
+                    return true;
+                }
+                Part::Text { .. } | Part::ToolOutput { .. } | Part::ToolCall { .. } | Part::Opaque { .. } => {}
+            }
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod check_timer_tests {
+    use super::{Agent, Told, check_timer_delivery};
+    use skein_fake_llm_domain::api::{Message, Part, Role};
+
+    #[test]
+    fn timer_delivery_requires_the_subscription_result_before_the_wake() {
+        let receipt = Part::ToolOutput {
+            id: b"subscribe".as_slice().into(),
+            output: b"Subscription 12 added".as_slice().into(),
+            is_error: false,
+        };
+        let wake = Part::Text { text: format!("{}: ", crate::case::CHECK).into_bytes().into() };
+        let message = |role, parts: Vec<Part>| Message { role, parts: parts.into() };
+        for (name, messages, subscription, met) in [
+            ("beside result", vec![message(Role::User, vec![receipt.clone(), wake.clone()])], 12, true),
+            (
+                "later query",
+                vec![
+                    message(Role::User, vec![receipt.clone()]),
+                    message(Role::Assistant, vec![]),
+                    message(Role::User, vec![wake.clone()]),
+                ],
+                12,
+                true,
+            ),
+            ("wake first", vec![message(Role::User, vec![wake.clone(), receipt.clone()])], 12, false),
+            ("no result", vec![message(Role::User, vec![wake.clone()])], 12, false),
+            ("no wake", vec![message(Role::User, vec![receipt.clone()])], 12, false),
+            ("another subscription", vec![message(Role::User, vec![receipt.clone(), wake.clone()])], 13, false),
+            ("assistant words", vec![message(Role::Assistant, vec![receipt, wake])], 12, false),
+        ] {
+            let told = Told::with_agent(Agent::Check, b"", b"fake", None, &messages);
+            assert_eq!(check_timer_delivery(&told, subscription), met, "{name}");
+        }
+    }
 }
 
 const REPLACED: Promise = Promise::Must("the chat's run placed again after its worker's grace (exact)");
