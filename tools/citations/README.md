@@ -69,6 +69,8 @@ skein/docs/design/forge.md 7 -> skein/docs/design/forge/decisions.md
 title skein/docs/design/forge/decisions.md: Decisions
 skein/docs/design/forge.md -> skein/docs/design/forge/README.md
 renumber skein/docs/design/forge.md
+renumber skein/docs/design/forge/markers.md
+heading skein/docs/design/forge/markers.md 1: The markers
 ```
 
 - **Documents** carry their status and execution files. **Directories** carry every tracked
@@ -84,6 +86,11 @@ renumber skein/docs/design/forge.md
   source; the rest of the document and its companions then follow the document entry.
   A `renumber` entry, naming the source before the move, numbers its remaining top-level
   sections consecutively, with their subsections, citations and status labels following.
+  It can also name a created document: numbering applies after all sections arrive.
+  A promoted section and explicitly numbered sections can share a created document.
+- **Headings** can be retitled with `heading PATH N: TEXT`. The path must be a created
+  document and N its number after section placement, before renumbering. Links' anchors
+  follow both the title and the final number. Every text file written ends with one newline.
 - **New documents** made from sections require a `title` entry. Destinations must be under
   one of the five trees' `docs/`. Missing sources, duplicate destinations and occupied
   destinations that are not moved away are errors. All map errors are listed before any
@@ -104,6 +111,17 @@ renumber skein/docs/design/forge.md
   counts rewritten bare numbers separately. Status prose uses its companion document's
   headings, and capitalized section references follow the map too. These extra readings
   do not change the gate.
+- **Ambiguous bare sections** choose the sentence's antecedent when its path is possessive
+  and at most two words intervene before the section reference; otherwise they choose the
+  citing document. The report lists each decision whose candidates map differently, and
+  the final check verifies the chosen reading. Other ambiguities remain listed for review.
+- **Code strings and other tracked text** follow the same path and section map when they
+  contain a citation-shaped path followed by section numbers. The mover reads physical
+  literals without evaluating escapes or interpolation, and reports each changed line under
+  **Rewrote in code strings**, with its Cargo package when present. Message expectations
+  and text fixtures follow the same rules. Run `cargo test -p` for each affected package.
+  Runtime paths, interpolated paths and document paths used to read files remain listed
+  under **By hand** when they are not citation-shaped.
 - **Status entries** follow their labels into created documents. Each created document gets
   a dated UTC status header, and `No gap.` when it receives no entry. An emptied source
   status gets `No gap.` too. Split entries copy their full text, keeping only each
@@ -111,8 +129,9 @@ renumber skein/docs/design/forge.md
   split entry is listed once for review and trimming.
 - **By hand** lists ambiguous sections whose candidates need different rewrites, grammar
   that cannot be split mechanically, allow-list globs, and moved names outside citations.
-  A shadowed suffix name whose target did not move keeps its prose token and is listed
-  with its new resolution. Backticked link labels, including status-index document names,
+  A shadowed suffix name without sections keeps its prose token and is listed with its
+  new resolution. With sections it gains an explicit owner or resolving root path.
+  Backticked link labels, including status-index document names,
   follow their links. Reports name final files and lines, with code and configuration
   first. Plans and dated development records stay unchanged and unlisted. Exact allow-list
   paths and section targets are rewritten.

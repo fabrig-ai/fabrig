@@ -335,7 +335,7 @@ def external_section(pre):
                 or re.search(r"\.md`?\)?,?\s*$", pre))
 
 
-def citations(tree, rel, lines, is_code, bare_pattern=None, section_pattern=None):
+def citations(tree, rel, lines, is_code, bare_pattern=None, section_pattern=None, logical=None):
     """Yield every reading used by check_file, with physical spans and resolutions.
 
     A path reading includes its following section numbers. Bare readings and status
@@ -347,7 +347,7 @@ def citations(tree, rel, lines, is_code, bare_pattern=None, section_pattern=None
     is_status = rel.endswith(".status.md")
     self_doc = doc_of_status(rel)
     by_step, seen_label = False, False
-    for text, marks in logical_lines(lines, rel, is_code):
+    for text, marks in logical if logical is not None else logical_lines(lines, rel, is_code):
         def pos(offset):
             return position_at(rel, marks, offset)
 

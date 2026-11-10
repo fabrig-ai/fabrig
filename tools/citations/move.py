@@ -30,6 +30,39 @@ Row = collections.namedtuple("Row", "file line text")
 Heading = collections.namedtuple("Heading", "number start end level")
 
 
+def skipped_text(path):
+    parts = path.split("/")
+    return (parts[0] in c.TREES and (parts[1:3] == ["docs", "plan"] or
+            (parts[1:3] == ["docs", "development"] and c.DATED.search(parts[-1])))) or path.startswith("tools/citations/maps/")
+
+
+def readable_text(root, path):
+    if (root / path).is_symlink() or re.search(r"(?i)(?:^|/)(?:auth\.json|\.credentials\.json|(?:\.?secrets?|\.?tokens?|\.?credentials?|private[-_]key)(?:\.(?:json|ya?ml|toml|txt))?)$|\.(?:pem|key|p12|pfx)$", path):
+        return False
+    return True
+
+
+def literals(path, text):
+    """Physical string contents, without decoding escapes or evaluating interpolation."""
+    slash = path.endswith(c.SLASH_COMMENTS)
+    pattern = re.compile(
+        r"//[^\n]*|/\*.*?\*/|r(?P<hash>\#{0,255})\".*?\"(?P=hash)|\"(?:\\.|[^\"\\])*\"|" +
+        (r"'(?:\\(?:u\{[0-9a-fA-F]+\}|x[0-9a-fA-F]{2}|.)|[^'\\])'" if path.endswith(".rs")
+         else r"'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`")
+        if slash else r"\#[^\n]*|(?P<triple>\"\"\"|''').*?(?P=triple)|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'",
+        re.DOTALL)
+    for match in pattern.finditer(text):
+        value = match.group()
+        if value.startswith(("//", "/*", "#")):
+            continue
+        if path.endswith(".rs") and value.startswith("'"):
+            # Rust apostrophes also delimit lifetimes; only double quotes hold text.
+            continue
+        opening = re.match(r'r\#*"|"""|\'\'\'|["\'`]', value).group()
+        closing = '"' + match.group("hash") if slash and match.group("hash") is not None else opening
+        yield match.start() + len(opening), match.end() - len(closing)
+
+
 def git(*args):
     return c.git(*args)
 
@@ -58,6 +91,13 @@ def read_map(path):
                 if number or not src.endswith(".md"):
                     raise ValueError("want renumber PATH.md")
                 entries.append(Entry(src, None, src, None, ln, "renumber"))
+                continue
+            if text.startswith("heading "):
+                dest, sep, title = text[8:].partition(":")
+                dst, number = address(dest.strip())
+                if not sep or not title.strip() or not number or not dst.endswith(".md"):
+                    raise ValueError("want heading PATH.md N: TEXT")
+                entries.append(Entry(dst, number, dst, title.strip(), ln, "heading"))
                 continue
             if text.startswith("title "):
                 dest, sep, title = text[6:].partition(":")
@@ -161,6 +201,10 @@ class Plan:
         self.consumed = collections.defaultdict(list)
         self.rewritten, self.rewritten_files = 0, set()
         self.bare_rewritten = 0
+        self.rule_decisions = set()
+        self.rule_choices = {}
+        self.code_strings = set()
+        self.extra_paths = set()
         self.expectations, self.wrong = [], []
         self.status_locations = {}
         self.status_copies = collections.defaultdict(list)
@@ -168,6 +212,7 @@ class Plan:
         self.paragraphs = {}
         self.renumbers = {e.src for e in entries if e.directory == "renumber"}
         self.renumbered = {}
+        self.retitles = {(e.src, e.number): e.new_number for e in entries if e.directory == "heading"}
         self.validate()
 
     def read(self, path):
@@ -186,13 +231,15 @@ class Plan:
         seen, files, directories = set(), {}, []
         explicit_files = {e.src: e.dst for e in self.entries if not e.number and not e.directory}
         for e in self.entries:
-            key = (e.src, e.number, e.directory == "renumber")
+            key = (e.src, e.number, e.directory)
             if key in seen:
                 self.errors.append(f"map:{e.line}: duplicate source {e.src} {e.number or ''}".rstrip())
             seen.add(key)
             if e.directory == "renumber":
-                if e.src not in self.tracked:
+                if e.src not in self.tracked and not any(s.number and s.dst == e.src and not s.directory for s in self.entries):
                     self.errors.append(f"map:{e.line}: source does not exist: {e.src}")
+            elif e.directory == "heading":
+                continue
             elif e.directory:
                 directories.append(e)
                 if not any(p.startswith(e.src) for p in self.tracked):
@@ -269,11 +316,18 @@ class Plan:
                     self.errors.append(f"destination parent is a file: {parent}")
         if self.errors:
             return
+        self.rows = self.layout()
+        for e in self.entries:
+            if e.directory == "heading":
+                if e.src not in self.created:
+                    self.errors.append(f"map:{e.line}: heading needs a created document: {e.src}")
+                elif not any(h.number == e.number for h in headings([r.text for r in self.rows[e.src]])):
+                    self.errors.append(f"map:{e.line}: destination section does not exist: {e.src} {e.number}")
         for path in self.renumbers:
-            remaining = [h for h in headings(self.lines(path))
-                         if h.level == 2 and not self.section_at(path, h.start + 1)]
+            dst = self.moves.get(path, path)
+            remaining = [h for h in headings([r.text for r in self.rows.get(dst, [])]) if h.level == 2]
             for i, h in enumerate(remaining, 1):
-                self.renumbered[path, h.number] = str(i)
+                self.renumbered[dst, h.number] = str(i)
         self.rows = self.layout()
         for path, rows in self.rows.items():
             nums = [h.number for h in headings([r.text for r in rows])]
@@ -281,7 +335,8 @@ class Plan:
             for n in duplicates:
                 self.errors.append(f"destination section exists or has two sources: {path} {n}")
             for e, _ in self.sections:
-                if e.dst == path and e.new_number and "." in e.new_number and e.new_number.rsplit(".", 1)[0] not in nums:
+                _, number = self.target(e.src, e.number)
+                if e.dst == path and e.new_number and "." in number and number.rsplit(".", 1)[0] not in nums:
                     self.errors.append(f"destination parent section does not exist: {path} {e.new_number}")
 
     def check_parents(self, dst):
@@ -303,16 +358,20 @@ class Plan:
         e = self.section_at(path, line)
         return e.dst if e else self.moves.get(path, path)
 
-    def target(self, path, number):
+    def mapped_target(self, path, number):
         choices = [e for e, _ in self.sections if e.src == path and prefix(number, e.number)]
         if choices:
             e = max(choices, key=lambda e: len(e.number))
             return e.dst, (e.new_number + number[len(e.number):] if e.new_number
                            else number[len(e.number):].lstrip("."))
+        return self.moves.get(path, path), number
+
+    def target(self, path, number):
+        path, number = self.mapped_target(path, number)
         first, dot, tail = number.partition(".")
         if (path, first) in self.renumbered:
             number = self.renumbered[path, first] + dot + tail
-        return self.moves.get(path, path), number
+        return path, number
 
     def transformed(self, row):
         if row.file is None:
@@ -333,10 +392,11 @@ class Plan:
             return row
         m = c.HEADING.match(line)
         if m:
+            title = self.retitles.get(self.mapped_target(row.file, m.group(1)))
             _, n = self.target(row.file, m.group(1))
             if not n:
                 return row._replace(text="")
-            tail = line[m.end(1):]
+            tail = " " + title + "\n" if title is not None else line[m.end(1):]
             if tail.startswith("."):
                 tail = tail[1:]
             line = "#" * level + h.group(2) + n + ("." if "." not in n else "") + tail
@@ -345,7 +405,7 @@ class Plan:
         return row._replace(text=line)
 
     def layout(self):
-        paths = set(self.moves) | {e.src for e, _ in self.sections} | self.renumbers
+        paths = set(self.moves) | {e.src for e, _ in self.sections} | (self.renumbers & self.tracked)
         paths |= {p for p in self.tracked if self.moves.get(p, p) in {e.dst for e, _ in self.sections}}
         paths = {p for p in paths if p.endswith(".md")}
         self.layout_sources = paths
@@ -373,10 +433,11 @@ class Plan:
                 rows[e.dst] = [Row(None, 0, f"# {self.titles.get(e.dst, '')}\n"), Row(None, 0, "\n")]
             dest = rows[e.dst]
             hs = headings([r.text for r in dest])
-            parent = e.new_number.rsplit(".", 1)[0] if e.new_number and "." in e.new_number else None
+            _, insertion_number = self.target(e.src, e.number)
+            parent = insertion_number.rsplit(".", 1)[0] if "." in insertion_number else None
             siblings = [h for h in hs if (h.number.rsplit(".", 1)[0] if "." in h.number else None) == parent]
-            larger = [h for h in siblings if number_key(h.number) > number_key(e.new_number or "0")]
-            smaller = [h for h in siblings if number_key(h.number) < number_key(e.new_number or "0")]
+            larger = [h for h in siblings if number_key(h.number) > number_key(insertion_number or "0")]
+            smaller = [h for h in siblings if number_key(h.number) < number_key(insertion_number or "0")]
             if not e.new_number:
                 at = 2
             elif larger:
@@ -562,6 +623,94 @@ class Plan:
         after = OWN_AFTER if pattern else None
         return c.citations(tree, path, lines, is_code, bare_pattern=pattern, section_pattern=after)
 
+    def decide_bare(self, cite, lines, record=False):
+        """Choose self unless the sentence antecedent possesses the preceding words."""
+        if cite.kind != "section-self":
+            return cite
+        own = c.doc_of_status(cite.file)
+        antecedent = next((r.target for r in cite.readings if r.how == "sentence"), None)
+        if not antecedent or not any(own in n.targets and antecedent in n.targets and own != antecedent
+                                     for n in cite.numbers):
+            return cite
+        pre = ""
+        for text, marks in c.logical_lines(lines, cite.file, False):
+            for offset, line, column in marks:
+                if line == cite.start.line:
+                    pre = text[:offset + cite.start.column - column]
+                    break
+            if pre:
+                break
+        paths = list(c.MD_TOKEN.finditer(pre))
+        tail = pre[paths[-1].end():] if paths else ""
+        possessive = re.fullmatch(r"[`)]?['’]s(?:\s+[^\s()]+){0,2}\s*\(?\s*", tail)
+        chosen = antecedent if possessive else own
+        nums = tuple(n._replace(targets=(chosen,)) if set(n.targets) == {own, antecedent} else n
+                     for n in cite.numbers)
+        if record:
+            self.rule_choices[cite.start] = chosen
+        destination = self.text_destination(cite.file, cite.start.line)
+        def different(n):
+            candidates = {self.target(t, n.value) for t in n.targets}
+            return len(candidates) > 1 and not (
+                len({number for _, number in candidates}) == 1
+                and all(self.target(t, n.value)[0] == self.moves.get(t, t) for t in n.targets)
+                and destination == self.moves.get(cite.file, cite.file))
+        if record and any(different(n) for n in cite.numbers):
+            self.rule_decisions.add((cite.file, cite.start.line, cite.start.column, chosen))
+        return cite._replace(numbers=nums)
+
+    def extra_citations(self, tree, path, text, ordinary, include_names=False):
+        """Citation-shaped literal and otherwise unread text, with source coordinates."""
+        if path == c.ALLOW or skipped_text(path) or not readable_text(Path(tree.root), path) or "\0" in text:
+            return []
+        if path.endswith(c.CODE_EXT):
+            spans = literals(path, text)
+        else:
+            spans = [(0, len(text))]
+        covered = [(cite.link.start if cite.link else cite.start,
+                    max(cite.numbers[-1].end if cite.numbers else cite.end,
+                        cite.link.tail_end if cite.link else cite.end)) for cite in ordinary]
+        logical = []
+        for start, end in spans:
+            if ".md" not in text[start:end]:
+                continue
+            line = text.count("\n", 0, start) + 1
+            column = start - text.rfind("\n", 0, start)
+            parts, marks, offset = [], [], 0
+            for part in text[start:end].splitlines(True):
+                value = part.rstrip("\r\n")
+                marks.append((offset, line, column))
+                parts.append(value)
+                offset += len(value) + 1
+                line, column = line + 1, 1
+            if marks:
+                logical.append((" ".join(parts), marks))
+        out = []
+        lines = text.split("\n")
+        for cite in c.citations(tree, path, [], not path.endswith(".md"), logical=logical):
+            if cite.kind != "path" or not cite.target or (not cite.numbers and not include_names):
+                continue
+            if any(a <= cite.start < b for a, b in covered):
+                continue
+            # A variable path is a runtime name even if its static suffix resolves.
+            source_line = lines[cite.start.line - 1]
+            pre = source_line[:cite.start.column - 1]
+            if re.search(r"(?:[}$]|\\[nt])[^\s\"']*/$", pre):
+                continue
+            out.append(cite)
+        return out
+
+    def package(self, path):
+        for parent in Path(path).parents:
+            manifest = (parent / "Cargo.toml").as_posix()
+            if manifest in self.tracked:
+                text = self.read(manifest)
+                package = re.search(r'(?ms)^\[package\]\s*\n(.*?)(?=^\[|\Z)', text)
+                name = re.search(r'^name\s*=\s*"([^"]+)"', package.group(1), re.MULTILINE) if package else None
+                if name:
+                    return name.group(1)
+        return None
+
     def status_rows(self):
         """Move complete entries, retaining row origins for citations and reporting."""
         self.status_edits = collections.defaultdict(dict)
@@ -739,7 +888,7 @@ class Plan:
             a < cite.start and self.paragraphs.get((a.file, a.line)) == paragraph for a in introduced)
 
     def preserve_suffix_name(self, cite, shadowed, resolved):
-        if shadowed and cite.how in ("suffix", "suffix-ambiguous"):
+        if shadowed and cite.how in ("suffix", "suffix-ambiguous") and not cite.numbers:
             self.manual(cite, f"the bare name now resolves to {resolved}")
             return True
         return False
@@ -804,21 +953,34 @@ class Plan:
             if not e.new_number:
                 anchors[e.src, h.start + 1] = (e.dst, "")
         introduced = collections.defaultdict(list)
-        for path, is_code in sorted(c.walk(str(self.root))):
-            if path not in self.tracked:
+        checked = dict(c.walk(str(self.root)))
+        for path in sorted(self.tracked):
+            if skipped_text(path) or not readable_text(self.root, path):
                 continue
             text = self.read(path)
+            if "\0" in text or (path not in checked and ".md" not in text):
+                continue
+            is_code = checked.get(path, True)
             if is_code and ".md" not in text:
                 continue
-            readings = list(self.read_citations(before, path, text.split("\n"), is_code))
+            readings = ([self.decide_bare(cite, text.split("\n"), record=True)
+                         for cite in self.read_citations(before, path, text.split("\n"), is_code)]
+                        if path in checked else [])
+            extras = self.extra_citations(before, path, text, readings)
+            extra_starts = {cite.start for cite in extras}
+            if extras:
+                self.extra_paths.add(path)
             for index, (_, marks) in enumerate(c.logical_lines(text.split("\n"), path, is_code)):
                 for _, line, _ in marks:
                     self.paragraphs[path, line] = index
             if not is_code:
                 readings += list(self.bare_numbers(before, path, text.split("\n"), readings))
+            readings += extras
             for cite, source in [(cite, source) for cite in readings
                                  for source in self.citing_destinations(path, cite.start.line)]:
                 self.edit_destination = source if path.endswith(".status.md") else None
+                if self.protect_antecedent(cite, introduced[path]) and cite.start in self.rule_choices:
+                    self.rule_decisions.add((path, cite.start.line, cite.start.column, self.rule_choices[cite.start]))
                 if cite.kind == "status-label":
                     # Labels are rendered with their complete entry, including split copies.
                     for n in cite.numbers:
@@ -883,11 +1045,16 @@ class Plan:
                     if anchor_destination:
                         self.anchor_expected[cite.start] = anchor_destination
                     affected |= bool(anchor_destination and anchor_destination != (cite.target, anchor))
+                qualify_owner = None
                 if cite.kind == "path" and cite.target:
                     resolved, how = c.resolve(after, source, cite.token, cite.owner, is_code)
                     shadowed = resolved != cite.target and cite.target not in self.moves
                     if self.preserve_suffix_name(cite, shadowed, resolved):
                         continue
+                    if shadowed and cite.numbers and cite.how in ("suffix", "suffix-ambiguous") and not cite.owner:
+                        home = c.tree_of(cite.target)
+                        if home and home != c.tree_of(source):
+                            qualify_owner = home
                     affected |= resolved != cite.target
                 if not affected:
                     continue
@@ -933,7 +1100,13 @@ class Plan:
                     if target != self.moves.get(cite.target, cite.target):
                         introduced[path].append(cite.start)
                     resolved, how = c.resolve(after, source, cite.token, cite.owner, is_code)
-                    if cite.kind == "anchor" and target == source:
+                    if qualify_owner:
+                        resolved, how = c.resolve(after, source, cite.token, qualify_owner, is_code)
+                        token = cite.token if resolved == target and how != "suffix-ambiguous" else self.styled(
+                            after, source, target, cite.token, qualify_owner, is_code)
+                        start, _ = self.reference_span(cite)
+                        self.edit(start, start, qualify_owner + "'s ")
+                    elif cite.kind == "anchor" and target == source:
                         token = ""
                     elif target == cite.target and source == path and resolved == target and how != "suffix-ambiguous":
                         token = cite.token
@@ -959,6 +1132,8 @@ class Plan:
                             self.edit(cite.link.tail_start, cite.link.tail_end, tail)
                         self.rewrite_link_label(cite, token, tail)
                 if edits_before != self.edit_snapshot(path, source):
+                    if cite.start in extra_starts:
+                        self.code_strings.add((path, cite.start.line))
                     if cite.kind == "bare-number":
                         changed = {key: value for key, value in self.edit_snapshot(path, source).items()
                                    if edits_before.get(key) != value}
@@ -1021,11 +1196,9 @@ class Plan:
         pattern = re.compile(r"(?<![\w./-])(?:/|(?:\.\./)+|\./)?(?:(?:[\w.+-]+/)+[\w.+-]+|[\w][\w.+-]*\.[\w+-]+)(?![\w/-])")
         for path in sorted(self.tracked):
             parts = path.split("/")
-            if parts[0] in c.TREES and parts[1:3] == ["docs", "plan"]:
+            if skipped_text(path):
                 continue
-            if parts[0] in c.TREES and parts[1:3] == ["docs", "development"] and c.DATED.search(parts[-1]):
-                continue
-            if (self.root / path).is_symlink() or re.search(r"(?i)(?:^|/)(?:auth\.json|\.credentials\.json|[^/]*(?:secret|token|credential|private[-_]key)[^/]*)$|\.(?:pem|key|p12|pfx)$", path):
+            if not readable_text(self.root, path):
                 continue
             for ln, line in enumerate(self.read(path).splitlines(), 1):
                 for m in pattern.finditer(line):
@@ -1042,7 +1215,10 @@ class Plan:
                     if not sources:
                         sources = {resolved} if resolved in all_sources else set()
                     if resolved not in sources:
-                        continue
+                        # Interpolation can hide the prefix from the resolver. The
+                        # static suffix still identifies names that need review.
+                        if not sources or not re.search(r"[}$]$", line[:m.start()]):
+                            continue
                     consumed = [(a.column - 1, b.column - 1) for a, b in self.consumed.get(path, [])
                                 if a.line == ln == b.line]
                     edits = [(a, b) for number, a, b in self.edits.get(path, {}) if number == ln]
@@ -1111,7 +1287,12 @@ class Plan:
                     col = len(text.rsplit("\n", 1)[-1]) + 1
                 else:
                     col += len(text)
-            out[dst] = "".join(texts)
+            text = "".join(texts)
+            # Unchanged files are not written merely to normalize their endings.
+            if dst not in self.tracked or text != self.read(dst) or dst in self.moves.values():
+                ending = "\r\n" if text.endswith("\r\n") else "\n"
+                text = text.rstrip("\r\n") + ending
+            out[dst] = text
         return {p: text for p, text in out.items() if p not in self.tracked or text != self.read(p)}
 
     def final_position(self, pos, end=False, destination=None):
@@ -1185,18 +1366,25 @@ class Plan:
         """Re-read the final text and compare each original region's mapped meaning."""
         tree = c.Tree(str(root), self.final_tracked)
         tree.docs = sorted((p for p, _ in c.walk(str(root), every_md=True) if p in self.final_tracked), key=c.document_order)
-        readings, texts = {}, {}
-        for path, is_code in c.walk(str(root)):
-            if path not in self.final_tracked:
+        readings, texts, extra_ids = {}, {}, set()
+        checked = dict(c.walk(str(root)))
+        extra_paths = {self.moves.get(p, p) for p in self.extra_paths}
+        for path in sorted(set(checked) | extra_paths):
+            if path not in self.final_tracked or not readable_text(root, path):
                 continue
             with (root / path).open(encoding="utf-8", errors="surrogateescape") as fh:
                 text = fh.read()
             texts[path] = text.split("\n")
-            cites = list(self.read_citations(tree, path, texts[path], is_code))
+            is_code = checked.get(path, True)
+            cites = ([self.decide_bare(cite, texts[path])
+                      for cite in self.read_citations(tree, path, texts[path], is_code)]
+                     if path in checked else [])
+            extras = self.extra_citations(tree, path, text, cites, include_names=True)
+            extra_ids.update(id(cite) for cite in extras)
             if not is_code:
                 # Use final headings for recognising the newly written own numbers.
                 cites += list(self.bare_numbers(tree, path, texts[path], cites))
-            readings[path] = cites
+            readings[path] = cites + extras
         matched = set()
         for cite, nums, is_code, source in self.expectations:
             if cite.file in self.layout_sources and (cite.file, cite.start.line) not in self.final_positions:
@@ -1229,7 +1417,7 @@ class Plan:
                         for m in c.NUM_RE.finditer(fragment)]
                 own = cite._replace(file=a.file, start=a, end=b, numbers=tuple(nums))
                 actual = self.reading(own, tree)
-            if cite.how in ("suffix", "suffix-ambiguous") and cite.target not in self.moves and cite.token:
+            if cite.how in ("suffix", "suffix-ambiguous") and not cite.numbers and cite.target not in self.moves and cite.token:
                 if found and found[0].token != cite.token:
                     self.wrong.append((a.file, a.line, texts[a.file][a.line - 1].strip(),
                                        [frozenset(((found[0].token or "", "restyled name"),))],
@@ -1241,7 +1429,7 @@ class Plan:
                 self.wrong.append((a.file, a.line, text, actual, expected))
         for path, cites in readings.items():
             for cite in cites:
-                if id(cite) in matched:
+                if id(cite) in matched or id(cite) in extra_ids:
                     continue
                 generated = (path, cite.start.line) in self.generated_lines
                 if generated and cite.target and all(n.targets for n in cite.numbers):
@@ -1257,7 +1445,7 @@ class Plan:
             root = Path(temporary)
             for src in self.tracked:
                 dst = self.moves.get(src, src)
-                if dst in contents or not src.endswith((".md",) + c.CODE_EXT):
+                if dst in contents or (not src.endswith((".md",) + c.CODE_EXT) and src not in self.extra_paths):
                     continue
                 path = root / dst
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -1275,11 +1463,24 @@ class Plan:
         for e in self.entries:
             if e.directory == "renumber":
                 print(f"Renumber {e.src}")
+            elif e.directory == "heading":
+                print(f"Heading {e.src} {e.number}: {e.new_number}")
             elif e.number:
                 print(f"Section {e.src} {e.number} -> {e.dst}" + (f" {e.new_number}" if e.new_number else ""))
             else:
                 print(f"{'Directory' if e.directory else 'Document'} {e.src} -> {e.dst}")
         print(f"Rewrote {self.rewritten} citations and {self.bare_rewritten} bare numbers in {len(self.rewritten_files)} files.")
+        print(f"Possessive rule decided {len(self.rule_decisions)} bare references:")
+        for path, ln, col, target in sorted(self.rule_decisions):
+            pos = self.final_position(c.Position(path, ln, col))
+            print(f"  {pos.file}:{pos.line}: {target}")
+        print("Rewrote in code strings:")
+        for path, ln in sorted(self.code_strings):
+            pos = self.final_position(c.Position(path, ln, 1))
+            package = self.package(path)
+            print(f"  {pos.file}:{pos.line}" + (f" (crate {package})" if package else " (no crate)"))
+        if not self.code_strings:
+            print("  (none)")
         print("By hand:")
         items = []
         for path, line, reason, context in self.by_hand:

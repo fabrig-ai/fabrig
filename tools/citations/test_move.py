@@ -94,7 +94,7 @@ class Moves(unittest.TestCase):
         self.write(A, "# a\n\n## 1. One\n\nKeep.\n\n## 2. Two\n\n### 2.1 Part\n\n#### Aside\n\nBody.\n\n```md\n## 9. Not a heading\n```\n\n### 2.2 Other\n\nEnd.\n")
         self.commit("sections")
         self.apply(f"{A} 2.1 -> {DESIGN}/web/new.md 1\ntitle {DESIGN}/web/new.md: New\n")
-        self.assertEqual(self.read(f"{DESIGN}/web/new.md"), "# New\n\n## 1. Part\n\n### Aside\n\nBody.\n\n```md\n## 9. Not a heading\n```\n\n")
+        self.assertEqual(self.read(f"{DESIGN}/web/new.md"), "# New\n\n## 1. Part\n\n### Aside\n\nBody.\n\n```md\n## 9. Not a heading\n```\n")
         self.assertEqual(self.read(A), "# a\n\n## 1. One\n\nKeep.\n\n## 2. Two\n\n### 2.2 Other\n\nEnd.\n")
         self.assertEqual(self.read(B), "# b\n\n## 3. Three\n\nAs `web/new.md`, 1 says.\n")
         self.clean_check()
@@ -112,7 +112,7 @@ class Moves(unittest.TestCase):
         self.write(A, "# a\n\n## 1. One\n\nSee section 2.1.\n\n## 2. Two\n\nSee section 1.\n\n### 2.1 Part\n\nSee section 2.\n")
         self.commit("bare")
         self.apply(f"{A} 2 -> {DESIGN}/sub/new.md 4\ntitle {DESIGN}/sub/new.md: New\n")
-        self.assertEqual(self.read(A), "# a\n\n## 1. One\n\nSee `sub/new.md`, section 4.1.\n\n")
+        self.assertEqual(self.read(A), "# a\n\n## 1. One\n\nSee `sub/new.md`, section 4.1.\n")
         self.assertEqual(self.read(f"{DESIGN}/sub/new.md"), "# New\n\n## 4. Two\n\nSee `../a.md`, section 1.\n\n### 4.1 Part\n\nSee section 4.\n")
         self.clean_check()
 
@@ -128,7 +128,7 @@ class Moves(unittest.TestCase):
         self.commit("nested")
         self.apply(f"{A} 2 -> {DESIGN}/new.md 4\n{A} 2.1 -> {DESIGN}/other.md 1\ntitle {DESIGN}/new.md: New\ntitle {DESIGN}/other.md: Other\n")
         self.assertEqual(self.read(f"{DESIGN}/new.md"), "# New\n\n## 4. Two\n\n### 4.2 Extra\n\nRest.\n")
-        self.assertEqual(self.read(f"{DESIGN}/other.md"), "# Other\n\n## 1. Part\n\nText.\n\n")
+        self.assertEqual(self.read(f"{DESIGN}/other.md"), "# Other\n\n## 1. Part\n\nText.\n")
         self.assertIn("`other.md`, 1", self.read(B))
         self.clean_check()
 
@@ -147,12 +147,13 @@ class Moves(unittest.TestCase):
         self.assertEqual(self.read(B), "# b\n\nSee `a.md`, section 1, and `new.md`, section 4.1.\n")
         self.clean_check()
 
-    def test_ambiguous_bare_section_is_left_and_listed(self):
+    def test_ambiguous_bare_section_defaults_to_self(self):
         self.write(B, "# b\n\n## 1. Own\n\nSee [a](a.md); section 1.\n")
         self.commit("ambiguous")
         result = self.move(f"{A} 1 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("ambiguous bare section", result.stdout)
+        self.assertNotIn("ambiguous bare section", result.stdout)
+        self.assertIn("Possessive rule decided 1 bare references:", result.stdout)
         self.assertNotIn("Wrong:", result.stdout)
         self.assertEqual(self.read(B), "# b\n\n## 1. Own\n\nSee [a](a.md); section 1.\n")
         self.clean_check()
@@ -210,7 +211,7 @@ class Moves(unittest.TestCase):
 
     def test_simultaneous_section_swap(self):
         self.apply(f"{A} 1 -> {A} 2\n{A} 2 -> {A} 1\n")
-        self.assertEqual(self.read(A), "# a\n\n## 1. Two\n\n### 1.1 Part\n\nText.\n## 2. One\n\nText.\n\n")
+        self.assertEqual(self.read(A), "# a\n\n## 1. Two\n\n### 1.1 Part\n\nText.\n## 2. One\n\nText.\n")
         self.assertIn("`a.md`, 1.1", self.read(B))
         self.clean_check()
 
@@ -232,7 +233,7 @@ class Moves(unittest.TestCase):
         self.write(A, "# a\n\n## 1. One\n\n[part](#21-part)\n\n## 2. Two\n\n### 2.1 Part\n\n[one](#1-one) and [two](#2-two).\n")
         self.commit("local anchors")
         self.apply(f"{A} 2 -> {DESIGN}/sub/new.md 4\ntitle {DESIGN}/sub/new.md: New\n")
-        self.assertEqual(self.read(A), "# a\n\n## 1. One\n\n[part](sub/new.md#41-part)\n\n")
+        self.assertEqual(self.read(A), "# a\n\n## 1. One\n\n[part](sub/new.md#41-part)\n")
         self.assertEqual(self.read(f"{DESIGN}/sub/new.md"), "# New\n\n## 4. Two\n\n### 4.1 Part\n\n[one](../a.md#1-one) and [two](#4-two).\n")
         self.clean_check()
 
@@ -242,7 +243,7 @@ class Moves(unittest.TestCase):
         self.commit("comment")
         self.apply(f"{A} 2 -> {A} 4\n")
         self.assertEqual(self.read("skein/crates/k/src/lib.rs"),
-                         'const S: &str = " See docs/design/a.md, 2.1."; // See docs/design/a.md, 4.1.\n')
+                         'const S: &str = " See docs/design/a.md, 4.1."; // See docs/design/a.md, 4.1.\n')
         self.clean_check()
 
     def test_cross_tree_owner_and_root_fallback(self):
@@ -538,9 +539,9 @@ sys.exit(state['main'](['move.map', *sys.argv[3:]]))
         self.write(".config/docs.txt", "a.md, 2.1\n")
         self.commit("unread section names")
         result = self.apply(f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
-        self.assertIn(f"{DESIGN}/new.md:10: name in code or other text: a.md", result.stdout)
+        self.assertIn(f"{DESIGN}/new.md:10 (no crate)", result.stdout)
         self.assertLess(result.stdout.index(".config/docs.txt"), result.stdout.index(f"{DESIGN}/new.md:10"))
-        self.assertIn("skein/crates/k/src/lib.rs:1: name", result.stdout)
+        self.assertIn("skein/crates/k/src/lib.rs:1 (no crate)", result.stdout)
         self.clean_check()
 
     def test_backticked_link_labels_and_tails(self):
@@ -682,7 +683,8 @@ git = fail_add
         self.commit("unread names")
         result = self.apply(f"{A} 2.2 -> {DESIGN}/new.md 1\ntitle {DESIGN}/new.md: New\n"
                             f"{DESIGN}/assets/ -> {DESIGN}/web/\n")
-        self.assertIn(".config/range.txt:1: name in code or other text: a.md", result.stdout)
+        self.assertIn(".config/range.txt:1 (no crate)", result.stdout)
+        self.assertEqual(self.read(".config/range.txt"), f'"({A}, 2.1, and {DESIGN}/new.md, 1, and {A}, 2.3)"\n')
         self.assertIn(".config/assets.txt:1: name in code or other text: skein/docs/design/assets/NOTICE", result.stdout)
         self.clean_check()
 
@@ -784,7 +786,7 @@ git = fail_add
         self.write(A, "# a\n\n(Sections 2.1 to 2.2).\n\n## 2. Two\n\n(Sections 2.1 to 2.2).\n\n### 2.1 First\n\n### 2.2 Second\n")
         self.commit("capital ranges")
         self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
-        self.assertEqual(self.read(A), "# a\n\n(`new.md`, sections 1 to 2).\n\n")
+        self.assertEqual(self.read(A), "# a\n\n(`new.md`, sections 1 to 2).\n")
         self.assertIn("(Sections 1 to 2).", self.read(f"{DESIGN}/new.md"))
         self.clean_check()
 
@@ -859,6 +861,177 @@ git = fail_add
         self.assertEqual(result.returncode, 2)
         self.assertIn("tracked changes", result.stderr)
         self.assertEqual(self.snapshot(), before)
+
+    def test_possessive_rule_uses_two_intervening_words_and_wrapped_text(self):
+        self.write(B, "# b\n\n## 2. Own\n\n"
+                   "`a.md`'s bootstrap (section 2).\n\n"
+                   "`a.md`’s `grub.cfg` keeps\n(section 2).\n\n"
+                   "`a.md`'s the long bootstrap (section 2).\n\n"
+                   "`a.md` explains sandboxes (section 2).\n")
+        self.commit("possessive distance")
+        result = self.apply(f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n## 2. Own\n\n"
+                         "`a.md`'s bootstrap (`new.md`, section 4).\n\n"
+                         "`a.md`’s `grub.cfg` keeps\n(`new.md`, section 4).\n\n"
+                         "`a.md`'s the long bootstrap (section 2).\n\n"
+                         "`a.md` explains sandboxes (section 2).\n")
+        self.assertIn("Possessive rule decided 4 bare references:", result.stdout)
+        self.assertNotIn("ambiguous bare section", result.stdout)
+        self.clean_check()
+
+    def test_possessive_rule_applies_to_capitalized_ranges(self):
+        self.write(B, "# b\n\n## 1. Own one\n\n## 2. Own two\n\n"
+                   "`a.md`'s (Sections 1 to 2).\n\n"
+                   "`a.md` describes the parts. Sections 1 to 2 stay here.\n")
+        self.commit("possessive ranges")
+        self.apply(f"{A} 1 -> {DESIGN}/new.md 4\n{A} 2 -> {DESIGN}/new.md 5\n"
+                   f"title {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n## 1. Own one\n\n## 2. Own two\n\n"
+                         "`a.md`'s (`new.md`, sections 4 to 5).\n\n"
+                         "`a.md` describes the parts. Sections 1 to 2 stay here.\n")
+        self.clean_check()
+
+    def test_shadowed_numbered_suffix_gains_owner_in_comment_and_literal(self):
+        target = "jig/docs/design/domain/tasks.md"
+        self.write(target, "# tasks\n\n## 12. Tasks\n")
+        path = "temper/crates/k/src/lib.rs"
+        self.write(path, '// (jig tasks.md, 12)\nconst S: &str = "(jig tasks.md, 12)";\n')
+        self.commit("numbered suffix")
+        result = self.apply(f"{A} 2 -> temper/docs/design/format/tasks.md\n"
+                            "title temper/docs/design/format/tasks.md: Tasks\n")
+        self.assertEqual(self.read(path), '// (jig jig\'s tasks.md, 12)\nconst S: &str = "(jig jig\'s tasks.md, 12)";\n')
+        self.assertNotIn("the bare name now resolves", result.stdout)
+        self.clean_check()
+
+    def test_literals_in_every_language_and_text_fixtures_follow_sections(self):
+        files = {
+            "skein/crates/k/src/lib.rs": 'pub fn f<\'a>(x: &\'a str) { let s = r##"(a.md, 2.1)"##; }\n',
+            "skein/testing/message.py": 's = """See `a.md`, 2.1."""\n',
+            "skein/testing/message.sh": "s='See a.md, 2.1.'\n",
+            "skein/testing/message.toml": 'message = "See a.md, 2.1."\n',
+            "skein/testing/message.js": 'const s = `See a.md, 2.1.`;\n',
+            "skein/testing/message.txt": "See a.md, 2.1.\n",
+        }
+        for path, text in files.items():
+            self.write(path, text)
+        self.write("skein/crates/k/Cargo.toml", '[package]\nname = "skein-k"\nversion = "0.1.0"\n')
+        self.commit("literal styles")
+        result = self.apply(f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        for path, text in files.items():
+            self.assertEqual(self.read(path), text.replace("a.md, 2.1", "new.md, 4.1").replace("`a.md`, 2.1", "`new.md`, 4.1"))
+        self.assertIn("skein/crates/k/src/lib.rs:1 (crate skein-k)", result.stdout)
+        self.assertIn("Rewrote in code strings:", result.stdout)
+        self.clean_check()
+
+    def test_dynamic_and_disk_paths_remain_by_hand_before_markdown(self):
+        path = "skein/crates/k/src/lib.rs"
+        text = ('let disk = include_str!("../../../docs/design/a.md");\n'
+                'let dynamic = format!("{root}/a.md, 2.1");\n'
+                'let path = concat!("a", ".md");\n')
+        self.write(path, text)
+        self.write(".config/gate/read-by-tests.txt", A + "\n")
+        self.write("skein/docs/plan/record.py", 's = "a.md, 2.1"\n')
+        self.write("skein/docs/development/2026-01-01.txt", "a.md, 2.1\n")
+        self.write(B, "# b\n\n```\na.md\n```\n")
+        self.commit("runtime paths")
+        result = self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertEqual(self.read(path), text)
+        self.assertEqual(self.read(".config/gate/read-by-tests.txt"), A + "\n")
+        self.assertEqual(self.read("skein/docs/plan/record.py"), 's = "a.md, 2.1"\n')
+        self.assertEqual(self.read("skein/docs/development/2026-01-01.txt"), "a.md, 2.1\n")
+        self.assertIn(path + ":1: name in code", result.stdout)
+        self.assertIn(path + ":2: name in code", result.stdout)
+        self.assertLess(result.stdout.index(".config/gate/read-by-tests.txt:1:"), result.stdout.index(B + ":4:"))
+        self.assertNotIn("Rewrote in code strings:\n  " + path, result.stdout)
+
+    def test_literal_promoted_document_and_split_range_are_audited(self):
+        path = "skein/testing/messages.txt"
+        self.write(path, "See a.md, 1 to 2; a.md, 2.1.\n")
+        self.commit("promoted literals")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(path), "See a.md, 1 and new.md; new.md, 1.\n")
+        self.clean_check()
+
+    def test_created_document_renumber_retitle_and_anchors_apply_in_order(self):
+        dest = f"{DESIGN}/new.md"
+        self.write(A, "# a\n\n## 2. Two\n\nPreamble.\n\n### 2.3 First\n\nPart.\n\n"
+                   "### 2.7 Removed\n\nOther.\n\n## 8. Questions\n\nLater.\n\n\n")
+        self.write(B, "# b\n\n[first](a.md#23-first), [questions](a.md#8-questions); `a.md`, 2.3 and 8.\n")
+        self.commit("created numbering")
+        self.apply(f"{A} 2 -> {dest}\n{A} 2.7 -> {DESIGN}/other.md\n{A} 8 -> {dest} 15\n"
+                   f"title {dest}: New\ntitle {DESIGN}/other.md: Other\nrenumber {dest}\n"
+                   f"heading {dest} 3: The page\nheading {dest} 15: Open questions\n")
+        self.assertEqual(self.read(dest), "# New\n\nPreamble.\n\n## 1. The page\n\nPart.\n\n## 2. Open questions\n\nLater.\n")
+        self.assertEqual(self.read(B), "# b\n\n[first](new.md#1-the-page), [questions](new.md#2-open-questions); `new.md`, 1 and 2.\n")
+        self.assertEqual(self.read(A), "# a\n")
+        self.clean_check()
+
+    def test_heading_validation_requires_created_document_and_existing_number(self):
+        for mapping, error in (
+            (f"heading {A} 1: New\n", "heading needs a created document"),
+            (f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\nheading {DESIGN}/new.md 5: Missing\n", "destination section does not exist"),
+        ):
+            with self.subTest(mapping=mapping):
+                before = self.snapshot()
+                result = self.move(mapping)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(error, result.stderr)
+                self.assertEqual(self.snapshot(), before)
+
+    def test_every_written_text_has_one_terminal_newline(self):
+        self.write(A, DOC + "\n\n")
+        self.write(B, "# b\n\nSee `a.md`, 2.1.\n\n\n")
+        self.write("skein/testing/message.txt", "a.md, 2.1\n\n")
+        self.commit("terminal blanks")
+        self.apply(f"{A} -> {DESIGN}/new.md\n")
+        self.assertEqual(self.read(f"{DESIGN}/new.md"), DOC)
+        self.assertEqual(self.read(B), "# b\n\nSee `new.md`, 2.1.\n")
+        self.assertEqual(self.read("skein/testing/message.txt"), "new.md, 2.1\n")
+        self.clean_check()
+
+    def test_citation_audit_rejects_a_wrong_but_valid_literal_target(self):
+        path = "skein/testing/message.txt"
+        self.write(path, "See a.md, 2.1.\n")
+        self.write(f"{DESIGN}/bad.md", "# bad\n\n## 4. Four\n\n### 4.1 Part\n")
+        self.commit("literal audit")
+        mapping = f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n"
+        override = '''real_row_text = Plan.row_text
+def corrupt_literal(self, dst, row):
+    text = real_row_text(self, dst, row)
+    return text.replace('new.md', 'bad.md') if dst == 'skein/testing/message.txt' else text
+Plan.row_text = corrupt_literal
+'''
+        result = self.injected_move(mapping, override, "--dry-run")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Wrong:", result.stdout)
+        self.assertIn(f"reads: {DESIGN}/bad.md 4.1", result.stdout)
+        self.assertIn(f"should read: {DESIGN}/new.md 4.1", result.stdout)
+        self.apply(mapping)
+        self.assertEqual(self.read(path), "See new.md, 4.1.\n")
+
+    def test_credential_design_and_source_names_are_documents_and_code(self):
+        path = "skein/crates/k/src/secrets.rs"
+        doc = f"{DESIGN}/credentials.md"
+        self.write(path, '//! See a.md, 2.1.\nconst S: &str = "See a.md, 2.1.";\n')
+        self.write(doc, "# Credentials\n\nSee `a.md`, 2.1.\n")
+        self.write("skein/testing/example.py", 's = "future.md, 4"\n')
+        self.commit("source filenames")
+        self.apply(f"{A} 2 -> {DESIGN}/future.md 4\ntitle {DESIGN}/future.md: Future\n")
+        self.assertEqual(self.read(path), '//! See future.md, 4.1.\nconst S: &str = "See future.md, 4.1.";\n')
+        self.assertEqual(self.read(doc), "# Credentials\n\nSee `future.md`, 4.1.\n")
+        self.assertEqual(self.read("skein/testing/example.py"), 's = "future.md, 4"\n')
+        self.clean_check()
+
+    def test_unresolved_literal_section_follows_path_but_cannot_gain_a_heading(self):
+        path = "skein/testing/message.txt"
+        self.write(path, "See a.md, 9.\n")
+        self.commit("unresolved literal section")
+        result = self.move(f"{A} 2 -> {A} 9\n", "--dry-run")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Wrong:", result.stdout)
+        self.assertIn("should read: unresolved", result.stdout)
+        self.apply(f"{A} -> {DESIGN}/new.md\n")
+        self.assertEqual(self.read(path), "See new.md, 9.\n")
 
     def test_git_failure_rolls_back(self):
         # An index lock permits reads and makes the first git mv fail.
