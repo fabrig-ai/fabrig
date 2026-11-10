@@ -92,6 +92,14 @@ elif name == 'cargo':
     expression = args[args.index('-E') + 1] if '-E' in args else ''
     kind = args[0]
     spend(100, [kind, side, packages, expression, args])
+    if state.get('shared_source'):
+        source = Path.cwd() / state['shared_source']
+        artifact = git_dir / 'shared.rlib'
+        if not artifact.exists() or source.stat().st_mtime_ns > artifact.stat().st_mtime_ns:
+            artifact.write_text(source.read_text())
+        if artifact.read_text() != source.read_text():
+            print(side + ' compiled with other checkout artifact', file=sys.stderr)
+            sys.exit(101)
     ledger = state.get(side, {})
     if kind == 'clippy':
         assert '--all-targets' in args and '--message-format=json' in args
@@ -645,6 +653,48 @@ fn only_what_the_delivery_broke_refuses() {
             assert!(events.iter().any(|e| e[0] == "git" && e[1][0] == "checkout"));
             assert!(events.contains(&json!(["git", ["clean", "-ffdxq"]])));
         }
+    }
+}
+
+#[test]
+fn each_judge_builds_its_own_sources() {
+    for (row, head, base) in [
+        ("clippy", json!({"clippy": [lint_failure(1, "head lint")]}), json!({})),
+        ("tests", json!({"tests": [test_failure("rule", "head failure")]}), json!({})),
+        ("build", json!({"nextest_exit": 101}), json!({})),
+        ("base tool error", json!({"tests": [test_failure("rule", "head failure")]}), json!({"nextest_exit": 102})),
+    ] {
+        let scratch = fixture();
+        let root = scratch.path();
+        write(root, "a/src/removed.rs", "fn removed() {}\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "-qm", "base source"]);
+        pin(root);
+        let worktree = root.join(".git/temper-pre-pr/base");
+        git(root, &["worktree", "add", "--detach", worktree.to_str().expect("base worktree path"), "HEAD"]);
+        fs::remove_file(root.join("a/src/removed.rs")).expect("head deletes a source");
+        write(root, "a/src/lib.rs", "fn head() {}\n");
+        write(root, "a/src/new file\nname.rs", "fn new_source() {}\n");
+        ledger(root, &json!({"head": head, "base": base, "shared_source": "a/src/lib.rs"}));
+        let first = deliver(root);
+        assert_eq!(first.status.code(), Some(1), "{row}: {}", text(&first));
+        assert!(
+            !text(&first).contains("other checkout artifact"),
+            "base uses its own sources: {row}: {}",
+            text(&first)
+        );
+        assert!(build_events(root).iter().any(|event| event[1] == "base"), "base judge ran: {row}");
+        let artifact_time =
+            fs::metadata(root.join(".git/shared.rlib")).expect("base artifact").modified().expect("mtime");
+        let new_time =
+            fs::metadata(root.join("a/src/new file\nname.rs")).expect("new source").modified().expect("mtime");
+        assert!(new_time > artifact_time, "new source is fresher than base artifact: {row}");
+        ledger(root, &json!({"head": {}, "base": {}, "ms": 0, "events": []}));
+        let next = deliver(root);
+        assert!(next.status.success(), "{row}: next head check: {}", text(&next));
+        assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("head artifact"), "fn head() {}\n");
+        assert!(!root.join("a/src/removed.rs").exists(), "deleted sources stay absent: {row}");
+        assert!(!worktree.join("a/src/new file\nname.rs").exists(), "head-only sources stay absent at base: {row}");
     }
 }
 
