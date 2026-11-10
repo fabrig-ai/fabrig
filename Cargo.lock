@@ -2154,6 +2154,10 @@ dependencies = [
 name = "jig-tasks-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-people",
  "jig-domain-tasks",
  "jig-tasks-kit",
  "skein-lib",

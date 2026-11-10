@@ -206,6 +206,9 @@ fn examples() -> Vec<Example> {
             confidential: name == "secret",
         });
     }
+    let closer = put(&base, "templates.0", "conversation", b"false");
+    let closer = put(&closer, "templates.0", "ended_by", br#"{"closer":{"connector":1,"code":6}}"#);
+    examples.push(Example { document: closer, worker: false, confidential: false });
     examples.push(Example { document: document(fixtures::WORKER_SMALL), worker: true, confidential: false });
     examples
 }

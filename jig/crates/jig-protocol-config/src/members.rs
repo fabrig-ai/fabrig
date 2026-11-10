@@ -26,7 +26,7 @@ pub struct Member {
 }
 
 /// Every object shape the engine and worker decoders read.
-pub static SHAPES: [Shape; 63] = [
+pub static SHAPES: [Shape; 65] = [
     Shape { name: "engine", paths: &["engine"], line: "The engine's configuration, read before startup." },
     Shape {
         name: "limits",
@@ -131,6 +131,12 @@ pub static SHAPES: [Shape; 63] = [
         line: "The interval of a paced wake.",
     },
     Shape { name: "template", paths: &["engine.templates[]"], line: "The application's recipe for one shape of work." },
+    Shape { name: "ended_by", paths: &["engine.templates[].ended_by"], line: "A task's ending procedure." },
+    Shape {
+        name: "closer",
+        paths: &["engine.templates[].ended_by.closer"],
+        line: "The procedure that closes an agent task.",
+    },
     Shape {
         name: "resource",
         paths: &["engine.templates[].resources[]"],
@@ -348,7 +354,7 @@ pub static SHAPES: [Shape; 63] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 272] = [
+pub static MEMBERS: [Member; 275] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1729,10 +1735,10 @@ pub static MEMBERS: [Member; 272] = [
     Member {
         shape: "template",
         name: "ended_by",
-        kind: "text",
-        bound: "result or requester",
+        kind: "text or object",
+        bound: "result, requester or closer",
         required: false,
-        line: "Chooses whether a result or the requester ends the task, defaulting to result.",
+        line: "Chooses whether a result, the requester or a closer ends the task, defaulting to result.",
         gone: None,
     },
     Member {
@@ -1778,6 +1784,33 @@ pub static MEMBERS: [Member; 272] = [
         bound: "tasks.holdings",
         required: false,
         line: "Names the task's resource symbols, with none when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "ended_by",
+        name: "closer",
+        kind: "object",
+        bound: "",
+        required: true,
+        line: "Names the procedure that closes the task.",
+        gone: None,
+    },
+    Member {
+        shape: "closer",
+        name: "connector",
+        kind: "integer",
+        bound: "0 to 65535",
+        required: true,
+        line: "Names the configured connector of the closing procedure.",
+        gone: None,
+    },
+    Member {
+        shape: "closer",
+        name: "code",
+        kind: "integer",
+        bound: "0 to 4294967295",
+        required: true,
+        line: "Names the closing procedure within its connector.",
         gone: None,
     },
     Member {

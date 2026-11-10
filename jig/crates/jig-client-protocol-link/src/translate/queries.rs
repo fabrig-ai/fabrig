@@ -61,6 +61,9 @@ pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
         ended_by: match value.ended_by() {
             w::EndedBy::Result => c::EndedBy::Result,
             w::EndedBy::Requester => c::EndedBy::Requester,
+            w::EndedBy::Closer(closer) => {
+                c::EndedBy::Closer(c::Closer { connector: closer.connector(), code: closer.code() })
+            }
         },
         conversation: value.conversation(),
         listed: value.listed(),

@@ -340,7 +340,8 @@ enum NewContract { report: ContractReport, verdict: ContractVerdict, change: Con
 record BudgetAsAllowed { cap: option u64 }
 enum NewBudget { named, as_allowed: BudgetAsAllowed }
 enum Retention { kept, forgotten_once_read }
-enum EndedBy { result, requester }
+record Closer { connector: u16 code: u32 }
+enum EndedBy { result, requester, closer: Closer }
 record TaskFlags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum NewDeadline { named, span: DeadlineSpan }

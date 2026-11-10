@@ -236,6 +236,14 @@ fn check_set(
                 }
             }
             Value::Template(template) => {
+                match template.flags.ended_by {
+                    tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+                    tasks::EndedBy::Closer(closer) => {
+                        if !connectors.contains(&closer.connector) {
+                            return Err(Failure { setting, fault: Fault::Reference, detail: None });
+                        }
+                    }
+                }
                 if let Some(fault) = contract_fault(&template.contract, connectors) {
                     return Err(Failure { setting, fault, detail: None });
                 }
@@ -638,9 +646,13 @@ fn template_fault(
     {
         return Some(Fault::Reference);
     }
-    if template.flags.ended_by == tasks::EndedBy::Requester
-        && (!template.flags.conversation || executor == people::TemplateExecutor::Chosen)
-    {
+    if !tasks::shaped(
+        template.flags,
+        match executor {
+            people::TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
+            people::TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+        },
+    ) {
         return Some(Fault::Shape);
     }
     match executor {

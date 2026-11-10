@@ -32,9 +32,18 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    Closer(Closer),
 }
 
-/// An open task is an agent's conversation (5.8).
+/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Closer {
+    pub connector: u16,
+    pub code: u32,
+}
+
+/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks.md, 5.8 and 5.10).
 #[must_use]
 pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
     if crate::batch::matches_job(executor) {
@@ -47,7 +56,11 @@ pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
         crate::Executor::Agent { .. } => true,
         crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
     };
-    flags.conversation && agent
+    match flags.ended_by {
+        EndedBy::Result => true,
+        EndedBy::Requester => flags.conversation && agent,
+        EndedBy::Closer(_) => !flags.conversation && agent,
+    }
 }
 
 /// Requester authority uses the existing requester, never a new cancel right.
@@ -55,8 +68,9 @@ pub(crate) fn valid(flags: Flags, executor: crate::Executor, requester: crate::P
     if !shaped(flags, executor) {
         return false;
     }
-    if flags.ended_by == EndedBy::Result {
-        return true;
+    match flags.ended_by {
+        EndedBy::Result | EndedBy::Closer(_) => return true,
+        EndedBy::Requester => {}
     }
     match requester {
         crate::Party::Person(number) => number != 0,

@@ -338,6 +338,9 @@ fn member(
             ended_by: match flags.ended_by {
                 w::EndedBy::Result => p::EndedBy::Result,
                 w::EndedBy::Requester => p::EndedBy::Requester,
+                w::EndedBy::Closer(closer) => {
+                    p::EndedBy::Closer(p::Closer { connector: closer.connector(), code: closer.code() })
+                }
             },
             conversation: flags.conversation,
             listed: flags.listed,

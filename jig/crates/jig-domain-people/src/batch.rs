@@ -191,9 +191,18 @@ pub(crate) fn valid(limits: &crate::Limits, batch: &[Member]) -> bool {
 pub enum EndedBy {
     Result,
     Requester,
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    Closer(Closer),
 }
 
-/// An open task is an agent's conversation (5.8).
+/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Closer {
+    pub connector: u16,
+    pub code: u32,
+}
+
+/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks.md, 5.8 and 5.10).
 #[must_use]
 pub fn shaped(member: &Member) -> bool {
     if member.flags.ended_by == EndedBy::Result {
@@ -203,5 +212,9 @@ pub fn shaped(member: &Member) -> bool {
         TaskExecutor::Agent { .. } => true,
         TaskExecutor::Person(_) | TaskExecutor::Procedure { .. } => false,
     };
-    member.flags.conversation && agent
+    match member.flags.ended_by {
+        EndedBy::Result => true,
+        EndedBy::Requester => member.flags.conversation && agent,
+        EndedBy::Closer(_) => !member.flags.conversation && agent,
+    }
 }

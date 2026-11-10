@@ -221,6 +221,29 @@ fn new_task(
         first.checked_add(u64::from(at)).ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
     let given = crate::resolved_delegate_authority(&given, &named(member, env)?, number, core.authority.limits())
         .ok_or(people::Refusal::Limit { which: people::LimitKind::Authority })?;
+    let flags = tasks::Flags {
+        ended_by: match member.flags.ended_by {
+            people::EndedBy::Result => tasks::EndedBy::Result,
+            people::EndedBy::Requester => tasks::EndedBy::Requester,
+            people::EndedBy::Closer(closer) => {
+                tasks::EndedBy::Closer(tasks::Closer { connector: closer.connector, code: closer.code })
+            }
+        },
+        conversation: member.flags.conversation,
+        listed: member.flags.listed,
+        retention: match member.flags.retention {
+            people::Retention::Kept => tasks::Retention::Kept,
+            people::Retention::ForgottenOnceRead => tasks::Retention::ForgottenOnceRead,
+        },
+    };
+    if let Some(closer) = crate::runs::delegation::missing_closer(flags, &given) {
+        return Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::TaskKind {
+                executor: Some(people::TaskExecutor::Procedure { connector: closer.connector, code: closer.code }),
+            },
+        });
+    }
     Ok(tasks::New {
         deadline: match member.deadline {
             people::Deadline::Named => tasks::Deadline::Named,
@@ -244,18 +267,7 @@ fn new_task(
         recurring: None,
         tracked: member.tracked,
         label: member.label,
-        flags: tasks::Flags {
-            ended_by: match member.flags.ended_by {
-                people::EndedBy::Result => tasks::EndedBy::Result,
-                people::EndedBy::Requester => tasks::EndedBy::Requester,
-            },
-            conversation: member.flags.conversation,
-            listed: member.flags.listed,
-            retention: match member.flags.retention {
-                people::Retention::Kept => tasks::Retention::Kept,
-                people::Retention::ForgottenOnceRead => tasks::Retention::ForgottenOnceRead,
-            },
-        },
+        flags,
     })
 }
 

@@ -293,6 +293,7 @@ pub fn header(commits: u64) -> core::Record {
 #[must_use]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),

@@ -516,3 +516,52 @@ fn a_later_choice_naming_an_unconfigured_model_is_refused() {
         What::Refers,
     );
 }
+
+fn closer_template(ended_by: &[u8], conversation: bool) -> Box<[u8]> {
+    let bytes = fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""conversation": true"#,
+        if conversation {
+            br#""conversation": true, "ended_by": CLOSER"#
+        } else {
+            br#""conversation": false, "ended_by": CLOSER"#
+        },
+    );
+    fixtures::with(&bytes, b"CLOSER", ended_by)
+}
+#[test]
+fn a_template_names_its_closer() {
+    let bytes = closer_template(br#"{"closer":{"connector":1,"code":6}}"#, false);
+    let engine = fixtures::engine(&bytes).expect("agent closer admitted");
+    assert_eq!(
+        engine.templates[0].flags.ended_by,
+        jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 })
+    );
+}
+#[test]
+fn a_closer_on_a_conversation_template_is_refused() {
+    let bytes = closer_template(br#"{"closer":{"connector":1,"code":6}}"#, true);
+    assert_closer_form(&bytes);
+}
+fn assert_closer_form(bytes: &[u8]) {
+    let problems = fixtures::engine(bytes).expect_err("invalid closer");
+    assert_eq!(
+        problems.problems.as_slice(),
+        &[crate::Problem {
+            path: fixtures::path(&[b"templates"]).child(Segment::Index(0)).member(b"ended_by"),
+            what: What::Form,
+        }]
+    );
+}
+#[test]
+fn a_malformed_closer_is_refused() {
+    for ended_by in [
+        br#"{"closer":{"connector":1}}"#.as_slice(),
+        br#"{"closer":{"code":6}}"#,
+        br#"{"closer":{"connector":1,"code":6,"extra":0}}"#,
+        br#"{"closer":{"connector":1,"code":4294967296}}"#,
+        br#"{"closer":{"connector":65536,"code":6}}"#,
+    ] {
+        assert_closer_form(&closer_template(ended_by, false));
+    }
+}

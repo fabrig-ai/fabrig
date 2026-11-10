@@ -393,16 +393,23 @@ fn decode_retention(value: wire::Retention) -> tasks::Retention {
         wire::Retention::ForgottenOnceRead => tasks::Retention::ForgottenOnceRead,
     }
 }
-fn encode_ended_by(value: &tasks::EndedBy) -> wire::EndedBy {
-    match value {
+fn encode_ended_by(value: &tasks::EndedBy, limits: &wire::Limits) -> Result<wire::EndedBy, wire::Problem> {
+    Ok(match value {
         tasks::EndedBy::Result => wire::EndedBy::Result,
         tasks::EndedBy::Requester => wire::EndedBy::Requester,
-    }
+        tasks::EndedBy::Closer(closer) => wire::EndedBy::Closer(wire::Closer::new(
+            limits,
+            wire::CloserParts { connector: closer.connector, code: closer.code },
+        )?),
+    })
 }
 fn decode_ended_by(value: wire::EndedBy) -> tasks::EndedBy {
     match value {
         wire::EndedBy::Result => tasks::EndedBy::Result,
         wire::EndedBy::Requester => tasks::EndedBy::Requester,
+        wire::EndedBy::Closer(closer) => {
+            tasks::EndedBy::Closer(tasks::Closer { connector: closer.connector(), code: closer.code() })
+        }
     }
 }
 fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::Value, wire::Problem> {
@@ -1391,7 +1398,7 @@ fn encode_flags(value: &tasks::Flags, limits: &wire::Limits) -> Result<wire::Fla
     let field_conversation = value.conversation;
     let field_listed = value.listed;
     let field_retention = encode_retention(&value.retention);
-    let field_ended_by = encode_ended_by(&value.ended_by);
+    let field_ended_by = encode_ended_by(&value.ended_by, limits)?;
     wire::Flags::new(
         limits,
         wire::FlagsParts {

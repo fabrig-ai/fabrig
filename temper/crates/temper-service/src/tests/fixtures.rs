@@ -206,6 +206,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,

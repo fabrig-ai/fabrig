@@ -126,6 +126,12 @@ impl Core {
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
+            if missing_closer(member.flags, &member.authority).is_some() {
+                return Err(crate::StepRefusal::Denied {
+                    answer: authority::Answer::Refuse,
+                    findings: Box::new([authority::Finding::Executor { source: authority::Source::Task }]),
+                });
+            }
             if let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = member.executor
                 && self.people.identity(person).is_none()
             {
@@ -204,6 +210,12 @@ impl Core {
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
+            if missing_closer(member.flags, &member.authority).is_some() {
+                return Err(CallPart::DelegationDenied {
+                    answer: authority::Answer::Refuse,
+                    findings: Box::new([authority::Finding::Executor { source: authority::Source::Task }]),
+                });
+            }
             match member.executor {
                 tasks::Executor::Job { .. } => return Err(delegate_refused(None, tasks::Refusal::Executor)),
                 tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {}
@@ -304,6 +316,20 @@ impl Core {
             tasks::Executor::Person(tasks::PersonAddress::Person(person)) => {
                 let holding = self.people.role(person, project)?;
                 Some(authority::Executor::Role(holding.number()))
+            }
+        }
+    }
+}
+
+/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks.md, 5.10).
+pub(crate) fn missing_closer(flags: tasks::Flags, authority: &tasks::Authority) -> Option<tasks::Closer> {
+    match flags.ended_by {
+        tasks::EndedBy::Result | tasks::EndedBy::Requester => None,
+        tasks::EndedBy::Closer(closer) => {
+            if authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Procedure(closer.code)) {
+                None
+            } else {
+                Some(closer)
             }
         }
     }

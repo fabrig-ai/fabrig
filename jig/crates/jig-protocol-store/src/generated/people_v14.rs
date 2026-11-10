@@ -777,6 +777,12 @@ pub enum Path {
     ContractTag,
     /// The tag of `Retention`.
     RetentionTag,
+    /// The `connector` field of `Closer`.
+    CloserConnector,
+    /// The `code` field of `Closer`.
+    CloserCode,
+    /// Bytes after `Closer`.
+    CloserTail,
     /// The tag of `EndedBy`.
     EndedByTag,
     /// The `conversation` field of `Flags`.
@@ -6216,6 +6222,44 @@ impl Retention {
 
 }
 
+/// Movable fields of `Closer`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CloserParts {
+    /// The `connector` field.
+    pub connector: u16,
+    /// The `code` field.
+    pub code: u32,
+}
+
+/// `Closer` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Closer {
+    connector: u16,
+    code: u32,
+}
+
+impl Closer {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: CloserParts) -> Result<Self, Problem> {
+        let CloserParts { connector, code } = parts;
+        let value = Self { connector, code };
+        Ok(value)
+    }
+
+    /// Reads the `connector` field.
+    #[must_use]
+    pub fn connector(&self) -> u16 { self.connector }
+
+    /// Reads the `code` field.
+    #[must_use]
+    pub fn code(&self) -> u32 { self.code }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CloserParts { CloserParts { connector: self.connector, code: self.code } }
+
+}
+
 /// `EndedBy` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum EndedBy {
@@ -6223,6 +6267,8 @@ pub enum EndedBy {
     Result,
     /// `requester` without a payload.
     Requester,
+    /// `closer` carrying `Closer`.
+    Closer(Closer),
 }
 
 impl EndedBy {
@@ -19236,11 +19282,45 @@ impl Retention {
     }
 }
 
+impl Closer {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_connector = &self.connector;
+        writer.put(&field_connector.to_be_bytes())?;
+        let field_code = &self.code;
+        writer.put(&field_code.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CloserTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_connector = reader.u16().ok_or(Problem { path: Path::CloserConnector, reason: skein_codec::Reason::Short })?;
+        let decoded_code = reader.u32().ok_or(Problem { path: Path::CloserCode, reason: skein_codec::Reason::Short })?;
+        Ok(Self { connector: decoded_connector, code: decoded_code })
+    }
+}
+
 impl EndedBy {
     /// Measures this variant's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
+            Self::Closer(record) => 1_u32.checked_add(Closer::measure(record)).expect("schema ceilings fit u32"),
             Self::Result | Self::Requester => 1,
         }
     }
@@ -19250,6 +19330,7 @@ impl EndedBy {
         match self {
             Self::Result => writer.put(&[0_u8])?,
             Self::Requester => writer.put(&[1_u8])?,
+            Self::Closer(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -19261,11 +19342,12 @@ impl EndedBy {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let tag = reader.u8().ok_or(Problem { path: Path::EndedByTag, reason: skein_codec::Reason::Short })?;
         let value = match tag {
             0 => Self::Result,
             1 => Self::Requester,
+            2 => Self::Closer(Closer::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::EndedByTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -19280,7 +19362,8 @@ impl Flags {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_ended_by = &self.ended_by;
+        size = size.checked_add(field_ended_by.measure()).expect("schema ceilings fit u32");
         size
     }
 
@@ -19456,7 +19539,8 @@ impl Member {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         }
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_flags = &self.flags;
+        size = size.checked_add(field_flags.measure()).expect("schema ceilings fit u32");
         let field_llm = &self.llm;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_llm {
@@ -31235,6 +31319,34 @@ impl Retention {
     }
 }
 
+impl Closer {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl EndedBy {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -31243,8 +31355,9 @@ impl EndedBy {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(Closer::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -31255,8 +31368,9 @@ impl EndedBy {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(Closer::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -37810,6 +37924,7 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ContractChange::encoded_bound_within(limits)?);
     biggest = biggest.max(Contract::encoded_bound_within(limits)?);
     biggest = biggest.max(Retention::encoded_bound_within(limits)?);
+    biggest = biggest.max(Closer::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedBy::encoded_bound_within(limits)?);
     biggest = biggest.max(Flags::encoded_bound_within(limits)?);
     biggest = biggest.max(DeadlineSpan::encoded_bound_within(limits)?);
@@ -37875,11 +37990,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AskAccountSignIn::encoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignOut::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountUseParty::encoded_bound_within(limits)?);
-    biggest = biggest.max(AccountUseProject::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountUseProject::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountUse::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeDeclareProgram::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeCheckProgram::encoded_bound_within(limits)?);
@@ -37969,11 +38084,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalKept::encoded_bound_within(limits)?);
     biggest = biggest.max(SignInRedirectWhy::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalSignInRedirect::encoded_bound_within(limits)?);
-    biggest = biggest.max(AccountMoveWhy::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountMoveWhy::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalAccountMove::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalJudged::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalForgotten::encoded_bound_within(limits)?);
@@ -38174,6 +38289,7 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ContractChange::decoded_bound_within(limits)?);
     biggest = biggest.max(Contract::decoded_bound_within(limits)?);
     biggest = biggest.max(Retention::decoded_bound_within(limits)?);
+    biggest = biggest.max(Closer::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedBy::decoded_bound_within(limits)?);
     biggest = biggest.max(Flags::decoded_bound_within(limits)?);
     biggest = biggest.max(DeadlineSpan::decoded_bound_within(limits)?);
@@ -38239,11 +38355,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AskAccountSignIn::decoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignOut::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountUseParty::decoded_bound_within(limits)?);
-    biggest = biggest.max(AccountUseProject::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountUseProject::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountUse::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeDeclareProgram::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeCheckProgram::decoded_bound_within(limits)?);
@@ -38333,11 +38449,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalKept::decoded_bound_within(limits)?);
     biggest = biggest.max(SignInRedirectWhy::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalSignInRedirect::decoded_bound_within(limits)?);
-    biggest = biggest.max(AccountMoveWhy::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountMoveWhy::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalAccountMove::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalJudged::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalForgotten::decoded_bound_within(limits)?);
@@ -38409,7 +38525,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, MovedPlacedHold, MovedPlacedHoldParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, AskLift, AskLiftParts, OutcomeLifted, OutcomeLiftedParts, LackHoldOwner, LackHoldOwnerParts, Segment, SegmentParts, Number64, Number64Parts, RolePolicy, RolePolicyParts, Role, Holding, HoldingParts, IdentityKey, IdentityKeyParts, Identity, IdentityParts, RequestKey, RequestKeyParts, LastExact, LastExactParts, LastOpen, LastOpenParts, Last, Pattern, PatternParts, Grant, GrantParts, ResourceScope, ResourceScopeParts, ExecutorCharter, ExecutorCharterParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorRole, ExecutorRoleParts, ExecutorJob, ExecutorJobParts, Executor, Delegation, DelegationParts, ModelSetNamed, ModelSetNamedParts, ModelSet, Authority, AuthorityParts, Judge, JudgeParts, GuardObserved, GuardObservedParts, Guard, Requirement, RequirementParts, PermissionRole, PermissionRoleParts, PolicyRole, PolicyRoleParts, TemplateExecutorCharter, TemplateExecutorCharterParts, TemplateExecutor, TemplateBudgetAmount, TemplateBudgetAmountParts, TemplateBudgetAsAllowed, TemplateBudgetAsAllowedParts, TemplateBudget, TemplateDeadlineSpan, TemplateDeadlineSpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, PolicyValue, PolicyValueParts, PolicyChangeProjectSpend, PolicyChangeProjectSpendParts, PolicyChangeRoleSpend, PolicyChangeRoleSpendParts, PolicyChangeRole, PolicyChangeRoleParts, PolicyChangeRequirements, PolicyChangeRequirementsParts, PolicyChangeProjections, PolicyChangeProjectionsParts, PolicyChangePermissions, PolicyChangePermissionsParts, PolicyChangeTemplates, PolicyChangeTemplatesParts, PolicyChange, SeenResults, SeenResultsParts, SeenConversation, SeenConversationParts, Seen, NoteScopeTask, NoteScopeTaskParts, NoteScopeResources, NoteScopeResourcesParts, NoteScopeParty, NoteScopePartyParts, NoteScope, NoteChangeCorrect, NoteChangeCorrectParts, NoteChangeDelete, NoteChangeDeleteParts, NoteChange, ResourceRole, ResourceName, ResourceNameParts, Adoption, AdoptionParts, PersonResultApproved, PersonResultApprovedParts, PersonResultReport, PersonResultReportParts, PersonResultVerdict, PersonResultVerdictParts, PersonResultFailure, PersonResultFailureParts, PersonResult, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalDecisionReject, ProposalDecisionRejectParts, ProposalDecision, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, PersonAddressPerson, PersonAddressPersonParts, PersonAddressRole, PersonAddressRoleParts, PersonAddress, AddressChange, AddressChangeParts, ParameterNumber, ParameterNumberParts, ParameterBytes, ParameterBytesParts, ParameterResource, ParameterResourceParts, Parameter, Spec, SpecParts, WakeRuleBatch, WakeRuleBatchParts, WakeRulePaced, WakeRulePacedParts, WakeRule, ResultsWake, WakePolicy, WakePolicyParts, TrackingTracked, TrackingTrackedParts, Tracking, ModelEffort, ModelEffortParts, LlmLater, LlmLaterParts, LlmChoice, LlmChoiceParts, Amendment, AmendmentParts, TaskExecutorAgent, TaskExecutorAgentParts, TaskExecutorProcedure, TaskExecutorProcedureParts, TaskExecutorPerson, TaskExecutorPersonParts, TaskExecutor, BudgetAsAllowed, BudgetAsAllowedParts, Budget, DependencyBatch, DependencyBatchParts, DependencyExisting, DependencyExistingParts, Dependency, FieldRule, FieldRuleParts, Verdict, VerdictParts, ContractReport, ContractReportParts, ContractVerdict, ContractVerdictParts, ContractChange, ContractChangeParts, Contract, Retention, EndedBy, Flags, FlagsParts, DeadlineSpan, DeadlineSpanParts, Deadline, Symbol, SymbolParts, Member, MemberParts, OperationCancel, OperationCancelParts, OperationMove, OperationMoveParts, OperationAmend, OperationAmendParts, OperationRelease, OperationReleaseParts, OperationMessage, OperationMessageParts, OperationStop, OperationStopParts, Operation, AskCompound, AskCompoundParts, AskCreate, AskCreateParts, AskMarkSeen, AskMarkSeenParts, ScopeProject, ScopeProjectParts, ApplicationScope, AskApplication, AskApplicationParts, AskEditNote, AskEditNoteParts, AskMakeService, AskMakeServiceParts, AskAdopt, AskAdoptParts, ActionBatch, ActionBatchParts, ActionAmend, ActionAmendParts, ActionSettings, ActionSettingsParts, Action, AskPropose, AskProposeParts, AskWithdraw, AskWithdrawParts, AskStop, AskStopParts, AskCancel, AskCancelParts, AskRelease, AskReleaseParts, AskTakePerson, AskTakePersonParts, AskHandBackPerson, AskHandBackPersonParts, AskAnswerPerson, AskAnswerPersonParts, AskMove, AskMoveParts, Running, AskDecideProposal, AskDecideProposalParts, AskSay, AskSayParts, AskAnswerQuestion, AskAnswerQuestionParts, AskAmend, AskAmendParts, AskSetRoles, AskSetRolesParts, AskRename, AskRenameParts, AskRestore, AskRestoreParts, AskChangeSettings, AskChangeSettingsParts, SettingNumber, SettingNumberParts, ApplicationSetting, ApplicationSettingParts, ProjectPolicySetting, ProjectPolicySettingParts, Setting, OutcomeRestored, OutcomeRestoredParts, SettingFault, SettingMember, SettingRule, SettingDetail, SettingDetailParts, MalformedSettings, MalformedSettingsParts, RefusalStale, RefusalStaleParts, RefusalFull, RefusalFullParts, OutcomeSettingsChanged, OutcomeSettingsChangedParts, AskMakeProject, AskMakeProjectParts, AskChangePolicy, AskChangePolicyParts, AskSetPool, AskSetPoolParts, AskDecideEscalation, AskDecideEscalationParts, AccountHolder, AskAccountSignIn, AskAccountSignInParts, AskAccountSignOut, AskAccountSignOutParts, AccountUseParty, AccountUsePartyParts, AccountUseProject, AccountUseProjectParts, AccountUse, AccountChangeDeclareProgram, AccountChangeDeclareProgramParts, AccountChangeCheckProgram, AccountChangeCheckProgramParts, AccountChangeAddKey, AccountChangeAddKeyParts, AccountChangeReplaceKey, AccountChangeReplaceKeyParts, AccountChangeRemoveKey, AccountChangeRemoveKeyParts, AccountChangeResume, AccountChangeResumeParts, AccountChangeRemove, AccountChangeRemoveParts, AccountChangeMoveAccount, AccountChangeMoveAccountParts, AccountChangeMoveSource, AccountChangeMoveSourceParts, AccountChangeSetUses, AccountChangeSetUsesParts, AccountChangeMoveOut, AccountChangeMoveOutParts, AccountChangeWritten, AccountChangeWrittenParts, AccountChangeMoveIn, AccountChangeMoveInParts, AccountChangeFinishSignIn, AccountChangeFinishSignInParts, AccountChangeReadLists, AccountChangeReadListsParts, AccountChange, AskAccountChange, AskAccountChangeParts, AskMoveToNewest, AskMoveToNewestParts, AskRemoveProject, AskRemoveProjectParts, AskSetVisibility, AskSetVisibilityParts, Ask, StoredPerson, StoredPersonParts, StoredReadResults, StoredReadResultsParts, StoredReadConversation, StoredReadConversationParts, EndedRead, EndedReadParts, StoredSignIn, StoredSignInParts, StoredRoles, StoredRolesParts, ModelName, ModelNameParts, StoredPolicy, StoredPolicyParts, Again, FailureClass, HoldReasonFailures, HoldReasonFailuresParts, HoldReasonDependency, HoldReasonDependencyParts, HoldReasonPlaced, HoldReasonPlacedParts, HoldReasonUncertain, HoldReasonUncertainParts, HoldReasonPoolLost, HoldReasonPoolLostParts, Bound, Exceeded, ExceededParts, HoldReason, MovedHold, MovedHoldParts, MovedSpec, MovedSpecParts, MovedPerson, MovedPersonParts, MovedNote, MovedNoteParts, Moved, PartyPerson, PartyPersonParts, PartyTask, PartyTaskParts, PartyDeployment, PartyDeploymentParts, Party, EndingCancelled, EndingCancelledParts, EndingDecided, EndingDecidedParts, Ending, LackBudget, LackBudgetParts, LackGrant, LackGrantParts, LackDepth, LackDepthParts, LackTasks, LackTasksParts, LackAgain, LackAgainParts, LackRequired, LackRequiredParts, LackFailed, LackFailedParts, LackUnguarded, LackUnguardedParts, LackTaskKind, LackTaskKindParts, CeilingRole, CeilingRoleParts, CeilingHolder, CeilingDimension, LackCeiling, LackCeilingParts, Lack, LimitKind, RefusalRole, RefusalRoleParts, AccepterRole, AccepterRoleParts, Accepter, RefusalAuthority, RefusalAuthorityParts, RefusalLimit, RefusalLimitParts, RefusalMoved, RefusalMovedParts, RefusalEnded, RefusalEndedParts, RefusalTaken, RefusalTakenParts, NameRule, MalformedName, MalformedNameParts, Malformed, RefusalNotWellFormed, RefusalNotWellFormedParts, LlmWhy, RefusalLlm, RefusalLlmParts, AccountWhy, RefusalAccount, RefusalAccountParts, DependencyStatus, RefusalCircle, RefusalCircleParts, RefusalDependency, RefusalDependencyParts, RefusalKept, RefusalKeptParts, SignInRedirectWhy, RefusalSignInRedirect, RefusalSignInRedirectParts, AccountMoveWhy, RefusalAccountMove, RefusalAccountMoveParts, RefusalJudged, RefusalJudgedParts, RefusalForgotten, RefusalForgottenParts, Refusal, ProposalChoice, EscalationChoice, OutcomeCompound, OutcomeCompoundParts, OutcomeCompoundRefused, OutcomeCompoundRefusedParts, OutcomeMarkedSeen, OutcomeMarkedSeenParts, OutcomeApplied, OutcomeAppliedParts, OutcomeAgain, OutcomeAgainParts, OutcomeNoteEdited, OutcomeNoteEditedParts, OutcomeServiceMade, OutcomeServiceMadeParts, OutcomeAdopted, OutcomeAdoptedParts, OutcomeProposed, OutcomeProposedParts, OutcomeWithdrawn, OutcomeWithdrawnParts, OutcomeStopped, OutcomeStoppedParts, OutcomeCancelled, OutcomeCancelledParts, OutcomeReleased, OutcomeReleasedParts, OutcomePersonTaken, OutcomePersonTakenParts, OutcomePersonHandedBack, OutcomePersonHandedBackParts, OutcomePersonAnswered, OutcomePersonAnsweredParts, OutcomeMoved, OutcomeMovedParts, OutcomeProposalDecided, OutcomeProposalDecidedParts, OutcomeSaid, OutcomeSaidParts, OutcomeQuestionAnswered, OutcomeQuestionAnsweredParts, OutcomeAmended, OutcomeAmendedParts, OutcomeRolesSet, OutcomeRolesSetParts, OutcomeRenamed, OutcomeRenamedParts, OutcomeProjectMade, OutcomeProjectMadeParts, OutcomePolicyChanged, OutcomePolicyChangedParts, OutcomePoolSet, OutcomePoolSetParts, OutcomeEscalationDecided, OutcomeEscalationDecidedParts, OutcomeRefused, OutcomeRefusedParts, OutcomeAccountSignInStarted, OutcomeAccountSignInStartedParts, AccountHostWhy, AccountHostFailure, AccountHostFailureParts, OutcomeAccountProgramDeclared, OutcomeAccountProgramDeclaredParts, OutcomeAccountSignedOut, OutcomeAccountSignedOutParts, OutcomeAccountKeyKept, OutcomeAccountKeyKeptParts, OutcomeAccountRemoved, OutcomeAccountRemovedParts, Given, GivenParts, OutcomeCreated, OutcomeCreatedParts, OutcomeAccountMovingOut, OutcomeAccountMovingOutParts, OutcomeAccountMovedIn, OutcomeAccountMovedInParts, OutcomeAccountFinishing, OutcomeAccountFinishingParts, OutcomeMovedToNewest, OutcomeMovedToNewestParts, OutcomeVisibilitySet, OutcomeVisibilitySetParts, OutcomeProjectRemoved, OutcomeProjectRemovedParts, OutcomeAccountReading, OutcomeAccountReadingParts, Outcome, ActKey, ActKeyParts, ActClose, ActCloseParts, ActAddKey, ActAddKeyParts, ActRemoveAccount, ActRemoveAccountParts, ActAdopt, ActAdoptParts, ActMakeProject, ActMakeProjectParts, ActRemoveProject, ActRemoveProjectParts, Act, StoredActed, StoredActedParts, StoredAnswer, StoredAnswerParts, DeletionStep, StoredDeletion, StoredDeletionParts, StoredPublic, StoredPublicParts, Value, Row, RowParts, Path};
+    use super::{CEILINGS, MovedPlacedHold, MovedPlacedHoldParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, AskLift, AskLiftParts, OutcomeLifted, OutcomeLiftedParts, LackHoldOwner, LackHoldOwnerParts, Segment, SegmentParts, Number64, Number64Parts, RolePolicy, RolePolicyParts, Role, Holding, HoldingParts, IdentityKey, IdentityKeyParts, Identity, IdentityParts, RequestKey, RequestKeyParts, LastExact, LastExactParts, LastOpen, LastOpenParts, Last, Pattern, PatternParts, Grant, GrantParts, ResourceScope, ResourceScopeParts, ExecutorCharter, ExecutorCharterParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorRole, ExecutorRoleParts, ExecutorJob, ExecutorJobParts, Executor, Delegation, DelegationParts, ModelSetNamed, ModelSetNamedParts, ModelSet, Authority, AuthorityParts, Judge, JudgeParts, GuardObserved, GuardObservedParts, Guard, Requirement, RequirementParts, PermissionRole, PermissionRoleParts, PolicyRole, PolicyRoleParts, TemplateExecutorCharter, TemplateExecutorCharterParts, TemplateExecutor, TemplateBudgetAmount, TemplateBudgetAmountParts, TemplateBudgetAsAllowed, TemplateBudgetAsAllowedParts, TemplateBudget, TemplateDeadlineSpan, TemplateDeadlineSpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, PolicyValue, PolicyValueParts, PolicyChangeProjectSpend, PolicyChangeProjectSpendParts, PolicyChangeRoleSpend, PolicyChangeRoleSpendParts, PolicyChangeRole, PolicyChangeRoleParts, PolicyChangeRequirements, PolicyChangeRequirementsParts, PolicyChangeProjections, PolicyChangeProjectionsParts, PolicyChangePermissions, PolicyChangePermissionsParts, PolicyChangeTemplates, PolicyChangeTemplatesParts, PolicyChange, SeenResults, SeenResultsParts, SeenConversation, SeenConversationParts, Seen, NoteScopeTask, NoteScopeTaskParts, NoteScopeResources, NoteScopeResourcesParts, NoteScopeParty, NoteScopePartyParts, NoteScope, NoteChangeCorrect, NoteChangeCorrectParts, NoteChangeDelete, NoteChangeDeleteParts, NoteChange, ResourceRole, ResourceName, ResourceNameParts, Adoption, AdoptionParts, PersonResultApproved, PersonResultApprovedParts, PersonResultReport, PersonResultReportParts, PersonResultVerdict, PersonResultVerdictParts, PersonResultFailure, PersonResultFailureParts, PersonResult, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalDecisionReject, ProposalDecisionRejectParts, ProposalDecision, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, PersonAddressPerson, PersonAddressPersonParts, PersonAddressRole, PersonAddressRoleParts, PersonAddress, AddressChange, AddressChangeParts, ParameterNumber, ParameterNumberParts, ParameterBytes, ParameterBytesParts, ParameterResource, ParameterResourceParts, Parameter, Spec, SpecParts, WakeRuleBatch, WakeRuleBatchParts, WakeRulePaced, WakeRulePacedParts, WakeRule, ResultsWake, WakePolicy, WakePolicyParts, TrackingTracked, TrackingTrackedParts, Tracking, ModelEffort, ModelEffortParts, LlmLater, LlmLaterParts, LlmChoice, LlmChoiceParts, Amendment, AmendmentParts, TaskExecutorAgent, TaskExecutorAgentParts, TaskExecutorProcedure, TaskExecutorProcedureParts, TaskExecutorPerson, TaskExecutorPersonParts, TaskExecutor, BudgetAsAllowed, BudgetAsAllowedParts, Budget, DependencyBatch, DependencyBatchParts, DependencyExisting, DependencyExistingParts, Dependency, FieldRule, FieldRuleParts, Verdict, VerdictParts, ContractReport, ContractReportParts, ContractVerdict, ContractVerdictParts, ContractChange, ContractChangeParts, Contract, Retention, Closer, CloserParts, EndedBy, Flags, FlagsParts, DeadlineSpan, DeadlineSpanParts, Deadline, Symbol, SymbolParts, Member, MemberParts, OperationCancel, OperationCancelParts, OperationMove, OperationMoveParts, OperationAmend, OperationAmendParts, OperationRelease, OperationReleaseParts, OperationMessage, OperationMessageParts, OperationStop, OperationStopParts, Operation, AskCompound, AskCompoundParts, AskCreate, AskCreateParts, AskMarkSeen, AskMarkSeenParts, ScopeProject, ScopeProjectParts, ApplicationScope, AskApplication, AskApplicationParts, AskEditNote, AskEditNoteParts, AskMakeService, AskMakeServiceParts, AskAdopt, AskAdoptParts, ActionBatch, ActionBatchParts, ActionAmend, ActionAmendParts, ActionSettings, ActionSettingsParts, Action, AskPropose, AskProposeParts, AskWithdraw, AskWithdrawParts, AskStop, AskStopParts, AskCancel, AskCancelParts, AskRelease, AskReleaseParts, AskTakePerson, AskTakePersonParts, AskHandBackPerson, AskHandBackPersonParts, AskAnswerPerson, AskAnswerPersonParts, AskMove, AskMoveParts, Running, AskDecideProposal, AskDecideProposalParts, AskSay, AskSayParts, AskAnswerQuestion, AskAnswerQuestionParts, AskAmend, AskAmendParts, AskSetRoles, AskSetRolesParts, AskRename, AskRenameParts, AskRestore, AskRestoreParts, AskChangeSettings, AskChangeSettingsParts, SettingNumber, SettingNumberParts, ApplicationSetting, ApplicationSettingParts, ProjectPolicySetting, ProjectPolicySettingParts, Setting, OutcomeRestored, OutcomeRestoredParts, SettingFault, SettingMember, SettingRule, SettingDetail, SettingDetailParts, MalformedSettings, MalformedSettingsParts, RefusalStale, RefusalStaleParts, RefusalFull, RefusalFullParts, OutcomeSettingsChanged, OutcomeSettingsChangedParts, AskMakeProject, AskMakeProjectParts, AskChangePolicy, AskChangePolicyParts, AskSetPool, AskSetPoolParts, AskDecideEscalation, AskDecideEscalationParts, AccountHolder, AskAccountSignIn, AskAccountSignInParts, AskAccountSignOut, AskAccountSignOutParts, AccountUseParty, AccountUsePartyParts, AccountUseProject, AccountUseProjectParts, AccountUse, AccountChangeDeclareProgram, AccountChangeDeclareProgramParts, AccountChangeCheckProgram, AccountChangeCheckProgramParts, AccountChangeAddKey, AccountChangeAddKeyParts, AccountChangeReplaceKey, AccountChangeReplaceKeyParts, AccountChangeRemoveKey, AccountChangeRemoveKeyParts, AccountChangeResume, AccountChangeResumeParts, AccountChangeRemove, AccountChangeRemoveParts, AccountChangeMoveAccount, AccountChangeMoveAccountParts, AccountChangeMoveSource, AccountChangeMoveSourceParts, AccountChangeSetUses, AccountChangeSetUsesParts, AccountChangeMoveOut, AccountChangeMoveOutParts, AccountChangeWritten, AccountChangeWrittenParts, AccountChangeMoveIn, AccountChangeMoveInParts, AccountChangeFinishSignIn, AccountChangeFinishSignInParts, AccountChangeReadLists, AccountChangeReadListsParts, AccountChange, AskAccountChange, AskAccountChangeParts, AskMoveToNewest, AskMoveToNewestParts, AskRemoveProject, AskRemoveProjectParts, AskSetVisibility, AskSetVisibilityParts, Ask, StoredPerson, StoredPersonParts, StoredReadResults, StoredReadResultsParts, StoredReadConversation, StoredReadConversationParts, EndedRead, EndedReadParts, StoredSignIn, StoredSignInParts, StoredRoles, StoredRolesParts, ModelName, ModelNameParts, StoredPolicy, StoredPolicyParts, Again, FailureClass, HoldReasonFailures, HoldReasonFailuresParts, HoldReasonDependency, HoldReasonDependencyParts, HoldReasonPlaced, HoldReasonPlacedParts, HoldReasonUncertain, HoldReasonUncertainParts, HoldReasonPoolLost, HoldReasonPoolLostParts, Bound, Exceeded, ExceededParts, HoldReason, MovedHold, MovedHoldParts, MovedSpec, MovedSpecParts, MovedPerson, MovedPersonParts, MovedNote, MovedNoteParts, Moved, PartyPerson, PartyPersonParts, PartyTask, PartyTaskParts, PartyDeployment, PartyDeploymentParts, Party, EndingCancelled, EndingCancelledParts, EndingDecided, EndingDecidedParts, Ending, LackBudget, LackBudgetParts, LackGrant, LackGrantParts, LackDepth, LackDepthParts, LackTasks, LackTasksParts, LackAgain, LackAgainParts, LackRequired, LackRequiredParts, LackFailed, LackFailedParts, LackUnguarded, LackUnguardedParts, LackTaskKind, LackTaskKindParts, CeilingRole, CeilingRoleParts, CeilingHolder, CeilingDimension, LackCeiling, LackCeilingParts, Lack, LimitKind, RefusalRole, RefusalRoleParts, AccepterRole, AccepterRoleParts, Accepter, RefusalAuthority, RefusalAuthorityParts, RefusalLimit, RefusalLimitParts, RefusalMoved, RefusalMovedParts, RefusalEnded, RefusalEndedParts, RefusalTaken, RefusalTakenParts, NameRule, MalformedName, MalformedNameParts, Malformed, RefusalNotWellFormed, RefusalNotWellFormedParts, LlmWhy, RefusalLlm, RefusalLlmParts, AccountWhy, RefusalAccount, RefusalAccountParts, DependencyStatus, RefusalCircle, RefusalCircleParts, RefusalDependency, RefusalDependencyParts, RefusalKept, RefusalKeptParts, SignInRedirectWhy, RefusalSignInRedirect, RefusalSignInRedirectParts, AccountMoveWhy, RefusalAccountMove, RefusalAccountMoveParts, RefusalJudged, RefusalJudgedParts, RefusalForgotten, RefusalForgottenParts, Refusal, ProposalChoice, EscalationChoice, OutcomeCompound, OutcomeCompoundParts, OutcomeCompoundRefused, OutcomeCompoundRefusedParts, OutcomeMarkedSeen, OutcomeMarkedSeenParts, OutcomeApplied, OutcomeAppliedParts, OutcomeAgain, OutcomeAgainParts, OutcomeNoteEdited, OutcomeNoteEditedParts, OutcomeServiceMade, OutcomeServiceMadeParts, OutcomeAdopted, OutcomeAdoptedParts, OutcomeProposed, OutcomeProposedParts, OutcomeWithdrawn, OutcomeWithdrawnParts, OutcomeStopped, OutcomeStoppedParts, OutcomeCancelled, OutcomeCancelledParts, OutcomeReleased, OutcomeReleasedParts, OutcomePersonTaken, OutcomePersonTakenParts, OutcomePersonHandedBack, OutcomePersonHandedBackParts, OutcomePersonAnswered, OutcomePersonAnsweredParts, OutcomeMoved, OutcomeMovedParts, OutcomeProposalDecided, OutcomeProposalDecidedParts, OutcomeSaid, OutcomeSaidParts, OutcomeQuestionAnswered, OutcomeQuestionAnsweredParts, OutcomeAmended, OutcomeAmendedParts, OutcomeRolesSet, OutcomeRolesSetParts, OutcomeRenamed, OutcomeRenamedParts, OutcomeProjectMade, OutcomeProjectMadeParts, OutcomePolicyChanged, OutcomePolicyChangedParts, OutcomePoolSet, OutcomePoolSetParts, OutcomeEscalationDecided, OutcomeEscalationDecidedParts, OutcomeRefused, OutcomeRefusedParts, OutcomeAccountSignInStarted, OutcomeAccountSignInStartedParts, AccountHostWhy, AccountHostFailure, AccountHostFailureParts, OutcomeAccountProgramDeclared, OutcomeAccountProgramDeclaredParts, OutcomeAccountSignedOut, OutcomeAccountSignedOutParts, OutcomeAccountKeyKept, OutcomeAccountKeyKeptParts, OutcomeAccountRemoved, OutcomeAccountRemovedParts, Given, GivenParts, OutcomeCreated, OutcomeCreatedParts, OutcomeAccountMovingOut, OutcomeAccountMovingOutParts, OutcomeAccountMovedIn, OutcomeAccountMovedInParts, OutcomeAccountFinishing, OutcomeAccountFinishingParts, OutcomeMovedToNewest, OutcomeMovedToNewestParts, OutcomeVisibilitySet, OutcomeVisibilitySetParts, OutcomeProjectRemoved, OutcomeProjectRemovedParts, OutcomeAccountReading, OutcomeAccountReadingParts, Outcome, ActKey, ActKeyParts, ActClose, ActCloseParts, ActAddKey, ActAddKeyParts, ActRemoveAccount, ActRemoveAccountParts, ActAdopt, ActAdoptParts, ActMakeProject, ActMakeProjectParts, ActRemoveProject, ActRemoveProjectParts, Act, StoredActed, StoredActedParts, StoredAnswer, StoredAnswerParts, DeletionStep, StoredDeletion, StoredDeletionParts, StoredPublic, StoredPublicParts, Value, Row, RowParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -38799,10 +38915,14 @@ mod golden_tests {
         ("enum_retention_kept_full", || { let value = Retention::Kept; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Retention::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_retention_forgotten_once_read_smallest", || { let value = Retention::ForgottenOnceRead; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Retention::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_retention_forgotten_once_read_full", || { let value = Retention::ForgottenOnceRead; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Retention::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_closer_smallest", || { let value = Closer::new(&CEILINGS, CloserParts { connector: 0_u16, code: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Closer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_closer_full", || { let value = Closer::new(&CEILINGS, CloserParts { connector: u16::MAX, code: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Closer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ended_by_result_smallest", || { let value = EndedBy::Result; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ended_by_result_full", || { let value = EndedBy::Result; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ended_by_requester_smallest", || { let value = EndedBy::Requester; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ended_by_requester_full", || { let value = EndedBy::Requester; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_ended_by_closer_smallest", || { let value = EndedBy::Closer(Closer::new(&CEILINGS, CloserParts { connector: 0_u16, code: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_ended_by_closer_full", || { let value = EndedBy::Closer(Closer::new(&CEILINGS, CloserParts { connector: u16::MAX, code: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedBy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_flags_smallest", || { let value = Flags::new(&CEILINGS, FlagsParts { conversation: false, listed: false, retention: Retention::Kept, ended_by: EndedBy::Result }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Flags::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_flags_full", || { let value = Flags::new(&CEILINGS, FlagsParts { conversation: true, listed: true, retention: Retention::Kept, ended_by: EndedBy::Result }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Flags::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_deadline_span_smallest", || { let value = DeadlineSpan::new(&CEILINGS, DeadlineSpanParts { value: skein_lib::Duration::from_nanos(0_u64) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeadlineSpan::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -39483,10 +39603,6 @@ mod golden_tests {
         ("record_refusal_authority_full", || { let value = RefusalAuthority::new(&CEILINGS, RefusalAuthorityParts { lacking: Lack::Approver, proposable: Some(Accepter::Nobody) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalAuthority::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_refusal_limit_smallest", || { let value = RefusalLimit::new(&CEILINGS, RefusalLimitParts { which: LimitKind::Projects }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalLimit::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_refusal_limit_full", || { let value = RefusalLimit::new(&CEILINGS, RefusalLimitParts { which: LimitKind::Projects }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalLimit::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_refusal_moved_smallest", || { let value = RefusalMoved::new(&CEILINGS, RefusalMovedParts { now: Moved::Hold(MovedHold::new(&CEILINGS, MovedHoldParts { revision: 0_u64, reason: HoldReason::Failures(HoldReasonFailures::new(&CEILINGS, HoldReasonFailuresParts { class: FailureClass::Transient }).expect("golden within ceilings")) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_refusal_moved_full", || { let value = RefusalMoved::new(&CEILINGS, RefusalMovedParts { now: Moved::Hold(MovedHold::new(&CEILINGS, MovedHoldParts { revision: u64::MAX, reason: HoldReason::Failures(HoldReasonFailures::new(&CEILINGS, HoldReasonFailuresParts { class: FailureClass::Transient }).expect("golden within ceilings")) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_refusal_ended_smallest", || { let value = RefusalEnded::new(&CEILINGS, RefusalEndedParts { how: Ending::Done }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_refusal_ended_full", || { let value = RefusalEnded::new(&CEILINGS, RefusalEndedParts { how: Ending::Done }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -39494,7 +39610,11 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 414] = [
+    static GOLDEN_1: [Case; 418] = [
+        ("record_refusal_moved_smallest", || { let value = RefusalMoved::new(&CEILINGS, RefusalMovedParts { now: Moved::Hold(MovedHold::new(&CEILINGS, MovedHoldParts { revision: 0_u64, reason: HoldReason::Failures(HoldReasonFailures::new(&CEILINGS, HoldReasonFailuresParts { class: FailureClass::Transient }).expect("golden within ceilings")) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_refusal_moved_full", || { let value = RefusalMoved::new(&CEILINGS, RefusalMovedParts { now: Moved::Hold(MovedHold::new(&CEILINGS, MovedHoldParts { revision: u64::MAX, reason: HoldReason::Failures(HoldReasonFailures::new(&CEILINGS, HoldReasonFailuresParts { class: FailureClass::Transient }).expect("golden within ceilings")) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_refusal_ended_smallest", || { let value = RefusalEnded::new(&CEILINGS, RefusalEndedParts { how: Ending::Done }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_refusal_ended_full", || { let value = RefusalEnded::new(&CEILINGS, RefusalEndedParts { how: Ending::Done }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_refusal_taken_smallest", || { let value = RefusalTaken::new(&CEILINGS, RefusalTakenParts { by: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalTaken::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_refusal_taken_full", || { let value = RefusalTaken::new(&CEILINGS, RefusalTakenParts { by: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RefusalTaken::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_name_rule_empty_smallest", || { let value = NameRule::Empty; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NameRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

@@ -285,6 +285,7 @@ pub fn task_record(
     wire::TaskRecord::new(
         limits,
         wire::TaskRecordParts {
+            closer: source.closer,
             asked_requester: source.asked_requester,
             history: task_history(source, limits)?,
             run: task_run(source, limits, moved)?,
@@ -434,8 +435,9 @@ fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
     )
 }
 /// Read every retained task field.
+#[expect(clippy::too_many_lines, reason = "one translation carries every retained task field")]
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let wire::TaskRecordParts { history, run, definition, started_from, interests, outcome, asked_requester } =
+    let wire::TaskRecordParts { closer, history, run, definition, started_from, interests, outcome, asked_requester } =
         source.into_parts();
     let history = history.into_parts();
     let run = run.into_parts();
@@ -452,6 +454,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        closer,
         offered,
         reasons,
         asked_requester,

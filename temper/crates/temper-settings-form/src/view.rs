@@ -90,6 +90,15 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    Closer(Closer),
+}
+
+/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Closer {
+    pub connector: u16,
+    pub code: u32,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FieldRule {

@@ -136,12 +136,14 @@ pub fn form_ended_by(v: c::EndedBy) -> n::EndedBy {
     match v {
         c::EndedBy::Result => n::EndedBy::Result,
         c::EndedBy::Requester => n::EndedBy::Requester,
+        c::EndedBy::Closer(closer) => n::EndedBy::Closer(n::Closer { connector: closer.connector, code: closer.code }),
     }
 }
 pub fn client_ended_by(v: n::EndedBy) -> c::EndedBy {
     match v {
         n::EndedBy::Result => c::EndedBy::Result,
         n::EndedBy::Requester => c::EndedBy::Requester,
+        n::EndedBy::Closer(closer) => c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code }),
     }
 }
 pub fn form_field_rule(v: &c::FieldRule) -> n::FieldRule {
