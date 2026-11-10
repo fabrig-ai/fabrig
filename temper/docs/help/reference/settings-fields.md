@@ -268,7 +268,22 @@ How a task behaves and is kept.
 - `conversation`: true or false. Whether the task is a conversation: its requester's words are its turns, and it moves to the newest revision at its next run.
 - `listed`: true or false. Whether it is listed, by project and label, once it has ended.
 - `retention`: `"kept"` or `"forgotten_once_read"`. How long it is kept. `"kept"`: Until the deployment's retention horizon. `"forgotten_once_read"`: Until its requester has read it and no live task names it.
-- `ended_by`: `"result"` or `"requester"`. What ends it. `"result"`: Its run's result. `"requester"`: Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`.
+- `ended_by`: `ended_by`. What ends it.
+
+## ended_by
+
+What ends a task: a word, or an object with one member.
+
+- `"result"`: Its run's result.
+- `"requester"`: Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`.
+- `closer`: `closer`. A named procedure ends the task.
+
+## closer
+
+The procedure that closes the task when nothing is left to await.
+
+- `connector`: integer, 0 to 65,535. The connector whose procedure closes the task.
+- `code`: integer, 0 to 4,294,967,295. The closing procedure's code.
 
 ## llm
 

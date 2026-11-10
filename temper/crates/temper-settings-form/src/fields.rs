@@ -37,6 +37,8 @@ pub enum Shape {
     AsAllowed,
     Deadline,
     Flags,
+    EndedBy,
+    Closer,
     Llm,
     LlmLater,
     ModelEffort,

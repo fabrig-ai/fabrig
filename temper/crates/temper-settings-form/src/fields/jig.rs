@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 63] = [
+pub static FORMS: [Form; 65] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -43,6 +43,13 @@ pub static FORMS: [Form; 63] = [
         line: b"By when a task must end: a word, or an object with one member.",
     },
     Form { shape: Shape::Flags, name: b"flags", choice: Choice::Every, line: b"How a task behaves and is kept." },
+    Form {
+        shape: Shape::EndedBy,
+        name: b"ended_by",
+        choice: Choice::One { words: &[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`." }] },
+        line: b"What ends a task: a word, or an object with one member.",
+    },
+    Form { shape: Shape::Closer, name: b"closer", choice: Choice::Every, line: b"The procedure that closes the task when nothing is left to await." },
     Form { shape: Shape::Llm, name: b"llm", choice: Choice::Every, line: b"The models a task asks for." },
     Form { shape: Shape::LlmLater, name: b"llm-later", choice: Choice::Every, line: b"The choice every run after the task's first activation takes." },
     Form { shape: Shape::ModelEffort, name: b"model_effort", choice: Choice::Every, line: b"A model, by name, and its effort." },
@@ -93,7 +100,7 @@ pub static FORMS: [Form; 63] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"A JSON string: what the charter does, 1 to 120 UTF-8 bytes holding no control character. With none kept, Roles says the charter by its instructions' first sentence. Its selector requires the charter's number and has no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"How work runs' headline and lede for the project's own way, both required. With none kept, How work runs says the way's own words. Its selector requires project and has no number." },
 ];
-pub static FIELDS: [Field; 225] = [
+pub static FIELDS: [Field; 228] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -696,11 +703,14 @@ pub static FIELDS: [Field; 225] = [
     Field {
         shape: Shape::Flags,
         name: b"ended_by",
-        value: Value::Words(&[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`." }]),
+        value: Value::Shape(Shape::EndedBy),
         list: None,
         null: false,
         line: b"What ends it.",
     },
+    Field { shape: Shape::EndedBy, name: b"closer", value: Value::Shape(Shape::Closer), list: None, null: false, line: b"A named procedure ends the task." },
+    Field { shape: Shape::Closer, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector whose procedure closes the task." },
+    Field { shape: Shape::Closer, name: b"code", value: Value::Integer(Width::U32), list: None, null: false, line: b"The closing procedure's code." },
     Field { shape: Shape::Llm, name: b"account", value: Value::Integer(Width::U32), list: None, null: true, line: b"The account to pay with, or null for any that can." },
     Field {
         shape: Shape::Llm,
