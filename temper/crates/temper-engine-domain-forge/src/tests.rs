@@ -1174,7 +1174,16 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
             },
         );
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
-        outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                task: 9,
+                attempt: 1,
+                writes: Box::new([name.clone()]),
+                designs: Box::new([]),
+                holders: Box::new([7]),
+            },
+        );
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);

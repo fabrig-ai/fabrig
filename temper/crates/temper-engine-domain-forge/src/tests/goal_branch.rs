@@ -676,28 +676,10 @@ fn a_merge_beside_a_design_writer_leaves_g_written_until_its_fresh_answer() {
         None,
         "ending the merge leaves the design writer's forward push owned"
     );
-    fixtures::answer_next(
-        &mut d,
-        Ok(Answer::Compare {
-            before: MERGED,
-            after: tip,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     outputs(&mut d, Event::Answered { task: GOAL, attempt: 3, pushed: Box::new([(name(GOAL_BRANCH), TIP)]) });
     fixtures::answer_next(&mut d, Ok(Answer::Commit(tip)));
-    fixtures::answer_next(
-        &mut d,
-        Ok(Answer::Compare {
-            before: MERGED,
-            after: tip,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     assert_eq!(
         d.branch_head(&name(GOAL_BRANCH)),
         Some(tip),

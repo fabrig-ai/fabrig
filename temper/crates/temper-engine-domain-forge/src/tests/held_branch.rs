@@ -305,21 +305,20 @@ fn a_design_writer_takes_no_slot_and_its_answer_reads_the_goal_afresh() {
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
     fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::BASE)));
     let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Compare { before: fixtures::HEAD, after: fixtures::BASE }));
-    fixtures::answer(
-        &mut d,
-        call,
-        Ok(Answer::Compare {
-            before: fixtures::HEAD,
-            after: fixtures::BASE,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
+    fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     assert_eq!(d.branch_head(&name()), Some(fixtures::BASE));
     assert!(d.hold(&name()).unwrap().design_writers.is_empty());
     assert_eq!(d.hold(&name()).unwrap().drift, None);
+}
+
+fn design_ancestry(forward: bool) -> Answer {
+    let commits: Box<[_]> = if forward {
+        Box::new([])
+    } else {
+        Box::new([skein_forge::api::CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }])
+    };
+    Answer::Commits { commits, more: false }
 }
 
 fn design_move(d: &mut Domain, actor: u64, forward: bool) -> Box<[Request]> {
@@ -342,16 +341,7 @@ fn design_move(d: &mut Domain, actor: u64, forward: bool) -> Box<[Request]> {
     fire(d, &later, &mut Queue::uncapped());
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
     assert_eq!(d.hold(&name()).unwrap().drift, None, "a live writer's move is compared before judgement");
-    fixtures::answer_next(
-        d,
-        Ok(Answer::Compare {
-            before: fixtures::HEAD,
-            after: fixtures::BASE,
-            contains_before: forward,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    )
+    fixtures::answer_next(d, Ok(design_ancestry(forward)))
 }
 
 #[test]
@@ -394,16 +384,7 @@ fn a_restored_design_writer_survives_until_loss_and_its_fresh_read_detects_rewri
         assert!(d.hold(&name()).unwrap().design_writers[0].rereading, "loss reads the restored design writer afresh");
         let tip = [9; 32];
         fixtures::answer_next(&mut d, Ok(Answer::Commit(tip)));
-        fixtures::answer_next(
-            &mut d,
-            Ok(Answer::Compare {
-                before: fixtures::HEAD,
-                after: tip,
-                contains_before: forward,
-                files: Box::new([]),
-                commits: Box::new([]),
-            }),
-        );
+        fixtures::answer_next(&mut d, Ok(design_ancestry(forward)));
         assert!(d.hold(&name()).unwrap().design_writers.is_empty());
         assert_eq!(d.hold(&name()).unwrap().drift.is_none(), forward);
         assert_eq!(d.branch_head(&name()), Some(if forward { tip } else { fixtures::HEAD }));
