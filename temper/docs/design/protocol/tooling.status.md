@@ -21,10 +21,3 @@
   (`temper/crates/temper-worker-domain/src/jobs.rs`), because the
   checkout lays a workspace's repositories out by name
   (`../domain/worker.md`, section 5) and no kind built needs `repos/`.
-- **Not yet:** 4.2: the close job's run on a worker: its checkout at the
-  goal's branch's tip, its command run with `close`, and what it staged
-  committed with one parent and pushed. [in flight: close-job-worker]
-- **Not yet:** 4.2: the close request written and the close job made as
-  a close change's producer. [in flight: close-change]
-- **Not yet:** 4.2: the project's `close_job` read at the start, and the
-  close kind declared by the worker and the engine. [in flight: close-job-service]

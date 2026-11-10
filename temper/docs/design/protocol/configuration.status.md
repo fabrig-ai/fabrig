@@ -266,17 +266,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   the case's project's rule 1, so a box Ask temper configures from the
   reference's description keeps the stock's rule 1 over its goals'
   branches until its owner sets the project's.
-- **Not yet:** 13.9, *template 4's work*: the reference sets
-  `close_out`, which 13.2 makes a change into the landing branch once
-  the goal has landed, so its path draws "close-out" after main's
-  merge; but its charter 5's instructions make the close-out, X, a
-  designer's change into the goal's branch, and land the goal after it
-  (`docs/examples/reference/settings.json`), as
-  `../draft/reference-case.md` has it. `../draft/goal-as-designer.md`,
-  section 2, moves the close-out after the landing, which the reference's
-  charters don't take yet (`../draft/goal-as-designer.status.md`); until
-  then the reference's path draws its close-out where its runs don't
-  make it. [in flight: coordinator-charter]
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
@@ -341,14 +330,3 @@ Section 13.8 has no known gap in a brief's charter bound: the engine
 fits a charter to the smaller of `hub.charter_bytes` and its worker's
 allowance, 65,536 where its process has no local agent
 (`../domain/agent.status.md`, 4.3).
-- **Not yet:** 3: `close_job`, read at the start beside `merge_job` and
-  kept per project. [in flight: close-job-service]
-- **Not yet:** 13.2, 13.4, 13.9: charter 5's instructions without the
-  landing, the close-out, catch-ups, CI selection reads or acceptance
-  checks before landing, with tagged status written up front and the
-  lean report note; its policy's results `last_or_failure` and its
-  questions part on `words`; charter 7 without the close-out; the
-  reference's `template-goal` 4 at design alone. [in flight: coordinator-charter]
-- **Not yet:** 13.4, 13.9: template 4 ended by the goal closer; the
-  stock's and the reference's delegation naming procedure 6 and job 4,
-  and the reference's eighteen executor places. [in flight: template-closer]

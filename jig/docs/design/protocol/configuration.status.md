@@ -40,5 +40,3 @@ figures to the application's page is deferred in section 9.
 
 Section 3's optional clients' `approval` boolean is present, defaults to
 false when absent, and reaches the clients' component's settings.
-- **Not yet:** 3.2: a template's `ended_by` closer, read and checked at
-  the start and delivered to clients. [in flight: jig-closer-carried]
