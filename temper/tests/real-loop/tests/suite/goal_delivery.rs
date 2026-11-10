@@ -69,8 +69,6 @@ fn scripts(_: SocketAddr) -> Box<[Script]> {
     Box::new([Script {
         cue: WORDS.as_bytes().into(),
         turns: Box::new([
-            // The goal's first activation parks while its branch is confirmed.
-            tool(b"wait", &json!({})),
             tool(b"edit", &json!({"path":"README.md","edits":[{"old":"# app\n","new":"# app\nGoal design\n"}]})),
             tool(b"deliver", &json!({"fields":{"title":"Goal design","body":"Write the goal's design."}})),
             tool(b"finish", &json!({"form":"report","text":REPORT,"fields":{}})),

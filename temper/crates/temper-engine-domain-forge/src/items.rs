@@ -68,6 +68,41 @@ impl Domain {
         }
         Some(selected.into_boxed())
     }
+    /// A modifying goal waits for its held branch's taking and owned head
+    /// (temper/docs/design/domain/forge.md, 11.3).
+    #[must_use]
+    pub fn design_workspace_waiting(&self, task: u64) -> bool {
+        for (name, hold) in &self.holds {
+            if hold.task != task {
+                continue;
+            }
+            let provider = api::Repository { forge: name.forge, repository: name.repository };
+            let Some(repository) = self.repository(provider) else { continue };
+            if repository.role == Role::Context {
+                continue;
+            }
+            if let Some((_, goal)) = goal_branch(name, &repository.prefix)
+                && goal == task
+                && self.design_branch_waiting(name)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn design_branch_waiting(&self, name: &crate::Name) -> bool {
+        let undrifted = match self.holds.get(name) {
+            Some(hold) => hold.drift.is_none(),
+            None => false,
+        };
+        let owned = match self.heads.get(name) {
+            Some(head) => head.owned,
+            None => false,
+        };
+        !undrifted || !owned || self.goal_branch_waiting(name)
+    }
+
     /// Select one checkout item from the task's saved and procedure state.
     #[must_use]
     #[expect(
@@ -235,9 +270,17 @@ impl Domain {
                 if name.forge != seed.repository.forge
                     || name.repository != seed.repository.repository
                     || hold.task != seed.task
-                    || hold.drift.is_some()
-                    || (seed.modify && self.goal_branch_waiting(name))
                 {
+                    continue;
+                }
+                if let Some((_, task)) = goal_branch(name, &repository.prefix)
+                    && task == seed.task
+                    && seed.modify
+                    && self.design_branch_waiting(name)
+                {
+                    return None;
+                }
+                if hold.drift.is_some() {
                     continue;
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)

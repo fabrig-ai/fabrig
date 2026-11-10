@@ -1856,6 +1856,10 @@ pub enum Event {
     ReleaseChange {
         task: u64,
     },
+    /// A held goal is active again after its drift was released (forge.md, 11.3).
+    GoalReleased {
+        task: u64,
+    },
     /// Wait for a closing task's prior effects before cleanup begins.
     SettleEffects {
         task: u64,

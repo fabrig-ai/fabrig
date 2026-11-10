@@ -111,6 +111,22 @@ pub(super) fn base_wait(d: &Domain, repository: skein_forge::api::Repository, ba
     false
 }
 
+/// A released drift is read before the goal can write design again (forge.md, 11.3).
+pub(super) fn accept_release(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let mut names = List::with_capacity(env.limits.holds);
+    for (name, hold) in &d.holds {
+        if hold.task == task && hold.drift.is_some() && is_goal(d, name) {
+            names.push(name.clone()).expect("goal branches bounded by holds");
+        }
+    }
+    for name in &names {
+        let hold = d.holds.get_mut(name).expect("collected goal hold");
+        hold.drift = None;
+        save_hold(out, hold.clone());
+        start(d, env, name.clone(), None, out);
+    }
+}
+
 pub(super) fn start(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option<u64>, out: &mut Queue<Request>) {
     if !is_goal(d, &name)
         || reading(d, &name)
@@ -191,6 +207,9 @@ fn read_result(
             let head = BranchHead { name: pending.name.clone(), commit, owned: true };
             if d.heads.insert(pending.name.clone(), head.clone()).is_ok() {
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+            }
+            if let Some(resource) = to_client(&pending.name, &env.limits) {
+                child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
             }
             wake(d, &pending.name);
             released(d, pending.task, out);

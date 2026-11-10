@@ -6,7 +6,7 @@ use super::{
 };
 use crate::Range;
 use crate::assemble::{brief_outputs, finish_brief_plan, take_payload};
-use crate::boundary::{EndedRead, Payload};
+use crate::boundary::{EndedRead, Payload, WorkspacePreparation};
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
@@ -85,14 +85,21 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections, documents } => {
-            finish_brief_plan(domain, env, task, parent, sections, documents);
+            if waiting_for_design(domain, task) {
+                domain
+                    .run_workspaces
+                    .insert(task, WorkspacePreparation::Brief { parent, sections, documents })
+                    .expect("one brief plan per live task");
+            } else {
+                finish_brief_plan(domain, env, task, parent, sections, documents);
+            }
         }
         core::Now::CompleteBrief { brief, order } => {
             let mut child = Queue::with_capacity(1);
             child.push(brief::GatherRequest::Complete { brief, order });
             brief_outputs(domain, env, decision, &mut child);
         }
-        core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, &context),
+        core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, context),
         core::Now::BriefFailed { task, failure } => {
             let counts = match failure.fate {
                 brief::GatherFate::Capacity => "capacity",
@@ -255,9 +262,16 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
     }
 }
 
-fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: &tasks::RunContext) {
+fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: Box<tasks::RunContext>) {
+    if waiting_for_design(domain, task) {
+        domain
+            .run_workspaces
+            .insert(task, WorkspacePreparation::Workspace { attempt, context })
+            .expect("one workspace request per live task");
+        return;
+    }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
-    let workspace = forge_route::run_workspace(domain, env, context, attempt);
+    let workspace = forge_route::run_workspace(domain, env, &context, attempt);
     let writes = match workspace {
         Some(workspace) => {
             match forge_route::claim_names(domain, &env.limits, task, &workspace.names, &workspace.designs) {
@@ -271,7 +285,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
                     }
                     let writes = workspace.writes.clone();
                     let inserted =
-                        match domain.run_workspaces.insert(task, PreparedWorkspace { workspace, claim_names }) {
+                        match domain.run_workspaces.insert(task, WorkspacePreparation::Ready(PreparedWorkspace { workspace, claim_names })) {
                             Ok(None) => true,
                             Ok(Some(_)) | Err(_) => false,
                         };
@@ -293,7 +307,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     };
     let job_workspace = if job
         && match domain.run_workspaces.get(&task) {
-            Some(prepared) => !prepared.workspace.workspace.repositories.is_empty(),
+            Some(prepared) => !prepared.prepared().workspace.workspace.repositories.is_empty(),
             None => false,
         } {
         Some(Box::from(task.to_le_bytes().as_slice()))
@@ -302,7 +316,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     };
     let holds = if job {
         match domain.run_workspaces.get(&task) {
-            Some(prepared) => workspace_holds(domain, env, &prepared.workspace),
+            Some(prepared) => workspace_holds(domain, env, &prepared.prepared().workspace),
             None => Box::new([]),
         }
     } else {
@@ -316,6 +330,43 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         credentials,
         workspace: job_workspace,
     }));
+}
+
+fn waiting_for_design(domain: &Domain, task: u64) -> bool {
+    let Some(context) = domain.core.tasks.run_context(task) else { return false };
+    let charter = match context.executor {
+        tasks::Executor::Agent { charter } => charter,
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return false,
+    };
+    let Some(charter) = domain.core.charter(charter) else { return false };
+    charter.policy.modify && !crate::no_workspace(&charter.policy) && domain.forge.design_workspace_waiting(task)
+}
+
+/// Retry only after the forge changes: a taking, its confirmation or a drift release.
+pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
+    let mut ready = List::with_capacity(env.limits.tasks.tasks);
+    for (task, preparation) in &domain.run_workspaces {
+        let waiting = match preparation {
+            WorkspacePreparation::Ready(_) => false,
+            WorkspacePreparation::Brief { .. } | WorkspacePreparation::Workspace { .. } => true,
+        };
+        if waiting && !waiting_for_design(domain, *task) {
+            ready.push(*task).expect("waiting workspaces bounded by live tasks");
+        }
+    }
+    for task in &ready {
+        let pending = domain.run_workspaces.remove(task).expect("collected preparation wait");
+        if domain.core.tasks.run_context(*task).is_none() {
+            continue;
+        }
+        match pending {
+            WorkspacePreparation::Ready(_) => unreachable!("only waiting preparations were collected"),
+            WorkspacePreparation::Brief { parent, sections, documents } => {
+                finish_brief_plan(domain, env, *task, parent, sections, documents);
+            }
+            WorkspacePreparation::Workspace { attempt, context } => workspace(domain, env, *task, attempt, context),
+        }
+    }
 }
 
 struct Prepared {
@@ -340,7 +391,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     }
     let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =
-        domain.run_workspaces.remove(&task).expect("prepared connector workspace");
+        domain.run_workspaces.remove(&task).expect("prepared connector workspace").into_prepared();
     let mut records = List::with_capacity(domain.limits.call_records);
     for key in answered {
         let answer = super::call_answer(domain, key).expect("live call part has its connector answer");

@@ -49,16 +49,6 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
     let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     world.until(Until::Ready);
-    // The first assignment can precede g's confirmation. Consume that news so
-    // the story starts with the confirmed goal's delivery workspace.
-    super::park_chat(&mut world, &goal);
-    let goal = world
-        .assigned
-        .iter()
-        .rev()
-        .find(|run| run.task == goal.task && run.attempt > goal.attempt)
-        .expect("confirmation wakes the delivery run")
-        .clone();
     (world, goal, branch)
 }
 

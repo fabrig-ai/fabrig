@@ -1740,6 +1740,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             );
         }
         Event::ReleaseChange { task } => release_change(d, env, task, out),
+        Event::GoalReleased { task } => goal_branch::accept_release(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
         Event::SavedWork { task, branches } => saved_work(d, env, task, &branches, out),
         Event::Release { task, root, ending, reason, entry } => release(d, env, task, root, ending, reason, entry, out),

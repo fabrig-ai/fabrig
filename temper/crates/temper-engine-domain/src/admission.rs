@@ -147,6 +147,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }
             | forge::Event::ReleaseChange { .. }
+            | forge::Event::GoalReleased { .. }
             | forge::Event::SettleEffects { .. }
             | forge::Event::Release { .. }
             | forge::Event::ContinueRelease { .. }

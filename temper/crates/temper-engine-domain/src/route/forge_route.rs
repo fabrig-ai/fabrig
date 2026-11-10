@@ -5340,6 +5340,9 @@ pub(crate) fn outputs(
             }
         }
     }
+    if !domain.run_workspaces.is_empty() {
+        super::now::resume_workspaces(domain, env);
+    }
 }
 
 /// Connector-owned effect data while the core chooses its requirements.
