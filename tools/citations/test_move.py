@@ -303,12 +303,93 @@ sys.exit(module['main'](['move.map']))
         self.assertEqual(self.git("write-tree"), index)
         self.assertFalse((self.root / f"{DESIGN}/sub").exists())
 
+    def test_directory_destinations_cannot_merge(self):
+        self.write(f"{DESIGN}/x/first.md", DOC)
+        self.write(f"{DESIGN}/y/second.md", DOC)
+        self.commit("directories")
+        before = self.snapshot()
+        for mapping, error in (
+            (f"{DESIGN}/x/ -> {DESIGN}/y/", "destination exists"),
+            (f"{DESIGN}/x/ -> {DESIGN}/new/\n{DESIGN}/y/ -> {DESIGN}/new/", "two directory sources"),
+        ):
+            result = self.move(mapping)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(error, result.stderr)
+            self.assertEqual(self.snapshot(), before)
+        self.clean_check()
+
+    def test_directory_swap_applies_together(self):
+        self.write(f"{DESIGN}/x/first.md", DOC)
+        self.write(f"{DESIGN}/y/second.md", DOC)
+        self.write(B, "# b\n\nSee `x/first.md`, 2, and [second](y/second.md).\n")
+        self.commit("directories")
+        self.apply(f"{DESIGN}/x/ -> {DESIGN}/y/\n{DESIGN}/y/ -> {DESIGN}/x/\n")
+        self.assertEqual(self.read(B), "# b\n\nSee `y/first.md`, 2, and [second](x/second.md).\n")
+        self.clean_check()
+
+    def test_line_endings_and_non_utf8_bytes_are_preserved(self):
+        raw = DOC.replace("\n", "\r\n").encode() + b"\r\nOpaque: \xff.\r\n"
+        (self.root / A).write_bytes(raw)
+        self.commit("bytes")
+        self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertEqual((self.root / f"{DESIGN}/sub/a.md").read_bytes(), raw)
+        self.clean_check()
+
+    def test_unaffected_readings_are_left_alone(self):
+        self.write(f"{DESIGN}/keep.md", DOC)
+        self.write(f"{DESIGN}/other.md", "# other\n\nSee [keep](keep.md); section 2.1.\n")
+        self.commit("unaffected")
+        self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertEqual(self.read(f"{DESIGN}/other.md"), "# other\n\nSee [keep](keep.md); section 2.1.\n")
+        self.clean_check()
+
+    def test_status_citation_keeps_status_target(self):
+        self.write(f"{DESIGN}/a.status.md", "# status\n\nNo gaps.\n")
+        self.write(B, "# b\n\nSee `a.status.md`, section 2.1.\n")
+        self.commit("status target")
+        self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertEqual(self.read(B), "# b\n\nSee `sub/a.status.md`, section 2.1.\n")
+        self.clean_check()
+
+    def test_untracked_markdown_is_not_a_resolution_candidate(self):
+        self.write(f"{DESIGN}/tracked/t.md", DOC)
+        self.write(B, "# b\n\nSee `t.md`, 2.1.\n")
+        self.commit("tracked")
+        self.write(f"{DESIGN}/untracked/t.md", "# untracked\n\n## 9. Nine\n")
+        self.apply(f"{DESIGN}/tracked/t.md -> {DESIGN}/new.md\n")
+        self.assertEqual(self.read(B), "# b\n\nSee `new.md`, 2.1.\n")
+        (self.root / f"{DESIGN}/untracked/t.md").unlink()
+        self.clean_check()
+
+    def test_list_target_and_sentence_antecedent_bare_sections(self):
+        self.write(B, "# b\n\n- **`a.md`:** See section 2.1.\n\nSee [a](a.md); section 2.1.\n")
+        self.commit("antecedents")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n- **`a.md`:** See `new.md`, section 4.1.\n\nSee [a](a.md); `new.md`, section 4.1.\n")
+        self.clean_check()
+
+    def test_encoded_anchor_and_html_heading_text(self):
+        self.write(A, DOC.replace("2.1 Part", "2.1 Café &amp; cake"))
+        self.write(B, "# b\n\n[part](a.md#21-caf%C3%A9--cake).\n")
+        self.commit("encoded anchor")
+        self.apply(f"{A} 2.1 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n[part](new.md#4-caf%C3%A9--cake).\n")
+        self.clean_check()
+
+    def test_allow_targets_with_multiple_candidate_documents(self):
+        self.write("tools/citations/allow.txt", f"{B} {A}|{B} 2.1 # shared target\n")
+        self.commit("allow candidates")
+        self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertEqual(self.read("tools/citations/allow.txt"), f"{B} {DESIGN}/sub/a.md|{B} 2.1 # shared target\n")
+        self.clean_check()
+
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
         cases = [
             (f"{DESIGN}/gone.md -> {DESIGN}/new.md", "source does not exist"),
             (f"{A} 9 -> {B} 4", "source section"),
             (f"{A} -> {DESIGN}/new.md\n{B} -> {DESIGN}/new.md", "two sources"),
             (f"{A} -> {B}", "two sources"),
+            (f"{A} -> {DESIGN}/new.md\n{B} -> {DESIGN}/new.md/b.md", "parent is a file"),
             (f"{A} 2 -> {DESIGN}/new.md 4", "title"),
             (f"{A} -> elsewhere/new.md", "five trees"),
             (f"{A} -> skein/crates/new.md", "five trees"),
