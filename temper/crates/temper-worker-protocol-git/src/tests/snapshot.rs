@@ -8,14 +8,15 @@ use skein_io::Request as Io;
 use temper_worker_domain_checkout::git;
 
 fn delivery() -> Started {
-    delivery_with_fresh_commit(false)
+    delivery_with_fresh_commit(false, fixtures::PARENT)
 }
 
-fn delivery_with_fresh_commit(fresh: bool) -> Started {
+fn delivery_with_fresh_commit(fresh: bool, saved: git::Commit) -> Started {
     let mut started = Started::new();
     let mut op = fixtures::commit_op(None);
-    let git::Op::Commit { snapshot, always, .. } = &mut op else { unreachable!() };
+    let git::Op::Commit { snapshot, always, parent, .. } = &mut op else { unreachable!() };
     *always = fresh;
+    *parent = saved;
     *snapshot = Some(git::Snapshot { remote: Box::from(fixtures::REMOTE), account: Some(7) });
     started.down(Request::Io {
         owner: fixtures::OWNER,
@@ -140,7 +141,7 @@ fn a_second_parent_only_in_the_checkout_refuses_delivery_before_staging() {
 
 #[test]
 fn a_checked_delivery_after_an_unchecked_save_makes_a_fresh_equal_tree_commit() {
-    let mut started = delivery_with_fresh_commit(true);
+    let mut started = delivery_with_fresh_commit(true, fixtures::COMMIT);
     let saved = fixtures::COMMIT;
     let checked = fixtures::PARENT;
     read_head(&mut started, saved, None);
@@ -152,4 +153,16 @@ fn a_checked_delivery_after_an_unchecked_save_makes_a_fresh_equal_tree_commit() 
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: checked })));
     assert_ne!(saved, checked);
     assert!(started.below.out.io.is_empty());
+}
+
+#[test]
+fn a_producers_local_commit_after_an_unchecked_save_is_kept() {
+    let mut started = delivery_with_fresh_commit(true, fixtures::PARENT);
+    let head = fixtures::COMMIT;
+    read_head(&mut started, head, None);
+    answer(&mut started, Command::SnapshotMerge { head, second: None }, 1, b"");
+    answer(&mut started, Command::Add, 0, b"");
+    answer(&mut started, Command::DiffIndex { parent: head }, 0, b"");
+    assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: head })));
+    assert!(started.below.out.io.is_empty(), "the producer's commit already replaces the unchecked head");
 }

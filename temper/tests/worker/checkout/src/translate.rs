@@ -145,12 +145,15 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             checked_out.expect("a checkout is of a commit fetched into the repository");
             Done::Succeeded
         }
-        Op::Commit { at, mut parent, mut merging, always, title, body, identity: _, snapshot } => {
+        Op::Commit { at, mut parent, mut merging, mut always, title, body, identity: _, snapshot } => {
             assert_cloned(disk, &at);
             assert!(!title.is_empty(), "a commit has a title");
             if let Some(snapshot) = &snapshot {
                 let head = local_head(disk, &at, b"temper-head").expect("a prepared checkout has HEAD");
                 merging = local_head(disk, &at, b"MERGE_HEAD").or(if head == parent { merging } else { None });
+                if head != parent {
+                    always = false;
+                }
                 parent = head;
                 if let Some(second) = merging.map(fake).or_else(|| forge.merge_parent(fake(head))) {
                     let heads = match forge.heads(&snapshot.remote) {

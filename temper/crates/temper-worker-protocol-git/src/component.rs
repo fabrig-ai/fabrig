@@ -263,9 +263,12 @@ impl Component {
         let next = match next {
             Next::Snapshot { parent, merging } => {
                 let operation = self.slots.get_mut(id).expect("live snapshot");
-                let Some(git::Op::Commit { parent: target, merging: second, .. }) = &mut operation.op else {
+                let Some(git::Op::Commit { parent: target, merging: second, always, .. }) = &mut operation.op else {
                     unreachable!("snapshot sequence belongs to a commit")
                 };
+                if *target != parent {
+                    *always = false;
+                }
                 *target = parent;
                 *second = merging;
                 let command = if merging.is_some() { Command::Unmerged } else { Command::Add };

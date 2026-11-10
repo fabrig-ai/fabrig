@@ -646,7 +646,7 @@ runs as contained processes and whose output it parses.
   merge state: an in-progress merge records HEAD and MERGE_HEAD as its two
   parents, even when its resolution is already staged. A committed merge
   keeps its ancestry. When the delivered tree is HEAD's tree and no merge
-  is in progress and this hold's previous push was no unchecked save, the
+  is in progress and HEAD is not this hold's unchecked saved commit, the
   worker delivers that commit unchanged, retaining the producer's message and identity. Edits beyond a local commit build on that
   commit. A second parent, in progress or at HEAD, must be reachable from a
   branch or tag on the delivery branch's remote; otherwise delivery refuses,

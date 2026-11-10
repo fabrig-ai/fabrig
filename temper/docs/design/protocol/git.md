@@ -392,7 +392,9 @@ git log -1 --format='%H %P' HEAD --                    HEAD and its committed pa
 git rev-parse --verify --quiet MERGE_HEAD             exit 1: no merge in progress
 ```
 
-HEAD replaces `parent`. MERGE_HEAD, when present, replaces `merging`.
+HEAD replaces `parent`. A different HEAD is already a replacement for an
+unchecked save, so it clears `always`; a matching local commit is kept.
+MERGE_HEAD, when present, replaces `merging`.
 Without MERGE_HEAD, a changed HEAD means a producer's committed work and
 clears the remembered `merging`; an unchanged HEAD retains an explicit
 second parent the domain named, even if git wrote no MERGE_HEAD. More than

@@ -12,11 +12,11 @@ use temper_worker_protocol_git::{
     sequence::{self, Next},
 };
 
-fn deliver(scenario: &mut Scenario, unchecked: bool) -> git::Done {
+fn deliver(scenario: &mut Scenario, unchecked: bool, saved: Option<u64>) -> git::Done {
     let mut op = git::Op::Commit {
-        always: false,
+        always: saved.is_some(),
         at: git::Place { workspace: Token::new(1), repository: b"specimen".as_slice().into(), git: None },
-        parent: translate::commit(scenario.base),
+        parent: translate::commit(saved.unwrap_or(scenario.base)),
         merging: None,
         title: if unchecked {
             b"Unchecked: work in progress, saved before a question".as_slice().into()
@@ -35,7 +35,10 @@ fn deliver(scenario: &mut Scenario, unchecked: bool) -> git::Done {
                 sequence::after(&op, &command, answer.exit, &answer.stdout, &answer.stderr, 0, &LIMITS)
             }
             Next::Snapshot { parent, merging } => {
-                let git::Op::Commit { parent: target, merging: second, .. } = &mut op else { unreachable!() };
+                let git::Op::Commit { parent: target, merging: second, always, .. } = &mut op else { unreachable!() };
+                if *target != parent {
+                    *always = false;
+                }
                 *target = parent;
                 *second = merging;
                 Next::Run(if merging.is_some() { Command::Unmerged } else { Command::Add })
@@ -72,7 +75,9 @@ fn a_staged_merge_delivers_both_parents_and_a_committed_merge_keeps_its_id() {
             } else {
                 None
             };
-            let git::Done::Committed { commit } = deliver(&mut scenario, unchecked) else { panic!("delivered merge") };
+            let git::Done::Committed { commit } = deliver(&mut scenario, unchecked, None) else {
+                panic!("delivered merge")
+            };
             let delivered = translate::fake(commit);
             assert_eq!(scenario.transport.parent(delivered), Some(base));
             assert_eq!(scenario.transport.merge_parent(delivered), Some(topic));
@@ -88,19 +93,60 @@ fn a_staged_merge_delivers_both_parents_and_a_committed_merge_keeps_its_id() {
 #[test]
 fn a_producers_local_commit_is_kept_when_its_tree_is_delivered() {
     for unchecked in [false, true] {
-        let mut scenario = hosted::scenario();
-        scenario.checkout.write(&[scenario.at.as_slice(), b"/new"].concat(), b"checked work");
-        let existing = local::commit(
-            &mut scenario.transport,
-            &mut scenario.checkout,
-            &scenario.at,
-            scenario.base,
-            b"Producer's commit",
-        )
-        .expect("local parent")
-        .expect("new file");
-        assert_eq!(deliver(&mut scenario, unchecked), git::Done::Committed { commit: translate::commit(existing) });
-        assert_eq!(scenario.transport.message(existing), b"Producer's commit");
+        for after_save in [false, true] {
+            let mut scenario = hosted::scenario();
+            let place = git::Place { workspace: Token::new(1), repository: b"specimen".as_slice().into(), git: None };
+            let at = translate::path(&place);
+            for (path, content) in scenario.checkout.tree(&scenario.at) {
+                scenario.checkout.write(&[at.as_slice(), b"/", &path].concat(), &content);
+            }
+            scenario.at = at;
+            let saved = if after_save {
+                scenario.checkout.write(&[scenario.at.as_slice(), b"/saved"].concat(), b"work in progress");
+                Some(
+                    local::commit(
+                        &mut scenario.transport,
+                        &mut scenario.checkout,
+                        &scenario.at,
+                        scenario.base,
+                        b"Unchecked: work in progress, saved before a question",
+                    )
+                    .expect("local parent")
+                    .expect("saved work"),
+                )
+            } else {
+                None
+            };
+            scenario.checkout.write(&[scenario.at.as_slice(), b"/new"].concat(), b"checked work");
+            let existing = local::commit(
+                &mut scenario.transport,
+                &mut scenario.checkout,
+                &scenario.at,
+                saved.unwrap_or(scenario.base),
+                b"Producer's commit",
+            )
+            .expect("local parent")
+            .expect("new file");
+            assert_eq!(
+                deliver(&mut scenario, unchecked, saved),
+                git::Done::Committed { commit: translate::commit(existing) }
+            );
+            assert_eq!(scenario.transport.message(existing), b"Producer's commit");
+            let op = git::Op::Commit {
+                always: saved.is_some(),
+                at: git::Place { workspace: Token::new(1), repository: b"specimen".as_slice().into(), git: None },
+                parent: translate::commit(saved.unwrap_or(scenario.base)),
+                merging: None,
+                title: b"Delivery".as_slice().into(),
+                body: Box::default(),
+                identity: 1,
+                snapshot: Some(git::Snapshot { remote: scenario.remote.clone().into(), account: None }),
+            };
+            assert_eq!(
+                translate::perform(&mut scenario.transport, &mut scenario.checkout, op),
+                git::Done::Committed { commit: translate::commit(existing) }
+            );
+        }
     }
 }
 
@@ -134,7 +180,7 @@ fn an_unpushed_second_parent_refuses_a_staged_or_committed_merge() {
                 )
                 .expect("staged merge");
             }
-            let git::Done::FailedWithOutput { fault, diagnostic } = deliver(&mut scenario, unchecked) else {
+            let git::Done::FailedWithOutput { fault, diagnostic } = deliver(&mut scenario, unchecked, None) else {
                 panic!("refused merge")
             };
             assert_eq!(fault, git::Fault::Refused);
