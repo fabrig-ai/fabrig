@@ -1,4 +1,4 @@
-//! Settings heads share the party proposal lifecycle (tasks.md, section 9).
+//! Settings heads share the party proposal lifecycle (domain/tasks/proposals.md).
 #![expect(clippy::disallowed_methods, reason = "step tests are ordinary Rust (programming-model.md, 10.2)")]
 #![expect(
     clippy::wildcard_enum_match_arm,

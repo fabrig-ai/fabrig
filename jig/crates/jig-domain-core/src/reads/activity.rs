@@ -1,4 +1,4 @@
-//! A page's joined transcript identity belongs to its immutable line (store.md, 7.3).
+//! A page's joined transcript identity belongs to its immutable line (protocol/store/loads.md, 3).
 use crate::{
     CoreRecord, Record,
     documents::Missing,

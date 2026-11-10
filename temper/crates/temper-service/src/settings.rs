@@ -84,7 +84,7 @@ pub struct Seeds {
     /// The local link's first secret supplied by the box (temper/docs/design/protocol/setup.md, 7.1).
     pub local_secret: Option<Secret>,
     /// The installation's identifier drawn for a first start; a later start
-    /// sends the one its store keeps (jig's configuration.md, 8).
+    /// sends the one its store keeps (jig's configuration.md, 7).
     pub installation: [u8; 16],
 }
 

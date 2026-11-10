@@ -1,4 +1,4 @@
-//! Named calls retained by live runs (`jig/docs/design/domain/engine.md`, sections 4 and 7).
+//! Named calls retained by live runs (`jig/docs/design/domain/engine/README.md`, section 4 and `jig/docs/design/domain/engine/executors.md`).
 use crate::{CallKey, CallPart, Core, CoreKey, Key, start};
 use alloc::boxed::Box;
 use skein_lib::List;

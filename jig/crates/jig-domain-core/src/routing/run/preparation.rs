@@ -1,5 +1,5 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
-//! notes and account children (`domain/engine.md`, sections 4.4 and 7.2).
+//! notes and account children (`domain/engine/README.md`, section 4.4, and `domain/engine/executors.md`, section 2).
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
@@ -664,7 +664,7 @@ pub(crate) fn route_preparation_failed(
     out
 }
 
-/// One classification and log route for every brief failure (engine.md, 9.1).
+/// One classification and log route for every brief failure (domain/engine/briefs.md, 1.1).
 pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out: &mut Queue<Request>) -> tasks::Event {
     out.push(Request::Now(Box::new(Now::BriefFailed { task, failure })));
     let reason = failure.reason();

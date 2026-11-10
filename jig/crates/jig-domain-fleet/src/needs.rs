@@ -1,9 +1,9 @@
-//! Agent admission and model eligibility for configured charters (domain/engine.md, section 8).
+//! Agent admission and model eligibility for configured charters (domain/engine/fleet.md).
 use crate::{Bounds, Figures, HostKind, Kinds};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, length::len_u64};
 
-/// A charter version's name (engine.md, 17.3).
+/// A charter version's name (domain/engine/settings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Version {
     pub charter: u32,
@@ -67,7 +67,7 @@ pub(crate) fn owned_bytes(needs: &Needs) -> Option<u64> {
 /// Checks applicable charters in their configured order, then deployment-wide
 /// bounds if any charter applies. Missing endpoints narrow placement eligibility;
 /// only models on endpoints the host declares have their window and output checked here.
-/// This is the same decision used for hello admission (domain/engine.md, section 8).
+/// This is the same decision used for hello admission (domain/engine/fleet.md).
 #[must_use]
 pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<AgentShortfall> {
     let mut applicable = false;
@@ -302,7 +302,7 @@ pub(crate) fn allows_models(needs: &Needs, declarations: &[bool], models: &[Mode
     true
 }
 
-/// Endpoint evidence uses the core catalogue's count ceiling (configuration.md, 6).
+/// Endpoint evidence uses the core catalogue's count ceiling (protocol/limits.md).
 pub const CATALOGUE_MODELS: u32 = 64;
 pub const CATALOGUE_NAME_BYTES: u32 = 4096;
 

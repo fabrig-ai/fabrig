@@ -488,7 +488,7 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
 }
 
 /// Rebuild the derived inbox from the census's ended owners, after people's
-/// read positions restored (jig's `protocol/store.md`, 7.2).
+/// read positions restored (jig's `protocol/store/loads.md`, 2).
 fn census_page(
     domain: &mut Domain,
     env: &Env<Limits>,

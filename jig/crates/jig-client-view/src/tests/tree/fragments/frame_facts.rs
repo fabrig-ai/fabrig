@@ -269,7 +269,7 @@ fn the_banner_shows_a_whole_multibyte_project_name() {
     const NAME_BYTES: usize = 64;
 
     let mut goldens = Goldens::new("tree/fragments/frame_facts/the_banner_shows");
-    // configuration.md, 6: project names admit 64 UTF-8 bytes.
+    // protocol/limits.md: project names admit 64 UTF-8 bytes.
 
     assert_eq!(NAME.len(), NAME_BYTES);
     let mut source = document();

@@ -1,4 +1,4 @@
-//! Field-for-field document values (client/domain/contract.md, 5–7).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
 
 pub(crate) fn chip_fields(value: &w::Chip, limits: &Limits) -> Result<c::Chip, w::Problem> {

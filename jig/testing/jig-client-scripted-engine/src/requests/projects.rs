@@ -1,4 +1,4 @@
-//! The scripted project requests (contract.md, 3.2, 4 and 7.5).
+//! The scripted project requests (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3 and 5.5).
 use crate::{Application, Change, Engine, Invalid};
 use jig_client_domain::contract::{
     AdmissionLimit, Answer, Ask, DocumentOutcome, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule,
@@ -180,7 +180,7 @@ fn refused(refusal: Refusal) -> (Answer, Vec<Change>) {
     (Answer::Refused { refusal, at: None }, Vec::new())
 }
 
-// Keep the name shape identical to the project's rule (core.md, 6.1).
+// Keep the name shape identical to the project's rule (domain/model.md, 6.1).
 fn name_rule(name: &str) -> Option<NameRule> {
     if name.is_empty() {
         return Some(NameRule::Empty);

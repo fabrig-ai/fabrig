@@ -4208,8 +4208,8 @@ fn direction_messages(observed: &Observed, misses: &mut Vec<Miss>) {
 
 // Full journals, including pages with the starts of earlier runs. Procedures
 // have journal lines but no agent attempts. A refused placement recheck is
-// allowed only for B's first admission, at zero spend (jig's domain/engine.md,
-// 7.1: queued placement losing its selected slot returns the claim without a
+// allowed only for B's first admission, at zero spend (jig's domain/engine/executors.md,
+// 1: queued placement losing its selected slot returns the claim without a
 // failed try; jig-domain-fleet's attempt.rs, resume, and jig-domain-core's
 // routing/children.rs translate Recheck to the journal's refused ending).
 // B and the director now fit on one page. Retain support for an earlier

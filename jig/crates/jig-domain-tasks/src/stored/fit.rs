@@ -1,4 +1,4 @@
-//! Configuration and retained-value bounds at load (jig/docs/design/domain/engine.md, 6).
+//! Configuration and retained-value bounds at load (jig/docs/design/domain/engine/restart.md).
 use crate::{
     Amendment, Authority, Contract, Domain, Ending, Executor, HoldSource, Last, Limits, MessageFamily, MessageKind,
     New, Numbers, Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause,

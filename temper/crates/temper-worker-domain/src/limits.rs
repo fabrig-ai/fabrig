@@ -11,7 +11,7 @@ use crate::translate::SAVED;
 
 /// The worker domain's limits (section 7), handed to every step read-only: its
 /// child domains', each handed down to the one it bounds, and what the hub's
-/// hello says (jig's `domain/hosts.md`, section 2).
+/// hello says (jig's `domain/hosts/README.md`, section 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub host: host::Limits,
@@ -28,7 +28,7 @@ pub struct Limits {
     /// place only what fits.
     pub bounds: Bounds,
     /// The longest the worker may take to stop a run it lost contact for
-    /// (`domain/worker.md`, section 2; jig's `domain/hosts.md`, 6.6), which
+    /// (`domain/worker.md`, section 2; jig's `domain/hosts/hub.md`, 6), which
     /// its configuration derives and the hello states. The engine's grace is
     /// strictly longer.
     pub stop_bound: Duration,

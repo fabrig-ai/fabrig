@@ -1,4 +1,4 @@
-//! Field-for-field document values (client/domain/contract.md, 5–7).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use super::{Limits, List, Wall, application_part_piece, c, object_key_fields, text, too_large, w};
 
 pub(crate) fn provisional_turn_name_fields(value: &w::ProvisionalTurnName) -> c::ProvisionalTurnName {

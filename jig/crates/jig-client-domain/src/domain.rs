@@ -1,4 +1,4 @@
-//! Client-owned handles over shared engine watches (client/domain/client.md, 8.1).
+//! Client-owned handles over shared engine watches (client/domain/client/watches.md, 1).
 use crate::{Document, Down, Event, Handle, Latest, Limits, Request, State, Told, Watchable, Why, watches::Watch};
 use skein_lib::{Env, List, Map, Queue, RequestTable, Rng, Time, Token};
 #[derive(Debug)]

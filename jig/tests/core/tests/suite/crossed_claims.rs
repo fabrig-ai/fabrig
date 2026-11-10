@@ -1,4 +1,4 @@
-//! engine.md, 15: a fresh mark stops a live resumed claim before retrying.
+//! domain/engine/README.md, 9: a fresh mark stops a live resumed claim before retrying.
 
 use crate::fresh_windows;
 use jig_core_world::world::Setup;
@@ -172,7 +172,7 @@ fn a_second_mark_before_the_next_attempts_first_turn_crosses_it_again() {
     world.advance(Duration::from_millis(100));
     fresh_windows::fresh(&world);
     assert!(fresh_windows::proof(&world).attempt > attempt);
-    // engine.md, 16's default: no current window was committed by the
+    // domain/engine/README.md, 10's default: no current window was committed by the
     // intervening fresh attempt, so its successor loses the old tail.
     assert_eq!(fresh_windows::tail(&world), None);
 }

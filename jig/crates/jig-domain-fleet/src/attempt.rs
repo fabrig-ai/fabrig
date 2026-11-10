@@ -1,4 +1,4 @@
-//! The attempts the fleet tracks (domain/engine.md, 4.2 and section 8): each
+//! The attempts the fleet tracks (domain/engine/README.md, 4.2 and domain/engine/fleet.md): each
 //! the parent's claim on a run, from its start or its adoption to the
 //! parent's acknowledgement of its answer; or one a worker hosts or holds the
 //! answer of that the parent has not claimed.
@@ -164,7 +164,7 @@ pub(crate) enum State {
     Claimed { claiming: Claiming, at: Where },
     /// Cancelled by the parent: its answer still ends the call.
     Cancelled { to: ReplyTo, at: Where },
-    /// Restored across a fresh mark (domain/engine.md, 6 step 3 and 7.2):
+    /// Restored across a fresh mark (domain/engine/restart.md step 3 and 7.2):
     /// never adopted. Its run is cancelled when listed, and the parent's
     /// call ends lost once it answers. At its adrift grace, it ends lost if
     /// a worker listed it or it committed work, otherwise not started.
@@ -331,7 +331,7 @@ pub(crate) fn start(
     true
 }
 
-/// A job shares claims, slots and recovery with runs (jig/docs/design/domain/engine.md, 7.5).
+/// A job shares claims, slots and recovery with runs (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn start_job(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -545,9 +545,9 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
 }
 
 /// The engine has settled this claim itself. Releasing its placement does
-/// not tell the host: the service ends it after draining (engine.md, 6.1).
+/// not tell the host: the service ends it after draining (domain/engine/restart.md, 1).
 /// Relayed calls keep only their answer correlation until the parent answers;
-/// their retired attempt makes that answer a drop (engine.md, section 8).
+/// their retired attempt makes that answer a drop (domain/engine/fleet.md).
 pub(crate) fn interrupt(domain: &mut Domain, run: Token, attempt: Token, out: &mut Queue<Request>) {
     let Some(&id) = domain.names.get(&(run, attempt)) else { return };
     let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");

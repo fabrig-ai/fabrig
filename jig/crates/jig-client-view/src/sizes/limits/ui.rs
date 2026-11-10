@@ -1,4 +1,4 @@
-//! The reference UI's windows, folds and page bounds (jig/docs/design/client/domain/view.md, 18.9).
+//! The reference UI's windows, folds and page bounds (jig/docs/design/client/domain/view-state.md, 9).
 use skein_lib::Duration;
 
 /// Presentation capacities and durations added by the reference UI.

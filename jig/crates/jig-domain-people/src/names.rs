@@ -1,7 +1,7 @@
-//! Project names' shape and Unicode simple case folding (domain/core.md, 6.1).
+//! Project names' shape and Unicode simple case folding (domain/model.md, 6.1).
 mod fold;
 
-/// Why a project's name is out of shape (core.md, 6.1).
+/// Why a project's name is out of shape (domain/model.md, 6.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NameRule {
     Empty,

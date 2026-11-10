@@ -1,4 +1,4 @@
-//! Catalogue routing before the commit (jig/docs/design/domain/engine.md, 17.11).
+//! Catalogue routing before the commit (jig/docs/design/domain/engine/settings.md, 11).
 use super::fixtures;
 use crate::{Request, Write};
 use jig_domain_core::{

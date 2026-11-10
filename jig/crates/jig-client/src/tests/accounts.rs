@@ -1,4 +1,4 @@
-//! Account moves use the once path and the ordinary written request (client/domain/client.md, 6).
+//! Account moves use the once path and the ordinary written request (client/domain/client/requests.md).
 use super::fixtures::STOP;
 use crate::{
     Ask, Event, accounts,

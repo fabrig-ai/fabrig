@@ -1,4 +1,4 @@
-//! One paced SSE writer (protocol/client.md, 17.2).
+//! One paced SSE writer (protocol/client/default-http.md, 2).
 use crate::{Limits, Request, call::Call};
 use alloc::boxed::Box;
 use jig_protocol_engine_clients::{Ended, FromTransport, Streamed};

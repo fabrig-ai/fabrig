@@ -1,4 +1,4 @@
-//! The store alone encodes secrets envelopes; held bytes remain opaque (store.md 9).
+//! The store alone encodes secrets envelopes; held bytes remain opaque (protocol/store/secrets.md).
 #[cfg(test)]
 mod tests;
 

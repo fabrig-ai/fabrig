@@ -1,4 +1,4 @@
-//! One terminal page per handle's current read (client/domain/client.md, 7).
+//! One terminal page per handle's current read (client/domain/client/README.md, 6).
 use crate::{
     Domain, Down, Handle, Limits, Readable, Readout, Request, Told,
     domain::{down, tell},

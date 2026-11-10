@@ -1,4 +1,4 @@
-//! Presentation handles and the local place each result belongs to (view.md, 18.2).
+//! Presentation handles and the local place each result belongs to (client/domain/view-state.md, 2).
 //! The client owns transport obligations, reopening and abandoned reads.
 use crate::{Request, state::objects::Source};
 use jig_client::{

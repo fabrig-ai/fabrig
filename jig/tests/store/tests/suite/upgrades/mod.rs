@@ -1,4 +1,4 @@
-//! Store upgrade scenarios on the simulated disk (protocol/store.md, 14).
+//! Store upgrade scenarios on the simulated disk (protocol/store/README.md, 9).
 pub(crate) mod check;
 mod frame_refusal;
 pub(crate) mod frames;

@@ -1,10 +1,10 @@
-//! A request's canonical original name context and tagged selectors (store.md, 5.1).
+//! A request's canonical original name context and tagged selectors (protocol/store/records.md, 1).
 use crate::{Action, Amendment, Ask, Authority, Member, Operation, PolicyChange};
 use alloc::boxed::Box;
 
 use crate::MODELS;
 pub const MODEL_NAME_BYTES: u32 = 4_096;
-/// The most bytes in a configured model's description (configuration.md, 6).
+/// The most bytes in a configured model's description (protocol/limits.md).
 pub const MODEL_DESCRIPTION_BYTES: u32 = 512;
 
 /// A literal ALL or a frozen mask into its enclosing record's model-name context.

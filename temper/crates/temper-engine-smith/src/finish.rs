@@ -1,6 +1,6 @@
 //! Concrete Smith turn and terminal metadata become the root's opaque turn
-//! and typed task ending (jig's domain/engine.md, 7.2 and 7.4; jig's
-//! domain/tasks.md, 5.6). The boundary caller supplies encoded turn bytes and
+//! and typed task ending (jig's domain/engine/executors.md, 2 and 4; jig's
+//! domain/tasks/lifecycle.md, 7). The boundary caller supplies encoded turn bytes and
 //! the worker's settled pushed resource evidence; this crate does not encode
 //! history or inspect git.
 
@@ -35,7 +35,7 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
     match request {
         smith::Request::Turn { number, read, spent, opens_window, .. } => Ok(host::Turn {
             opens_window,
-            // The hub attaches the refusals it keeps (jig's `domain/hosts.md`, 6.4).
+            // The hub attaches the refusals it keeps (jig's `domain/hosts/hub.md`, 4).
             refused: Box::new([]),
             turn: number,
             spent: spent.units,

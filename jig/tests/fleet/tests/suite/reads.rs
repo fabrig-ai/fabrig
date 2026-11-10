@@ -1,4 +1,4 @@
-//! Provider reads in the fleet's world (jig/docs/design/domain/engine.md, 17.12).
+//! Provider reads in the fleet's world (jig/docs/design/domain/engine/settings.md, 12).
 use jig_domain_fleet::{self as fleet, Event, Request};
 use jig_domain_link::{EndpointBound, Grant, Hello, ListFailure, ListOutcome, Login, LoginState, SourceName};
 use jig_fleet_world::fixtures::{ANALYST, domain, needs};

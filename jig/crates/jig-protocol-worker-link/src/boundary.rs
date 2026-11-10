@@ -1,4 +1,4 @@
-//! Streams belong to the layer; the dial policy belongs here (channel.md, 10.1).
+//! Streams belong to the layer; the dial policy belongs here (protocol/channel/README.md, 9.1).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 pub use jig_protocol_worker_wire::Loss;
@@ -25,7 +25,7 @@ pub enum GrantValue {
     Credential { scheme: Scheme, token: Secret },
     Application { secret: Secret },
 }
-/// How a credential is presented (protocol/channel.md, 8).
+/// How a credential is presented (protocol/channel/README.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Scheme {
     Bearer,

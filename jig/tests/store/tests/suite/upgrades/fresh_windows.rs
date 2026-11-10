@@ -1,4 +1,4 @@
-//! Independent checks for store.md 8.6 and 10.2–10.4.
+//! Independent checks for protocol/store/transcripts.md, 6, and protocol/store/opening.md, 2–4.
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Owner, PatchSet, PatchSets, Request, TranscriptRead, Write, codec};
 use jig_store_world::{World, patches, referee::Referee, root, world::Change};
@@ -10,10 +10,10 @@ const TURNS_PER_TASK: usize = 2; // patches::fresh_committed writes two turns.
 const COMMITS_PER_TASK: u64 = 4; // live row, two turns, final proof.
 const CLOSING_PAGES: usize = 2; // Six proofs at the fixture's four writes per page.
 const PENDING_PATCHES: usize = 2; // The two header-only patches below.
-const SEAL_COMMITS: u64 = 1; // store.md 10.2, step 4.
+const SEAL_COMMITS: u64 = 1; // protocol/store/opening.md 2, step 4.
 
-const FRAME_KEY_BYTES: u32 = 18; // store.md 8.6: the places key and an eight-byte offset.
-const FRAMING_BYTES: usize = 12; // store.md 8.1: length, checksum, length.
+const FRAME_KEY_BYTES: u32 = 18; // protocol/store/transcripts.md 6: the places key and an eight-byte offset.
+const FRAMING_BYTES: usize = 12; // protocol/store/transcripts.md 1: length, checksum, length.
 const MARK: &str = "patch 1\nowner fixture-smith 1\nmark fresh-windows\n";
 const FOLLOW: &str = "patch 1\nowner fixture-smith 2\nmark owner-private\n";
 const SMITH: PatchSet = patches::FRESH_BEFORE.sets[1];

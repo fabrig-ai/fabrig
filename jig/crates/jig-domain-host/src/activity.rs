@@ -1,4 +1,4 @@
-//! Content-free best-effort activity (domain/hosts.md, section 6.5).
+//! Content-free best-effort activity (domain/hosts/hub.md, section 5).
 use crate::{CountKind, Operation};
 use crate::{Hub, LinkUp, Phase, Request};
 use alloc::boxed::Box;

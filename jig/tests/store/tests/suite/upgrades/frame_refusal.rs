@@ -1,4 +1,4 @@
-//! Independent contract checks for protocol/store.md 6, 8.1, 8.2, 8.6 and 13.
+//! Independent contract checks for protocol/store/README.md, 5, and protocol/store/transcripts.md, 1, 2 and 6, and protocol/store/README.md, 8.
 
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Limits, Request, TranscriptRead, Write, sizes};
@@ -14,7 +14,7 @@ const SEED: u64 = 0x0051_414d_3162;
 const READER: Token = Token::new(714);
 const ATTEMPT: u64 = 1;
 const PRIOR: &[u8] = b"durable before refusal";
-// store.md 8.1 declares transcript: bytes 33554432 in the current codec.
+// protocol/store/transcripts.md 1 declares transcript: bytes 33554432 in the current codec.
 const CODEC_TRANSCRIPT_CEILING: u32 = 33_554_432;
 const FIRST: u64 = 1;
 const DURABLE: u64 = 2;
@@ -156,7 +156,7 @@ fn a_frame_exactly_the_page_commits_and_reads_back_whole() {
     assert!(matches!(events.as_slice(), [Event::Committed { number: DURABLE, .. }]), "{events:?}");
     let expected = root::turn(TASK, ATTEMPT, 1, &payload);
     eprintln!("terminal: {events:?}");
-    // store.md 7.1: the page bounds encoded bytes, read room decoded bytes.
+    // protocol/store/loads.md 1: the page bounds encoded bytes, read room decoded bytes.
     let room = bytes * 2;
     eprintln!("before crash, decoded room {room}");
     let answers = kinds().map(|kind| read(&mut world, kind, room));

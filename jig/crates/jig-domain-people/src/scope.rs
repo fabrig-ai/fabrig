@@ -1,6 +1,6 @@
 //! The scope of an application request, subject or read.
 
-/// Role scope named by an application's client (`client/domain/contract.md`, 7.1).
+/// Role scope named by an application's client (`client/domain/contract/README.md`, 5.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationScope {
     /// A party must hold a role in this project.

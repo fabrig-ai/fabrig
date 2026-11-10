@@ -1,4 +1,4 @@
-//! Public reading's startup contract (jig/docs/design/protocol/configuration.md, 6).
+//! Public reading's startup contract (jig/docs/design/protocol/limits.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -10,7 +10,7 @@ use crate::{Limits, Path, Problems, Profile, What, overrides};
 use jig_domain_core::PublicIndexLimits;
 use jig_protocol_engine_clients::PublicLimits;
 
-// Example deployment figures from people.md, 13.5 and 13.9; off in profiles.
+// Example deployment figures from domain/people/public-reading.md, 5 and 9; off in profiles.
 const PUBLIC: PublicLimits = PublicLimits {
     reads: 8,
     rate: 20,

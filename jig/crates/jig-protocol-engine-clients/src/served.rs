@@ -1,4 +1,4 @@
-//! Fixed version refusals and family admission envelopes (protocol/client.md, 9 and 11).
+//! Fixed version refusals and family admission envelopes (protocol/client/README.md, 6 and 8).
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;

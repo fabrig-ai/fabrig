@@ -1,4 +1,4 @@
-//! Each range's intervals against its predicate (protocol/store.md, 4.3).
+//! Each range's intervals against its predicate (protocol/store/README.md, 4.3).
 const PARTY: u64 = 1;
 const TASK: u64 = 2;
 use super::fixtures;

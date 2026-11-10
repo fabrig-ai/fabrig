@@ -1,4 +1,4 @@
-//! Script transitions and journal release identities (jig/docs/design/domain/engine.md, 6).
+//! Script transitions and journal release identities (jig/docs/design/domain/engine/restart.md).
 use crate::{
     Core, Key, Limits, Queue, Request, Write, people,
     start::{Action, Continuation, Failure, Linked, LiveSet, Phase, SweepInput},
@@ -140,7 +140,7 @@ impl Core {
             SweepInput::Next => {
                 let Some(record) = self.start.sweep.pop() else { return Action::Idle };
                 match &record {
-                    // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
+                    // The sweep erases only expired rows (jig/docs/design/domain/engine/restart.md).
                     people::Stored::Policy { .. }
                     | people::Stored::EndedRead { .. }
                     | people::Stored::Public { .. }

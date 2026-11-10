@@ -1,4 +1,4 @@
-//! The scripted engine commits priority-only amendments together (contract.md, 3.4).
+//! The scripted engine commits priority-only amendments together (client/domain/contract/requests.md, 4).
 use jig_client_domain::contract::{self as c, Admission, Answer, ObjectKey, Operation, ReadValue, Refusal};
 use skein_lib::{List, Wall};
 

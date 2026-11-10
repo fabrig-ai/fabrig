@@ -1,4 +1,4 @@
-//! Original history revisions, snapshots and lifecycle facts (protocol/client.md, 3).
+//! Original history revisions, snapshots and lifecycle facts (protocol/client/wire.md, 1).
 use super::{objects, owner, w};
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;

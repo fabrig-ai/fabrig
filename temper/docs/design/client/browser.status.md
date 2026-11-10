@@ -251,7 +251,7 @@ public geometry and console-expectation limits below remain separate.
 Public history retains two limits the request `ui-public-history` leaves
 for later (section 5), which the board's own line states (8.3): goals ended
 before publication are absent; a restart empties the ended-goal history
-(jig's `domain/people.md`, 13.9). A merge from before publication can still
+(jig's `domain/people/public-reading.md`, 9). A merge from before publication can still
 show when its change is handed from a live goal's tree, as the plan's cut
 keeps it; publication is not a cutoff on a handed change's commit.
 

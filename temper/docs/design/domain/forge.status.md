@@ -418,7 +418,7 @@ a change's merge job from the engine through its worker to the fake forge
     down. With no room `relay`
     (`temper-engine-domain-forge-change/src/relay.rs`) leaves the question
     as it stood and wakes the change, while the step's commit takes the
-    foreman's verdict from the inbox (jig's `domain/tasks.md`, 8.2), so the
+    foreman's verdict from the inbox (jig's `domain/tasks/messages.md`, 2), so the
     question waits on an ended foreman. A question released past the bound
     at such a step meets the spent allowance again at the next: the release
     is that step's alone, and `next_act` holds the change.
@@ -523,7 +523,7 @@ a change's merge job from the engine through its worker to the fake forge
     engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
     where the core and the connector meet; the forge world
     (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
-- **Design departs:** 8.4, 8.11 and jig's `domain/tasks.md`, 5.7, from the request
+- **Design departs:** 8.4, 8.11 and jig's `domain/tasks/lifecycle.md`, 8, from the request
   `producer-failure` of 2026-11-05, each decided by its plan's cut, for the user
   to see:
   - 8.11, and jig's 5.7: the request recommends refusing an asker's `finish` at
@@ -531,7 +531,7 @@ a change's merge job from the engine through its worker to the fake forge
     reaches this run.` The run parks instead, as a done finish does: smith judges
     a `finish` with no call to its host, and the tasks child decides at the
     answer's commit, the run and its host knowing nothing of it (jig's
-    `domain/engine.md`, 7.4). A refusal at the call would need a new crossing from
+    `domain/engine/executors.md`, 4). A refusal at the call would need a new crossing from
     jig through the worker to smith, and costs the run a turn that parking does
     not. So those words reach no run; the stock coding charter says the same
     before it finishes, and a resumed run's transcript shows its earlier `finish`

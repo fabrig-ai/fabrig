@@ -1,7 +1,7 @@
 //! Whole Smith turn bytes become the client's own bounded vocabulary. No state,
 //! endpoint policy or opaque provider bytes survive this translation. `decode`
 //! refuses unsupported or broken records; a receiving limit cuts the displayed
-//! turn, marked by `Turn::cut`. See client/domain/client.md, 10, and contract.md, 10.
+//! turn, marked by `Turn::cut`. See client/domain/client/conversations.md, and client/domain/contract/README.md, 8.
 //!
 //! `brief_text` renders the decoded client blocks as plain UTF-8 lines for a fresh
 //! run's brief, within `Limits::bytes`; archived system context is excluded,
@@ -145,7 +145,7 @@ fn translate(limits: TurnLimits, source: &smith::Turn, inspect_system: bool) -> 
     }
 }
 
-/// The turn's model and effort, outside the text budget as its usage is (client/domain/client.md, 10).
+/// The turn's model and effort, outside the text budget as its usage is (client/domain/client/conversations.md).
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn llm(source: &smith::Turn) -> Option<ModelEffort> {
     if source.model().is_empty() {

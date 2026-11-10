@@ -1,4 +1,4 @@
-//! One document request or delivery in flight per watch (`domain/engine.md`, 11).
+//! One document request or delivery in flight per watch (`domain/engine/views.md`).
 //! Changes coalesce into one mark. A change during construction also marks the
 //! watch: a document already being made may reflect the preceding state.
 //! Closing waits for construction and delivery terminals before releasing the

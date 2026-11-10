@@ -1,4 +1,4 @@
-//! Catalogue changes preserve names and drop departed choices (jig/docs/design/protocol/store.md, 5.1).
+//! Catalogue changes preserve names and drop departed choices (jig/docs/design/protocol/store/records.md, 1).
 
 use super::{ModelName, Value};
 use jig_domain_tasks::ModelEffort;

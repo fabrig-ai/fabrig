@@ -1,4 +1,4 @@
-//! Run reasons and offered kinds (jig/docs/design/domain/tasks.md, 8.6).
+//! Run reasons and offered kinds (jig/docs/design/domain/tasks/messages.md, 6).
 use crate::{
     ALWAYS_OFFERED_NAMES, MessageKind as M, NewsClass, NoticeState, Party, REASON_NAMES, Reasons as R, ResultKind,
     Word, offered,

@@ -1,4 +1,4 @@
-//! A party's account request between people and the accounts child (domain/people.md, 5.1;
+//! A party's account request between people and the accounts child (domain/people/acts.md, 1;
 //! domain/accounts.md, 3.3 and section 5): people admitted it from its holder, the child decides.
 
 use alloc::boxed::Box;

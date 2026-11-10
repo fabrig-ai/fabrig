@@ -1,4 +1,4 @@
-//! Settings fits and the release revision belong to the start (jig/docs/design/domain/engine.md, 6, 17.7).
+//! Settings fits and the release revision belong to the start (jig/docs/design/domain/engine/restart.md, jig/docs/design/domain/engine/settings.md, 7).
 use crate::{Core, Limits, Request, settings, start::Failure};
 use skein_lib::{Env, Queue};
 

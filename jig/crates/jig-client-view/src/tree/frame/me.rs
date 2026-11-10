@@ -1,6 +1,6 @@
 //! The shared frame, last delivered facts and selected address.
 //! The frame confirms party and retention, and answers siblings within a step.
-//! See client/domain/client.md, 3 and 8.
+//! See client/domain/client/README.md, 3 and client/domain/client/watches.md.
 use crate::state::address::Address;
 use jig_client::Link;
 use jig_client::contract::Me;

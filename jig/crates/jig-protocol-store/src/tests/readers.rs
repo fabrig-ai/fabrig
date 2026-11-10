@@ -1,4 +1,4 @@
-//! Additive read-only doors (jig/docs/design/protocol/store.md, 7 and 14).
+//! Additive read-only doors (jig/docs/design/protocol/store/loads.md and jig/docs/design/protocol/store/README.md, 9).
 use super::fixtures::{self, ALICE, ENDED};
 use crate::{Cursor, Family, KeptMap, Phase, Restore, Row, Store, codec, keys, restore};
 use alloc::collections::BTreeMap;

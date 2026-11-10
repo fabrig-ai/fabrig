@@ -1,4 +1,4 @@
-//! Explicit party proposals and withdrawals (domain/people.md, section 5.1).
+//! Explicit party proposals and withdrawals (domain/people/acts.md, section 1).
 use crate::{
     Core, Event, GoalRoute, Limits, Now, Request,
     routing::{

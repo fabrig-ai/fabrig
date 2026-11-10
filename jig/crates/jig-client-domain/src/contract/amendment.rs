@@ -1,5 +1,5 @@
 //! Supplied amendment settings (client/domain/objects.md, 4 and 11;
-//! domain/tasks.md, 7). The enclosing document supplies current or retained
+//! domain/tasks/changes.md). The enclosing document supplies current or retained
 //! context; this value never reconstructs instructions from today's defaults.
 use super::{AuthorityDocument, DocumentText, PersonAddress, SpecificationDocument, WakePolicy};
 use skein_lib::List;

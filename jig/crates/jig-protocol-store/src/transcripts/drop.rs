@@ -1,4 +1,4 @@
-//! Remove a transcript before its commit; erase its orphan places later (store.md, 6 and 8.5).
+//! Remove a transcript before its commit; erase its orphan places later (protocol/store/README.md, 5, and protocol/store/transcripts.md, 5).
 use super::{
     File, Stage,
     cut::{self, Arrival},

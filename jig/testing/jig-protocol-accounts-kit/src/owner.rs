@@ -1,5 +1,5 @@
 //! Routes the accounts component, its real domain child and the memory secrets
-//! store (jig/docs/design/protocol/llm.md, 5 and 8; protocol/store.md, 9).
+//! store (jig/docs/design/protocol/llm.md, 5 and 8; protocol/store/secrets.md).
 use crate::fixtures::{self, ACCOUNT_CHAT, ROOM};
 use crate::world::{Installation, Story};
 use jig_domain_accounts as child;

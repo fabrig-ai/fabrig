@@ -1,4 +1,4 @@
-//! Best-effort live observations (domain/hosts.md, section 6.5). The current
+//! Best-effort live observations (domain/hosts/hub.md, section 5). The current
 //! claim and hosting channel fence them; none changes placement or scheduling.
 
 use crate::facts::Fact;

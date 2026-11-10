@@ -1,4 +1,4 @@
-//! The world profiles admit fixture frames (protocol/store.md, 8.6).
+//! The world profiles admit fixture frames (protocol/store/transcripts.md, 6).
 #[test]
 fn world_read_room_admits_fixture_frames() {
     const FIXTURE_FRAME: u64 = 130;

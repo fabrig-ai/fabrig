@@ -1,5 +1,5 @@
 //! The runs' agents, scripted for the alert stories at the hub's agent
-//! capability (domain/hosts.md, section 6). Ops runs no agent in its engine,
+//! capability (domain/hosts/hub.md). Ops runs no agent in its engine,
 //! so the world answers the hub as an agent host would: a run's script is
 //! cued by the earliest of the stories' cues in its charter (a triage's batch
 //! of alerts is noise unless it holds alert 12, the incident), and each

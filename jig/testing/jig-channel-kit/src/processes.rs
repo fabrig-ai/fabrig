@@ -402,7 +402,7 @@ impl Wire {
                 secrets(&mut self.grants, read.grant());
             }
             if header.kind == 0x0188 {
-                // The fleet sends sources after admitting a hello (domain/engine.md, 8).
+                // The fleet sends sources after admitting a hello (domain/engine/fleet.md).
                 if !worker {
                     self.admitted_hellos += 1;
                 }

@@ -150,7 +150,7 @@ or the nearest thing, and says so in that draft's status.
 
 ### R1 to R3. Standing roles
 
-- **Design:** jig's `domain/tasks.md` and `domain/engine.md` for a task
+- **Design:** jig's `domain/tasks/README.md` and `jig/docs/design/domain/engine/README.md` for a task
   that stands, its sessions and a budget per period; temper's
   `../domain/agent.md` for a role's charter and its Now;
   `../domain/findings.md` for routing by area.

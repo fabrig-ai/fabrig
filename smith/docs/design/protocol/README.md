@@ -481,6 +481,6 @@ it.
     no workspace.
 - **Named calls in skein:** whether calls answered once by name, withdrawn
   and asked again, are generic enough for skein's channel, as jig's channel
-  (jig's `protocol/channel.md`) would show if it has the same shape.
+  (jig's `protocol/channel/README.md`) would show if it has the same shape.
 - **MCP:** a component for MCP servers, over a process's pipes or HTTP, and
   how much of JSON-RPC is skein's.

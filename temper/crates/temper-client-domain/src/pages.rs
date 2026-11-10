@@ -2468,7 +2468,7 @@ pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     }
 }
 // jig ends every pending read at a credential boundary and replays none
-// (jig's `client/domain/client.md`, 7): a page that has read nothing yet asks
+// (jig's `client/domain/client/README.md`, 6): a page that has read nothing yet asks
 // once more when a successful sign-in has ended its first read.
 fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
     thread.loaded == 0

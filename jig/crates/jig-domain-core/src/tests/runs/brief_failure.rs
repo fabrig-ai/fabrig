@@ -1,4 +1,4 @@
-//! Brief failure classification at bounded core routes (domain/engine.md, 9.1).
+//! Brief failure classification at bounded core routes (domain/engine/briefs.md, 1.1).
 use crate::tests::*;
 use jig_domain_brief as brief;
 use jig_domain_link::{Form, Scheme};

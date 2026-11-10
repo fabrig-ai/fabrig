@@ -1,5 +1,5 @@
 //! Live task and finite-source ownership, step dispatch and retry scheduling
-//! (domain/tasks.md, sections 2, 5 and 10). Root supplies authorized events
+//! (domain/tasks/README.md, section 2 and domain/tasks/lifecycle.md and domain/tasks/README.md, section 5). Root supplies authorized events
 //! and iteration time, routes outputs and owns durability/transport proofs.
 //! A procedure keeps the transient inbox prefix offered to its current step;
 //! restoring reoffers its durable unread inbox. Tasks never performs IO or keeps
@@ -50,7 +50,7 @@ pub(crate) enum Startup {
 
 /// Bounded live task arena, indexed waits, retry timers, finite period/pool ledgers,
 /// configured charters and deterministic retry randomness. Keeps bounded retained stubs,
-/// transport receipt, connector state or mutable root shadow ledger. (domain/tasks.md, sections 2, 4–5 and 10).
+/// transport receipt, connector state or mutable root shadow ledger. (domain/tasks/README.md, sections 2 and 4 and domain/tasks/lifecycle.md and domain/tasks/README.md, section 5).
 #[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) startup: Startup,
@@ -119,13 +119,13 @@ pub fn view_phase(phase: &Phase) -> u32 {
 }
 
 impl Domain {
-    /// First keyed fit failure (jig/docs/design/domain/engine.md, 6).
+    /// First keyed fit failure (jig/docs/design/domain/engine/restart.md).
     #[must_use]
     pub fn restore_failure(&self) -> Option<crate::RestoreFailure> {
         self.restore_failure.clone()
     }
 
-    /// Total live agent tasks, across settings revisions (engine.md, 17.3).
+    /// Total live agent tasks, across settings revisions (domain/engine/settings.md, 3).
     #[must_use]
     pub const fn live_agent_tasks(&self) -> u32 {
         self.live_agents
@@ -165,7 +165,7 @@ impl Domain {
     }
 
     /// One bounded walk returning the first tasks incompatible with prospective charters,
-    /// plus the exact count omitted (engine.md, 17.2).
+    /// plus the exact count omitted (domain/engine/settings.md, 2).
     #[must_use]
     pub fn incompatible_charters(&self, charters: &[crate::CharterModels], limit: u32) -> (Box<[u64]>, u32) {
         let mut tasks = List::with_capacity(limit);
@@ -234,7 +234,7 @@ impl Domain {
     /// Create restoring state from validated `limits`, deterministic `seed`, unique configured
     /// charter versions bounded by `limits.charters * 2 + kept.versions`, and `efforts`, each
     /// configured model's count of declared efforts in configuration's order, at most
-    /// `MODELS` (domain/tasks.md, section 3). Panics on invalid/unrepresentable limits or
+    /// `MODELS` (domain/tasks/README.md, section 3). Panics on invalid/unrepresentable limits or
     /// malformed charter configuration; no task becomes active until `Restore`/`Check`/`Restored`
     /// completes.
     #[must_use]
@@ -549,13 +549,13 @@ impl Domain {
         crate::escalation::context(self, task)
     }
 
-    /// The oldest inbox word or pending decision numbered past `after` (tasks.md, 8.2).
+    /// The oldest inbox word or pending decision numbered past `after` (domain/tasks/messages.md, 2).
     #[must_use]
     pub fn next_waiting(&self, task: u64, after: Option<u64>) -> Option<crate::Word> {
         crate::waiting::next(self, task, after)
     }
 
-    /// Whether the selected restoration checks completed before activation (domain/engine.md, 6).
+    /// Whether the selected restoration checks completed before activation (domain/engine/restart.md).
     #[must_use]
     pub fn checked(&self) -> bool {
         self.startup == Startup::Checked
@@ -1055,7 +1055,7 @@ impl Domain {
     }
 
     /// Financial numbers a run can claim after its closer yields its unused reservation
-    /// (jig/docs/design/domain/tasks.md, 5.10). The claim commits the resize.
+    /// (jig/docs/design/domain/tasks/lifecycle.md, 11). The claim commits the resize.
     #[must_use]
     pub fn claim_numbers(&self, number: u64) -> Option<crate::Numbers> {
         crate::closer::claim_numbers(self, number)
@@ -1645,7 +1645,7 @@ fn validate_charters(limits: &Limits, kept: crate::Kept, charters: &[crate::Char
 }
 
 impl Domain {
-    /// The person conversation served by a directly requested delegate (domain/tasks.md, 2 and 8.1).
+    /// The person conversation served by a directly requested delegate (domain/tasks/README.md, 2, and domain/tasks/messages.md, 1).
     #[must_use]
     pub fn served_chat(&self, task: u64) -> Option<u64> {
         let row = self.task(task)?;

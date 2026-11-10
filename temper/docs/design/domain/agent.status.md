@@ -403,8 +403,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   refusal retains it. No reason is recorded.
 - **Departs:** 4.3: a run that cannot deliver can still change files by a
   command if its charter grants the shell, where the section says it
-  cannot: jig's rail narrows `modify` alone (jig's `domain/hosts.md`,
-  section 8, and its status), and
+  cannot: jig's rail narrows `modify` alone (jig's `domain/hosts/charters.md`
+  , and its status), and
   `an_open_run_cannot_modify_even_when_policy_requests_it` in
   `temper-engine-smith/src/tests.rs` pins the shell staying. The stock
   charters grant no shell; the reference's charter 2 does

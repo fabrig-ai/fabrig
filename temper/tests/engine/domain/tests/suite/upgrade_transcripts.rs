@@ -1,5 +1,5 @@
 //! Independent M1 checks of temper's transcript-load translation.
-//! domain/root.md 7.1, 8 and 9; jig's domain/engine.md 7.2.
+//! domain/root.md 7.1, 8 and 9; jig's domain/engine/executors.md 2.
 //! The public driver supplies already rendered text, not smith's renderer.
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -122,7 +122,7 @@ fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     driver.settle();
     let assignment = driver.last_assignment();
     fresh(&assignment);
-    // Jig's domain/engine.md 7.2 leaves empty-tail section encoding unspecified.
+    // Jig's domain/engine/executors.md 2 leaves empty-tail section encoding unspecified.
     assert_eq!(tail(&assignment), Some(b"".as_slice()));
     no_failure_charged(&driver, first.task);
 }

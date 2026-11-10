@@ -1,5 +1,5 @@
 //! Opaque connector references carried by person approval contracts
-//! (domain/people.md, section 8; client/domain/objects.md, section 7).
+//! (domain/people/README.md, section 7; client/domain/objects.md, section 7).
 use alloc::boxed::Box;
 use skein_lib::List;
 

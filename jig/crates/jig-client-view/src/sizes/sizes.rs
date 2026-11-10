@@ -1,5 +1,5 @@
 //! Renderer envelopes (client/domain/view.md, section 10).
-//! Ordinary incoming lists, including nested lists, fit `rows` (contract.md, 5.3),
+//! Ordinary incoming lists, including nested lists, fit `rows` (client/domain/contract/documents.md, 3),
 //! offered acts fit their closed vocabulary ceiling, and all text fits `text`.
 //! The protocol also checks whole document bytes.
 //! These counts deliberately do not spend that independent byte budget: full

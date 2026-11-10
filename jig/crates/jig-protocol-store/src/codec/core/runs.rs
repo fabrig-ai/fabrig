@@ -1,4 +1,4 @@
-//! Core durable rows translated exhaustively (protocol/store.md, 5.1).
+//! Core durable rows translated exhaustively (protocol/store/records.md, 1).
 use super::{View, domain, task_problem, too_large, wire};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};

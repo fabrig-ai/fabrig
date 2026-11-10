@@ -6,7 +6,7 @@
 use crate::Class;
 use alloc::boxed::Box;
 
-/// At most this many bytes of a preparation reason are kept (domain/engine.md, 9.1).
+/// At most this many bytes of a preparation reason are kept (domain/engine/briefs.md, 1.1).
 pub const REASON_BYTES: u32 = 128;
 
 /// The decision responsible for the most recent retry pause.

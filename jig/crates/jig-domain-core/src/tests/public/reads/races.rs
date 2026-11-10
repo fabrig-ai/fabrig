@@ -1,4 +1,4 @@
-//! Revocation decisions finish independently of readers (jig/docs/design/domain/people.md, 13.6).
+//! Revocation decisions finish independently of readers (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
 
 #[derive(Clone, Copy, Debug)]

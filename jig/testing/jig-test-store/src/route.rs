@@ -1,4 +1,4 @@
-//! The reference root's store transport (protocol/store.md, 3 and 7).
+//! The reference root's store transport (protocol/store/README.md, 3 and protocol/store/loads.md).
 use crate::{StoreOut, Up, keys, live, records};
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;

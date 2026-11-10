@@ -1,10 +1,10 @@
-//! The task's own procedure where nothing remains to await (jig/docs/design/domain/tasks.md, 5.10).
+//! The task's own procedure where nothing remains to await (jig/docs/design/domain/tasks/lifecycle.md, 11).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Active, Class, EndedBy, Hold, Limits, Party, Phase, Request, Was};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
 
-/// Fixed words for the task's own closer (jig/docs/design/domain/tasks.md, 5.10).
+/// Fixed words for the task's own closer (jig/docs/design/domain/tasks/lifecycle.md, 11).
 pub const CLOSER_WORDS: &[u8] = b"Close your requester: nothing more will come.";
 
 pub(crate) fn claim_numbers(domain: &Domain, task: u64) -> Option<crate::Numbers> {

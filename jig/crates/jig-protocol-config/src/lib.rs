@@ -1,4 +1,4 @@
-//! Strict configuration values and operator problems (protocol/configuration.md, 1 and 10).
+//! Strict configuration values and operator problems (protocol/configuration.md, 1 and 9).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -45,7 +45,7 @@ pub use document::{DocumentLimits, document};
 pub use forms::{digest, secret};
 pub use problem::{CodecBound, PROBLEMS, Path, Problem, Problems, Segment, What};
 /// Where an engine's settings defaults come from (configuration.md, 1;
-/// domain/engine.md, 17.1 and 17.7).
+/// domain/engine/settings.md, 1 and 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Defaults {
     /// The document's `charters`, `templates`, `policies` and `rules`.

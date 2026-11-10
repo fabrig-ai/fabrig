@@ -1,5 +1,5 @@
 //! Ended rows gathered for preparation or amendment admission
-//! (`domain/engine.md`, sections 5.3 and 9).
+//! (`domain/engine/README.md`, section 5.3, and `domain/engine/briefs.md`, section 1).
 
 use crate::routing::{
     Work,
@@ -97,7 +97,7 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
     out
 }
 
-// Held, so that it sees the commit that ended the dependency (`domain/engine.md`, 5.3).
+// Held, so that it sees the commit that ended the dependency (`domain/engine/README.md`, 5.3).
 fn retain(core: &mut Core, out: &mut Queue<Request>, read: ResultRead) {
     let task = *read.ids.get(read.at).expect("pending result ID");
     let request = core.fly(crate::routing::flight::Flight::ResultRead(read));

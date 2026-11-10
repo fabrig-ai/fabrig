@@ -15,7 +15,7 @@ use smith_host_protocol as host;
 const KERNEL_HANDOFF_ENTRIES: u32 = 2_108;
 
 /// Complete the worker's back-and-forth hand-offs across payload translation
-/// before the next entrance (hosts.md, 6.8; service.md, 6).
+/// before the next entrance (domain/hosts/hub.md, 8; service.md, 6).
 const PAYLOAD_HAND_OFF_ROUNDS: u32 = 4;
 
 /// Shell-prepared directories, one descriptor for each worker in document order.

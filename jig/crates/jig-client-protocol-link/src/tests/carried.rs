@@ -1,5 +1,5 @@
 //! A request carrying a value is sent once and never held behind the store
-//! (protocol/client.md, 5 and 10): it leaves at once, and the link answers it
+//! (protocol/client/README.md, 3 and 7): it leaves at once, and the link answers it
 //! *unsent* when it never left and *lost* when its sign-in ends under it.
 use super::*;
 use fixtures::{ATTEMPT, Harness, limits};

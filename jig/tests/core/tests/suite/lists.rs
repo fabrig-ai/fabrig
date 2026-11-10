@@ -1,4 +1,4 @@
-//! A provider's list meets accounts, settings and the commit barrier (domain/engine.md, 17.12).
+//! A provider's list meets accounts, settings and the commit barrier (domain/engine/settings.md, 12).
 use crate::settings_support::*;
 use jig_core_world::{
     Fault,

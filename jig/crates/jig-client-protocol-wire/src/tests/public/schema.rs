@@ -1,4 +1,4 @@
-//! Closure and reachable-shape checks (client/domain/contract.md, section 12).
+//! Closure and reachable-shape checks (client/domain/contract/README.md, section 10).
 #![expect(clippy::disallowed_types, reason = "schema tests inspect the generator's owned declaration tree")]
 #![expect(clippy::disallowed_methods, reason = "ordinary schema tests collect and compare the parser's declarations")]
 #![expect(clippy::disallowed_macros, reason = "schema listings format author-owned types and tags for the text golden")]

@@ -47,19 +47,19 @@ section 8.
 ## 2. Why a run runs
 
 When a task is due, the core gathers its brief "for why it runs: its first
-activation, or what woke it" (jig's `domain/engine.md`, 7.1, step 2). This
+activation, or what woke it" (jig's `domain/engine/executors.md`, 1, step 2). This
 draft names those reasons so that a charter can choose instructions by them,
 and keeps them on the task's claim.
 
 - **`first`:** the task's first activation. It lasts until a run of it parks
   idle or finishes. A run that parks kept, by its own question, a question it
-  owes or a dependency (jig's `domain/tasks.md`, 5.7), leaves the run that
+  owes or a dependency (jig's `domain/tasks/lifecycle.md`, 8), leaves the run that
   continues it `first` too. A first run's reasons are `first` plus the kinds
   that woke it, such as a person's words waiting at the goal's start.
 - **The kinds that woke it:** each kind of message in its inbox, or entry
   waiting for its decision, that its wake policy let wake it (jig's
-  `domain/tasks.md`, 8.3), named as jig's store names them (jig's
-  `protocol/store.md`). A kind that rode along without waking it is no reason. So
+  `domain/tasks/messages.md`, 3), named as jig's store names them (jig's
+  `protocol/store/README.md`). A kind that rode along without waking it is no reason. So
   a non-last result under `last_or_failure`, or news a pace held, chooses no
   part.
 - **A continuation:** a run that continues one parked kept runs for that run's
@@ -68,7 +68,7 @@ and keeps them on the task's claim.
   message. It runs for that attempt's reasons, kept on the task across attempts,
   plus the kinds at its start that its policy would let wake it. A retry's start
   carries what is waiting then, not what the failed attempt read (jig's
-  `domain/engine.md`, 7.2).
+  `domain/engine/executors.md`, 2).
 
 **Always offered.** Some kinds go to every run, whatever its parts (section 4),
 and choose none: `answer`, `proposal_decision`, `settings_decision`,
@@ -93,7 +93,7 @@ doing. Every other kind chooses parts: `question`,
   began with, and changing them would lose the conversation's cache and leave
   its earlier turns read under other words. So a charter with parts whose runs
   resume (`resume: true`) is refused as out of shape.
-- **Documents** (jig's `domain/engine.md`, 17.9) stay for every run. The
+- **Documents** (jig's `domain/engine/settings.md`, 9) stay for every run. The
   reference's goal charter names two documents' "In one page" sections, which
   every part leans on.
 - **Bounds.** A charter's stored policy, its parts with it, stays within the
@@ -109,27 +109,27 @@ doing. Every other kind chooses parts: `question`,
 
 A run's start carries the messages waiting in its task's inbox, as many as the
 run's inbox takes, and the rest are relayed as it reads (jig's
-`domain/tasks.md`, 8.2; jig's `domain/engine.md`, 7.1 and 7.4). For a charter
+`domain/tasks/messages.md`, 2; jig's `domain/engine/executors.md`, 1 and 4). For a charter
 with parts, both offer only these:
 
 - **The kinds its parts are for:** every kind named in the `on` of a part this
   run reads.
 - **Always:** the always-offered kinds of section 2, so a run that asked or
   waited hears its answer and one being amended or ended hears it; a person's
-  `words`, which no batch holds (jig's `domain/tasks.md`, 8.3); and proposals and
+  `words`, which no batch holds (jig's `domain/tasks/messages.md`, 3); and proposals and
   escalations waiting for its decision, which are relayed to a live run whatever
-  its parts (jig's `domain/tasks.md`, section 9). The shared instructions say how
+  its parts (jig's `domain/tasks/proposals.md`). The shared instructions say how
   to take each, and to leave an entry no part of the run covers undecided.
 
 **What isn't offered keeps its place.** A message of any other kind isn't
 offered to the run, at its start or while it runs. It keeps its place in the
 inbox, and when the run ends it is judged again as if it arrived then, as a
-message refused or left unread is (jig's `domain/tasks.md`, 8.2 and 8.3). This
+message refused or left unread is (jig's `domain/tasks/messages.md`, 2 and 3). This
 changes how a turn takes messages: today a turn's fence takes every message
-before it (jig's `domain/hosts.md`, 6.4; jig's `domain/engine.md`, 7.2), so a
+before it (jig's `domain/hosts/hub.md`, 4; jig's `domain/engine/executors.md`, 2), so a
 message kept back would go with the next one read. A turn takes only the offered
 messages up to its fence instead. A message a pace keeps back from a live run
-needs the same rule (jig's `domain/tasks.md`, 8.3). A message that arrives
+needs the same rule (jig's `domain/tasks/messages.md`, 3). A message that arrives
 between a run's preparation and its claim and would add to its reasons
 prepares the run again, so that a run starts with every reason waiting for
 it, a due result among them, and the parts they choose; any other is offered
@@ -152,12 +152,12 @@ which reads the questions part, as the pipeline's cut never answers one. A
 non-last result waits for the last, whose run reads the results part and every
 result. News a pace held wakes a run of its own once the pace allows. An entry
 reaching the cut is offered, left undecided and wakes the run after the cut. A
-cut longer than a pending escalation's stall (jig's `domain/tasks.md`, section
-11) passes such an entry up to its person, as it would today.
+cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, section
+6) passes such an entry up to its person, as it would today.
 
 ## 5. A later choice
 
-- **What it is.** A task's LLM choice (jig's `domain/tasks.md`, section 3) may
+- **What it is.** A task's LLM choice (jig's `domain/tasks/README.md`, section 3) may
   hold `later`: a main model with its effort, and the sub-agents' models with
   theirs. Every run whose reasons aren't `first` takes it. Without `later`,
   every run takes the one choice, as today.
@@ -170,12 +170,12 @@ cut longer than a pending escalation's stall (jig's `domain/tasks.md`, section
   each run's check, under the policy's overrides, and again on a restore.
 - **Its account.** A `later` main on another LLM provider than the first's
   chooses the task's kept account again at its first later run, as any change
-  of that provider does (jig's `domain/tasks.md`, section 3).
+  of that provider does (jig's `domain/tasks/README.md`, section 3).
 - **Fresh runs only,** as parts are: a task whose charter resumes takes no
   `later`. A change's `llm` (`../domain/agent.md`, 4.3.1) carries none, since a
   change's producers resume or finish in one activation.
 - **What shows it.** The task's document shows the choice its next run would
-  take (jig's `client/domain/contract.md`, 5.1).
+  take (jig's `client/domain/contract/documents.md`, 1).
 - **The goal's template** takes Opus 5.5 at xhigh first and Opus 5.5 at high
   later, each with the first choice's sub-agents. That is
   `goal-as-designer.md`, section 8's choice, made at the goal's start, so
@@ -234,7 +234,7 @@ KB every run reads today.
 
 - **A task no host takes** is designed already: the fleet refuses a worker's
   hello that offers less than a charter needs, and a due task's wait says so
-  (jig's `domain/engine.md`, section 8). Where temper doesn't show it, that is a
+  (jig's `domain/engine/fleet.md`). Where temper doesn't show it, that is a
   repair for its owner, not this draft's.
 - **A charter too large to store says how large.** A change of settings refused
   because a charter's stored policy passes `root.journal.run_bytes`
@@ -248,9 +248,9 @@ KB every run reads today.
 
 1. **jig:** the reasons, parts, what a run is offered, the fence taking offered
    messages only, an undecided entry's wake, and `later`, design first: jig's
-   `domain/tasks.md`, sections 3, 8 and 9; jig's `domain/engine.md`, 7.1, 7.2,
-   7.4 and section 9; jig's `domain/hosts.md`, 6.4; jig's
-   `protocol/configuration.md`, sections 3 and 6; the tasks child's take; the
+   `domain/tasks/README.md`, section 3 and `domain/tasks/messages.md` and `domain/tasks/proposals.md`; jig's `domain/engine/executors.md`, 1, 2 and 4, and `domain/engine/briefs.md`, 1
+   ; jig's `domain/hosts/hub.md`, 4; jig's
+   `protocol/configuration.md`, section 3 and `protocol/limits.md`; the tasks child's take; the
    store's claim, charter and task records; the client's charter and task
    records.
 2. **temper:** its settings form and `temper ctl settings`, with section 8's

@@ -1,6 +1,6 @@
 //! A goal holds its own branch through the root, core and independent forge
 //! (temper/docs/design/domain/forge.md, 2 and 11.1;
-//! jig/docs/design/domain/tasks.md, 6.1–6.3).
+//! jig/docs/design/domain/tasks/holds.md, 1–3).
 use super::*;
 use jig_domain_link::EndpointBound;
 

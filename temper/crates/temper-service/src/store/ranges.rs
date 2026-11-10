@@ -198,7 +198,7 @@ fn jig_get(owner: skein_lib::Token, key: core::Key) -> store::Request {
 }
 
 /// Window rows carry agent-readable text across the protocol/domain boundary.
-/// Each rendering fits one tail, as jig's protocol/store.md, 8.3 prices it:
+/// Each rendering fits one tail, as jig's protocol/store/transcripts.md, 3 prices it:
 /// a longer turn keeps its text's end, as jig's core keeps it.
 pub(super) fn texts(
     range: &Range,

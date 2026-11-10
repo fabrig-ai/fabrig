@@ -1,4 +1,4 @@
-//! Startup construction at the provider's configuration paths (protocol/client.md, 18).
+//! Startup construction at the provider's configuration paths (protocol/client/openid.md).
 use super::Provider;
 use crate::{Path, Problem, Segment, What};
 use alloc::boxed::Box;

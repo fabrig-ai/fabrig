@@ -1,5 +1,5 @@
 //! A run woken by a word that never enters its inbox, a held delegate's escalation,
-//! prepares as current (domain/engine.md, 7).
+//! prepares as current (domain/engine/executors.md).
 use crate::tests::*;
 use jig_domain_link::{Form, Scheme};
 

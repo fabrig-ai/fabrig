@@ -1,4 +1,4 @@
-//! Run failure causes through server bytes and the client link (protocol/client.md, 3).
+//! Run failure causes through server bytes and the client link (protocol/client/wire.md, 1).
 use jig_client::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_tasks as t;

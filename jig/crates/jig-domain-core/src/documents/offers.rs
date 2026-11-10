@@ -1,4 +1,4 @@
-//! Whole party-specific offers (`client/domain/contract.md`, 5.3;
+//! Whole party-specific offers (`client/domain/contract/documents.md`, 3;
 //! `client/domain/objects.md`, 11). The acts owner supplies every judgment.
 
 #[cfg(test)]

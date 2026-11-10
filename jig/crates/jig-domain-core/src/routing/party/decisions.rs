@@ -1,5 +1,5 @@
 //! Party goal, proposal and escalation choices routed to their owner
-//! (`domain/people.md`, section 5.1). Each proposal maker selects its own
+//! (`domain/people/acts.md`, section 1). Each proposal maker selects its own
 //! current store, falling back to its exact ended identity. Current escalation
 //! revisions take precedence over ended decisions.
 

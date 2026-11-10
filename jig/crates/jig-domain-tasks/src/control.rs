@@ -1,4 +1,4 @@
-//! Root-authorized changes to live tasks (domain/tasks.md, sections 5.5 and 7).
+//! Root-authorized changes to live tasks (domain/tasks/lifecycle.md, section 6 and domain/tasks/changes.md).
 //! The child keeps only current state; root owns durable call decisions and
 //! commits every emitted save before any worker sees a control outcome.
 use crate::compound::Staged;
@@ -9,7 +9,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, ReplyTo};
 
-/// Close a whole subtree with a common bounded reason (domain/tasks.md, section 7).
+/// Close a whole subtree with a common bounded reason (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Cancel {
     pub task: u64,
@@ -18,7 +18,7 @@ pub struct Cancel {
     pub message: Option<u64>,
 }
 
-/// Lift a task's hold and reset its failure counts (domain/tasks.md, 5.5).
+/// Lift a task's hold and reset its failure counts (domain/tasks/lifecycle.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Release {
     pub task: u64,
@@ -48,11 +48,11 @@ pub struct Amendment {
     pub release: Option<u64>,
     pub spec: Option<Spec>,
     pub wake: Option<WakePolicy>,
-    /// Whole replacement dependency list, at any mutable phase (domain/tasks.md, 5.7 and section 7).
+    /// Whole replacement dependency list, at any mutable phase (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
     pub dependencies: Option<Box<[u64]>>,
     pub authority: Option<Authority>,
-    /// A new LLM choice for an agent task's next run; `None` keeps its choice (domain/tasks.md,
-    /// section 7).
+    /// A new LLM choice for an agent task's next run; `None` keeps its choice (domain/tasks/changes.md
+    /// ).
     pub llm: Option<crate::LlmChoice>,
     pub reason: Box<[u8]>,
 }
@@ -222,7 +222,7 @@ fn save_history(domain: &mut Domain, mut row: History, out: &mut Queue<Request>)
 }
 
 /// An ended task's stored place, used only while admitting an amendment
-/// (`domain/tasks.md`, section 7). A stub supplies none of this evidence.
+/// (`domain/tasks/changes.md`). A stub supplies none of this evidence.
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct DependencyPlace {
     pub number: u64,
@@ -233,7 +233,7 @@ pub struct DependencyPlace {
     pub status: crate::Status,
 }
 
-/// Amend a task with its root-issued message (domain/tasks.md, section 7).
+/// Amend a task with its root-issued message (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Amend {
     pub task: u64,
@@ -282,7 +282,7 @@ pub(crate) fn amend(
     }
 }
 
-/// Check the whole dependency list at every mutable phase (domain/tasks.md, 5.7 and section 7).
+/// Check the whole dependency list at every mutable phase (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
 pub(crate) fn check_amend(
     domain: &Domain,
     staged: &Staged,
@@ -384,7 +384,7 @@ struct Reaching {
 }
 
 /// Live reach stays as for a batch; ended reach follows stored requesters
-/// (`domain/tasks.md`, section 7).
+/// (`domain/tasks/changes.md`).
 fn dependency_reached(
     domain: &Domain,
     staged: &Staged,
@@ -650,7 +650,7 @@ fn check_amend_fields(
 }
 
 /// A new choice is checked as a batch's is, against the task's resulting authority; a kept one
-/// again when the amendment changes the authority's models (domain/tasks.md, section 7). It is for
+/// again when the amendment changes the authority's models (domain/tasks/changes.md). It is for
 /// the next run: the run in flight keeps its own models.
 fn check_llm(domain: &Domain, old: &crate::CompoundTask<'_>, amendment: &Amendment) -> Result<(), Refusal> {
     let authority = match &amendment.authority {
@@ -854,7 +854,7 @@ fn control_entrance(
     if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
 }
 
-// A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks.md, 7).
+// A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks/changes.md).
 fn own_hold(task: &crate::TaskRecord) -> bool {
     match task.executor {
         crate::Executor::Procedure { .. } => {}
@@ -1088,7 +1088,7 @@ pub(crate) fn returned_phase(
     }
 }
 
-/// Judge ended prerequisites in list order, except while settling (domain/tasks.md, 5.1 and 5.5).
+/// Judge ended prerequisites in list order, except while settling (domain/tasks/lifecycle.md, 1 and 6).
 pub(crate) fn failed_dependency(domain: &Domain, phase: &Phase, dependencies: &[u64]) -> Option<u64> {
     match phase {
         Phase::Closing(_) | Phase::Held { was: Was::Closing(_), .. } => return None,
@@ -1105,7 +1105,7 @@ pub(crate) fn failed_dependency(domain: &Domain, phase: &Phase, dependencies: &[
     None
 }
 
-/// Rejudge a release before resuming it (domain/tasks.md, 5.5 and 6.7).
+/// Rejudge a release before resuming it (domain/tasks/lifecycle.md, 6, and domain/tasks/holds.md, 7).
 pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let row = record(domain, number).expect("released task");
     if let Some(task) = failed_dependency(domain, &row.phase, &row.dependencies) {

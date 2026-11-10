@@ -1,4 +1,4 @@
-//! Bounds supplied by the layer (protocol/channel.md, 11).
+//! Bounds supplied by the layer (protocol/channel/README.md, 10).
 use crate::Unusable;
 use jig_protocol_worker_wire::{
     self as wire,
@@ -11,7 +11,7 @@ pub struct Limits {
     pub sizes: Sizes,
     pub chunk: u32,
     /// The most bytes the stream below grants at once: io's
-    /// `largest_room` (protocol/channel.md, 9 and 11).
+    /// `largest_room` (protocol/channel/README.md, 8 and 10).
     pub room: u32,
     pub handshake: Duration,
     pub ping: Duration,

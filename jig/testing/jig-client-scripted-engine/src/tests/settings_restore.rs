@@ -1,4 +1,4 @@
-//! A restore is proposed by any party and carries its complete answer (contract.md, 3.2).
+//! A restore is proposed by any party and carries its complete answer (client/domain/contract/requests.md, 2).
 use super::*;
 #[test]
 fn a_non_owner_can_ask_for_a_scripted_restore() {

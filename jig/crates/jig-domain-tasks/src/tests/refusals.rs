@@ -94,7 +94,7 @@ fn admission(h: &mut Harness, creator: Party, member: crate::New) -> Option<crat
     None
 }
 
-/// A procedure makes its job with bounded bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A procedure makes its job with bounded bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_procedures_batch_admits_a_job_with_its_spec_and_contract() {
     let mut h = procedure();
@@ -106,7 +106,7 @@ fn a_procedures_batch_admits_a_job_with_its_spec_and_contract() {
     assert_eq!(row.contract, member.contract);
 }
 
-/// Only procedures create jobs; jobs delegate nothing (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Only procedures create jobs; jobs delegate nothing (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_is_refused_unless_a_procedure_makes_it() {
     for creator in [Party::Person(9), Party::Deployment { project: 1 }, Party::Task(1), Party::Task(2)] {
@@ -125,7 +125,7 @@ fn a_job_is_refused_unless_a_procedure_makes_it() {
     assert_eq!(admission(&mut h, Party::Task(2), task(3, &[])), Some(crate::Refusal::Executor));
 }
 
-/// A job spec is only nonzero-deadline bounded bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A job spec is only nonzero-deadline bounded bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_without_its_spec_or_with_words_is_refused() {
     for fault in 0_u8..7 {
@@ -146,7 +146,7 @@ fn a_job_without_its_spec_or_with_words_is_refused() {
     }
 }
 
-/// Job contracts belong only to jobs within the bound (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Job contracts belong only to jobs within the bound (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_contract_must_be_a_job_and_within_the_result_bound() {
     for fault in 0_u8..3 {
@@ -165,7 +165,7 @@ fn a_job_contract_must_be_a_job_and_within_the_result_bound() {
     }
 }
 
-/// A job is result-ended and never a conversation (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A job is result-ended and never a conversation (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_is_never_a_conversation() {
     let mut h = procedure();
@@ -177,7 +177,7 @@ fn a_job_is_never_a_conversation() {
     assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Contract));
 }
 
-/// A spec's job bytes belong only to jobs (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A spec's job bytes belong only to jobs (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn other_executors_refuse_a_job_spec() {
     for executor in [
@@ -192,7 +192,7 @@ fn other_executors_refuse_a_job_spec() {
     }
 }
 
-/// Restoration checks job shape and its linked procedure (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Restoration checks job shape and its linked procedure (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn restoring_a_job_checks_its_spec_contract_and_creator() {
     let mut h = procedure();
@@ -270,7 +270,7 @@ fn running_job() -> Harness {
     h
 }
 
-/// Forbidden job terminals leave even a priced attempt live (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Forbidden job terminals leave even a priced attempt live (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_refuses_parks_followups_exceeded_and_recheck_without_changing_its_attempt() {
     let mut h = running_job();
@@ -299,7 +299,7 @@ fn a_job_refuses_parks_followups_exceeded_and_recheck_without_changing_its_attem
     }
 }
 
-/// A job claim reserves zero and has no LLM account (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A job claim reserves zero and has no LLM account (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
     let mut h = procedure();
@@ -323,7 +323,7 @@ fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
     }
 }
 
-/// A Job contract checks result form and bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A Job contract checks result form and bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_result_is_bounded_bytes_or_a_failure() {
     let contract = crate::Contract::Job { bytes: 16 };
@@ -355,7 +355,7 @@ fn a_job_result_is_bounded_bytes_or_a_failure() {
     );
 }
 
-/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks.md, 5.3.1 and 5.5).
+/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
 #[test]
 fn a_job_refusal_pauses_without_a_try() {
     let mut h = running_job();
@@ -374,7 +374,7 @@ fn a_job_refusal_pauses_without_a_try() {
     assert_eq!(row.last_answer, Some(1));
 }
 
-/// Jobs share procedures' LLM and recurring refusals (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Jobs share procedures' LLM and recurring refusals (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_refuses_an_llm_choice_and_recurrence() {
     let mut h = procedure();
@@ -398,7 +398,7 @@ fn a_job_refuses_an_llm_choice_and_recurrence() {
     assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
 }
 
-/// jig/docs/design/domain/tasks.md, 5.5: a job's cause survives retry exhaustion and storage.
+/// jig/docs/design/domain/tasks/lifecycle.md, 6: a job's cause survives retry exhaustion and storage.
 #[test]
 fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
     let mut h = running_job();

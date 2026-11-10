@@ -120,7 +120,7 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
 }
 pub(super) fn decode(client: &Client, handle: Handle, limits: Limits) -> Watched {
     let Some(document) = client.document(handle) else { return Watched::Delivered(None) };
-    // Changed also reports progress before the first record (jig's client/domain/client.md, 8.1).
+    // Changed also reports progress before the first record (jig's client/domain/client/watches.md, 1).
     let waiting = match document.state {
         jig_client::State::Opening | jig_client::State::Behind => document.latest.is_none(),
         jig_client::State::Live | jig_client::State::Ended => false,

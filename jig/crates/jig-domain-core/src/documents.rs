@@ -1,5 +1,5 @@
 //! Typed live documents, made on demand from the core's committed vocabulary
-//! (`client/domain/contract.md`, sections 5 and 7; `domain/engine.md`, 11).
+//! (`client/domain/contract/documents.md` and `client/domain/contract/README.md`, section 5; `domain/engine/views.md`).
 //! No document is retained here, and this module neither delivers nor decides.
 //! `make` authenticates visibility from a supplied party number and copies only
 //! bounded text and lists. Its caller holds the answer until durable.
@@ -15,7 +15,7 @@
 //! endings. Core-aware constructors also join fenced best-effort observations;
 //! their engine receipt clocks are distinct from placement/adoption clocks.
 //! Retained failure and dependency explanations use exact task/activity reads.
-//! Closing chips name the connectors they wait on (domain/engine.md, 11.3). Effect
+//! Closing chips name the connectors they wait on (domain/engine/views.md, 3). Effect
 //! descriptions, prices and counts remain in each connector's panel. Recurring wall
 //! schedules still require their schedule owner. `make_with_clock` projects
 //! host grace from monotonic deadlines; account deadlines carry their source wall.
@@ -212,7 +212,7 @@ pub enum Subject {
     },
 }
 
-/// Watch routing categories (`client/domain/contract.md`, section 7).
+/// Watch routing categories (`client/domain/contract/README.md`, section 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SubjectShape {
     Application { scope: ApplicationScope, connector: u16, subject: skein_lib::Token },
@@ -223,7 +223,7 @@ pub enum SubjectShape {
 }
 
 /// Changes that mark subjects without consulting live child state
-/// (`client/domain/contract.md`, section 7.2).
+/// (`client/domain/contract/README.md`, section 5.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Touch {
     Party(u64),
@@ -323,7 +323,7 @@ impl Subject {
     }
 }
 
-/// The subjects a watch may name (`protocol/client.md`, section 7).
+/// The subjects a watch may name (`protocol/client/README.md`, section 5).
 /// Own subjects take their party from the authenticated sign-in in the core.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Watched {
@@ -404,32 +404,32 @@ pub struct Chip {
 }
 
 /// A held project role and the current funding facts available to the party.
-/// Each project has its kept name (core.md, 6.1); unopened pools have no ledger.
+/// Each project has its kept name (domain/model.md, 6.1); unopened pools have no ledger.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FrameProjectRole {
-    /// Catalogue models beyond the chat charter's bounds (engine.md, 17.11).
+    /// Catalogue models beyond the chat charter's bounds (domain/engine/settings.md, 11).
     pub left_out: u32,
     pub project: u32,
     pub role: people::Role,
     pub name: Text,
     pub pool: Option<Ledger>,
-    /// Direct creating bounds for this party and project (contract.md, 5.3).
+    /// Direct creating bounds for this party and project (client/domain/contract/documents.md, 3).
     pub creating: Option<crate::acts::Creating>,
     /// The catalogue models the party's tasks here may use (domain/authority.md, section 3).
     pub models: jig_domain_authority::Models,
     /// Configured templates with this project's policy overrides applied.
     pub templates: List<crate::Template>,
-    /// Current usable models and accounts (domain/engine.md, 11.1).
+    /// Current usable models and accounts (domain/engine/views.md, 1).
     pub offer: List<Offered>,
     /// Effective templates' current previews, without account reservations.
     pub defaults: List<(u32, tasks::LlmChoice)>,
-    /// Whether the project is public (jig/docs/design/domain/people.md, 13.2).
+    /// Whether the project is public (jig/docs/design/domain/people/public-reading.md, 2).
     pub public: bool,
 }
 
 /// Party identity, current roles, bounded counts and contract configuration.
 /// Deployment membership is supplied independently of the bounded project rows
-/// (`client/domain/contract.md`, sections 2, 5 and 7.1).
+/// (`client/domain/contract/README.md`, section 2 and `client/domain/contract/documents.md` and `client/domain/contract/README.md`, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Frame {
     pub party: u64,
@@ -508,7 +508,7 @@ pub enum Document {
 }
 
 /// Make the current visible document without changing state or emitting effects.
-/// Clamp its window to the engine's rows (`client/domain/contract.md`, 7.2).
+/// Clamp its window to the engine's rows (`client/domain/contract/README.md`, 5.2).
 pub fn make(
     core: &Core,
     limits: &Limits,

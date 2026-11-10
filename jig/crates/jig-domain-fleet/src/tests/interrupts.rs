@@ -1,4 +1,4 @@
-//! A stopped engine forgets an attempt without waiting for fleet resumption (jig/docs/design/domain/engine.md, 6.1).
+//! A stopped engine forgets an attempt without waiting for fleet resumption (jig/docs/design/domain/engine/restart.md, 1).
 use super::{A1, C1, FAILED, Harness, LIMITS, R1, drop, hosted, turn};
 use crate::{Event, Phase};
 

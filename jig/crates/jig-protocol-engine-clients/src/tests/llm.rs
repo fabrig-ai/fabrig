@@ -1,4 +1,4 @@
-//! A task's LLM choice and `me`'s models by their configured names (contract.md, 3.2 and 5.1).
+//! A task's LLM choice and `me`'s models by their configured names (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
@@ -8,7 +8,7 @@ use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{Queue, Reader, Writer};
 
-// MODEL_DESCRIPTION_BYTES (configuration.md, 6); each é takes two bytes.
+// MODEL_DESCRIPTION_BYTES (protocol/limits.md); each é takes two bytes.
 const DESCRIPTION_BYTES: usize = 512;
 const DESCRIPTION_CHARACTERS: usize = DESCRIPTION_BYTES / 2;
 // Repeated name and long effort, three invalid descriptions, and five zero price fields.

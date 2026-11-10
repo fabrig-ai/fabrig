@@ -1,4 +1,4 @@
-//! Load/fit/link (jig/docs/design/domain/engine.md, 6; domain/accounts.md, 3.6).
+//! Load/fit/link (jig/docs/design/domain/engine/restart.md; domain/accounts.md, 3.6).
 use jig_accounts_world::{
     HOLDER, LIMITS, PROVIDER, World, account, commit, held, issued, program, provider, providers, source,
 };

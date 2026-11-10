@@ -121,7 +121,7 @@ fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
     })
 }
 
-/// Only model changes enter the open's catalogue overlay (protocol/store.md, 5).
+/// Only model changes enter the open's catalogue overlay (protocol/store/records.md).
 pub(crate) fn model_changes() -> skein_kv::Range {
     skein_kv::Range::prefix(&[super::JIG, 0, 8, 1, 6])
 }

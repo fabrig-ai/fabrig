@@ -1,5 +1,5 @@
 //! Recurring batches, ended tasks, and connector cleanup
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{Ask, Core, CoreKey, Held, Key, Limits, Now, Request, Write};
 use alloc::boxed::Box;

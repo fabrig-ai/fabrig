@@ -1,4 +1,4 @@
-//! Whole per-channel inventories and once-ended sign-outs (channel.md, 5).
+//! Whole per-channel inventories and once-ended sign-outs (protocol/channel/records.md).
 use crate::{Domain, Limits, Request};
 use crate::{Login, LoginState, SignOutResult, SourceName};
 use alloc::boxed::Box;

@@ -1,4 +1,4 @@
-//! Closed wake rules and bounded batch and pace timers (domain/tasks.md, section 8.3).
+//! Closed wake rules and bounded batch and pace timers (domain/tasks/messages.md, section 3).
 //! Policies and unread messages are durable in task rows. Monotonic deadlines
 //! are derived from injected wall and monotonic time after restore. Procedures
 //! batch news by their policy and step immediately on other messages.
@@ -108,7 +108,7 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
 }
 
 /// The attempt's kept reasons and the kinds that wake this activation
-/// (jig/docs/design/domain/tasks.md, 8.6).
+/// (jig/docs/design/domain/tasks/messages.md, 6).
 pub(crate) fn reasons(domain: &Domain, number: u64, inbox: &[Word]) -> crate::Reasons {
     let mut reasons = record(domain, number).expect("activation task live").reasons;
     for word in inbox {
@@ -139,7 +139,7 @@ fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
     (hits, oldest, latched)
 }
 
-/// Admit root's numbered notice only while the kept task can go on (domain/tasks.md, 5.7).
+/// Admit root's numbered notice only while the kept task can go on (domain/tasks/lifecycle.md, 8).
 pub(crate) fn met(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -271,7 +271,7 @@ pub(crate) fn after_message(
                 return;
             }
             // A run behind its choice hears nothing more: the message starts the next run
-            // (domain/tasks.md, section 7).
+            // (domain/tasks/changes.md).
             if row.llm_changed {
                 if !row.narrowing {
                     let row = &mut task_mut(domain, number).expect("message task live").record;

@@ -2,7 +2,7 @@
 use super::*;
 use jig_core_world::world::Setup;
 const READ_CREATING: u64 = 94;
-// Project subject actions, including Rename (people.md, 5.1).
+// Project subject actions, including Rename (domain/people/acts.md, 1).
 const PROJECT_ACTS: u32 = 7;
 use jig_core_world::stories::offers::{goal, no_acceptor_fixture, project};
 

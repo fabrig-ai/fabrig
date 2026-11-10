@@ -1,4 +1,4 @@
-//! Independent party identities through the HTTP front (protocol/client.md, 8 and 14).
+//! Independent party identities through the HTTP front (protocol/client/sign-in.md and protocol/client/README.md, 11).
 use crate::{fixtures, stories};
 use jig_client_kit::harness::{Seed, seed::RoleStory};
 use skein_fake_person::{Find, Step};

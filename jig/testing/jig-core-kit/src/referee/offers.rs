@@ -1,4 +1,4 @@
-//! Independent check of immediately used delivered offers (contract.md, 5.3).
+//! Independent check of immediately used delivered offers (client/domain/contract/documents.md, 3).
 //! This observer receives only boundary events, durable commit numbers and
 //! documents/replies. It never reads a domain or calls an admission judge.
 mod facts;

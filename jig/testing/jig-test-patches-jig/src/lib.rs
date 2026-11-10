@@ -11,7 +11,7 @@ pub mod patches;
 
 pub const NAME: &str = "fixture-jig";
 
-/// Whole map keys, as for jig's own records (store.md 4.2).
+/// Whole map keys, as for jig's own records (protocol/store/README.md 4.2).
 pub mod keys {
     pub const NOTES_FROM: &[u8] = &[0x02, b'n'];
     pub const NOTES_TO: &[u8] = &[0x02, b'o'];

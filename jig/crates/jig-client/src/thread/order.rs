@@ -1,4 +1,4 @@
-//! Whole activity lines ordered newest first (jig/docs/design/client/domain/client.md, 10).
+//! Whole activity lines ordered newest first (jig/docs/design/client/domain/client/conversations.md).
 use crate::contract::DecodedActivityLine;
 use skein_lib::{List, Map};
 

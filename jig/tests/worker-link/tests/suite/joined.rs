@@ -442,7 +442,7 @@ fn resumed_continues(world: &mut joined::Joined) {
 }
 
 // Both real sides keep a resumed producer going within io's room
-// (jig/docs/design/protocol/channel.md, 9, 11 and 12).
+// (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
 #[test]
 fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_domain_host as host;

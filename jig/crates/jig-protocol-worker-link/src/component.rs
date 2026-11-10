@@ -1,4 +1,4 @@
-//! Opening, loss and redial transitions (protocol/channel.md, 4 and 10.1).
+//! Opening, loss and redial transitions (protocol/channel/README.md, 4 and 9.1).
 use crate::{
     Event, Limits, Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request,
     backoff::Backoff,

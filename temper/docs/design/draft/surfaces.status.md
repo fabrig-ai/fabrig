@@ -147,7 +147,7 @@
     what waits on them on the tasks they requested, a task once by its
     oldest entry, and not what waits on them on another's task or on a
     role they hold (`../client/README.md`, 3.5, *Team*): no read gives
-    another party's inbox (jig's `domain/people.md`, section 6). Decided
+    another party's inbox (jig's `domain/people/README.md`, section 5). Decided
     by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
   - 3 and 13: `../client/README.md`, 3.5, *Home on All projects*, sets
     each joined sentence after its project's name and ": " in the strong

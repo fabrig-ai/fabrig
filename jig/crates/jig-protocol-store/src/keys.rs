@@ -1,4 +1,4 @@
-//! Ordered keys and owner tags (protocol/store.md, sections 4.1 and 4.2).
+//! Ordered keys and owner tags (protocol/store/README.md, sections 4.1 and 4.2).
 use alloc::boxed::Box;
 use jig_domain_core as domain;
 use skein_kv::{KeyReader, KeyWriter};

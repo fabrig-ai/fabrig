@@ -1,4 +1,4 @@
-//! Job stories through the unit harness (jig/docs/design/domain/hosts.md, 6.9).
+//! Job stories through the unit harness (jig/docs/design/domain/hosts/hub.md, 9).
 use super::*;
 use crate::{FromJob, JobAssignment, JobBound, JobEnd, JobEnding, JobFailure, JobInvalid, JobKind, JobRefusal, ToJob};
 use skein_lib::Duration;
@@ -106,7 +106,7 @@ fn delivering(h: &mut Harness, owner: Token) -> Token {
     *owner
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: the prepared workspace is the job's, and ACK frees its slot.
+/// jig/docs/design/domain/hosts/hub.md, 9: the prepared workspace is the job's, and ACK frees its slot.
 #[test]
 fn a_job_of_a_declared_kind_runs_in_its_workspace_and_answers_its_result() {
     let mut h = harness();
@@ -121,7 +121,7 @@ fn a_job_of_a_declared_kind_runs_in_its_workspace_and_answers_its_result() {
     assert_eq!(h.domain.hosted(), 0);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: invalid assignments never prepare or keep an answer.
+/// jig/docs/design/domain/hosts/hub.md, 9: invalid assignments never prepare or keep an answer.
 #[test]
 fn a_job_of_a_kind_not_declared_is_refused_as_invalid() {
     let mut unknown = job();
@@ -157,7 +157,7 @@ fn a_job_of_a_kind_not_declared_is_refused_as_invalid() {
     }
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: delivery completes before release, preserving changed work.
+/// jig/docs/design/domain/hosts/hub.md, 9: delivery completes before release, preserving changed work.
 #[test]
 fn a_finished_job_delivers_through_its_workspace_before_release() {
     let mut h = harness();
@@ -173,7 +173,7 @@ fn a_finished_job_delivers_through_its_workspace_before_release() {
     );
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a stale delivery fails the job.
+/// jig/docs/design/domain/hosts/hub.md, 9: a stale delivery fails the job.
 #[test]
 fn a_stale_job_delivery_fails_undelivered() {
     let mut h = harness();
@@ -186,7 +186,7 @@ fn a_stale_job_delivery_fails_undelivered() {
     );
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: cancellation waits for Gone, and ignores a late successful end.
+/// jig/docs/design/domain/hosts/hub.md, 9: cancellation waits for Gone, and ignores a late successful end.
 #[test]
 fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
     let mut h = harness();
@@ -203,7 +203,7 @@ fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
     assert!(h.step(gone(owner)).is_empty());
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a begun delivery settles even after cancel and Gone.
+/// jig/docs/design/domain/hosts/hub.md, 9: a begun delivery settles even after cancel and Gone.
 #[test]
 fn a_cancelled_job_waits_for_its_delivery() {
     let mut h = harness();
@@ -227,7 +227,7 @@ fn a_cancelled_job_waits_for_its_delivery() {
     );
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a capability's deadline has its typed failure.
+/// jig/docs/design/domain/hosts/hub.md, 9: a capability's deadline has its typed failure.
 #[test]
 fn a_job_past_its_deadline_fails_deadline() {
     let mut h = harness();
@@ -236,7 +236,7 @@ fn a_job_past_its_deadline_fails_deadline() {
     assert_eq!(&*h.step(gone(owner)), [Request::Release { workspace: SPACE }, answer(failed(JobFailure::Deadline))]);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: the kind's result bound is checked before delivery.
+/// jig/docs/design/domain/hosts/hub.md, 9: the kind's result bound is checked before delivery.
 #[test]
 fn a_result_past_its_kinds_bound_fails_and_delivers_nothing() {
     let mut h = harness();
@@ -251,7 +251,7 @@ fn a_result_past_its_kinds_bound_fails_and_delivers_nothing() {
     assert_eq!(&*h.step(gone(owner)), [Request::Release { workspace: SPACE }, answer(failed(JobFailure::Result))]);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: every hello lists job kinds and the shared slot's phase.
+/// jig/docs/design/domain/hosts/hub.md, 9: every hello lists job kinds and the shared slot's phase.
 #[test]
 fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     let mut h = harness();
@@ -281,7 +281,7 @@ fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     );
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: cancellation of preparation waits for its terminal and never runs the job.
+/// jig/docs/design/domain/hosts/hub.md, 9: cancellation of preparation waits for its terminal and never runs the job.
 #[test]
 fn a_job_cancelled_during_preparation_releases_only_after_preparation_settles() {
     for reason in [Reason::Engine, Reason::Contact, Reason::Shutdown] {
@@ -298,7 +298,7 @@ fn a_job_cancelled_during_preparation_releases_only_after_preparation_settles() 
     }
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: every contact or shutdown cancellation stops a job, preserving the first reason.
+/// jig/docs/design/domain/hosts/hub.md, 9: every contact or shutdown cancellation stops a job, preserving the first reason.
 #[test]
 fn cancel_all_stops_a_starting_job_and_keeps_its_first_reason() {
     for reason in [Reason::Contact, Reason::Shutdown] {
@@ -317,7 +317,7 @@ fn cancel_all_stops_a_starting_job_and_keeps_its_first_reason() {
     }
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a refused capability start keeps no answer and releases its workspace.
+/// jig/docs/design/domain/hosts/hub.md, 9: a refused capability start keeps no answer and releases its workspace.
 #[test]
 fn a_job_start_refused_releases_and_keeps_nothing() {
     let mut h = harness();
@@ -334,7 +334,7 @@ fn a_job_start_refused_releases_and_keeps_nothing() {
     assert_eq!((h.domain.hosted(), h.domain.kept_answers()), (0, 0));
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: failed preparation retains a typed, bounded answer without a workspace.
+/// jig/docs/design/domain/hosts/hub.md, 9: failed preparation retains a typed, bounded answer without a workspace.
 #[test]
 fn an_unprepared_job_answers_with_bounded_detail() {
     let mut h = harness();
@@ -350,7 +350,7 @@ fn an_unprepared_job_answers_with_bounded_detail() {
     assert_eq!(h.domain.kept_answers(), 1);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a job with no items needs no workspace or delivery, and Gone without Ended fails it.
+/// jig/docs/design/domain/hosts/hub.md, 9: a job with no items needs no workspace or delivery, and Gone without Ended fails it.
 #[test]
 fn an_itemless_job_that_goes_without_an_end_fails_unstarted() {
     let mut h = harness();
@@ -363,7 +363,7 @@ fn an_itemless_job_that_goes_without_an_end_fails_unstarted() {
     assert_eq!(&*h.step(gone(*owner)), [answer(failed(JobFailure::Unstarted))]);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: jobs and runs retain their slots until acknowledged.
+/// jig/docs/design/domain/hosts/hub.md, 9: jobs and runs retain their slots until acknowledged.
 #[test]
 fn runs_jobs_and_kept_answers_share_the_slot_limit() {
     let mut h = harness();
@@ -389,7 +389,7 @@ fn runs_jobs_and_kept_answers_share_the_slot_limit() {
     let [Request::Prepare { .. }] = &*requests else { panic!("prepare: {requests:?}") };
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: application grants at their count bound are admitted and never given to the job.
+/// jig/docs/design/domain/hosts/hub.md, 9: application grants at their count bound are admitted and never given to the job.
 #[test]
 fn application_grants_at_the_bound_are_admitted() {
     let mut h = harness();
@@ -401,7 +401,7 @@ fn application_grants_at_the_bound_are_admitted() {
     let [Request::Prepare { .. }] = &*requests else { panic!("prepare: {requests:?}") };
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a job delivery has room even when the host admits no run calls.
+/// jig/docs/design/domain/hosts/hub.md, 9: a job delivery has room even when the host admits no run calls.
 #[test]
 fn a_job_delivers_when_run_calls_are_disabled() {
     let mut h = Harness::new();

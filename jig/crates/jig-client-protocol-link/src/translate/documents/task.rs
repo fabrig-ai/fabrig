@@ -1,4 +1,4 @@
-//! Field-for-field document values (client/domain/contract.md, 5–7).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use super::{
     Box, Limits, List, Wall, authority_document_fields, c, chip_fields, chip_piece, live_delegate_piece, offered_piece,
     piece_problem, specification_document_fields, spend_line_fields, subscriptions_fields,

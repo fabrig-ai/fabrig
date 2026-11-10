@@ -24,7 +24,7 @@ words, is `../client/README.md`, 3.5, *The try*.
   inputs.
 - **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`,
   4.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
-  0 (jig's `domain/engine.md`, 11.1), within the deployment ceiling's models, holds no account but the one tried.
+  0 (jig's `domain/engine/views.md`, 1), within the deployment ceiling's models, holds no account but the one tried.
   Those are the models a person's seed allows (jig's `domain/authority.md`, 6.1); the offer is not narrowed to
   the trial's charter for this decision. Then what a new chat takes is that account.
 - **A later account's names it.** Where that offer holds any other account, the person's own or the deployment's, the
@@ -92,7 +92,7 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
 - **A committed turn is the first committed text:** a trial's run has no tools to call. The root reads turns, not
   their bytes.
 - **A failed run ends it.** jig would try again, past 1 to 30 s, and each try may spend: the trial's first ending
-  is its end (jig's `domain/engine.md`, 7).
+  is its end (jig's `domain/engine/executors.md`).
 
 ## 4. The root
 

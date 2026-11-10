@@ -1,4 +1,4 @@
-//! Admission bounds for a hosted run (domain/hosts.md, section 6.2).
+//! Admission bounds for a hosted run (domain/hosts/hub.md, section 2).
 //! Workspace items belong to the application and stay opaque here.
 
 use crate::boundary::{Invalid, RunAssignment};

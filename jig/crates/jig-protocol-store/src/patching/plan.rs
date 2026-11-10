@@ -1,4 +1,4 @@
-//! Order across owners, using four explicit stack frames (protocol/store.md 10.3).
+//! Order across owners, using four explicit stack frames (protocol/store/opening.md 3).
 use super::sets::{Owner, PatchSet, PatchSets};
 use alloc::boxed::Box;
 use skein_codec::patch::{Header, header};
@@ -98,7 +98,7 @@ fn read(set: &PatchSet, patch: u32) -> Result<Header, Unplanned> {
     }
     Ok(head)
 }
-/// The manifest counts each kept family by its name (store.md 2, 10.3): the
+/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused as patch 0. Judged before the plan and before a first start writes.
 pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
@@ -380,8 +380,8 @@ fn holds(sets: &PatchSets) -> Result<(), Unplanned> {
     Ok(())
 }
 
-/// The read-only part of planning, before cleanup or closing A (store.md
-/// 10.3). Only a patch's own blocks select families; held-value walks do not.
+/// The read-only part of planning, before cleanup or closing A (protocol/store/opening.md
+/// 3). Only a patch's own blocks select families; held-value walks do not.
 pub(crate) fn flights(
     store: &mut crate::Store,
     plan: &Plan,
@@ -414,7 +414,7 @@ pub(crate) fn flights(
     Ok(())
 }
 
-/// store.md 10.3 bounds the keys named in a refusal independently of the count.
+/// protocol/store/opening.md 3 bounds the keys named in a refusal independently of the count.
 const FLIGHT_KEYS: u32 = 64;
 struct FlightKeys {
     count: u32,

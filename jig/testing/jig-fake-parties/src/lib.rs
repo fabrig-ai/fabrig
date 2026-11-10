@@ -1,4 +1,4 @@
-//! Independent parties at `domain/people.md`, 11 and `domain/testing.md`, 7.
+//! Independent parties at `domain/people/README.md`, 10 and `domain/testing.md`, 7.
 //! A party keeps its sign-in, last task, visible waiting work and request keys.
 //! One script action waits for its reply before the next; duplicate sends reuse
 //! the original key and payload. Nothing depends on core or people vocabulary.

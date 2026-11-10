@@ -1,4 +1,4 @@
-//! Volatile codes and access tokens; authorization order and claims (protocol/client.md, 18).
+//! Volatile codes and access tokens; authorization order and claims (protocol/client/openid.md).
 use super::Component;
 use crate::{Limits, ProviderAnswer, Reply, Request, exchange::Exchange, routes, sign_in::Waiting};
 use alloc::boxed::Box;

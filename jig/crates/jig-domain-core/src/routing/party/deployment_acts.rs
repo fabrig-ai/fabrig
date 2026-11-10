@@ -1,4 +1,4 @@
-//! Deployment acts retain the same child decisions as party requests (people.md, 5.3).
+//! Deployment acts retain the same child decisions as party requests (domain/people/acts.md, 3).
 use super::dispatch::Party;
 use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, routing::Work};
 use alloc::boxed::Box;

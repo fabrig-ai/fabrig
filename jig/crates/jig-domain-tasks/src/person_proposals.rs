@@ -1,4 +1,4 @@
-//! Party proposal shape and durable withdrawal (domain/tasks.md, section 9).
+//! Party proposal shape and durable withdrawal (domain/tasks/proposals.md).
 use crate::{
     Domain, Limits, PersonAction, PersonProposal, PersonProposalState, ProposalOutcome, Refusal, Request, Stored,
 };
@@ -77,7 +77,7 @@ pub(crate) fn withdraw(
         Some(row) => row.proposer == proposer,
         None => false,
     };
-    // A release withdraws restored settings before task adoption (engine.md, 17.7).
+    // A release withdraws restored settings before task adoption (domain/engine/settings.md, 7).
     let restoring_settings = to.is_none()
         && match domain.startup {
             crate::domain::Startup::Restoring | crate::domain::Startup::Checked => true,

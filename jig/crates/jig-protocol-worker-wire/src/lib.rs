@@ -1,6 +1,6 @@
 //! Worker channel records and their sizes, and a resumed start's
 //! committed calls fitted to a room, without domain or payload policy.
-//! Contracts: protocol/channel.md, sections 3, 4.1 and 6.2.
+//! Contracts: protocol/channel/README.md, sections 3, 4.1 and 5.2.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -52,11 +52,11 @@ pub struct Part {
     pub bytes: Box<[u8]>,
 }
 
-/// The magic and one version this release speaks (protocol/channel.md, 4.1).
+/// The magic and one version this release speaks (protocol/channel/README.md, 4.1).
 pub const MAGIC: [u8; 4] = *b"jigw";
 pub const VERSION: u16 = 9;
 
-/// Jig's refusal reasons, above skein's reserved range (protocol/channel.md, 4.1).
+/// Jig's refusal reasons, above skein's reserved range (protocol/channel/README.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Reason {
     Unauthorized,
@@ -102,7 +102,7 @@ pub use v9::{
 
 pub use v9::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
 
-// Jobs use the worker channel's own records (jig/docs/design/protocol/channel.md, 5.4).
+// Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
 pub use v9::{
     DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
     JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,

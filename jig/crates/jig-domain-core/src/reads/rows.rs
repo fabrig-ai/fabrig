@@ -1,6 +1,6 @@
 //! Read-only construction from bounded authenticated owner rows.
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
-//! Deployment period spend includes removed projects (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+//! Deployment period spend includes removed projects (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, CoreKey, CoreRecord, Key, Limits, Record,
     documents::{self, Document, Missing, Proposer},
@@ -443,7 +443,7 @@ pub(super) fn proposal_from_store(
 }
 
 /// Person reads keep party visibility and require every loaded owner to be of
-/// the run's project (`jig/docs/design/domain/engine.md`, 7.3).
+/// the run's project (`jig/docs/design/domain/engine/executors.md`, 3).
 pub(super) fn person_from_store(
     core: &Core,
     limits: &Limits,
@@ -547,7 +547,7 @@ fn validate_rows(limits: &Limits, range: &Range, raw: &[Row], next: Option<&Posi
 }
 
 /// An owner-only point read proves a retained page's project without building
-/// its task document or joining its lineage (`engine.md`, 7.3).
+/// its task document or joining its lineage (`domain/engine/executors.md`, 3).
 pub(super) fn person_owner(
     core: &Core,
     limits: &Limits,

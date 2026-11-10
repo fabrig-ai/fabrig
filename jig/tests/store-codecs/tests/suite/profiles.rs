@@ -1,8 +1,8 @@
-//! Shipped profiles fit the byte-summed families (store.md, 5.1).
+//! Shipped profiles fit the byte-summed families (protocol/store/records.md, 1).
 use jig_protocol_config::{Profile, profile};
 use jig_protocol_store::codec;
 
-// Standard's development figures (protocol/configuration.md, 6), with small's other limits.
+// Standard's development figures (protocol/limits.md), with small's other limits.
 fn fabrig_scale() -> jig_domain_core::Limits {
     let mut core = profile(Profile::Small).core;
     core.tasks = jig_domain_tasks::Limits {
@@ -43,7 +43,7 @@ fn the_codecs_hold_fabrig_scale() {
 #[test]
 fn the_codecs_refuse_figures_past_the_ceilings() {
     let core = fabrig_scale();
-    // One past each binding schema ceiling (protocol/store.md, 5.1).
+    // One past each binding schema ceiling (protocol/store/records.md, 1).
     let cases = [
         ("delegates", jig_domain_tasks::Limits { delegates: 257, ..core.tasks }),
         ("inbox_messages", jig_domain_tasks::Limits { inbox_messages: 129, ..core.tasks }),

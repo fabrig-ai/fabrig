@@ -1,4 +1,4 @@
-//! Durable proposals owned by live proposers (domain/tasks.md, section 9).
+//! Durable proposals owned by live proposers (domain/tasks/proposals.md).
 //! The root decides authority, funding and holder coverage. This child keeps
 //! one pending proposal per live task, its action and current recipient; it
 //! never knows role membership or a worker call identity. Terminal proposals
@@ -84,7 +84,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out:
     expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
 )]
 pub enum ProposalAction {
-    /// Settings values stay in the core (engine.md, 17.6).
+    /// Settings values stay in the core (domain/engine/settings.md, 6).
     Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },
     /// Whole batch with IDs allocated on proposal admission, before reservation.
     Batch(Box<[New]>),
@@ -188,7 +188,7 @@ impl PersonProposal {
 }
 
 /// A party's requested action. Task actions use the accepter's funding;
-/// deployment settings carry no funding (tasks.md, section 9).
+/// deployment settings carry no funding (domain/tasks/proposals.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PersonAction {
     Settings { against: u32, items: Box<[SettingHead]> },
@@ -196,7 +196,7 @@ pub enum PersonAction {
     Amend { task: u64, revision: u64, amendment: Box<Amendment> },
 }
 
-/// The tasks child retains only settings item heads (engine.md, 17.6).
+/// The tasks child retains only settings item heads (domain/engine/settings.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
     Model(u32),
@@ -642,7 +642,7 @@ pub(crate) fn propose(
     out.push(Request::Done { reply_to: to });
 }
 
-/// The pending proposal of settings a task's fresh one replaces (tasks.md, section 9).
+/// The pending proposal of settings a task's fresh one replaces (domain/tasks/proposals.md).
 fn replaced(task: &TaskRecord, proposal: &Proposal) -> Option<u64> {
     if kind(&proposal.action) != ProposalKind::Settings {
         return None;
@@ -1160,7 +1160,7 @@ impl Domain {
     }
 }
 
-/// The accepted action and its decision are preflighted before either changes (domain/tasks.md, 5.9).
+/// The accepted action and its decision are preflighted before either changes (domain/tasks/lifecycle.md, 10).
 fn release_plan(
     domain: &Domain,
     env: &Env<Limits>,

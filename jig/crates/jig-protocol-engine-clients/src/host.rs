@@ -127,7 +127,7 @@ fn secret_request(request: kit::SecretsRequest) -> (Asked, store::Secrets) {
         }
     }
 }
-/// Where the store keeps an owner's value; a carried one is the application's, under the store's number (store.md, 9).
+/// Where the store keeps an owner's value; a carried one is the application's, under the store's number (protocol/store/secrets.md).
 #[must_use]
 fn place(owner: kit::SecretOwner) -> (store::SecretOwner, u64) {
     use store::SecretOwner;

@@ -1,4 +1,4 @@
-//! Templates are data served to clients, never used by decisions (engine.md, 11.1).
+//! Templates are data served to clients, never used by decisions (domain/engine/views.md, 1).
 use alloc::boxed::Box;
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks::{Contract, Flags};
@@ -18,7 +18,7 @@ pub struct Template {
     pub label: u32,
     pub grace: Option<Duration>,
     /// The LLM choice a task filled from it carries, each model configured with an effort it
-    /// takes; none for its charter's default (configuration.md, 3.1; domain/tasks.md, 3).
+    /// takes; none for its charter's default (configuration.md, 3.1; domain/tasks/README.md, 3).
     pub llm: Option<jig_domain_tasks::LlmChoice>,
     /// Connectors' symbols a task filled from this template holds (protocol/configuration.md, 3.3).
     pub resources: Box<[jig_domain_people::Symbol]>,

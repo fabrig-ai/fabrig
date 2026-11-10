@@ -1,4 +1,4 @@
-//! Start opening and phase discipline (jig/docs/design/domain/engine.md, 6).
+//! Start opening and phase discipline (jig/docs/design/domain/engine/restart.md).
 
 pub(in crate::tests) mod connectors;
 pub(in crate::tests) mod inbox;

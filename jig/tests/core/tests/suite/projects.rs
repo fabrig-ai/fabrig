@@ -1,4 +1,4 @@
-//! Project decisions at the engine's lowest complete boundary (people.md, 5.1–5.3).
+//! Project decisions at the engine's lowest complete boundary (domain/people/acts.md, 1–3).
 
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures::{PARTY as OWNER, sign_in as signin};

@@ -25,7 +25,7 @@ impl Referee {
             self.acknowledged += 1;
         }
     }
-    /// The engine restarted cold; its core holds no watch to tell (protocol/client.md, 7).
+    /// The engine restarted cold; its core holds no watch to tell (protocol/client/README.md, 5).
     pub fn restarted(&mut self) {
         self.consumed.clear();
     }

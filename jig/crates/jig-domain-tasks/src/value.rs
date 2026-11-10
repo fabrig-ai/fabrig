@@ -1,5 +1,5 @@
 //! Task-owned semantic authority and accounting carriers
-//! (domain/tasks.md, sections 2–3; domain/authority.md, sections 3–7).
+//! (domain/tasks/README.md, sections 2–3; domain/authority.md, sections 3–7).
 //! Root translates permission values for pure authority checks. Tasks owns
 //! concrete financial counters and admits bounded payload shape; it neither
 //! interprets connector names nor serves tools or implements a move route.
@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::Wall;
 
 /// Task-owned permission carrier supplied by the root after authority checks; tasks admits its
-/// bounded shape but does not judge permission inclusion. (domain/tasks.md, sections 2–3).
+/// bounded shape but does not judge permission inclusion. (domain/tasks/README.md, sections 2–3).
 /// (domain/authority.md, sections 3–7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Authority {
@@ -31,12 +31,12 @@ pub struct Authority {
 }
 
 /// Root-configured tool-family bit set carried with a task, independent of authority's vocabulary.
-/// (domain/tasks.md, sections 2–3). (domain/authority.md, sections 3–7).
+/// (domain/tasks/README.md, sections 2–3). (domain/authority.md, sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Tools(/** Up to 64 configured family bits; tasks assigns no family meanings. */ pub u64);
 
 /// Configured-model bit set carried with a task, in configuration's order: bit `i` is the `i`th
-/// configured model (domain/tasks.md, section 3; domain/authority.md, section 3).
+/// configured model (domain/tasks/README.md, section 3; domain/authority.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Models {
     /// Every model, including models configured later.
@@ -90,7 +90,7 @@ impl Models {
 }
 
 /// Task-relative note-scope bits carried as semantic data; the authority child checks scope
-/// permission through the root. (domain/tasks.md, sections 2–3). (domain/authority.md,
+/// permission through the root. (domain/tasks/README.md, sections 2–3). (domain/authority.md,
 /// sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Scopes(/** Goal 1, project 2 and deployment 4 scope bits. */ pub u8);
@@ -114,7 +114,7 @@ pub struct ResourceScope {
 }
 
 /// Owned connector permission carried by tasks; connector interpretation and authority decisions
-/// remain outside this child. (domain/tasks.md, sections 2–3). (domain/authority.md,
+/// remain outside this child. (domain/tasks/README.md, sections 2–3). (domain/authority.md,
 /// sections 3–7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Grant {
@@ -126,7 +126,7 @@ pub struct Grant {
 }
 
 /// Literal base segments and terminal coverage rule carried without connector parsing or
-/// normalization. (domain/tasks.md, sections 2–3). (domain/authority.md, sections 3–7).
+/// normalization. (domain/tasks/README.md, sections 2–3). (domain/authority.md, sections 3–7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pattern {
     /// `Exact` literal base segments, bounded per grant by `Limits::authority_segments`; bytes
@@ -137,7 +137,7 @@ pub struct Pattern {
 }
 
 /// Terminal resource coverage carrier; tasks bounds bytes while authority interprets coverage.
-/// (domain/tasks.md, sections 2–3). (domain/authority.md, sections 3–7).
+/// (domain/tasks/README.md, sections 2–3). (domain/authority.md, sections 3–7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Last {
     /// Requires one exact additional segment alone, as interpreted by authority.
@@ -148,7 +148,7 @@ pub enum Last {
 }
 
 /// Permitted executor identities carried in authority; these are not additional implemented task
-/// execution routes. (domain/tasks.md, sections 2–3). (domain/authority.md, sections 3–7).
+/// execution routes. (domain/tasks/README.md, sections 2–3). (domain/authority.md, sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AuthorityExecutor {
     /// Permission to delegate to an application job kind (jig/docs/design/domain/authority.md, 3).
@@ -162,7 +162,7 @@ pub enum AuthorityExecutor {
 }
 
 /// `Authority`'s permitted executors, lifetime task capacity and depth carried with a task; current
-/// topology limits are checked separately. (domain/tasks.md, sections 2–3).
+/// topology limits are checked separately. (domain/tasks/README.md, sections 2–3).
 /// (domain/authority.md, sections 3–7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Delegation {
@@ -176,7 +176,7 @@ pub struct Delegation {
 }
 
 /// Task's permission ceiling for deployment-unit spend and latest wall time; available `funding` is
-/// tracked separately in `Numbers`. (domain/tasks.md, sections 2–3). (domain/authority.md,
+/// tracked separately in `Numbers`. (domain/tasks/README.md, sections 2–3). (domain/authority.md,
 /// sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Budget {
@@ -187,7 +187,7 @@ pub struct Budget {
 }
 
 /// Concrete accounting of one current allotment, owned by tasks: direct spend, settled funded spend
-/// and still-open reservations. (domain/tasks.md, sections 2–3). (domain/authority.md,
+/// and still-open reservations. (domain/tasks/README.md, sections 2–3). (domain/authority.md,
 /// sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Numbers {
@@ -203,7 +203,7 @@ pub struct Numbers {
 }
 
 /// Financial source, distinct from requester topology; original period identities survive
-/// later period openings. (domain/tasks.md, sections 2–3). (domain/authority.md, sections
+/// later period openings. (domain/tasks/README.md, sections 2–3). (domain/authority.md, sections
 /// 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Funder {

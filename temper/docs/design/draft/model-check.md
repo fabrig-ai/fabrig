@@ -78,7 +78,7 @@ Each step reads what the page already watches, in the terminal as lines:
 
 - **What it says:** "✕", ACCOUNT, "Claude didn't answer", the step that stopped
   under "Each step", and why, in the person's terms: the run's ending, or why it
-  waits (`RunWait` in jig's `domain/engine.md`, 7.1). Never a command for
+  waits (`RunWait` in jig's `domain/engine/executors.md`, 1). Never a command for
   temper's own tools.
 - **What it offers:** "Try again", and the act that answers the reason, quiet,
   such as "Sign in again", to the way's page.

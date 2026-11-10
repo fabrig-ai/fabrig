@@ -40,7 +40,7 @@ names is tuned on the person's `look-requests` branch
 
 - **The default document seeds no project:** its `projects` is `[]`.
   jig makes each first owner a deployment owner with no project
-  configured (jig's `domain/people.md`, 3), and temper's engine, the
+  configured (jig's `domain/people/README.md`, 3), and temper's engine, the
   playground and the client already run a deployment with no project.
 - **Policy 1 stays,** a stock setting that projects are made from, not
   a project's.

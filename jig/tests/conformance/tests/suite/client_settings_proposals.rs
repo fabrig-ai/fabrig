@@ -410,7 +410,7 @@ fn engine_running_and_pending_settings_limit_refusals_keep_their_client_names() 
     }
 }
 
-// Preserve the review key carried by owner documents (client/domain/contract.md, 5.1).
+// Preserve the review key carried by owner documents (client/domain/contract/documents.md, 1).
 fn wire_owner_proposal_action_settings(
     value: &c::ProposalActionSettings,
     limits: &w::Limits,

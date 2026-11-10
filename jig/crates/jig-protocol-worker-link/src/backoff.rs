@@ -1,4 +1,4 @@
-//! Jittered redials (protocol/channel.md, 10.1).
+//! Jittered redials (protocol/channel/README.md, 9.1).
 use crate::Limits;
 use skein_lib::{Duration, Rng};
 #[derive(Debug)]

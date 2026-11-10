@@ -1,5 +1,5 @@
 //! An escalation preserves its task owner’s whole document and its independent
-//! offered decisions (client/domain/contract.md, 5.1–5.3; objects.md, 5).
+//! offered decisions (client/domain/contract/documents.md, 1–3; objects.md, 5).
 use super::{Offered, Task};
 use alloc::boxed::Box;
 use skein_lib::List;

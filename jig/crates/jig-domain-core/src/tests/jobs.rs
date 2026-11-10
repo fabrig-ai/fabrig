@@ -1,4 +1,4 @@
-//! Job admission (jig/docs/design/domain/engine.md, 7.5).
+//! Job admission (jig/docs/design/domain/engine/executors.md, 5).
 use crate::runs::delegation::job_member;
 use crate::tests::*;
 use jig_domain_link::{Form, JobBound, JobKind};
@@ -31,7 +31,7 @@ fn member() -> Delegate {
     }
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_declared_job_within_its_bounds_takes_its_kinds_result_bound_as_its_contract() {
     let mut member = member();
@@ -40,7 +40,7 @@ fn a_declared_job_within_its_bounds_takes_its_kinds_result_bound_as_its_contract
     assert_eq!(member.llm, None);
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_job_of_an_undeclared_kind_is_refused() {
     assert_eq!(job_member(&[], &mut member()), Err(tasks::Refusal::Executor));
@@ -49,7 +49,7 @@ fn a_job_of_an_undeclared_kind_is_refused() {
     assert_eq!(job_member(&[bound()], &mut member), Err(tasks::Refusal::Executor));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_job_past_its_kinds_spec_or_deadline_is_refused() {
     let mut member = member();
@@ -60,7 +60,7 @@ fn a_job_past_its_kinds_spec_or_deadline_is_refused() {
     assert_eq!(job_member(&[bound()], &mut member), Err(tasks::Refusal::Spec));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_job_without_its_spec_is_refused() {
     let mut member = member();
@@ -68,7 +68,7 @@ fn a_job_without_its_spec_is_refused() {
     assert_eq!(job_member(&[bound()], &mut member), Err(tasks::Refusal::Spec));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_job_naming_an_llm_is_refused() {
     let mut member = member();
@@ -81,14 +81,14 @@ fn a_job_naming_an_llm_is_refused() {
     assert_eq!(job_member(&[bound()], &mut member), Err(tasks::Refusal::Executor));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_jobs_delegation_executor_names_its_kind() {
     let (core, _) = core();
     assert_eq!(core.delegation_executor(1, tasks::Executor::Job { kind: 7 }), Some(authority::Executor::Job(7)));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn configured_job_bounds_fit_at_the_tasks_childs_limits() {
     let limits = limits();
@@ -98,7 +98,7 @@ fn configured_job_bounds_fit_at_the_tasks_childs_limits() {
     assert_eq!(core.jobs.len(), 1);
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 #[should_panic(expected = "job kinds are ascending and distinct")]
 fn repeated_job_kinds_are_not_configuration() {
@@ -107,7 +107,7 @@ fn repeated_job_kinds_are_not_configuration() {
     drop(Core::new(config, &limits()));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 #[should_panic(expected = "job kinds are ascending and distinct")]
 fn descending_job_kinds_are_not_configuration() {
@@ -116,7 +116,7 @@ fn descending_job_kinds_are_not_configuration() {
     drop(Core::new(config, &limits()));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 #[should_panic(expected = "job specs fit the tasks child")]
 fn a_job_spec_bound_past_the_tasks_child_is_not_configuration() {
@@ -125,7 +125,7 @@ fn a_job_spec_bound_past_the_tasks_child_is_not_configuration() {
     drop(Core::new(config, &limits()));
 }
 
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 #[should_panic(expected = "job results fit the tasks child")]
 fn a_job_result_bound_past_the_tasks_child_is_not_configuration() {
@@ -198,7 +198,7 @@ fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
 }
 
 /// A job's preparation and claim need no agent, account, brief or transcript
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connectors() {
     let (mut core, limits) = due_job();
@@ -278,7 +278,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
 }
 
 /// A blocked start remains due, without preparing agent state
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
     for opened in [false, true] {
@@ -295,7 +295,7 @@ fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
 }
 
 /// A job waits for its application's credentials, independently of LLM accounts
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application() {
     let (mut core, limits) = due_job();
@@ -357,7 +357,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
 }
 
 /// A job's deadline holds even when a credential would make it wait
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_jobs_past_deadline_holds_before_credential_readiness() {
     let (mut core, _) = due_job();
@@ -371,7 +371,7 @@ fn a_jobs_past_deadline_holds_before_credential_readiness() {
 }
 
 /// A job's application bytes reach its requester unchanged
-/// (jig/docs/design/domain/engine.md, 7.5; jig/docs/design/domain/tasks.md, 5.6).
+/// (jig/docs/design/domain/engine/executors.md, 5; jig/docs/design/domain/tasks/lifecycle.md, 7).
 #[test]
 fn a_jobs_result_notice_preserves_its_bytes() {
     assert_eq!(
@@ -383,7 +383,7 @@ fn a_jobs_result_notice_preserves_its_bytes() {
 }
 
 /// Jobs claim their connectors' held names, distinct from authority paths
-/// (jig/docs/design/domain/engine.md, 7.1, step 3 and 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 1, step 3 and 7.5).
 #[test]
 fn a_job_claims_the_names_its_root_prepared() {
     let held = tasks::Name { connector: 1, path: Box::new([Box::from(b"slot".as_slice())]) };

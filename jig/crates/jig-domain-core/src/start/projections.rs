@@ -1,4 +1,4 @@
-//! Bounded projection assembly and links (jig/docs/design/domain/engine.md, 6).
+//! Bounded projection assembly and links (jig/docs/design/domain/engine/restart.md).
 use crate::{
     Core, CoreKey, Key, Limits, Projection, ProjectionKey, ProjectionMilestone, ProjectionRecord, ProjectionTask,
     effects::projections::phase_within,

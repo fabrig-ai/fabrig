@@ -1,4 +1,4 @@
-//! Approval codes and secret prints (jig/docs/design/protocol/client.md, 8).
+//! Approval codes and secret prints (jig/docs/design/protocol/client/sign-in.md).
 use crate::{ApprovalAsked, ApprovalCode, ApprovalSignIn, CEILINGS};
 use alloc::fmt::format;
 use skein_lib::{Reader, Writer};

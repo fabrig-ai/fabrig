@@ -1,4 +1,4 @@
-//! Family scopes and windows outside the application's opaque records (contract.md, 7.5).
+//! Family scopes and windows outside the application's opaque records (client/domain/contract/README.md, 5.5).
 use alloc::boxed::Box;
 use jig_client_domain::{Family, contract as c};
 use jig_client_protocol_wire::v19 as w;

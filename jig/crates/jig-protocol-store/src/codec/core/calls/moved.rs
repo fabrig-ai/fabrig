@@ -1,4 +1,4 @@
-//! Revision facts kept in the core family (protocol/store.md, 5.1).
+//! Revision facts kept in the core family (protocol/store/records.md, 1).
 use crate::core_v6 as wire;
 use jig_domain_people as domain;
 pub(super) fn encode_failure_class(value: domain::FailureClass) -> wire::FailureClass {

@@ -1,4 +1,4 @@
-//! Public HTTP integration (jig/docs/design/protocol/client.md, 19).
+//! Public HTTP integration (jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::public_v1;
 use jig_client_protocol_world::public;
 use skein_lib::Reader;

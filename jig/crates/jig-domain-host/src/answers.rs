@@ -1,4 +1,4 @@
-//! Answers retained on their run slots until acknowledged (hosts.md, 6.2).
+//! Answers retained on their run slots until acknowledged (domain/hosts/hub.md, 2).
 use crate::domain::Hub;
 use crate::{Bounds, Hello, Hosting, LinkUp, Phase, Request, RunAnswer};
 use alloc::boxed::Box;

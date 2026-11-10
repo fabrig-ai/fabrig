@@ -1,4 +1,4 @@
-//! One admitted exchange and its answer (protocol/client.md, 4.2).
+//! One admitted exchange and its answer (protocol/client/wire.md, 2.2).
 use crate::{Ended, Reply};
 use skein_lib::Token;
 #[derive(Debug)]

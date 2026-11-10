@@ -1,4 +1,4 @@
-//! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
+//! Bounded task messages and atomic turn reads (domain/tasks/messages.md, section 2).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
     Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Spoken, Word,
@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 
-/// The three ways a whole message enters a bounded inbox (domain/tasks.md, 8.2).
+/// The three ways a whole message enters a bounded inbox (domain/tasks/messages.md, 2).
 #[derive(Clone, Copy)]
 pub(crate) enum Admission {
     /// The sender may be refused before its decision is committed.
@@ -140,7 +140,7 @@ pub(crate) fn prepare_staged(
 }
 
 /// Account for messages already waiting and the result credit reserved for
-/// every live direct delegate (domain/tasks.md, section 8.2).
+/// every live direct delegate (domain/tasks/messages.md, section 2).
 pub(crate) fn room(domain: &Domain, limits: &Limits, task: u64, count: u32, bytes: usize) -> bool {
     room_staged(domain, &crate::compound::Staged::new(0), limits, task, count, bytes)
 }
@@ -185,7 +185,7 @@ pub(crate) fn room_staged(
         return false;
     };
     // Amendment, grace and Met each have a separately priced slot. A notice
-    // that the task may go on cannot consume a sender's room (domain/tasks.md, 5.7 and 8.2).
+    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 2).
     let mut extra_count = 0_usize;
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
@@ -634,7 +634,7 @@ pub(crate) fn keep_refusals(domain: &mut Domain, task: u64, refused: &[u64]) {
 }
 
 /// A run consumes its exact offers; a procedure offers its whole fenced prefix
-/// (jig/docs/design/domain/tasks.md, 8.2).
+/// (jig/docs/design/domain/tasks/messages.md, 2).
 pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding: Option<&[u64]>) {
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));

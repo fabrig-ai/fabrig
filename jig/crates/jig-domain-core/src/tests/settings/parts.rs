@@ -1,4 +1,4 @@
-//! Charter parts are checked at changes, start and restore (jig/docs/design/domain/tasks.md, 8.6).
+//! Charter parts are checked at changes, start and restore (jig/docs/design/domain/tasks/messages.md, 6).
 use crate::settings::{Changed, Current, Edit, Failure, Fault, Item, Setting, Value};
 use crate::tests::*;
 use tasks::Reasons;
@@ -30,7 +30,7 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
             - parts_owned_bytes(&[part(Reasons::FIRST, 0)]).unwrap(),
     )
     .unwrap();
-    // The configured part count is eight (configuration.md, 6); test both sides.
+    // The configured part count is eight (protocol/limits.md); test both sides.
     let count = limits.tasks.charter_parts;
     let none: Box<[CharterPart]> = Box::new([]);
     let past_parts = Box::new([part(Reasons::FIRST, at_bytes + 1)]);

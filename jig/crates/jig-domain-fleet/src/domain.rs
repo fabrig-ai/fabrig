@@ -241,7 +241,7 @@ impl Domain {
     }
 
     /// Latest observed refusal of an allowed kind, while no admitted, connected,
-    /// non-draining host of any allowed kind exists (domain/engine.md, section 8).
+    /// non-draining host of any allowed kind exists (domain/engine/fleet.md).
     /// Slot use and model eligibility do not affect suppression. Engine wins equal
     /// wall times. These two inline facts live only until same-kind admission or restart.
     #[must_use]
@@ -279,7 +279,7 @@ impl Domain {
         latest
     }
 
-    /// Bounds keeping every admitted allowed host from this version (domain/engine.md, section 8).
+    /// Bounds keeping every admitted allowed host from this version (domain/engine/fleet.md).
     #[must_use]
     pub fn bounds_refusal(&self, version: crate::Version, kinds: crate::Kinds) -> Option<crate::BoundsRefusal> {
         let mut workers = None;
@@ -412,7 +412,7 @@ impl Domain {
     }
 
     /// The reply bound the hello of the host in contact holding this live
-    /// claim named (jig/docs/design/domain/engine.md, section 8): `None` where
+    /// claim named (jig/docs/design/domain/engine/fleet.md): `None` where
     /// it named none, or the claim is adrift, waiting, a job's or not the live one.
     #[must_use]
     pub fn reply_bound(&self, run: Token, attempt: Token) -> Option<u32> {

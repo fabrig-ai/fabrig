@@ -1,5 +1,5 @@
 //! Capacity bounds for core sections and connector section tokens
-//! (domain/engine.md, section 9).
+//! (domain/engine/briefs.md, section 1).
 
 /// Limits supplied by the core to the brief child at every step.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

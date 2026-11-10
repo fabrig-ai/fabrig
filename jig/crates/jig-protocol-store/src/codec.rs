@@ -1,4 +1,4 @@
-//! Domain records translated to generated store families (protocol/store.md, 5.1).
+//! Domain records translated to generated store families (protocol/store/records.md, 1).
 pub mod accounts;
 pub mod component;
 pub mod core;
@@ -10,7 +10,7 @@ pub mod tasks;
 use alloc::boxed::Box;
 use jig_domain_core as domain;
 
-/// Generated family bounds derived from the component's limits (protocol/store.md, 13).
+/// Generated family bounds derived from the component's limits (protocol/store/README.md, 8).
 #[derive(Clone, Copy, Debug)]
 pub struct View {
     pub settings: crate::settings_v1::Limits,
@@ -29,7 +29,7 @@ pub fn limits(domain: &domain::Limits) -> Option<View> {
 }
 
 /// The catalogue's names in number order: settings and the people family keep
-/// indexed models by name (protocol/store.md, 5.1).
+/// indexed models by name (protocol/store/records.md, 1).
 #[must_use]
 pub fn names(models: &[domain::Model]) -> Box<[domain::settings::ModelName]> {
     domain::settings::model_names(models)
@@ -68,7 +68,7 @@ pub fn decode(
     }
 }
 
-/// Model values carry no indices, so their changes precede every restore (store.md, 5).
+/// Model values carry no indices, so their changes precede every restore (protocol/store/records.md).
 pub(crate) fn catalogue(store: &mut crate::Store) -> Result<(), crate::restore::Failure> {
     use crate::restore::{Cause, DecodeFailure, Failure};
     use domain::settings::{Key, ModelName, Record, Setting, Value};

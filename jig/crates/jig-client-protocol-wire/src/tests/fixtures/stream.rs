@@ -1,4 +1,4 @@
-//! Stream and remaining-document fixtures (protocol/client.md, 3 and 7).
+//! Stream and remaining-document fixtures (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::*;
 
 pub fn stream_limits() -> Limits {

@@ -1,4 +1,4 @@
-//! The public mapping over HTTP bytes (jig/docs/design/protocol/client.md, 17.5 and 19).
+//! The public mapping over HTTP bytes (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{FromTransport, Message, PublicRead, PublicReply, Reply, ToTransport};
 use jig_test_service::server::policy::FIELDS;

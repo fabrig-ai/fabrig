@@ -11,9 +11,9 @@ pub mod patches;
 
 pub const NAME: &str = "fixture";
 
-/// Application key bytes; the store adds tag 2 (store.md 4.2).
+/// Application key bytes; the store adds tag 2 (protocol/store/README.md 4.2).
 pub mod keys {
-    // Relative to the application's secrets prefix (store.md 9, 10.3).
+    // Relative to the application's secrets prefix (protocol/store/secrets.md, protocol/store/opening.md, 3).
     pub const TOKENS_FROM: &[u8] = &[];
     pub const TOKENS_TO: &[u8] = &[0x80];
     pub const TOKENS_ROOT: &str = "Token";

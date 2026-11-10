@@ -1,5 +1,5 @@
 //! Limit validity and per-value policy and settings carriers for the core
-//! (`domain/engine.md`, sections 5.6, 10 and 17.9; programming-model.md, 6.3).
+//! (`domain/engine/README.md`, section 5.6, and `domain/engine/briefs.md`, section 2, and `domain/engine/settings.md`, section 9; programming-model.md, 6.3).
 
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -16,20 +16,20 @@ use skein_lib::{List, length::len_u64};
 
 use crate::Limits;
 
-/// Maximum bytes in a charter document's path (domain/engine.md, 17.9).
+/// Maximum bytes in a charter document's path (domain/engine/settings.md, 9).
 pub const DOCUMENT_PATH_BYTES: u32 = 256;
-/// Maximum bytes in a charter document's heading (domain/engine.md, 17.9).
+/// Maximum bytes in a charter document's heading (domain/engine/settings.md, 9).
 pub const DOCUMENT_HEADING_BYTES: u32 = 80;
-/// The most sections the core plans of its own (domain/engine.md, sections 9 and 17.9).
+/// The most sections the core plans of its own (domain/engine/briefs.md, section 1, and domain/engine/settings.md, section 9).
 pub const CORE_SECTIONS: u32 = 7;
 /// The connector section kind the core plans a document under; the root may renumber it
-/// (domain/engine.md, 17.9).
+/// (domain/engine/settings.md, 9).
 pub const DOCUMENT_KIND: u16 = 0;
-/// A charter document section's priority (domain/engine.md, 17.9).
+/// A charter document section's priority (domain/engine/settings.md, 9).
 pub const DOCUMENT_PRIORITY: u16 = 5;
 
 /// Whether a brief's sections hold the core's own most and a charter's documents
-/// (domain/engine.md, 17.9).
+/// (domain/engine/settings.md, 9).
 #[must_use]
 pub fn brief_holds_documents(sections: u32, charter_documents: u32) -> bool {
     match CORE_SECTIONS.checked_add(charter_documents) {
@@ -40,7 +40,7 @@ pub fn brief_holds_documents(sections: u32, charter_documents: u32) -> bool {
 
 /// The bytes a charter owns beyond its struct: its policy's, as `policy_owned_bytes`,
 /// its parts' as `parts_owned_bytes`, and its documents' structs, name segments, paths
-/// and headings (jig/docs/design/domain/tasks.md, 8.6; domain/engine.md, 17.9).
+/// and headings (jig/docs/design/domain/tasks/messages.md, 6; domain/engine/settings.md, 9).
 #[must_use]
 pub fn charter_owned_bytes(charter: &crate::Charter) -> Option<u64> {
     let mut bytes = policy_owned_bytes(&charter.policy)?
@@ -62,7 +62,7 @@ pub fn charter_owned_bytes(charter: &crate::Charter) -> Option<u64> {
 
 /// The bytes a charter's parts add to its stored policy: each part's own size, its
 /// instructions and the two bytes of the blank line that joins them
-/// (jig/docs/design/protocol/configuration.md, 6).
+/// (jig/docs/design/protocol/limits.md).
 #[must_use]
 pub fn parts_owned_bytes(parts: &[crate::CharterPart]) -> Option<u64> {
     let mut bytes = sizeof(parts.len())?.checked_mul(sizeof(size_of::<crate::CharterPart>())?)?;
@@ -99,7 +99,7 @@ const _: () = assert!(
 
 /// The bytes a run's policy from `policy`, a charter's, owns whatever its task's LLM choice: its
 /// models, and its largest once more for a main model its sub-agents name again, each with its
-/// longest declared effort chosen (domain/engine.md, 7.1).
+/// longest declared effort chosen (domain/engine/executors.md, 1).
 #[must_use]
 pub fn policy_owned_bytes(policy: &crate::RunPolicy) -> Option<u64> {
     let mut largest = model_owned_bytes(&policy.model)?;
@@ -117,7 +117,7 @@ pub fn policy_owned_bytes(policy: &crate::RunPolicy) -> Option<u64> {
     bytes.checked_add(largest)
 }
 
-/// A model's name, its efforts' names and its chosen one's, at most its longest (tasks.md, 3).
+/// A model's name, its efforts' names and its chosen one's, at most its longest (domain/tasks/README.md, 3).
 fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     let mut longest = 0_u64;
     let mut bytes = len_u64(model.name.len())

@@ -1,4 +1,4 @@
-//! Seed names are checked together (configuration.md, 3; core.md, 6.1).
+//! Seed names are checked together (configuration.md, 3; domain/model.md, 6.1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -39,7 +39,7 @@ fn an_unnamed_project_takes_its_number_in_decimal() {
 
 #[test]
 fn a_configured_name_out_of_shape_is_refused_at_its_member() {
-    let long = format!("\"{}é\"", "a".repeat(63)); // 65 bytes, past core.md 6.1's 64.
+    let long = format!("\"{}é\"", "a".repeat(63)); // 65 bytes, past domain/model.md 6.1's 64.
     for json in ["\"\"", long.as_str(), "\"Ta\\u0007lly\"", "\" Tally\"", "\"12\""] {
         let document = named(fixtures::ENGINE_SMALL, 1, json);
         let problems = fixtures::engine(&document).expect_err("name out of shape");

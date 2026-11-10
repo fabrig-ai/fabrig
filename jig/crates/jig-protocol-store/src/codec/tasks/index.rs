@@ -1,4 +1,4 @@
-//! Durable task values translated exhaustively (protocol/store.md, 5.1).
+//! Durable task values translated exhaustively (protocol/store/records.md, 1).
 
 use crate::tasks_v9 as wire;
 
@@ -138,7 +138,7 @@ fn read_optional_answer(source: Option<wire::AnswerLine>) -> Result<Option<domai
     }
 }
 
-/// The ended-by-requester row (protocol/store.md, 7.4).
+/// The ended-by-requester row (protocol/store/loads.md, 4).
 pub fn ended_by_party(row: &domain::EndedByParty, limits: &wire::Limits) -> Result<wire::EndedByParty, wire::Problem> {
     wire::EndedByParty::new(
         limits,
@@ -157,7 +157,7 @@ pub fn read_ended_by_party(row: wire::EndedByParty) -> domain::EndedByParty {
     domain::EndedByParty { party, label, ended_at: Wall::from_nanos(ended_at), task }
 }
 
-/// The ended-by-project row (protocol/store.md, 7.4).
+/// The ended-by-project row (protocol/store/loads.md, 4).
 pub fn ended_by_project(
     row: &domain::EndedByProject,
     limits: &wire::Limits,

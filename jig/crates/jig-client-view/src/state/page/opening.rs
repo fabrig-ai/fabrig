@@ -1,4 +1,4 @@
-//! Sources opened once for each section's owner (client/domain/client.md, 5.1).
+//! Sources opened once for each section's owner (client/domain/client/README.md, 5.1).
 use super::routing::{open_once, read};
 use crate::{
     Request, Ui,

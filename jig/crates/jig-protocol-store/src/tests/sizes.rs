@@ -1,4 +1,4 @@
-//! Restart request bytes follow the store writer bounds (protocol/store.md, 7.2).
+//! Restart request bytes follow the store writer bounds (protocol/store/loads.md, 2).
 use super::fixtures;
 
 #[test]

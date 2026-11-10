@@ -21,7 +21,7 @@ use temper_engine_domain_forge as forge;
 /// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartStop {
-    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
+    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine/restart.md).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
     /// A current charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
     Room(crate::room::Short),
@@ -217,7 +217,7 @@ impl Domain {
         identities.into_boxed()
     }
 
-    /// Whole current model settings (jig/docs/design/domain/engine.md, 17.11).
+    /// Whole current model settings (jig/docs/design/domain/engine/settings.md, 11).
     #[must_use]
     pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
         let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
@@ -771,7 +771,7 @@ impl Domain {
     }
 
     /// Live pieces dropped for an unkept kind or an offset beyond the views' u32
-    /// (jig's `domain/hosts.md`, 6.5; `domain/engine.md`, 11).
+    /// (jig's `domain/hosts/hub.md`, 5; `jig/docs/design/domain/engine/views.md`).
     #[must_use]
     pub const fn pieces_dropped(&self) -> u64 {
         self.hub_link.pieces_dropped()
@@ -1079,7 +1079,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
-    // `domain/engine.md`, 6.1).
+    // `domain/engine/restart.md`, 1).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
             domain.settled = None;
@@ -1252,7 +1252,7 @@ fn released_into(
                     None,
                 );
             }
-            // jig's domain/engine.md, "a project made": the root hears it after commit.
+            // jig's domain/engine/README.md, "a project made": the root hears it after commit.
             // The forge holds optional project rules; deployment rules cover new projects.
             // Repositories and homes arise on adoption, panels on watching.
             // None needs an empty-project row.

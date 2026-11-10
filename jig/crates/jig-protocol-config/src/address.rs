@@ -1,4 +1,4 @@
-//! Operator addresses (configuration.md, 10); only startup resolves host names.
+//! Operator addresses (configuration.md, 9); only startup resolves host names.
 use crate::{Path, Problems, What, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
@@ -10,7 +10,7 @@ pub enum Address {
     Host { name: Box<[u8]>, port: u16 },
 }
 
-#[expect(clippy::disallowed_methods, reason = "configuration is the protocol layer's parsing (configuration.md, 10)")]
+#[expect(clippy::disallowed_methods, reason = "configuration is the protocol layer's parsing (configuration.md, 9)")]
 fn socket(bytes: &[u8]) -> Result<SocketAddr, What> {
     let text = core::str::from_utf8(bytes).or(Err(What::Form))?;
     text.parse().or(Err(What::Form))

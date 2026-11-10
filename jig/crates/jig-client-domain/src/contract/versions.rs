@@ -1,4 +1,4 @@
-//! Jig versions, independent of application versions; client/domain/contract.md, 8.
+//! Jig versions, independent of application versions; client/domain/contract/README.md, 6.
 //! Compatibility is supplied by the protocol stream hello before page requests leave.
 /// The inclusive range served by the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -15,7 +15,7 @@ impl VersionRange {
     }
 }
 
-/// The owner of versioned records (contract.md, 8).
+/// The owner of versioned records (client/domain/contract/README.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Owner {
     Jig,

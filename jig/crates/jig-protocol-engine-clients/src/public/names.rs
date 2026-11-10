@@ -1,4 +1,4 @@
-//! Domain-separated permutations (jig/docs/design/domain/people.md, 13.8).
+//! Domain-separated permutations (jig/docs/design/domain/people/public-reading.md, 8).
 use skein_lib::{CryptoRng, Secret};
 
 #[derive(Debug)]

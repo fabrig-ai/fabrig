@@ -1,5 +1,5 @@
 //! Approval operations at each client's real link, and externally applied people
-//! records (jig/docs/design/protocol/client.md, 8;
+//! records (jig/docs/design/protocol/client/sign-in.md;
 //! jig/docs/design/client/domain/testing.md, 5–6).
 use super::{ClientId, Session, Time, Wall, core, people, root};
 use jig_client::{Approval, ApprovalAct};

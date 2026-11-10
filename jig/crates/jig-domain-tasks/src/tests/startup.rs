@@ -1,4 +1,4 @@
-//! Whole-set checks precede replay (domain/engine.md, 6; tasks.md, 6.7).
+//! Whole-set checks precede replay (domain/engine/restart.md; domain/tasks/holds.md, 7).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

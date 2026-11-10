@@ -12,7 +12,7 @@ bounds are section 12, and what they take of jig section 13; an MCP endpoint and
 ## 1. In one page
 
 - **Agents drive the plumbing, not the pages.** The tools are jig's
-  reads, watches and operations (jig's `client/domain/contract.md`),
+  reads, watches and operations (jig's `client/domain/contract/README.md`),
   jig's helpers where they fit (`shapes`), and temper's forge family.
   An agent never reads a page, a position on a screen or a layout
   (section 3).
@@ -86,9 +86,9 @@ bounds are section 12, and what they take of jig section 13; an MCP endpoint and
   the text view is no agent's driver; these tools are, for temper.
 - **jig's client was made for this.** It is presentation-agnostic: "a
   browser, a terminal, a chat bot, a one-shot command and a service with
-  no presentation hold the same client" (jig's `client/domain/client.md`,
+  no presentation hold the same client" (jig's `client/domain/client/README.md`,
   section 1). Its documents are typed, with stable numbers, revisions
-  and offered acts (jig's `client/domain/contract.md`, 5.1 to 5.3).
+  and offered acts (jig's `client/domain/contract/documents.md`, 1 to 3).
 - **Offered acts replace discovery.** An agent learns what it may do
   from the document, as a person learns it from buttons: each act made,
   proposable (to whom) or refused (why), with the bounds a draft is
@@ -201,7 +201,7 @@ temper                       the binary: `temper ctl` runs the host
   other.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one
-  (jig's `domain/core.md`, 6.1), so an argument is a number or a name,
+  (jig's `domain/model.md`, 6.1), so an argument is a number or a name,
   never both, and names one project.
 
 ### 5.2 Reads
@@ -214,7 +214,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `me` | the party, its projects with their roles and pools, what waits for it counted, the bounds of what it may create, configured provider offers and key-byte ceilings, the retention | `me` |
 | `inbox [--project PROJECT] [--kind questions\|proposals\|escalations\|person-tasks\|results\|replies] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
 | `project show PROJECT` | the project: its name, whether it is public and, if so, its public page's path, and its homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
-| `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
+| `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract/README.md`, 4.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts, its text saying under `next run:` why a run that can't start waits and what to run; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../domain/landing.md`, section 14) | the forge's family |
 | `landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]` | the project's landings, newest first, with their phases, the turn's holder first, a page and its cursor; with `--newer-than`, every landing on its repositories' landing branches the engine saw after TIME (as `task amend --deadline` takes it, UTC to the minute), with its verdicts and its trailers, from the landing log (`../domain/after-landing.md`, sections 8 and 10) | the forge's family |
@@ -226,8 +226,8 @@ watch's subject, its digest (5.4). It needs no key.
 | `hold list --project PROJECT` | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
-| `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
-| `task notes TASK --project PROJECT [--after CURSOR]` | a page of the notes of the task's own scope, each whole, as a chat's document pane reads them: number, revision, description, body | `notes{project, task}` (jig's `client/domain/contract.md`, section 6) |
+| `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract/README.md`, section 4) |
+| `task notes TASK --project PROJECT [--after CURSOR]` | a page of the notes of the task's own scope, each whole, as a chat's document pane reads them: number, revision, description, body | `notes{project, task}` (jig's `client/domain/contract/README.md`, section 4) |
 | `task text TASK [--field specification\|instructions\|result] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default), effective instructions or kept report, joining sequential backend pages within the tools’ window, with total bytes and continuation | `task_text{n, field, from}` |
 | `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
@@ -237,8 +237,8 @@ watch's subject, its digest (5.4). It needs no key.
 | `settings show charter-words NUMBER [--revision REVISION]`, `settings show project-words PROJECT [--revision REVISION]` | a charter's words or a project's (`../protocol/configuration.md`, 13.2, kinds 9 and 10): the value stored; with none, a charter's the stock's, marked so, or that it has none, and a project's that it has none | `forge`, kinds 9 and 10 |
 | `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `settings show template-goal NUMBER [--revision REVISION]` | template NUMBER's work (`../protocol/configuration.md`, 13.2, kind 11): `design` and `close_out`, the value stored, or, with none, neither, marked so; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind: 11, scope: 0, number }` (`forge.md`, section 9) |
-| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, their replaced explicit values read at the preceding set found in retained history, with size metadata when unavailable or too large, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
-| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
+| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, their replaced explicit values read at the preceding set found in retained history, with size metadata when unavailable or too large, the forge keeping those values for a restore (jig's `domain/engine/settings.md`, 10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
+| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine/settings.md`, 10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
 - **A settings proposal's review** derives its groups from the delivered
@@ -251,7 +251,7 @@ watch's subject, its digest (5.4). It needs no key.
   explains new work on acceptance, no restarts, stays or moves, conversations
   at their next run and incompatible tasks retaining their revision.
   Authority remains current even on a retained charter revision (jig's
-  `domain/engine.md`, 17.4). Counts of tasks eligible to move are not
+  `domain/engine/settings.md`, 4). Counts of tasks eligible to move are not
   available (`README.md`, section 11). JSON retains the whole values and
   adds `review.groups` with setting and field references and `review.effect`
   with held revisions and their live-task counts, the running choices and
@@ -274,7 +274,7 @@ watch's subject, its digest (5.4). It needs no key.
   when the hint appears in a historical revision.
 - **`task list` reads one group a call.** jig answers a task query in
   two groups, live then ended, each with its own cursor (jig's
-  `client/domain/contract.md`, 6.1), and a printed cursor is one
+  `client/domain/contract/README.md`, 4.1), and a printed cursor is one
   group's. Without `--ended`, `task list` reads the live group, `--after
   CURSOR` its cursor; with `--ended`, the ended group alone, as jig's
   view reads it, `--after CURSOR` the ended group's. The call that reads
@@ -317,7 +317,7 @@ watch's subject, its digest (5.4). It needs no key.
   text budget. Conversational text shares the bounded window in order;
   an oversized reply keeps its archived part number and continuation.
 - **A turn too large for a page** comes in a page by its size in place
-  of its bytes (jig's `client/domain/contract.md`, 5.1). `task
+  of its bytes (jig's `client/domain/contract/documents.md`, 1). `task
   activity`, `chat show` and `task show --activity` print it as one
   line, its number, its size and the call that reads it: `turn 3.7 ·
   412 KB · read with: task turn 41 3.7`.
@@ -361,19 +361,19 @@ agent must name.
 | `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the owners of its items, the deployment's and each project's it names; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
 | `settings apply FILE --against REVISION [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
-| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../protocol/configuration.md`, 13.2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
+| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../protocol/configuration.md`, 13.2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine/settings.md`, 10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
-| `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks.md`, section 7) | `Move` | yes |
+| `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks/changes.md`) | `Move` | yes |
 | `task succeed TASK --by TASK` | names a live task the successor of an ended one: its open questions, subscriptions and kept news go to it | `Succeed` | yes |
 | `finding route FINDING --goal TASK` | routes a finding to a goal: news to it, `state:routed` (`../domain/findings.md`, section 6) | the forge's request | yes |
 | `finding backlog FINDING` | puts a finding in the backlog, `state:backlog` | the forge's request | yes |
 | `finding drop FINDING REASON` | drops a finding: `state:dropped`, its issue closed with the reason | the forge's request | yes |
 | `qa choose LANDING` | chooses a landing's mark for the next QA pass (`../domain/findings.md`, section 8) | the forge's request | yes |
-| `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
+| `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks/lifecycle.md`, 10) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON` | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
 | `project make NAME` | makes a project from a copy of policy 1, as the client switcher does; prints its number, kept on key replay | `MakeProject { name, policy: 1 }` | yes |
-| `project amend PROJECT --visibility public\|private` | makes the project readable by anyone without signing in, or private again (jig's `domain/people.md`, 13.2), by its owner; prints `project 1: public` and, made public, the public page's path from `me`'s public identifier, `/public/projects/3f2a9c01d4e5b6a7`, and on stderr, as its help does, "Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too." (jig's `domain/people.md`, 13.3); project 0 and a member are refused, exit 2 | `SetVisibility` | yes |
+| `project amend PROJECT --visibility public\|private` | makes the project readable by anyone without signing in, or private again (jig's `domain/people/public-reading.md`, 2), by its owner; prints `project 1: public` and, made public, the public page's path from `me`'s public identifier, `/public/projects/3f2a9c01d4e5b6a7`, and on stderr, as its help does, "Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too." (jig's `domain/people/public-reading.md`, 3); project 0 and a member are refused, exit 2 | `SetVisibility` | yes |
 | `project fund PROJECT AMOUNT [--role ROLE]` | sets what the project's period may spend, its spend per period, to AMOUNT, in the deployment's unit, or with `--role` that role's; either resizes what the open period gave (jig's `domain/authority.md`, section 7), so a raise funds the next chat at once, and each period the calendar opens takes it (`../domain/root.md`, 5.7). An owner's chats are funded from their pool, their role's, and pools reserve from the project's period, so a raise for them is two calls, the project's first, then the role's; a role's raise past the period's room is refused, exit 2, naming what the period has left. A cut goes the other way, the role's first, since a project's spend below a role's is refused; it keeps each budget at what it has used. A refusal past a ceiling (jig's typed ceiling, its holder, dimension and, for a scalar, its value) exits 2 with one line naming it and the next step: `project fund: past the rules' period spend, V; raise the rules first with temper ctl settings apply`; with `--role`, `past the project's period spend, V; fund the project first: temper ctl project fund P AMOUNT`; a cut, `below role R's period spend, V; lower the role first: temper ctl project fund P AMOUNT --role R`; an authority over its ceiling when rechecked, `the project's authority is past the rules' DIMENSION[, V]; raise the rules with temper ctl settings apply, or narrow the project's policy` (for a role, `role R's authority is past the project's DIMENSION[, V]`), a list's dimension (tools, executors, grants, notes) named without its contents, read whole with `settings show`. Its answer is the edit, `project 1: spend per period 449696` or `role 0: spend per period 415104`, the same under one key by construction (section 7); then a read marked as such, `now: period 1: budget 449696, left 449590`, and with `--role` each of the role's pools now: a replay prints the edit as first answered and today's numbers after it | the project's policy edit, `ProjectSpend`, or with `--role` `RoleSpend` | yes |
 | `hold lift HOLD --rev REV [--with-tasks]` | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |
 | `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree; a task that has ended refuses a cancel (exit 2), saying how it ended, and the same cancel under its key gets its first answer | `Cancel` | |
@@ -392,9 +392,9 @@ agent must name.
   `{"kind": "project-classes", "project": P}`,
   `{"kind": "project-words", "project": P}`, or `{"kind":
   "project-policy", "project": P}`, project P's own policy (jig's
-  `domain/engine.md`, 17.2), set alone and at most once in a file; VALUE is exactly the
-  `value` member `settings show … --json` prints: for a landing rule, section
-  3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
+  `domain/engine/settings.md`, 2), set alone and at most once in a file; VALUE is exactly the
+  `value` member `settings show … --json` prints: for a landing rule, `tools.md`, section 3
+  's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
   (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
@@ -434,11 +434,11 @@ agent must name.
   party's projects: exit 1, nothing sent, `settings file item 1: model M offers
   no effort xhigh; it offers high, medium`, or `it offers none`. A model
   `me` doesn't show goes to the engine, which refuses it by name (jig's
-  `client/domain/contract.md`, 4). jig's kinds are the deployment's; a landing rule names
+  `client/domain/contract/README.md`, 3). jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, as a project's policy
   names its project, and a set that touches a project's needs an owner
   of it, one that touches the deployment's too one person who owns both
-  (jig's `domain/people.md`, 5.1); `settings propose` sends such a set
+  (jig's `domain/people/acts.md`, 1); `settings propose` sends such a set
   to them, and `settings apply` from one who is not both is refused
   naming the item, exit 2.
   `proposal show` prints the values of temper's items from the forge's
@@ -459,13 +459,13 @@ agent must name.
   `[]`, is a list, in order, of `{"on": [REASON, ...], "instructions":
   TEXT}`: each `on` a nonempty list of `first` and the kinds that
   choose parts, by jig's store names (jig's
-  `client/domain/contract.md`, 3.2), each named once, and its
+  `client/domain/contract/requests.md`, 2), each named once, and its
   instructions text, bounded as the charter's own are. A run reads the
   charter's `instructions`, then each part whose `on` meets why it runs.
   A template's model choice may add `"later": {"main": {"model": M,
   "effort": E}, "subagents": [...]}`, its `subagents` left out empty:
   the choice every run after the task's first activation's takes (jig's
-  `domain/tasks.md`, section 3), its efforts checked against `me` as
+  `domain/tasks/README.md`, section 3), its efforts checked against `me` as
   the first choice's are; left out, it has none. `settings show … --json`
   prints `parts` only for a charter that has some and `later` only for
   a choice that has one, so a value without them prints as before. The
@@ -506,7 +506,7 @@ agent must name.
   resolves to a row, and every row is reached. temper's own kinds'
   rows come with their decoder.
 - **The arguments are jig's,** named as its operations name them, with
-  the revisions they need (jig's `client/domain/contract.md`, 5.2): a
+  the revisions they need (jig's `client/domain/contract/documents.md`, 2): a
   proposal by its proposer and number, `t41/3` for task 41's third,
   `p3/17` for party 3's seventeenth, as every result prints it, an
   escalation and a release by the hold's revision. An agent copies them
@@ -527,7 +527,7 @@ agent must name.
   document's acts and their effects, and the revision is its promise.
 - **A draft beyond the party's bounds** is compared with the bounds the
   document gives, as the person's client does (jig's
-  `client/domain/contract.md`, 5.3): within, sent; between the bounds,
+  `client/domain/contract/documents.md`, 3): within, sent; between the bounds,
   sent as `Propose` where it is proposable, and the result says so; past
   them, refused by the client, nothing sent. Where `me` gives no bound
   for a draft, it is sent and the engine's answer printed.
@@ -551,7 +551,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 ```
 
 - **A watched read** is one whose arguments are a watch's subject (jig's
-  `client/domain/contract.md`, 7.1): `me`; `inbox` with no flag, the
+  `client/domain/contract/README.md`, 5.1): `me`; `inbox` with no flag, the
   inbox's watch being the party's whole inbox; `task show TASK` with no
   flag; `task tree TASK`; `task run TASK`; `task list` with what its
   watch takes alone, without `--after` or `--ended`, `tasks{query}`
@@ -575,10 +575,10 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   so a wait `--since` a read's digest never answers at once. Two calls
   of the same tools, under the same limits, print the same digest for
   the same document. jig's revisions move only with what a party decides
-  about (jig's `client/domain/contract.md`, 5.2), so they cannot say
+  about (jig's `client/domain/contract/documents.md`, 2), so they cannot say
   that a document changed; the digest can, and needs nothing of jig. It
   is not the mark the engine keeps per watch (jig's
-  `client/domain/contract.md`, 7.2), which no tool prints.
+  `client/domain/contract/README.md`, 5.2), which no tool prints.
 - **Which reads print one:** every watched read, and every wait's
   answer. `task show TASK --tree --run` prints one for each of its
   parts, `task show`, `task tree` and `task run`, each over its own part
@@ -636,14 +636,14 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   bounded specification reads as plain `task show` (6.4). These supplemental
   words leave its completion, terminal result and digest unchanged.
 - **`replied`** holds while a chat's status (jig's
-  `client/domain/client.md`, section 19, its facts) is parked, waiting
+  `client/domain/client/helpers.md`, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
-  person's words (jig's `domain/tasks.md`, 8.3), so a wait begun once
+  person's words (jig's `domain/tasks/messages.md`, 3), so a wait begun once
   `chat start` or `task message` has answered is not met by the reply
   before them: `task message 41 TEXT --key k`, then `task show 41
   --until replied`.
 - **`waiting-on-me`** covers task N's tree: what a task waits on is
-  computed over its tree (jig's `domain/tasks.md`, section 3), so a
+  computed over its tree (jig's `domain/tasks/README.md`, section 3), so a
   question or a proposal below for the party meets it on `task show
   TASK`, and `task tree TASK` needs no condition of its own.
 - **`phase:<phase>`** names the client's phase in lower case, hyphenated:
@@ -654,7 +654,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   the lower-case word, and `help task show` lists the words. The ended
   phases, `ended`, `done`, `failed` and `cancelled`, are never conditions: the engine
   ends a task's watch as the task ends (jig's
-  `client/domain/contract.md`, 7.2), so a delivery may never show one.
+  `client/domain/contract/README.md`, 5.2), so a delivery may never show one.
   `--until phase:done` and its kin are usage errors, exit 1, naming
   `--until ended`.
 - **`settled`** follows a sign-in or a check, or a forge's connect or
@@ -687,7 +687,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   These conditions are `ended` and `replied`; terminal `phase:<phase>`
   conditions are usage errors as above. A watch on a subject
   that has ended is refused `Unknown` (jig's
-  `client/domain/contract.md`, sections 6 and 7.2). On that opening
+  `client/domain/contract/README.md`, sections 4 and 5.2). On that opening
   refusal or `SubjectEnded`, the tool reads N through the existing
   authorized task read. On both paths, a `Historical` record or a
   live-form task establishes completion only when its returned number
@@ -724,19 +724,19 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `temper-client-tools`' `jig/wait.rs`, one per admitted call. Arming a
   new timer past that capacity refuses; admitted calls keep within it.
   The tools do not price the timer table.
-- **A watch that ends under a wait** (jig's `client/domain/contract.md`,
-  7.2) answers it: met where the condition is `ended` and the subject
+- **A watch that ends under a wait** (jig's `client/domain/contract/README.md`,
+  5.2) answers it: met where the condition is `ended` and the subject
   ended. For `task show`, `ended` and `replied` first require the matching
   terminal read above and answer according to the condition on that task;
   refused where the party may no longer see the subject; failed
   where the sign-in ended; otherwise, not met, with the last document
   and its digest (6.3). An engine that stops ends no watch: jig's
   client opens again a watch the engine let go as it stopped (jig's
-  `client/domain/client.md`, 8.1), so the wait goes on while the
+  `client/domain/client/watches.md`, 1), so the wait goes on while the
   engine comes back, and fails as a link down past the link's deadline
-  (6.3, section 12).
+  (6.3, `tools.md`, section 12).
 - **Level-triggered, as the watch is** (jig's
-  `client/domain/contract.md`, 7.2): deliveries between are coalesced,
+  `client/domain/contract/README.md`, 5.2): deliveries between are coalesced,
   and the answer is the document as it is when answered. A change before
   the wait began is in its first delivery, which `--since` compares.
 - **The loop:** `me --until waiting`; `inbox`; act; again. An agent
@@ -793,7 +793,7 @@ The table grows area by area, each with its stories (section 11).
 
    - **`task amend`'s changes,** one or more, each a control of the task,
      the rest kept as the task's document shows them (jig's
-     `domain/tasks.md`, section 7), drafted by the client domain's
+     `domain/tasks/changes.md`), drafted by the client domain's
      amendment editor (`README.md`, 3.7):
 
      | Change | Sets |
@@ -813,7 +813,7 @@ The table grows area by area, each with its stories (section 11).
      section 7, "Whoever widens a task funds it"): from their role's pool,
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
-     budget or tasks names (jig's `domain/tasks.md`, 5.5; `../domain/forge.md`,
+     budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../domain/forge.md`,
      8.4): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
      then `task release 41 --hold 3`; for tasks, the hold prints
      `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
@@ -825,7 +825,7 @@ The table grows area by area, each with its stories (section 11).
      prints, as the task's offered `amend` act carries it: `task show
      TASK`'s acts print it as `task amend 41 --rev 8 CHANGE... REASON
      --key NAME`. A change of a tracked task's priority alone names none
-     (jig's `domain/tasks.md`, section 7; `../domain/agent.md`, 4.3);
+     (jig's `domain/tasks/changes.md`; `../domain/agent.md`, 4.3);
      every other amendment does, and one without it exits 1, `temper
      ctl: task amend needs --rev REV`, nothing sent. The tool reads the
      task's document, drafts the change on it, and sends nothing when
@@ -842,7 +842,7 @@ The table grows area by area, each with its stories (section 11).
      sent; past what the party holds but proposable, a deadline later
      than its funder allows among them, sent as `Propose`, and
      `proposed: t41/3, to …`; past the bounds, refused, nothing sent.
-     Each change is proposable (jig's `domain/tasks.md`, 4 and 7); what
+     Each change is proposable (jig's `domain/tasks/README.md`, 4 and `domain/tasks/changes.md`); what
      fails another check than authority (a dependency out of reach, a
      circle, a goal past the project's goals) is the engine's refusal,
      exit 2.
@@ -853,7 +853,7 @@ The table grows area by area, each with its stories (section 11).
    FILE`, `deployment show`, `task move TASK REASON`, a person task's
    `task take`, `task hand-back` and `task answer TASK --rev REV`, and
    the project's own operations, `policy`, `role`, `pool` (jig's
-   `domain/people.md`, 5.2), past the spend per period that `project
+   `domain/people/acts.md`, 2), past the spend per period that `project
    fund` sets (5.3).
 
    `task show TASK` joins a person task's document to its generic task:
@@ -895,12 +895,12 @@ The table grows area by area, each with its stories (section 11).
 5. **LLM accounts** (jig's `domain/accounts.md`, section 5): the party's
    accounts and, for an owner, the deployment's, as temper's accounts
    page shows them (`README.md`, 3.5). Each act is one of jig's
-   requests for accounts (jig's `client/domain/contract.md`, 3.2).
+   requests for accounts (jig's `client/domain/contract/requests.md`, 2).
 
    | Tool | What it does | jig's | K |
    |---|---|---|---|
    | `account list` | the party's accounts, then, for an owner, the deployment's: each with its number, LLM provider, display name and holder; its sources in order, each with its kind, its name for a program's, and its state, per host for a program's, with the reset where the provider gave one; the runs on it and the tasks waiting for it; the sign-ins and checks in progress; its acts | the `accounts` watch (5.4) | |
-   | `model list [--project PROJECT]` | the project's offer (jig's `client/domain/contract.md`, 5.1), by LLM provider: each model with its efforts, its default effort, what it is good at, its prices and the accounts that can run it; a provider with no model there, its name and no models, never a model of its | `me`'s offer and providers | |
+   | `model list [--project PROJECT]` | the project's offer (jig's `client/domain/contract/documents.md`, 1), by LLM provider: each model with its efforts, its default effort, what it is good at, its prices and the accounts that can run it; a provider with no model there, its name and no models, never a model of its | `me`'s offer and providers | |
    | `account connect PROVIDER` | starts a sign-in with an LLM provider: prints the address to open in a browser on the engine's machine, and the call that follows it, `account list --until settled`; exits 0 once the request is durable | sign in | yes |
    | `account disconnect ACCOUNT [--source SOURCE]` | signs a source out: a signed-in source's record revoked at the provider, a program's login signed out on each host; the source removed. Unconfirmed, the answer says to disconnect temper in the provider's settings, or names the hosts that did not sign out | sign out | |
    | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
@@ -1013,7 +1013,7 @@ The table grows area by area, each with its stories (section 11).
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the template's choice or what each run's check takes without them (jig's
-     `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
+     `domain/tasks/README.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
      `protocol/configuration.md`, 3.1), a model at most once, its effort its
@@ -1031,10 +1031,10 @@ The table grows area by area, each with its stories (section 11).
    - **An account moved,** `account export` and `account import`, is
      jig's move (jig's `domain/accounts.md`, section 6) through
      `jig-client`'s `move_out`, `written` and `move_in` (jig's
-     `client/domain/client.md`, section 6): a fresh deployment takes a
+     `client/domain/client/requests.md`): a fresh deployment takes a
      signed-in account in and gives it back, as a host with no browser
      takes a record signed in on a computer with one. The record is never printed, never an argument, and in no
-     request or answer kept (section 7). `task move` and `task take` are
+     request or answer kept (`tools.md`, section 7). `task move` and `task take` are
      area 3's names.
    - **The file's form is jig's,** opaque to temper: a moved record,
      its version, then the application's name, the issuer, the client
@@ -1233,7 +1233,7 @@ The table grows area by area, each with its stories (section 11).
 - **A record these tools cannot read,** of a store version, or of a
   family's owner or version, that they do not declare, is counted, never
   listed: jig's client reads nothing of such a record, drops it at start
-  and says how many (jig's `protocol/client.md`, section 10), and
+  and says how many (jig's `protocol/client/README.md`, section 7), and
   `pending` says what a call's client will. Its line, `N kept records
   these tools cannot read; a call that sends drops them`, follows the
   rows, and the call exits 0. A file that is not a small store's at all
@@ -1302,13 +1302,13 @@ digest: task 7c1e09a2b44f0d13
   its kind is 1. Another kind on the forge's connector is `change, `
   followed by that kind's words (`README.md`, 4.1); any other connector
   is `change, connector C kind K`. These are never jig's label as a
-  number, which jig gives no meaning (jig's `domain/tasks.md`, section
+  number, which jig gives no meaning (jig's `domain/tasks/README.md`, section
   3) and temper numbers its delegates by.
   Its tracking is `priority P` while it is tracked, and `untracked`
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
 - **`waiting on:`** prints jig's word for what the task waits on (jig's
-  `client/domain/client.md`, 19), or the party and what it must answer. A
+  `client/domain/client/helpers.md`), or the party and what it must answer. A
   held task that awaits nothing else prints its hold, where `Nothing
   awaited` would read as if nothing were wrong; one that awaits anything
   else prints that. The hold prints as `held` alone (the user, 2026-11-06):
@@ -1324,7 +1324,7 @@ digest: task 7c1e09a2b44f0d13
 - **A move** concerns who requests a task, not what it waits on: `acts:` and
   `--json` offer it on a task waiting for an account as on any other. On a
   task whose requester is already the party it isn't offered (jig's
-  `domain/people.md`, 5.1), and moving gives no task a run: an account does.
+  `domain/people/acts.md`, 1), and moving gives no task a run: an account does.
 - **A hold for failed runs** has its class and no failure's text: `held:`
   prints `out of tries: run failures`, and `way out:` starts `the engine's log
   names each failure (temper help hold), then`. `temper help hold` says where
@@ -1356,8 +1356,8 @@ digest: task 7c1e09a2b44f0d13
     no host has room, or none is connected; it starts when one does
   ```
 
-  A run no worker can ever take (jig's `Refused(Bounds)`, `client/domain/contract.md`,
-  5.1) says which bound keeps it out in the client's form
+  A run no worker can ever take (jig's `Refused(Bounds)`, `jig/docs/design/client/domain/contract/documents.md`,
+  1) says which bound keeps it out in the client's form
   (`README.md`, 5.5), lower case, a count as digits, a duration in
   milliseconds as `N ms`:
 
@@ -1391,7 +1391,7 @@ digest: task 7c1e09a2b44f0d13
   events: the brief is outside the activity log.
 - **Its settings revision,** for an agent task, after its instructions:
   `settings: revision 7`, the revision its runs read their charter
-  from, jig's `Task.settings.task` (jig's `domain/engine.md`, 17.3);
+  from, jig's `Task.settings.task` (jig's `domain/engine/settings.md`, 3);
   then ` · its run on 6` while a live run was prepared under another,
   and ` · newest 9` when the newest is another, which `revision advance
   7` moves it to if the newest offers its charter and allows its LLM
@@ -1404,7 +1404,7 @@ digest: task 7c1e09a2b44f0d13
   jig's `Dependency.added`), ` · added by WHO at 2026-10-22 05:10 UTC`,
   WHO as the requester is said (`you`, `party 3`, `task 7`,
   `deployment 1`); then, while it keeps the task (jig's `keeps`, jig's
-  `domain/tasks.md`, 5.7), ` · keeps task N from ending`:
+  `domain/tasks/lifecycle.md`, 8), ` · keeps task N from ending`:
 
   ```
   dependencies:
@@ -1450,7 +1450,7 @@ digest: task 7c1e09a2b44f0d13
   `run N ended: its result couldn't be read`. JSON preserves the cause
   as the failed end's optional `invalid_reason`, with `unreadable result`
   for the latter. Other failure classes omit the cause. These words do
-  not change the class or the retry counts (jig's `protocol/client.md`, 3).
+  not change the class or the retry counts (jig's `protocol/client/wire.md`, 1).
   A heard `QuestionAnswered` notice prints `POSITION · You answered
   question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
@@ -1474,7 +1474,7 @@ digest: task 7c1e09a2b44f0d13
   for the next page, or that there is none.
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
-  own rows (jig's `client/domain/contract.md`, 7.2), so a tree larger
+  own rows (jig's `client/domain/contract/README.md`, 5.2), so a tree larger
   than either folds the rest. Its text prints one total line after the
   rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
   count, then each phase that has any, in a chip's words and jig's order
@@ -1487,7 +1487,7 @@ digest: task 7c1e09a2b44f0d13
   read-on lines. Under `--json`, `more` and `folded` as the document
   carries them.
 - **An activity page** cut before its first row (jig's
-  `protocol/store.md`, 7.3) prints no rows and its `read on with:` call,
+  `protocol/store/loads.md`, 3) prints no rows and its `read on with:` call,
   never `no more`; under `--json`, `"cut":true` and the position to read
   on from.
 - **An act's outcome** prints what was made or decided and its numbers:
@@ -1499,7 +1499,7 @@ digest: task 7c1e09a2b44f0d13
   `adopt`), then its outcome as an act's prints, which names what it
   made or decided. No name and no key: a request's record keeps the
   engine's key, drawn or a name's digest, and the client's, the
-  runner's (jig's `protocol/client.md`, section 10), never the name,
+  runner's (jig's `protocol/client/README.md`, section 7), never the name,
   and neither key is of use to an agent.
 - **A restored proposal's `kept:` line** prints its identity alone,
   `kept: chat, proposed: t3/17`, with no recipient: jig keeps none with
@@ -1582,7 +1582,7 @@ may change with them.
   failures keep their ordinary statuses.
 - **An act refused for want of a retained answer's place** (jig's busy,
   *answers full*, with the table's size and its oldest answer's expiry:
-  jig's `domain/people.md`, 5.1) prints `temper ctl: the engine holds its
+  jig's `domain/people/acts.md`, 1) prints `temper ctl: the engine holds its
   N answers of the last day; room again at TIME` and exits 2, never
   retrying past its patience when TIME is past it; nothing was made,
   and the same key sends it again once there is room. The carried
@@ -1603,7 +1603,7 @@ may change with them.
   and the line says what it waited for (below).
 - **The engine's watches all in use say so.** A call whose client still
   holds a watch refused busy at its deadline (jig's
-  `client/domain/client.md`, 8.2) exits 1 with `temper ctl: all the
+  `client/domain/client/watches.md`, 2) exits 1 with `temper ctl: all the
   engine's watches are in use, by open pages and waits; close one, or
   wait and call again`. It comes after the busy sign-in's and the full
   streams' lines, which are nearer the cause, and before any other line
@@ -1621,7 +1621,7 @@ may change with them.
   says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
   other says, from the link's
-  state (jig's `client/domain/client.md`, 8.2):
+  state (jig's `client/domain/client/watches.md`, 2):
 
   | Outstanding | When | The line, after `temper ctl: ` |
   |---|---|---|
@@ -1629,7 +1629,7 @@ may change with them.
   | the stream's first answer | a connection taken, *starting*, nothing heard | `the engine at ADDRESS took the connection but its stream did not answer within 30 s` |
   | a read's answer | *starting* with the engine heard, or *live* in a read or a wait | `the engine at ADDRESS did not answer a read within 30 s` |
   | an act's outcome | *live* in an act that has no answer yet | `the engine at ADDRESS gave no outcome for this act within 30 s` |
-  | an act's outcome, the engine having answered it *busy* | as above, its last retry's why (jig's `client/domain/client.md`, section 6) | `the engine at ADDRESS last answered this act busy; no outcome within 30 s` |
+  | an act's outcome, the engine having answered it *busy* | as above, its last retry's why (jig's `client/domain/client/requests.md`) | `the engine at ADDRESS last answered this act busy; no outcome within 30 s` |
   | an act's outcome, *not ready* | as above | `the engine at ADDRESS last answered this act not ready; no outcome within 30 s` |
   | an act's outcome, its answer lost or undecodable | as above | `the last answer to this act from the engine at ADDRESS was lost; no outcome within 30 s` |
 
@@ -1763,7 +1763,7 @@ its `from` and `next` offsets count reason bytes alone.
 - **Through jig's request table.** Every act but one that carries a
   value (below) is a keyed request: `jig-client` keeps it before sending
   it, sends it again under its key until its answer is durable, and
-  answers it once (jig's `client/domain/client.md`, section 6).
+  answers it once (jig's `client/domain/client/requests.md`).
 - **The agent names the key** of every tool marked `K`: `--key NAME`, a
   word of 1 to 64 bytes of `a` to `z`, `0` to `9` and `-`, such as
   `health-chat`. A call without it is refused as a usage error, before
@@ -1774,7 +1774,7 @@ its `from` and `next` offsets count reason bytes alone.
   `temper help ctl` says the rule too.
 - **A named key is the engine's key:** the first 16 bytes of the SHA-256
   of `temper-tools`, a zero byte and the name. jig scopes it to the party
-  (jig's `client/domain/contract.md`, 3.1). The same name asked again by
+  (jig's `client/domain/contract/requests.md`, 1). The same name asked again by
   the same party, within the engine's retention, is the same request: a
   rerun after a lost answer, an agent's own timeout or a lost context
   gets the first answer, never a second chat. The same name with another
@@ -1787,11 +1787,11 @@ its `from` and `next` offsets count reason bytes alone.
 - **A named request is built from the call and `me` alone,** never from
   the clock, so a rerun builds the same ask: a deadline a template gives
   as a span is sent as that span, which the engine makes a wall when it
-  makes the task (jig's `client/domain/contract.md`, 3.2). A rerun
+  makes the task (jig's `client/domain/contract/requests.md`, 2). A rerun
   after `me` changed what the request is built from (a template, a
   bound) is another ask, refused as a key conflict.
 - **A name the client holds already** is answered `Held`, nothing sent
-  (jig's `client/domain/client.md`, section 6). A call sends what
+  (jig's `client/domain/client/requests.md`). A call sends what
   DIRECTORY kept again before it sends its own (8.2). A call whose name
   a kept request of its party holds, the same ask, is that request: it
   waits for its answer as for its own, and prints it, so that a rerun
@@ -1813,7 +1813,7 @@ its `from` and `next` offsets count reason bytes alone.
   An unknown proposal answers exit 2: "this proposal isn't waiting; it
   may have been decided or replaced." A task's automatically replaced
   settings proposal keeps no decision to report (jig's
-  `client/domain/contract.md`, sections 3.2 and 4).
+  `client/domain/contract/requests.md`, section 2, and `client/domain/contract/README.md`, section 3).
 - **The other acts** (`task stop`, `task cancel`, `proposal decide`,
   ...) take `--key` optionally; without it the table draws one, which
   the small store keeps until answered (8.2).
@@ -1821,8 +1821,8 @@ its `from` and `next` offsets count reason bytes alone.
   replace-key`'s (5.5, area 5), and area 6's `forge connect` with a FILE
   and `forge replace`, is sent once and never kept: `jig-client` writes
   no record of it to DIRECTORY's store and never sends it again (jig's
-  `client/domain/client.md`, section 6; jig's `protocol/client.md`,
-  sections 5 and 10), and the engine takes the value out as it decodes
+  `client/domain/client/requests.md`; jig's `protocol/client/README.md`,
+  sections 3 and 7), and the engine takes the value out as it decodes
   the request, so no committed request or answer holds it (jig's
   `domain/accounts.md`, section 5). A forge's pasted value is kept by
   jig's clients' component in the secrets' store under temper's tag, at
@@ -1845,7 +1845,7 @@ its `from` and `next` offsets count reason bytes alone.
   carries one, the record: sent once under a name the table draws,
   never kept and never sent again, since the record comes with the
   first answer alone and the name asked again is answered with none,
-  *lost* (jig's `client/domain/contract.md`, 3.1). So `account export`
+  *lost* (jig's `client/domain/contract/requests.md`, 1). So `account export`
   takes no `--key`: an export asked again is a new request, refused
   "moving" until the first move is cancelled at its deadline. Its
   `written` is an ordinary request under a drawn name, kept in
@@ -1915,7 +1915,7 @@ temper ctl help [GROUP [VERB]]
     or sending a sign-in;
   - *refused* (the link spent, expired or unknown): `temper ctl: the
     sign-in link was refused`; `temper serve` prints a fresh link;
-  - *full* (jig's `domain/people.md`, section 3): `temper ctl: all N
+  - *full* (jig's `domain/people/README.md`, section 3): `temper ctl: all N
     sign-ins are in use; the earliest ends at T; this link stays usable
     until U; after that, temper serve prints a fresh one when it is
     tried`, N the deployment's room, T the earliest saved expiry among
@@ -1944,7 +1944,7 @@ temper ctl help [GROUP [VERB]]
 ### 8.2 One call, one process
 
 The host of `jig-client`'s one-shot mode (jig's
-`client/domain/client.md`, section 20), ordinary Rust on skein's loop,
+`client/domain/client/README.md`, section 16), ordinary Rust on skein's loop,
 as the terminal's host is:
 
 1. parse the arguments against the table; a usage error exits 1 before
@@ -1976,7 +1976,7 @@ as the terminal's host is:
   other way. The clients' listener takes the peer's end as the call's
   end (`README.md`, section 8), and the engine ends the stream then, not
   at its next heartbeat. So a call holds one of the engine's streams,
-  which its profile bounds (jig's `protocol/client.md`, section 13),
+  which its profile bounds (jig's `protocol/client/README.md`, section 10),
   only while its process runs, and calls that run one after another
   never wait on their predecessors' streams. A read or a wait sends no
   stream gone itself (8.3). An opening refused full by either bound retries
@@ -2010,7 +2010,7 @@ as the terminal's host is:
 - **Another party's kept requests,** in a DIRECTORY signed in again as
   another party, stay parked and unsent, until their party signs in
   there again or the retention passes and they are answered unknown
-  (jig's `client/domain/client.md`, section 11). Step 4 does not wait
+  (jig's `client/domain/client/README.md`, section 8). Step 4 does not wait
   for them; the call says how many (6.1) and goes on.
 - **`pending`** lists what the small store keeps (5.6).
 
@@ -2040,7 +2040,7 @@ An agent runs a wait while it acts, or several agents share a party.
   memory, empty, never DIRECTORY's file: they write no record and send
   nothing but reads and watches. A client loaded from DIRECTORY's
   records would send the stream they name gone (jig's
-  `client/domain/client.md`, section 11), ending the watches of the
+  `client/domain/client/README.md`, section 8), ending the watches of the
   call that opened it.
 - **Several parties** are several directories, each signed in as its
   own.
@@ -2050,7 +2050,7 @@ An agent runs a wait while it acts, or several agents share a party.
 - **Any credential.** An agent acting for a person may hold the person's
   credential or one of its own: the tools, their calls and their
   results are the same either way, and jig judges each request as the
-  party whose credential it is (jig's `domain/people.md`, section 3).
+  party whose credential it is (jig's `domain/people/README.md`, section 3).
 - **The person's own:** the printed link's sign-in. An agent's first
   identity is the deployment's first owner.
 - **Its own, a service's** (area 3): an owner makes a service in a
@@ -2424,8 +2424,8 @@ Four bounds decide how much of a document a call prints:
 
 | Bound | Whose | It decides | Past it |
 |---|---|---|---|
-| a page's bytes | the engine's (jig's `client/domain/contract.md`, 5.1) | whether a turn comes in a page by its bytes or by its size | the turn's line, its size and the call that reads it (5.2) |
-| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract.md`, section 6) | whether `task turn` is answered whole | its size, and that it is past the limit |
+| a page's bytes | the engine's (jig's `client/domain/contract/documents.md`, 1) | whether a turn comes in a page by its bytes or by its size | the turn's line, its size and the call that reads it (5.2) |
+| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract/README.md`, section 4) | whether `task turn` is answered whole | its size, and that it is past the limit |
 | one document's bytes | the client's, `document_bytes` | whether the client takes a document whole | a turn: its size, and that it is past the limit; any other document: the client's `Limit`, exit 1 |
 | the tools' window | the tools' | how much of a result prints | the rest by its cursor, or `--part` and `--from` (6.4) |
 
@@ -2448,7 +2448,7 @@ terminal's, whose window shows two rows:
 
 | What | Bound |
 |---|---|
-| rows: a list's page, the inbox's needs and updates together, the activity lines `task show` adds, a conversation's page; the client's rows per window | 32, the most jig's client wire takes in a limit of rows (its schemas' ceilings; jig's `protocol/client.md`, section 3) |
+| rows: a list's page, the inbox's needs and updates together, the activity lines `task show` adds, a conversation's page; the client's rows per window | 32, the most jig's client wire takes in a limit of rows (its schemas' ceilings; jig's `protocol/client/wire.md`, section 1) |
 | a result's text | 80 KiB: a page, and the 16 KiB a result keeps beside it |
 | a page: a turn's part, and the source one `task text` page holds | 64 KiB, 65,536 source bytes |
 | a result's bytes, as JSON | one document's bytes six times, and 1 KiB: JSON may spend six bytes on one source byte, so a page's JSON fits |
@@ -2460,14 +2460,14 @@ terminal's, whose window shows two rows:
 | a retry's span, a request's and a watch's: at least half of it, jittered | from 1 s, doubling to at most 2 s, the most a sign-in's link waits between tries (8.2) |
 | the lock's wait | 60 s, tried every 100 ms |
 | a key's file, less a final newline (5.5, area 5) | 4 KiB; past it, or empty, exit 1 with nothing sent; a key the engine refuses is its refusal, exit 2 |
-| a moved record's file, whole (5.5, area 5) | 128 KiB, jig's bound on a keyed request's value (jig's `protocol/client.md`, section 5); past it, or empty, exit 1 with nothing sent; a file past its form's bound at the engine is its refusal, a limit, exit 2 |
+| a moved record's file, whole (5.5, area 5) | 128 KiB, jig's bound on a keyed request's value (jig's `protocol/client/README.md`, section 3); past it, or empty, exit 1 with nothing sent; a file past its form's bound at the engine is its refusal, a limit, exit 2 |
 | a forge's pasted value: its file, and the bundle the tool makes of it (5.5, area 6) | 4 KiB, jig's bound on a carried value; past it, or empty, exit 1 with nothing sent; a value the engine refuses, one past the deployment's `records.value_bytes` among them, is its refusal, exit 2 |
 | a picker's page, `forge repositories` (5.5, area 6) | 100 rows, the most `picker.page` takes, printed whole: temper's own family carries them, not jig's rows; a step test fails when 100 rows at the client's bound on a field's bytes pass a result's text (11.1) |
 | a wait's timeout | 300 s by default, at most 3600 (5.4) |
 
 The client's other limits are the terminal's (`README.md`, section 2).
 The mandatory `me` frame takes every membership the deployment may serve
-(jig's `client/domain/contract.md`, 5.1), including a project just made.
+(jig's `client/domain/contract/documents.md`, 1), including a project just made.
 Its project list grows as it fills up to nine entries; the whole document
 keeps its 1 MiB wire bound. Templates and models keep their per-project
 bounds. Raising the membership count reserves no storage for absent
@@ -2480,43 +2480,43 @@ contract's reads, watches and requests, they take:
 
 - **A named key:** `jig-client`'s `Send` under a key the application
   names, refused `Held` when the client holds it already (jig's
-  `client/domain/client.md`, section 6), on skein's request table's
+  `client/domain/client/requests.md`), on skein's request table's
   given keys (skein's `lib.md`, section 12); everything else of keyed
-  requests is the contract's (jig's `client/domain/contract.md`, 3.1).
+  requests is the contract's (jig's `client/domain/contract/requests.md`, 1).
 - **A read of one turn,** `turn{n, attempt, turn}` (jig's
-  `client/domain/contract.md`, section 6), answered from the store's
-  `Scope::Turn` (jig's `protocol/store.md`, 7.3); on a page, a turn past
-  the page's bound keeps its size (jig's `client/domain/contract.md`,
-  5.1).
+  `client/domain/contract/README.md`, section 4), answered from the store's
+  `Scope::Turn` (jig's `protocol/store/loads.md`, 3); on a page, a turn past
+  the page's bound keeps its size (jig's `client/domain/contract/documents.md`,
+  1).
 - **A deadline as a span** in a request a template gives one (jig's
-  `client/domain/contract.md`, 3.2), so that a named request is built
-  without the clock (section 7).
+  `client/domain/contract/requests.md`, 2), so that a named request is built
+  without the clock (`tools.md`, section 7).
 - **For area 5,** jig's accounts (jig's `domain/accounts.md`, section 5)
   and their move (its section 6, for `account export` and `account
   import`):
-  their requests (jig's `client/domain/contract.md`, 3.2), each under a
+  their requests (jig's `client/domain/contract/requests.md`, 2), each under a
   key as the others, a key's bytes held to the tools' own bound
-  (section 12) and the engine's refusal past its own exit 2; the
-  `accounts` watch (jig's `client/domain/contract.md`, 7.1); the models
-  a party may use, in `me` (jig's `client/domain/contract.md`, 5.1),
-  and the LLM choice in a task's request (jig's `domain/tasks.md`,
+  (`tools.md`, section 12) and the engine's refusal past its own exit 2; the
+  `accounts` watch (jig's `client/domain/contract/README.md`, 5.1); the models
+  a party may use, in `me` (jig's `client/domain/contract/documents.md`, 1),
+  and the LLM choice in a task's request (jig's `domain/tasks/README.md`,
   section 3); and a request carrying a value, and one whose answer
   carries one (the moved record, `jig-client`'s `move_out`),
-  sent once and never kept nor resent (jig's `client/domain/client.md`,
-  section 6; jig's `protocol/client.md`, section 10).
+  sent once and never kept nor resent (jig's `client/domain/client/requests.md`
+  ; jig's `protocol/client/README.md`, section 7).
 - **For area 6,** temper's FORGE requests (`README.md`, section 8), each
   under a key as the others, through `jig-client` as the forge family's
-  bytes; jig's request carrying a value (jig's `protocol/client.md`,
-  section 5) for a pasted connect and a replacement, the value numbered
+  bytes; jig's request carrying a value (jig's `protocol/client/README.md`,
+  section 3) for a pasted connect and a replacement, the value numbered
   and kept by jig's clients' component (`../protocol/credentials.md`,
   pasted values), sent once and never kept nor resent; and the forge's
   deployment part, read and watched (`forge.md`, section 9).
 - **The rest as jig designs it:** its helpers (`shapes`, `facts`,
-  `thread`, `words`; jig's `client/domain/client.md`, section 19), the
-  documents' acts and `me`'s bounds (jig's `client/domain/contract.md`,
-  5.3), the client's bound on a path's segments, a service's sign-in,
+  `thread`, `words`; jig's `client/domain/client/helpers.md`), the
+  documents' acts and `me`'s bounds (jig's `client/domain/contract/documents.md`,
+  3), the client's bound on a path's segments, a service's sign-in,
   and the one-shot mode, whose modes "differ in the host alone" (jig's
-  `client/domain/client.md`, section 20).
+  `client/domain/client/README.md`, section 16).
 
 ## 14. Later
 
@@ -2524,7 +2524,7 @@ contract's reads, watches and requests, they take:
   replace and a sign-in's start or finish can answer not offered for
   several core causes. Giving each its reason and next step needs those
   causes distinguished in jig's account refusals and client contract
-  (jig's `client/domain/contract.md`, section 11). Default: their generic
+  (jig's `client/domain/contract/README.md`, section 9). Default: their generic
   words; declaration's name taken and not offered, and retry's not
   offered, have the specific words of 5.5.
 
@@ -2546,8 +2546,8 @@ contract's reads, watches and requests, they take:
 
 - **A replaced proposal's decision** (7): returning `decided first:`
   for an automatically replaced task proposal needs jig to retain that
-  decision and name its decider (jig's `client/domain/contract.md`,
-  section 11). Default: the unknown-proposal explanation and exit 2;
+  decision and name its decider (jig's `client/domain/contract/README.md`,
+  section 9). Default: the unknown-proposal explanation and exit 2;
   no archive or new decider.
 
 - **Model catalogue changes** (5.5, area 5): `model list` reads the
@@ -2570,7 +2570,7 @@ Each is named here and designed when it comes.
   from a lost answer needs the protocol owner's decision. Until then it
   keeps that retry behaviour; unsupported settings efforts not caught by
   5.3's local check take the existing final refusal (jig's
-  `client/domain/contract.md`, section 4).
+  `client/domain/contract/README.md`, section 3).
 - **An effort refusal for a model absent from `me`** (5.3): the local
   check knows only the models `me` shows in the party's projects. An item
   naming another model goes to the engine, whose refusal names the model
@@ -2588,7 +2588,7 @@ Each is named here and designed when it comes.
 - **A busy watch's precise cause** (6.3): the deadline's line uses jig's
   `watches_full`, whose refusal carries no count and does not distinguish
   watch capacity from an opening's load slot. Distinct lines wait for jig
-  to distinguish the causes (`jig/docs/design/client/domain/client.md`, 18).
+  to distinguish the causes (`jig/docs/design/client/domain/client/README.md`, 15).
   Until then the line names watches in use, as the `watch-room` request asks.
 - **An MCP endpoint of the engine,** for agents with no shell:
   `temper-service` serves the same tools at `/mcp` on the clients'
@@ -2604,7 +2604,7 @@ Each is named here and designed when it comes.
 - **The forge's read family's tools,** beside `forge list` (area 6), as the
   engine serves each of the forge's other parts (`forge.md`, section 9).
 - **A service's credential reissued, or a service removed** (jig's
-  `domain/people.md`, section 3): tools of area 3.
+  `domain/people/README.md`, section 3): tools of area 3.
 - **An account's uses** set, as a tool of area 5 (section 15).
 - **An older moved form patched at `account import`** (5.5, area 5, the
   file's versions): jig's form patches, then skein's record patches,

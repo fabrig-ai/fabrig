@@ -1,4 +1,4 @@
-//! The reference UI's own small-store records (client/domain/view.md, 18.8).
+//! The reference UI's own small-store records (client/domain/view-state.md, 8).
 use crate::state::address::Address;
 use alloc::boxed::Box;
 use jig_client::contract::Text;

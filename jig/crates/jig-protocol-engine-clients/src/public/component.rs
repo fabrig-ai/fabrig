@@ -1,4 +1,4 @@
-//! Public admission and refunds (jig/docs/design/protocol/client.md, 19).
+//! Public admission and refunds (jig/docs/design/protocol/client/public-reads.md).
 use super::{
     Box, Component, Env, Kept, Limits, Map, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Settings, Time,
     Token, Unusable, core, sign_in, w,

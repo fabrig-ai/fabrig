@@ -1,4 +1,4 @@
-//! Restore facts survive the wire and the kept request table (engine.md, 17.10).
+//! Restore facts survive the wire and the kept request table (domain/engine/settings.md, 10).
 use super::encoders as e;
 use super::*;
 use crate::translate::{answers, asks, settings as t, settings_proposals};

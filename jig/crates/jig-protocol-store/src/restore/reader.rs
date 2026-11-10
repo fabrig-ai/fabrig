@@ -1,4 +1,4 @@
-//! Read-only restore pages (jig/docs/design/protocol/store.md, 7.1 and 7.2).
+//! Read-only restore pages (jig/docs/design/protocol/store/loads.md, 1 and 2).
 use super::{Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, RangeFailure, RowSite, ready, site};
 use crate::{Cursor, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;

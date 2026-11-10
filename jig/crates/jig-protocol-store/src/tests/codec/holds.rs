@@ -1,4 +1,4 @@
-//! Each holds/pieces word reads the bytes its owner wrote (protocol/store.md, 5.1).
+//! Each holds/pieces word reads the bytes its owner wrote (protocol/store/records.md, 1).
 use super::fixtures;
 use crate::{codec, core_v6 as core, people_v14 as people, tasks_v9 as tasks};
 use jig_domain_core as c;

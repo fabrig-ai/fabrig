@@ -1,5 +1,5 @@
 //! Spine routing of page generations, watches, reads, names and parts.
-//! Detailed page policies belong to their page modules. See client/domain/client.md, 5–7.
+//! Detailed page policies belong to their page modules. See client/domain/client/README.md, 5 and client/domain/client/requests.md and client/domain/client/README.md, 6.
 use crate::{
     Request, Ui,
     state::{
@@ -114,7 +114,7 @@ pub(crate) fn navigate(
         }
     }
 }
-/// Releases a page's handles and owned read pages together (view.md, 18.2).
+/// Releases a page's handles and owned read pages together (client/domain/view-state.md, 2).
 pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client::Client) {
     domain.leave_handles(false, out);
     domain.handles.leave_reads(out);
@@ -205,7 +205,7 @@ pub(crate) fn enter(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queue<R
         open_section(domain, env, section, owner, out, lent);
     }
 }
-/// Opens the sources one section needs (client/domain/client.md, 5.1).
+/// Opens the sources one section needs (client/domain/client/README.md, 5.1).
 pub(crate) fn open_section(
     domain: &mut Ui,
     env: &Env<crate::Config>,

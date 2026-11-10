@@ -1,5 +1,5 @@
 //! R12: an authorized person's unread words on a delegate must restore
-//! (jig's domain/people.md, 5.1; domain/engine.md, 6).
+//! (jig's domain/people/acts.md, 1; jig/docs/design/domain/engine/restart.md).
 use super::*;
 
 const CHANNEL: Token = Token::new(7);

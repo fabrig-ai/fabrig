@@ -13,7 +13,7 @@ const BROWSER: ClientId = ClientId(1);
 const OTHER: ClientId = ClientId(2);
 // The chat world's two-client pump settles within 24 rounds.
 const ROUNDS: usize = 24;
-// The approval's span (jig/docs/design/protocol/client.md, 8).
+// The approval's span (jig/docs/design/protocol/client/sign-in.md).
 const SPAN: Duration = Duration::from_secs(600);
 
 struct Probe {

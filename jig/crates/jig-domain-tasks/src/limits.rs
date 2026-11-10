@@ -1,12 +1,12 @@
-//! Root-configured admission and edge limits (domain/tasks.md, section 10).
+//! Root-configured admission and edge limits (domain/tasks/README.md, section 5).
 use crate::{Class, Retries};
 
 /// Maximum fields in one verdict, equal to the settings-v1 schema's `list 512` ceiling
-/// (domain/tasks.md, section 11).
+/// (domain/tasks/README.md, section 6).
 pub const VERDICT_FIELDS: u32 = 512;
 
 /// Immutable root-configured limits for live task state, finite sources, owned semantic payloads
-/// and retry policies; validate through `valid` before construction. (domain/tasks.md, section 10).
+/// and retry policies; validate through `valid` before construction. (domain/tasks/README.md, section 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Placed holds in the deployment, including lifted holds kept for their tasks.
@@ -39,7 +39,7 @@ pub struct Limits {
     /// Maximum directly created tasks in one atomic nonempty `Make` batch.
     pub batch: u32,
     /// Maximum bytes one batch's tasks hold in all, as `batch_bytes` measures them, a recurring
-    /// member's template's tasks among them (domain/tasks.md, sections 4 and 11).
+    /// member's template's tasks among them (domain/tasks/README.md, sections 4 and 6).
     pub batch_bytes: u32,
     /// Maximum immutable dependency identities per task; also bounds its remaining live
     /// `waiting_on` subset.
@@ -62,7 +62,7 @@ pub struct Limits {
     pub grace: skein_lib::Duration,
     /// Wall-clock bound before a task waiting for holds is held for review.
     pub hold_wait: skein_lib::Duration,
-    /// Maximum tasks a circle of waits names in a refusal or a hold (domain/tasks.md, 6.7).
+    /// Maximum tasks a circle of waits names in a refusal or a hold (domain/tasks/holds.md, 7).
     pub circle: u32,
     /// Shape bound for retained input identities checked by the root before delegation.
     pub inputs: u32,
@@ -74,7 +74,7 @@ pub struct Limits {
     /// retain one bounded reason plus one bounded partial result.
     pub result_bytes: u32,
     /// Messages a run's inbox takes: the most its start carries, and the most relayed
-    /// and unread (tasks.md, 8.2). At most `inbox_messages`.
+    /// and unread (domain/tasks/messages.md, 2). At most `inbox_messages`.
     pub run_inbox: u32,
     /// Maximum whole unread word messages kept by one live task.
     pub inbox_messages: u32,
@@ -94,9 +94,9 @@ pub struct Limits {
     pub contract_choices: u32,
     /// Maximum retained configured agent-charter numbers.
     pub charters: u32,
-    /// Maximum documents per charter (domain/engine.md, 17.9).
+    /// Maximum documents per charter (domain/engine/settings.md, 9).
     pub charter_documents: u32,
-    /// Bounds parts per charter (jig/docs/design/protocol/configuration.md, 6).
+    /// Bounds parts per charter (jig/docs/design/protocol/limits.md).
     pub charter_parts: u32,
     /// Maximum resource grants per task authority carrier.
     pub authority_grants: u32,
@@ -121,7 +121,7 @@ const _: () = assert!(
 );
 
 impl Limits {
-    /// The largest retained word, including fixed notices (jig/docs/design/protocol/store.md, 5.1).
+    /// The largest retained word, including fixed notices (jig/docs/design/protocol/store/records.md, 1).
     #[must_use]
     pub fn word_bytes(&self) -> u32 {
         self.message_bytes

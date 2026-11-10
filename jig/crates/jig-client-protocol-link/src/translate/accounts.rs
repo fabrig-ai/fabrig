@@ -1,4 +1,4 @@
-//! Accounts watch decoding and shared deployment source facts (contract.md, 5.1).
+//! Accounts watch decoding and shared deployment source facts (client/domain/contract/documents.md, 1).
 use super::{Limits, List, Reader, Wall, c, chip_piece, piece_problem, too_large, w};
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
@@ -200,7 +200,7 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
     })
 }
 /// The bytes a decoded account list may hold, with the record that holds it. The client bounds a
-/// document by its bytes and account counts (client/domain/client.md, 14), and its domain prices
+/// document by its bytes and account counts (client/domain/client/README.md, 11), and its domain prices
 /// each document it holds at twice its byte limit (`jig_client_domain::limits`).
 pub(crate) fn document_room(limits: &Limits) -> u64 {
     limits.document_room()

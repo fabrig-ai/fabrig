@@ -1,4 +1,4 @@
-//! Physical continuations for durable indexes (store.md 7.4).
+//! Physical continuations for durable indexes (protocol/store/loads.md 4).
 use crate::{
     Key,
     documents::{self, Proposer},

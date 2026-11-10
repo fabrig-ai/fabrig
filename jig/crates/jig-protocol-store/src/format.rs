@@ -1,4 +1,4 @@
-//! Versions and deployment checked at open (protocol/store.md, 5.3).
+//! Versions and deployment checked at open (protocol/store/records.md, 3).
 use crate::boundary::{Family, OpenRefusal};
 use crate::codec::component;
 use crate::patching::plan::Levels;
@@ -85,7 +85,7 @@ pub(crate) fn check_versions(
     Ok(())
 }
 
-/// This build's layouts (store.md, 5.3): computed from the schemas built in,
+/// This build's layouts (protocol/store/records.md, 3): computed from the schemas built in,
 /// committed beside the generated codecs, and checked against them by the drift test.
 #[must_use]
 pub fn layouts() -> component::Layouts {

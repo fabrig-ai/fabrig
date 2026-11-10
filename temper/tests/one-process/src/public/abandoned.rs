@@ -1,4 +1,4 @@
-//! An abandoned answer refunds its reservation (jig/docs/design/protocol/client.md, 19).
+//! An abandoned answer refunds its reservation (jig/docs/design/protocol/client/public-reads.md).
 use super::{checks::PROXY, proxy::Proxy, service_checks, visitor::Visitor};
 use crate::fixtures;
 use skein_http::Method;

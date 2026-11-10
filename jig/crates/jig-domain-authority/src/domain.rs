@@ -29,7 +29,7 @@ enum Start {
 /// queues. (domain/authority.md, sections 2 and 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    /// Replace rules without revalidating existing projects (engine.md, 17.2).
+    /// Replace rules without revalidating existing projects (domain/engine/settings.md, 2).
     Rules(Box<Rules>),
     /// Restore an existing policy under its own ceiling, independently of new rules.
     Restore { project: u32, policy: Policy },
@@ -92,13 +92,13 @@ pub enum PolicyFact {
 }
 
 impl Domain {
-    /// Begin loading before any restore or ordinary mutation (engine.md, 6).
+    /// Begin loading before any restore or ordinary mutation (domain/engine/restart.md).
     pub fn start_restore(&mut self) {
         assert!(self.start == Start::NotStarted, "authority start begins once before input");
         self.start = Start::Loading;
     }
 
-    /// Seal loading, preserving the first keyed fit failure (engine.md, 6).
+    /// Seal loading, preserving the first keyed fit failure (domain/engine/restart.md).
     pub fn start_link(&mut self) -> Result<(), (u32, PolicyRefusal)> {
         assert!(self.start == Start::Loading, "authority link follows loading once");
         self.start = Start::Linked;

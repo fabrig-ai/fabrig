@@ -1,4 +1,4 @@
-//! Exact chip lifecycle (domain/tasks.md, 5; client/domain/objects.md, 3).
+//! Exact chip lifecycle (domain/tasks/lifecycle.md; client/domain/objects.md, 3).
 //! Timing, observations and hold history remain in the separate mandatory metadata.
 use super::{ClosingStage, HoldCategory, PersonAddress, Phase, RunStage};
 use skein_lib::{List, Wall};

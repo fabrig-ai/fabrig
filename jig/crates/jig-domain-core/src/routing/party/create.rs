@@ -1,4 +1,4 @@
-//! Party roots checked whole, then made together (domain/people.md, 5.1).
+//! Party roots checked whole, then made together (domain/people/acts.md, 1).
 use crate::{
     Core, Limits,
     routing::{
@@ -315,7 +315,7 @@ fn check_circle(
 
 // The party batch still has local references here. Reserve the prospective
 // numbers only on refusal, and translate the exact circle in wait order
-// (client/domain/contract.md, 4; domain/tasks.md, 6.7).
+// (client/domain/contract/README.md, 3; domain/tasks/holds.md, 7).
 fn cycle(batch: &[people::Member], first: u64, bound: u32) -> Result<Option<tasks::Circle>, people::Refusal> {
     let count = u32::try_from(batch.len()).expect("bounded batch");
     for start in 0..count {
@@ -480,7 +480,7 @@ fn budget(core: &Core, creation: &mut Creation) -> Result<Option<(u32, u64)>, pe
 }
 
 /// Per-member symbols stay in flights until their connector resolves the holdings
-/// (jig/docs/design/domain/tasks.md, 6.2).
+/// (jig/docs/design/domain/tasks/holds.md, 2).
 pub(crate) fn symbols(batch: &[people::Member]) -> Box<[Box<[people::Symbol]>]> {
     let mut symbols = List::with_capacity(u32::try_from(batch.len()).expect("bounded party batch"));
     for member in batch {

@@ -98,7 +98,7 @@ pub(crate) fn delegates(value: Node<'_>) -> Result<Box<[engine::Delegate]>, Prob
     Ok(out.into_boxed())
 }
 
-/// Whether a host spec amendment omits its parameter replacement (domain/tasks.md, 7).
+/// Whether a host spec amendment omits its parameter replacement (domain/tasks/changes.md).
 pub(crate) fn keeps_parameters(value: Node<'_>) -> Result<bool, Problem> {
     match value.field(b"spec")? {
         Some(spec) => Ok(spec.field(b"parameters")?.is_none()),

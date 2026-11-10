@@ -1,4 +1,4 @@
-//! The application's limits and channel edges (configuration.md, 6).
+//! The application's limits and channel edges (protocol/limits.md).
 use jig_protocol_config::{Profile, profile};
 use jig_test_connector as connector;
 use jig_test_domain as root;

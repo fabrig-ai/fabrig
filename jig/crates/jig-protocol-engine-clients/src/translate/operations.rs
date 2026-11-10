@@ -184,7 +184,7 @@ fn operation_project(value: &w::Operation) -> u32 {
 }
 
 /// Party-created jobs and project mismatches are typed refusals before the core sees them.
-/// Job admission: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job admission: jig/docs/design/client/domain/contract/documents.md, 7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
     if let w::Ask::Create(value) = record {
         let mut reader = skein_lib::Reader::new(value.tasks());

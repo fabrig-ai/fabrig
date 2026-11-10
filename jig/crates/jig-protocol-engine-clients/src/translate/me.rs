@@ -1,4 +1,4 @@
-//! Served template and creating facts (protocol/configuration.md, 3.1; contract.md, 5.1).
+//! Served template and creating facts (protocol/configuration.md, 3.1; client/domain/contract/documents.md, 1).
 use super::{objects, pieces, problem, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::acts;

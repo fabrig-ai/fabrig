@@ -184,7 +184,7 @@ pub(crate) fn codec() -> jig_protocol_store::codec::View {
     let limits = jig_test_service_limits(&engine().limits);
     jig_protocol_store::codec::limits(&limits.root.core).expect("codec")
 }
-/// The configured models' names the people records name models by (jig's protocol/store.md, 5.1).
+/// The configured models' names the people records name models by (jig's protocol/store/records.md, 1).
 pub(crate) fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models()))

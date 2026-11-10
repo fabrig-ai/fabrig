@@ -1,4 +1,4 @@
-//! Kept project deletion (jig/docs/design/domain/people.md, 5.2).
+//! Kept project deletion (jig/docs/design/domain/people/acts.md, 2).
 use crate::{Ask, Core, Event, Key, Limits, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -43,7 +43,7 @@ impl Deleting {
     }
 }
 impl Core {
-    /// Whether a project takes requests (jig/docs/design/domain/people.md, 5.2, "Closed at once").
+    /// Whether a project takes requests (jig/docs/design/domain/people/acts.md, 2, "Closed at once").
     #[must_use]
     pub fn open_project(&self, project: u32) -> bool {
         self.projects.as_slice().contains(&project) && !self.deletions.contains(project)

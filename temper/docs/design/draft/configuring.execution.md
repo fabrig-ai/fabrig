@@ -11,8 +11,8 @@ the reference's M1 to M10.
 
 - **Five phases,** P1 to P5 (section 3), set with the user on
   2026-11-02 so that no two designers write one section at once: the
-  reference's M1 and M3 write jig's `domain/engine.md`,
-  17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
+  reference's M1 and M3 write jig's `domain/engine/settings.md`, 5 to 7
+  , temper's `../protocol/configuration.md`, 13.2 to 13.4
   and the section M1 adds after 13.8, and `../domain/agent.md`, 4.3.1,
   and P2 and P3 follow M3 beside them.
 - **P1 first,** landed 2026-11-03: what was designed and touched
@@ -51,7 +51,7 @@ nothing.
 - **Executes:** `configuring.md`, section 2's "Rules must reach the
   runs" (a charter's documents), its section 4 (a task runs under the
   revision it was made in), and its 5.4's first row.
-- **Design:** none new. jig's `domain/engine.md`, 17.3 and 17.9;
+- **Design:** none new. jig's `domain/engine/settings.md`, 3 and 9;
   temper's `../protocol/configuration.md`, 13.7; `../domain/agent.md`,
   4.1 and 4.6; `../client/tools.md`, 5.3 (`chat start`'s `--template`).
   A designer finding a section incomplete writes its part, and no
@@ -70,15 +70,15 @@ nothing.
 - **Executes:** `configuring.md`, 3.3 (a change touching a project's
   own policy; restoring a version) and 5.4's rows but the first, which
   is P1's.
-- **Design:** the rules jig's `domain/engine.md`, 17.9 and 17.10 and
+- **Design:** the rules jig's `domain/engine/settings.md`, 9 and 10 and
   temper's `../protocol/configuration.md`, section 13 cite this draft
   for, in their own words (`configuring.status.md`'s first entry; those
   `../domain/agent.md`, 8.1 cites are P3's); a change of settings
   touching a project's own policy, decided by one person holding both
-  roles (jig's `domain/engine.md`, 17.2 and 17.6, jig's
-  `domain/people.md`, 5.2, temper's `../protocol/configuration.md`,
+  roles (jig's `domain/engine/settings.md`, 2 and 6, jig's
+  `domain/people/acts.md`, 2, temper's `../protocol/configuration.md`,
   13.1, `../client/tools.md`, 5.3); restore and temper's kinds (jig's
-  `domain/engine.md`, 17.10), the status's entry closed one way or
+  `domain/engine/settings.md`, 10), the status's entry closed one way or
   recorded as a departure the user decides; what that asks of 17.5,
   M3's, written after M3 lands.
 - **Builds:** the items of temper's kinds in a settings file and in a

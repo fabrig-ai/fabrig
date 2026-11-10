@@ -1,5 +1,5 @@
 //! Accounts and their sources, component grants and usability (domain/accounts.md, section 3;
-//! domain/engine.md, section 12). Each account is the deployment's or a party's, numbered by a
+//! domain/engine/README.md, section 6). Each account is the deployment's or a party's, numbered by a
 //! counter that never gives a number twice, with its sources in its holder's order; each source
 //! keeps its own state. The component owns refreshing, records and generation numbering. This
 //! child keeps names, validity, limits, refusals and failures, and releases all wants at close.

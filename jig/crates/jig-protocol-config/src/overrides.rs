@@ -1,4 +1,4 @@
-//! Named limits and strict profile selection (jig/docs/design/protocol/configuration.md, 6).
+//! Named limits and strict profile selection (jig/docs/design/protocol/limits.md).
 use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, read};
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, bytes};
@@ -674,7 +674,7 @@ fn set_link(limits: &mut crate::Link, field: &[u8], value: u64) -> Result<(), Wh
     Ok(())
 }
 
-/// Best-known limits and the problems found while reading them (configuration.md, 6).
+/// Best-known limits and the problems found while reading them (protocol/limits.md).
 #[must_use]
 #[derive(Debug)]
 pub struct Parsed {
@@ -901,7 +901,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
 /// The accounts' driver listens for each sign-in at once, at least one, on two sockets each beside
 /// its exchanges', and a sign-in waits within a deadline above zero (skein's oauth.md, 6.7).
 /// Its outgoing URL fits ADDRESS, its redirect bound holds `redirect_room`, and its server head
-/// holds `listener_head` for that redirect bound (jig/docs/design/protocol/configuration.md, 6).
+/// holds `listener_head` for that redirect bound (jig/docs/design/protocol/limits.md).
 pub(crate) fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {
     let Some(listening) = driver.listeners.checked_mul(2) else {
         return false;

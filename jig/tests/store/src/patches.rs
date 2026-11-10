@@ -1,4 +1,4 @@
-//! The two fixture binaries and their independent record model (store.md 14).
+//! The two fixture binaries and their independent record model (protocol/store/README.md 9).
 use crate::{World, root, world::Change};
 use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, SecretOwner, Secrets, Write};
 use jig_test_patches::{self as fixture, patches as app};
@@ -326,7 +326,7 @@ pub fn source(world: &mut World) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
 
 /// A start leaves every file it found as it was; the one write before its
 /// checks is skein-kv's recovery, which may open an empty log segment in
-/// each map it reads (store.md 10.1, step 4).
+/// each map it reads (protocol/store/opening.md 1, step 4).
 pub fn kept(
     before: &BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     after: &BTreeMap<Vec<u8>, Option<Vec<u8>>>,

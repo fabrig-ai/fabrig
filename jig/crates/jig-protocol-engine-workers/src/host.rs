@@ -1,4 +1,4 @@
-//! Accepted streams and the workers' component (jig/docs/design/protocol/channel.md, 10.2).
+//! Accepted streams and the workers' component (jig/docs/design/protocol/channel/README.md, 9.2).
 //! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
 use crate::{Component, Event, Limits, Loss, Request, Worker};
 use alloc::boxed::Box;

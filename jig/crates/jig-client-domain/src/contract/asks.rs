@@ -1,11 +1,11 @@
-//! Each visible act is one ask; client/domain/contract.md, 3.2 and 4.
+//! Each visible act is one ask; client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3.
 //! Requests carry jig facts alone and their outcomes are durable.
 //! Adoption uses the connector's application request (client/domain/pages.md, 6.5).
 use super::{Decision, HeldRole, NoteScope, ProposalKey, Refusal, Revision, Text};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List};
 
-/// A person destination change names the independent person-task revision (domain/tasks.md, 7).
+/// A person destination change names the independent person-task revision (domain/tasks/changes.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AddressChange {
     pub revision: Revision,
@@ -26,7 +26,7 @@ pub struct Amendment {
     pub addressed: Option<AddressChange>,
     pub spec: Option<super::Specification>,
     pub wake: Option<super::WakePolicy>,
-    /// Replaces the whole list: new names add dependencies, omitted names remove them (tasks.md, 7).
+    /// Replaces the whole list: new names add dependencies, omitted names remove them (domain/tasks/changes.md).
     pub dependencies: Option<List<u64>>,
     pub authority: Option<super::Authority>,
     pub instructions: Option<Text>,
@@ -82,7 +82,7 @@ pub enum Ask {
     ReadLists {
         provider: u32,
     },
-    /// Propose the settings as a revision left them, against the newest (domain/engine.md, 17.10).
+    /// Propose the settings as a revision left them, against the newest (domain/engine/settings.md, 10).
     Restore {
         revision: u32,
         reason: Text,
@@ -213,17 +213,17 @@ pub enum Ask {
         name: Text,
         role: HeldRole,
     },
-    /// Rename a project as its owner (contract.md, 3.2).
+    /// Rename a project as its owner (client/domain/contract/requests.md, 2).
     Rename {
         project: u32,
         name: Text,
     },
-    /// Remove a project as its owner (jig/docs/design/domain/people.md, 5.2).
+    /// Remove a project as its owner (jig/docs/design/domain/people/acts.md, 2).
     RemoveProject {
         project: u32,
         grace: Option<Duration>,
     },
-    /// Make a project in the deployment scope (contract.md, 7.5).
+    /// Make a project in the deployment scope (client/domain/contract/README.md, 5.5).
     MakeProject {
         name: Text,
         policy: u32,
@@ -249,7 +249,7 @@ pub enum Ask {
         holder: AskAccountHolder,
         source: u32,
     },
-    /// Set the project visibility (jig/docs/design/client/domain/contract.md, 3.2; jig/docs/design/domain/people.md, 13.2).
+    /// Set the project visibility (jig/docs/design/client/domain/contract/requests.md, 2; jig/docs/design/domain/people/public-reading.md, 2).
     SetVisibility {
         project: u32,
         public: bool,
@@ -267,7 +267,7 @@ pub enum AskAccountHolder {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
     Account(super::AccountAnswer),
-    /// A restore proposed for review (domain/engine.md, 17.10).
+    /// A restore proposed for review (domain/engine/settings.md, 10).
     Restored {
         proposal: u64,
         to: u32,
@@ -294,7 +294,7 @@ pub enum Made {
     PersonResult { task: u64 },
     /// A note in its scope.
     Note { note: u64, scope: NoteScope },
-    /// An account record delivered once (client/domain/client.md, 6).
+    /// An account record delivered once (client/domain/client/requests.md).
     MovingOut { account: u32, number: u32, record: skein_lib::Secret },
 }
 

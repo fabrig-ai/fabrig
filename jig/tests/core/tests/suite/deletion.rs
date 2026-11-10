@@ -1,4 +1,4 @@
-//! Project deletion on the real store (`jig/docs/design/domain/people.md`, 5.2 and 8).
+//! Project deletion on the real store (`jig/docs/design/domain/people/acts.md`, 2, and `jig/docs/design/domain/people/README.md`, 7).
 
 use super::read_support::request;
 use jig_core_world::fixtures::{PARTY, PROJECT};

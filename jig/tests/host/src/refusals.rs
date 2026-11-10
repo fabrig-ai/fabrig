@@ -1,4 +1,4 @@
-//! Check message refusals at the hub's public boundary (hosts.md, 11).
+//! Check message refusals at the hub's public boundary (domain/hosts/README.md, 9).
 use jig_domain_host::FromAgent;
 use jig_domain_host::ToAgent;
 use jig_domain_host::{Event, LinkDown, LinkUp, Refused, Request};

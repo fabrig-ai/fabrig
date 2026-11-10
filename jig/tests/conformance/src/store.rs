@@ -1,4 +1,4 @@
-//! Start flights routed through the real store (protocol/store.md, 7.1 and 14).
+//! Start flights routed through the real store (protocol/store/loads.md, 1, and protocol/store/README.md, 9).
 use super::{Neighbours, Store, StoreOut, core, root};
 use jig_conformance::Input;
 impl Neighbours {

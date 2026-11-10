@@ -285,7 +285,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   3.5, *Settings*), drawn in Deployment's frame rather than a project's
   Settings, so that To begin's links and a connect's way back hold.
 - **Members:** who may do what, in the deployment and in each project
-  (jig's `domain/people.md`). Ownership of an area is Team's.
+  (jig's `domain/people/README.md`). Ownership of an area is Team's.
 - **Limits:** the deployment's limits, read-only but for an owner
   (`../protocol/configuration.md`, section 7).
 - **Not drawn:** its pages are today's.

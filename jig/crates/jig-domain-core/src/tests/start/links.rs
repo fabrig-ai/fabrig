@@ -1,4 +1,4 @@
-//! Link obligations and stored diagnostics (jig/docs/design/domain/engine.md, 6).
+//! Link obligations and stored diagnostics (jig/docs/design/domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "stored fixtures exercise byte limits")]
 use crate::{
     CoreRecord, Event, Restored,

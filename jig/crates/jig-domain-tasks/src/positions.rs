@@ -1,4 +1,4 @@
-//! Positions for single reads, retained with the task (protocol/store.md, 15.7).
+//! Positions for single reads, retained with the task (protocol/store/README.md, 10.7).
 use crate::{
     Change, Domain, History, Limits, MessageFamily, Party, Proposal, ProposalState, Request, Spoken, Stored,
     TaskRecord, Word,

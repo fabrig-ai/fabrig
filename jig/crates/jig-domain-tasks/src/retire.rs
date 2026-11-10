@@ -1,4 +1,4 @@
-//! Closed funding sources move to history (protocol/store.md, 15.1).
+//! Closed funding sources move to history (protocol/store/README.md, 10.1).
 use crate::funders::{newer_period, save_funding, source_live, total};
 use crate::{Domain, Funder, Key, Request, Stored};
 use skein_lib::Queue;

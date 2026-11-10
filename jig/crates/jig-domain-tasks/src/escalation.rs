@@ -1,5 +1,5 @@
 //! Held person-chat decisions, independent of root authentication, policy and
-//! transport history (domain/tasks.md, section 9).
+//! transport history (domain/tasks/proposals.md).
 
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Hold, Limits, Party, Phase, Request, Tries, Was};

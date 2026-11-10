@@ -57,8 +57,8 @@ unchanged. Local `Lost` uses the busy page, as section 9.3 now records.
   admission path explains how an unsent authorization can become `Lost`,
   but those exploratory runs did not trace their failed exchange's source;
   their attribution remains unknown. People's restoration refusal is a
-  separate provider departure (`jig/docs/design/protocol/client.status.md`,
-  section 18); section 10 keeps startup readiness separate.
+  separate provider departure (`jig/docs/design/protocol/client/openid.status.md`
+  ); `sign-in.md`, section 10 keeps startup readiness separate.
 - **Design departs:** 9.9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page

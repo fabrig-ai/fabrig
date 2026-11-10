@@ -8,7 +8,7 @@ mod reference_settings;
 mod settings_fields;
 mod tui;
 
-// jig/docs/design/protocol/client.md, 8; temper/docs/design/protocol/setup.md, 7.2.
+// jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup.md, 7.2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
     use jig_protocol_config::profile::{Profile, profile};

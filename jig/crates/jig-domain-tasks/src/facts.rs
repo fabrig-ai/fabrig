@@ -1,10 +1,10 @@
-//! Optional bounded content-free observations (domain/tasks.md, section 11). Facts are diagnostic; retaining or dropping them changes no
+//! Optional bounded content-free observations (domain/tasks/README.md, section 6). Facts are diagnostic; retaining or dropping them changes no
 //! lifecycle, reply, financial posting or durability decision.
 use crate::{Class, Hold, Party, Status};
 
 /// Optional content-free task observation in a bounded queue; it is neither a durable
 /// acknowledgement nor a requester delivery credit, and dropping it changes no decision.
-/// (domain/tasks.md, section 5).
+/// (domain/tasks/lifecycle.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
     /// New task admitted and its save requested; root durability still follows.

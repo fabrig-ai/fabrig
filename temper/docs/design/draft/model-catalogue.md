@@ -52,7 +52,7 @@ As read from the providers' pages on 2026-11-06 (section 8's sources):
   the picker has one scale.
 - **A model names its default effort apart from its list:** `"efforts"` in
   order from low to high, `"effort"` the default. Today the list's first is
-  the default (jig's `domain/tasks.md`, section 3), which would draw the
+  the default (jig's `domain/tasks/README.md`, section 3), which would draw the
   picker's scale out of order.
 - **The window and output** stay the stock's (`../protocol/configuration.md`,
   13.4), whatever a provider allows. Declaring efforts changes what the
@@ -103,7 +103,7 @@ So:
 
 A task given no LLM choice takes the first of its charter's models whose
 provider has an account usable now and serving its payer (jig's
-`domain/tasks.md`, section 3), at that model's default effort.
+`domain/tasks/README.md`, section 3), at that model's default effort.
 
 | Charter | First choices, in order | Then |
 |---|---|---|
@@ -115,7 +115,7 @@ provider has an account usable now and serving its payer (jig's
   passed over for that model (section 5), so a plan without Astra falls on
   to Sol.
 - **The words before sending are Create's answer:** the picker's closed line
-  is `resolved_default` (jig's `client/domain/contract.md`, 5.1), which `me`
+  is `resolved_default` (jig's `client/domain/contract/documents.md`, 1), which `me`
   must supply. Today the view guesses, and it said Opus on a new chat and
   `gpt-6.1-sol` on the configuring chat of one box.
 - **Picking stays a person's:** a choice in the picker names the model and
@@ -123,14 +123,14 @@ provider has an account usable now and serving its payer (jig's
 
 ## 4. In the store
 
-- **A new kind of setting,** `model` (jig's `domain/engine.md`, 17.1), numbered
+- **A new kind of setting,** `model` (jig's `domain/engine/settings.md`, 1), numbered
   and never renumbered: its name, shown name, provider, endpoint, window,
   output, efforts and default effort, prices, description, whether the picker
   offers it, and where it came from: temper, a provider's list or a person.
 - **The defaults are the binary's,** as a charter's are. A release that adds
   to section 2's table adds to the defaults at its start, decided by the
   release, and a model a person turned off stays off (jig's
-  `domain/engine.md`, 17.7).
+  `domain/engine/settings.md`, 7).
 - **What the files refuse:** under passed defaults, `engine.llm.models` and
   each provider's `models` in `temper.json`; each endpoint's `models` in
   `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration.md`, section 2).

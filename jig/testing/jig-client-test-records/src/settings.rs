@@ -1,4 +1,4 @@
-//! Independent whole settings fixtures (client/domain/contract.md, 3–7).
+//! Independent whole settings fixtures (client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use jig_client_domain::contract::{
     Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, CharterPart, Delegation, DocumentText,
     EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Pattern, PatternEnd,

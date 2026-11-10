@@ -1,6 +1,6 @@
 //! Total boundary translations for the testing application's tools, effects
 //! and restart script (`domain/root.md`, sections 3 and 11;
-//! `domain/engine.md`, sections 6–7).
+//! `domain/engine/restart.md` and `domain/engine/executors.md`).
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

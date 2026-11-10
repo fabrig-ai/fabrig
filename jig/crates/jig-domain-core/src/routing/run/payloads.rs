@@ -1,4 +1,4 @@
-//! Turn and answer admission fences (domain/engine.md, 7.2 and 7.4).
+//! Turn and answer admission fences (domain/engine/executors.md, 2 and 4).
 use crate::{Core, Event, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

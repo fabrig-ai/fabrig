@@ -1,4 +1,4 @@
-//! The cold restart oracle (`jig/docs/design/domain/engine.md`, sections 6 and 15).
+//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/README.md`, section 9).
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -76,7 +76,7 @@ impl World {
         self.broken = true;
     }
 
-    /// The restart oracle (engine.md 15): settle, snapshot what the parties were last
+    /// The restart oracle (domain/engine/README.md 9): settle, snapshot what the parties were last
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
@@ -272,21 +272,21 @@ fn refreshed_move(before: Option<&root::Record>, after: Option<&root::Record>) -
 /// Every exception names its rebuilding step; other keys are durable.
 fn rebuilt(key: &[u8]) -> Option<&'static str> {
     if keys::decode_own(key) == Some(keys::Own::Wires) {
-        return Some("engine.md 6, Switch commits this start's wires");
+        return Some("domain/engine/restart.md, Switch commits this start's wires");
     }
     if matches!(
         keys::decode(key),
         Some(core::Key::People(people::Key::SignIn(_) | people::Key::Answer(_) | people::Key::Acted(_)))
     ) {
-        return Some("engine.md 6 step 1, the sweep erases expired people's rows");
+        return Some("domain/engine/restart.md step 1, the sweep erases expired people's rows");
     }
     if matches!(keys::decode(key), Some(core::Key::Core(core::CoreKey::Settings(_)))) {
         // close supplies the same defaults. Step 2 therefore makes no release
         // revision, and the comparison below still requires byte equality.
-        return Some("engine.md 6 step 2, a release's settings revision only when defaults change");
+        return Some("domain/engine/restart.md step 2, a release's settings revision only when defaults change");
     }
     if keys::decode(key) == Some(core::Key::Core(core::CoreKey::Deployment)) {
-        Some("engine.md 6, Switch advances the commit position")
+        Some("domain/engine/restart.md, Switch advances the commit position")
     } else {
         None
     }
@@ -300,7 +300,7 @@ fn durable(mut document: Document) -> Document {
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
         Document::Task(row) => {
             row.chip.details.observation = None;
-            // client/domain/contract.md 5.1: run_wait and an omitted choice derive from
+            // client/domain/contract/documents.md 1: run_wait and an omitted choice derive from
             // current source and host availability, absent after a cold restart.
             // The retained inventory still compares every stored choice, including named ones.
             row.run_wait = None;

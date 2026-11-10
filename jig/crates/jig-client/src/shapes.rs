@@ -1,4 +1,4 @@
-//! Template recipes over the public contract (client/domain/client.md, 19).
+//! Template recipes over the public contract (client/domain/client/helpers.md).
 use crate::contract::{
     Ask, Beyond, CreateBounds, Creating, Executor, LlmChoice, Me, NewBudget, NewContract, NewDeadline, NewTask,
     Operation, ProposeAction, Recipient, Refusal, Specification, TaskContractDocument, Template, TemplateBudget,
@@ -62,7 +62,7 @@ pub fn template(me: &Me, project: u32, number: u32) -> Option<&Template> {
     }
     None
 }
-/// The project's preview for a template (jig/docs/design/protocol/client.md, 3).
+/// The project's preview for a template (jig/docs/design/protocol/client/wire.md, 1).
 #[must_use]
 pub fn resolved_default(me: &Me, project: u32, template: u32) -> Option<&LlmChoice> {
     for membership in &me.projects {
@@ -87,7 +87,7 @@ fn creating(me: &Me, project: u32) -> Result<&Creating, NotOffered> {
 pub fn chat(me: &Me, project: u32, words: Text) -> Result<Ask, NotOffered> {
     chat_from(me, project, CHAT, words)
 }
-/// Fill a named conversation template (jig/docs/design/client/domain/client.md, 19).
+/// Fill a named conversation template (jig/docs/design/client/domain/client/helpers.md).
 pub fn chat_from(me: &Me, project: u32, number: u32, words: Text) -> Result<Ask, NotOffered> {
     let creating = creating(me, project)?;
     let template = template(me, project, number).ok_or(NotOffered::Template)?;
@@ -124,7 +124,7 @@ pub fn close_chat(me: &Me, project: u32, chat: u64, delegates: &[Delegate], reas
     Ok(Ask::Compound { project, operations })
 }
 /// A project's deletion with the chat template's grace, as a close gives one
-/// (client/domain/client.md, 19; domain/people.md, 5.2).
+/// (client/domain/client/helpers.md; domain/people/acts.md, 2).
 pub fn remove_project(me: &Me, project: u32) -> Result<Ask, NotOffered> {
     for membership in &me.projects {
         if membership.project == project {
@@ -147,7 +147,7 @@ pub fn set_goal(me: &Me, project: u32, draft: GoalDraft, reason: Text) -> Judged
 pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
     goal_from(me, project, number, draft, reason, false)
 }
-/// `set_goal_from`, with its specification's `asks` (client/domain/client.md, 19).
+/// `set_goal_from`, with its specification's `asks` (client/domain/client/helpers.md).
 #[must_use]
 pub fn set_agreed_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
     goal_from(me, project, number, draft, reason, true)

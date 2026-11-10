@@ -1,4 +1,4 @@
-//! A task's LLM choice and `me`'s models, by configured names (client/domain/contract.md, 3.2 and 5.1).
+//! A task's LLM choice and `me`'s models, by configured names (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use super::{too_large, w};
 use crate::Limits;
 use jig_client_domain::contract as c;

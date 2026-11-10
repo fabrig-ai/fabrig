@@ -1,5 +1,5 @@
-//! Setting names and check faults carried by keyed answers (jig/docs/design/domain/engine.md, 17.1, 17.5).
-/// A core or application setting (jig/docs/design/domain/engine.md, 17.1, 17.5).
+//! Setting names and check faults carried by keyed answers (jig/docs/design/domain/engine/settings.md, 1, 5).
+/// A core or application setting (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
     Charter(u32),
@@ -12,13 +12,13 @@ pub enum Setting {
         scope: u32,
         number: u32,
     },
-    /// A project's own policy, an item of its scope (jig/docs/design/domain/engine.md, 17.2).
+    /// A project's own policy, an item of its scope (jig/docs/design/domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
     },
     Model(u32),
 }
-/// A check fault, including a connector's judgment (jig/docs/design/domain/engine.md, 17.1, 17.5).
+/// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingFault {
     Shape,
@@ -31,14 +31,14 @@ pub enum SettingFault {
     Judged,
 }
 
-/// Whether an accepted settings revision moves running work (engine.md, 17.2).
+/// Whether an accepted settings revision moves running work (domain/engine/settings.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Running {
     Stays,
     Moves,
 }
 
-/// The charter member rejected by the settings check (engine.md, 17.9).
+/// The charter member rejected by the settings check (domain/engine/settings.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.

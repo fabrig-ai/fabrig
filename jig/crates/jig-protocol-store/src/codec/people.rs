@@ -1,5 +1,5 @@
-//! People rows translated exhaustively (protocol/store.md, 5.1).
-//! Durable deletion steps follow jig/docs/design/protocol/store.md, 11.1.
+//! People rows translated exhaustively (protocol/store/records.md, 1).
+//! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
 use crate::people_v14 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -40,7 +40,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
 /// A returned value may exceed `people_v14::CEILINGS`; callers must use
 /// `people_v14::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
-/// (protocol/configuration.md, section 6).
+/// (protocol/limits.md).
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table derives each people-family limit from domain limits")]
 pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
@@ -53,7 +53,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         ask_change_settings_projects: jig_domain_tasks::SETTINGS_ITEMS,
         ask_restore_reason: people.words,
         // A restore leaves out at most a proposal's application items and one project's policy
-        // (engine.md, 17.10, Bounded).
+        // (domain/engine/settings.md, 10, Bounded).
         outcome_restored_left_out: jig_domain_tasks::SETTINGS_ITEMS.checked_add(1)?,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
@@ -159,7 +159,7 @@ fn derive_verdicts(amendment_bytes: u32, limits: &mut wire::Limits) -> Option<()
 }
 
 /// Encode a people row; `names` are the configured models' names in configuration's order, which
-/// a policy row keeps beside its roles' models (protocol/store.md, 5.1).
+/// a policy row keeps beside its roles' models (protocol/store/records.md, 1).
 pub fn encode(
     row: &domain::Stored,
     limits: &wire::Limits,
@@ -238,7 +238,7 @@ pub fn encode(
     Ok(writer.finish())
 }
 /// Decode a people row; a policy row's roles' models move to today's `names`, and a name no
-/// longer configured drops out (protocol/store.md, 5.1).
+/// longer configured drops out (protocol/store/records.md, 1).
 #[expect(clippy::disallowed_methods, reason = "store protocol converts validated UTF-8 into the domain name")]
 pub fn decode(
     bytes: &[u8],

@@ -1,5 +1,5 @@
 //! Revocation before admission, during a connector read, and during durability
-//! (jig/docs/design/domain/people.md, 13.10).
+//! (jig/docs/design/domain/people/public-reading.md, 10).
 use super::{World, delegate, delete, move_out, read, untrack, visibility};
 use jig_domain_core as core;
 use skein_lib::{Queue, ReplyTo, Token};

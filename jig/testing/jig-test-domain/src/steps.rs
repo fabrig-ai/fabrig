@@ -206,7 +206,7 @@ fn specification(words: Box<[u8]>) -> tasks::Spec {
     tasks::Spec { job: None, asks: false, words, parameters: Box::new([]), inputs: Box::new([]) }
 }
 
-/// A job delegate's opaque spec and empty child delegation (jig/docs/design/domain/engine.md, 7.5).
+/// A job delegate's opaque spec and empty child delegation (jig/docs/design/domain/engine/executors.md, 5).
 fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_lib::Duration) -> core::ProcedureStep {
     let mut authority = domain.core.tasks.task(task).expect("procedure task live").authority.clone();
     authority.budget.spend = 0;

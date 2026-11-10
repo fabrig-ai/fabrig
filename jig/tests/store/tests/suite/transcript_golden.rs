@@ -1,4 +1,4 @@
-//! The transcripts' framing's golden bytes (protocol/store.md, 14).
+//! The transcripts' framing's golden bytes (protocol/store/README.md, 9).
 //! One task's file keeps three fixed turns across two attempts. These tests
 //! never write the kept file: a deliberate change copies the file named by
 //! the writer test's failure over `golden/transcript`.
@@ -10,7 +10,7 @@ use skein_lib::{Token, Wall};
 
 /// The kept file, as the writer leaves it after `turns()`.
 const KEPT: &[u8] = include_bytes!("../../golden/transcript");
-/// store.md 8.1: task 21's high bits (21 >> 12), then its number, in hex.
+/// protocol/store/transcripts.md 1: task 21's high bits (21 >> 12), then its number, in hex.
 const PATH: &[u8] = b"transcripts/0000000000000000/0000000000000015";
 const SEED: u64 = 0x0000_474f_4c44_454e;
 const READER: Token = Token::new(715);
@@ -18,15 +18,15 @@ const READER: Token = Token::new(715);
 const BATCH_BYTES: u32 = 65_536;
 const TRANSCRIPT_BYTES: u32 = 400_000;
 // sizes::frame counts 52 bytes of core-v6 metadata (including Some(read)
-// and the transcript's length) plus 12 wrapper bytes (store.md 8.1).
+// and the transcript's length) plus 12 wrapper bytes (protocol/store/transcripts.md 1).
 const FRAME_OVERHEAD: u32 = 64;
 const PAGE: u32 = TRANSCRIPT_BYTES + FRAME_OVERHEAD;
 // The disk driver needs the page plus the KV chunk's 20-byte envelope.
 const KV_CHUNK_OVERHEAD: u32 = 20;
-// store.md 7.1: decoded room is separate from the encoded page bound.
+// protocol/store/loads.md 1: decoded room is separate from the encoded page bound.
 const ROOM: u64 = PAGE as u64 * 2;
 const READ_ROWS: u32 = 1;
-// store.md 8.1: leading length, CRC-32C and trailing length, each a u32.
+// protocol/store/transcripts.md 1: leading length, CRC-32C and trailing length, each a u32.
 const WORD_BYTES: usize = 4;
 const WRAPPER_BYTES: usize = WORD_BYTES * 3;
 
@@ -82,7 +82,7 @@ fn kept() -> World {
     world
 }
 
-/// Independently split store.md 8.1 by leading lengths, excluding wrappers.
+/// Independently split protocol/store/transcripts.md 1 by leading lengths, excluding wrappers.
 /// Invalid lengths are themselves a framing change, never a reader error.
 fn bodies(mut bytes: &[u8]) -> Option<Vec<&[u8]>> {
     let mut result = Vec::new();
@@ -116,8 +116,8 @@ fn assert_kept(made: &[u8]) {
         _ => None,
     };
     let reason = changed_body.map_or_else(
-        || "the transcripts' framing changed (protocol/store.md 8.1 and 14): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, run before the records' patches".to_owned(),
-        |index| format!("frame {}'s body changed: the core's `TurnRecord` or smith's turn, whose changes are the patches' and their goldens' (store.md 8.6 and 14); the kept file is replaced in place before the first release", index + 1),
+        || "the transcripts' framing changed (protocol/store/transcripts.md, 1, and protocol/store/README.md, 9): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, run before the records' patches".to_owned(),
+        |index| format!("frame {}'s body changed: the core's `TurnRecord` or smith's turn, whose changes are the patches' and their goldens' (protocol/store/transcripts.md, 6, and protocol/store/README.md, 9); the kept file is replaced in place before the first release", index + 1),
     );
     let offset = KEPT.iter().zip(made).position(|(kept, made)| kept != made).unwrap_or(KEPT.len().min(made.len()));
     panic!(

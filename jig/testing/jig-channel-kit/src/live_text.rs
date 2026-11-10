@@ -1,4 +1,4 @@
-//! The process reply's prefixes precede its turn (protocol/channel.md, 12).
+//! The process reply's prefixes precede its turn (protocol/channel/README.md, 11).
 use crate::processes::Proc;
 use jig_client::{Asker, Handle, contract as c};
 use jig_client_protocol_kit::native::Received;

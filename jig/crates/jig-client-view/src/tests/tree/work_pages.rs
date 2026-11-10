@@ -305,7 +305,7 @@ fn task_sections_preserve_executor_facts() {
     task_sections(words());
 }
 
-/// A job's document names its executor and result bound (jig/docs/design/client/domain/contract.md, 5.7).
+/// A job's document names its executor and result bound (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_task_document_renders_job_and_kind() {
     let (mut d, out) = entered(Address::Task { task: 8, section: TaskSection::Overview });

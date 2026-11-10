@@ -14,7 +14,7 @@ pub mod turn_bounds {
         temper_playground::documents::turn_bounds::turn_body(&agent)
     }
 }
-// Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client.md, 17.5).
+// Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client/default-http.md, 5).
 const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]
 pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {

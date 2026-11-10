@@ -1,5 +1,5 @@
-//! Results read after the fleet's fence (protocol/channel.md, section 6.1;
-//! domain/hosts.md, section 8). The routing maps these into domain values.
+//! Results read after the fleet's fence (protocol/channel/README.md, section 5.1;
+//! domain/hosts/charters.md). The routing maps these into domain values.
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 use smith_charter::{Form, v4};

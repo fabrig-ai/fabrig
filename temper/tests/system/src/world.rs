@@ -29,7 +29,7 @@ pub struct World {
 
 /// The deployment's one charter as smith's fixtures price it: smith's fake
 /// model at a unit per million tokens, with room for a scripted conversation (jig's
-/// `domain/engine.md`, 7.1).
+/// `domain/engine/executors.md`, 1).
 #[must_use]
 pub fn charter() -> engine::Charter {
     let mut charter = walking::charter();
@@ -89,7 +89,7 @@ pub fn open_config(seed: u64) -> engine::Config {
 }
 
 /// What a worker says it can host: wide enough for [`charter`] and for the
-/// configured spend, message and inbox bounds (jig's `domain/hosts.md`, 8).
+/// configured spend, message and inbox bounds (jig's `domain/hosts/charters.md`).
 #[must_use]
 pub fn bounds() -> Bounds {
     let model = charter().policy.model;

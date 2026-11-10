@@ -1,4 +1,4 @@
-//! Whole-task erasure (jig/docs/design/protocol/store.md, 7.4, 8.5, 11.1).
+//! Whole-task erasure (jig/docs/design/protocol/store/loads.md, 4, jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
 use crate::{Core, Key, Limits, Request, Write, reads};
 use alloc::boxed::Box;
 use jig_domain_people as people;

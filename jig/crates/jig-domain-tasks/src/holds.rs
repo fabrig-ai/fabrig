@@ -1,5 +1,5 @@
 //! Connector-configured, whole-set hold admission and bounded waiting
-//! (domain/tasks.md, 6.2, 6.5, 6.6 and 6.7). Names are opaque; the hub orders tasks and
+//! (domain/tasks/holds.md, 2, 5, 6 and 7). Names are opaque; the hub orders tasks and
 //! never interprets a connector's path.
 #![cfg_attr(
     not(target_arch = "wasm32"),
@@ -97,7 +97,7 @@ pub(crate) fn slots(domain: &mut Domain, env: &Env<Limits>, pool: Name, slots: u
     crate::waits::pool_changed(domain);
 }
 
-/// A shrink or retained hold changes whom existing queues wait for (domain/tasks.md, 6.7).
+/// A shrink or retained hold changes whom existing queues wait for (domain/tasks/holds.md, 7).
 fn check_waiters(domain: &mut Domain, env: &Env<Limits>, resource: &Name, out: &mut Queue<Request>) {
     let mut waiters = List::with_capacity(env.limits.tasks);
     for ((_, waiter), ()) in domain.waits.waiters.range((resource.clone(), 0)..=(resource.clone(), u64::MAX)) {
@@ -430,7 +430,7 @@ fn priority(domain: &Domain, number: u64, bound: u32) -> Option<u32> {
 }
 
 /// Order goal-serving tasks first, lower priority number first, then earlier
-/// hold wait (or creation), then lower task number (domain/tasks.md, 6.2).
+/// hold wait (or creation), then lower task number (domain/tasks/holds.md, 2).
 pub(crate) fn earlier(domain: &Domain, left: u64, right: u64, limits: &Limits) -> bool {
     let lp = priority(domain, left, limits.tasks);
     let rp = priority(domain, right, limits.tasks);
@@ -513,13 +513,13 @@ fn place(domain: &Domain, limits: &Limits, number: u64, resource: &Name) -> u32 
 }
 
 /// A waiting task given a dependency leaves its queues, keeping when it began to wait: its
-/// bound stops while the dependency is pending (domain/tasks.md, 6.2).
+/// bound stops while the dependency is pending (domain/tasks/holds.md, 2).
 pub(crate) fn leave(domain: &mut Domain, number: u64) {
     domain.hold_alarms.cancel(number);
 }
 
 /// A task that left its queues comes back at its place once its dependencies are done again,
-/// its bound counted afresh from then (domain/tasks.md, 6.2).
+/// its bound counted afresh from then (domain/tasks/holds.md, 2).
 pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, number) else { return };
     if !queued(domain, row) {
@@ -545,7 +545,7 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     out.push(Request::Waiting { task: number, resource, place });
 }
 
-/// In a queue: waiting for holds once dependencies permit starting (domain/tasks.md, 6.2;
+/// In a queue: waiting for holds once dependencies permit starting (domain/tasks/holds.md, 2;
 /// connectors.md, 6.1).
 pub(crate) fn queued(domain: &Domain, row: &TaskRecord) -> bool {
     row.phase == Phase::Waiting && row.hold_wait_since.is_some() && !row.holds_taken && domain.dependencies_ready(row)

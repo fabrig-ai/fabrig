@@ -1,4 +1,4 @@
-//! Procedure-only job admission (jig/docs/design/domain/engine.md, 7.5).
+//! Procedure-only job admission (jig/docs/design/domain/engine/executors.md, 5).
 use jig_core_world::{
     fixtures::{delegate, job_world, live_row, member},
     world::World,
@@ -75,7 +75,7 @@ fn refused(why: &core::StepRefusal, task: u64, expected: tasks::Refusal) {
     );
 }
 
-/// An undeclared kind refuses the whole step (jig/docs/design/domain/engine.md, 7.5).
+/// An undeclared kind refuses the whole step (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_procedures_job_of_an_undeclared_kind_is_refused_and_its_procedure_told() {
     let (mut world, procedure) = job_world(901, true);
@@ -83,7 +83,7 @@ fn a_procedures_job_of_an_undeclared_kind_is_refused_and_its_procedure_told() {
     refused(&decide(&mut world, procedure, child), procedure, tasks::Refusal::Executor);
 }
 
-/// Each kind's spec and deadline are bounded (jig/docs/design/domain/engine.md, 7.5).
+/// Each kind's spec and deadline are bounded (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_procedures_job_past_its_kinds_bounds_is_refused() {
     let (mut world, procedure) = job_world(902, true);
@@ -116,7 +116,7 @@ fn denied(why: core::StepRefusal, expected: authority::Answer, source: authority
     assert!(findings.contains(&authority::Finding::Executor { source }));
 }
 
-/// A task may propose a kind covered by its ceilings (jig/docs/design/domain/engine.md, 7.5;
+/// A task may propose a kind covered by its ceilings (jig/docs/design/domain/engine/executors.md, 5;
 /// jig/docs/design/domain/authority.md, 8.1).
 #[test]
 fn a_job_kind_its_procedures_delegation_lacks_is_answered_propose() {
@@ -126,7 +126,7 @@ fn a_job_kind_its_procedures_delegation_lacks_is_answered_propose() {
     denied(decide(&mut world, procedure, child), authority::Answer::Propose, authority::Source::Task);
 }
 
-/// A project's ceiling cannot be proposed past (jig/docs/design/domain/engine.md, 7.5;
+/// A project's ceiling cannot be proposed past (jig/docs/design/domain/engine/executors.md, 5;
 /// jig/docs/design/domain/authority.md, 8.1).
 #[test]
 fn a_job_kind_its_projects_ceiling_lacks_is_answered_refuse() {
@@ -135,7 +135,7 @@ fn a_job_kind_its_projects_ceiling_lacks_is_answered_refuse() {
     denied(decide(&mut world, procedure, child), authority::Answer::Refuse, authority::Source::Project);
 }
 
-/// An agent cannot make a job (jig/docs/design/domain/engine.md, 7.5).
+/// An agent cannot make a job (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn an_agents_delegate_naming_a_job_is_refused() {
     let (mut world, procedure) = job_world(905, true);
@@ -162,7 +162,7 @@ fn an_agents_delegate_naming_a_job_is_refused() {
 }
 
 /// A connector's job action reaches core admission through the test kits
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_connector_procedure_programmed_with_an_undeclared_job_hears_its_step_refused() {
     let seed = 906;
@@ -259,7 +259,7 @@ fn finish_procedure(world: &mut World, procedure: u64) {
 }
 
 /// A job claims without an account, waits for its kind, and returns its bytes to its procedure
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches_the_next_step() {
     let (mut world, procedure, task) = start(907);
@@ -299,7 +299,7 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
 }
 
 /// Job deadlines retry by the run class, then escalate to the procedure
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_failing_job_is_held_past_its_tries_and_its_procedure_hears_it() {
     let (mut world, procedure, task) = start(908);
@@ -332,7 +332,7 @@ fn a_failing_job_is_held_past_its_tries_and_its_procedure_hears_it() {
 }
 
 /// A permanently unprepared workspace spends a permanent try and backs off
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_job_whose_workspace_could_not_be_prepared_for_good_fails_permanent() {
     let (mut world, _, task) = start(909);
@@ -343,7 +343,7 @@ fn a_job_whose_workspace_could_not_be_prepared_for_good_fails_permanent() {
 }
 
 /// A subtree cancel immediately stops its job without a grace word
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn cancelling_the_requesters_subtree_ends_a_running_job_at_once() {
     let (mut world, procedure, task) = start(910);
@@ -399,7 +399,7 @@ fn hello_hosting(world: &mut World, task: u64, attempt: u64) {
 }
 
 /// A listed claimed job survives a cold restart and its answer finishes it
-/// (jig/docs/design/domain/engine.md, 7.5 and section 6).
+/// (jig/docs/design/domain/engine/executors.md, 5 and jig/docs/design/domain/engine/restart.md).
 #[test]
 fn a_restart_adopts_a_claimed_job_its_worker_still_lists() {
     let (mut world, procedure, task) = start(911);
@@ -415,7 +415,7 @@ fn a_restart_adopts_a_claimed_job_its_worker_still_lists() {
 }
 
 /// An unlisted job is lost past the restart grace and retries with a new attempt
-/// (jig/docs/design/domain/engine.md, 7.5 and section 6).
+/// (jig/docs/design/domain/engine/executors.md, 5 and jig/docs/design/domain/engine/restart.md).
 #[test]
 fn a_claimed_job_no_worker_lists_after_a_restart_is_lost_and_tried_again() {
     let (mut world, procedure, task) = start(912);

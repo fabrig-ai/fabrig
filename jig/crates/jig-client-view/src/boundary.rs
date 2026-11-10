@@ -1,6 +1,6 @@
 //! Inputs and outputs toward the application root, no application values.
 //! Each read and watch has one terminal. Sends enter the root's keyed table;
-//! answers arrive only once durable. See client/domain/client.md, 4.
+//! answers arrive only once durable. See client/domain/client/README.md, 4.
 use crate::state::{
     action::Act,
     address::Place,

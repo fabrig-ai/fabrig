@@ -1,4 +1,4 @@
-//! Generation startup, refusals, and independent file routes (store.md 2 and 10.1).
+//! Generation startup, refusals, and independent file routes (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

@@ -12,7 +12,7 @@ impl Session {
     }
 
     /// The source terminal of the latest provider exchange. It establishes no
-    /// session and schedules no keyed or automatic sign-in retry (protocol/client.md, 8).
+    /// session and schedules no keyed or automatic sign-in retry (protocol/client/sign-in.md).
     #[must_use]
     pub fn sign_in_again(&self, client: ClientId) -> Option<people::Again> {
         self.sign_in_again.get(&client).copied()

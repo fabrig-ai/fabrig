@@ -1,12 +1,12 @@
 //! Agent task reads use task relationships, never a person's visibility
-//! (jig/docs/design/domain/engine.md, 7.3).
+//! (jig/docs/design/domain/engine/executors.md, 3).
 use super::{Destination, Loaded, Pending, Range, Scope, TaskText, TaskTextField};
 use crate::{CallKey, Core, Held, Limits, Now, Request};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, Queue, ReplyTo, length::len_u64};
 
-/// The application-named task text and answer room (engine.md, 7.3).
+/// The application-named task text and answer room (domain/engine/executors.md, 3).
 #[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Read {
     pub task: u64,

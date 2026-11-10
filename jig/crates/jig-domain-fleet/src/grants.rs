@@ -1,4 +1,4 @@
-//! Grant names retained with attempts and queued reads (domain/engine.md, sections 8, 12 and 17.12).
+//! Grant names retained with attempts and queued reads (domain/engine/fleet.md and domain/engine/README.md, section 6 and domain/engine/settings.md, section 12).
 //! Values stay in their owners' protocol tables.
 
 use crate::attempt::{Attempt, State, Where};

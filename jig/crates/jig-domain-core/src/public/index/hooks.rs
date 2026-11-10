@@ -1,4 +1,4 @@
-//! Index changes belong to the deciding step (jig/docs/design/domain/people.md, 13.7).
+//! Index changes belong to the deciding step (jig/docs/design/domain/people/public-reading.md, 7).
 use super::{Change, CoreTasks};
 use crate::{Core, Limits, PublicIndexLimits};
 use jig_domain_tasks as tasks;

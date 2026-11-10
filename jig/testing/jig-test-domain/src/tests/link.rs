@@ -708,7 +708,7 @@ fn an_input_piece_reaches_the_core_with_its_provider_identity() {
     assert_eq!(domain.pieces_dropped(), 0);
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: a committed job retains its workspace bytes beside the hub record.
+/// jig/docs/design/domain/engine/executors.md, 5: a committed job retains its workspace bytes beside the hub record.
 #[test]
 fn a_job_assignment_carries_its_workspace_items_through_the_commit() {
     let mut domain = fixtures::domain();

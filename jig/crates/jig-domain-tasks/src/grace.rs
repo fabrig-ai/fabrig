@@ -1,4 +1,4 @@
-//! Durable finish graces for every task (domain/tasks.md, sections 7 and 8.2).
+//! Durable finish graces for every task (domain/tasks/changes.md and domain/tasks/messages.md, section 2).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Change, Limits, MessageKind, Party, Phase, Refusal, Request, Word};
 use alloc::boxed::Box;

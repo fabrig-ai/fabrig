@@ -121,7 +121,7 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[test]
 fn revision_holders_are_sized_by_the_core_retention() {
-    // Four retained revisions plus the newest (domain/engine.md, 17.8).
+    // Four retained revisions plus the newest (domain/engine/settings.md, 8).
     const HOLDERS: u32 = 5;
     let domain = crate::Domain::new(&revisions::LIMITS, KEPT, 91, 1, charters(), Box::new([0]));
     assert_eq!(domain.holders.capacity(), HOLDERS);
@@ -235,7 +235,7 @@ fn no_change_requires_a_change_contract_and_both_word_bounds() {
     }
 }
 
-/// Job allocations count toward admission bytes (jig/docs/design/domain/tasks.md, 3 and 5.3.1).
+/// Job allocations count toward admission bytes (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn job_spec_and_result_heap_bytes_include_their_allocations() {
     use super::{End, JobSpec, TaskResult, task_bytes, terminal_bytes};

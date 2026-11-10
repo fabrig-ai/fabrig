@@ -1,4 +1,4 @@
-//! Small core steps with public bounds enabled (jig/docs/design/domain/people.md, 13.6).
+//! Small core steps with public bounds enabled (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
 use crate::PublicLine;
 

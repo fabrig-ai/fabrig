@@ -4,7 +4,7 @@ use crate::{Answer, Bound, Domain, Holder, KeyFailure, Kind, Limits, Refusal, Re
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Map, Queue, Token};
 
-/// Program grants carry names, with no expiring table value (channel.md, section 8).
+/// Program grants carry names, with no expiring table value (protocol/channel/README.md, section 7).
 pub const PROGRAM_VALID: Duration = Duration::from_nanos(u64::MAX);
 
 /// LLM keys do not expire; this grant horizon fits the worker wire's duration.

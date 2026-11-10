@@ -1,4 +1,4 @@
-//! Single memory records, typed or application bytes (protocol/store.md, 3 and 12).
+//! Single memory records, typed or application bytes (protocol/store/README.md, 3 and 7).
 use crate::{Event, Get, Phase, Store, keys, loads, open, pages};
 use skein_lib::{Queue, Token};
 

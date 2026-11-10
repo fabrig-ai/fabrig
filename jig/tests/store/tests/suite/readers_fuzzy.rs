@@ -1,4 +1,4 @@
-//! Seeded pages against independently committed inputs (store.md, 7.1 and 14).
+//! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/README.md, 9).
 use jig_protocol_store::{Restore, Row, Write, keys, restore::Item};
 use jig_store_world::{World, root};
 use skein_lib::Rng;

@@ -14,7 +14,7 @@ section 7.
 ## 1. In one page
 
 - **temper's engine makes no LLM call.** Its runs are on workers, jig's
-  third shape (jig's `domain/hosts.md`, section 3), each in an agent
+  third shape (jig's `domain/hosts/README.md`, section 3), each in an agent
   process: `temper internal agent`, smith's agent shell over skein's LLM
   client (section 2).
 - **LLM providers, endpoints and models are configuration,** jig's `llm`
@@ -93,7 +93,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   endpoints the agents dial, the models they serve, and the programs
   they may run, each with its programs directory. The worker's routing
   decodes each charter against these endpoints (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **The same names on both.** `temper serve` refuses a start whose
   engine names an endpoint, a model or a program the agent's
   configuration does not declare the same way (configuration.md, section
@@ -135,11 +135,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 - **A task read refused as unknown says what to read instead.** jig
   refuses `read_task` as `unknown` for a task it has no row of, an offset
   outside the text, and a `result` no ended task kept, a running one's
-  among them (jig's `domain/engine.md`, 7.3). The words say each, that a
+  among them (jig's `domain/engine/executors.md`, 3). The words say each, that a
   task's result reaches its requester as a `result` message when it
   ends, and that its specification, `field` left out, shows a running
   task's state, holds and questions. The other refusals keep their words.
-- **Decoded in the routing** (jig's `protocol/channel.md`, 6.3), in the
+- **Decoded in the routing** (jig's `protocol/channel/README.md`, 5.3), in the
   step that routes the call, keeping no state:
   1. the fleet fences the call, and the root hands it out as
      `HostRequest::Decode { to, task, attempt, call }`;
@@ -185,11 +185,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   LLM provider it uses (jig's `protocol/llm.md`, section 6). It crosses
   as smith's charter bytes in jig's assignment, and the worker's
   routing decodes it against the agent's configuration as the agent
-  starts (jig's `protocol/channel.md`, 6.1). A resumed run's charter
+  starts (jig's `protocol/channel/README.md`, 5.1). A resumed run's charter
   resumes when its policy allows and the task has kept turns.
 - **Turns** cross and are kept as smith's bytes, encoded on the worker;
   the core reads only what jig's records carry beside them (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **A run's result.** The worker's routing encodes smith's result before
   the hub keeps the answer. Once the fleet has fenced an ended answer,
   the root hands its result out as `WorkerRequest::ReadResult { payload,
@@ -200,11 +200,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   resource comes from what the worker and the forge settled, never from
   the LLM's fields, and a change with none is invalid. A result that
   does not decode or translate fails its attempt as invalid (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **Charter policy is jig's.** `temper-engine-smith` supplies the rendered
   brief and host-tool declarations to `jig-protocol-charter::assignment`,
   sets the conventions and workspace delivery fact, then calls its
-  `charter` translation (jig's `domain/hosts.md`, section 8). A repository's
+  `charter` translation (jig's `domain/hosts/charters.md`). A repository's
   delivery fact is set only after its push destination survives the root's
   authority and hold checks (`../domain/forge.md`, 11.1). This grants a
   Finite report's delivery with the policy's `modify`, without changing its
@@ -254,7 +254,7 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 - **A run's live text** on a conversation's page: smith's channel
   carries it at the host's ask, but jig's assignment carries no ask and
   its workers' facts no content, so agent processes give no text until
-  jig's transport is built (jig's `protocol/channel.md`, 6.4) and
+  jig's transport is built (jig's `protocol/channel/README.md`, 5.4) and
   temper's assignment then asks for it and its worker passes the pieces
   on. Default: a run is shown by its activity, and its words as each
   turn commits.

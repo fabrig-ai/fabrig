@@ -1,5 +1,5 @@
 //! Typed host calls cross the protocol boundary before tool decisions and after
-//! their answers (jig's domain/engine.md, 7.3; jig's domain/hosts.md, 2).
+//! their answers (jig's domain/engine/executors.md, 3; jig's domain/hosts/README.md, 2).
 use super::{
     Call, CallAnswer, CallKey, Decision, Delivery, Domain, Env, Limits, Payload, Request, Work, emit, relay_payload,
 };
@@ -83,7 +83,7 @@ pub struct ForgePerson {
 
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
-/// the hub's link names only as text (jig's `domain/hosts.md`, 2).
+/// the hub's link names only as text (jig's `domain/hosts/README.md`, 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostDelivery {
     /// Settings reads have no durable call part; inventories include project repositories and people.

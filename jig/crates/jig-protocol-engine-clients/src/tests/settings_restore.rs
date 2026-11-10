@@ -1,4 +1,4 @@
-//! Project policies, replaced values and restores cross the client boundary (engine.md, 17.10).
+//! Project policies, replaced values and restores cross the client boundary (domain/engine/settings.md, 10).
 use super::fixtures as f;
 use crate::translate::{self, settings};
 use jig_client_domain::contract as c;

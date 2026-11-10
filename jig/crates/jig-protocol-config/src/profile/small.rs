@@ -1,4 +1,4 @@
-//! Limits for one person's machine (configuration.md, 6).
+//! Limits for one person's machine (protocol/limits.md).
 //! The profile keeps concurrent work and retained state small for a personal deployment.
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
@@ -340,7 +340,7 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
     exchanges: 4,
     listeners: CORE.accounts.sign_ins.checked_mul(2).expect("a listener and a settling one per sign-in"),
     // A full answer at the client's bounds, 13,407 bytes (redirect_room),
-    // with room to grow (jig's configuration.md, 6).
+    // with room to grow (jig's protocol/limits.md).
     redirect_bytes: REDIRECT,
     server: skein_http::server::Limits {
         // The request line at the redirect bound, BROWSER_FIELDS for a browser's fields

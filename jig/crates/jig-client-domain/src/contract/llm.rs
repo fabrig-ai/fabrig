@@ -1,5 +1,5 @@
 //! A task's LLM choice and the models a party may choose, named as configuration names them
-//! (client/domain/contract.md, 3.2 and 5.1; domain/tasks.md, 3). The engine maps the names.
+//! (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3). The engine maps the names.
 use super::Text;
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -13,14 +13,14 @@ pub struct ModelEffort {
 }
 
 /// The choice for runs after the first activation
-/// (jig/docs/design/client/domain/contract.md, 5.1).
+/// (jig/docs/design/client/domain/contract/documents.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmLater {
     pub main: ModelEffort,
     pub subagents: List<ModelEffort>,
 }
 /// What an agent task's runs' LLMs are: its main model and those its sub-agents may use
-/// (jig/docs/design/client/domain/contract.md, 5.1).
+/// (jig/docs/design/client/domain/contract/documents.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
@@ -60,7 +60,7 @@ pub struct MeModel {
 }
 
 /// Amounts per `unit` tokens in the deployment's spend unit. Without a separate cache-write
-/// price, cache writes are priced at input (client/domain/contract.md, 5.1).
+/// price, cache writes are priced at input (client/domain/contract/documents.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ModelPrices {
     pub input: u64,
@@ -70,7 +70,7 @@ pub struct ModelPrices {
     pub unit: u32,
 }
 
-/// Why a named model was refused (domain/tasks.md, 4 and 7).
+/// Why a named model was refused (domain/tasks/README.md, 4 and domain/tasks/changes.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LlmWhy {
     /// The model is not configured.
@@ -104,7 +104,7 @@ pub enum TaskRunWait {
     Host,
     Refused(TaskWaitRefused),
 }
-/// The engine's current refusal explanation (client/domain/contract.md, 5.1).
+/// The engine's current refusal explanation (client/domain/contract/documents.md, 1).
 /// Hello is an observed volatile fleet fact, kept only in the current document.
 /// It does not change task phase.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

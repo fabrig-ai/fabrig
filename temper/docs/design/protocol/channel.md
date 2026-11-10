@@ -3,7 +3,7 @@
 Provisional, 2026-10-03, revised 2026-11-04. What temper carries on the
 channel between its engine and a worker: its parts inside jig's records,
 under its payload version, and a git identity's value inside a credential
-grant. The channel is jig's (jig's `protocol/channel.md`), and this
+grant. The channel is jig's (jig's `protocol/channel/README.md`), and this
 document does not repeat it. It covers where temper's parts cross, the
 payload version, each part field by field, a git identity's value, the
 translation between the parts and the roots, the limits, and how they are
@@ -13,7 +13,7 @@ tested. What is open is listed in section 10.
 
 - **jig's records, temper's bytes.** temper's parts ride in jig's records
   as the application's bytes, which jig's components never read (jig's
-  `protocol/channel.md`, 6.2). temper's protocol layer encodes them before
+  `protocol/channel/README.md`, 5.2). temper's protocol layer encodes them before
   a record goes down or up, and decodes them before a root sees the
   record, so each root routes typed values only.
 - **Four parts and one value:**
@@ -59,7 +59,7 @@ worker's routing   decodes Items                                          encode
 worker's root      Event::Assign { assignment, items }                  Request::Answer { answer, work, preparation }
 ```
 
-| Part | In jig's record (jig's `protocol/channel.md`, section 5) | Way | temper's record | The engine's side | The worker's side |
+| Part | In jig's record (jig's `protocol/channel/records.md`) | Way | temper's record | The engine's side | The worker's side |
 |---|---|---|---|---|---|
 | the workspace items | the assignment's `workspace.items` | down | `Items` | `Assignment.workspace`, with per-repository save destinations selected by `run.policy.resume` | `wire::Workspace`, with each repository's `save` |
 | what a run left | an answer's `work.left` | up | `Left` | `Parts.pushed` | `wire::Work.landed` |
@@ -88,7 +88,7 @@ worker's root      Event::Assign { assignment, items }                  Request:
 - **Checked at the opening.** The services give it to both channel
   components as they make them, and a worker whose credential names
   another is refused before any part crosses (jig's
-  `protocol/channel.md`, 4.1).
+  `protocol/channel/README.md`, 4.1).
 - **It stays at 4 until the first release.** A change to one of these
   encodings, including a repin of smith that changes the delivery's
   record, changes the schema, generated code and one set of golden bytes
@@ -230,8 +230,8 @@ enum   Missing          { repository, branch, commit }
 
 ## 6. A git identity's value
 
-One secret of jig's credential grant (jig's `protocol/channel.md`,
-section 8), from the application's table:
+One secret of jig's credential grant (jig's `protocol/channel/README.md`,
+section 7), from the application's table:
 
 ```
 record Identity { kind: Kind  login: text  name: text  email: text }
@@ -322,7 +322,7 @@ the routing in the step that routes the record:
   refusal with its task and attempt through the worker's upward route.
   This holds both when temper cannot encode its parts or charter and
   when jig cannot encode the enclosing assignment (jig's
-  `protocol/channel.md`, 5.2). No workspace or process is prepared for
+  `protocol/channel/records.md`, 2). No workspace or process is prepared for
   that assignment; the engine releases its reservation and cancellation
   can settle without a worker holding the attempt.
 - **A part that does not decode,**
@@ -342,7 +342,7 @@ the routing in the step that routes the record:
 ## 8. Limits
 
 - **temper's largest parts, given to jig's worker wire's sizes** (jig's
-  `protocol/channel.md`, section 11), each the generated codec's worst
+  `protocol/channel/README.md`, section 10), each the generated codec's worst
   case under the side's limits:
 
   | jig's size | temper's largest | From |
@@ -379,7 +379,7 @@ the routing in the step that routes the record:
   counted by hand. Channel sizes use each side's own limits.
 - **The engine's within the worker's.** Each side computes its sizes from
   its own limits, and jig's terms compare them at the opening (jig's
-  `protocol/channel.md`, 4.1). In one process both are known at start,
+  `protocol/channel/README.md`, 4.1). In one process both are known at start,
   so `temper serve` refuses limits under which the engine could send an
   item larger than the worker takes, rather than a link that never
   opens.

@@ -838,7 +838,7 @@ impl World {
             }
             if !charter_documents.is_empty() {
                 // Core sections and the two documents admitted by these stories
-                // (jig/docs/design/domain/engine.md, 17.9).
+                // (jig/docs/design/domain/engine/settings.md, 9).
                 const CHARTER_DOCUMENTS: u32 = 2;
                 const DOCUMENT_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS + CHARTER_DOCUMENTS;
                 limits.brief.sections = DOCUMENT_SECTIONS;

@@ -1,4 +1,4 @@
-//! Connection and exchange admission (protocol/client.md, sections 13 and 18).
+//! Connection and exchange admission (protocol/client/README.md, section 10 and protocol/client/openid.md).
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
@@ -16,7 +16,7 @@ pub struct Limits {
     /// Maximum volatile provider access tokens.
     pub provider_tokens: u32,
     pub exchanges_per_client: u32,
-    /// A message's bytes, owned by the component (protocol/client.md, 4.2 and 13).
+    /// A message's bytes, owned by the component (protocol/client/wire.md, 2.2, and protocol/client/README.md, 10).
     pub message_bytes: u32,
     pub wire: jig_client_protocol_wire::v19::Limits,
     pub link_span: Duration,
@@ -69,7 +69,7 @@ fn provider_bounds(limits: &skein_oauth_issuer::Limits) -> Option<u32> {
     limits.request_bytes.checked_add(1)
 }
 
-/// Issuer bounds shared with configuration's startup helper (protocol/client.md, 18).
+/// Issuer bounds shared with configuration's startup helper (protocol/client/openid.md).
 #[must_use]
 pub fn provider_limits(limits: &Limits) -> skein_oauth_issuer::Limits {
     skein_oauth_issuer::Limits {
@@ -83,7 +83,7 @@ pub fn provider_limits(limits: &Limits) -> skein_oauth_issuer::Limits {
     }
 }
 
-/// Public reading's admission (jig/docs/design/domain/people.md, 13.5).
+/// Public reading's admission (jig/docs/design/domain/people/public-reading.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PublicLimits {
     pub reads: u32,

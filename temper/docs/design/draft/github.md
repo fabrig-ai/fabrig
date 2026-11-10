@@ -27,12 +27,12 @@ is open section 19.
   or later. Nothing is imported in bulk at configuration (section 2).
 - **Secrets in the store.** A forge's credentials are made from the
   client, or by temper while it connects, and kept in jig's secrets'
-  store under temper's tag (jig's `protocol/store.md`, section 9),
+  store under temper's tag (jig's `protocol/store/secrets.md`),
   never in a file temper reads at start: one way, in every forge and
   mode. An owned Forgejo's preparation, which runs before the engine,
   hands its admin's token over once, by a file the engine takes in and
   removes. This reverses credentials.md's "no temper secret in jig's
-  secrets' store" (section 3).
+  secrets' store" (`github.md`, section 3).
 - **A forge connected while temper runs.** skein's component takes a
   forge's credential at runtime, and again when it is replaced or
   renewed; git identities take new generations as they change
@@ -172,7 +172,7 @@ is open section 19.
   preparation, which runs before the engine and cannot write the store
   (section 13).
 - **Where:** jig's secrets' store, a private skein-kv store of the
-  engine's (jig's `protocol/store.md`, section 9), which keeps "an
+  engine's (jig's `protocol/store/secrets.md`), which keeps "an
   application's own records, under its tag: its connectors'
   credentials, which it decodes itself". temper's records there:
   - GitHub: the App's id, slug and private key, and its webhook secret;
@@ -187,7 +187,7 @@ is open section 19.
   (section 13); a worker's secret and its digest, jig's files, which
   open the link before any store is reached; LLM accounts, already in
   the store as jig's.
-- **jig's rules hold** (jig's `protocol/store.md`, section 9): written
+- **jig's rules hold** (jig's `protocol/store/secrets.md`): written
   by components alone, through the protocol layer's routing; kept, and
   durable, before used; replaced stating the digest it replaces; erased
   when replaced or removed; a failed commit stops the engine. No root,
@@ -195,7 +195,7 @@ is open section 19.
 - **A pasted token** reaches the engine in a request the client sends
   once and never keeps, kept in the store before the core sees the
   request, as an LLM key is (jig's `domain/accounts.md`, section 5;
-  jig's `protocol/client.md`, section 5). This is jig's "request
+  jig's `protocol/client/README.md`, section 3). This is jig's "request
   carrying a value": Forgejo's connect and an App pasted (6.5) take it;
   the manifest flow does not, since GitHub hands the App's key to the
   engine's own exchange (section 6).
@@ -233,7 +233,7 @@ is open section 19.
   installations' tokens (GitHub, section 8). The engine announces
   `Event::Credential` with a new generation whenever the value changes,
   at runtime, where today it announces generation 1 at start alone
-  (jig's `domain/engine.md`, 12.1; credentials.md, section 4). The
+  (jig's `domain/engine/README.md`, 6.1; credentials.md, section 4). The
   worker keeps the two newest generations, so an operation in flight
   across a change finishes on the value it began with.
 - **The forge writer at runtime.** skein's forge client takes its
@@ -899,8 +899,8 @@ is cited by its probe's number across this document.
   merge queue, rulesets; the forge peer serving it.
 - **skein, the conformance:** GitHub's, live, opt-in (section 17).
 - **jig:** application credentials whose value changes while the engine
-  runs, a generation each time (jig's `domain/engine.md`, 12.1); a
-  request carrying a value (jig's `protocol/client.md`), already
+  runs, a generation each time (jig's `domain/engine/README.md`, 6.1); a
+  request carrying a value (jig's `protocol/client/README.md`), already
   planned as LLM accounts' second part.
 - **temper:** configuration (section 14); the engine's store records
   and their codec under temper's tag; the routing that hands them to the

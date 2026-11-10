@@ -117,7 +117,7 @@ below that keep it are superseded.*
   project's form suggests the repository's name as the project's,
   made unique ("tally 2" beside a "tally"), for the person to change;
   the name is then the project's own, not the repository's (jig's
-  `domain/core.md`, 6.1). jig makes no project after a first start
+  `domain/model.md`, 6.1). jig makes no project after a first start
   yet (2.4).
 - **The demo** can be hidden; its forge and model stay in the document,
   so a demo is always there to show someone.
@@ -197,7 +197,7 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
 - **The playground tried first, then set up:** two projects,
   Playground, its chats ended and readable, and the person's beside it.
 - **Waits on jig:** its projects made at runtime (jig's `MakeProject`,
-  its `domain/core.md`, 6.1, and its `STATUS.md`, jig-projects,
+  its `jig/docs/design/domain/model.md`, 6.1, and its `STATUS.md`, jig-projects,
   designed 2026-10-23) and projects' names (its `STATUS.md`, "A
   project's name"). Until both land, the default document seeds project
   1 as before, the playground's start and the first repository adopt

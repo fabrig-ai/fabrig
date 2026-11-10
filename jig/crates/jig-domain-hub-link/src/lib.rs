@@ -1,4 +1,4 @@
-//! The engine's hub link (jig/docs/design/domain/hosts.md, 6.1–6.8).
+//! The engine's hub link (jig/docs/design/domain/hosts/hub.md, 1–8).
 //! The root routes core events, hub deliveries and protocol hand-outs.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -19,7 +19,7 @@ pub use down::{down, now};
 pub use leaves::{brief_plan, job_assignment, settled_answer};
 pub use payload::{Ending, Payload, up};
 
-/// A job the core has claimed, for the fleet to place (jig/docs/design/domain/engine.md, 7.5).
+/// A job the core has claimed, for the fleet to place (jig/docs/design/domain/engine/executors.md, 5).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct JobStart {
     pub task: u64,

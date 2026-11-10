@@ -1,4 +1,4 @@
-//! Run adoption and decision opening (jig/docs/design/domain/engine.md, 6, 8).
+//! Run adoption and decision opening (jig/docs/design/domain/engine/restart.md, jig/docs/design/domain/engine/fleet.md).
 use crate::{Core, fleet};
 
 impl Core {

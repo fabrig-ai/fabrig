@@ -1,4 +1,4 @@
-//! Pages over durable indexes and delegate trees (protocol/store.md, 7.3–7.4).
+//! Pages over durable indexes and delegate trees (protocol/store/loads.md, 3–4).
 use super::{Failure, Spent, empty, joins, paged};
 use crate::{Cursor, Store, intervals, pages};
 use alloc::boxed::Box;

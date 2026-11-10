@@ -970,7 +970,7 @@ and a `locked` that comes later is answered by `unlock` at once, until
   holds its cookies.
 - `valid` checks neither, since an owner sizes its own redirects: one whose
   profile holds them checks both (jig's
-  `jig/docs/design/protocol/configuration.md`, 6).
+  `jig/docs/design/protocol/limits.md`).
 - **The application's name** is the owner's, given when it makes the
   component, for the listener's page (6.5): 1 to `APPLICATION_BYTES`, 64,
   bytes of visible ASCII and spaces. Another makes the component unusable
@@ -1060,7 +1060,7 @@ accounts component nor its listener requires a sum of heap prices.
   reports the address's length and bound at its terminal. Carrying them
   through an owner's domain and client wire to its sign-in page is
   separate work in that owner's contract
-  (`jig/docs/design/protocol/configuration.md`, section 9).
+  (`jig/docs/design/protocol/configuration.md`, section 8).
 - **The accounts world's scenarios as data** (6.8): fixture, private-file
   fault, owner-script and expectation rows wait while higher-priority work
   holds the round. `PasteThenListener` waits for `Fact::Taken` in the

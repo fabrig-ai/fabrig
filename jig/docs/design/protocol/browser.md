@@ -14,7 +14,7 @@ never mandated; and jig's test application's browser shell,
 with its server and its page's policy, as the example of an
 application's. Section 19 says what jig promises and where its promise
 stops. jig's messages, the clients' component and the mapping's routes
-and framing are `client.md`'s; the tree the parts map is skein's
+and framing are `client/README.md`'s; the tree the parts map is skein's
 (skein's `ui.md`); the reference UI is `../client/domain/view.md`'s and
 `../client/domain/pages.md`'s. What is still open is listed in section
 17, and what is not the layer's, or comes later, in section 16.
@@ -31,10 +31,10 @@ and framing are `client.md`'s; the tree the parts map is skein's
   exchanges, its stream and its small store's records over skein's
   fetch, transport and small store, as `jig-client-protocol-http` maps
   them onto HTTP, adding the browser header to each request (5.1;
-  section 10; `client.md`, section 17).
+  section 10; `client/default-http.md`).
 - **A browser's credential is a cookie** the mapping's engine end sets,
   HTTP-only, so the client and the module never see it (section 11; its
-  attributes, `client.md`, 17.3).
+  attributes, `client/default-http.md`, 3).
 - **Example guards,** in `jig-protocol-engine-clients-http`: a Host
   allow-list; a required header that forces a preflight, with no CORS;
   the cookie's attributes; a referrer policy on the printed link's route.
@@ -106,7 +106,7 @@ jig-protocol-engine-clients       the clients' component (client.md)
   mounts jig's mapping at, it hands each request to
   `jig-protocol-engine-clients-http`, which speaks jig's messages to the
   clients' component, `jig-protocol-engine-clients`, which knows no HTTP
-  (`client.md`, section 2; `service.md`, section 2).
+  (`client/README.md`, section 2; `service.md`, section 2).
 
 ## 3. What an application writes
 
@@ -151,7 +151,7 @@ shell (3.1), copied from a reference, its client host (3.2), its look
   children (`../client/domain/root.md`); its presentation, the reference
   UI, its own view root, or both (`../client/domain/view.md`); and its
   transport's client end, jig's `jig-client-protocol-http` in the
-  reference (`client.md`, 17.4). They step as one machine, what skein's
+  reference (`client/default-http.md`, 4). They step as one machine, what skein's
   `ui-web.md`, 3.1 calls the application's state machine. The client
   runs no loop of its own and never calls the application: the client
   root steps it with the events the shell's reports carry, and its
@@ -416,7 +416,7 @@ rests on them, and the reference documents the rest.
 - **The small store written before a step's exchanges leave, and a
   navigation away only after:** skein's transport's. The client gives a
   request's first exchange only once the transport says its record
-  stored (`../client/domain/client.md`, section 11); the client's
+  stored (`../client/domain/client/README.md`, section 8); the client's
   adapter hands the transport a step's requests whole, so no exchange
   of a step leaves before that step's writes, and a navigation to an
   application's sign-in leaves nothing unkept behind it. When a write
@@ -532,16 +532,16 @@ What is jig's:
 ## 10. Transport and the small store
 
 The default mapping's browser end: the client host's
-`jig-client-protocol-http`, the mapping's client end (`client.md`,
-17.4), maps `jig-client`'s requests onto HTTP, and the client's adapter
+`jig-client-protocol-http`, the mapping's client end (`client/default-http.md`,
+4), maps `jig-client`'s requests onto HTTP, and the client's adapter
 gives them to skein's fetch, small store and transport as their plain
 data (skein's `ui-web.md`, section 10; 5.1).
 
 - **Exchanges** by skein's fetch: each of the client's exchanges as
   `jig-client-protocol-http` maps it, a POST of the message's record to
-  its route under the prefix the application gives (`client.md`, 17.1),
+  its route under the prefix the application gives (`client/default-http.md`, 1),
   with `Content-Type: application/octet-stream`, and the browser header,
-  which the adapter adds (section 11); the adapter sends it with
+  which the adapter adds (`browser.md`, section 11); the adapter sends it with
   same-origin credentials, so the cookie rides with it, and abandons it
   by aborting. A body is read up to the client's largest record; past
   it, the exchange failed. The response's status and body go back to
@@ -556,13 +556,13 @@ data (skein's `ui-web.md`, section 10; 5.1).
   browser header, which the adapter adds, and same-origin credentials,
   its body read a piece at a time, each piece cut to the client's stream
   piece and handed to the host, whose client end cuts the server-sent
-  events into messages (`client.md`, 17.2). The next read is asked by
+  events into messages (`client/default-http.md`, 2). The next read is asked by
   the loop after the step (5.2), so the platform paces it. Its end is
   the stream gone.
 - **Each load of the page is a client,** with a stream of its own
-  (`client.md`, section 4): links and back and forward within the page's
-  history keep it (section 9); a reload, an address typed or opened,
-  and skein's restart part's reload (section 5) start a new one, which
+  (`client/wire.md`, section 2): links and back and forward within the page's
+  history keep it (`browser.md`, section 9); a reload, an address typed or opened,
+  and skein's restart part's reload (`browser.md`, section 5) start a new one, which
   sends its predecessor's stream gone, by the name the small store
   kept, before it opens its own. The browser ends the old page's
   connection when it likes, often after the new page's stream has
@@ -576,30 +576,30 @@ data (skein's `ui-web.md`, section 10; 5.1).
   client takes as any drop, and an opening while hidden waits until the
   tab is shown (skein's `ui-web.md`, section 10).
 - **The small store** is skein's, the tab's session storage: each of the
-  client's records under its key (`client.md`, section 10), the stream's
+  client's records under its key (`client/README.md`, section 7), the stream's
   name among them, both as base64 text, under the prefix the application
   gives, the reference's `jig.`; read whole at start. The reference UI's
   own records (its places and drafts) are its application's, kept beside
-  the client's through the same transport (`../client/domain/view.md`, 18.8).
+  the client's through the same transport (`../client/domain/view-state.md`, 8).
   A write the platform refuses, its quota full, is a failed write. The
-  restart part's key is outside the prefix (section 5).
+  restart part's key is outside the prefix (`browser.md`, section 5).
 - **Closing a tab with stored kept requests** asks the platform to warn
   (`beforeunload`), through skein's title and closing part, only while
   its small store holds those records, judged by their sixteen-byte
   request keys. A top-level `Seen` has no stored record, so `Seen` alone
   does not warn; ordinary or mixed kept acts still do. Closing, reload
   or crash silently loses an unanswered `Seen`; the next opening checks
-  and sends the forward-only watermark again (`client.md`, section 10).
+  and sends the forward-only watermark again (`client/README.md`, section 7).
 
 ## 11. Signing in and out
 
 The cookie is the mapping's, set by its engine end; the browser header
 is added by the client's adapter (5.1); the engine end checks both
 (12.2). The sign-in part is jig's (5.1), and the client's own exchanges
-sign in and out (`../client/domain/client.md`, section 12; `client.md`,
-section 8).
+sign in and out (`../client/domain/client/README.md`, section 9; `client/sign-in.md`
+).
 
-- **The cookie,** its attributes `client.md`, 17.3's (why: browser.md, section 19):
+- **The cookie,** its attributes `client/default-http.md`, 3's (why: browser.md, section 19):
   every request under the prefix carries it; the module, the client and
   the application's client host never see it, since the client is
   signed in by the transport.
@@ -611,8 +611,8 @@ section 8).
   - the clients' component gives the secret, and the application's
     startup prints the URL: under the default mapping, the link's route
     under its prefix, the secret in its query,
-    `<origin><prefix>/v1/sign-in/link?secret=…` (`client.md`, section 8
-    and 17.1);
+    `<origin><prefix>/v1/sign-in/link?secret=…` (`client/sign-in.md` and `client/default-http.md`, section 1
+    );
   - a GET of the link's route spends nothing and draws nothing: the
     mapping's engine end leaves it to the application's page, with the
     referrer policy (12.2), and the server answers its page there (why:
@@ -626,7 +626,7 @@ section 8).
     in by the link, whose exchange is the link route's POST, the one a
     native client makes, with the browser header; the engine end answers
     it signed in, the credential in the cookie and none in the body;
-  - answered why it can't sign in (`client.md`, section 8), the application
+  - answered why it can't sign in (`client/sign-in.md`), the application
     prints a fresh link if none is live, and the client is signed out, its
     link's view saying which, for the application's words. Refused, not
     ready or lost, the client is signed out as well, which the reference UI
@@ -635,8 +635,8 @@ section 8).
 - **An application's sign-in** runs on its own routes (an OAuth or
   OpenID server, a company's directory, a chat platform's identity), as
   the application's server's code: it verifies the identity, asks the
-  clients' component to mint a credential for it (`client.md`,
-  section 8), and sets the mapping's cookie with it, through the engine
+  clients' component to mint a credential for it (`client/sign-in.md`
+  ), and sets the mapping's cookie with it, through the engine
   end's function for that, so the cookie is the one the mapping reads.
   In a browser it is a navigation, which skein's transport makes after
   the step's writes (5.3); the path it comes back to is its own to
@@ -644,14 +644,14 @@ section 8).
   read as one) nor one of its reserved prefixes.
 - **Signing out** is the client's exchange to the sign-out route, which
   the engine end answers by clearing the cookie (`Max-Age=0`). Its
-  answer is its sign-in's (`../client/domain/client.md`, section 12): each sign-in
+  answer is its sign-in's (`../client/domain/client/README.md`, section 9): each sign-in
   loads a new page (the printed link's, before the client starts, or an
   application's sign-in by navigation), so an earlier page's sign-out
   never answers into the client of a newer sign-in.
 - **A service's credential, shown once,** in the reference: in the
   sign-in part's dialog of its own, outside the tree, as selected text,
   with a button closing it, in jig's words. The part never keeps it,
-  nor does the client (`client.md`, section 8).
+  nor does the client (`client/sign-in.md`).
 
 ## 12. Served by the application's server
 
@@ -666,8 +666,8 @@ all, from the clients' listener it owns (`service.md`, section 2).
   example's server keeps that contract in code an application may copy
   (skein's `examples.md`, 9.3), as jig's test application's does.
 - **jig's mapping, mounted at a prefix of its own,** every path under it
-  the mapping's (`client.md`, 17.1), but a GET of the link's route,
-  which the mapping leaves to the page (section 11). The mapping's
+  the mapping's (`client/default-http.md`, 1), but a GET of the link's route,
+  which the mapping leaves to the page (`browser.md`, section 11). The mapping's
   answers carry `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`; under its prefix it answers no
   `OPTIONS` and sends no `Access-Control-` header (12.2).
@@ -717,9 +717,9 @@ before any reaches the clients' component. What each stops is section
 
 | Guard | What the example does |
 |---|---|
-| a Host allow-list | any `Host` off the list answered `421`, with nothing done; the list is the listener's addresses, which the application gives once it listens, and the public name it gives when it mounts the mapping, if any (`client.md`, 17.3); the reference's is the address its printed link names on loopback, and gives no public name |
+| a Host allow-list | any `Host` off the list answered `421`, with nothing done; the list is the listener's addresses, which the application gives once it listens, and the public name it gives when it mounts the mapping, if any (`client/default-http.md`, 3); the reference's is the address its printed link names on loopback, and gives no public name |
 | the required header, with no CORS | a request the cookie authenticates without `Jig-Client: browser` answered `403`, with nothing done; a POST whose `Content-Type` is not `application/octet-stream` answered `415`, with nothing done; no `OPTIONS` answered and no `Access-Control-` header sent |
-| the cookie's attributes | `client.md`, 17.3's |
+| the cookie's attributes | `client/default-http.md`, 3's |
 | a referrer policy on the printed link's route | `Referrer-Policy: no-referrer` added to the page the application answers at the link's route |
 
 - **The page's policy** (12.1) is the fifth guard, against injected
@@ -766,12 +766,12 @@ otherwise (skein's `ui-web.md`, section 12).
 ## 14. Limits
 
 - **The client's:** an exchange's answer, at most its largest record; a
-  piece of the stream; exchanges in flight (`client.md`, section 13),
+  piece of the stream; exchanges in flight (`client/README.md`, section 10),
   which the client's adapter gives fetch.
 - **The mapping's engine end's:** a request's bytes; calls in flight,
-  and streams among them, in all, never per sign-in (`client.md`,
-  sections 4 and 13); its numbers in `jig-protocol-config`'s profiles
-  (`configuration.md`, section 6).
+  and streams among them, in all, never per sign-in (`client/wire.md`, section 2, and `client/README.md`, section 10
+  ); its numbers in `jig-protocol-config`'s profiles
+  (`limits.md`).
 - **The tree's:** `skein_ui::Limits` (skein's `ui.md`, section 15), whose
   numbers the reference UI's constructors derive from the client's
   limits (`../client/domain/view.md`, section 10); a drawing's SVG has
@@ -809,7 +809,7 @@ tested in skein, and in a browser on skein's UI example (skein's
     application's function after a `Minted`; a GET of the link's route left to the page
     with the referrer policy, spending nothing; an exchange told to the
     component as a browser's for a credential from the cookie alone, a
-    bearer's never, beside the header or not (`client.md`, 17.3);
+    bearer's never, beside the header or not (`client/default-http.md`, 3);
   - the reference UI's codec: every place printed and parsed back, at
     the root, under a prefix, with other segment names; any bytes parsed
     to a place, never a panic.
@@ -885,8 +885,8 @@ tested in skein, and in a browser on skein's UI example (skein's
 ## 16. What is not the layer's
 
 - **Following data as it comes** (a log tailed, a metric's latest
-  points) is an application's streams (`../client/domain/contract.md`,
-  7.4): a contract and engine piece, carried by skein's parts and the
+  points) is an application's streams (`../client/domain/contract/README.md`,
+  5.4): a contract and engine piece, carried by skein's parts and the
   client as any watch, with no change to them.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are out of jig's scope: a component
@@ -897,8 +897,8 @@ tested in skein, and in a browser on skein's UI example (skein's
   - *jig's own drawing kinds,* a chart every application shares: a kind
     moves into the reference UI when a second application draws the
     same;
-  - *tabs of one person sharing one stream, and HTTP/2* (`client.md`,
-    section 15);
+  - *tabs of one person sharing one stream, and HTTP/2* (`client/README.md`,
+    section 12);
   - *the bundle served compressed:* skein's (skein's `ui-web.md`,
     section 15), and its server's;
   - *the browser tier in other browsers than Chromium,* which comes to
@@ -915,13 +915,13 @@ tested in skein, and in a browser on skein's UI example (skein's
 
 - **Approvals at a public name:** the code typed rather than carried in
   the address, the ask's origin shown, and a person's list of sign-ins
-  with each ended from there (`client.md`, section 15). The loopback
+  with each ended from there (`client/README.md`, section 12). The loopback
   approval uses the application's page under the existing cookie guards.
 
 - **A failed printed link with a live cookie** (11): the link's reason
   remains the client's sign-in outcome even when the cookie can still
   sign in on a reload. A fallback is the client's question
-  (`../client/domain/client.md`, section 18). Default: no fallback.
+  (`../client/domain/client/README.md`, section 15). Default: no fallback.
 - **Right-to-left languages:** what they ask of `jig.css` and the
   reference UI's phrasebook, beyond `<html lang>`
   (`../client/domain/view.md`, section 14); what they ask of the
@@ -948,14 +948,14 @@ tested in skein, and in a browser on skein's UI example (skein's
   (section 7); and its codec, `jig-client-view`'s `address` module,
   parsing and printing jig's places, total and bounded, at the root,
   under a prefix, or with other segment names (section 9).
-- **`jig-client`** (`../client/domain/client.md`) owes its transport
+- **`jig-client`** (`../client/domain/client/README.md`) owes its transport
   requests as plain data, in the order it gives them (an exchange with
   its credential or none, the stream opened and closed, records saved
   and erased), and takes its transport's events (a reply, a loss, a
   message streamed, the stream gone, records stored or not); a sign-in
   by link and by the transport; its pending requests and its next
   deadline, read by the client host.
-- **`jig-client-protocol-http`** (`client.md`, 17.4) owes: a message
+- **`jig-client-protocol-http`** (`client/default-http.md`, 4) owes: a message
   as a method, a path under the prefix the application gives, headers
   and a body; the stream's request; the stream's server-sent events cut
   into messages; the bound on an answer, from the client's limits.
@@ -964,15 +964,15 @@ tested in skein, and in a browser on skein's UI example (skein's
   cookie set at a browser's sign-in, an approval's take among them,
   with no credential in the body, and cleared at its sign-out; each
   exchange told to the component as a browser's when its credential
-  came by the cookie, and only then (`client.md`, 17.3); a function that
+  came by the cookie, and only then (`client/default-http.md`, 3); a function that
   sets the same cookie for a credential the application minted; a GET
   of the link's route left to the application's page, with the referrer
   policy; its answers with `no-store` and `nosniff`; no `OPTIONS` and
-  no CORS under its prefix (sections 11, 12 and 12.2).
+  no CORS under its prefix (`browser.md`, sections 11, 12 and 12.2).
 - **`jig-protocol-engine-clients`** owes: the printed link's secret,
   given to the application to print, and a fresh one after a refused
-  link; a credential minted on the application's word (`client.md`,
-  section 8).
+  link; a credential minted on the application's word (`client/sign-in.md`
+  ).
 - **An application's server** owes: its page and bundle as skein's
   `ui-web.md`, 4.4 says; its page's policy, at least skein's strict
   policy; jig's mapping mounted with its Host allow-list, or a transport
@@ -1026,8 +1026,8 @@ tested in skein, and in a browser on skein's UI example (skein's
 - **jig's promise** is `../README.md`, section 10's: a request
   presented with a valid credential is that credential's party's, and
   everything after is checked below the API
-  (`../client/domain/contract.md`, 5.2); jig mints, verifies, expires
-  and revokes the credential (`client.md`, section 8).
+  (`../client/domain/contract/documents.md`, 2); jig mints, verifies, expires
+  and revokes the credential (`client/sign-in.md`).
 - **Where it stops,** as `../README.md`, section 10 says what is the
   application's:
   - *a credential not used across sites* is the application's server's
@@ -1056,10 +1056,10 @@ invariants, on which the client's "once" rests (the table's last row).
 |---|---|---|
 | the `Host` allow-list (12.2) | DNS rebinding: a page of another site, its name rebound to the loopback address, would reach the engine as its own origin; answered `421`, it reaches nothing. | the list it gives: its listener's addresses, and the public name of the TLS proxy in front of it |
 | the required header, the content type and no CORS (12.2) | Cross-origin requests: a page of another origin can neither set the header nor send a body of the mapping's type (either would need a preflight the mapping never answers, and no form can send that type) nor, from another site, send the cookie (same-site strict), so it can neither act as the person nor sign them in by the link. Same-site is not same-origin: on one person's machine, a local server on another port of the same host is the same site, which same-site strict lets send the cookie, and only the header stops it. | its own transport, holding what they held |
-| the cookie's attributes (`client.md`, 17.3) | HTTP-only keeps the credential from every script, the module's too; same-site strict, from requests another site starts; the `Path`, from every request but the mapping's; `Secure`, from plaintext: set on an exchange that came by the public name, through a TLS proxy, and left off on one that came by the listener's own address, plaintext on loopback, since not every browser keeps a secure cookie set over plaintext, loopback included. | its own sign-in, which sets the same cookie through the mapping's function |
+| the cookie's attributes (`client/default-http.md`, 3) | HTTP-only keeps the credential from every script, the module's too; same-site strict, from requests another site starts; the `Path`, from every request but the mapping's; `Secure`, from plaintext: set on an exchange that came by the public name, through a TLS proxy, and left off on one that came by the listener's own address, plaintext on loopback, since not every browser keeps a secure cookie set over plaintext, loopback included. | its own sign-in, which sets the same cookie through the mapping's function |
 | the referrer policy at the link's route (12.2) | The page opened at the link's route holds the sign-in's secret in its address until the sign-in part rewrites it; a policy sending a path to another origin would send the secret with a first request to an origin the page's policy names. | `strict-origin`, the origin alone |
-| an approval read and decided under the cookie alone (`client.md`, section 8 and 17.3) | A program holding a person's credential as a bearer, an agent driving the application's command line as that person among them, could otherwise approve a client of its own, which would then hold a sign-in of the person's. A browser's cookie no script and no program of the person's reaches through the mapping. | its own transport, telling the component a browser's exchange by the same rule |
-| the link's route safe to GET (section 11) | A GET is the one request any other site can make the person's browser send (a link, an image), with no header of its own and past every guard; one that signed in, or drew a fresh link on a refusal (`client.md`, section 8), would let any page the person visits spend the printed link or keep drawing new ones, until the link printed never works. | its own page at its own route, as safe |
+| an approval read and decided under the cookie alone (`client/sign-in.md` and `client/default-http.md`, section 3) | A program holding a person's credential as a bearer, an agent driving the application's command line as that person among them, could otherwise approve a client of its own, which would then hold a sign-in of the person's. A browser's cookie no script and no program of the person's reaches through the mapping. | its own transport, telling the component a browser's exchange by the same rule |
+| the link's route safe to GET (section 11) | A GET is the one request any other site can make the person's browser send (a link, an image), with no header of its own and past every guard; one that signed in, or drew a fresh link on a refusal (`client/sign-in.md`), would let any page the person visits spend the printed link or keep drawing new ones, until the link printed never works. | its own page at its own route, as safe |
 | the secret taken out of the address first (section 11) | Left in the address, the secret stays in the tab's history and in what the page shows or shares, after it is spent and before. Taken out first, it leaves the address bar and the tab's history; the browser's record of visited addresses keeps it, spent once signed in. | its own page at its own sign-in route |
 | the credential never kept (section 11) | A service's credential acts as the service; kept in a tab, it would outlive its dialog, in storage any script of the origin reads and in the session's restore. | the person copies it from the dialog, which the application's stylesheet may restyle |
-| a step's client requests through the transport (5.3) | A request that leaves before it is kept is lost or made twice after a reload. It is the client's "once" (`../client/domain/client.md`, section 6), which jig owns (`../README.md`, section 10), and which skein's transport holds for any application (skein's `ui-web.md`, section 17). | its own order for the rest of the turn (5.2); the transport replaced, the order taken with it and checked by skein's stories for a browser shell and jig's (section 15) |
+| a step's client requests through the transport (5.3) | A request that leaves before it is kept is lost or made twice after a reload. It is the client's "once" (`../client/domain/client/requests.md`), which jig owns (`../README.md`, section 10), and which skein's transport holds for any application (skein's `ui-web.md`, section 17). | its own order for the rest of the turn (5.2); the transport replaced, the order taken with it and checked by skein's stories for a browser shell and jig's (`browser.md`, section 15) |

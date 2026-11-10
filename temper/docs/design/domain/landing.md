@@ -130,7 +130,7 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   - **`with`:** a change names the changes it must land with, a
     parameter of its own (`forge.md`, 8.1), when it is made or by an
     amendment of a task that may name the other one (jig's
-    `domain/tasks.md`, section 7's rule for dependencies). `with` is
+    `domain/tasks/changes.md`'s rule for dependencies). `with` is
     symmetric and transitive: the connector joins the closure into one
     landing, and a change is ready to land only when every change of its
     closure is.
@@ -140,7 +140,7 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
     first, and never keeps the dependent from its landing: the merges
     are the landing's, which has no dependency (section 8). The
     dependent's result still waits for its dependency's, as jig's
-    dependencies order results (jig's `domain/tasks.md`, 5.7). The
+    dependencies order results (jig's `domain/tasks/lifecycle.md`, 8). The
     change procedure starts kept (jig's `domain/connectors.md`, 6.1), so
     a dependent made with its dependency, the usual goal across
     repositories, is coded beside it rather than waiting.
@@ -223,7 +223,7 @@ For a project with no prepare command, one member per repository:
   top. Once the head, read afresh, contains the tip it asked for, the
   head is the candidate. The branch is the change's, held by it, and
   the update is made in its name, so no run of temper's writes it
-  meanwhile (jig's `domain/tasks.md`, 6.3); a head moved by another
+  meanwhile (jig's `domain/tasks/holds.md`, 3); a head moved by another
   identity is drift, as ever (`forge.md`, 8.5).
 - **A conflict** makes the forge refuse the rebase: the member resolves
   it (section 3), and its merged head is then the candidate as it is.
@@ -242,7 +242,7 @@ For a project with no prepare command, one member per repository:
   temper's default prepare is the worker's rebase job (5.3), never the
   forge's.
 - **Not drift.** The update is asked while the change's writer slot is
-  its own (jig's `domain/tasks.md`, 6.3), after a fresh read finds the
+  its own (jig's `domain/tasks/holds.md`, 3), after a fresh read finds the
   head temper last knew; the head it leads to is the change's, though
   it does not contain the one before, once it contains main's tip it
   asked for, even when a read sees it before the update's outcome
@@ -267,7 +267,7 @@ For a project with no prepare command, one member per repository:
   the project's pins, upstream first: a downstream's job starts once
   its upstreams' candidates are known, and is given them.
 - **Delegated by the task that holds the branch it writes,** so the job
-  writes under its holder's hold (jig's `domain/tasks.md`, 6.1): the
+  writes under its holder's hold (jig's `domain/tasks/holds.md`, 1): the
   last member's change, for a repository with members, asked by its
   landing as it asks for the forge's rebase (5.2); the landing itself,
   for a pin-only member's branch, which the landing makes and holds
@@ -597,7 +597,7 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge.md`, 12.1 |
 
 - **Until both kinds are settings** on jig's application settings (jig's
-  `domain/engine.md`, 17.5), a project's `by`, its `tier_retries` and
+  `domain/engine/settings.md`, 5), a project's `by`, its `tier_retries` and
   `verification_bound` (`verification_bound_ms` there), its
   `merge_job`, and its repositories' gates and tiers are
   configured in the document's `landing` member

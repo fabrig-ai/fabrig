@@ -96,7 +96,7 @@ The kinds, each named in the asker's call (section 4):
   the charters' words (`../domain/agent.md`, 4.3): funds, sign-ins,
   machines, a plan's go-ahead and anything hard to reverse. A proposal of
   settings and an escalation still wait for their decider, whatever the
-  table says (jig's `domain/tasks.md`, section 9).
+  table says (jig's `domain/tasks/proposals.md`).
 - **Kind 6 stays the route,** the classes the gate: a project's question
   route (`../protocol/configuration.md`, 13.2) still says which way a
   change's question goes up the tree, through a foreman or to its maker
@@ -191,7 +191,7 @@ agents decide is the project's table.
 - **The client composes it,** from the need's reason, with no model, and
   the person proposes it as their own; an owner may apply it directly
   instead. It is never a procedure's proposal, which jig's
-  `domain/engine.md`, 17.6 rules out. Ask temper writes one in words when
+  `domain/engine/settings.md`, 6 rules out. Ask temper writes one in words when
   the person asks for something else (`../domain/agent.md`, 8.4.2).
 - **An owner accepts it in place,** one press, and new questions follow it.
   The need in hand still waits for its answer: the rule changes what comes
@@ -269,7 +269,7 @@ own" (the Team example on fabrig.ai's home page says so).
 What only the person can do and no choice answers: a sign-in to an LLM
 provider, a login to renew, a forge's token to replace, a person task
 addressed to them that asks for an act rather than a choice (jig's
-`domain/tasks.md`, 5.4).
+`domain/tasks/lifecycle.md`, 5).
 
 - **Listed apart,** under its own head on Needs you, "Only you", after the
   needs and before Decided for you.

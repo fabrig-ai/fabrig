@@ -1,4 +1,4 @@
-//! Each original page's whole owner rows (protocol/client.md, 3).
+//! Each original page's whole owner rows (protocol/client/wire.md, 1).
 use super::super::{activity, chips, history, inbox, objects, w};
 use super::rows;
 use alloc::boxed::Box;

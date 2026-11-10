@@ -1,4 +1,4 @@
-//! The small store's owner records (protocol/client.md, 10).
+//! The small store's owner records (protocol/client/README.md, 7).
 use super::{answers, documents, pages, too_large};
 use crate::Limits;
 use alloc::boxed::Box;

@@ -1,11 +1,11 @@
-//! Application core parts and request admission (domain/people.md, 5.1).
+//! Application core parts and request admission (domain/people/acts.md, 1).
 use super::{Domain, invalid_ask, project, role, valid_ask};
 use crate::{ApplicationScope, Ask, AskFamily, Kind, Limits, Outcome, Refusal, Request, Role};
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Token};
 
 /// Judge a connector's core part as its admitted party, without allocating another key.
-/// The caller completes this part before the application flight (domain/people.md, 5.1).
+/// The caller completes this part before the application flight (domain/people/acts.md, 1).
 /// Explicit model selectors refuse `Lack::Models`: parts carry no model-name context yet.
 pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, ask: Ask) -> Result<Request, Outcome> {
     domain.input();
@@ -122,7 +122,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
 }
 
 /// Whether this party is the holder an account request names: a person for their own, a first
-/// owner for the deployment's (domain/accounts.md, 3.2; domain/people.md, section 3). A service
+/// owner for the deployment's (domain/accounts.md, 3.2; domain/people/README.md, section 3). A service
 /// holds no account and decides none of the deployment's.
 #[must_use]
 pub fn holds(domain: &Domain, person: u64, holder: crate::AccountHolder) -> bool {

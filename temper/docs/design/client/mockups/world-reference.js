@@ -274,7 +274,7 @@
       },
 
       // Notes, each an entry: a one-line description, a body, a scope and
-      // its writer (jig's domain/engine.md, section 10).
+      // its writer (jig's domain/engine/briefs.md, section 2).
       notes: [
         { scope: 'project', by: 'T1', at: -50, name: 'priorities', text: 'T12 Harness: the fake server, then the flakes, then the build path.' },
         { scope: 'project', by: 'T1', at: -1300, name: 'standing rules', text: '- Claude for taste; implementers, surveys and investigations on Codex.\n- Budgets are Pat’s: ask before raising one.\n- Credentials are never copied between machines.\n- Owners check shared version numbers before each landing.' },

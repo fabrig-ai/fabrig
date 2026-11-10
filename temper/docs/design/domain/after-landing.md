@@ -146,13 +146,13 @@ branch text matches (2026-11-04).
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
   the project's `tier_retries`; one past its bound holds the tier's run
   task, whose escalation reaches the project's escalation role (jig's
-  `domain/tasks.md`, section 9). A held procedure says why in its
+  `domain/tasks/proposals.md`). A held procedure says why in its
   connector's words (jig's `client/domain/objects.md`, section 5): the
   held task's words name the tier and the run (`Tier NAME run N`), and
   its hold's words add `held after N runner faults, last: KIND`. Before
   it is held, the run posts the tier's verdict status on its tip as
   pending, `held after N runner faults, last: KIND`, linked to the last
-  run (section 9). The tier waits for a person's release, which
+  run (`after-landing.md`, section 9). The tier waits for a person's release, which
   dispatches the run again with its faults counted from 0, its
   landings still verifying; its verdict replaces that status.
 
@@ -351,12 +351,12 @@ blamed landing's full commit (2026-11-04).
   `Taught:`, `QA:`, `Fixes:` and `Repairs:`, read with the landing's
   commits (skein's `Read::Commits`), each line within `trailer_bytes`,
   at most `trailers` per landing.
-- **A goal's wake policy may name trailers** (jig's `domain/tasks.md`,
-  8.3, a news marker; temper numbers the forge's: 0 `Taught:`, 1 `QA:`,
+- **A goal's wake policy may name trailers** (jig's `domain/tasks/messages.md`,
+  3, a news marker; temper numbers the forge's: 0 `Taught:`, 1 `QA:`,
   2 `Fixes:`, 3 `Repairs:`, 4 `Fixes-finding:`, the forge's table of
   what it offers naming them for ctl's and the host tools' words): the core keeps them with the goal's
   subscription to the landings of its subtree's repositories (jig's
-  `domain/tasks.md`, 8.4; `forge.md`, 7.2), and the forge classes a
+  `domain/tasks/messages.md`, 4; `forge.md`, 7.2), and the forge classes a
   landing carrying one as waking for that goal, and as kept otherwise,
   whatever its overlap. A designer's goal wakes on `Taught:` so, and
   reads the rest at its next run.
@@ -401,7 +401,7 @@ blamed landing's full commit (2026-11-04).
   run, a failed-test rerun and each bisection probe, with its commit and
   branch, and the forge run number and URL once observed. The procedure
   projects these facts through its own task's specification words in a
-  due step (jig's `domain/tasks.md`, 5.3). New part words are saved
+  due step (jig's `domain/tasks/lifecycle.md`, 3). New part words are saved
   before its effects are issued; the procedure continues at a deadline
   due immediately. The task keeps them after
   completion, branch release and restart. Both ctl `task show TASK` and

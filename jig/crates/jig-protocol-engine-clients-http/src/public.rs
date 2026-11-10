@@ -1,4 +1,4 @@
-//! Public paths and fixed answers (jig/docs/design/protocol/client.md, 17.5).
+//! Public paths and fixed answers (jig/docs/design/protocol/client/default-http.md, 5).
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_http::{Header, server as http};

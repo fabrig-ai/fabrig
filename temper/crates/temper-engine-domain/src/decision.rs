@@ -61,7 +61,7 @@ pub enum Delivery {
     },
 
     /// Adoption release reaches the core after its erasures commit
-    /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge.md, 4.1).
     ProjectReleased {
         connector: u16,
         project: u32,
@@ -123,7 +123,7 @@ pub enum Delivery {
     },
     /// Host protocol handoffs follow their prerequisite commits.
     Host(Box<crate::HostDelivery>),
-    /// One record of the hub's link to a worker channel (jig's `domain/hosts.md`, 2).
+    /// One record of the hub's link to a worker channel (jig's `domain/hosts/README.md`, 2).
     Link {
         channel: Token,
         down: jig_domain_host::LinkDown,
@@ -181,7 +181,7 @@ pub enum Delivery {
     },
     /// Root to the clients' component: a request's carried value the core
     /// left unused, erased there before the request's answer (jig's
-    /// `protocol/store.md`, 9).
+    /// `protocol/store/secrets.md`).
     CarriedUnused {
         number: u64,
     },
@@ -250,7 +250,7 @@ pub enum Delivery {
         /// Owned result text, at most journal `result_bytes`.
         words: Box<[u8]>,
     },
-    /// Complete a public read after its barrier (jig/docs/design/domain/people.md, 13.10).
+    /// Complete a public read after its barrier (jig/docs/design/domain/people/public-reading.md, 10).
     Public {
         reply: ReplyTo,
         answer: jig_domain_core::PublicAnswer,

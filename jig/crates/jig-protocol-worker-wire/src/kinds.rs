@@ -1,4 +1,4 @@
-//! Project record sizes into skein's schema (protocol/channel.md, 4.1).
+//! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
 use crate::{MAGIC, VERSION, v9};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;

@@ -1,4 +1,4 @@
-//! The format row and the sizes at start (store.md 5.3, 5.4).
+//! The format row and the sizes at start (protocol/store/records.md 3, 4).
 use super::fixtures;
 use crate::boundary::{Family, OpenRefusal};
 use crate::{codec, format, sizes};

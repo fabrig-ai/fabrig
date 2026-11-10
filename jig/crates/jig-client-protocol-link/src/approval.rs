@@ -1,4 +1,4 @@
-//! Approval exchanges are transient and answered once (jig/docs/design/protocol/client.md, 8).
+//! Approval exchanges are transient and answered once (jig/docs/design/protocol/client/sign-in.md).
 use crate::component::{Attempt, ExchangeKind};
 use crate::{Approval, ApprovalCode, ApprovalState, Decided, Link, Message, NotAsked, Request, Signing};
 use jig_client_protocol_wire::{VERSION, v19 as w};

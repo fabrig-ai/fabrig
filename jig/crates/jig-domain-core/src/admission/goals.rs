@@ -1,4 +1,4 @@
-//! Admission of goals and recurring work (`jig/docs/design/domain/engine.md`, 4.4).
+//! Admission of goals and recurring work (`jig/docs/design/domain/engine/README.md`, 4.4).
 use crate::{Core, translate};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

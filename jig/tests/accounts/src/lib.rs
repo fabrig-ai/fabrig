@@ -37,7 +37,7 @@ pub struct World {
     pub domain: Domain,
     pub limits: Limits,
     pub now: Time,
-    /// The wall clock the child sees, for what the store keeps (engine.md, 5.4).
+    /// The wall clock the child sees, for what the store keeps (domain/engine/README.md, 5.4).
     pub wall: Wall,
 }
 impl Default for World {

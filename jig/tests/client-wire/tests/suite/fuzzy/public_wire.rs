@@ -1,5 +1,5 @@
-//! Seeded public decoders (jig/docs/design/client/domain/contract.md, section 12;
-//! jig/docs/design/protocol/client.md, section 19).
+//! Seeded public decoders (jig/docs/design/client/domain/contract/README.md, section 10;
+//! jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
 use skein_lib::{Reader, Rng, Writer};
 use std::{fs, panic::catch_unwind};

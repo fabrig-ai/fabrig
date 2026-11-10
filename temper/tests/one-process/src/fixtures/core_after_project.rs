@@ -1,6 +1,6 @@
 //! No core wait: the gate is open and the root ready; a two-membership client
 //! rejects the mandatory `me` after project three (temper/docs/design/client/tools.md, 12;
-//! jig/docs/design/client/domain/contract.md, 5.1), and meets those memberships again at restart.
+//! jig/docs/design/client/domain/contract/documents.md, 1), and meets those memberships again at restart.
 use crate::{
     ctl::{Caller, Command},
     fixtures,

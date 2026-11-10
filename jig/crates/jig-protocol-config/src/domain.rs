@@ -175,7 +175,7 @@ pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problem
         }
     }
 }
-/// The first failed capacity dependency, after all scalar overrides (configuration.md, 6).
+/// The first failed capacity dependency, after all scalar overrides (protocol/limits.md).
 #[rustfmt::skip]
 pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8], What)> {
     let tasks = &limits.tasks;
@@ -479,7 +479,7 @@ fn requirement_refs(
     }
 }
 
-/// Check the effective core limits that will be handed to the store (configuration.md, 6).
+/// Check the effective core limits that will be handed to the store (protocol/limits.md).
 ///
 /// This probes the people family and the combined store codec without changing any
 /// limits. Scalar refusals name the field that fails at the envelope's next byte.

@@ -1,6 +1,6 @@
 //! Intents remain until the root table gives their one durable answer.
 //! Joining, progress and the terminal belong here; objects own their policies.
-//! See client/domain/client.md, 6, and client/domain/root.md, 11.
+//! See client/domain/client/requests.md, and client/domain/root.md, 11.
 use alloc::boxed::Box;
 use jig_client::contract::Ask;
 use skein_lib::Token;
@@ -262,7 +262,7 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
-    // A moved record belongs to the caller's shell, never retained UI state (client/domain/client.md, 6).
+    // A moved record belongs to the caller's shell, never retained UI state (client/domain/client/requests.md).
     if let Answer::Done(jig_client::contract::Outcome::Made {
         what: jig_client::contract::Made::MovingOut { record, .. },
     }) = &mut answer

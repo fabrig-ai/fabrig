@@ -1,4 +1,4 @@
-//! Run preparation chooses instructions and messages for its reasons (jig/docs/design/domain/engine.md, 7.1).
+//! Run preparation chooses instructions and messages for its reasons (jig/docs/design/domain/engine/executors.md, 1).
 use crate::routing::run::{
     parts::{offered_kinds, run_instructions},
     preparation,

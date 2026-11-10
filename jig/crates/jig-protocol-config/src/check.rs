@@ -1,4 +1,4 @@
-//! Collected field and reference checks (configuration.md, 1 and 6).
+//! Collected field and reference checks (protocol/configuration.md, 1 and protocol/limits.md).
 use crate::{Address, Directories, Directory, Path, Problems, What, address, read};
 use alloc::boxed::Box;
 use skein_io::Addr;

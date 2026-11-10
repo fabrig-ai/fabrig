@@ -1,4 +1,4 @@
-//! Live pieces through the existing scripted agent and engine peers (hosts.md, 6.5 and 11).
+//! Live pieces through the existing scripted agent and engine peers (domain/hosts/hub.md, 5, and domain/hosts/README.md, 9).
 use jig_domain_host::{FromAgent, LinkUp, LiveAsk, LiveKind, Piece};
 use jig_domain_link::Phase;
 use jig_host_world::turn_world::World;

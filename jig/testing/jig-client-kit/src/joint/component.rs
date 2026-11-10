@@ -1,5 +1,5 @@
 //! The clients' component and link joined in memory (client/domain/testing.md, 5;
-//! protocol/client.md, 2). Only transport names and external secrets live here.
+//! protocol/client/README.md, 2). Only transport names and external secrets live here.
 use super::{
     engine::Driver,
     session::{Incoming, SignInFailure},

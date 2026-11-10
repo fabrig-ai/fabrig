@@ -1,7 +1,7 @@
 //! An engine at the client's wire protocol boundary, without an engine domain.
 //! Keeps parties, sign-ins, documents, keyed decisions and numbered commits;
 //! serves generated wire records through the client link without a transport.
-//! See client/domain/testing.md, 4 and 6, and contract.md, 3–5.
+//! See client/domain/testing.md, 4 and 6, and client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md.
 //!
 //! | State | Input | Next | Emits |
 //! |---|---|---|---|

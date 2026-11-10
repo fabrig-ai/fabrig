@@ -77,7 +77,7 @@ draws it, and landed apart from this draft.
 | Step | Done once | Left: its line and act | Done: its line |
 |---|---|---|---|
 | 1. "Tell temper how you work" | a configuring chat (`configuring.md`, 5.1) runs or ran in the project, or a setting the project reads holds a change (`configuring.md`, 3.2) | "temper runs its default way of working until you change it.", "Start", filled: the configuring chat, as the chats page's offer starts it (`first-run-projects.md`, section 6) | its title alone |
-| 2. the repository | the project has a home repository (jig's `domain/people.md`, 5.2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; checked changes land on main through temper's merge queue.", one line on a laptop |
+| 2. the repository | the project has a home repository (jig's `domain/people/acts.md`, 2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; checked changes land on main through temper's merge queue.", one line on a laptop |
 | 3. "Start a chat" | the project holds a chat other than a configuring one | "Ask a question or ask for a change.", "New chat" | its title alone |
 
 - **A new project runs on temper's defaults,** its stock policy and
@@ -125,8 +125,8 @@ draws it, and landed apart from this draft.
 - **Kept by the engine,** never in the browser alone, so a phone does
   not show again what the laptop skipped (the user, 2026-11-04). A
   person's state kept by the engine has a precedent in jig's inbox,
-  whose read positions are a party's own (jig's `domain/people.md`,
-  section 6).
+  whose read positions are a party's own (jig's `domain/people/README.md`,
+  section 5).
 - **A family of temper's,** `Dismissed`, at the store's next free byte
   (`../protocol/store.md`, section 2), keyed by the party, then what
   was dismissed: `ToBegin(project)`, the one kind for now; its row

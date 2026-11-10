@@ -1,6 +1,6 @@
 //! Deployment-owned hosts, accounts and bounded diagnostics.
 //! Core-owned facts; connector diagnostics are supplied independently.
-//! client/domain/contract.md, 5 and 7.1;
+//! client/domain/contract/documents.md and client/domain/contract/README.md, 5.1;
 //! client/domain/pages.md, 7.
 use super::{AdmissionLimit, Chip, Funder, Proposer, Requester, SeenThrough, TaskLink};
 use alloc::boxed::Box;
@@ -46,7 +46,7 @@ pub struct Deployment {
     pub readiness_cut: bool,
 }
 
-/// Store map bytes at the last commit answer and its admission mark (store.md, 11.2).
+/// Store map bytes at the last commit answer and its admission mark (protocol/store/README.md, 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct StoreFill {
     pub bytes: u64,
@@ -586,7 +586,7 @@ pub struct ProgramHost {
     pub cut: bool,
 }
 
-/// Required and offered amounts, durations in milliseconds (client/domain/contract.md, 5.1).
+/// Required and offered amounts, durations in milliseconds (client/domain/contract/documents.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Figures {
     pub required: u64,

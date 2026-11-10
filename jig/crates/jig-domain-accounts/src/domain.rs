@@ -68,7 +68,7 @@ pub(crate) struct Source {
     pub(crate) account: u32,
     pub(crate) kind: Kind,
     pub(crate) name: Box<[u8]>,
-    /// Stored position awaiting the start's link pass (engine.md, 6).
+    /// Stored position awaiting the start's link pass (domain/engine/restart.md).
     pub(crate) restore_place: u32,
     state: State,
     grant: Option<Granted>,
@@ -350,7 +350,7 @@ impl Domain {
         let entry = self.sources.get(&number)?;
         Some(fact(number, entry))
     }
-    /// The number the counter gives next; the store keeps it (engine.md, 5.4).
+    /// The number the counter gives next; the store keeps it (domain/engine/README.md, 5.4).
     #[must_use]
     pub const fn next_number(&self) -> u32 {
         self.next
@@ -366,7 +366,7 @@ impl Domain {
         self.restore_failure
     }
 
-    /// A stored reference that prevented the start from linking (engine.md, 6).
+    /// A stored reference that prevented the start from linking (domain/engine/restart.md).
     #[must_use]
     pub const fn restore_link(&self) -> Option<crate::RestoreLink> {
         self.restore_link
@@ -1148,7 +1148,7 @@ pub(crate) fn changed(
     }
 }
 /// A source's record: its place in its account's order, and a limit's reset on the wall clock,
-/// so that it means the same after a restart (engine.md, 5.4).
+/// so that it means the same after a restart (domain/engine/README.md, 5.4).
 pub(crate) fn stored(domain: &Domain, number: u32) -> Stored {
     let entry = domain.sources.get(&number).expect("a kept source");
     let account = domain.accounts.get(&entry.account).expect("a source's account is kept");

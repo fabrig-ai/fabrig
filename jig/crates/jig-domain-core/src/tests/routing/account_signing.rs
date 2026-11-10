@@ -1,6 +1,6 @@
 //! A party's sign-in and sign-out, admitted by people, reach the accounts' component as the core's
 //! root outputs, and the component's answers reach the accounts child and the party's outcome
-//! (`domain/people.md`, 5.1; `domain/accounts.md`, 3.3 and section 5).
+//! (`domain/people/acts.md`, 1; `domain/accounts.md`, 3.3 and section 5).
 use crate::tests::*;
 use jig_domain_link::{Form, Membership, Scheme};
 

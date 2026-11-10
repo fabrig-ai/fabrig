@@ -1,4 +1,4 @@
-//! The one named review dialog, from recalled facts (view.md, 18.5; objects.md, 2).
+//! The one named review dialog, from recalled facts (client/domain/view-state.md, 5; objects.md, 2).
 //! Adoption belongs to the application slot rather than this jig form (client/domain/pages.md, 6.5).
 use crate::tree::cards::common;
 use crate::words::Words;
@@ -373,7 +373,7 @@ fn release_object(b: &mut Builder, object: &Object, words: &Words, bindings: &mu
     }
 }
 /// Release follows the supplied prior lifecycle and resets all failure counts
-/// (tasks.md, 9); only an uncertain entry needs the person's repeat choice.
+/// (domain/tasks/proposals.md); only an uncertain entry needs the person's repeat choice.
 fn release_owner(b: &mut Builder, facts: &ChipHold, words: &Words, bindings: &mut JigBindings) {
     crate::tree::fragments::chip::hold(b, facts, words, bindings);
     words.text(b, JigPhrase::HoldRelease, &[]);

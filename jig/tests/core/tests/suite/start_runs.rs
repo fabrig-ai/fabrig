@@ -1,4 +1,4 @@
-//! Decision opening gates stale listings when the start opens (engine.md, 6, 8).
+//! Decision opening gates stale listings when the start opens (domain/engine/restart.md, domain/engine/fleet.md).
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},

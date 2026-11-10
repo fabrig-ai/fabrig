@@ -1,4 +1,4 @@
-//! Optional connector grants for deployment acts (configuration.md, 3; people.md, 5.3).
+//! Optional connector grants for deployment acts (configuration.md, 3; domain/people/acts.md, 3).
 use crate::{Path, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_people::{ActGrant, ActKind};

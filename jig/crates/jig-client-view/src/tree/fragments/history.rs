@@ -1,4 +1,4 @@
-//! Immutable semantic history (client/domain/objects.md, 11; domain/tasks.md, 7;
+//! Immutable semantic history (client/domain/objects.md, 11; domain/tasks/changes.md;
 //! view.md, 7 and 10). Stored overrides do not record prior effective defaults.
 use crate::JigBindings;
 use crate::words::Words;

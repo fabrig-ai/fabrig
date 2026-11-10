@@ -668,7 +668,7 @@ fn parse_way(query: &[u8]) -> Option<ModelWay> {
     Some(ModelWay { provider: provider?, kind, source: if kind == WayKind::SignIn { source } else { None } })
 }
 
-/// A public page, its identifiers public ones (jig/docs/design/domain/people.md, 13.8).
+/// A public page, its identifiers public ones (jig/docs/design/domain/people/public-reading.md, 8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Public {
     Projects,

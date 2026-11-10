@@ -389,7 +389,7 @@ pub(in crate::codec) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]
     }
 }
 
-// Empty-item wire bytes and the piece's u32 length (protocol/store.md, 5.1).
+// Empty-item wire bytes and the piece's u32 length (protocol/store/records.md, 1).
 // The focused test below holds these to the generated family's bounds.
 const GRANT_FRAMING: u64 = 17;
 const PERMISSION_FRAMING: u32 = 12;

@@ -82,14 +82,14 @@ reference drafts execute.
 
 - **`RemoveForge { forge }`,** of the deployment's scope, its owners'
   act, and the deployment's own when granted by `engine.acts` (jig's
-  `domain/people.md`, 5.3). In one
+  `domain/people/acts.md`, 3). In one
   decision the forge is ended (below); the rest follows as kept acts.
 - **Ended at once,** as `../../domain/forge.md` 4.1 ends the playground's
   forge today, for any forge: no list shows it, no call is served, its
   hints are dropped, the setup host sets it up no more, and its
   repositories leave their projects.
 - **Its live work cancelled:** each change on its repositories, by the
-  deployment's compound cancel (jig's `domain/tasks.md`, the compound
+  deployment's compound cancel (jig's `domain/tasks/README.md`, the compound
   request), so its tasks end as a cancel ends them. A chat that worked
   on it stays open; its next delegation to the forge is refused as on a
   forge not connected.
@@ -116,16 +116,16 @@ reference drafts execute.
 
 - **`RemoveProject { project }`,** the project's owners' act, and the
   deployment's own when granted by `engine.acts` (jig's
-  `domain/people.md`, 5.3), which the playground's reset uses (6.2).
+  `domain/people/acts.md`, 3), which the playground's reset uses (6.2).
 - **Closed at once:** in its decision, the project takes no new task,
   message, adoption or settings change, each refused as on a project
   that is gone, and leaves every list.
 - **Its tasks ended, then erased:** each live task cancelled as a
   conversation's close cancels it, with its grace (jig's
-  `domain/tasks.md`, the compound request); once each has ended, it is
+  `domain/tasks/README.md`, the compound request); once each has ended, it is
   erased whole at once, as its retention would erase it at the horizon
-  (jig's `domain/tasks.md`, its retention class; jig's
-  `protocol/store.md`, 11.1), its transcript's file with it.
+  (jig's `domain/tasks/README.md`, its retention class; jig's
+  `protocol/store/README.md`, 6.1), its transcript's file with it.
 - **Then its own rows:** its policy's copy, its roles and parties, its
   pools in the current period, the settings of its scope (the connector
   owning each kind told, temper erasing its kinds 2, 4 and 5:
@@ -276,5 +276,5 @@ demo's start and end, replaced by 6.1 and 6.2); `../../domain/forge.md`,
 welcome's states) and 4.8 (the demo's halves); `../../client/forge.md`
 (Remove); `../configuring.md`, section 10 (forges' addresses no longer
 later); jig's
-`domain/people.md` (`RemoveProject`) and `domain/tasks.md` (erasure
+`domain/people/README.md` (`RemoveProject`) and `jig/docs/design/domain/tasks/README.md` (erasure
 at once).

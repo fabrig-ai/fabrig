@@ -1,9 +1,9 @@
-//! Key-only restore diagnostics (jig/docs/design/protocol/store.md, 7.1 and 9).
+//! Key-only restore diagnostics (jig/docs/design/protocol/store/loads.md, 1 and jig/docs/design/protocol/store/secrets.md).
 use crate::{Family, OpenRefusal, Phase, Store};
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
 
-/// An open's first available cause (protocol/store.md, 10.1 and 10.2).
+/// An open's first available cause (protocol/store/opening.md, 1 and 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenFailure {
     Refused(OpenRefusal),

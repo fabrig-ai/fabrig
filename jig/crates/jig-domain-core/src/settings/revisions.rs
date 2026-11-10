@@ -1,5 +1,5 @@
-//! Revision checks at the decision boundary (client/domain/contract.md,
-//! section 5.2; domain/people.md, section 5.1). The tasks child keeps each
+//! Revision checks at the decision boundary (client/domain/contract/documents.md,
+//! section 2; domain/people/acts.md, section 1). The tasks child keeps each
 //! counter. The core compares the revision a party named before changing state,
 //! and translates the current hold reason without exposing a child's types.
 use crate::Core;

@@ -1,4 +1,4 @@
-//! Whole live document facts (protocol/client.md, 3 and 7).
+//! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;
@@ -61,7 +61,7 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
 }
 #[expect(
     clippy::disallowed_methods,
-    reason = "protocol/client.md 7: this protocol owner validates retained input UTF-8"
+    reason = "protocol/client/README.md 5: this protocol owner validates retained input UTF-8"
 )]
 pub fn writing_call(value: &views::WritingCall, limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
     let mut skip: usize = 0;

@@ -1,4 +1,4 @@
-//! Held loads serialize marks over one ended conversation (people.md, 6).
+//! Held loads serialize marks over one ended conversation (domain/people/README.md, 5).
 use crate::{Core, Event, Limits, Request, routing::Work};
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};

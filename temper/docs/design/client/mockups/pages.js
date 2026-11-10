@@ -183,8 +183,8 @@
   // designed". `variant` gives what the page shows today in its place.
   // A need is its mark's few words and what would supply it.
   const NEEDS = {
-    display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract.md, 7.1, OwnerAccountLine.display)'],
-    preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract.md, 5.3)'],
+    display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract/README.md, 5.1, OwnerAccountLine.display)'],
+    preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract/documents.md, 3)'],
     ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
     projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
     eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
@@ -1181,7 +1181,7 @@
   const isPlan = a => a.sources.some(s => s.kind === 'sign-in');
   // An account's heading (client README, 5.5, An account): its name, its
   // display where jig gives one, and its holder.
-  const accountHeading = a => fact('client README, 5.5, An account: OwnerAccountLine.{provider, display, holder} (jig’s client/domain/contract.md, 7.1)', `${esc(a.name)}${isPlan(a) ? future('display', esc(` · ${a.sources[0].name}`)) : ''} · ${esc(holderWords(a))}`);
+  const accountHeading = a => fact('client README, 5.5, An account: OwnerAccountLine.{provider, display, holder} (jig’s client/domain/contract/README.md, 5.1)', `${esc(a.name)}${isPlan(a) ? future('display', esc(` · ${a.sources[0].name}`)) : ''} · ${esc(holderWords(a))}`);
   const paysFor = a => (isPlan(a) ? 'Your own work, and projects where you’re the only member' : 'Your own work');
   const accountUsers = a => Object.keys(world.tasks).filter(k => T(k).account === a.name && isLive(k) && T(k).kind !== 'change').sort((x, y) => x.slice(1) - y.slice(1));
 
@@ -1346,7 +1346,7 @@
     const link = `<a class="text-link" href="https://issuer.example/visit" target="_blank" rel="noopener noreferrer">${esc(elsewhere ? PASTE_WORDS.link : PASTE_WORDS.open)}</a>`;
     return `<h3>Signing in</h3>${ended ? '' : `${elsewhere ? '' : `<p>${esc(PASTE_WORDS.address)}</p>`}<p>${link}</p>`}${signInPaste(state, !elsewhere && !ended)}`;
   }
-  const wayLabel = w => conf('engine.providers, offered as me.providers (jig’s client/domain/contract.md, 7.1, ProviderOffer); the label, client README 5.5, The ways', esc(w));
+  const wayLabel = w => conf('engine.providers, offered as me.providers (jig’s client/domain/contract/README.md, 5.1, ProviderOffer); the label, client README 5.5, The ways', esc(w));
   function modelChoices(signIn, keyForm = 'connect-model.html?way=key') {
     const ways = world.config.ways || [];
     const chatgpt = ways.find(w => w.startsWith('Continue with'));
@@ -1357,7 +1357,7 @@
   function chatgptReady(a, wasPlayground) {
     const s = a.sources[0];
     const t = Object.keys(world.tasks).find(k => T(k).account === a.name && isLive(k) && isChat(T(k)));
-    const ended = 'jig’s client/domain/contract.md, 7.1: OwnerAccounts.last_end, Made { account }';
+    const ended = 'jig’s client/domain/contract/README.md, 5.1: OwnerAccounts.last_end, Made { account }';
     return `<h3>${fact(ended, `Signed in to ChatGPT${future('display', esc(` as ${s.name}`))}`)}</h3>
       <p>temper’s agents now run on your ChatGPT plan.</p>
       <div class="repo-lines">
@@ -1470,7 +1470,7 @@
   function githubReady(f, from = 'connect-forge') {
     const install = f.app.installs[0];
     const adopted = githubAdopted(f);
-    if (adopted) return `<div class="forge-setup"><h3>${fact('client/forge.md, 5.4, Ready: the forges watch’s Row.repositories[].{owner, name}', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(adopted.project))}, on GitHub.</p><p>${fact('client README, 4.7, and client/forge.md, 5.4: the adoption’s Adopted.kinds, a GitHub App’s status never set', 'temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain/forge.md, 5.1)', 'The branch has no rules.')}</p>
+    if (adopted) return `<div class="forge-setup"><h3>${fact('client/forge.md, 5.4, Ready: the forges watch’s Row.repositories[].{owner, name}', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract/requests.md, 2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(adopted.project))}, on GitHub.</p><p>${fact('client README, 4.7, and client/forge.md, 5.4: the adoption’s Adopted.kinds, a GitHub App’s status never set', 'temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain/forge.md, 5.1)', 'The branch has no rules.')}</p>
         <div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(adopted.project)}`))}">Open ${esc(adopted.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${adopted.name}, in a new tab.`)}">Open on GitHub ↗</a></div><p class="muted tiny">GitHub is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p></div>`;
     const repos = install.names.map(n => [n, (world.github?.repos[install.account] || []).find(([r]) => r === n)?.[1]]);
     const target = from === 'welcome' ? 'welcome.html?at=model' : 'connect-forge.html?forge=2';
@@ -1635,7 +1635,7 @@
   function flowCard(f, from = 'connect-forge') {
     if (f.admin) return adminCard(f);
     if (f.kind === 'GitHub') return f.state === 'connected' ? githubReady(f, from) : f.state === 'connecting' ? githubConnecting(f, from) : githubAppForm(f);
-    if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(f.setup.project))}, on ${esc(forgeName(f))}.${future('ci', ' Its first CI run passed, on this machine.')}</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a></div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
+    if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract/requests.md, 2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(f.setup.project))}, on ${esc(forgeName(f))}.${future('ci', ' Its first CI run passed, on this machine.')}</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a></div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
     if (['setting up', 'set up failed'].includes(f.state)) return `<h3>Setting up Forgejo on this machine</h3>${chosenValues(f)}${ownedProgress(f, { failedAt: f.state === 'set up failed' ? 'preparing' : null })}${f.state === 'set up failed' ? `${ownedFailure()}<button class="button" data-later="Mockup: the box runs the steps again; a fetched binary is kept.">Set up again</button>` : '<p class="muted tiny">You may leave this page: the steps go on, and the banner says where they are.</p>'}`;
     return f.box ? ownedForm(f) : ownedNotUnderTheBox(f);
   }
@@ -1661,7 +1661,7 @@
     const again = '<button class="button" data-later="Mockup: a fresh sign-in, in this tab; ChatGPT sends it back here.">Continue with ChatGPT</button>';
     if (end === 'not-eligible') return future('eligible', `<div class="welcome-end"><p class="forge-failure">This ChatGPT account can’t be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan.</p><div class="button-row"><a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a><button class="button" data-later="Mockup: a fresh sign-in, after signing out of ChatGPT in the browser.">Sign in to another account</button></div></div>`);
     const [words, key] = SIGN_IN_ENDS[end]();
-    return `<div class="welcome-end"><p class="forge-failure" role="alert">${fact('jig’s client/domain/contract.md, 7.1: OwnerAccounts.last_end, its Refused or Failed', words)}</p><div class="button-row">${again}${key ? `<a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a>` : ''}</div></div>`;
+    return `<div class="welcome-end"><p class="forge-failure" role="alert">${fact('jig’s client/domain/contract/README.md, 5.1: OwnerAccounts.last_end, its Refused or Failed', words)}</p><div class="button-row">${again}${key ? `<a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a>` : ''}</div></div>`;
   }
   pages.welcome = () => {
     document.body.classList.add('terminal-pages');

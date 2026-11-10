@@ -903,7 +903,7 @@ fn releasing_a_project_erases_only_its_adoptions_before_answering() {
     );
 }
 
-/// A job action waits for its delegate's signal (jig/docs/design/domain/engine.md, 7.5).
+/// A job action waits for its delegate's signal (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_procedure_job_waits_for_delegate_done_before_finishing() {
     let mut connector = domain();

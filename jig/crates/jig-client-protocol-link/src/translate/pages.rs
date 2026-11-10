@@ -1,4 +1,4 @@
-//! Whole pages and single documents (protocol/client.md, 3 and 6).
+//! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::classify;
 use super::documents::{
     authority_document_fields, authority_fields, chip_ending_fields, chip_fields, cursor_fields, ending_fields,
@@ -24,7 +24,7 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     }
 }
 
-/// A line's words, whole within `long_text` (client/domain/client.md, 14).
+/// A line's words, whole within `long_text` (client/domain/client/README.md, 11).
 fn long_text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().long_text) {
         Ok(value) => Ok(value),

@@ -1,4 +1,4 @@
-//! Whole project policies changed and proposed (jig/docs/design/domain/engine.md, 17.2, 17.6).
+//! Whole project policies changed and proposed (jig/docs/design/domain/engine/settings.md, 2, 6).
 use crate::settings as s;
 use crate::tests::*;
 

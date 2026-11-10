@@ -1,4 +1,4 @@
-//! Text loss is supplied by the document owner (client/domain/contract.md, 5.2–5.3).
+//! Text loss is supplied by the document owner (client/domain/contract/documents.md, 2–3).
 use super::Text;
 
 /// One document text value with its independent loss fact.

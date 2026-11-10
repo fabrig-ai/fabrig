@@ -12,10 +12,10 @@ mod readback;
 mod tests;
 
 /// The installation's identifier these worlds draw: an empty store keeps it,
-/// and a reopened one answers the one it kept (configuration.md, 8).
+/// and a reopened one answers the one it kept (configuration.md, 7).
 const INSTALLATION: [u8; 16] = [0; 16];
 
-/// Store transport and disk faults (jig/docs/design/protocol/store.md, 14).
+/// Store transport and disk faults (jig/docs/design/protocol/store/README.md, 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     Hold { commits: u32 },
@@ -112,7 +112,7 @@ impl Store {
     ) -> Store {
         Self::build(limits, models, sets, false)
     }
-    /// Open the real store with typed start pages (protocol/store.md, 7.1).
+    /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
     pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
         Self::starting_with_patch_sets(limits, models, protocol::PatchSets::NONE)

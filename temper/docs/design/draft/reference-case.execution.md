@@ -88,7 +88,7 @@ section 14 it adds.
 - **The playground's reset closed out**: its draft ported into the
   design and archived. Done: the milestones' designers
   find the documents they edit (`forge.md`, temper's
-  `../protocol/configuration.md`, jig's `domain/tasks.md`) free of its
+  `../protocol/configuration.md`, jig's `domain/tasks/README.md`) free of its
   Departs entries.
 - **Designers write the design** (the user, 2026-11-02): a milestone's
   designers write their family's design with the words of its changes,
@@ -107,11 +107,11 @@ section 14 it adds.
 - **Design, jig's:** a template naming *its own goal branch* (jig's
   `protocol/configuration.md`, 3.1); an effect of a hold's taking, and
   of its release (jig's `domain/connectors.md`, 3.3 and 4.6, and
-  `domain/tasks.md`, 6.5); a held resource a landing queue orders (jig's
-  `domain/tasks.md`, 6.1); writer slots taken by what a run writes
-  (jig's `domain/tasks.md`, 6.3, against its `domain/engine.md`, 7.1); a
+  `jig/docs/design/domain/tasks/holds.md`, 5); a held resource a landing queue orders (jig's
+  `domain/tasks/holds.md`, 1); writer slots taken by what a run writes
+  (jig's `domain/tasks/holds.md`, 3, against its `domain/engine/executors.md`, 1); a
   charter's default wake policy and the vocabulary it needs (jig's
-  `domain/tasks.md`, 8.3, and jig's `protocol/configuration.md`,
+  `domain/tasks/messages.md`, 3, and jig's `protocol/configuration.md`,
   section 3); a
   result's bound past the settings schema's cap.
 - **Design, temper's:** g as the goal's, not a change's, a change from
@@ -163,14 +163,14 @@ section 14 it adds.
 - **Design:** `agent.md`, 4.3.1 and `forge.md`, 8.1 and 8.9 (`change`
   naming its producer's charter and an LLM choice per role); temper's
   `../protocol/configuration.md`, 13.2 (the forge's charters); jig's
-  `domain/tasks.md`, section 4, jig's `protocol/configuration.md`, 3.1
-  and jig's `domain/engine.md`, 17.4 (a batch's LLM choices checked
-  against its charter's models); jig's `domain/core.md`, 7.1 (a plan's
+  `domain/tasks/README.md`, section 4, jig's `protocol/configuration.md`, 3.1
+  and jig's `domain/engine/settings.md`, 4 (a batch's LLM choices checked
+  against its charter's models); jig's `domain/model.md`, 7.1 (a plan's
   text in the repository's design).
 - **Builds:** temper's `change` and change procedure (a producer's
   charter, an LLM choice per role); jig's check of them; temper's
   kinds as settings, on jig's application settings (jig's
-  `domain/engine.md`, 17.5 to 17.7), built once for both: the landing
+  `domain/engine/settings.md`, 5 to 7), built once for both: the landing
   rules, out of `Config`'s `landing` member (`../domain/root.md`, 5.5,
   5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
   13.2 and 13.3), and the forge's charters, out of `Config`'s
@@ -248,8 +248,8 @@ section 14 it adds.
   `reference-landing.md`, sections 3, step 6 (L's update in conflict)
   and 5.
 - **Design:** jobs are designed and, by M7a, built (jig's
-  `domain/core.md`, 3.2, `domain/tasks.md`, 5.3.1, `domain/engine.md`,
-  7.5 and `domain/hosts.md`, 6.9; `worker.md`, 4.4); temper's worker
+  `domain/model.md`, 3.2, `jig/docs/design/domain/tasks/lifecycle.md`, 3.1, `jig/docs/design/domain/engine/executors.md`,
+  5 and `jig/docs/design/domain/hosts/hub.md`, 9; `worker.md`, 4.4); temper's worker
   declares no kind yet. The merge job is not
   designed: `landing.md`, 5.3, `forge.md`, 8.4 and section 10, temper's
   `../protocol/tooling.md`, sections 1 and 4, and
@@ -308,7 +308,7 @@ section 14 it adds.
 - **Executes:** what is left: `reference-code-production.md`, section 14
   whole, as one reference profile, its limits sized for a goal of a
   hundred changes (N21: temper's `../protocol/configuration.md`, 13.4
-  and section 7, `agent.md`, 4.3.1, jig's `domain/engine.md`, 17.9).
+  and section 7, `agent.md`, 4.3.1, jig's `domain/engine/settings.md`, 9).
   It revisits `.temper/pre-pr` with numbers (the user, 2026-11-02): M1's
   first edition runs the format check and the old-form counts, with no
   build, and the coding agent's charter asks for clippy and the changed

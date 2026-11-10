@@ -27,7 +27,7 @@ pub(super) struct Engine {
     pub seed: u64,
     secrets: BTreeMap<SecretOwner, clients::Kept>,
     /// The values requests carried, by the number this peer drew, from
-    /// 2^63 up as the store draws them (store.md 9).
+    /// 2^63 up as the store draws them (protocol/store/secrets.md).
     pub carried: BTreeMap<u64, skein_lib::Secret>,
     next_carried: u64,
     next_held: u64,

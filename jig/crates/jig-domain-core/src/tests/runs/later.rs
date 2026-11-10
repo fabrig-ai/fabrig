@@ -1,4 +1,4 @@
-//! A task's next run and document follow its activation (jig/docs/design/domain/tasks.md, 3).
+//! A task's next run and document follow its activation (jig/docs/design/domain/tasks/README.md, 3).
 use crate::tests::*;
 use tasks::{LlmChoice, LlmLater, ModelEffort, Reasons};
 

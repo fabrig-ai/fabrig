@@ -1,10 +1,10 @@
-//! The component's own durable rows (protocol/store.md, sections 5.3 and 8.1).
+//! The component's own durable rows (protocol/store/records.md, section 3, and protocol/store/transcripts.md, section 1).
 use crate::component_v3 as wire;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
 pub use wire::{Count, CountParts};
 
-/// Encode the shell's validated start wires (store.md 5.3).
+/// Encode the shell's validated start wires (protocol/store/records.md 3).
 #[must_use]
 pub(crate) fn wires(wires: &[crate::Wire]) -> Box<[u8]> {
     let mut values = List::with_capacity(wire::CEILINGS.wires_wires);
@@ -22,7 +22,7 @@ pub(crate) fn wires(wires: &[crate::Wire]) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Each owner's applied patch level (store.md 5.3).
+/// Each owner's applied patch level (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Levels {
     pub skein: Option<u32>,
@@ -118,7 +118,7 @@ impl Format {
     }
 }
 
-/// A generation's immutable manifest (store.md 2).
+/// A generation's immutable manifest (protocol/store/README.md 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Manifest {
     pub generation: u64,
@@ -215,7 +215,7 @@ impl Attempt {
     }
 }
 
-/// Each kept family's layout fingerprint, kept by the first commit (store.md, 5.3).
+/// Each kept family's layout fingerprint, kept by the first commit (protocol/store/records.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Layouts {
     pub component: [u8; 32],
