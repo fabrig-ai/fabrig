@@ -202,13 +202,13 @@ impl Plan {
                 cut,
                 now,
             },
-            State::Reviews { rows, .. } => api::Answer::Reviews {
+            State::Reviews { rows, cut, .. } => api::Answer::Reviews {
                 reviews: rows.into_boxed(),
-                more: self.count.saturating_add(listed(document)?) >= bounds.page_size,
-            },
-            State::Remarks { rows, more, .. } => {
+                more: self.count.saturating_add(listed(document)?) >= bounds.page_size || cut,
+             cut },
+            State::Remarks { rows, more, cut, .. } => {
                 listed(document)?;
-                api::Answer::Remarks { remarks: rows.into_boxed(), more }
+                api::Answer::Remarks { remarks: rows.into_boxed(), more, cut }
             }
             State::Comments { item, rows, more, .. } => {
                 listed(document)?;

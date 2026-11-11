@@ -10,7 +10,7 @@ const FAILING: &[u8] = br#"{"state":"failure","total_count":1,"statuses":[{"crea
 const RUNS: &[u8] = br#"{"total_count":1,"workflow_runs":[{"id":7,"index_in_repo":5,"commit_sha":"0100000000000000000000000000000000000000"}]}"#;
 
 fn side_answers(file: api::File) -> [Answer; 1] {
-    [Answer::PullFiles { head: HEAD, files: Box::new([file.clone()]), more: false }]
+    [Answer::PullFiles { head: HEAD, files: Box::new([file.clone()]), more: false , cut: false }]
 }
 fn failed_check() -> api::Status {
     api::Status {
@@ -68,7 +68,7 @@ fn redirect_drops_the_path() {
         ("checks", Read::Checks { commit: HEAD }, &[(200, FAILING)][..]),
         (
             "pull side",
-            Read::PullFiles { number: 1, head: HEAD, page: 1 },
+            Read::PullFiles { number: 1, head: HEAD, page: 1 , skip: 0 },
             &[(200, PULL), (200, super::CHANGED_FILES)][..],
         ),
     ] {
@@ -92,55 +92,82 @@ fn items_without_date_is_invalid_answer() {
 }
 
 #[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the table asks only for the three real-row listings")]
 fn items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
-    // Each retained summary has 128 fixed bytes, a one-byte title and one-byte body.
-    const ROW_BYTES: u32 = 130;
-    let body = items_page(8);
-    let short = items_page(6);
-    let mut limits = fixtures::limits();
-    limits.json.length = u32::try_from(body.len()).unwrap();
-    for (body, answer_bytes, kept, cut) in [
-        (&body, 5 * ROW_BYTES, 5, true),
-        (&short, 5 * ROW_BYTES, 5, true),
-        (&body, 8 * ROW_BYTES, 8, false),
-        (&body, 8 * ROW_BYTES - 1, 7, true),
-    ] {
-        let bounds = crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes, ..fixtures::BOUNDS };
-        let mut run = Run::with_limits(
-            limits,
-            bounds,
-            Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }),
-        );
-        run.begin();
-        let answer = run.answer(200, body);
-        let Step::Done(Ok(Answer::Items { items, more, cut: actual_cut, .. })) = answer else {
-            panic!("whole prefix of items: {answer:?}")
-        };
-        assert_eq!(items.len(), kept);
-        for (index, item) in items.iter().enumerate() {
-            assert_eq!(item.number, u64::try_from(index + 1).unwrap());
+    // Summaries, reviews and remarks have distinct fixed widths and whole bodies.
+    for (kind, row_bytes) in [(0, 130_u32), (1, 129), (2, 66)] {
+        for (count, room, skip, kept, cut) in [
+            (8, 5_u32, 0, 5, true), (6, 5, 0, 5, true),
+            (8, 8, 0, 8, false), (8, 7, 0, 7, true),
+            (8, 5, 5, 3, false), (8, 1, 5, 1, true),
+        ] {
+            if kind == 0 && skip != 0 { continue; }
+            let body = sized_page(kind, count);
+            let mut limits = fixtures::limits();
+            limits.json.length = u32::try_from(body.len()).unwrap();
+            let answer_bytes = room.saturating_mul(row_bytes);
+            let bounds = crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes, ..fixtures::BOUNDS };
+            let mut run = Run::with_limits(limits, bounds, Op::Read(sized_read(kind, skip)));
+            run.begin();
+            let answer = run.answer(200, &body);
+            let Step::Done(Ok(answer)) = answer else { panic!("whole prefix: {answer:?}") };
+            assert_eq!(crate::measure::answer(&answer), Some(u64::from(kept * row_bytes)));
+            let mut ids = skein_lib::List::with_capacity(8);
+            let (more, actual_cut) = match answer {
+                Answer::Items { items, more, cut, .. } => {
+                    for row in items { ids.push(row.number).unwrap(); } (more, cut)
+                }
+                Answer::Reviews { reviews, more, cut } => {
+                    for row in reviews { ids.push(row.id).unwrap(); } (more, cut)
+                }
+                Answer::Remarks { remarks, more, cut } => {
+                    for row in remarks { ids.push(row.id).unwrap(); } (more, cut)
+                }
+                value => panic!("listing: {value:?}"),
+            };
+            assert_eq!(ids.len(), kept);
+            for (index, id) in ids.iter().enumerate() {
+                assert_eq!(*id, u64::from(skip).saturating_add(u64::try_from(index).unwrap()).saturating_add(1));
+            }
+            assert_eq!(more, cut || (kind != 2 && count == 8));
+            assert_eq!(actual_cut, cut);
         }
-        assert!(more, "a cut or full page has more");
-        assert_eq!(actual_cut, cut);
-        assert_eq!(
-            crate::measure::answer(&Answer::Items { items, more, cut, now: Time::ZERO }),
-            Some(u64::try_from(kept).unwrap() * u64::from(ROW_BYTES))
-        );
+        let body = sized_page(kind, 8);
+        let mut limits = fixtures::limits();
+        limits.json.length = u32::try_from(body.len()).unwrap();
+        let mut run = Run::with_limits(limits,
+            crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes: row_bytes.saturating_sub(1), ..fixtures::BOUNDS },
+            Op::Read(sized_read(kind, 0)));
+        run.begin();
+        assert_eq!(run.answer(200, &body), Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::AnswerBytes, u64::from(row_bytes.saturating_sub(1)), u64::from(row_bytes))))));
     }
-    let mut run = Run::with_limits(
-        limits,
-        crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes: ROW_BYTES - 1, ..fixtures::BOUNDS },
-        Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }),
-    );
-    run.begin();
-    assert_eq!(
-        run.answer(200, &body),
-        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
-            api::Bound::AnswerBytes,
-            u64::from(ROW_BYTES - 1),
-            u64::from(ROW_BYTES)
-        ))))
-    );
+}
+fn sized_read(kind: u8, skip: u32) -> Read {
+    match kind {
+        0 => Read::Items { since: Time::ZERO, page: 1, kind: None, single: false },
+        1 => Read::Reviews { number: 1, page: 1, skip },
+        2 => Read::Remarks { number: 1, review: 7, page: 1, skip },
+        _ => unreachable!(),
+    }
+}
+fn sized_page(kind: u8, count: u8) -> Box<[u8]> {
+    if kind == 0 { return items_page(count); }
+    let tail = if kind == 1 {
+        br#","user":{"id":2,"login":"writer"},"state":"APPROVED","commit_id":"0100000000000000000000000000000000000000","body":"b","submitted_at":"1970-01-01T00:00:00Z","official":false,"dismissed":false}"#.as_slice()
+    } else {
+        br#","user":{"id":2,"login":"writer"},"path":"x","position":1,"body":"b"}"#.as_slice()
+    };
+    let mut body = skein_lib::Writer::new(usize::from(count).saturating_mul(tail.len().saturating_add(8)).saturating_add(1));
+    body.put(b"[").unwrap();
+    for number in 1_u8..=count {
+        if number > 1 { body.put(b",").unwrap(); }
+        body.put(b"{\"id\":").unwrap();
+        body.put(&[b'0'.saturating_add(number)]).unwrap();
+        body.put(tail).unwrap();
+    }
+    body.put(b"]").unwrap();
+    body.finish()
 }
 
 #[test]
@@ -182,7 +209,7 @@ fn added_file(path: &[u8]) -> api::File {
     api::File { path: Box::from(path), before: None, after: Some(Box::new([])) }
 }
 fn pull_files_page(body: &[u8], paths: &[&[u8]], has_more: Option<bool>) -> Step {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1 }));
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1 , skip: 0 }));
     run.begin();
     run.answer(200, PULL);
     let mut step = run.answer_with(200, body, crate::forgejo::plans::Fields { has_more, ..fixtures::fields() });
@@ -212,7 +239,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                         head: HEAD,
                         files: Box::new([added_file(b"x")]),
                         more: false,
-                    })),
+                     cut: false })),
                 }
             }),
             ("full_pull_files_without_has_more_has_more", {
@@ -224,7 +251,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                         head: HEAD,
                         files: Box::new([added_file(b"x"), added_file(b"y")]),
                         more: true,
-                    })),
+                     cut: false })),
                 }
             }),
             ("explicit_last_pull_files_page_has_no_more", {
@@ -236,7 +263,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                         head: HEAD,
                         files: Box::new([added_file(b"x"), added_file(b"y")]),
                         more: false,
-                    })),
+                     cut: false })),
                 }
             }),
         ],
@@ -282,12 +309,12 @@ fn repository_404_drops_the_row() {
 
 #[test]
 fn null_pull_files_page_past_last_finishes_at_the_observed_head() {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 3 }));
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 3 , skip: 0 }));
     run.begin();
     run.answer(200, PULL);
     assert_eq!(
         run.answer(200, b"null"),
-        Step::Done(Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false }))
+        Step::Done(Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false , cut: false }))
     );
     run.assert_sent(&[
         "GET /api/v1/repos/fixture/specimen/pulls/1",

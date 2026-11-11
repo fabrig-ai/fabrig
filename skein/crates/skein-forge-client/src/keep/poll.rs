@@ -71,7 +71,7 @@ fn prepare_inbox(row: &mut Live, phase: Phase, priority: Priority, out: &mut Que
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchAncestry { .. } => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => {}
     }
 }
 fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
@@ -89,8 +89,8 @@ fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
             What::Pull(number) => Read::Pull { number },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("pull stage"),
         },
-        Phase::Reviews(page) => match key.what {
-            What::Pull(number) => Read::Reviews { number, page },
+        Phase::Reviews(page, skip) => match key.what {
+            What::Pull(number) => Read::Reviews { number, page, skip },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("reviews stage"),
         },
         Phase::Branch => match &key.what {

@@ -216,7 +216,7 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
         )
         .expect("a pull was opened");
     forge.ok(AUTHOR, &repository, Op::Read(Read::Pull { number }));
-    forge.ok(AUTHOR, &repository, Op::Read(Read::PullFiles { number, page: 1, limit: 0 }));
+    forge.ok(AUTHOR, &repository, Op::Read(Read::PullFiles { number, page: 1, limit: 0 , skip: 0 }));
     forge.ok(AUTHOR, &repository, Op::Read(Read::Checks { commit: right }));
     forge.ok(AUTHOR, &repository, Op::Read(Read::Settings));
     forge.ok(AUTHOR, &repository, Op::Read(Read::Collaborators));

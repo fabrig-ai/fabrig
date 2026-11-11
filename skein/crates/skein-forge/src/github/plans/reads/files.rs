@@ -187,6 +187,7 @@ impl Plan {
                 }
                 if self.stage == Stage::FileListing {
                     self.page_row(bounds)?;
+                    if let Read::PullFiles { skip, .. } = self.read && self.count <= skip { return Ok(()); }
                     if file.status == crate::github::document::FileStatus::Renamed && file.previous.is_none() {
                         return Err(api::Error::InvalidAnswer);
                     }
@@ -284,7 +285,7 @@ impl Plan {
         }
         let files = core::mem::replace(&mut self.files.files, skein_lib::List::with_capacity(0)).into_boxed();
         if let Read::PullFiles { head, .. } = self.read {
-            self.terminal(api::Answer::PullFiles { head, files, more: self.files.more }, bounds)
+            self.terminal(api::Answer::PullFiles { head, files, more: self.files.more , cut: false }, bounds)
         } else {
             Err(api::Error::InvalidAnswer)
         }

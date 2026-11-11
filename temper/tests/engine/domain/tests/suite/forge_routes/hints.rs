@@ -31,7 +31,7 @@ fn reads_for(world: &World, task: u64) -> Vec<Op> {
         Op::Read(Read::Checks { commit: head }),
         Op::Read(Read::Checks { commit: base }),
         Op::Read(Read::Commits { before: head, after: base, page: 1 }),
-        Op::Read(Read::Reviews { number: row.pull.expect("opened pull"), page: 1 }),
+        Op::Read(Read::Reviews { number: row.pull.expect("opened pull"), page: 1 , skip: 0 }),
     ]
 }
 

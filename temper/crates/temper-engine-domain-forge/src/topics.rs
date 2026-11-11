@@ -19,7 +19,7 @@ pub(crate) struct Files {
 #[derive(Clone, Copy, Hash, Debug)]
 enum Stage {
     Before,
-    Page(u32),
+    Page(u32, u32),
     After,
 }
 /// One coherent pull-file read chain; at most one per live change.
@@ -113,14 +113,15 @@ pub(crate) fn answer(
                     && pull.commit == pending.head
                     && pull.state == skein_forge::api::State::Open =>
             {
-                pending.stage = Stage::Page(1);
-                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1 })
+                pending.stage = Stage::Page(1, 0);
+                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1 , skip: 0 })
             }
             Ok(_) | Err(_) => None,
         },
-        Stage::Page(page) => match result {
-            Ok(skein_forge::api::Answer::PullFiles { head, files, more }) if head == pending.head => {
+        Stage::Page(page, skip) => match result {
+            Ok(skein_forge::api::Answer::PullFiles { head, files, more, cut }) if head == pending.head => {
                 let empty = files.is_empty();
+                let kept = u32::try_from(files.len()).expect("bounded files");
                 for file in files {
                     if file.path.len() > skein_lib::usize_of(env.limits.name_bytes)
                         || pending.paths.push(file.path).is_err()
@@ -130,16 +131,17 @@ pub(crate) fn answer(
                     }
                 }
                 if more {
-                    if page >= env.limits.paths_per_subscription || empty {
+                    if (!cut && page >= env.limits.paths_per_subscription) || empty {
                         finish(d, pending, None);
                         return;
                     }
-                    let Some(page) = page.checked_add(1) else {
+                    let Some(page) = (if cut { Some(page) } else { page.checked_add(1) }) else {
                         finish(d, pending, None);
                         return;
                     };
-                    pending.stage = Stage::Page(page);
-                    Some(skein_forge::api::Read::PullFiles { number: pending.pull, head, page })
+                    let skip = if cut { skip.saturating_add(kept) } else { 0 };
+                    pending.stage = Stage::Page(page, skip);
+                    Some(skein_forge::api::Read::PullFiles { number: pending.pull, head, page, skip })
                 } else {
                     pending.stage = Stage::After;
                     Some(skein_forge::api::Read::Pull { number: pending.pull })
@@ -244,4 +246,45 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
         }
     }
     if unknown { Class::Wakes } else { Class::Kept }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_forge::api::{self, Answer};
+
+    #[test]
+    fn file_collection_resumes_cuts_before_advancing_and_stays_bounded() {
+        for capacity in [2, 4] {
+            let mut d = crate::tests::domain();
+            let env = crate::tests::env();
+            let owner = Token::new(99);
+            let repository = api::Repository { forge: 1, repository: 2 };
+            d.goal_file_reads.insert(owner, Pending {
+                task: 7, repository, pull: 1, head: [1; 32], stage: Stage::Page(1, 0),
+                paths: List::with_capacity(capacity),
+            }).unwrap();
+            let mut out = Queue::uncapped();
+            for (path, cut, more, next_page, next_skip) in [
+                (b"a", true, true, 1, 1), (b"b", true, true, 1, 2),
+                (b"c", false, true, 2, 0), (b"d", false, false, 0, 0),
+            ] {
+                answer(&mut d, &env, owner, Ok(Answer::PullFiles {
+                    head: [1; 32], files: Box::new([api::File { path: Box::from(path.as_slice()), before: None, after: None }]),
+                    more, cut,
+                }), &mut out);
+                if !d.goal_file_reads.contains_key(&owner) {
+                    assert_eq!(capacity, 2);
+                    assert!(d.goal_files.get(&7).unwrap().paths.is_none());
+                    break;
+                }
+                let pending = d.goal_file_reads.get(&owner).unwrap();
+                if next_page == 0 {
+                    assert!(matches!(pending.stage, Stage::After));
+                } else {
+                    assert!(matches!(pending.stage, Stage::Page(page, skip) if page == next_page && skip == next_skip));
+                }
+            }
+        }
+    }
 }

@@ -592,7 +592,7 @@ fn malformed_review_pages_are_rejected_before_any_delivery_or_cursor_mutation() 
         h.news.clear();
         let before = h.record(&pull()).clone();
         let read = h.one();
-        h.answer(read, Answer::Reviews { reviews: Box::new([review(ids[0], 90), review(ids[1], 90)]), more: false });
+        h.answer(read, Answer::Reviews { reviews: Box::new([review(ids[0], 90), review(ids[1], 90)]), more: false , cut: false });
         assert!(h.news.is_empty());
         assert_eq!(h.record(&pull()), &before);
         assert_eq!(h.failures.as_slice(), &[Error::InvalidAnswer]);
@@ -683,6 +683,7 @@ fn a_reserved_background_share_is_admitted_even_with_one_pending_slot_and_replen
 }
 #[test]
 fn a_restart_between_review_pages_never_repeats_delivered_rows_or_metadata() {
+    for cut in [false, true] {
     let mut h = Harness::new();
     h.keep(Box::new([watch(pull(), true)]));
     h.clock();
@@ -691,8 +692,15 @@ fn a_restart_between_review_pages_never_repeats_delivered_rows_or_metadata() {
     let read = h.one();
     h.answer(read, Answer::Pull(current()));
     let read = h.one();
-    h.answer(read, Answer::Reviews { reviews: Box::new([review(1, 90), review(2, 90)]), more: true });
-    assert_eq!(h.record(&pull()).review_page, 2);
+    h.answer(read, Answer::Reviews { reviews: Box::new([review(1, 90), review(2, 90)]), more: true, cut });
+    assert_eq!(h.record(&pull()).review_page, if cut { 1 } else { 2 });
+    if cut {
+        let read = h.one();
+        assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 2 }));
+        h.answer(read, Answer::Reviews { reviews: Box::new([review(3, 91)]), more: true, cut: true });
+        let read = h.one();
+        assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 3 }));
+    }
     h.news.clear();
     h.restart();
     let read = h.one();
@@ -700,18 +708,20 @@ fn a_restart_between_review_pages_never_repeats_delivered_rows_or_metadata() {
     let read = h.one();
     h.answer(read, Answer::Pull(current()));
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 2 }));
+    assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: if cut { 1 } else { 2 }, skip: 0 }));
     // A pending review became visible before our page: the shifted page
     // repeats an older row, whose durable delivery stamp suppresses it.
-    h.answer(read, Answer::Reviews { reviews: Box::new([review(2, 90), review(3, 91)]), more: false });
+    let last = if cut { 4 } else { 3 };
+    h.answer(read, Answer::Reviews { reviews: Box::new([review(2, 90), review(last, 91)]), more: false, cut: false });
     match h.news.as_slice() {
         [Answer::Reviews { reviews, .. }] => {
             assert_eq!(reviews.len(), 1);
-            assert_eq!(reviews[0].id, 3);
+            assert_eq!(reviews[0].id, last);
         }
         _ => panic!("one new review after recovery, no cached metadata repeat"),
     }
     assert_eq!(h.record(&pull()).review_page, 1);
+    }
 }
 #[test]
 fn comment_scan_progress_and_edited_old_versions_are_durable() {
@@ -1113,7 +1123,7 @@ fn timed_reads_fall_back_while_their_repository_hears() {
                     h.answer(read, Answer::Pull(current()));
                     if participating {
                         let read = h.one();
-                        h.answer(read, Answer::Reviews { reviews: Box::new([]), more: false });
+                        h.answer(read, Answer::Reviews { reviews: Box::new([]), more: false , cut: false });
                     }
                 }
                 // Observe just this resource's armed deadline, not the listing.

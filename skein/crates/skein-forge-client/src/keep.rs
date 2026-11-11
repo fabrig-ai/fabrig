@@ -78,7 +78,7 @@ enum State {
 enum Phase {
     Object,
     Pull,
-    Reviews(u32),
+    Reviews(u32, u32),
     Branch,
     BranchAncestry { before: Commit, after: Commit },
 }
@@ -100,7 +100,7 @@ impl Refusals {
         match phase {
             Phase::Object => self.object,
             Phase::Pull => self.pull,
-            Phase::Reviews(_) => self.reviews,
+            Phase::Reviews(_, _) => self.reviews,
             Phase::Branch => self.branch,
             Phase::BranchAncestry { before, after } => self.ancestry == Some((before, after)),
         }
@@ -109,7 +109,7 @@ impl Refusals {
         match phase {
             Phase::Object => self.object = refused,
             Phase::Pull => self.pull = refused,
-            Phase::Reviews(_) => self.reviews = refused,
+            Phase::Reviews(_, _) => self.reviews = refused,
             Phase::Branch => self.branch = refused,
             Phase::BranchAncestry { before, after } => {
                 self.ancestry = if refused { Some((before, after)) } else { None };

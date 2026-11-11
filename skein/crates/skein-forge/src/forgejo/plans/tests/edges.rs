@@ -6,7 +6,7 @@ use crate::forgejo::tests::fixtures::{ATTEMPT, JOB, PULL, RAW_BYTES, RUN, Run};
 
 #[test]
 fn pull_files_stops_at_a_stale_head() {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1 }));
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1 , skip: 0 }));
     run.begin();
     assert_eq!(run.answer(200, PULL), Step::Done(Err(Error::Stale)));
     run.assert_sent(&["GET /api/v1/repos/fixture/specimen/pulls/1"]);
@@ -542,7 +542,7 @@ fn read_inner_overflow_is_too_large() {
     let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
         panic!("expected a typed size refusal");
     };
-    for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
+    for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 , skip: 0 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));
         let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
             panic!("expected a typed size refusal");
@@ -638,12 +638,47 @@ fn file_sides_past_remaining_room_are_too_large() {
             run.assert_sent(sends);
         }
     }
+    // The first file fits, but the next whole side exceeds the room left.
+    // Resume the same listing without ever reading the skipped file's side.
+    let answer_bytes = u32::try_from(crate::measure::FILE_BYTES.saturating_add(1).saturating_mul(2)).unwrap().saturating_add(3);
+    let changed = br#"[{"filename":"x","status":"added"},{"filename":"y","status":"added"}]"#;
+    for skip in [0, 1] {
+        let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS },
+            Op::Read(Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip }));
+        run.begin();
+        run.answer(200, PULL);
+        run.answer(200, changed);
+        if skip == 0 {
+            run.answer(200, b"");
+            assert_eq!(run.answer(200, b"four"), Step::Done(Ok(Answer::PullFiles {
+                head: HEAD, files: Box::new([api::File { path: Box::from(&b"x"[..]), before: None, after: Some(Box::new([])) }]),
+                more: true, cut: true,
+            })));
+            run.assert_sent(&[
+                "GET /api/v1/repos/fixture/specimen/pulls/1",
+                "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+                "GET /api/v1/repos/fixture/specimen/raw/x?ref=0100000000000000000000000000000000000000",
+                "GET /api/v1/repos/fixture/specimen/raw/y?ref=0100000000000000000000000000000000000000",
+            ]);
+        } else {
+            assert_eq!(run.answer(200, b"four"), Step::Done(Ok(Answer::PullFiles {
+                head: HEAD, files: Box::new([api::File { path: Box::from(&b"y"[..]), before: None, after: Some(Box::from(&b"four"[..])) }]),
+                more: true, cut: false,
+            })));
+            run.assert_sent(&[
+                "GET /api/v1/repos/fixture/specimen/pulls/1",
+                "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+                "GET /api/v1/repos/fixture/specimen/raw/y?ref=0100000000000000000000000000000000000000",
+            ]);
+        }
+    }
+
 }
 
 type SideCase = (Read, &'static [(u16, &'static [u8])], &'static [&'static str]);
 fn side_cases() -> [SideCase; 1] {
     [(
-        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 },
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 , skip: 0 },
         &[(200, PULL), (200, CHANGED_FILES)],
         &[
             "GET /api/v1/repos/fixture/specimen/pulls/1",

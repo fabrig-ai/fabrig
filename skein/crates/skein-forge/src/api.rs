@@ -121,18 +121,18 @@ pub enum Read {
     /// The open matching pull, else the oldest.
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     /// Read reviews.
-    Reviews { number: u64, page: u32 },
+    Reviews { number: u64, page: u32, skip: u32 },
     /// Read statuses.
     Statuses { commit: Commit, page: u32 },
     /// Read remarks.
-    Remarks { number: u64, review: u64, page: u32 },
+    Remarks { number: u64, review: u64, page: u32, skip: u32 },
     /// Read branch.
     Branch { branch: Box<[u8]> },
     /// Names starting with the nonempty branch prefix, bounded like a branch name.
     /// Only matching names count toward the adapter's answer limit.
     Branches { prefix: Box<[u8]> },
     /// Read pull files.
-    PullFiles { number: u64, head: Commit, page: u32 },
+    PullFiles { number: u64, head: Commit, page: u32, skip: u32 },
     /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
     /// Provider descriptions and links, with a failing job's attempt.
@@ -213,17 +213,17 @@ pub enum Answer {
     /// Return pull.
     Pull(Pull),
     /// Return reviews.
-    Reviews { reviews: Box<[Review]>, more: bool },
+    Reviews { reviews: Box<[Review]>, more: bool, cut: bool },
     /// Return statuses.
     Statuses { ci: Ci, statuses: Box<[Status]>, more: bool },
     /// Return remarks.
-    Remarks { remarks: Box<[Remark]>, more: bool },
+    Remarks { remarks: Box<[Remark]>, more: bool, cut: bool },
     /// Return commit.
     Commit(Commit),
     /// Return branch names for adoption's deployment-prefix check.
     Branches(Box<[Box<[u8]>]>),
     /// The observed head must equal the request's head.
-    PullFiles { head: Commit, files: Box<[File]>, more: bool },
+    PullFiles { head: Commit, files: Box<[File]>, more: bool, cut: bool },
     /// Return compare.
     /// Names, counts and containment of two commits; no contents (forge/README.md, 3.2 and 3.3).
     Compare { before: Commit, after: Commit, ahead: u64, behind: u64, files: Box<[Box<[u8]>]>, changed: u64 },

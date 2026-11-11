@@ -165,7 +165,7 @@ fn settling_keeps_a_reviews_proving_find_and_an_updates_comparison() {
         Ok(Answer::Reviews {
             reviews: Box::new([recovered_review(7, api::Provenance::Original, [1; 32])]),
             more: false,
-        }),
+         cut: false }),
     );
     assert_eq!(review.settled.as_deref(), Some([].as_slice()));
     assert_eq!(review.outcomes.as_slice(), &[(1, Outcome::Made { made: Made::Reviewed(7), found: true })]);

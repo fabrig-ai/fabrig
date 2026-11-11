@@ -145,7 +145,7 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
             at: skein_lib::Time::ZERO,
             official: false,
         };
-        rows.push(("measure_answer_review", (Answer::Reviews { reviews: Box::new([review]), more: false }, 131)))
+        rows.push(("measure_answer_review", (Answer::Reviews { reviews: Box::new([review]), more: false , cut: false }, 131)))
             .unwrap();
     }
     {
@@ -190,7 +190,7 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
     }
     {
         let remark = api::Remark { id: 1, author: 1, path: Box::from(WORD), line: 1, body: Box::from(&b"ab"[..]) };
-        rows.push(("measure_answer_remark", (Answer::Remarks { remarks: Box::new([remark]), more: false }, 69)))
+        rows.push(("measure_answer_remark", (Answer::Remarks { remarks: Box::new([remark]), more: false , cut: false }, 69)))
             .unwrap();
     }
     {
@@ -198,7 +198,7 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
             api::File { path: Box::from(WORD), before: Some(Box::from(&b"a"[..])), after: Some(Box::from(&b"bc"[..])) };
         rows.push((
             "measure_answer_file: pull files",
-            (Answer::PullFiles { head: [1; 32], files: Box::new([file.clone()]), more: false }, 70),
+            (Answer::PullFiles { head: [1; 32], files: Box::new([file.clone()]), more: false , cut: false }, 70),
         ))
         .unwrap();
         rows.push((

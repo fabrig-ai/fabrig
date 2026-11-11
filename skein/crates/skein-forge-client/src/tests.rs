@@ -447,18 +447,18 @@ fn compare_names_fit_rows_independently_of_counts() {
 #[test]
 fn files_at_a_different_head_are_refused_and_deletions_survive() {
     let mut h = Harness::new(LIMITS);
-    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1 };
+    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1 , skip: 0 };
     drop(h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }));
     let sent = h.one();
     terminal(
-        &h.answer(&sent, 1, Ok(Answer::PullFiles { head: [2; 32], files: Box::new([]), more: false })),
+        &h.answer(&sent, 1, Ok(Answer::PullFiles { head: [2; 32], files: Box::new([]), more: false , cut: false })),
         1,
         Error::InvalidAnswer,
     );
     drop(h.step(Event::Read { owner: Token::new(2), repository: REPO, read }));
     let sent = h.one();
     let file = api::File { path: Box::from(&b"deleted"[..]), before: Some(Box::from(&b"contents"[..])), after: None };
-    let answer = Answer::PullFiles { head: [1; 32], files: Box::new([file]), more: false };
+    let answer = Answer::PullFiles { head: [1; 32], files: Box::new([file]), more: false , cut: false };
     assert_eq!(
         h.answer(&sent, 1, Ok(answer.clone())).as_ref(),
         &[Request::Read { owner: Token::new(2), result: Ok(answer) }]
