@@ -111,7 +111,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
-| `home-away-quiet` | hand-made Home deliveries: `AwayRow` on and no `Decision` showing: the spell's kicker, "While you were away · 23:10 to now", its headline's landed count and the needs sentence, "Still needs you", and no *Decided for you* (`../pages/home.md`, 1, *Decided for you*, *On Home*) |
+| `home-away-quiet` | hand-made Home deliveries: `AwayRow` on, one card open and no `Decision` showing: the spell's kicker, "While you were away · 23:10 to now", its headline's landed count and the needs sentence, "Still needs you · 1", and no *Decided for you* (`../pages/home.md`, 1, *Decided for you*, *On Home*) |
 | `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |

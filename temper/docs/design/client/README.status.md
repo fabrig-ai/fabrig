@@ -40,7 +40,9 @@ follow landing (`README.md`, section 5).
 - **Not yet:** `pages/home.md`, 1, *Decided for you*, *On Home*: the intro takes the
   spell's form only while a row shows too (`temper-client-domain`'s
   `pages/home.rs`), so Away on, or ended less than a day ago, with no row
-  showing draws *Home on any project*'s intro.
+  showing draws *Home on any project*'s intro; and in the spell's form the
+  needs' head says "Needs you · 2", where it says "Still needs you · 2"
+  (`temper-client-view`'s `pages/home.rs`).
 - **Not yet:** `pages/needs-you.md`, 1, *Stop asking*, *Its offers in words*: a
   path set's words offer draws its "Which changes" field above "Let agents
   decide changes to NAME that are:", where the sentence stands over it
