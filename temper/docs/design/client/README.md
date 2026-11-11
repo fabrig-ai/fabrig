@@ -154,8 +154,9 @@ temper-client-tui               the TUI: its state, its events, its pages as ske
 temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
 └── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
-temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
-temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
+temper-box-shell                the box's binary's crate; `temper-box open` runs the line client (../protocol/binaries.md)
+temper-client-shell             `temper`'s crate: `temper [ADDRESS]` runs the TUI, `temper box` the TUI in front of a box, `temper ctl` the agents' tools (../cli/README.md, 7.4)
+└── temper-fetch-shell          the fetch of `temper-box` for `temper box` (box-binary.md)
 temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 └── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
@@ -222,15 +223,14 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   limits beside them; and `start`, the TUI's arguments and start (`tui/README.md`, 1, 2
   ): the address, the directory and what it keeps, the engine's link
   file read, the terminal's scheme and depth, the opener, and `run`.
-- **The clients' shared start.** The client's `temper`, the box's
-  `temper-box` and `temper-client` use the same client code, in the
-  shells they link, never through another binary
-  (`../draft/deployment-binaries.md`, section 4):
-  - `temper [ADDRESS]` and `temper-client [ADDRESS]` call
-    `temper_client_shell_tui::start::run`, given the binary's name for
-    the lines it prints (`tui/README.md`, 1); the box runs that TUI by
-    `temper-box internal tui` until C3 (`../cli/README.md`, 6);
-  - `temper ctl` and `temper-client ctl` call
+- **The clients' shared start.** The client's `temper` and the box's
+  `temper-box` use the same client code, in the shells they link, never
+  through another binary (`../draft/deployment-binaries.md`, section 4):
+  - `temper [ADDRESS]` calls `temper_client_shell_tui::start::run`, given
+    the binary's name for the lines it prints (`tui/README.md`, 1), and
+    `temper box` runs the same TUI in front of a `temper-box --front`
+    child (`tui/box.md`; `box-binary.md`); the box runs no TUI;
+  - `temper ctl` and `temper-box ctl` call
     `temper_client_shell_cli::start::run`, whose lines name `temper ctl`
     in both (`ctl/README.md`, 6.1);
   - an argument naming an engine's address or a sign-in link is read by

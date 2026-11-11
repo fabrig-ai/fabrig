@@ -7,16 +7,16 @@ crate, its table, how its arguments reach a command, its help, its
 exits, the environment it reads and passes down, and the reference
 documents generated from its table. The sets are the draft's
 (`../draft/cli.md`, section 4); this document gives `temper-box`'s,
-`temper-engine`'s, `temper-worker`'s and `temper-agent`'s. `temper`, the
-client, takes its in its own milestone (`../draft/cli.execution.md`,
-C3).
+`temper-engine`'s, `temper-worker`'s, `temper-agent`'s and `temper`'s,
+the client's.
 
 ## 1. In one page
 
 - **A binary is a package** at `temper/bin/<binary>/`, whose `main.rs`
   installs fail-stop and calls its crate's `main` (2). The box's crate
   is `temper-box-shell`, the engine's `temper-engine-shell`, the
-  worker's `temper-worker-shell` and the agent's `temper-agent-shell`.
+  worker's `temper-worker-shell`, the agent's `temper-agent-shell` and
+  the client's, `temper`'s, `temper-client-shell`.
 - **Its crate holds its table,** a `skein_shell::Table`, and captures
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
@@ -27,9 +27,9 @@ C3).
 - **Help:** `-h`, `--help` and `help` print the table's page;
   `help pages`, `help NAME`, `help --search` and `help commands` are the
   pages, and `commands` is the binary's own table (5).
-- **The tables** of `temper-box` (6) and of the deployment's three,
-  `temper-engine`, `temper-worker` and `temper-agent` (7), and the
-  variables each declares (8).
+- **The tables** of `temper-box` (6) and of the deployment's four,
+  `temper-engine`, `temper-worker`, `temper-agent` and the client,
+  `temper` (7), and the variables each declares (8).
 - **Generated:** each binary's `<binary>-args.md` and `<binary>-env.md`,
   and the tree's common environment document, beside this page, checked
   byte for byte (9).
@@ -45,6 +45,7 @@ C3).
 | `temper-engine` | `temper/bin/temper-engine` | `temper-engine-shell` | `temper_engine_shell::ENGINE` |
 | `temper-worker` | `temper/bin/temper-worker` | `temper-worker-shell` | `temper_worker_shell::WORKER` |
 | `temper-agent` | `temper/bin/temper-agent` | `temper-agent-shell` (`temper/crates/temper-agent-shell`) | `temper_agent_shell::AGENT` |
+| `temper` | `temper/bin/temper` | `temper-client-shell` (`temper/crates/temper-client-shell`) | `temper_client_shell::CLIENT` |
 
 - **`main.rs`** is the package's whole source:
 
@@ -73,14 +74,21 @@ C3).
   the library's code, its table and everything the binary runs. No other
   crate names the old library. The worker's package is already at
   `temper/bin/temper-worker`, its crate `temper-worker-shell`.
+- **The client's package splits too:** `temper/crates/temper-client`, a
+  library and the binary `temper-client` in one package, becomes the
+  binary's package `temper` at `temper/bin/temper` and its crate
+  `temper-client-shell` at `temper/crates/temper-client-shell`, which
+  holds the library's code, its table and everything the binary runs
+  (7.4). The binary `temper-client` goes: whatever ran it runs `temper`.
 - **Tests that run a binary live in its package,** under its `tests/`,
   since Cargo gives `CARGO_BIN_EXE_<name>` to its own package's tests
   alone: the whole product's integration tests, with their `[[test]]`
   targets, fixtures and support, move from `temper/crates/temper/tests/`
   to `temper/bin/temper-box/tests/`, the engine's from
   `temper/crates/temper-engine/tests/` to `temper/bin/temper-engine/tests/`,
-  and the agent's suite from `temper/crates/temper-agent/tests/` to
-  `temper/bin/temper-agent/tests/`.
+  the agent's suite from `temper/crates/temper-agent/tests/` to
+  `temper/bin/temper-agent/tests/`, and the client's from
+  `temper/crates/temper-client/tests/` to `temper/bin/temper/tests/`.
   They are dev-dependencies' users, which link nothing into the binary.
   Unit tests stay in their crate.
 - **A crate's features stay its own** until `../draft/cli.execution.md`'s
@@ -164,8 +172,11 @@ The version and commit in each table are `temper_version::VERSION` and
 - **`--version`:** `TABLE.version_line()`; no `version` command.
 
 `temper-shell`'s `table` module holds what every temper binary on
-skein's table shares, beside the `commands` module the client keeps
-until C3:
+skein's table shares. Its older `commands` module keeps only what the
+engine's, the worker's and the box's crates still read of it (the
+directories' argument and the forge's rows' parts); what the client
+alone read, `commands::{find, help, row, unknown, refused}` and `rows`'
+`HELP` and `TUI`, goes with the client's own table (7.4):
 
 ```rust
 /// `help`'s row: public, its form `[NAME | pages | --search WORDS...]`.
@@ -205,22 +216,23 @@ command; temper-box help pages lists the pages.`
 | `upgrade` | public | `../protocol/binaries.md`'s, once it's built |
 | `ctl`, `open` | internal | the tests' |
 | `forge fetch`, `prepare`, `run`, `remove`, `source`, `sign-in` | internal | `temper-engine-shell`'s (7) |
-| `internal agent`, `internal agent-list`, `internal serve`, `internal forge-child`, `internal tui` | internal | spawned |
+| `internal agent`, `internal agent-list`, `internal serve`, `internal forge-child` | internal | spawned |
 | `fake llm`, `fake forge`, `fake forge check`, `fake oauth`, `fake git` | internal | the test doubles (`../testing/fakes.md`) |
 | run as `git`; run as `claude`; `--mcp-relay`; `--program-child`; `--list` | internal | the pre-table modes, rows that match before the others: fake git, the Claude Code launcher, smith's relay, smith's program child, and smith's list read's `--list internal agent-list AGENT.json` |
 
-- **The bare form is today's `temper box`:** its internal switches
-  `--fake-backends` and `--no-tui` and its internal setting `--bundle
-  BUNDLE` give today's other forms. In a terminal, with `--echo none`
-  and no `--no-tui`, it runs the TUI in front, signed in, by `internal
-  tui` (`../protocol/setup/box.md`, 6). C3 moves that front into the
-  client's `temper box` and removes `--no-tui` and `internal tui`
-  (`../draft/cli.md`, section 5). `--echo` is a flag of every form, the
-  fake backends' among them.
-- **No `box` words and no TUI:** `temper box` is the client's
-  (`../draft/cli.md`, 4.1 and 5), and the TUI on an engine is
-  `temper-client [ADDRESS]`'s until C3 names it `temper`. A caller that
-  ran the TUI through the whole product runs `temper-client`.
+- **The bare form is the box without a TUI,** what `temper box --no-tui`
+  was: in a terminal or not, it prints its sign-in block and its lines
+  as `../protocol/setup/box.md`, 2 says. Its internal switches
+  `--fake-backends` and `--front` and its internal setting `--bundle
+  BUNDLE` give its other forms. `--front` is `temper box`'s alone: the
+  box run as the child of `temper`'s TUI, its link and its lines on the
+  descriptors `temper` hands it, and nothing on its terminal
+  (`../protocol/setup/box.md`, 6). `--echo` is a flag of every form,
+  the fake backends' among them. `--no-tui` and `internal tui` are gone:
+  the TUI is `temper`'s alone (`../draft/cli.md`, section 5).
+- **No `box` words and no TUI:** `temper box` is the client's (7.4),
+  and the TUI on an engine is bare `temper`'s. A caller that ran the TUI
+  through the whole product runs `temper`. The box's crate links no TUI.
 - **The settings:** the three directories, `temper_shell::directories`'
   group, with their twins `TEMPER_CONFIG`, `TEMPER_DATA` and
   `TEMPER_CACHE`; `--echo`, with no twin; the fakes' `--document`,
@@ -239,9 +251,10 @@ command; temper-box help pages lists the pages.`
 
 ## 7. The deployment's tables
 
-The three binaries a deployment at scale runs, each on its own host
+The binaries a deployment at scale runs: three, each on its own host
 (`../draft/cli.md`, 4.3 to 4.5; `../protocol/binaries.md`, 2, 3 and
-5). Each is built as 2 to 5 say, as the box's is.
+5), and the client, `temper`, wherever a person runs it (7.4). Each is
+built as 2 to 5 say, as the box's is.
 
 ### 7.1 `temper-engine`
 
@@ -375,6 +388,63 @@ pub fn run(
 pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
 ```
 
+### 7.4 `temper`, the client
+
+The person's binary: the TUI on an engine, or in front of a box, and
+the line client's tools (`../draft/cli.md`, 4.1 and section 5;
+`../protocol/binaries.md`, 1). Its line is `temper's TUI, on an engine
+or in front of a box.`; its last, `temper COMMAND --help prints one
+command; temper help pages lists the pages.`
+
+| Reached by | Set | Forms and what |
+|---|---|---|
+| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/README.md`, 2) |
+| `box` | public | `[ARGUMENT...]`: in a terminal, the TUI in front of a `temper-box --front` child given ARGUMENT...; else `temper-box ARGUMENT...` in its place (`../client/tui/box.md`; `../client/box-binary.md`, 5) |
+| `help` | public | `temper_shell::table::HELP` (5) |
+| `ctl` | internal | `temper_shell::table::CTL`, the row the box's table holds too: the line client's tools |
+| `internal fetch-box` | internal | `[--cache DIR]`: find `temper-box` of `temper`'s own build, fetching it if it must, its lines on stdout, for `temper box` (`../client/box-binary.md`, 4) |
+
+- **The bare form** takes at most one argument, the engine's address,
+  as `temper-client` took it: `temper` alone runs the TUI on the
+  address its link file or its kept address names. A word that is no
+  command is the address; one that isn't an address is refused as 4
+  says, exit 2, naming it. Without a terminal it is refused as today,
+  under `temper`'s name.
+- **`box`'s ARGUMENT... are the box's,** passed on unchanged: `temper`
+  reads among them the three directories alone (`--config`, `--data`,
+  `--cache`, `temper_shell::directories`' group, with their twins), for
+  the cache and the box's data directory, and `--echo`, for whether it
+  runs in front (`../client/box-binary.md`, 5). Everything else is the
+  box's to take or refuse. `temper box --help` prints `box`'s page, as
+  any `COMMAND --help` does.
+- **`internal fetch-box`** is spawned by `temper box` in a terminal, its
+  own executable run again, so that the TUI draws while the fetch runs
+  (`../client/box-binary.md`, 4); without a terminal, `temper box` runs
+  the same code in its own process.
+- **Its capture** reads, beside the arguments, the environment and the
+  working directory, the path of its own executable
+  (`std::env::current_exe`), where `temper box` looks for `temper-box`
+  first (`../client/box-binary.md`, 2).
+- **Its variables,** as 8 says, each as its code reads it: the
+  directories' twins; the host's that the TUI reads (`HOME`, the XDG
+  directories, `PATH`, `DISPLAY`, `WAYLAND_DISPLAY`, `SSH_CONNECTION`,
+  `SSH_TTY`, `COLORFGBG`, `COLORTERM`) and `SSL_CERT_FILE`, which the
+  download reads; the compile-time `TEMPER_INTERNAL_COMMIT`; and
+  `TEMPER_INTERNAL_SITE`, the download's origin for tests' fake site
+  (`../client/box-binary.md`, 3).
+- **`help commands`** prints `commands_page(&CLIENT)`, its own table.
+- **`ctl`** stays internal, for now (`../draft/cli.md`, 4.1): the same
+  constant the box's table holds, run by `temper-client-shell-cli`'s
+  code in both.
+
+```rust
+// temper_client_shell
+pub const CLIENT: skein_shell::Table;
+pub fn main() -> std::process::ExitCode;
+/// `TEMPER_INTERNAL_SITE` (`../client/box-binary.md`, 3).
+pub const SITE: skein_shell::Variable;
+```
+
 ## 8. The environment
 
 - **Each table declares** every variable its binary's code reads, or
@@ -394,7 +464,7 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
   | Today | After | Read by |
   |---|---|---|
   | `TEMPER_BUNDLE` | `TEMPER_INTERNAL_BUNDLE` | the bundle's build script |
-  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper-client` reads `temper-version`'s |
+  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper` reads `temper-version`'s |
   | `TEMPER_DUMP_LLM` | `TEMPER_INTERNAL_DUMP_LLM` | the service and its agents |
   | `TEMPER_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
   | `TEMPER_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
@@ -422,17 +492,18 @@ Beside this page, rendered by skein (`skein/docs/design/runtime/shell.md`,
 14.3):
 
 - each binary's arguments document, `<binary>-args.md` for each of the
-  four binaries, each checked byte for byte against its table in its
+  five binaries, each checked byte for byte against its table in its
   crate's tests;
 - each binary's environment document, `<binary>-env.md`, and the tree's
   common environment document, `common-env` (`skein/docs/foundation/cli.md`,
   8), which each depend on every table of the tree, checked in
-  `temper-box-shell`'s tests from `temper_box_shell::TREE`, the tree's
-  tables in this order: `TABLE`, `temper_engine_shell::ENGINE`,
-  `temper_worker_shell::WORKER` and `temper_agent_shell::AGENT`, and
-  C3's client as it's built. `temper-box-shell` depends on
-  `temper-agent-shell` for it, as it does on the engine's and the
-  worker's crates already;
+  `temper-box-shell`'s tests from the tree's tables in this order:
+  `TABLE`, `temper_engine_shell::ENGINE`, `temper_worker_shell::WORKER`,
+  `temper_agent_shell::AGENT` and `temper_client_shell::CLIENT`. The
+  list is those tests' own, not the library's: `temper-client-shell` is
+  a dev-dependency of `temper-box-shell`, so that the box links no
+  client crate it doesn't run (`ctl`'s `temper-client-shell-cli` and the
+  line client's terminal it does);
 - the test set's document, `test-env`, from
   `temper_test_env::TESTS`, checked in `temper-test-env`'s tests (11.1).
 
