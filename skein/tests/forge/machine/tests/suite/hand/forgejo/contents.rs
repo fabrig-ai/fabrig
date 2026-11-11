@@ -289,6 +289,52 @@ fn checks_find_a_failing_jobs_run_and_attempt_from_its_link() {
     assert_eq!(lines[4].as_ref(), b"GET /api/v1/repos/fixture/specimen/actions/runs/7/jobs HTTP/1.1");
 }
 #[test]
+fn a_pull_requests_checks_resolve_forge_ids_and_read_the_failed_steps_end() {
+    const RUN: &[u8] = br#"{"id":8,"index_in_repo":2,"commit_sha":"0100000000000000000000000000000000000000","event":"pull_request","trigger_event":"pull_request"}"#;
+    const RUNS: &[u8] = br#"{"total_count":1,"workflow_runs":[{"id":8,"index_in_repo":2,"commit_sha":"0100000000000000000000000000000000000000","event":"pull_request","trigger_event":"pull_request"}]}"#;
+    let mut h = fixtures::known();
+    h.call(1, fixtures::REPO, Op::Read(Read::Checks { commit: HEAD }));
+    h.answer(fixtures::FORGE, &fixtures::ok(br#"{"state":"failure","total_count":1,"statuses":[{"creator":null,"updated_at":"1970-01-01T00:00:00Z","context":"build","status":"failure","description":"failed","target_url":"/fixture/specimen/actions/runs/2/jobs/0"}]}"#));
+    assert_eq!(h.request_lines(fixtures::FORGE).last().unwrap().as_ref(), b"GET /api/v1/repos/fixture/specimen/actions/runs?head_sha=0100000000000000000000000000000000000000&run_number=2&page=1&limit=1 HTTP/1.1");
+    h.answer(fixtures::FORGE, &fixtures::ok(RUNS));
+    assert_eq!(
+        h.request_lines(fixtures::FORGE).last().unwrap().as_ref(),
+        b"GET /api/v1/repos/fixture/specimen/actions/runs/8/jobs HTTP/1.1"
+    );
+    h.answer(fixtures::FORGE, &fixtures::ok(br#"[{"id":15,"run_id":8,"attempt":1}]"#));
+    h.run(Duration::from_millis(10));
+    let Ok(Answer::Checks(checks)) = &h.answered(1).expect("checks").result else { panic!("checks") };
+    let attempt = checks[0].job.expect("resolved job");
+    assert_eq!(attempt, JobAttempt { head: HEAD, run: 8, job: 15, attempt: 1 });
+    h.call(2, fixtures::REPO, Op::Read(Read::Job { attempt, max_bytes: 4, part: skein_forge::api::LogPart::End }));
+    h.answer(fixtures::FORGE, &fixtures::ok(RUN));
+    h.answer(fixtures::FORGE, &fixtures::ok(br#"{"id":15,"run_id":8,"attempt":1,"steps":[{"number":0,"name":"Set up job","status":"success"},{"number":1,"name":"build","status":"failure"},{"number":2,"name":"Complete job","status":"failure"}]}"#));
+    let request = h.request_bytes(fixtures::FORGE);
+    assert!(
+        skein_lib::bytes::find(
+            &request,
+            b"GET /api/v1/repos/fixture/specimen/actions/jobs/15/logs?attempt=1&step=1 HTTP/1.1"
+        )
+        .is_some()
+    );
+    assert!(skein_lib::bytes::find(&request, b"Range: bytes=-4\r\n").is_some());
+    h.answer(
+        fixtures::FORGE,
+        b"HTTP/1.1 206 Partial Content\r\nContent-Length: 4\r\nContent-Range: bytes 8-11/12\r\n\r\nend\n",
+    );
+    h.run(Duration::from_millis(10));
+    assert_eq!(
+        h.answered(2).expect("job").result,
+        Ok(Answer::Job {
+            attempt,
+            step: Some(Step { number: 1, name: Box::from(*b"build") }),
+            log: Box::from(*b"end\n"),
+            truncated: true,
+        })
+    );
+}
+
+#[test]
 fn unresolvable_actions_lookups_leave_checks_without_job_attempts() {
     skein_rows::check(
         [

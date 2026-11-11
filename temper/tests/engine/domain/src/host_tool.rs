@@ -84,16 +84,24 @@ fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], too
         let (to, rendered_name) = driver.protocol.pending_renders.pop().expect("host answer to render");
         assert_eq!(rendered_name.as_ref(), name);
         let (_, answer) = driver.protocol.answers.last().expect("typed answer");
-        HostReply::Render {
-            to,
-            answer: temper_engine_smith::answer_for_task(
+        let maximum = driver.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("tool name"));
+        let answer = match driver.protocol.read_jobs.get(&rendered_name) {
+            Some(job) => temper_engine_smith::answer_for_job(
                 answer,
                 tool,
-                driver.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("tool name")),
+                maximum,
+                temper_engine_smith::ForgeReadBounds::STOCK,
+                *job,
+            ),
+            None => temper_engine_smith::answer_for_task(
+                answer,
+                tool,
+                maximum,
                 task,
                 temper_engine_smith::ForgeReadBounds::STOCK,
             ),
-        }
+        };
+        HostReply::Render { to, answer }
     }
 }
 

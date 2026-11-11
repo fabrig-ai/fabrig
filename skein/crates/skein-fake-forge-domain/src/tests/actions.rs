@@ -81,6 +81,52 @@ fn a_commits_run_is_found_by_its_number_and_its_jobs_by_run() {
     );
 }
 
+#[test]
+fn a_pull_request_run_has_its_heads_commit_and_forge_ids_not_link_numbers() {
+    let mut configured = setup();
+    configured.checks.contexts = names(&[b"ci", b"fmt"]);
+    configured.checks.cue = Some(Cue::PullFile {
+        path: copy_of(b"changes/{pull}.md"),
+        no_pull: Check::Skipped,
+        step: copy_of(b"changes"),
+        log: copy_of(b"missing changes/{pull}.md"),
+    });
+    let mut other = configured.clone();
+    other.id = 3;
+    other.name = copy_of(b"ai/other");
+    let config = Config { limits: Limits { name_bytes: 64, content_bytes: 128, ..LIMITS }, ..CALM };
+    let mut h = Harness::with(config, configured);
+    let mut parent = crate::repository(&mut h.domain, &config, other);
+    crate::grant(&mut h.domain, b"ai/other", ENGINE, Permission::Write);
+    for n in 0..6 {
+        let head = h.commit(parent, &[(b"src", &[n])]);
+        h.call_on(b"ai/other", ENGINE, Op::Git(Git::Push { branch: copy_of(b"work"), commit: head, expected: None }))
+            .expect("other repository's run");
+        parent = head;
+    }
+    let head = h.commit(FIRST, &[(b"src", b"pull head")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    h.open(b"work").unwrap();
+    h.settle();
+    let Answer::Runs(runs) =
+        h.ok(PERSON, read(Read::Runs { workflow: None, commit: Some(head), number: Some(2), page: 1, limit: 1 }))
+    else {
+        panic!("runs")
+    };
+    assert_eq!(runs.len(), 1);
+    assert_eq!(
+        (runs[0].id, runs[0].number, runs[0].commit, runs[0].event),
+        (8, 2, head, crate::api::RunEvent::PullRequest)
+    );
+    let Answer::Checks(checks) = h.ok(PERSON, read(Read::Checks { commit: head })) else { panic!("checks") };
+    assert_eq!(checks[0].link.as_ref(), b"/ai/kit/actions/runs/2/jobs/0");
+    assert_eq!(checks[0].job, Some(JobRef { run: 8, job: 15, attempt: 1 }));
+    let Answer::Job { job, steps } = h.ok(PERSON, read(Read::Job { job: 15 })) else { panic!("job") };
+    assert_eq!((job.run, job.id, job.index), (8, 15, 0));
+    assert_eq!(steps[1].name.as_ref(), b"changes");
+    assert!(steps[1].log.ends_with(b"missing changes/1.md\n"));
+}
+
 struct LogRow {
     job: u64,
     attempt: u32,
@@ -340,12 +386,18 @@ fn a_job_read_by_id_answers_its_latest_attempt() {
 }
 
 #[test]
-fn a_passing_ci_jobs_read_by_id_is_missing() {
+fn a_passing_ci_job_read_by_id_has_successful_steps_and_an_empty_log() {
     let mut h = Harness::with(CALM, setup());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).unwrap();
     h.settle();
-    assert_eq!(h.call(PERSON, read(Read::Job { job: 1 })), Err(Error::Missing(What::Job)));
+    let Answer::Job { job, steps } = h.ok(PERSON, read(Read::Job { job: 1 })) else { panic!("passing job") };
+    assert_eq!(job.conclusion, Some(crate::api::Conclusion::Success));
+    assert!(!steps.is_empty());
+    for step in &steps {
+        assert_eq!(step.status, StepStatus::Success);
+    }
+    assert_eq!(h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: Some(1) })), Answer::File(Box::new([])));
 }
 
 #[test]

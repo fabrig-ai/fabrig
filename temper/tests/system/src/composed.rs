@@ -870,16 +870,19 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, .. } => engine::WorkerInput::RenderedHostCall {
-                    to,
-                    answer: link::render(
-                        &answer,
-                        &tool,
-                        self.env.limits.call_answer_bytes,
-                        key.task,
-                        self.worker_env.limits.reply_bytes,
-                    ),
-                },
+                engine::HostDelivery::Render { to, answer, tool, key, job, .. } => {
+                    engine::WorkerInput::RenderedHostCall {
+                        to,
+                        answer: link::render(
+                            &answer,
+                            &tool,
+                            self.env.limits.call_answer_bytes,
+                            key.task,
+                            self.worker_env.limits.reply_bytes,
+                            job,
+                        ),
+                    }
+                }
                 engine::HostDelivery::See { to, line, from, answer } => {
                     let (body, error) = temper_engine_smith::see_answer(
                         &line,

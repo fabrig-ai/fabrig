@@ -400,9 +400,19 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         temper_service::Note::HelloRefused { channel, text } => {
             format!("{binary} serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
         }
-        temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
+        temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error, job } => {
+            let job = match job {
+                Some(job) => format!(
+                    " head={} run={} job={} job_attempt={}",
+                    String::from_utf8_lossy(&temper_engine_domain_forge::commit_text(&job.head)),
+                    job.run,
+                    job.job,
+                    job.attempt
+                ),
+                None => String::new(),
+            };
             format!(
-                "{binary} serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
+                "{binary} serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}{job} error={error:?} findings={findings:?}\n",
                 String::from_utf8_lossy(&tool)
             )
         }
@@ -1657,12 +1667,37 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
             tool: b"read_file".as_slice().into(),
             layer: "authority",
             reason: "connector read denied",
+            job: None,
             findings: Box::new([]),
             error: None,
         },
     );
     assert!(line.contains("task=7 attempt=2 tool=read_file layer=authority reason=connector read denied"));
     assert!(line.contains("findings=[]"));
+}
+
+#[test]
+fn read_job_refusal_line_names_the_asked_attempt() {
+    let line = note_line(
+        "temper",
+        temper_service::Note::ReadRefused {
+            task: 7,
+            attempt: 4,
+            tool: Box::from(*b"read_job"),
+            layer: "forge-client",
+            reason: "forge read failed",
+            findings: Box::new([]),
+            error: Some(skein_forge::api::Error::MissingJob),
+            job: Some(skein_forge::api::JobAttempt { head: [0xab; 32], run: 2, job: 0, attempt: 1 }),
+        },
+    );
+    assert_eq!(
+        line,
+        format!(
+            "temper serve: read refused task=7 attempt=4 tool=read_job layer=forge-client reason=forge read failed head={} run=2 job=0 job_attempt=1 error=Some(MissingJob) findings=[]\n",
+            "ab".repeat(32)
+        )
+    );
 }
 
 #[test]
