@@ -1548,7 +1548,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
         }
-        Event::SetDraft { request, token, party, call } => crate::drafts::start(d, env, request, token, party, call, out),
+        Event::SetDraft { request, token, party, call } => {
+            crate::drafts::start(d, env, request, token, party, call, out)
+        }
         Event::SetAway { request, token, party, project, on, until } => {
             crate::away::set_away(d, env, request, token, party, project, on, until, out);
         }
@@ -1635,7 +1637,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             None => {
                 if d.repositories.remove(&repository).is_some() {
                     crate::landing_log::erased(d, repository, out);
-        crate::drafts::erase_repository(d, repository, out);
+                    crate::drafts::erase_repository(d, repository, out);
                     emit(out, Request::Erase { key: Key::Repository(repository) });
                     emit(out, Request::MarkedForges);
                 }

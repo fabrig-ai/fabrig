@@ -368,7 +368,9 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         LANDED_DRAFT => {
             let repository = read_repository(&mut reader)?;
             let path = reader.bytes()?;
-            if !forge::draft_path(&path) { return None; }
+            if !forge::draft_path(&path) {
+                return None;
+            }
             forge::Key::LandedDraft { repository, path }
         }
         AWAY => forge::Key::Away { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },

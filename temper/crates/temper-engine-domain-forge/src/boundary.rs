@@ -1379,7 +1379,12 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
-    SetDraft { request: Token, token: Token, party: u64, call: crate::SetDraft },
+    SetDraft {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::SetDraft,
+    },
     SetAway {
         request: Token,
         token: Token,

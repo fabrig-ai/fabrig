@@ -7,10 +7,10 @@ mod answers;
 mod api;
 mod application;
 mod away;
-mod drafts;
 mod change;
 mod client;
 mod closer;
+mod drafts;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
