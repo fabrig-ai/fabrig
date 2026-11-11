@@ -2184,10 +2184,10 @@ fn aborting_or_releasing_a_look_waits_for_its_terminal() {
 #[test]
 fn a_look_uses_the_local_deadline() {
     let mut h = Harness::reusing(LIMITS);
-    let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"work") });
-    let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
+    let (hold, _) = h.begin(1, one(b"work"));
+    let Request::Io { op, deadline, .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else { panic!("look after Store") };
     assert_eq!(op.kind(), Kind::Look);
-    assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
+    assert_eq!(deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }
 
 #[test]

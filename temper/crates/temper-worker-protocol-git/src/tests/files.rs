@@ -164,7 +164,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     component.complete_ok();
     assert_eq!(component.file_operation(), remove(fixtures::WORKSPACES, b"nested", false));
     component.complete_err(Error::IsADirectory);
-    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1002"));
+    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1003"));
     component.complete_ok();
     assert_eq!(component.file_operation(), Op::Close { fd: fixtures::WORKSPACES });
     component.complete_ok();

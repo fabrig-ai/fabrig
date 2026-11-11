@@ -136,7 +136,7 @@ fn acknowledged_answers_free_their_workspace_items() {
     let unprepared = host::Failure::Unprepared(host::Preparation::Transient);
     let ending = host::Ending::Failed {
         failure: unprepared,
-        detail: b"make: Unreachable".as_slice().into(),
+        detail: b"store: Unreachable".as_slice().into(),
         work: host::Work { left: None, saved: None },
     };
     for run in 1..=4 {
