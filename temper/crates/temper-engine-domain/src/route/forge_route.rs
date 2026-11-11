@@ -603,7 +603,14 @@ pub(crate) fn claim_names(
     }
     for group in [writes, designs] {
         for write in group {
-            if !names.as_slice().contains(write) {
+            let unpublished = match domain.forge.hold(write) {
+                Some(hold) => match domain.forge.change(hold.task) {
+                    Some(row) => domain.forge.branch_head(write).is_none() && row.change.last_head.is_none(),
+                    None => false,
+                },
+                None => false,
+            };
+            if !unpublished && !names.as_slice().contains(write) {
                 names.push(write.clone()).ok()?;
             }
         }
@@ -2223,25 +2230,33 @@ fn change_effect_hold(domain: &Domain, env: &Env<Limits>, task: u64, kind: u16) 
     Some(resource)
 }
 
-/// Once a pull is known its keep supplies the base and CI, within the same two names.
+/// A branch joins the keep at its first known head; a pull replaces the base.
+fn change_names(domain: &Domain, limits: &Limits, row: &forge::ChangeRow) -> Option<Box<[forge::Name]>> {
+    let branch = forge::Name {
+        forge: row.repository.forge,
+        repository: row.repository.repository,
+        what: branch_what(&row.branch, limits.forge.name_bytes)?,
+    };
+    let other = forge::Name {
+        forge: row.repository.forge,
+        repository: row.repository.repository,
+        what: match row.pull {
+            Some(number) => forge::What::Pull(number),
+            None => branch_what(&row.base, limits.forge.name_bytes)?,
+        },
+    };
+    Some(if row.change.last_head.is_some() || domain.forge.branch_head(&branch).is_some() {
+        Box::new([branch, other])
+    } else {
+        Box::new([other])
+    })
+}
+
 /// Only a task still named is renamed: its release's unnamed ends the watch.
-fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::ChangeRow) {
-    let Some(number) = row.pull else { return };
+fn watch_change(domain: &mut Domain, env: &Env<Limits>, row: &forge::ChangeRow) {
     let Some(named) = domain.forge.names(row.task) else { return };
-    let Some(parts) = branch_parts(&row.branch, env.limits.forge.name_bytes) else { return };
-    let resources = Box::new([
-        forge::Name {
-            forge: row.repository.forge,
-            repository: row.repository.repository,
-            what: forge::What::Branch(parts),
-        },
-        forge::Name {
-            forge: row.repository.forge,
-            repository: row.repository.repository,
-            what: forge::What::Pull(number),
-        },
-    ]);
-    if named != resources.as_slice() {
+    let Some(resources) = change_names(domain, &env.limits, row) else { return };
+    if named != resources.as_ref() {
         domain.work.push(Work::Forge(forge::Event::Rename { task: row.task, resources }));
     }
 }
@@ -2340,22 +2355,8 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         | forge_change::State::Landing { .. }
         | forge_change::State::Held { .. } => {}
     }
-    let Some(branch) = branch_what(&row.branch, env.limits.forge.name_bytes) else { return };
-    let other = match row.pull {
-        Some(number) => forge::What::Pull(number),
-        None => {
-            let Some(base) = branch_what(&row.base, env.limits.forge.name_bytes) else { return };
-            base
-        }
-    };
-    let repository = row.repository;
-    domain.work.push(Work::Forge(forge::Event::Names {
-        task,
-        resources: Box::new([
-            forge::Name { forge: repository.forge, repository: repository.repository, what: branch },
-            forge::Name { forge: repository.forge, repository: repository.repository, what: other },
-        ]),
-    }));
+    let Some(resources) = change_names(domain, &env.limits, row) else { return };
+    domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
 }
 
 fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
@@ -2640,9 +2641,12 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             repository: provider.repository,
             what: forge::What::Branch(base_parts),
         };
-        domain
-            .work
-            .push(Work::Forge(forge::Event::Names { task, resources: Box::new([branch_name.clone(), base_name]) }));
+        let resources: Box<[forge::Name]> = if domain.forge.branch_head(&branch_name).is_some() {
+            Box::new([branch_name.clone(), base_name])
+        } else {
+            Box::new([base_name])
+        };
+        domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
         if !requester_branch {
             domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task, resource: branch_name, from: None }));
         }
@@ -4844,7 +4848,7 @@ pub(crate) fn outputs(
                 step_dependents(domain, env, task);
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
-                    watch_change_pull(domain, env, &row);
+                    watch_change(domain, env, &row);
                     if forge_change::held_on_ci(&row.change.state)
                         && let Some(record) = domain.core.tasks.task(task)
                         && own_hold(record)
@@ -4937,7 +4941,7 @@ pub(crate) fn outputs(
             forge::Request::Save { record, release, read_afresh } => {
                 // Both opening and finding a pull save the change with its number.
                 if let forge::Stored::Change(row) = &record {
-                    watch_change_pull(domain, env, row);
+                    watch_change(domain, env, row);
                 }
                 if let Some(name) = read_afresh
                     && let Some(resource) = hub_name(domain.config.forge_connector, &name, &env.limits.tasks)

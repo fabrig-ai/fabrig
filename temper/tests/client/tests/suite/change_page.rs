@@ -137,12 +137,12 @@ fn an_ended_child_of_the_change_is_never_listed_as_its_own_child() {
     assert!(whole.len() > usize::try_from(REVIEW_TEXT_BYTES).expect("text bound"));
     let observer = world.client(fixtures::PARTY, fixtures::task_page(delegate));
     see(&mut world, observer, Find::text(b"Review this change at the named head"));
-    assert_cut_review(&world, observer);
+    assert_cut_review(&world, observer, &whole);
     finish_review(&mut world, delegate);
     see(&mut world, client, fixtures::plan_item(delegate, b"Completed"));
     world.go(client, fixtures::task_page(delegate));
     see(&mut world, client, Find::text(b"QA approved"));
-    assert_cut_review(&world, client);
+    assert_cut_review(&world, client, &whole);
     let key = engine::Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(delegate)));
     let Some(engine::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row)))) =
         world.front().engine.store.rows.get(&key)
@@ -157,14 +157,14 @@ fn an_ended_child_of_the_change_is_never_listed_as_its_own_child() {
     assert!(!text(&world, client).contains("Its tasks"), "agent child's page cannot inherit its parent's children");
 }
 
-fn assert_cut_review(world: &ClientWorld, client: ClientId) {
+fn assert_cut_review(world: &ClientWorld, client: ClientId, whole: &[u8]) {
     let root = world.root(client).person();
     let page = root.pages().task().expect("review page");
     let document = page.document(root.client()).expect("review document");
     assert!(document.spec.specification.words.cut, "long review words are marked cut");
     assert_eq!(
         document.spec.specification.words.bytes.bytes(),
-        b"Review this change at the named head\nPull request: #2\nBranch: te"
+        whole.get(..usize::try_from(REVIEW_TEXT_BYTES).expect("text bound")).expect("long review prefix")
     );
 }
 

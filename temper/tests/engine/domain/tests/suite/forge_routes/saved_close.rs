@@ -47,6 +47,38 @@ fn a_retried_repairs_saved_branch_is_deleted_as_it_closes() {
 }
 
 #[test]
+fn a_change_cancelled_before_its_first_push_deletes_no_branch() {
+    let (mut world, _, producer, branch) = change_world(false, 1000, None);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change") };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(96)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [96; 16],
+        ask: people::Ask::Cancel { project: 1, task: change, reason: b"stop".as_slice().into(), grace: None },
+    }));
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Refused,
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..TICKS {
+        world.tick();
+        if ended(&world, change) {
+            break;
+        }
+    }
+    assert!(ended(&world, change), "cancelled change closes");
+    assert!(!world.writes.contains(&skein_forge::api::Write::DeleteBranch { branch: branch.clone() }));
+    assert!(super::goal_branch::forge_hold(&world, &branch).is_none());
+    world.close();
+}
+
+#[test]
 fn a_task_with_no_saved_work_deletes_no_saved_branch() {
     let (mut world, _, producer, branch) = change_world(false, 1000, None);
     let saved = producer.workspace.repositories[0].save.clone().expect("producer can save work");

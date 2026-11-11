@@ -73,24 +73,32 @@ pub(super) fn branch_written(d: &Domain, name: &Name, ending: Option<u64>) -> bo
     false
 }
 
-/// A goal's unused run holding releases without a forge write (domain/forge/branches.md, 3).
-pub(super) fn unused_goal_run(d: &Domain, name: &Name) -> bool {
-    if d.branch_head(name).is_some() {
-        return false;
-    }
+/// Nothing pushes a goal's run branch in its goal repository (domain/forge/keeping-up.md, 1).
+pub(super) fn goal_run(d: &Domain, name: &Name) -> bool {
     let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     let Some(repository) = d.repositories.get(&repository) else { return false };
     let Some(run) = crate::items::run_branch(name, &repository.prefix) else { return false };
-    for (branch, head) in &d.heads {
+    for (branch, hold) in &d.holds {
         if branch.forge == name.forge
             && branch.repository == name.repository
-            && head.owned
+            && hold.task == run.1
             && crate::items::goal_branch(branch, &repository.prefix) == Some(run)
         {
             return true;
         }
     }
     false
+}
+
+/// An unpublished c or r holding releases without a forge write (domain/forge/branches.md, 1).
+pub(super) fn unpublished_branch(d: &Domain, name: &Name) -> bool {
+    if d.branch_head(name).is_some() {
+        return false;
+    }
+    let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
+    let Some(repository) = d.repositories.get(&repository) else { return false };
+    crate::items::run_branch(name, &repository.prefix).is_some()
+        || crate::items::change_branch(name, &repository.prefix).is_some()
 }
 
 pub(super) fn pending_writer(hold: &Hold, pending: &PendingLost) -> bool {

@@ -20,7 +20,7 @@ fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
     row
 }
 
-fn names(world: &World, task: u64) -> Box<[forge_top::Name]> {
+pub(super) fn names(world: &World, task: u64) -> Box<[forge_top::Name]> {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Names(task))) else {
         panic!("named resources")
     };
@@ -90,7 +90,7 @@ fn verifying(world: &mut World, producer: &engine::Assignment) -> u64 {
             return task;
         }
     }
-    panic!("change did not reach verification");
+    panic!("change did not reach verification: {:?}; {:?}", row(world, task), live_task(world, task).phase);
 }
 
 fn start_change(world: &mut World, key: u8) -> (u64, engine::Assignment) {
@@ -115,6 +115,66 @@ fn start_change(world: &mut World, key: u8) -> (u64, engine::Assignment) {
         }
     }
     panic!("producer not assigned");
+}
+
+pub(super) fn kept_branch(world: &World, branch: &[u8]) -> bool {
+    world.store.rows.values().any(|record| {
+        matches!(record,
+        Record::Forge { row } if matches!(row.as_ref(),
+            forge_top::Stored::Client(skein_forge_client::Stored::Live(live))
+                if matches!(&live.watch.resource.what, skein_forge_client::What::Branch(name)
+                    if name.as_ref() == branch)))
+    })
+}
+
+pub(super) fn branch_reads(world: &World, branch: &[u8]) -> usize {
+    world
+        .forge_reads
+        .as_ref()
+        .expect("request log enabled")
+        .iter()
+        .filter(|(_, read)| matches!(read, Read::Branch { branch: name } if name.as_ref() == branch))
+        .count()
+}
+
+#[test]
+fn a_producing_change_watches_only_its_base_until_a_head_is_known() {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits { stall: Some(Duration::from_secs(1800)), slots: Some(SLOTS), ..StoryLimits::default() },
+    );
+    world.forge_reads = Some(Vec::new());
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
+    let (task, producer) = start_change(&mut world, 92);
+    let branch = row(&world, task).branch.clone();
+    let base = forge_top::Name {
+        forge: 1,
+        repository: 2,
+        what: forge_top::What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    assert_eq!(names(&world, task).as_ref(), &[base]);
+    assert!(!kept_branch(&world, &branch), "neither the change nor its producer keeps an unpushed branch");
+    let before = branch_reads(&world, &branch);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert_eq!(branch_reads(&world, &branch), before, "no polling while the producer runs");
+    assert!(kept_branch(&world, b"main"));
+    assert_eq!(verifying(&mut world, &producer), task);
+    assert!(kept_branch(&world, &branch));
+    assert!(branch_reads(&world, &branch) > before, "the result reads the pushed branch afresh");
+    let resources = names(&world, task);
+    assert_eq!(resources.len(), 2);
+    assert!(resources.iter().any(|name| name.what == forge_top::What::Pull(row(&world, task).pull.unwrap())));
+    assert!(resources.iter().any(|name| matches!(&name.what, forge_top::What::Branch(parts)
+        if parts.iter().map(AsRef::as_ref).eq(branch.split(|byte| *byte == b'/')))));
+    world.close();
 }
 
 fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
@@ -154,9 +214,10 @@ fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
     for _ in 0..SLOTS {
         world.tick();
     }
-    // The desired set fits exactly; the departing read still consumes one extra slot.
+    // Leave one slot for the later change's first head. Its admission then fits
+    // exactly, while the departing read still consumes one extra slot.
     let mut steady = names(world, second).to_vec();
-    for index in 0..RESOURCES.saturating_sub(watch_count(world)) {
+    for index in 0..RESOURCES.saturating_sub(watch_count(world)).saturating_sub(1) {
         steady.push(forge_top::Name {
             forge: 1,
             repository: 2,
@@ -306,6 +367,13 @@ fn backend_read_holds_name_the_permission_failure_and_recover() {
     release(&mut world, task);
 }
 
+fn fill_chat_watches(world: &mut World, task: u64) {
+    let mut resources = names(world, task).to_vec();
+    resources.push(forge_top::Name { forge: 1, repository: 2, what: forge_top::What::Issue(100) });
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task, resources: resources.into() })));
+    world.until(Until::Ready);
+}
+
 fn send_release(world: &mut World, task: u64, revision: u64) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -317,16 +385,49 @@ fn send_release(world: &mut World, task: u64, revision: u64) {
 }
 
 #[test]
+fn released_changes_name_the_branch_only_with_a_known_head() {
+    for pushed in [false, true] {
+        let (mut world, _, producer, branch) = change_world(true, STEPS, None);
+        let tasks::Party::Task(task) = live_task(&world, producer.task).requester else { panic!("change") };
+        if pushed {
+            verifying(&mut world, &producer);
+        }
+        let resources = (0..world.env.limits.forge.resources_per_task.saturating_add(1))
+            .map(|index| forge_top::Name {
+                forge: 1,
+                repository: 2,
+                what: forge_top::What::Issue(u64::from(index).saturating_add(100)),
+            })
+            .collect();
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task, resources })));
+        await_hold(&mut world, task);
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Unnamed { task })));
+        world.until(Until::Ready);
+        assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Names(task))));
+        release(&mut world, task);
+        world.until(Until::Ready);
+        let resources = names(&world, task);
+        let named = resources.iter().any(|name| {
+            matches!(&name.what, forge_top::What::Branch(parts)
+            if parts.iter().map(AsRef::as_ref).eq(branch.split(|byte| *byte == b'/')))
+        });
+        assert_eq!(named, pushed, "retry only watches a known head");
+        world.close();
+    }
+}
+
+#[test]
 fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     let mut configured = World::configured(true, true);
-    // A change needs its branch and base; this world permits just one name per task.
-    configured.env.limits.forge.resources_per_task = 1;
-    let client = configured.env.limits.forge.client;
+    // The chat's branch and issue fill the client; the change still needs its base alone.
+    configured.env.limits.forge.holds = 2;
+    let client = skein_forge_client::Limits { resources: 2, ..configured.env.limits.forge.client };
     let mut world = configured.with_forge_client(client);
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
+    fill_chat_watches(&mut world, chat.task);
     let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
     else {
         panic!("change delegated")
@@ -341,7 +442,7 @@ fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
             && matches!(live_task(&world, task).phase, tasks::Phase::Held { .. })
         {
             let words = std::str::from_utf8(held_words(&world, task)).expect("hold words");
-            assert!(words.contains("forge.resources_per_task = 1; required usage 2"), "{words}");
+            assert!(words.contains("forge.client.resources = 2; required usage 3"), "{words}");
             return;
         }
     }
@@ -423,6 +524,7 @@ fn resource_hold_account_survives_short_documents_and_unchanged_release() {
     world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
+    fill_chat_watches(&mut world, chat.task);
     let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
     else {
         panic!("change delegated")
