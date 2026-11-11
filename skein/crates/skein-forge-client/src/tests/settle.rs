@@ -46,7 +46,7 @@ fn settle_waits_for_a_sent_merge_and_its_proving_read() {
     assert!(h.outcomes.is_empty());
     assert_eq!(h.settled, None);
     let verify = h.one();
-    assert_eq!(verify.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(verify.op, Op::Read(Read::Pull { number: 9, ci: false }));
     let mut current = pull([1; 32]);
     current.merged = Some([4; 32]);
     current.state = api::State::Closed;
@@ -223,5 +223,5 @@ fn a_proving_read_uses_the_reserve_while_background_calls_are_held() {
     h.step(Event::Settle);
     h.answer(write, Ok(Answer::Merged([4; 32])));
     let proof = h.one();
-    assert_eq!(proof.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(proof.op, Op::Read(Read::Pull { number: 9, ci: false }));
 }

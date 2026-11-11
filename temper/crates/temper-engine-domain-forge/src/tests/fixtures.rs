@@ -347,11 +347,19 @@ pub fn checks(check: skein_forge::api::Check) -> skein_forge::api::Answer {
     }]))
 }
 
-/// Read the head contexts for the result, then the base and ancestry range.
+/// Finish the CI reads this gather asks for, then its ancestry range.
 pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+    use skein_forge::api::{Answer, Op, Read};
+    for _ in 0_u32..3 {
+        let (call, op) = next_call(d);
+        if let Op::Read(Read::Checks { .. }) = op {
+            answer(d, call, Ok(checks(skein_forge::api::Check::Passed)));
+        } else {
+            let Op::Read(Read::Commits { .. }) = op else { panic!("CI or ancestry: {op:?}") };
+            return answer(d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+    }
+    panic!("at most two commits' CI before ancestry")
 }
 
 /// Fresh change chains start with an observed landing branch, apart from their subject.

@@ -57,12 +57,20 @@ fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
     (world, pushed, verdict, head)
 }
 
+#[expect(clippy::too_many_lines, reason = "one request-budget story also bounds each hearing gather")]
 fn pace(hearing: bool) {
     let (mut world, pushed, verdict, head) = pending(hearing);
     let poll_max = profile(Profile::Small).forge.client.poll_max;
     let deadline = Wall::from_nanos(verdict.as_nanos() + poll_max.as_nanos());
     let (mut due, mut until, mut entry, mut named) = (true, None, 4, false);
     let (mut job, mut written) = (0, 0);
+    let mut hex = String::new();
+    for byte in skein_fake_forge_forgejo::routes::object(head).bytes.iter().take(20) {
+        write!(hex, "{byte:02x}").expect("hex in a String");
+    }
+    let status = format!("GET /api/v1/repos/org/repo/commits/{hex}/status");
+    let mut gather = None;
+    let mut gathers = 0;
     while world.wall() <= deadline && world.tally().routes.get(&Route::Merge) != Some(&1) {
         let seconds = (world.wall().as_nanos() - pushed.as_nanos()) / 1_000_000_000;
         // Alternating ends have their status written three seconds after delivery.
@@ -87,6 +95,11 @@ fn pace(hearing: bool) {
             match request {
                 top::Request::WakeProcedure { task: 51 } => due = true,
                 top::Request::ChangeDecision { task: 51, decision, entry: committed, .. } => {
+                    if hearing && let Some((entry, before)) = gather.take() {
+                        let reads = head_status_reads(&world, &status) - before;
+                        assert!(reads <= 1, "gather {entry} read head statuses {reads} times");
+                        gathers += 1;
+                    }
                     if let Some(entry) = committed {
                         world.event(top::Event::Committed { entry });
                     }
@@ -105,6 +118,9 @@ fn pace(hearing: bool) {
         }
         if due {
             due = false;
+            if hearing {
+                gather = Some((entry, head_status_reads(&world, &status)));
+            }
             step_change(&mut world, entry, change::Status::Unknown, false);
             entry += 1;
             world.run_for(0);
@@ -114,11 +130,6 @@ fn pace(hearing: bool) {
     }
     let first = pushed.as_nanos() + Duration::from_secs(120).as_nanos();
     let minute = Duration::from_secs(60).as_nanos();
-    let mut hex = String::new();
-    for byte in skein_fake_forge_forgejo::routes::object(head).bytes.iter().take(20) {
-        write!(hex, "{byte:02x}").expect("hex in a String");
-    }
-    let status = format!("GET /api/v1/repos/org/repo/commits/{hex}/status");
     let mut maxima = [0; 3];
     let mut worst = std::collections::BTreeMap::new();
     for (at, _) in
@@ -146,10 +157,15 @@ fn pace(hearing: bool) {
     assert_eq!(world.tally().routes.get(&Route::Merge), Some(&1), "lands within poll_max of verdict");
     assert!(world.wall() <= deadline);
     assert_eq!(world.delivery_hints() > 0, hearing);
+    assert!(!hearing || gathers > 0, "observed complete hearing gathers");
     let ceilings = if hearing { [40, 9, 4] } else { [30, 3, 3] };
     for (count, ceiling) in maxima.into_iter().zip(ceilings) {
         assert!(count <= ceiling, "{hearing}: {maxima:?} > {ceilings:?}");
     }
+}
+
+fn head_status_reads(world: &Protocol, route: &str) -> u64 {
+    world.requests().filter(|(_, request)| request.starts_with(route.as_bytes())).count() as u64
 }
 
 #[test]

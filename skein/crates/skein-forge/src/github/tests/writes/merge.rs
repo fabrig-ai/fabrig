@@ -501,7 +501,7 @@ fn observed_pull(
     reason: Option<&[u8]>,
     chunk: u32,
 ) -> api::Pull {
-    let mut plan = Plan::new(KEY, api::Op::Read(api::Read::Pull { number: 5 }));
+    let mut plan = Plan::new(KEY, api::Op::Read(api::Read::Pull { number: 5, ci: false }));
     assert_eq!(
         begin(&mut plan, tables),
         Request::Pull { owner: Box::from(*b"acme"), name: Box::from(*b"widgets"), number: 5 }
@@ -515,20 +515,7 @@ fn observed_pull(
     server::pull(&pull, &mut out).unwrap();
     head(&mut plan, 200, tables);
     let doc = decode(Kind::Pull, &super::super::fixtures::bytes(out), chunk, &limits()).1.unwrap();
-    let Request::CombinedStatus { commit: observed, .. } = sent(finish(&mut plan, Body::Document(doc), tables)) else {
-        panic!("combined")
-    };
-    assert_eq!(observed, commit());
-    head(&mut plan, 200, tables);
-    let doc = decode(Kind::CombinedStatus, br#"{"state":"pending","total_count":0,"statuses":[]}"#, chunk, &limits())
-        .1
-        .unwrap();
-    let Request::CheckRuns { commit: observed, .. } = sent(finish(&mut plan, Body::Document(doc), tables)) else {
-        panic!("runs")
-    };
-    assert_eq!(observed, commit());
-    head(&mut plan, 200, tables);
-    assert_eq!(sent(finish(&mut plan, Body::Document(Document::Rows), tables)), query());
+    assert_eq!(sent(finish(&mut plan, Body::Document(doc), tables)), query());
     let facts = document::PullGraphql {
         id: Box::from(NODE),
         merge_commit: if merged { Some(update_pull().base_commit) } else { None },

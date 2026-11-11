@@ -195,7 +195,7 @@ fn a_retargeted_merge_fails_before_any_write() {
     );
     h.clock();
     let check = h.one();
-    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
     h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
     assert_eq!(h.writes, 0);
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::Stale))]);
@@ -242,7 +242,7 @@ fn update_recovery_proves_the_requested_base_is_an_ancestor() {
                 }
                 Some(false) => {
                     let check = h.one();
-                    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+                    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
                     h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
                     let update = h.one();
                     assert_eq!(update.op, Op::Write(Write::Update { number: 9, style: api::UpdateStyle::Merge }));

@@ -74,7 +74,6 @@ use api::{Answer, Op, Read};
 use skein_forge_machine_world::hand as fixtures;
 use skein_lib::Duration;
 const ISSUE: &[u8] = br#"{"number":1,"pull_request":null,"state":"open","user":{"id":2,"login":"writer"},"labels":[],"updated_at":"2020-01-01T00:00:01+05:30","title":"t","body":"b"}"#;
-const EMPTY_STATUS: &[u8] = br#"{"state":"","total_count":0,"statuses":null}"#;
 const SHA: [u8; 32] = [0; 32];
 fn answer(h: &mut fixtures::Harness, body: &[u8]) {
     h.answer(fixtures::FORGE, &fixtures::ok(body));
@@ -183,10 +182,10 @@ fn a_pending_review_is_skipped_but_fills_the_page() {
     last(&h, b"GET /api/v1/repos/fixture/specimen/pulls/1/reviews?page=1&limit=2 HTTP/1.1");
 }
 #[test]
-fn statuses_say_more_while_pages_fall_short_of_total_count() {
+fn short_status_pages_end_regardless_of_total_count() {
     let mut h = fixtures::known();
     for (name, page, total, expected_ci, expected) in [
-        ("first", 1, br#"{"state":"pending","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Pending, true),
+        ("first", 1, br#"{"state":"pending","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Pending, false),
         ("later", 3, br#"{"state":"success","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Passed, false),
     ] {
         h.call(u64::from(page), fixtures::REPO, Op::Read(Read::Statuses { commit: SHA, page }));
@@ -237,10 +236,8 @@ fn pull_for_lists_open_pulls_when_the_lookup_names_a_closed_one() {
         b"GET /api/v1/repos/fixture/specimen/pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=2 HTTP/1.1",
     );
     answer(&mut h, &concat(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
-    last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=2 HTTP/1.1");
-    answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("open pull").result, Ok(Answer::Pull(expected_pull(13, api::State::Open))));
-    assert_eq!(h.answered(1).expect("open pull").cost, 3);
+    assert_eq!(h.answered(1).expect("open pull").cost, 2);
 }
 #[test]
 fn pull_for_answers_the_lookups_closed_pull_when_none_is_open() {
@@ -248,9 +245,8 @@ fn pull_for_answers_the_lookups_closed_pull_when_none_is_open() {
     h.call(1, fixtures::REPO, Op::Read(Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) }));
     answer(&mut h, &pull(12, b"closed", b"work"));
     answer(&mut h, &listed(&pull(9, b"open", b"other")));
-    answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("closed pull").result, Ok(Answer::Pull(expected_pull(12, api::State::Closed))));
-    assert_eq!(h.answered(1).expect("closed pull").cost, 3);
+    assert_eq!(h.answered(1).expect("closed pull").cost, 2);
 }
 
 fn revisions_from_bytes() {

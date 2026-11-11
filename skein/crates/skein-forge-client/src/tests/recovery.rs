@@ -16,7 +16,7 @@ fn updating(style: api::UpdateStyle) -> writing::Harness {
 
 fn check_update(h: &mut writing::Harness, pull: api::Pull) {
     let check = h.one();
-    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
     h.answer(check, Ok(Answer::Pull(pull)));
 }
 
@@ -418,7 +418,7 @@ fn keep_is_busy_around_failed_restore() {
     fixture::paired(&mut h, fixture::live());
     h.step(Event::Restored { clock: RecoveryClock::Monotonic });
     fixture::assert_busy(&mut h, "corrected rows stay failed");
-    h.step(Event::Read { owner: Token::new(1), repository: REPO, read: Read::Pull { number: 9 } });
+    h.step(Event::Read { owner: Token::new(1), repository: REPO, read: Read::Pull { number: 9, ci: false } });
     let sent = h.one();
     h.answer(&sent, 1, Ok(Answer::Pull(kept::current())));
     assert!(h.domain.restoration_failed());

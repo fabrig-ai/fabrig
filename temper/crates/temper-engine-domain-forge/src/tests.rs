@@ -304,7 +304,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
     }
     values.into_boxed()
 }
-fn adopted() -> Repository {
+pub(crate) fn adopted() -> Repository {
     Repository {
         workflows: Box::default(),
         project: 5,

@@ -75,6 +75,7 @@ fn observe_pull(d: &mut Domain) {
         dequeued: None,
     };
     let pending = PendingStep {
+        pull_ci: false,
         task: CHANGE,
         entry: OPEN,
         stage: StepStage::Branch,

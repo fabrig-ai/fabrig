@@ -25,10 +25,9 @@ fn reads_for(world: &World, task: u64) -> Vec<Op> {
         Op::Read(Read::Branch { branch: row.branch.clone() }),
         Op::Read(Read::Branch { branch: row.base.clone() }),
         Op::Read(match row.pull {
-            Some(number) => Read::Pull { number },
+            Some(number) => Read::Pull { number, ci: true },
             None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
         }),
-        Op::Read(Read::Checks { commit: head }),
         Op::Read(Read::Checks { commit: base }),
         Op::Read(Read::Commits { before: head, after: base, page: 1 }),
         Op::Read(Read::Reviews { number: row.pull.expect("opened pull"), page: 1 }),

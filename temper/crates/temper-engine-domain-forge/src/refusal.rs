@@ -81,7 +81,7 @@ pub(crate) fn read(
     use skein_forge::api::Read;
     let what = match read {
         Read::Branch { branch } | Read::PullFor { head: branch, .. } => crate::What::Branch(parts(branch)),
-        Read::Pull { number } => crate::What::Pull(*number),
+        Read::Pull { number, .. } => crate::What::Pull(*number),
         Read::Locate { .. }
         | Read::Items { .. }
         | Read::Item { .. }

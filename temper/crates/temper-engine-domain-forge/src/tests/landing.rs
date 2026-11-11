@@ -482,7 +482,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             Op::Read(Read::Items { .. }) => {
                 Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
             }
-            Op::Read(Read::Pull { number: 1 }) => {
+            Op::Read(Read::Pull { number: 1, ci: false }) => {
                 let mut pull = fixtures::open_pull();
                 if merged {
                     pull.state = skein_forge::api::State::Closed;

@@ -83,7 +83,7 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
     );
     h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
     h.answer(read, Answer::Pull(current()));
     assert!(!h.domain.is_ready());
     h.fire(105);
@@ -120,7 +120,7 @@ fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() 
             } else if let Op::Read(Read::Item { .. }) = read.op {
                 Answer::Item { item: summary(), comments: Box::new([]), more: false }
             } else {
-                assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+                assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
                 pulls.push(second).unwrap();
                 Answer::Pull(current())
             };
@@ -1016,7 +1016,7 @@ fn missing_pull_stays_absent_across_successful_item_phases() {
         let item = h.one();
         h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
         let read = h.one();
-        assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+        assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing]);
         h.fire(now + 59);
@@ -1478,4 +1478,48 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
         let read = h.one();
         assert_eq!(read.op, Op::Read(Read::Item { number: 9, after, since }), "{name}");
     }
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture keeps only a pull and its repository")]
+fn hints_read_only_the_pulls_whose_branch_facts_can_move() {
+    skein_rows::check(
+        [
+            ("head commit", (Change::Commit([1; 32]), false)),
+            ("base commit", (Change::Commit([2; 32]), false)),
+            ("head branch", (Change::Branch(Box::from(b"topic".as_slice())), true)),
+            ("base branch", (Change::Branch(Box::from(b"main".as_slice())), true)),
+            ("other branch", (Change::Branch(Box::from(b"other".as_slice())), false)),
+        ],
+        |(change, reads_pull)| {
+            let mut h = Harness::new();
+            h.keep(Box::new([watch(pull(), false)]));
+            h.clock();
+            let item = h.one();
+            h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+            let read = h.one();
+            h.answer(read, Answer::Pull(current()));
+            h.event(Event::Hint { hint: api::Hint { repository: REPO, change, key: None } });
+            h.fire(101);
+            let mut pulls = 0;
+            for _ in 0_u32..4 {
+                let Some(read) = h.send() else { break };
+                let answer = match read.op {
+                    Op::Read(Read::Items { .. }) => {
+                        Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) }
+                    }
+                    Op::Read(Read::Item { .. }) => {
+                        Answer::Item { item: summary(), comments: Box::new([]), more: false }
+                    }
+                    Op::Read(Read::Pull { ci: true, .. }) => {
+                        pulls += 1;
+                        Answer::Pull(current())
+                    }
+                    _ => panic!("unexpected hinted read: {read:?}"),
+                };
+                h.answer(read, answer);
+            }
+            assert_eq!(pulls, u32::from(reads_pull));
+        },
+    );
 }

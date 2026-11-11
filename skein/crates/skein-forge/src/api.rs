@@ -117,7 +117,7 @@ pub enum Read {
     /// `after` stays the answer's check; an owner knowing no time sends zero.
     Item { number: u64, after: u64, since: Time },
     /// Read pull.
-    Pull { number: u64 },
+    Pull { number: u64, ci: bool },
     /// The open matching pull, else the oldest.
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     /// Read reviews.

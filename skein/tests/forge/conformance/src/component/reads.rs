@@ -63,7 +63,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
     facts.push(h.observe("component-read-items", repo, Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }.operation(), |a| matches!(a, Answer::Items { items, now, .. } if items.first().is_some_and(|i| i.number == oldest && i.kind == api::Kind::Pull) && *now > Time::ZERO)));
     facts.push(h.observe("component-read-item", repo, Read::Item { number: issue, after: 0 , since: Time::ZERO }.operation(), |a| matches!(a, Answer::Item { item, comments, more } if item.number == issue && item.title.as_ref() == b"read fixture" && item.body.as_ref() == b"read body" && comments.len() == 1 && comments[0].id == comment && comments[0].body.as_ref() == b"thread fixture" && !more)));
     for (name, read) in [
-        ("component-read-pull", Read::Pull { number: f.feature }),
+        ("component-read-pull", Read::Pull { number: f.feature, ci: false }),
         ("component-read-pull-for", Read::PullFor { head: bytes("feature/slash"), base: bytes("main") }),
     ] {
         facts.push(h.observe(name, repo, read.operation(), |a| matches!(a, Answer::Pull(p) if p.number == f.feature && p.commit == head && p.head.as_ref() == b"feature/slash" && p.base.as_ref() == b"main" && p.state == api::State::Open)));

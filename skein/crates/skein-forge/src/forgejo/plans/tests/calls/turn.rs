@@ -139,7 +139,7 @@ fn runs_keep_dispatch_and_other_events_newest_first() {
         plan.answer(200, &bytes),
         Step::Done(Ok(Answer::Runs { runs: Box::new([run_value(), expected_older]), more: true }))
     );
-    plan.assert_sent(&["GET /api/v1/repos/fixture/specimen/actions/runs?workflow=ci.yaml&head_sha=0100000000000000000000000000000000000000&page=1&limit=2"]);
+    plan.assert_sent(&["GET /api/v1/repos/fixture/specimen/actions/runs?workflow_id=ci.yaml&head_sha=0100000000000000000000000000000000000000&page=1&limit=2"]);
     let mut empty = known(Op::Read(Read::Runs { workflow: Box::from(*b"ci.yaml"), commit: HEAD, page: 2 }));
     round_request(empty.begin());
     assert_eq!(

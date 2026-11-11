@@ -68,7 +68,7 @@ fn fresh_read_refusal_ends_once(error: Error) {
 fn a_fresh_read_starts_immediately_without_global_lifetime_silence() {
     let mut h = Harness::new(LIMITS);
     h.read(1);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1, ci: false }));
 }
 #[test]
 fn priority_and_parallel_limit_follow_the_budget_cases() {
@@ -79,11 +79,11 @@ fn priority_and_parallel_limit_follow_the_budget_cases() {
     h.read(4);
     let first = h.one();
     let second = h.one();
-    assert_eq!(first.op, Op::Read(Read::Pull { number: 4 }));
+    assert_eq!(first.op, Op::Read(Read::Pull { number: 4, ci: false }));
     assert_eq!(second.op, Op::Write(Write::Close { number: 3 }));
     assert!(h.send().is_none());
     terminal(&h.answer(&first, 1, Err(Error::Forbidden)), 4, Error::Forbidden);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
     assert!(h.facts().contains(&Fact::Sent { priority: Priority::Fresh }));
 }
 #[test]
@@ -94,10 +94,10 @@ fn reserve_keeps_a_share_for_keep_and_slow() {
     h.queued(3, Priority::Write);
     h.read(4);
     h.read(5);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 4 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 4, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1, ci: false }));
     assert!(h.send().is_none());
     assert_eq!(h.domain.next_deadline(), Some(at(160)));
     h.env.now = at(160);
@@ -156,7 +156,7 @@ fn zero_cost_refund_reopens_the_last_reservation() {
     assert!(h.send().is_none());
     terminal(&h.answer(&sent, 0, Err(Error::Forbidden)), 1, Error::Forbidden);
     assert_eq!(h.domain.calls.remaining(), (1, 0));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
 }
 #[test]
 fn rate_refusal_stops_every_class_and_retries_with_a_distinct_call_token() {
@@ -285,7 +285,7 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
                     1,
                 ),
             ),
-            ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1 }, Answer::Done, 1)),
+            ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1, ci: false }, Answer::Done, 1)),
             (
                 "comparisons_must_return_the_requested_endpoints",
                 (
@@ -319,7 +319,7 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "an_answer_for_another_pull_cannot_satisfy_a_fresh_read",
                 (
-                    Read::Pull { number: 8 },
+                    Read::Pull { number: 8, ci: false },
                     Answer::Pull(api::Pull {
                         queued: None,
                         dequeued: None,

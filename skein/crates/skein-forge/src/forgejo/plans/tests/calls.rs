@@ -38,6 +38,7 @@ fn pull() -> api::Pull {
 }
 pub(super) struct ReadCase {
     pub(super) name: &'static str,
+    pub(super) known: bool,
     pub(super) read: Read,
     pub(super) replies: &'static [(u16, &'static [u8])],
     pub(super) expected: Result<Answer, Error>,
@@ -52,7 +53,7 @@ pub(super) fn read_cases() -> [Box<[ReadCase]>; 4] {
 fn find_cases() -> Box<[ReadCase]> {
     Box::new([
         ReadCase {
-            name: "locate",
+            name: "locate", known: false,
             read: Read::Locate { owner: Box::from(&b"fixture"[..]), name: Box::from(&b"specimen"[..]) },
             replies: &[(200, REPOSITORY)],
             expected: Ok(Answer::Located { repository: 1 }),
@@ -62,7 +63,7 @@ fn find_cases() -> Box<[ReadCase]> {
             login: None,
         },
         ReadCase {
-            name: "items",
+            name: "items", known: false,
             read: Read::Items { single: false, since: Time::ZERO, page: 1, kind: None },
             replies: &[(200, REPOSITORY), (200, b"[]")],
             expected: Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: Time::ZERO }),
@@ -75,7 +76,7 @@ fn find_cases() -> Box<[ReadCase]> {
             login: None,
         },
         ReadCase {
-            name: "item",
+            name: "item", known: false,
             read: Read::Item { number: 1, after: 0 , since: Time::ZERO },
             replies: &[(200, REPOSITORY), (200, ISSUE), (200, b"[]")],
             expected: Ok(Answer::Item { item: summary(), comments: Box::new([]), more: false }),
@@ -89,7 +90,7 @@ fn find_cases() -> Box<[ReadCase]> {
             login: None,
         },
         ReadCase {
-            name: "item comments since, including an edited older id",
+            name: "item comments since, including an edited older id", known: false,
             read: Read::Item { number: 1, after: 1, since: Time::from_nanos(1_000_000_000) },
             replies: &[(200, REPOSITORY), (200, ISSUE), (200, br#"[{"id":1,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:00Z","updated_at":"1970-01-01T00:00:02Z","body":"edited"},{"id":2,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:02Z","updated_at":"1970-01-01T00:00:02Z","body":"new"}]"#)],
             expected: Ok(Answer::Item { item: summary(), comments: Box::new([api::Comment {
@@ -105,8 +106,19 @@ fn find_cases() -> Box<[ReadCase]> {
             range: None, kept: true, login: None,
         },
         ReadCase {
-            name: "pull",
-            read: Read::Pull { number: 1 },
+            name: "pull without ci",
+            known: true,
+            read: Read::Pull { number: 7, ci: false },
+            replies: &[(200, br#"{"number":7,"state":"open","head":{"repo_id":1,"ref":"work","sha":"0100000000000000000000000000000000000000"},"base":{"repo_id":1,"ref":"main","sha":"0300000000000000000000000000000000000000"},"merged":false,"merge_commit_sha":null,"merge_base":"0300000000000000000000000000000000000000","mergeable":true,"requested_reviewers":[]}"#)],
+            expected: Ok(Answer::Pull(api::Pull { number: 7, ..pull() })),
+            sends: &["GET /api/v1/repos/fixture/specimen/pulls/7"],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
+            name: "pull", known: false,
+            read: Read::Pull { number: 1, ci: true },
             replies: &[(200, REPOSITORY), (200, PULL), (200, EMPTY_STATUS)],
             expected: Ok(Answer::Pull(pull())),
             sends: &[
@@ -119,14 +131,13 @@ fn find_cases() -> Box<[ReadCase]> {
             login: None,
         },
         ReadCase {
-            name: "pull for",
+            name: "pull for", known: false,
             read: Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
-            replies: &[(200, REPOSITORY), (200, PULL), (200, EMPTY_STATUS)],
+            replies: &[(200, REPOSITORY), (200, PULL)],
             expected: Ok(Answer::Pull(pull())),
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/main/work",
-                "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",
             ],
             range: None,
             kept: true,
@@ -138,6 +149,7 @@ fn review_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "reviews",
+            known: false,
             read: Read::Reviews { number: 1, page: 1 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
             expected: Ok(Answer::Reviews { reviews: Box::new([]), more: false }),
@@ -148,6 +160,7 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "statuses",
+            known: false,
             read: Read::Statuses { commit: HEAD, page: 1 },
             replies: &[(200, REPOSITORY), (200, EMPTY_STATUS)],
             expected: Ok(Answer::Statuses { ci: api::Ci::None, statuses: Box::new([]), more: false }),
@@ -161,6 +174,7 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "remarks",
+            known: false,
             read: Read::Remarks { number: 1, review: 7, page: 1 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
             expected: Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
@@ -171,6 +185,7 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "branch",
+            known: false,
             read: Read::Branch { branch: Box::from(&b"work"[..]) },
             replies: &[(200, REPOSITORY), (200, BRANCH)],
             expected: Ok(Answer::Commit(HEAD)),
@@ -181,6 +196,7 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "branches",
+            known: false,
             read: Read::Branches { prefix: Box::from(&b"m"[..]) },
             replies: &[(200, REPOSITORY), (200, b"[]")],
             expected: Ok(Answer::Branches(Box::new([]))),
@@ -191,10 +207,12 @@ fn review_cases() -> [ReadCase; 5] {
         },
     ]
 }
+#[expect(clippy::too_many_lines, reason = "each canned content exchange states its request and bounded answer")]
 fn content_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "pull files",
+            known: false,
             read: Read::PullFiles { number: 1, head: HEAD, page: 1 },
             replies: &[(200, REPOSITORY), (200, PULL), (200, b"[]")],
             expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false }),
@@ -209,6 +227,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "compare",
+            known: false,
             read: Read::Compare { before: BASE, after: HEAD },
             replies: &[(200, REPOSITORY), (200, LARGE_COMPARE), (200, REVERSE_COMPARE)],
             expected: Ok(Answer::Compare {
@@ -239,6 +258,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "checks",
+            known: false,
             read: Read::Checks { commit: HEAD },
             replies: &[(200, REPOSITORY), (200, EMPTY_STATUS)],
             expected: Ok(Answer::Checks(Box::new([]))),
@@ -252,6 +272,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "job",
+            known: false,
             read: Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES },
             replies: &[(200, REPOSITORY), (200, RUN), (200, JOB), (200, b"abc")],
             expected: Ok(Answer::Job {
@@ -272,6 +293,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "file",
+            known: false,
             read: Read::File { head: HEAD, path: Box::from(&b"x"[..]), max_bytes: RAW_BYTES },
             replies: &[(200, REPOSITORY), (200, b"abc")],
             expected: Ok(Answer::File {
@@ -294,6 +316,7 @@ fn repository_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "protection",
+            known: false,
             read: Read::Protection { branch: Box::from(&b"work"[..]) },
             replies: &[(200, REPOSITORY), (200, BRANCH), (200, b"[]")],
             expected: Ok(Answer::Protection(None)),
@@ -308,6 +331,7 @@ fn repository_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "settings",
+            known: false,
             read: Read::Settings,
             replies: &[(200, REPOSITORY)],
             expected: Ok(Answer::Settings(api::Settings {
@@ -323,6 +347,7 @@ fn repository_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "collaborators",
+            known: false,
             read: Read::Collaborators { page: 1 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
             expected: Ok(Answer::Collaborators { collaborators: Box::new([]), more: false }),
@@ -333,6 +358,7 @@ fn repository_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "permission",
+            known: false,
             read: Read::Permission { user: 7 },
             replies: &[
                 (200, REPOSITORY),
@@ -355,6 +381,7 @@ fn repository_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "missing branch keeps the row",
+            known: false,
             read: Read::Branch { branch: Box::from(&b"gone"[..]) },
             replies: &[(200, REPOSITORY), (404, b"{}")],
             expected: Err(Error::Missing),
@@ -368,7 +395,7 @@ fn repository_cases() -> [ReadCase; 5] {
 #[test]
 fn read_calls_follow_canned_exchanges() {
     for case in read_cases().into_iter().flatten() {
-        let mut run = Run::new(Op::Read(case.read));
+        let mut run = if case.known { Run::known(Op::Read(case.read)) } else { Run::new(Op::Read(case.read)) };
         let mut step = run.begin();
         for (status, body) in case.replies {
             step = run.answer(*status, body);

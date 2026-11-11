@@ -207,7 +207,7 @@ fn another_word_has_no_key() {
 #[test]
 fn success_statuses_match_each_exchange() {
     for case in successful_reads().into_boxed() {
-        let mut run = Run::new(Op::Read(case.read));
+        let mut run = if case.known { Run::known(Op::Read(case.read)) } else { Run::new(Op::Read(case.read)) };
         assert_eq!(replies(&mut run, case.replies), Step::Done(case.expected), "{}", case.name);
     }
     for case in successful_writes().into_boxed() {

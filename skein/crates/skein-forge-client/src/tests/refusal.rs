@@ -58,7 +58,7 @@ enum RefusalStep {
 fn a_refusal_is_kept_until_its_inputs_change() {
     use RefusalStep::{Fire, Hint, HintOut, Listed, Pushed, Quiet, Read as R, UnchangedTip, Writer};
     let compare = Read::Commits { before: [2; 32], after: [1; 32], page: 1 };
-    let pull_read = Read::Pull { number: 9 };
+    let pull_read = Read::Pull { number: 9, ci: true };
     let reviews = Read::Reviews { number: 9, page: 1 };
     let oversized = Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false };
     // One inbox page/row is the exact bound; two comments exceed rows.
@@ -160,7 +160,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Hint(Change::Item(9)),
                     Fire(116),
                     R(object_read(0), Ok(empty_object())),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     R(reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
                 ]),
             ),
@@ -193,7 +193,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 2,
                 Box::new([
                     R(object_read(0), Ok(empty_object())),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     R(
                         Read::Reviews { number: 9, page: 1 },
                         Ok(Answer::Reviews { reviews: Box::new([review(1, 90)]), more: true }),
@@ -203,18 +203,18 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                         object_read(0),
                         Ok(Answer::Item { item: summary(), comments: Box::new([comment(1)]), more: true }),
                     ),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     Quiet,
                     Fire(115),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     Quiet,
                     Fire(135),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     Quiet,
                     Hint(Change::Item(9)),
                     Fire(136),
                     R(object_read(0), Ok(changed_object())),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     R(Read::Reviews { number: 9, page: 1 }, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
                 ]),
             ),
@@ -227,7 +227,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 1,
                 Box::new([
                     R(object_read(0), Ok(empty_object())),
-                    R(Read::Pull { number: 9 }, Err(Error::TooLarge(api::Excess::unnamed()))),
+                    R(Read::Pull { number: 9, ci: true }, Err(Error::TooLarge(api::Excess::unnamed()))),
                     R(Read::Reviews { number: 9, page: 1 }, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
                     Fire(105),
                     R(object_read(0), Ok(empty_object())),
@@ -238,7 +238,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Listed(115),
                     Fire(117),
                     R(object_read(0), Ok(empty_object())),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                 ]),
             ),
         ),
@@ -253,7 +253,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                         object_read(0),
                         Answer::Item { item: summary(), comments: Box::new([comment(1)]), more: true },
                     ),
-                    R(Read::Pull { number: 9 }, Ok(Answer::Pull(current()))),
+                    R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     Quiet,
                     Fire(101),
                     R(object_read(0), Ok(empty_object())),

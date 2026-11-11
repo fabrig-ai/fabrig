@@ -132,28 +132,41 @@ fn linked_runs_are_read_once_each_in_first_status_order() {
 
 #[test]
 fn statuses_resolve_their_page_and_keep_more() {
-    for (state, check, ci) in [
-        ("pending", api::Check::Pending, api::Ci::Pending),
-        ("success", api::Check::Passed, api::Ci::Passed),
-        ("failure", api::Check::Failed, api::Ci::Failed),
-    ] {
-        for (total, more) in [(3, false), (4, true)] {
-            let mut run = Run::known(Op::Read(Read::Statuses { commit: HEAD, page: 2 }));
-            run.begin();
-            run.answer(200, &body(state, LINK, total));
-            run.answer(200, RUNS);
-            assert_eq!(
-                run.answer(200, JOBS),
-                Step::Done(Ok(Answer::Statuses { ci, statuses: Box::new([status(check, LINK, Some(ATTEMPT))]), more }))
+    skein_rows::check(
+        [
+            ("short despite a large total", ("pending", api::Check::Pending, api::Ci::Pending, 9, false)),
+            ("full despite a page-local total", ("success", api::Check::Passed, api::Ci::Passed, 2, true)),
+            ("short failed", ("failure", api::Check::Failed, api::Ci::Failed, 1, false)),
+        ],
+        |(state, check, ci, total, more)| {
+            let mut run = Run::with_limits(
+                fixtures::profile_limits(),
+                fixtures::BOUNDS,
+                Op::Read(Read::Statuses { commit: HEAD, page: 2 }),
             );
+            run.begin();
+            let statuses = if more {
+                let link = "/fixture/specimen/actions/runs/5/jobs/1";
+                let step = run.answer(200, &page(&[(state, LINK), (state, link)], total));
+                let Step::Send(_) = step else { panic!("{step:?}") };
+                Box::from([status(check, LINK, Some(ATTEMPT)), status(check, link, None)].as_slice())
+            } else {
+                let step = run.answer(200, &body(state, LINK, total));
+                let Step::Send(_) = step else { panic!("{step:?}") };
+                Box::from([status(check, LINK, Some(ATTEMPT))].as_slice())
+            };
+            // page()'s envelope is pending; use the same verdict for both full rows.
+            let ci = if more { api::Ci::Pending } else { ci };
+            run.answer(200, RUNS);
+            assert_eq!(run.answer(200, JOBS), Step::Done(Ok(Answer::Statuses { ci, statuses, more })));
             let [runs, jobs] = LOOKUPS;
             run.assert_sent(&[
                 "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=2&limit=2",
                 runs,
                 jobs,
             ]);
-        }
-    }
+        },
+    );
 }
 #[test]
 fn an_unresolvable_link_gives_no_job() {
@@ -222,7 +235,7 @@ fn resolving_statuses_keeps_the_answer_byte_bound() {
 }
 #[test]
 fn a_pull_folds_ci_without_resolving_jobs() {
-    let mut run = Run::known(Op::Read(Read::Pull { number: 1 }));
+    let mut run = Run::known(Op::Read(Read::Pull { number: 1, ci: true }));
     run.begin();
     run.answer(200, fixtures::PULL);
     let Step::Done(Ok(Answer::Pull(pull))) = run.answer(200, &body("success", LINK, 1)) else {
@@ -233,4 +246,35 @@ fn a_pull_folds_ci_without_resolving_jobs() {
         "GET /api/v1/repos/fixture/specimen/pulls/1",
         "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",
     ]);
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "vary the wire envelope independently of its row"
+)]
+fn pull_ci_uses_a_short_first_envelope_except_warning() {
+    skein_rows::check(
+        [
+            ("latest context envelope wins", ("success", "pending", api::Ci::Passed)),
+            ("warning cannot hide pending", ("warning", "pending", api::Ci::Pending)),
+            ("a failed envelope stays failed", ("failure", "success", api::Ci::Failed)),
+        ],
+        |(envelope, row, expected)| {
+            let mut run = Run::known(Op::Read(Read::Pull { number: 1, ci: true }));
+            run.begin();
+            run.answer(200, fixtures::PULL);
+            let body = body(row, LINK, 1);
+            let body = core::str::from_utf8(&body).unwrap().replacen(
+                &format!("\"state\":\"{row}\""),
+                &format!("\"state\":\"{envelope}\""),
+                1,
+            );
+            let Step::Done(Ok(Answer::Pull(pull))) = run.answer(200, body.as_bytes()) else {
+                panic!("short page ends pull")
+            };
+            assert_eq!(pull.ci, expected);
+        },
+    );
 }
