@@ -32,6 +32,20 @@ fn a_repository_and_readme_fit_the_last_available_slots() {
     );
 }
 #[test]
+fn an_empty_repository_has_no_commit_or_branch_and_grants_its_owner() {
+    let config = configured();
+    let mut domain = Domain::new(&config, 1);
+    let room = domain.room().commits;
+    domain::create_empty_repository(&mut domain, &config, NAME, ENGINE).expect("empty repository fits");
+    assert_eq!(domain.room().commits, room);
+    assert!(domain.branches(NAME).is_empty());
+    assert_eq!(domain.metadata(NAME).expect("empty repository").default_branch.as_ref(), MAIN);
+    assert_eq!(domain.permission(NAME, ENGINE), Ok(crate::api::Permission::Admin));
+    assert_eq!(domain.permission(NAME, STRANGER), Ok(crate::api::Permission::None));
+    assert_eq!(domain::create_empty_repository(&mut domain, &config, NAME, ENGINE), Err(Error::Exists));
+    assert_eq!(domain::create_empty_repository(&mut domain, &config, b"org/second", ENGINE), Err(Error::Full));
+}
+#[test]
 fn a_full_repository_table_refuses_without_allocating_a_commit() {
     let config = configured();
     let mut domain = created(&config);

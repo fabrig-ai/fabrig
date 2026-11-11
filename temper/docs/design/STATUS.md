@@ -1043,8 +1043,9 @@ own settings alone; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
-Home’s own sheet and the two unmocked entry paths remain distinct
-(`draft/repository-copies.md`). Settings’ connection pages share the
+Home keeps its own sheet, as the user asked, and the gallery draws the
+two entry paths into “Add repositories” (`draft/repository-copies.md`;
+`client/forge/family.md`). Settings’ connection pages share the
 welcome’s cards and panels and finish on Accounts or Forges. Failed
 making rows can be dismissed through their project's keyed request;
 absent rows are kept and running rows refused. The browser stories keep

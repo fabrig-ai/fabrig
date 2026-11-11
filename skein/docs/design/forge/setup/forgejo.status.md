@@ -1,7 +1,16 @@
 # forgejo: status
 
-2026-11-10. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-11. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
 
+- **Not yet:** 2: `skein/tests/forge/conformance/src/migrate.rs`,
+  `ordinary`, judges a missing source's refusal under its earlier name, by
+  leaving nothing, and asks no private source [in flight: change 524].
+- **Not yet:** 2: `setup-migrate-of-a-missing-source-says-why-and-leaves-an-empty-repository`
+  and `setup-migrate-of-a-private-source-says-why-and-leaves-an-empty-repository`
+  are in no `facts.txt` line: the file is a run's output, and no `--migrate`
+  run has recorded them, so it still holds the missing source's earlier
+  name, `fails`, and nothing of a private source, whose refusal the fake
+  Forgejo answers as a missing one's on no recording.
 - **Not yet:** 2: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
