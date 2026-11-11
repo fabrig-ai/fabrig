@@ -102,4 +102,4 @@ pub use terminal::{
     terminal_modes,
 };
 
-pub use table::{Argument, Command, HOME, Reach, Set, Switch, Table, TestTable, Variable, Way};
+pub use table::{Argument, Command, HOME, Reach, Reached, Set, Switch, Table, TestTable, Variable, Way};
