@@ -105,10 +105,16 @@ own, never a change's:
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
-  outbox full (`forge.entries`), it keeps its entry number and its commit,
-  holds nothing and polls nothing, and is sent once an entry frees,
-  the makings that wait sent in the order they began to wait, as a
+  outbox full (`forge.entries`), it holds nothing and polls nothing, as a
   read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
+  It gives up its entry number while it waits, so it reserves nothing:
+  a kept number would stop every later entry's handoff, and an outbox
+  full of those would never free. Once an entry frees, the makings that
+  wait go on in the order they began to wait, each taking a fresh number
+  and reading the default branch's tip afresh, as a restart's making
+  with no entry does; fresh numbers follow that order, so the client's
+  entries stay in increasing order. A making that meets a full outbox
+  again waits again, keeping its place.
   What no freed entry mends holds the goal at once, each cause in its
   own words after the branch's `could not be made: `: a repository not
   adopted, `the repository is not adopted`; one adopted to be read,
