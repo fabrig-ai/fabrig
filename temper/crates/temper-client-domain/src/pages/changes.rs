@@ -149,6 +149,11 @@ impl Changes {
                 tasks.push(row.task()).expect("wire bounds rows");
             }
         }
+        for row in panel.landed_default() {
+            if !tasks.as_slice().contains(&row.task()) {
+                tasks.push(row.task()).expect("wire bounds rows");
+            }
+        }
         let mut kept = List::uncapped();
         for row in core::mem::replace(&mut self.reads, List::uncapped()).into_boxed() {
             if tasks.as_slice().contains(&row.task) {

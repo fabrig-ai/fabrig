@@ -18,6 +18,41 @@ use skein_lib::{Duration, Secret, Time, Token};
 
 const SOURCE: &[u8] = b"https://sources.invalid/upstream/repository";
 const DESTINATION: &[u8] = b"creation/copied";
+#[expect(clippy::disallowed_macros, reason = "the committed conformance answer is the fake's oracle")]
+const MISSING_REFUSAL: &[u8] =
+    include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source/response");
+#[expect(clippy::disallowed_macros, reason = "the committed conformance read is the fake's oracle")]
+const MISSING_READ: &[u8] =
+    include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source-read/response");
+
+fn json(h: &Harness, body: &[u8]) -> skein_json::Document {
+    skein_json::parse(body, &h.env.limits.documents.json, &skein_json::document::Limits { tokens: 1024, text: 8192 })
+        .expect("answer JSON")
+}
+fn version_and_status(line: &[u8]) -> (&[u8], &[u8]) {
+    let version = skein_lib::bytes::find(line, b" ").expect("HTTP version");
+    let tail = &line[version.saturating_add(1)..];
+    let code = skein_lib::bytes::find(tail, b" ").expect("status code");
+    (&line[..version], &tail[..code])
+}
+fn recorded(h: &Harness, transcript: &[u8], fields: &[&[u8]]) {
+    let line = skein_lib::bytes::find(transcript, b"\r\n").expect("recorded status line");
+    let output = h.output.as_slice();
+    let end = skein_lib::bytes::find(output, b"\r\n").expect("fake status line");
+    // Reason phrases are advisory: Forgejo uses "Unprocessable Entity", HTTP uses RFC 9110's "Unprocessable Content".
+    assert_eq!(version_and_status(&output[..end]), version_and_status(&transcript[..line]));
+    let body =
+        skein_lib::bytes::find(transcript, b"\r\n\r\n").expect("recorded body").checked_add(4).expect("body offset");
+    let expected = json(h, &transcript[body..]);
+    let actual = json(h, &h.body());
+    for field in fields {
+        let expected_value =
+            expected.token(expected.member(0, field).expect("recorded field")).expect("recorded value");
+        let actual_value = actual.token(actual.member(0, field).expect("fake field")).expect("fake value");
+        assert_eq!(actual_value.kind, expected_value.kind);
+        assert_eq!(actual.text(actual_value), expected.text(expected_value));
+    }
+}
 fn at() -> Repo {
     Repo { owner: boxed(b"creation"), name: boxed(b"copied") }
 }
@@ -101,10 +136,37 @@ fn assert_refused(h: &mut Harness, message: &[u8]) {
     )
     .expect("refusal document");
     assert_eq!(h.body(), expected);
-    assert!(h.service.config.repositories.is_empty());
-    assert_eq!(h.domain.metadata(DESTINATION), Err(a::Error::Missing(a::What::Repository)));
-    h.send(&Request::Repository { at: at() });
+    recorded(h, MISSING_REFUSAL, &[b"message"]);
+    assert_eq!(h.service.config.repositories.len(), 1);
+    assert!(h.service.setup().is_private(id(h)));
+    assert!(h.domain.branches(DESTINATION).is_empty());
+    assert_eq!(h.domain.metadata(DESTINATION).expect("empty destination").default_branch.as_ref(), b"main");
+    assert_eq!(h.domain.permission(DESTINATION, fixtures::ADMIN), Ok(a::Permission::Admin));
+    for request in [Request::Repository { at: at() }, Request::RepositoryById { id: id(h) }] {
+        h.send(&request);
+        assert_eq!(h.status(), 200);
+        // The fake's repository document carries no `empty`; branch absence pins that state.
+        recorded(h, MISSING_READ, &[b"default_branch"]);
+        let Document::Repository(repository) = h.decoded(&request).document else { panic!("repository") };
+        assert_eq!(repository.id, id(h));
+        assert_eq!(repository.owner.login.as_ref(), b"creation");
+        assert_eq!(repository.name.as_ref(), b"copied");
+    }
+    h.send(&Request::Branch { at: at(), name: boxed(b"main") });
     assert_eq!(h.status(), 404);
+    let search = Request::RepoSearch { page: fixtures::PAGE };
+    h.send(&search);
+    assert_eq!(h.status(), 200);
+    let decoded = h.decoded(&search);
+    let [Row::Found(repository)] = decoded.rows.as_ref() else { panic!("one search row") };
+    assert_eq!(repository.repository, id(h));
+    assert_eq!(repository.login.as_ref(), b"creation");
+    assert!(repository.private);
+    clone(h, DESTINATION);
+    assert_eq!(h.status(), 200);
+    let git::Answer::Cloned { default, branches } = decoded_clone(h) else { panic!("empty clone") };
+    assert_eq!(default.as_ref(), b"main");
+    assert!(branches.is_empty());
 }
 #[test]
 fn a_migrate_answers_as_forgejo_with_the_sources_default_branch() {
@@ -200,7 +262,7 @@ fn a_migrate_under_way_reads_as_present_with_no_branch() {
     assert_eq!(h.status(), 201);
 }
 #[test]
-fn a_source_not_in_the_catalogue_is_refused_and_makes_nothing() {
+fn a_source_not_in_the_catalogue_is_refused_and_leaves_an_empty_repository() {
     // copy-facts: setup-migrate-missing-source records this 422 and message.
     let mut h = harness(Fill::Whole);
     h.service.config.sources = Box::new([]);
@@ -218,10 +280,44 @@ fn a_name_taken_is_409() {
     let mut h = harness(Fill::Whole);
     h.send(&migrate());
     let before = id(&h);
+    let metadata = h.domain.metadata(DESTINATION).expect("first copy");
+    let mut branches = skein_lib::List::with_capacity(h.domain.branches(DESTINATION).len());
+    for (name, tip) in h.domain.branches(DESTINATION) {
+        branches.push((name.clone(), *tip)).expect("snapshot room");
+    }
+    h.service.config.sources = Box::new([]);
     h.send(&migrate());
     assert_eq!(h.status(), 409);
     assert_eq!(id(&h), before);
     assert_eq!(h.service.config.repositories.len(), 1);
+    assert_eq!(h.domain.metadata(DESTINATION), Ok(metadata));
+    assert_eq!(h.domain.branches(DESTINATION).len(), branches.len());
+    for (name, tip) in &branches {
+        assert_eq!(h.domain.branch(DESTINATION, name), Some(*tip));
+    }
+}
+#[test]
+fn checks_before_the_source_leave_no_repository() {
+    for (owner, name, user, room, status) in [
+        (b"creation".as_slice(), b"copied".as_slice(), fixtures::PERSON, true, 403),
+        (b"absent", b"copied", fixtures::ADMIN, true, 404),
+        (b"creation", b"bad name", fixtures::ADMIN, true, 422),
+        (b"creation", b"copied", fixtures::ADMIN, false, 503),
+    ] {
+        let mut h = harness(Fill::Whole);
+        h.service.config.sources = Box::new([]);
+        if !room {
+            h.service.config.repositories = skein_lib::List::with_capacity(0);
+        }
+        h.service.setup_mut().token(user, b"caller", &[b"all"], Secret::new(boxed(b"caller")));
+        let request = Request::Migrate { at: Repo { owner: boxed(owner), name: boxed(name) }, from: boxed(SOURCE) };
+        let encoded = skein_forge::forgejo::client::encode(&request, &h.env.limits.documents).expect("request");
+        h.ask_as(b"POST", &encoded.target, encoded.body.as_deref().expect("body"), b"caller");
+        assert_eq!(h.status(), status);
+        assert!(h.service.config.repositories.is_empty());
+        let full = concat(&[owner, b"/", name]);
+        assert_eq!(h.domain.metadata(&full), Err(a::Error::Missing(a::What::Repository)));
+    }
 }
 #[test]
 fn a_slow_source_is_slow() {
@@ -330,7 +426,7 @@ fn a_delete_is_204_then_404_and_drops_collaborators_and_hooks() {
     assert!(id(&h) > recreated);
 }
 #[test]
-fn the_scopes_are_write_repository() {
+fn migrate_needs_write_repository_and_delete_needs_write_organization() {
     let mut h = harness(Fill::Whole);
     let token = b"limited-admin";
     h.service.setup_mut().token(
@@ -340,18 +436,30 @@ fn the_scopes_are_write_repository() {
         Secret::new(boxed(token)),
     );
     let encoded = skein_forge::forgejo::client::encode(&migrate(), &h.env.limits.documents).expect("request");
-    for (method, path, body) in [
-        (b"POST".as_slice(), encoded.target.as_ref(), encoded.body.as_deref().expect("body")),
-        (b"DELETE", b"/api/v1/repos/creation/copied".as_slice(), b"".as_slice()),
+    for (method, path, body, scope) in [
+        (
+            b"POST".as_slice(),
+            encoded.target.as_ref(),
+            encoded.body.as_deref().expect("body"),
+            b"write:repository".as_slice(),
+        ),
+        (b"DELETE", b"/api/v1/repos/creation/copied".as_slice(), b"".as_slice(), b"write:organization".as_slice()),
     ] {
         h.ask_as(method, path, body, token);
         assert_eq!(h.status(), 403);
-        assert!(skein_lib::bytes::find(&h.body(), b"write:repository").is_some());
+        assert!(skein_lib::bytes::find(&h.body(), scope).is_some());
     }
     h.service.setup_mut().token(fixtures::ADMIN, b"writer", &[b"write:repository"], Secret::new(boxed(b"writer")));
     let encoded = skein_forge::forgejo::client::encode(&migrate(), &h.env.limits.documents).expect("request");
     h.ask_as(b"POST", &encoded.target, encoded.body.as_deref().expect("body"), b"writer");
     assert_eq!(h.status(), 201);
     h.ask_as(b"DELETE", b"/api/v1/repos/creation/copied", b"", b"writer");
+    assert_eq!(h.status(), 403);
+    assert!(skein_lib::bytes::find(&h.body(), b"write:organization").is_some());
+    h.service.setup_mut().token(fixtures::ADMIN, b"deleter", &[b"write:organization"], Secret::new(boxed(b"deleter")));
+    h.ask_as(b"POST", &encoded.target, encoded.body.as_deref().expect("body"), b"deleter");
+    assert_eq!(h.status(), 403);
+    assert!(skein_lib::bytes::find(&h.body(), b"write:repository").is_some());
+    h.ask_as(b"DELETE", b"/api/v1/repos/creation/copied", b"", b"deleter");
     assert_eq!(h.status(), 204);
 }
