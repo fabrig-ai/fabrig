@@ -1507,6 +1507,13 @@ impl World {
         self.restart_domain(config, with_change);
     }
 
+    /// Choose whether the next restart constructs the connector under a box.
+    #[must_use]
+    pub fn with_restart_under_box(mut self, under_box: bool) -> Self {
+        self.restart_config.under_box = under_box;
+        self
+    }
+
     /// Restart with the same tier and project configuration, retaining only durable rows.
     pub fn restart_same(&mut self) {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);

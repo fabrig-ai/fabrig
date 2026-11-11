@@ -679,8 +679,9 @@ each step the core asks for:
    differ (`routing.md`, 6). Once both are loaded, the root hands the forge the
    deployment's sole owner, the party jig's people answer as such, or none
    (jig's `domain/people/README.md`, section 4), before the forge's restore
-   decision: a forge's link to a box's person holds only while that person
-   is the sole owner (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
+   decision: a forge's link to a box's person holds only while the forge
+   runs under the box and that person is the sole owner, and the forge
+   clears any other in that decision (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
    `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's

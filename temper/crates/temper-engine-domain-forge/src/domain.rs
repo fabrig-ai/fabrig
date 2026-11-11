@@ -175,6 +175,9 @@ pub struct Domain {
     pub(crate) records: Map<u16, crate::ForgeRecord>,
     pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
+    /// The connector was built with `--box`; a closed pipe does not change it
+    /// (temper/docs/design/domain/forge/adoption.md, 6).
+    pub(crate) built_under_box: bool,
     pub(crate) under_box: bool,
     pub(crate) owner: Option<u64>,
     pub(crate) playground_config: Option<crate::PlaygroundConfig>,
@@ -736,6 +739,7 @@ impl Domain {
             records: Map::with_capacity(l.forges),
             forge_number,
             configured,
+            built_under_box: under_box,
             under_box,
             owner: None,
             playground_config: None,
