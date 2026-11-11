@@ -19,9 +19,19 @@ pub(super) struct Making {
     state: LostReadState,
     retry_at: Option<Time>,
     backoff: Duration,
+    outbox_wait: Option<RoomWait>,
 }
 
-/// A taking retains its outbox number through branch reads and read retries.
+/// Outbox room waits reserve no number; fresh numbers follow wait order
+/// (temper/docs/design/domain/forge/branches.md, 1).
+#[derive(Hash, Debug)]
+struct RoomWait {
+    order: u64,
+    asked: bool,
+}
+
+/// A taking retains its outbox number through branch reads and read retries,
+/// but gives it up while waiting for outbox room (domain/forge/branches.md, 1).
 pub(super) fn reserved_before(d: &Domain, number: u64) -> bool {
     for (_, pending) in &d.makings {
         if let Some(entry) = pending.entry
@@ -162,6 +172,7 @@ pub(super) fn start(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option
         state: LostReadState::Asked,
         retry_at: None,
         backoff: env.limits.client.backoff,
+        outbox_wait: None,
     };
     if let Err((_, pending)) = d.makings.insert(owner, pending) {
         failed(pending.task, pending.name, b"goal branch read capacity exhausted", out);
@@ -220,7 +231,7 @@ fn read_result(
     out: &mut Queue<Request>,
 ) {
     match result {
-        Ok(Answer::Commit(commit)) if pending.default => make(d, env, pending, commit, out),
+        Ok(Answer::Commit(commit)) if pending.default => make(d, env, owner, pending, commit, out),
         Ok(Answer::Commit(commit)) => {
             if let Some(entry) = held_entry(d, &pending.name) {
                 let expected = match entry.effect.write {
@@ -314,6 +325,7 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
 fn make(
     d: &mut Domain,
     env: &Env<Limits>,
+    owner: Token,
     pending: Making,
     commit: skein_forge::api::Commit,
     out: &mut Queue<Request>,
@@ -326,14 +338,30 @@ fn make(
         | skein_forge_client::What::Pull(_)
         | skein_forge_client::What::Issue(_) => unreachable!("goal branch"),
     };
-    let permitted = match d.repositories.get(&resource.repository) {
-        Some(repository) => repository.kinds.branch && repository.role != Role::Context,
-        None => false,
+    let reason = match d.repositories.get(&resource.repository) {
+        None => Some(b"the repository is not adopted".as_slice()),
+        Some(repository) if repository.role == Role::Context => {
+            Some(b"the repository is adopted to be read, not written".as_slice())
+        }
+        Some(repository) if !repository.kinds.branch => {
+            Some(b"the repository's adoption takes no branch writes".as_slice())
+        }
+        Some(_) => None,
     };
-    if d.entries.len() == env.limits.entries || d.entries.contains_key(&number) || !permitted {
+    if let Some(reason) = reason {
         wake(d, &pending.name);
-        failed(pending.task, pending.name, b"goal branch making exceeds forge access or outbox bounds", out);
+        failed(pending.task, pending.name, reason, out);
         released(d, pending.task, out);
+        return;
+    }
+    if d.entries.contains_key(&number) {
+        wake(d, &pending.name);
+        failed(pending.task, pending.name, &entry_in_use(number), out);
+        released(d, pending.task, out);
+        return;
+    }
+    if d.entries.len() == env.limits.entries {
+        wait_for_room(d, owner, pending, out);
         return;
     }
     let hold = d.holds.get_mut(&pending.name).expect("making's hold");
@@ -350,6 +378,46 @@ fn make(
         queued: false,
     };
     keep_entry(d, entry, Some(number), out);
+}
+
+fn entry_in_use(number: u64) -> Box<[u8]> {
+    let digits = skein_lib::Decimal::of(number);
+    let parts = [b"its outbox entry ".as_slice(), digits.as_bytes(), b" is already in use"];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("entry number words fit");
+    }
+    let mut words = skein_lib::Writer::new(length);
+    for part in parts {
+        words.put(part).expect("measured entry number words");
+    }
+    words.finish()
+}
+
+/// A wait gives up its reservation without giving up its position
+/// (temper/docs/design/domain/forge/branches.md, 1).
+fn wait_for_room(d: &mut Domain, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
+    if let Some(wait) = &mut pending.outbox_wait {
+        wait.asked = false;
+    } else {
+        let Some(order) = d.sequence.checked_add(1) else {
+            failed(pending.task, pending.name, b"goal branch wait sequence exhausted", out);
+            return;
+        };
+        d.sequence = order;
+        pending.outbox_wait = Some(RoomWait { order, asked: false });
+    }
+    pending.entry = None;
+    pending.default = false;
+    let hold = d.holds.get_mut(&pending.name).expect("making's hold");
+    match hold.writer {
+        Some(Writer::Entry(_)) => {
+            hold.writer = None;
+            save_hold(out, hold.clone());
+        }
+        Some(Writer::Run { .. } | Writer::Lost { .. }) | None => {}
+    }
+    d.makings.insert(owner, pending).expect("making keeps its room wait slot");
 }
 
 fn held_entry(d: &Domain, name: &Name) -> Option<Entry> {
@@ -389,10 +457,15 @@ pub(super) fn remake_held(d: &mut Domain, env: &Env<Limits>, number: u64, out: &
     true
 }
 
+// The root allocates numbers and queues these replies synchronously, in ask order.
 pub(super) fn continue_making(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     let mut selected = None;
     for (owner, pending) in &d.makings {
-        if pending.task == task && pending.entry.is_none() && !pending.default {
+        let requested = match &pending.outbox_wait {
+            Some(wait) => wait.asked,
+            None => true,
+        };
+        if pending.task == task && pending.entry.is_none() && !pending.default && requested {
             selected = Some(*owner);
             break;
         }
@@ -509,6 +582,52 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     for name in names.into_boxed() {
         start(d, env, name, None, out);
     }
+}
+
+/// A freed entry admits one waiter, including its number request and fresh read,
+/// before another waiter may use that room (domain/forge/branches.md, 1).
+fn next_room_waiter(d: &Domain) -> Option<Token> {
+    let mut occupied = d.entries.len();
+    let mut selected: Option<(u64, Token)> = None;
+    for (owner, pending) in &d.makings {
+        if let Some(wait) = &pending.outbox_wait {
+            if wait.asked {
+                occupied = occupied.saturating_add(1);
+            } else if match selected {
+                Some((order, _)) => wait.order < order,
+                None => true,
+            } {
+                selected = Some((wait.order, *owner));
+            }
+        }
+    }
+    if occupied >= d.entries.capacity() {
+        return None;
+    }
+    match selected {
+        Some((_, owner)) => Some(owner),
+        None => None,
+    }
+}
+
+pub(super) fn room_waiting(d: &Domain) -> bool {
+    next_room_waiter(d).is_some()
+}
+
+pub(super) fn resume_room(d: &mut Domain, out: &mut Queue<Request>) -> bool {
+    let Some(owner) = next_room_waiter(d) else { return false };
+    let pending = d.makings.get_mut(&owner).expect("selected room waiter");
+    let live = match d.holds.get(&pending.name) {
+        Some(hold) => hold.task == pending.task,
+        None => false,
+    };
+    if live {
+        pending.outbox_wait.as_mut().expect("selected room wait").asked = true;
+        emit(out, Request::ContinueGoalBranch { task: pending.task });
+    } else {
+        d.makings.remove(&owner);
+    }
+    true
 }
 
 /// Admission and disconnected reads wait without occupying client call room.

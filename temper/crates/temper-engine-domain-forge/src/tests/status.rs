@@ -92,6 +92,7 @@ fn observe_pull(d: &mut Domain) {
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
+        contains_head: change::Status::Unknown,
         contains_catch_up: change::Status::Passed,
         reviews: Box::new([]),
         reviews_complete: true,

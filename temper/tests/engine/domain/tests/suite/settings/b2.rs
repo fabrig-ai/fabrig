@@ -204,6 +204,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let mut driver = Driver::configured(Store::with_limits(&limits), config, &limits);
     driver.period_sent = true;
     driver.forge = Some(ForgeStand::with_checks(&[(b"org", b"repo", 2)], &[b"build"]));
+    driver.connect_forges();
     let mut greeting = protocol::hello_slots(CHANNEL, limits.fleet.slots, Box::new([]));
     let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
         unreachable!("hello")

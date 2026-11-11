@@ -1462,8 +1462,15 @@ impl World {
     /// protocol layer answered at once, as the root's door gives them.
     pub fn flush(&mut self) {
         while let Some(event) = self.immediate.pop_front() {
+            let restart = matches!(&event, engine::Event::Restart { .. });
             if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
                 self.events.push_back(event);
+            } else if restart {
+                for configured in &self.restart_config.forges {
+                    if let Some(event) = crate::fixtures::connection(&self.restart_config, configured.number) {
+                        self.events.push_back(event);
+                    }
+                }
             }
             engine::release(&mut self.root, &self.env, &mut self.out);
             self.collect();

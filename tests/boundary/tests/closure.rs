@@ -15,6 +15,7 @@ const ROWS: &[Row] = &[Row {
     package: "temper-agent",
     temper: &[
         "temper-agent",
+        "temper-agent-shell",
         "temper-shell",
         "temper-docs",
         "temper-launcher",

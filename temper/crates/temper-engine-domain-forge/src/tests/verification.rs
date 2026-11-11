@@ -918,18 +918,28 @@ fn finish_cleanup(d: &mut Domain) -> Queue<Request> {
 }
 
 #[test]
-fn cancelling_an_unlanded_pull_posts_the_reason_then_closes_it() {
+fn an_ended_unlanded_pull_posts_its_words_then_closes_it() {
+    for (ending, words, settle) in [
+        (ReleaseEnding::Cancelled, b"walk done".as_slice(), false),
+        (ReleaseEnding::Done, b"The landing branch already contains its head 0303030303030303030303030303030303030303030303030303030303030303.".as_slice(), false),
+        (ReleaseEnding::Done, b"The landing branch already contains its head 0303030303030303030303030303030303030303030303030303030303030303.".as_slice(), true),
+    ] {
     let mut d = configured_domain(&[(TIER, None)]);
     add_change(&mut d, SECOND, b"main");
     let name = cancellation_hold(&mut d, SECOND);
-    cancel_effects(&mut d, SECOND);
-    cancel_release(&mut d, SECOND);
+    if ending == ReleaseEnding::Done {
+        d.changes.get_mut(&SECOND).expect("change").change.state = change::State::NoChange { words: words.into() };
+    }
+    if settle {
+        step(&mut d, &env(), Event::SettleEffects { task: SECOND, root: CHANGE, ending }, &mut Queue::uncapped());
+    }
+    step(&mut d, &env(), Event::Release { task: SECOND, root: CHANGE, ending, reason: Some(b"walk done".as_slice().into()), entry: CLEANUP }, &mut Queue::uncapped());
     let write = &d.entries.get(&CLEANUP).expect("reason entry").entry.effect.write;
     let skein_forge::api::Write::Post { number, body, .. } = write else {
         unreachable!("cancellation posts its reason before closing");
     };
     assert_eq!(*number, PULL);
-    assert_eq!(body.as_ref(), b"walk done");
+    assert_eq!(body.as_ref(), words);
     finish_cleanup(&mut d);
     assert_eq!(
         d.entries.get(&CLEANUP).expect("close entry").entry.effect.write,
@@ -943,6 +953,11 @@ fn cancelling_an_unlanded_pull_posts_the_reason_then_closes_it() {
     let out = finish_cleanup(&mut d);
     assert!(contains(&out, &Request::Released { task: SECOND }));
     assert!(!d.holds.contains_key(&name));
+    if ending == ReleaseEnding::Done {
+        assert_eq!(d.change(SECOND).expect("retained panel").change.state, change::State::NoChange { words: words.into() });
+        assert_eq!(d.change(SECOND).expect("retained panel").ending, Some(Ending::NoChange));
+    }
+    }
 }
 
 fn merging_entry() -> skein_forge_client::Entry {

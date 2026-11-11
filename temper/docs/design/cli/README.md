@@ -6,16 +6,17 @@ convention (`skein/docs/foundation/cli.md`) and skein's table
 crate, its table, how its arguments reach a command, its help, its
 exits, the environment it reads and passes down, and the reference
 documents generated from its table. The sets are the draft's
-(`../draft/cli.md`, section 4); this document gives `temper-box`'s and
-`temper-engine`'s. `temper`, the client, and `temper-worker` and
-`temper-agent` take theirs in their own milestones
-(`../draft/cli.execution.md`, C3 and C6).
+(`../draft/cli.md`, section 4); this document gives `temper-box`'s,
+`temper-engine`'s, `temper-worker`'s and `temper-agent`'s. `temper`, the
+client, takes its in its own milestone (`../draft/cli.execution.md`,
+C3).
 
 ## 1. In one page
 
 - **A binary is a package** at `temper/bin/<binary>/`, whose `main.rs`
   installs fail-stop and calls its crate's `main` (2). The box's crate
-  is `temper-box-shell`, the engine's `temper-engine-shell`.
+  is `temper-box-shell`, the engine's `temper-engine-shell`, the
+  worker's `temper-worker-shell` and the agent's `temper-agent-shell`.
 - **Its crate holds its table,** a `skein_shell::Table`, and captures
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
@@ -26,7 +27,8 @@ documents generated from its table. The sets are the draft's
 - **Help:** `-h`, `--help` and `help` print the table's page;
   `help pages`, `help NAME`, `help --search` and `help commands` are the
   pages, and `commands` is the binary's own table (5).
-- **The tables** of `temper-box` (6) and `temper-engine` (7), and the
+- **The tables** of `temper-box` (6) and of the deployment's three,
+  `temper-engine`, `temper-worker` and `temper-agent` (7), and the
   variables each declares (8).
 - **Generated:** each binary's `<binary>-args.md` and `<binary>-env.md`,
   and the tree's common environment document, beside this page, checked
@@ -38,6 +40,8 @@ documents generated from its table. The sets are the draft's
 |---|---|---|---|
 | `temper-box` | `temper/bin/temper-box` | `temper-box-shell` (`temper/crates/temper-box-shell`) | `temper_box_shell::TABLE` |
 | `temper-engine` | `temper/bin/temper-engine` | `temper-engine-shell` | `temper_engine_shell::ENGINE` |
+| `temper-worker` | `temper/bin/temper-worker` | `temper-worker-shell` | `temper_worker_shell::WORKER` |
+| `temper-agent` | `temper/bin/temper-agent` | `temper-agent-shell` (`temper/crates/temper-agent-shell`) | `temper_agent_shell::AGENT` |
 
 - **`main.rs`** is the package's whole source:
 
@@ -59,12 +63,21 @@ documents generated from its table. The sets are the draft's
   `temper/crates/temper-box-machine`. The engine's package,
   `temper/crates/temper-engine`, moves to `temper/bin/temper-engine`,
   and its table and dispatch move into `temper-engine-shell`.
+- **The agent's package splits:** `temper/crates/temper-agent`, a
+  library and a binary in one package, becomes the binary's package
+  `temper-agent` at `temper/bin/temper-agent` and its crate
+  `temper-agent-shell` at `temper/crates/temper-agent-shell`, which holds
+  the library's code, its table and everything the binary runs. No other
+  crate names the old library. The worker's package is already at
+  `temper/bin/temper-worker`, its crate `temper-worker-shell`.
 - **Tests that run a binary live in its package,** under its `tests/`,
   since Cargo gives `CARGO_BIN_EXE_<name>` to its own package's tests
   alone: the whole product's integration tests, with their `[[test]]`
   targets, fixtures and support, move from `temper/crates/temper/tests/`
-  to `temper/bin/temper-box/tests/`, and the engine's from
-  `temper/crates/temper-engine/tests/` to `temper/bin/temper-engine/tests/`.
+  to `temper/bin/temper-box/tests/`, the engine's from
+  `temper/crates/temper-engine/tests/` to `temper/bin/temper-engine/tests/`,
+  and the agent's suite from `temper/crates/temper-agent/tests/` to
+  `temper/bin/temper-agent/tests/`.
   They are dev-dependencies' users, which link nothing into the binary.
   Unit tests stay in their crate.
 - **A crate's features stay its own** until `../draft/cli.execution.md`'s
@@ -116,6 +129,13 @@ The version and commit in each table are `temper_version::VERSION` and
   `-` with `TABLE.unknown(arguments)`, exit 2:
   `temper-box frobnicate` says `temper-box: no command frobnicate;
   temper-box --help lists them`.
+- **A bare form that takes one positional argument,** the agent's
+  `AGENT.json` (7.3), answers no argument, or a first argument that
+  begins with `-`, with `TABLE.unknown(arguments)`, exit 2, and more
+  arguments than its form takes as a refusal of its arguments (below):
+  `temper-agent` alone says `temper-agent: no command; temper-agent
+  --help lists them`, and `temper-agent --frob` says `temper-agent: no
+  command --frob; temper-agent --help lists them`.
 - **A command's arguments refused** (a missing or extra argument, an
   unknown flag, a flag's bad value, a path past its bound): its first
   line `BINARY WORDS: WHY`, then `usage: BINARY WORDS FORM` for each of
@@ -141,8 +161,8 @@ The version and commit in each table are `temper_version::VERSION` and
 - **`--version`:** `TABLE.version_line()`; no `version` command.
 
 `temper-shell`'s `table` module holds what every temper binary on
-skein's table shares, beside the `commands` module the client and the
-worker keep until C3 and C6:
+skein's table shares, beside the `commands` module the client keeps
+until C3:
 
 ```rust
 /// `help`'s row: public, its form `[NAME | pages | --search WORDS...]`.
@@ -200,11 +220,16 @@ command; temper-box help pages lists the pages.`
   `--ready`, `--seed` and `--observations`, internal, with no twins
   (`../draft/cli.md`, 4.6, *Twins dropped*).
 - **Rows two tables share** are one constant both hold: `help`, the
-  forge's commands and `internal forge-child`. The box's
-  `program-login` is its own constant, worded as
-  `temper-worker-shell`'s row, which the worker keeps until C6.
+  forge's commands, `internal forge-child`, and `program-login`,
+  `temper-worker-shell`'s `PROGRAM_LOGIN` (7.2).
 
-## 7. `temper-engine`'s table
+## 7. The deployment's tables
+
+The three binaries a deployment at scale runs, each on its own host
+(`../draft/cli.md`, 4.3 to 4.5; `../protocol/binaries.md`, 2, 3 and
+5). Each is built as 2 to 5 say, as the box's is.
+
+### 7.1 `temper-engine`
 
 The engine's host's binary (`../protocol/binaries.md`, 2; `../draft/cli.md`,
 4.3). Its line is `the deployment's engine, with the owned forge's
@@ -238,6 +263,85 @@ pub const ENGINE: skein_shell::Table;
 pub fn main() -> std::process::ExitCode;
 ```
 
+### 7.2 `temper-worker`
+
+Each worker's host's binary (`../protocol/binaries.md`, 5;
+`../draft/cli.md`, 4.4). Its line is `the deployment's worker: a worker
+alone, and its programs' sign-in.`; its last, `temper-worker COMMAND
+--help prints one command; temper-worker help pages lists the pages.`
+
+| Reached by | Set | Forms and what |
+|---|---|---|
+| `serve` | public | `[DIRECTORIES]`: a worker alone's document, until stopped |
+| `program-login` | public | `[DIRECTORIES] NAME`: a program source signed in on this host |
+| `help` | public | `temper_shell::table::HELP` (5) |
+
+- **No bare form and nothing internal:** `temper-worker` alone is
+  `Reached::Unknown`'s line, exit 2 (4).
+- **Its settings** are the three directories, the table's group
+  (`temper_shell::directories::SETTINGS`), as the engine's table holds
+  them.
+- **`program-login` is one constant both tables hold,**
+  `temper-worker-shell`'s, worded as the box's row is now, and run by
+  the same code under each binary's name (`../protocol/binaries.md`,
+  5). `serve` is the worker's own, saying it serves a worker alone's
+  document and naming the binaries that serve the other shapes.
+- **Its variables,** as 8 says, each as its code reads it: `TEMPER_JOB`,
+  which a worker sets for a job's scripts;
+  `TEMPER_INTERNAL_WORKSPACE_REUSE` and `TEMPER_INTERNAL_DUMP_LLM`, which
+  a worker alone's start reads; the compile-time `TEMPER_INTERNAL_COMMIT`;
+  serve's host's internal variables, as far as a worker alone's run
+  reads them; and the host's, by the draft's list.
+
+```rust
+// temper_worker_shell
+pub const WORKER: skein_shell::Table;
+pub const PROGRAM_LOGIN: skein_shell::Command;   // the box's table holds it too
+pub const INTERNAL_WORKSPACE_REUSE: skein_shell::Variable;
+pub fn main() -> std::process::ExitCode;
+```
+
+### 7.3 `temper-agent`
+
+The agent's binary, which a worker starts for each run and a person
+never does (`../protocol/binaries.md`, 3; `../draft/cli.md`, 4.5). Every
+mode is internal; its public entries are `help`, `-h`, `--help` and
+`--version` alone, as every binary's. Its line is `the deployment's
+agent, which its worker runs for each run.`; its last, `temper-agent
+COMMAND --help prints one command; temper-agent help pages lists the
+pages.`
+
+| Reached by | Set | Forms and what |
+|---|---|---|
+| `help` | public | `temper_shell::table::HELP` (5) |
+| the bare form | internal | `AGENT.json`: one agent for a worker's run, on smith's agent configuration |
+| `--list` | internal | `AGENT.json`: one endpoint's model list, on smith's agent configuration |
+| `--mcp-relay` | internal | `127.0.0.1:PORT`: smith's relay of a program's MCP connection to its agent |
+| `--program-child` | internal | `PARENT PROGRAM ARGUMENTS...`: smith's program child, which ends with its parent |
+| run as `claude` | internal | `ARGS...`: Claude Code's launcher, `temper-launcher`'s, its grammar delegated |
+
+- **The lines and arguments are today's rows'** (`../protocol/binaries.md`,
+  3), the relay's argument naming `SMITH_MCP_SECRET` as smith's.
+- **The bare form takes exactly one argument,** the document's path, as
+  4 says; a document named as a word, `help`, is given by a path holding
+  a slash, `./help`.
+- **The delegated modes:** reached by `Table::reach`, as the box's are
+  (6). The relay and the program child are smith's `relay::main` and
+  `program_child::main`, which read the process themselves until
+  smith's round (3), so `--mcp-relay --help` and `--program-child
+  --help` print their row's page, as the box's do; run as `claude`, the
+  launcher takes every argument and the captured environment.
+- **Its variables:** `TEMPER_INTERNAL_DUMP_LLM`, which the run looks up
+  in the capture; the compile-time `TEMPER_INTERNAL_COMMIT`; and
+  `SSL_CERT_FILE` on run as `claude`'s row, which the launcher reads,
+  as on the box's. smith's own stay smith's (8).
+
+```rust
+// temper_agent_shell
+pub const AGENT: skein_shell::Table;
+pub fn main() -> std::process::ExitCode;
+```
+
 ## 8. The environment
 
 - **Each table declares** every variable its binary's code reads, or
@@ -259,35 +363,43 @@ pub fn main() -> std::process::ExitCode;
   | `TEMPER_BUNDLE` | `TEMPER_INTERNAL_BUNDLE` | the bundle's build script |
   | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper-client` reads `temper-version`'s |
   | `TEMPER_DUMP_LLM` | `TEMPER_INTERNAL_DUMP_LLM` | the service and its agents |
-  | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
-  | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
-  | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | serve's host |
-  | `TEMPER_WORKSPACE_REUSE` | `TEMPER_INTERNAL_WORKSPACE_REUSE` | the worker |
+  | `TEMPER_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
+  | `TEMPER_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
+  | `TEMPER_R8_CUT_AT_LISTEN`, `TEMPER_R8_WAIT_CHECK` | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | serve's host |
+  | `TEMPER_WORKSPACE_REUSE` | `TEMPER_INTERNAL_WORKSPACE_REUSE` | the worker, in the box and in `temper-worker` |
 
   A compile-time name (`env!`) is declared as internal in each table
   whose binary links its crate, as is the bundle's build variable.
+- **Empty is unset** for each of them (`skein/docs/foundation/cli.md`,
+  5), switches included: `TEMPER_INTERNAL_WORKSPACE_REUSE` set to any
+  nonempty value turns reuse on, and an empty one leaves it off, as
+  `Variable::value` reads it.
 - **Twins dropped:** `TEMPER_ECHO`, `TEMPER_SEED`, `TEMPER_READY`,
   `TEMPER_OBSERVATIONS` and `TEMPER_DOCUMENT`. A test that set one
   passes the flag; a flag's precedence over its twin is skein's to test
   (`skein-shell`'s settings tests).
 - **`TEMPER_JOB`,** which the worker sets for a job's scripts, is
   declared public, `Sets`, in the table of each binary that runs a
-  worker.
+  worker, the box's and `temper-worker`'s: one constant,
+  `temper_shell::environment::JOB`, both tables hold.
 
 ## 9. The generated documents
 
 Beside this page, rendered by skein (`skein/docs/design/runtime/shell.md`,
 14.3):
 
-- each binary's arguments document, `<binary>-args.md` for `temper-box`
-  and for `temper-engine`, each checked byte for byte against its table
-  in its crate's tests;
+- each binary's arguments document, `<binary>-args.md` for each of the
+  four binaries, each checked byte for byte against its table in its
+  crate's tests;
 - each binary's environment document, `<binary>-env.md`, and the tree's
   common environment document, `common-env` (`skein/docs/foundation/cli.md`,
   8), which each depend on every table of the tree, checked in
   `temper-box-shell`'s tests from `temper_box_shell::TREE`, the tree's
-  tables: `TABLE` and `temper_engine_shell::ENGINE` now, and C3's and
-  C6's as they're built.
+  tables in this order: `TABLE`, `temper_engine_shell::ENGINE`,
+  `temper_worker_shell::WORKER` and `temper_agent_shell::AGENT`, and
+  C3's client as it's built. `temper-box-shell` depends on
+  `temper-agent-shell` for it, as it does on the engine's and the
+  worker's crates already.
 
 `SKEIN_CODEGEN_WRITE=1` rewrites them, as it does the help's generated
 pages. A change to an entry changes its documents in the same commit.
@@ -300,12 +412,17 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
   (`tests/suite/`), run the built binary over a table of cases, with a
   cleared environment and the three directories given: `-h`, `--help`
   and `help` print one page, listing exactly the table's public entries;
-  an internal command's `--help` says it's internal; `--version` prints
-  its name, the workspace's version and a commit of twelve hexadecimal
-  digits, `-dirty` or `unknown`; an unknown command is refused, exit 2;
-  another binary's document is refused, exit 1, as today.
+  an internal command's `--help`, where it has one, says it's internal;
+  `--version` prints its name, the workspace's version and a commit of
+  twelve hexadecimal digits, `-dirty` or `unknown`; an unknown command
+  is refused, exit 2; another binary's document is refused, exit 1, as
+  today, by each binary that reads one.
 - **Dispatch and parsing** stay unit tests of the crate, on its
   `configure` without a process.
+- **The agent's suite** keeps a row per mode as well
+  (`../protocol/binaries.md`, 3): the relay's and the program child's
+  usage and refusals, a run and a list on a missing document and on a
+  loopback plaintext one, and the launcher by a link named `claude`.
 - **A story in a slower tier** that a rename touches is changed and
   compiled, not run (`AGENTS.md`, 5).
 

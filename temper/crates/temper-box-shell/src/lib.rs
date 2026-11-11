@@ -311,7 +311,7 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
                 use std::io::Write;
                 drop(writeln!(std::io::stderr(), "smith: {why}"));
             })
-            .and_then(|decoded| match temper_worker_shell::dump_llm() {
+            .and_then(|decoded| match temper_worker_shell::dump_llm(environment) {
                 Some(directory) => smith_agent_shell::run_dumping(
                     decoded,
                     smith_agent_shell::dump::Dumps::new(directory, temper_worker_shell::DUMP_BOUND),
@@ -324,8 +324,13 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             .and_then(|decoded| smith_agent_shell::list::run_decoded(decoded, Box::new(std::io::stderr())))
             .map_err(|why| prefixed("temper internal agent-list", &why))?,
         Command::ProgramLogin { directories, name } => {
-            return temper_worker_shell::program_login::run(&directories, &name, Some(program_login::deployment))
-                .map_err(|why| prefixed("temper program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+            return temper_worker_shell::program_login::run(
+                &directories,
+                &name,
+                environment,
+                Some(program_login::deployment),
+            )
+            .map_err(|why| prefixed("temper program-login", &why.lines().collect::<Vec<_>>().join("; ")));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),

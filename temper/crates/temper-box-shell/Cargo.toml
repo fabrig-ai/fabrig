@@ -14,6 +14,7 @@ record = ["temper-client-shell-tui/record"]
 temper-version.workspace = true
 temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
+temper-agent-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-launcher.workspace = true
 temper-shell.workspace = true

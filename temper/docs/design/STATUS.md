@@ -1122,15 +1122,17 @@ worker program, M5's box integration and remaining closure rows, M6's
 release job, and figures are not done by that plan; the parent's Later
 section is unchanged (`draft/deployment-binaries.status.md`).
 
-temper's command lines, `draft/cli.execution.md`'s C2: the box's binary is
-`temper-box`, a package under `bin/` whose crate is `temper-box-shell`, and
-the engine's, `temper-engine`, is one too, its crate `temper-engine-shell`;
+temper's command lines, `draft/cli.execution.md`'s C2 and C6: the box's
+binary is `temper-box`, a package under `bin/` whose crate is
+`temper-box-shell`, and the engine's, the worker's and the agent's,
+`temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
+`temper-engine-shell`, `temper-worker-shell` and `temper-agent-shell`;
 each holds a table on skein's, reached by `Table::reach`, with its help,
 `--version`, exit 2 for refused arguments, its pre-table modes as rows,
-and its reference documents generated beside `cli/README.md`. C2's
-internal variables are renamed `TEMPER_INTERNAL_*` and its twins dropped;
-the client's, the worker's and the agent's tables are C3's and C6's
-(`cli/README.status.md`; `draft/cli.status.md`).
+and its reference documents generated beside `cli/README.md`. The
+internal variables are renamed `TEMPER_INTERNAL_*` and the twins
+dropped; the client's table is C3's (`cli/README.status.md`;
+`draft/cli.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
