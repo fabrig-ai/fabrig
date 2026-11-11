@@ -12,6 +12,11 @@ and outcomes on scripted output. The checkout world's `suite::delivery`
 checks the resulting fake object graph, preserved ids and messages, and
 refusal of an unpushed second parent. No deployment replay is on record.
 
+- **Not yet:** 4.4, *The prepare kind*: the worker declares no kind 1
+  and an empty command is refused (`temper-worker-domain-tooling`), so no
+  round's base is combined with its member's head by merge or squash and
+  pushed to a landing's branch [in flight: change 816].
+
 - **Not yet:** 4.1 and 5, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages [in flight: change 68].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
 - **Not yet:** 5, *One object store per repository*, and 9, *Files*: each repository a workspace is made with is a clone of every branch's history into its own `.git`, and every fetch runs there (`temper-worker-domain-checkout/src/cache.rs`, `Cache::hold`; `hold.rs`, `prepared`), so each prepare that makes its workspace (a workstream's first on the worker, an evicted one, every saved start, a damaged one, every one after a worker's start) transfers the whole repository. A deployment of 2026-11-11, about 13 goals on three workers, drew about 50 `git-upload-pack` calls each 10 minutes, about 37 MB each, and about 2.1 GB in the 10 minutes after an engine's restart: by reading, these clones, since a fetch into a cached clone already negotiates with its references, and a worker's 3 or 4 workspaces serve a workstream for each change, goal and chat [in flight: change 467].
