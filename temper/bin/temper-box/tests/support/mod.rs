@@ -212,6 +212,31 @@ fn serve_command(directory: &Path) -> Command {
         environment: Vec::new(),
     }
 }
+/// Serve the cluster fixture's engine directory on the deployment's engine binary (protocol/binaries.md, 2).
+#[must_use]
+pub fn serve_engine(directory: &Path) -> Binary {
+    let engine = skein_scratch::paths::binary("temper-box").with_file_name("temper-engine");
+    assert!(engine.is_file(), "build the deployment's binary: cargo build -p temper-engine --bin temper-engine");
+    Binary::start(
+        Command {
+            program: engine,
+            arguments: vec![
+                "serve".into(),
+                "--config".into(),
+                directory.join("config").into(),
+                "--data".into(),
+                directory.join("data").into(),
+                "--cache".into(),
+                directory.join("cache").into(),
+            ],
+            directory: directory.into(),
+            environment: Vec::new(),
+        },
+        Mode::Pipes,
+        65_536,
+    )
+    .expect("temper-engine serve starts")
+}
 #[must_use]
 pub fn fake_llm(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> llm::Listening {
     fake_llm_played(temper_real_loop_world::llm::cued(scripts))
