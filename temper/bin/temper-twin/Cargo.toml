@@ -1,0 +1,44 @@
+[package]
+name = "temper-twin"
+description = "A live run's twin: a fake LLM document that replays its agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "temper-twin"
+path = "main.rs"
+test = false
+
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
+[dependencies]
+temper-twin-tool.workspace = true
+skein-fail-stop.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+temper-fake.workspace = true
+serde_json.workspace = true
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

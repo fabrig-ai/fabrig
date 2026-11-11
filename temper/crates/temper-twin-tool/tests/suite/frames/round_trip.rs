@@ -9,7 +9,7 @@ use skein_fake_llm_protocol::documents;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall, Writer};
 use skein_llm::openai::{self, Output, Part};
 use smith_transcript::{self as smith, Block, Turn, TurnParts};
-use temper_twin::{Input, Replace, twin};
+use temper_twin_tool::{Input, Replace, twin};
 
 // The checked fixtures contain six chat, five work, four coding and one review turn.
 const TURNS: [(u64, u32); 4] = [(CHAT, 6), (WORK, 5), (CODER, 4), (REVIEWER, 1)];
