@@ -115,9 +115,7 @@ impl Table {
                 &format!("internal: not part of {}'s public command line; it may change without notice.", self.binary),
             );
         }
-        let mut usage = String::new();
-        command_usage(&mut usage, self.binary, command);
-        named_section(&mut out, "usage", &usage);
+        usage_section(&mut out, self.binary, command);
         section(&mut out, command.line);
 
         let mut arguments = String::new();
@@ -225,6 +223,12 @@ fn environment_variable(out: &mut String, seen: &mut BTreeSet<&'static str>, var
     if visible(variable.set, audience) && reads && seen.insert(variable.name) {
         two_columns(out, variable.name, variable.line);
     }
+}
+
+pub(super) fn usage_section(out: &mut String, binary: &str, command: &Command) {
+    let mut usage = String::new();
+    command_usage(&mut usage, binary, command);
+    named_section(out, "usage", &usage);
 }
 
 fn command_usage(out: &mut String, binary: &str, command: &Command) {

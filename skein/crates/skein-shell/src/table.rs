@@ -4,8 +4,11 @@ use crate::{Base, Settings};
 
 #[cfg(test)]
 mod demo;
+mod front;
 mod help;
 mod reference;
+
+pub use front::Front;
 
 /// Who an entry is for (skein/docs/foundation/cli.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
