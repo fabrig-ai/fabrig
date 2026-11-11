@@ -60,10 +60,8 @@ fn two_projects() -> c::Me {
 fn project_reads(out: &mut Queue<Request>, wanted: u32) -> List<Handle> {
     let mut reads = List::uncapped();
     while let Some(request) = out.pop() {
-        if let Request::Client(jig_client::Event::Read {
-            handle,
-            read: Readable::Jig(c::Read::Project { project }),
-        }) = request
+        if let Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Project { project }) }) =
+            request
             && project == wanted
         {
             reads.push(handle).expect("uncapped reads");
@@ -86,9 +84,12 @@ fn unlisted_home_and_settings_keep_one_project_read_until_the_address_leaves() {
             let handle = *reads.get(0).expect("one project read");
             deliver(&mut f, two_projects());
             assert!(project_reads(&mut f.out, UNKNOWN).is_empty(), "no second read while pending");
-            event(&mut f, Event::Told {
-                told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) },
-            });
+            event(
+                &mut f,
+                Event::Told {
+                    told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) },
+                },
+            );
             event(&mut f, Event::Went { address: address.clone() });
             deliver(&mut f, two_projects());
             assert!(project_reads(&mut f.out, UNKNOWN).is_empty(), "me must not refresh an unlisted project");
@@ -108,9 +109,12 @@ fn listed_home_and_settings_share_the_teams_read_and_membership_refresh() {
         let reads = project_reads(&mut f.out, OTHER);
         assert_eq!(reads.len(), 1, "only Team's rail read");
         let handle = *reads.get(0).expect("Team read");
-        event(&mut f, Event::Told {
-            told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)) },
-        });
+        event(
+            &mut f,
+            Event::Told {
+                told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)) },
+            },
+        );
         event(&mut f, Event::Went { address });
         assert!(project_reads(&mut f.out, OTHER).is_empty());
         deliver(&mut f, two_projects());

@@ -206,13 +206,26 @@ fn missing_project(address: Address, project: u32) -> (d::Domain, Token) {
     let limits = f::domain_limits();
     let (mut root, _, _) = f::root_at(Address::AllHome, &limits);
     let mut out = Queue::uncapped();
-    d::step(&mut root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
-        d::Event::Went { place: d::Place::Address(address) }, &mut out);
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+        d::Event::Went { place: d::Place::Address(address) },
+        &mut out,
+    );
     let mut token = None;
     for request in &out {
-        if let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down {
-            down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Project { project: number }) },
-        }} = request && *number == project {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(c::Read::Project { project: number }),
+                        },
+                },
+        } = request
+            && *number == project
+        {
             assert!(token.replace(*read).is_none(), "one project read");
         }
     }
@@ -221,10 +234,16 @@ fn missing_project(address: Address, project: u32) -> (d::Domain, Token) {
 
 fn answer_missing_project(root: &mut d::Domain, read: Token, why: c::ReadNone) {
     let mut out = Queue::uncapped();
-    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
-        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::ReadDone {
-            read, result: jig_client::Readout::Jig(c::ReadResult::None(why)),
-        }}}, &mut out);
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+            },
+        },
+        &mut out,
+    );
 }
 
 #[test]
@@ -239,7 +258,14 @@ fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
                 if node.role == (Role::Heading { level: 1 }) {
                     headings = headings.checked_add(1).expect("headings fit");
                 }
-                assert!(node.role != Role::Paragraph && node.role != Role::Link && node.role != Role::Button && node.role != Role::Navigation, "only the heading while reading, found {:?}", node.role);
+                assert!(
+                    node.role != Role::Paragraph
+                        && node.role != Role::Link
+                        && node.role != Role::Button
+                        && node.role != Role::Navigation,
+                    "only the heading while reading, found {:?}",
+                    node.role
+                );
             }
             assert_eq!(headings, 1);
         }
@@ -250,7 +276,10 @@ fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
             assert!(skein_lib::bytes::find(&text, b"not one of yours").is_none());
             assert!(skein_lib::bytes::find(&printed(&view), b"Project 3 was deleted.").is_some());
             let link = main_find(view.tree(), Role::Link, b"Chats");
-            assert_eq!(crate::act(&mut view, link, Act::Press), Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } })));
+            assert_eq!(
+                crate::act(&mut view, link, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } }))
+            );
         }
     }
 }

@@ -383,7 +383,11 @@ pub fn shown(root: &crate::Domain, project: u32) -> Shown {
         return Shown::Reading;
     }
     let Some(document) = &state.document else {
-        return if state.reading == Reading::Failed || state.reading == Reading::Gone { Shown::Unreadable } else { Shown::Reading };
+        return if state.reading == Reading::Failed || state.reading == Reading::Gone {
+            Shown::Unreadable
+        } else {
+            Shown::Reading
+        };
     };
     let you = match root.pages.me(root.client()) {
         Some(me) => me.party.number,
