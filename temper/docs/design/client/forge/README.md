@@ -298,8 +298,12 @@ its own:
     another; where it asks for more, " asks for P approvals by ROLES; C so
     far.", ROLES "owners", "maintainers", "members", "observers" or "people
     with role R", P and C in digits;
-  - "1 more change waits behind this one." or "N more changes wait behind
-    this one.", while any does;
+  - for a rule by path, the row's `sets` (`../../domain/forge/change/questions.md`,
+    2): "Signs off changes to NAME.", NAME each set's name, joined "A and
+    B" or "A, B and C", "path set N" for one with no name, so "Signs off
+    changes to vsr's protocol core." (`../../draft/what-reaches-you.md`,
+    section 7); none for a rule naming no set. Nothing waits behind such a
+    change, which is out of its queue, so the card counts none;
   - "There are too many reviews to read them all, so one may already count.",
     where its reviews weren't read whole;
   - where the viewer's review wouldn't count, why. Too few: "Fewer people can

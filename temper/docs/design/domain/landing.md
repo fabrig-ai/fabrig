@@ -431,7 +431,8 @@ For a project with no prepare command, one member per repository:
 - **Then each member lands, upstream first,** by a fast-forward of its
   main to exactly its candidate, made by the landing task and judged by
   the landing rules (`forge/change/gates.md`, 2, where `ci` is the test gates by
-  receipt at the candidate), a pin-only member's as any other:
+  receipt at the candidate, and what a member touches, for a rule by
+  path, the comparison of main's tip, read afresh, and its candidate), a pin-only member's as any other:
   - **on Forgejo,** by the merge of its pull request, fast-forward
     only, at the candidate (skein's `Write::Merge { how:
     FastForwardOnly }`);

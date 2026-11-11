@@ -133,6 +133,7 @@ member for member:
 | `up_to_date` | boolean | the change's head must contain its base's tip |
 | `gates` | list of `{"number": u32, "blocking": boolean, "freshness": "exact" or "clean"}` | the gates every change it covers asks for (`../../domain/forge/change/gates.md`, 1): an agent's review, or one of a repository's checks when it has no CI; at most the forge's `change_policy.gates` |
 | `approvals` | list of `{"role": u32, "people": u32, "freshness": "exact" or "clean"}` | `people` distinct people holding `role` in the project approve the change, each by a review on the forge (`../../domain/forge/change/gates.md`, 2) |
+| `sets` | list of u8, at most 6 | the path sets of the project's classes (`../../domain/forge/attention.md`, 6) the rule covers a change by: each a set's number, 1 to 6, at most once. Empty covers every change into the branches its pattern covers; a rule of kind 1, the deployment's, names none |
 
 - **`freshness`,** a gate's or an approval's, says at which later heads
   a verdict still counts: `exact`, the head it was given at; `clean`,
@@ -141,6 +142,16 @@ member for member:
   requirement, the age within which its facts must have been read: CI,
   gates and approvals are guarded, and up to date is observed with a
   freshness of 0 (`../../domain/forge/change/gates.md`, 2).
+- **`sets`** make a rule by path (`../../draft/what-reaches-you.md`,
+  section 7): a rule naming sets covers a change into a branch its pattern
+  covers only where the change touches one of them at the head judged,
+  for its CI, up to date, gates and approvals alike
+  (`../../domain/forge/change/gates.md`, 2). A number at which the
+  project's classes hold no set counts as touched, so a set removed from
+  the classes leaves its rule covering every change, never none. An
+  `exact` approval asks again at each new head, a clean update's among
+  them, so a rule by path on a busy branch wants `clean`
+  (`../../domain/forge/queues.md`).
 - **Bounds:** a project appears in `projects` at most once, and must be
   one of `engine.projects`; a rule's bounds are those the forge judges
   it by (`settings.md`, 2).
