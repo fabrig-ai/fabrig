@@ -203,8 +203,17 @@ impl Protocol {
         };
         world.accept_installations();
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        world.connected();
         world
     }
+    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption.md, 1).
+    fn connected(&mut self) {
+        self.event(top::Event::Connection {
+            forge: REPO.forge,
+            state: top::Connection::Connected { id: self.fixture.writer, login: b"bot".as_slice().into() },
+        });
+    }
+
     fn accept_installations(&mut self) {
         if self.fixture.kind == skein_forge_connection::settings::Kind::GitHub {
             self.joint
@@ -449,6 +458,7 @@ impl Protocol {
             self.event(top::Event::Restore { record });
         }
         self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        self.connected();
     }
     pub fn issue(&mut self, title: &[u8], body: &[u8]) {
         self.external_at(

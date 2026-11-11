@@ -13,7 +13,8 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         || path.ends_with("temper-client/src/main.rs")
         || path.ends_with("temper-engine/main.rs")
         || path.ends_with("temper-engine-shell/src/binary.rs")
-        || path.ends_with("temper-agent/src/main.rs")
+        || path.ends_with("temper-agent/main.rs")
+        || path.ends_with("temper-agent-shell/src/entry.rs")
         || path.ends_with("temper-worker-shell/src/binary.rs")
     {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
@@ -94,7 +95,8 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
         "temper-client/src/main.rs",
         "temper-engine/main.rs",
         "temper-engine-shell/src/binary.rs",
-        "temper-agent/src/main.rs",
+        "temper-agent/main.rs",
+        "temper-agent-shell/src/entry.rs",
         "temper-worker-shell/src/binary.rs",
     ] {
         for (source, expected) in [

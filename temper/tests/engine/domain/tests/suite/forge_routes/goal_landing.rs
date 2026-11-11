@@ -458,11 +458,10 @@ fn branch_mine_without_a_goal_branch_is_refused() {
 
 #[test]
 fn a_second_landing_of_the_same_goal_branch_is_refused_naming_the_first() {
-    let (mut world, goal, _) = running_goal();
-    let answer = mine(&mut world, &goal, LANDING_CALL, br#"{"words":"Land the goal","branch":"mine"}"#);
-    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("landing admitted: {answer:?}") };
-    let words = format!("branch mine: change task {} is on it already.", made[0].task);
-    refused(&mut world, &goal, LANDING_CALL + 1, br#"{"words":"Land again","branch":"mine"}"#, words.as_bytes());
+    // An unchanged goal branch ends with no change instead of keeping a live landing.
+    let (mut world, goal, _, landing, _) = checking_landing();
+    let words = format!("branch mine: change task {landing} is on it already.");
+    refused(&mut world, &goal, LANDING_CALL + 2, br#"{"words":"Land again","branch":"mine"}"#, words.as_bytes());
     world.close();
 }
 

@@ -132,7 +132,7 @@ fn oversized_watch_sets_name_the_bound_and_required_usage() {
 }
 
 fn gathering() -> Domain {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pending = None;
@@ -149,25 +149,27 @@ fn gathering() -> Domain {
 fn branch_base_and_pull_reads_retain_their_target_and_cause() {
     let base = Name { what: What::Branch(Box::new([Box::from(b"main".as_slice())])), ..branch() };
     let pull = Name { what: What::Pull(1), ..branch() };
-    for (before, operation, resource) in [
-        (&[][..], b"read branch".as_slice(), run_branch(b"51")),
-        (&[fixtures::HEAD][..], b"read base", base),
-        (&[fixtures::HEAD, fixtures::BASE][..], b"read pull", pull),
-    ] {
-        let mut d = gathering();
-        for head in before {
-            fixtures::answer_next(&mut d, Ok(Answer::Commit(*head)));
+    for error in [skein_forge::api::Error::Forbidden, skein_forge::api::Error::NotInstalled] {
+        for (before, operation, resource) in [
+            (&[][..], b"read branch".as_slice(), run_branch(b"51")),
+            (&[fixtures::HEAD][..], b"read base", base.clone()),
+            (&[fixtures::HEAD, fixtures::BASE][..], b"read pull", pull.clone()),
+        ] {
+            let mut d = gathering();
+            for head in before {
+                fixtures::answer_next(&mut d, Ok(Answer::Commit(*head)));
+            }
+            let out = fixtures::answer_next(&mut d, Err(error));
+            assert!(
+                out.contains(&Request::ResourceRefused {
+                    task: fixtures::CHANGE,
+                    operation,
+                    resource: Some(resource),
+                    cause: RefusalCause::Backend(error),
+                }),
+                "{operation:?}: {out:?}"
+            );
         }
-        let out = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Forbidden));
-        assert!(
-            out.contains(&Request::ResourceRefused {
-                task: fixtures::CHANGE,
-                operation,
-                resource: Some(resource),
-                cause: RefusalCause::Backend(skein_forge::api::Error::Forbidden),
-            }),
-            "{operation:?}: {out:?}"
-        );
     }
 }
 
@@ -211,6 +213,172 @@ fn change_reads_ride_outages_with_capped_waits_and_reset_on_an_answer() {
             fixtures::advance(&mut d, &mut env, CLIENT.backoff);
             assert_eq!(fixtures::next_at(&mut d, &env).1, next_op, "an answer resets the wait");
         }
+    }
+}
+
+fn assert_connection_wait(out: &Queue<Request>) {
+    let mut waiting = false;
+    for request in out {
+        if let Request::ChangeDecision { decision, .. } = request {
+            assert_eq!(*decision, temper_engine_domain_forge_change::Decision::Wait { until: None });
+        }
+        waiting |= *request
+            == Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: temper_engine_domain_forge_change::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            };
+        assert!(!matches!(request, Request::ResourceRefused { .. } | Request::Call { .. }), "{out:?}");
+    }
+    assert!(waiting, "{out:?}");
+}
+
+fn assert_no_connection_poll(d: &mut Domain, env: &mut Env<Limits>) {
+    let mut out = fixtures::advance(d, env, env.limits.client.slow.saturating_add(Duration::from_secs(100)));
+    for _ in 0..env.limits.client.pending {
+        resume(d, env, &mut out);
+    }
+    for request in &out {
+        assert!(!matches!(request, Request::Call { .. } | Request::WakeProcedure { .. }), "{out:?}");
+    }
+    assert_eq!(d.next_deadline(), None, "no polling timer");
+}
+
+fn reconnect_change(d: &mut Domain, env: &Env<Limits>) -> Token {
+    let connected = Connection::Connected { id: 7, login: b"bot".as_slice().into() };
+    let mut other = send(d, env, Event::Connection { forge: 2, state: connected.clone() });
+    for _ in 0..env.limits.client.pending {
+        resume(d, env, &mut other);
+    }
+    for request in &other {
+        assert_ne!(*request, Request::WakeProcedure { task: fixtures::CHANGE }, "another forge: {other:?}");
+    }
+    let mut out = send(d, env, Event::Connection { forge: 1, state: connected });
+    resume(d, env, &mut out);
+    let mut woke = false;
+    for request in &out {
+        woke |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+    }
+    assert!(woke, "{out:?}");
+    send(d, env, fixtures::change_step());
+    let (call, op) = fixtures::next_at(d, env);
+    assert_eq!(op, Op::Read(Read::Branch { branch: Box::from(b"temper/51".as_slice()) }));
+    call
+}
+
+#[test]
+fn change_reads_answered_not_connected_wait_and_restart_from_the_branch() {
+    use skein_forge::api::{Check, Ci, CommitMessage, Error};
+    let mut pull = fixtures::open_pull();
+    pull.ci = Ci::Failed;
+    let answers = [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(pull),
+        fixtures::checks(Check::Failed),
+        fixtures::checks(Check::Passed),
+        Answer::Commits { commits: Box::new([]), more: false },
+    ];
+    for (stage, catch_up, before, reverse) in [
+        ("branch", None, 0, false),
+        ("base", None, 1, false),
+        ("pull", None, 2, false),
+        ("ci", None, 3, false),
+        ("base ci", None, 4, false),
+        ("compare", None, 5, false),
+        ("contains head", None, 6, true),
+        ("reviews", None, 6, false),
+        ("catch up", Some(fixtures::BASE), 2, false),
+    ] {
+        let mut d = gathering();
+        let mut env = env();
+        send(&mut d, &env, Event::Connection { forge: 1, state: Connection::Connecting });
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = catch_up;
+        for (index, answer) in answers.iter().take(before).enumerate() {
+            let answer = if reverse && index == 5 {
+                Answer::Commits {
+                    commits: Box::new([CommitMessage {
+                        id: fixtures::BASE,
+                        parents: Box::new([]),
+                        message: Box::new([]),
+                    }]),
+                    more: false,
+                }
+            } else {
+                answer.clone()
+            };
+            fixtures::answer_next(&mut d, Ok(answer));
+        }
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        let out = fixtures::answer_at(&mut d, &env, call, Err(Error::NotConnected));
+        assert_connection_wait(&out);
+        assert!(d.steps.is_empty(), "partial {stage} facts dropped");
+        // A wake must not restart even while routing still says Connecting.
+        assert_connection_wait(&send(&mut d, &env, fixtures::change_step()));
+        d.wait_change(&env, fixtures::CHANGE, None);
+        assert_no_connection_poll(&mut d, &mut env);
+        let call = reconnect_change(&mut d, &env);
+        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::HEAD)));
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::BASE)));
+        if catch_up.is_some() {
+            let (call, _) = fixtures::next_at(&mut d, &env);
+            fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+        let mut out = Queue::uncapped();
+        for answer in
+            answers.iter().skip(2).cloned().chain([Answer::Reviews { reviews: Box::new([]), more: false, cut: false }])
+        {
+            let (call, _) = fixtures::next_at(&mut d, &env);
+            out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+        }
+        let mut decided = false;
+        for request in &out {
+            decided |= matches!(request, Request::ChangeDecision { .. });
+        }
+        assert!(decided, "a complete fresh chain decides: {out:?}");
+    }
+}
+
+#[test]
+fn change_steps_wait_without_reads_until_their_forge_connects() {
+    for state in [
+        None,
+        Some(Connection::NotConnected),
+        Some(Connection::NotSetUp),
+        Some(Connection::SettingUp { step: None }),
+        Some(Connection::SetUpFailed { why: b"failed".as_slice().into() }),
+        Some(Connection::Stopped { reason: b"stopped".as_slice().into() }),
+        Some(Connection::Connecting),
+    ] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(fixtures::opening_row())) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut env = env();
+        let connecting = state == Some(Connection::Connecting);
+        if let Some(state) = state {
+            send(&mut d, &env, Event::Connection { forge: 1, state });
+        }
+        let out = send(&mut d, &env, fixtures::change_step());
+        if connecting {
+            let (call, _) = fixtures::next_at(&mut d, &env);
+            assert_connection_wait(&fixtures::answer_at(
+                &mut d,
+                &env,
+                call,
+                Err(skein_forge::api::Error::NotConnected),
+            ));
+        } else {
+            assert_connection_wait(&out);
+        }
+        d.wait_change(&env, fixtures::CHANGE, None);
+        assert_no_connection_poll(&mut d, &mut env);
+        assert_connection_wait(&send(&mut d, &env, fixtures::change_step()));
+        reconnect_change(&mut d, &env);
     }
 }
 

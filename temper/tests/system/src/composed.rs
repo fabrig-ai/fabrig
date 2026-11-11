@@ -470,7 +470,13 @@ impl World {
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root_out: Queue::uncapped(),
-            root_events: VecDeque::from([engine::Event::Restart { pending: false }]),
+            root_events: VecDeque::from([
+                engine::Event::Restart { pending: false },
+                engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+                    forge: 1,
+                    state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+                })),
+            ]),
             store,
             party: signed_in_party(),
             protocol: Protocol::default(),

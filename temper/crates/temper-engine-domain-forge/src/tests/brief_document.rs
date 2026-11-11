@@ -42,6 +42,7 @@ fn plan(d: &mut Domain, document: BriefDocument, budget: u32) -> Queue<Request> 
         d,
         &env,
         Event::GatherPlanned {
+            task: 9,
             section: SECTION,
             parts: 1,
             bytes: budget,
@@ -239,6 +240,8 @@ fn a_failed_document_read_is_missing() {
                 Some(Request::BriefReadRefused {
                     section: SECTION,
                     stage: if file { "file" } else { "branch" },
+                    reason: brief_words::reason_of(&Err(result)),
+                    heads: None,
                     error: Some(result)
                 })
             );
@@ -291,7 +294,13 @@ fn a_busy_document_fails_at_its_gather_deadline() {
     brief::expire(&mut d, deadline, &mut out);
     assert_eq!(
         out.pop(),
-        Some(Request::BriefReadRefused { section: SECTION, stage: "file", error: Some(Error::Busy) })
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "file",
+            reason: "the forge client is busy",
+            heads: None,
+            error: Some(Error::Busy)
+        })
     );
     assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::busy()) }));
     d.reclaim();

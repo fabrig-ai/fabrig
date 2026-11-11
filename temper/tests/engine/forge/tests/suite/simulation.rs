@@ -449,7 +449,7 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
     assert!(world.seen().contains(&top::Request::BriefReady {
         owner,
         read: top::BriefRead::Failed(top::BriefUnread {
-            fate: top::BriefFate::Transient,
+            fate: top::BriefFate::Capacity,
             words: Box::from(b"the change's head moved".as_slice())
         })
     }));
@@ -468,7 +468,7 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
     assert!(world.seen().contains(&top::Request::BriefSized {
         section,
         size: Err(top::BriefUnread {
-            fate: top::BriefFate::Transient,
+            fate: top::BriefFate::Capacity,
             words: Box::from(b"the change's head moved".as_slice())
         })
     }));

@@ -5,6 +5,10 @@ use temper_engine_domain_forge_change as change;
 
 fn unpushed(e: &Env<Limits>) -> Domain {
     let mut d = domain_with_limits(&e.limits);
+    outputs(
+        &mut d,
+        Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } },
+    );
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pending = None;

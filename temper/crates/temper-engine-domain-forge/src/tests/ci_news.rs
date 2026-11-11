@@ -23,7 +23,7 @@ fn rows(ends: usize, pending: bool) -> Box<[Status]> {
     rows.into_boxed()
 }
 fn world(head: Commit) -> (Domain, Env<Limits>) {
-    let mut d = crate::tests::domain();
+    let mut d = fixtures::connected_domain();
     let mut e = crate::tests::env();
     e.limits.client.hinted = Duration::from_secs(1);
     e.limits.client.poll = Duration::from_secs(5);

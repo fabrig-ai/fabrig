@@ -12,7 +12,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_CONFIG_HOME/temper
 - **Twin of:** `--config`
 - Configuration, including temper.json.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `TEMPER_DATA`
 
@@ -22,7 +22,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_DATA_HOME/temper
 - **Twin of:** `--data`
 - The deployment's data and secrets.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `TEMPER_CACHE`
 
@@ -32,7 +32,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_CACHE_HOME/temper
 - **Twin of:** `--cache`
 - Binaries that can be fetched again.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `PATH`
 
@@ -59,7 +59,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** N
 - **Absent:** Open the configured listeners.
 - Inherited listeners beginning at file descriptor 3.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `SSL_CERT_FILE`
 
@@ -68,7 +68,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** FILE
 - **Absent:** Use the machine's certificate trust.
 - Certificate trust file for HTTPS connections.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-agent
 
 ### `XDG_RUNTIME_DIR`
 
@@ -77,7 +77,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** DIR
 - **Absent:** Use the deployment data directory's link file.
 - Runtime directory for the engine link file.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `HOME`
 
@@ -87,7 +87,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** A directory setting needs an absolute XDG base or an explicit value.
 - Base for a setting's directory when its XDG base is unusable.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `XDG_CONFIG_HOME`
 
@@ -97,7 +97,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.config when HOME is absolute.
 - Base for a setting's configuration directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `XDG_DATA_HOME`
 
@@ -107,7 +107,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.local/share when HOME is absolute.
 - Base for a setting's data directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `XDG_CACHE_HOME`
 
@@ -117,7 +117,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.cache when HOME is absolute.
 - Base for a setting's cache directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ## Internal
 
@@ -128,7 +128,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** SWITCH
 - **Absent:** Check in debug builds only.
 - Check the service wait boundary.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `TEMPER_INTERNAL_CUT_AT_LISTEN`
 
@@ -138,7 +138,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Do not cut the start.
 - Abort once at the client listener, creating this marker.
 - **Notes:** Requires TEMPER_INTERNAL_WAIT_CHECK. An existing marker keeps the next start running.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker
 
 ### `TEMPER_INTERNAL_FORGE_NO_REGISTRATION`
 
@@ -157,7 +157,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** The build script supplies unknown when git identity is unavailable.
 - The build's commit and tracked-file dirty mark.
 - **Notes:** Read at compile time from temper-version's build script alone; not a runtime override.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-worker, temper-agent
 
 ### `TEMPER_INTERNAL_BUNDLE`
 
@@ -168,3 +168,23 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Select whether the build embeds the browser's bundle.
 - **Notes:** Read by temper-client-bundle's build script; none skips the nested browser build. Not a runtime override.
 - **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_DUMP_LLM`
+
+- **Set:** internal
+- **Reads**
+- **Form:** DIR
+- **Absent:** Do not dump model requests.
+- Directory for agents' model request dumps.
+- **Notes:** The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.
+- **Read by:** temper-box, temper-worker, temper-agent
+
+### `TEMPER_INTERNAL_WORKSPACE_REUSE`
+
+- **Set:** internal
+- **Reads**
+- **Form:** ANY
+- **Absent:** Start with fresh worker workspaces.
+- Reuse worker workspaces across restarts.
+- **Notes:** Any nonempty value enables reuse; an empty value leaves it off. Never a shipped default.
+- **Read by:** temper-box, temper-worker

@@ -289,10 +289,10 @@ of each:
 
 - **Its own table,** commands as above, from which its reach, its
   `--help`, its `COMMAND --help` and its usage lines derive, rendered
-  under its own name: `skein_shell::Table` for `temper-box` and
-  `temper-engine` (`../cli/README.md`), `temper-shell`'s `commands` for
-  the client and the worker until theirs are built
-  (`../draft/cli.execution.md`, C3 and C6). A command two binaries
+  under its own name: `skein_shell::Table` for `temper-box`,
+  `temper-engine`, `temper-worker` and `temper-agent`
+  (`../cli/README.md`), `temper-shell`'s `commands` for the client until
+  its is built (`../draft/cli.execution.md`, C3). A command two binaries
   share, the same words run by the same code, is one constant both
   tables hold. `help`, the pages, is every binary's.
 - **`--version`** prints `NAME VERSION (COMMIT)` before any command is
@@ -418,61 +418,65 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 ## 3. The agent's binary, `temper-agent`
 
 A deployment runs smith's agent from a binary of its own, `temper-agent`
-(`crates/temper-agent`; `../draft/deployment-binaries.md`, sections 4
+(`bin/temper-agent`, its crate `crates/temper-agent-shell`;
+`../draft/deployment-binaries.md`, sections 4
 and 9, item 3), ordinary Rust, one process per run, which its worker starts
 and a person never does. It holds every mode in which `temper-box` runs
 smith's agent, run by the same code, and nothing else of `temper-box`'s.
 `temper-box` keeps those modes, as `temper-box internal agent` and by the same
 flags, until a worker names `temper-agent` as its agent's program
 (setup/init.md, 2, as `../draft/deployment-binaries.execution.md`'s M3
-makes it), so the box and its tests don't change. It starts from
-`temper-shell` (`components.md`), as `temper-client` does:
+makes it), so the box and its tests don't change. Its table is
+skein's, `AGENT` (`../cli/README.md`, 7.3):
 
 ```
-documentation  temper-agent help [NAME | --search WORDS...]
-spawned        temper-agent AGENT.json
-               temper-agent --list AGENT.json
-               temper-agent --mcp-relay 127.0.0.1:PORT
-               temper-agent --program-child PARENT PROGRAM ARGUMENTS...
+public    temper-agent help [NAME | pages | --search WORDS...]
+internal  temper-agent AGENT.json
+          temper-agent --list AGENT.json
+          temper-agent --mcp-relay 127.0.0.1:PORT
+          temper-agent --program-child PARENT PROGRAM ARGUMENTS...
+          run as claude, with Claude Code's arguments
 ```
 
-- **Its table** is five rows of `temper_shell::commands::Row`: `help`,
-  `temper-shell`'s own, so that its `--help`'s second line, naming
-  `temper-agent help`, holds; and four of its own, each `Who::Spawned`,
-  their notes empty:
+- **Its table** holds `help`, `temper_shell::table::HELP`, public, and
+  five commands of its own, each internal, their notes empty; the four
+  reached by their words read:
 
-  | Row | `words` | `forms` | `line` | `arguments` |
+  | Command | Reached by | `forms` | `line` | `arguments` |
   |---|---|---|---|---|
-  | `RUN` | none | `AGENT.json` | Run one agent for a worker's run, on smith's agent configuration. | `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it. |
-  | `LIST` | `--list` | `AGENT.json` | Read one endpoint's model list, on smith's agent configuration. | `AGENT.json`, as `RUN`'s |
-  | `RELAY` | `--mcp-relay` | `127.0.0.1:PORT` | Relay a program's MCP connection to its agent. | `PORT`: The agent's relay listener on loopback; the secret is in SMITH_MCP_SECRET. |
-  | `PROGRAM_CHILD` | `--program-child` | `PARENT PROGRAM ARGUMENTS...` | Run a program as the agent's child, which ends with its parent. | `PARENT`: The agent's process id. `PROGRAM`: The program's path, with its `ARGUMENTS`. |
+  | the run | the bare form | `AGENT.json` | Run one agent for a worker's run, on smith's agent configuration. | `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it. |
+  | the list | `--list` | `AGENT.json` | Read one endpoint's model list, on smith's agent configuration. | `AGENT.json`, as the run's |
+  | the relay | `--mcp-relay` | `127.0.0.1:PORT` | Relay a program's MCP connection to its agent. | `PORT`: The agent's relay listener on loopback; the secret is in SMITH_MCP_SECRET. |
+  | the program child | `--program-child` | `PARENT PROGRAM ARGUMENTS...` | Run a program as the agent's child, which ends with its parent. | `PARENT`: The agent's process id. `PROGRAM`: The program's path, with its `ARGUMENTS`. |
 
-  `RUN`'s and `LIST`'s lines and argument are `temper-box`'s `internal
-  agent` and `internal agent-list` rows' words.
-- **Its arguments,** read once `main` has installed skein's fail-stop
-  hook, as every binary's `main` does first, in this order:
+  The run's and the list's lines and argument are `temper-box`'s
+  `internal agent` and `internal agent-list` rows' words. The fifth,
+  run as `claude`, is the box's row of that name.
+- **Its arguments,** captured once `main` has installed skein's
+  fail-stop hook, as every binary's `main` does first, reach a command
+  by `Table::reach` (skein's `runtime/shell.md`, 14.4;
+  `../cli/README.md`, 3):
   1. run by a name whose file name is `claude`: Claude Code's launcher,
-     `temper-launcher`'s, its arguments unchanged (setup/owned.md, 6);
-  2. a first argument `--mcp-relay` or `--program-child`: smith's
-     `relay::main` or `program_child::main`, which read every argument
-     themselves (smith's `protocol/programs.md`, 5.1 and 5.3), `--help`
-     after either among them, as in `temper-box`;
-  3. `--help` alone: the table's help, exit 0; `--version` alone: one
-     line, `temper-agent VERSION (COMMIT)`, exit 0, VERSION and COMMIT
-     `temper-version`'s, as every binary's (1; `../release.md`,
-     section 3);
-  4. the table's lookup by its words, as `temper-client`'s: `help` and
-     its arguments, `--list AGENT.json`, and a row's `--help`;
-  5. a first argument that no row begins and that doesn't begin with
-     `-`: `RUN`, that argument AGENT.json. A document named as a row's
-     word is given by a path holding a slash, `./help`; a worker gives
-     an absolute path.
+     `temper-launcher`'s, its arguments unchanged (setup/owned.md, 6),
+     given the captured environment;
+  2. `-h`, `--help` or `help` alone: the table's page, exit 0;
+     `--version` alone: `temper-agent VERSION (COMMIT)`, exit 0,
+     VERSION and COMMIT `temper-version`'s, as every binary's (1;
+     `../release.md`, section 3);
+  3. by its words: `help` and its words (`documentation.md`, 4),
+     `--list AGENT.json`, `--mcp-relay` and `--program-child`, whose
+     code is smith's `relay::main` and `program_child::main`, reading
+     every argument themselves (smith's `protocol/programs.md`, 5.1 and
+     5.3); a command's words then `-h` or `--help` alone print its page,
+     which says it's internal;
+  4. else the bare form, its one argument AGENT.json. A document named
+     as a command's word is given by a path holding a slash, `./help`;
+     a worker gives an absolute path.
 - **One run:** AGENT.json read as `temper-box` reads an agent's document,
   its bytes with a `"fetched"` program's path replaced by its launcher
   (setup/owned.md, 6; `temper-launcher`'s), then smith's decode; then
   smith's agent shell, `run_dumping` into `TEMPER_INTERNAL_DUMP_LLM`'s directory
-  when the variable names one (`../draft/dogfood-hacks.md`, 2.13),
+  when the captured environment's variable names one (`../draft/dogfood-hacks.md`, 2.13),
   `run_decoded` otherwise, what `temper-box internal agent` does. A
   document that doesn't read prints `smith: ` and the reason, then each
   line of the reason after `temper-agent: `; a run that fails prints
@@ -486,19 +490,19 @@ spawned        temper-agent AGENT.json
   `protocol/agent.md`, 6.1), so a worker that names `temper-agent` with
   the arguments `AGENT.json` for its runs launches `temper-agent --list
   AGENT.json` for a list, with no word of temper's.
-- **Refusals,** exit 1, stdout empty, in `temper-shell`'s words for the
-  binary's name: no argument, `temper-agent: no command; temper-agent
-  --help lists them`; a first argument beginning with `-` that no row
-  begins, `--version` or `--help` with more arguments among them,
-  `temper-agent: no command ARGUMENT; temper-agent --help lists them`;
-  a row's form with other arguments, `temper-agent: invalid arguments`
-  or `temper-agent --list: invalid arguments`, then `usage: ` and the
-  form.
+- **Refusals,** exit 2, stdout empty, in skein's words for the
+  binary's name (`../cli/README.md`, 4): no argument, `temper-agent: no
+  command; temper-agent --help lists them`; a first argument beginning
+  with `-` that no command's words begin, `--version` or `--help` with
+  more arguments among them, `temper-agent: no command ARGUMENT;
+  temper-agent --help lists them`; a command's form with other
+  arguments, `temper-agent: invalid arguments` or `temper-agent --list:
+  invalid arguments`, then its usage lines.
 - **Its exit status:** smith's agent shell's code, a signal's 1
   (`binaries.md`); the launcher's, the build's once it has replaced itself,
   or 1 with `temper-agent: claude: ` and the reason when it can't; the
   relay's and the program child's, smith's.
-- **It links** `temper-shell`, smith's agent shell and what that links,
+- **It links** its crate, `temper-agent-shell`, `temper-shell`, smith's agent shell and what that links,
   `temper-launcher` for the launcher and the substitution, with the
   fetch's host and machine beneath it, `temper-fetch-shell` and
   `temper-fetch`, `temper-version`, and skein's crates: no other temper
@@ -508,13 +512,15 @@ spawned        temper-agent AGENT.json
   is its callers' (`components.md`). 4's test holds it there.
 - **Its file** is the Cargo target `temper-agent`, built alone as the
   release job builds it (`cargo build -p temper-agent --bin
-  temper-agent`), with no Cargo feature of its own.
-- **Its tests,** in its package: its parser's table, a row per form and
-  per refusal, as `temper-client`'s; and one table in its suite, a row
+  temper-agent`), with no Cargo feature of its own: the package at
+  `bin/temper-agent`, its `main.rs` installing fail-stop and calling
+  `temper-agent-shell`'s `main` (`../cli/README.md`, 2).
+- **Its tests:** its crate's parser's table, a row per form and
+  per refusal, as `temper-client`'s; and one table in its package's suite, a row
   per mode, each running the built `temper-agent` with an empty
   environment and stdin closed and comparing its exit, stdout and
   stderr: `--version`, `--help` and `--list --help`; the refusals; the
-  relay's usage, alone and before `--help`; the program child's refusal
+  relay's usage alone, and its row's page before `--help`; the program child's refusal
   and both statuses, as `bin/temper-box/tests/suite/agent_modes.rs` has
   them; a run and a list refused for a missing document; a run and a
   list started on a loopback plaintext document, ending as `temper-box
@@ -538,7 +544,7 @@ reads empty, or lacks its own package, fails too.
 
 | Package | temper's crates it may hold | Trees it may not | Exceptions |
 |---|---|---|---|
-| `temper-agent` | `temper-agent`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell`, `temper-version` | jig | none |
+| `temper-agent` | `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell`, `temper-version` | jig | none |
 
 smith's crates and skein's are the agent's to hold: smith's agent and
 what it rests on. The client's, the engine's and the worker's rows are
@@ -550,18 +556,20 @@ Each worker's host's binary, `bin/temper-worker`: a worker alone, its
 programs' sign-in and the pages:
 
 ```
-documentation  temper-worker help [NAME | --search WORDS...]
-deployment     temper-worker serve [DIRECTORIES]
-               temper-worker program-login [DIRECTORIES] NAME
-               temper-worker --version
+public  temper-worker help [NAME | pages | --search WORDS...]
+        temper-worker serve [DIRECTORIES]
+        temper-worker program-login [DIRECTORIES] NAME
+        temper-worker --version
 ```
 
 - **Each command is the box's of the same words,** run by the same
   code, `temper-worker-shell`'s and `temper-service-shell`'s, with the
-  same exits, but for what follows. Its `help` and `program-login` rows
-  are the constants the box's table holds too, `temper-shell`'s `HELP`
-  and `temper-worker-shell`'s `PROGRAM_LOGIN`; its `serve` row is its
-  own, saying it serves a worker alone's document.
+  same exits, but for what follows. Its table is skein's, `WORKER`
+  (`../cli/README.md`, 7.2): its `help` and `program-login` commands
+  are the constants the box's table holds too,
+  `temper_shell::table::HELP` and `temper-worker-shell`'s
+  `PROGRAM_LOGIN`; its `serve` is its own, saying it serves a worker
+  alone's document.
 - **Its lines name it:** serve's refusals and endings say
   `temper-worker serve: …` and program-login's say
   `temper-worker program-login: …`, where the box's say `temper-box`. The
@@ -578,7 +586,8 @@ deployment     temper-worker serve [DIRECTORIES]
   the checks a worker alone's start makes, and is refused in their
   words.
 - **No command is an unknown command:** `temper-worker: no command
-  WORDS; temper-worker --help lists them`, and exit 1, as 2 says it.
+  WORDS; temper-worker --help lists them`, and exit 2, as 2 says it; a
+  command's arguments refused exit 2 too (`../cli/README.md`, 4).
 - **Its `serve`** is the box's `temper-box serve` on a worker alone: the
   worker's part read and checked, its agent's document read by
   `smith-agent-document`, its root, program sources and the launcher's
@@ -602,6 +611,7 @@ deployment     temper-worker serve [DIRECTORIES]
 - **Its package,** `bin/temper-worker`, has skein's layout
   (`skein/docs/foundation/cli.md`, section 2): a `main.rs` that installs
   fail-stop and calls `temper-worker-shell`'s `main`, which holds the
-  table, its parser and the dispatch; `--version`'s line is
-  `temper-version`'s. Its step tests, one test binary of the package,
-  run the built binary.
+  table, its capture, its reach and the dispatch (`../cli/README.md`,
+  3); `--version`'s line is the table's, from `temper-version`. Its
+  step tests, one test binary of the package, run the built binary
+  (`../cli/README.md`, 10).

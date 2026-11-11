@@ -7,6 +7,8 @@ const GOAL: u64 = 7;
 const DELEGATE: u64 = 90;
 const GOAL_BRANCH: &[u8] = b"temper/7/g7";
 const UPDATE: u64 = fixtures::OPEN + 1;
+// Both observed change heads have work beyond this landing tip.
+const LANDING_TIP: skein_forge::api::Commit = [2; 32];
 
 fn name() -> Name {
     Name {
@@ -30,7 +32,7 @@ fn held_goal() -> Domain {
 }
 
 fn held_by(holder: Option<u64>) -> Domain {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -250,10 +252,19 @@ fn facts_say_whether_a_changes_branch_is_its_requesters() {
 }
 
 fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
+    let base = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    d.heads
+        .insert(base.clone(), BranchHead { name: base, commit: LANDING_TIP, owned: false })
+        .expect("fixture head room");
     fixtures::step_change(d);
     fixtures::answer_next(d, Ok(Answer::Commit(head)));
-    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(d, Ok(Answer::Commit(LANDING_TIP)));
     let mut pull = fixtures::open_pull();
+    pull.base_commit = Some(LANDING_TIP);
     pull.head = d.change(fixtures::CHANGE).unwrap().branch.clone();
     pull.commit = head;
     pull.ci = skein_forge::api::Ci::Pending;

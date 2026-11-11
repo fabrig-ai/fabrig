@@ -38,6 +38,7 @@ pub(crate) fn brief_outputs(
                     continue;
                 }
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
+                    task: connector.task,
                     section,
                     parts: env.limits.brief.parts,
                     bytes: budget,
