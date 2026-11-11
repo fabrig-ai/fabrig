@@ -280,6 +280,7 @@ needs-proposal
 needs-reply-open
 needs-saw-open
 needs-second-answered
+needs-sign-off-part
 needs-stop-asking
 needs-stop-asking-set
 needs-tell

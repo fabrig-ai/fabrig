@@ -354,7 +354,7 @@ fn approval(
     b.style(look::ASK);
     from(b, root, needs::Need::Approval(row), w, bindings, times, true);
     ask::text(b, Role::Heading { level: 1 }, &super::approval::question(row, w), look::FLOW_Q);
-    for line in &super::approval::sentences(row, w) {
+    for line in &super::approval::sentences(row, super::approval::viewer(root), w) {
         ask::text(b, Role::Paragraph, line, look::ASK_CONTEXT);
     }
     b.open(Role::Slot);

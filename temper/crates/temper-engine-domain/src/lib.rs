@@ -67,3 +67,8 @@ pub fn carried_at_start(number: u64) -> Request {
 }
 
 pub use temper_engine_domain_ways as ways;
+
+#[cfg(test)]
+mod fuzzy {
+    mod approval_people;
+}
