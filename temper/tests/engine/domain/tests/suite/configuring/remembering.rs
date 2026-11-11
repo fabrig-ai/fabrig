@@ -93,8 +93,29 @@ fn a_kept_line_reaches_the_next_chat_and_leaves_with_its_person() {
     remember(&mut world, &first, "add");
     let entry = kept(&world);
     assert_eq!(entry.references.as_slice(), &[first.task]);
+    let ordinary = world.chat(CHAT, world.owner, 24);
+    assert_ne!(first.task, ordinary.task);
+    assert!(
+        ordinary
+            .sections
+            .iter()
+            .all(|section| section.kind != engine::BriefKind::Core(jig_domain_brief::Core::Preferences)),
+        "a charter-1 chat reads no preferences"
+    );
+    world.ask(
+        world.owner,
+        25,
+        people::Ask::Cancel {
+            project: PROJECT,
+            task: ordinary.task,
+            reason: b"Close the ordinary chat".as_slice().into(),
+            grace: None,
+        },
+    );
+    world.driver.answer(CHANNEL, ordinary.task, ordinary.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.driver.settle();
     let second = world.chat(ASK_TEMPLATE, world.owner, 21);
-    assert_ne!(first.task, second.task);
+    assert_ne!(ordinary.task, second.task);
     assert_eq!(preferences(&second).as_ref(), b"1. I want short answers.\n");
     world.ask(world.owner, 22, delete(&entry));
     assert_eq!(world.reply(22), &people::Reply::Outcome(people::Outcome::NoteEdited { name: entry.name }));
