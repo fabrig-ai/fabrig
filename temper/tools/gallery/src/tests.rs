@@ -900,7 +900,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Pressed { name: "Night mode" },
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
@@ -912,7 +912,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-ask",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -2268,9 +2268,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-begin-both-left",
         heading: "Hello is ready.",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named {
                 role: Role::Paragraph,
-                name: "Two steps left. Skip them if you like; they stay in Settings and Ask temper.",
+                name: "Two steps left. Skip them if you like; they stay in How work runs and Ask temper.",
             },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
@@ -2282,7 +2286,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
@@ -2531,7 +2535,14 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-begin-settings-left",
         heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Settings." },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "One step left. Skip it if you like; it stays in How work runs.",
+            },
             Part::Absent { role: Role::Button, name: "Start" },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Absent { role: Role::Link, name: "New chat" },
@@ -3248,7 +3259,8 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3421,7 +3433,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-typing",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3437,7 +3449,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-sending",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3453,7 +3465,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-refused",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },

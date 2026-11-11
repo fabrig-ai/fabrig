@@ -1,7 +1,9 @@
 # view: status
 
-2026-11-10. Where the tree's code lags or departs from [view.md](view.md).
+2026-11-11. Where the tree's code lags or departs from [view.md](view.md).
 
+- **Not yet:** 3: while To begin shows, the rail holds "Home" and "Ask temper" alone, with no hairline and no "How work runs" (*While To begin shows*, *The rail's parts*). [in flight: change 372]
+- **Not yet:** 3: on a page across projects, the rail's "Home", temper's name and the phone's "Home" go to the open project's `Home`, and "Needs you" and the phone's "Needs" to its Needs you with its count, where *All projects* keeps them across projects. [in flight: change 373]
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
