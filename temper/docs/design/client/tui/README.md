@@ -31,12 +31,13 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
-- **Started by a box, too:** `temper-box` in a terminal runs the TUI in
-  front of its services, `temper-box internal tui --box http://HOST:PORT`,
-  signed in by a link the box hands it (`box.md`).
-- **Exit status:** 0 once the TUI closed (4); 1 when it cannot start;
-  2 for an address or arguments refused, followed by the usage
-  (`../../cli/README.md`, 4 and 7.4). Its refusals name `temper`:
+- **In front of a box, too:** `temper box` in a terminal runs the TUI
+  at once and `temper-box --front` behind it, signed in by a link the box
+  hands it (`box.md`).
+- **Exit status:** 0 once the TUI closed (4); 2 when its arguments are
+  refused, the table's rows about ADDRESS and its count; 1 when it
+  cannot start otherwise (`../../cli/README.md`, 4 and 7.4); each with
+  one line on stderr. Its refusals name `temper`:
 
   | Cause | stderr |
   |---|---|
@@ -49,12 +50,14 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 
   A panic aborts the process (fail-stop), the terminal left as it was
   found (4).
-- **The deployment's client** is `temper` (`../README.md`, section 2).
-  Its `temper-client-shell` captures arguments, environment and working
-  directory once and gives them to the TUI's start. The directory, its
-  `address` and `sign-in` note are the same files (2), and it reads the
-  engine's link file as the box's `temper-box internal tui` does
-  (`../../protocol/binaries.md`).
+- **The client's binary is `temper`** (`../README.md`, section 2;
+  `../../cli/README.md`, 7.4): the table above is its bare form's, and
+  an ADDRESS that isn't one is refused, exit 2, as its table's refusals
+  are. Its `temper-client-shell` captures arguments, environment and
+  working directory once and gives them to the TUI's start. Its
+  directory, its `address` and its `sign-in` note are the same files (2)
+  whether it runs on an engine or in front of a box (`box.md`), and it
+  reads the engine's link file (`../../protocol/binaries.md`).
 
 ## 2. Its directory
 

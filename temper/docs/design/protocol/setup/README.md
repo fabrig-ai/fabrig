@@ -617,19 +617,18 @@ Each is intended; what it needs is named with it.
   lifetime guard on macOS needs a mechanism of its own; until one is
   designed, the box's ordered stop, including a hangup, is its cleanup.
 
-- **A box started in the background of a terminal** (`box.md`, 6): `temper-box &`
-  from a shell with job control has a terminal on its standard input and
-  output, so it runs its front, which takes the terminal's foreground
-  from the shell. `--no-tui` keeps it off. Telling a background start
-  from a foreground one needs the box to read its terminal's foreground
-  group, which skein's `runtime/shell.md`, 6.3 does not give yet.
+- **A `temper box` started in the background of a terminal** (`box.md`,
+  6): `temper box &` from a shell with job control has a terminal on its
+  standard input and output, so it runs its TUI, which job control stops
+  at its first read. `temper-box` runs the box alone. Telling a
+  background start from a foreground one needs `temper` to read its
+  terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
+  not give yet.
 
-- **The terminal after a front killed outright** (`box.md`, 6): the front's modes
-  and screen stay on the terminal, as any program's killed outright do
-  (skein's `runtime/shell.md`, 6.3). The box could keep the modes at its start and
-  set them back once it takes the foreground again. It needs a reason
-  first: a front leaves them only when it is killed, by the box's close
-  after two graces or from outside.
+- **The terminal after `temper box` killed outright** (`box.md`, 6): its
+  TUI's modes and screen stay on the terminal, as any program's killed
+  outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
+  life pipe's end.
 
 - **A start holding the engine's documents to temper's clients** (`init.md`, 1):
   no start compares `documents.text_bytes` with what the web and terminal
