@@ -553,7 +553,8 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (11_346, Setting::Charter(5)));
+    // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
+    assert_eq!(run, (11_418, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Two executor places in four policy authorities add 2 * 4 * 8 bytes.

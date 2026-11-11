@@ -77,7 +77,14 @@ say what it covers.
   saved and a live standing role's person no longer holds a role there,
   in the decision after the one that saved them, to the owner whose
   request saved them, or else the project's owner with the lowest
-  number. Its open questions go with it to the owner's Needs you. A move
+  number. Its open questions go with it to the owner's Needs you: a role
+  asks its person by a person task addressed to them, asking in words
+  (jig's `domain/tasks/messages.md`, 5), since temper's inbox holds a
+  person's answers (jig's `domain/people/README.status.md`), so the root
+  makes the move and addresses each of the role's live person tasks
+  addressed to the person who left to the owner, one compound decision
+  (jig's `domain/tasks/changes.md`, Several operations, one decision),
+  all or none. A person task addressed to a role stays as it is. A move
   jig refuses, for room or for funding, leaves the role as it is, and the
   root tries again at the project's next period and its next change of
   roles.

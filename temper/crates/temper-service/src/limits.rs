@@ -457,7 +457,8 @@ const STANDARD_ROOT: Root = Root {
         // and two reason sets (engine::row_bound).
         // The task's closer adds 32 bytes to the task owner.
         // Two added executor places retain two 8-byte AuthorityExecutor values.
-        transcript_bytes: 22_467_744,
+        // A standing task's session adds 32 bytes to the task record (TaskRecord.session).
+        transcript_bytes: 22_467_776,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
