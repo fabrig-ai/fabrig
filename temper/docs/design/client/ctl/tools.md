@@ -22,7 +22,8 @@
 - **A tool's name is its words:** a group, one of the map's nouns
   (`task`, `chat`, `goal`, `change`,
   `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
-  `repository`, `playground`, `hold`, `landing`, `finding`, `qa`, and
+  `repository`, `playground`, `hold`, `landing`, `finding`, `qa`,
+  `role`, `need`, and
   area 3's `project`, `party` and `deployment`; `../../protocol/documentation.md`,
   2.4), then a verb of the closed vocabulary, `task show`; or
   one of the six names of the client and the party, `me`, `inbox`,
@@ -45,7 +46,9 @@
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
-  `REASON`, `KEY`. A step test refuses any other `shown` name.
+  `REASON`, `KEY`, `AREA` (an area's name, `../../domain/areas.md`, section
+  2) and `PARTY` (a party's number). FINDING is written `P/N`, its
+  project's number or name, then its number in the project. A step test refuses any other `shown` name.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one
   (jig's `domain/model.md`, 6.1), so an argument is a number or a name,
@@ -68,8 +71,8 @@ watch's subject, its digest (4). It needs no key.
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../../domain/landing.md`, section 14) | the forge's family |
 | `landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]` | the project's landings, newest first, with their phases, the turn's holder first, a page and its cursor; with `--newer-than`, every landing on its repositories' landing branches the engine saw after TIME (as `task amend --deadline` takes it, UTC to the minute), with its verdicts and its trailers, from the landing log (`../../domain/after-landing.md`, sections 8 and 10) | the forge's family |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
-| `finding list --project PROJECT [--state new\|routed\|backlog\|dropped]` | the project's findings: issue, kind, severity, area, state, signature, times seen, goal (`../../domain/findings.md`, section 2) | the forge's family |
-| `finding show FINDING` | one finding whole, its state as its word set | the forge's family |
+| `finding list --project PROJECT [--state new\|routed\|backlog\|dropped] [--mine]` | the project's areas, a line each, `NAME owner OWNER, held by HOLDER: WORDS`, and its triager's line, then its findings newest first, a line each: `P/N`, state, kind, severity, area or `-`, holder, title; with `--mine`, the reader's alone (`../../domain/areas.md`, sections 4 and 5) | the forge's subject `findings`, read once (`../forge/records.md`) |
+| `finding show FINDING` | one finding whole: its line, its filer, when, the last hand-off's why, its goal, a drop's reason, then its body | the forge's read `Finding` |
 | `qa marks --project PROJECT` | the project's marks: landing, words, chosen, waiting or tested (`../../domain/findings.md`, section 8) | the forge's family |
 | `qa passes --project PROJECT` | the project's QA passes: the cleared main, the marks covered, the tester, its outcome and findings | the forge's family |
 | `hold list --project PROJECT` | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |
@@ -216,9 +219,12 @@ agent must name.
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
 | `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks/changes.md`) | `Move` | yes |
 | `task succeed TASK --by TASK` | names a live task the successor of an ended one: its open questions, subscriptions and kept news go to it | `Succeed` | yes |
-| `finding route FINDING --goal TASK` | routes a finding to a goal: news to it, `state:routed` (`../../domain/findings.md`, section 6) | the forge's request | yes |
-| `finding backlog FINDING` | puts a finding in the backlog, `state:backlog` | the forge's request | yes |
-| `finding drop FINDING REASON` | drops a finding: `state:dropped`, its issue closed with the reason | the forge's request | yes |
+| `finding file --project PROJECT --kind qa\|flake\|red\|review\|feedback [--severity low\|medium\|high] [--area AREA] TEXT FILE` | files a finding (`../../domain/findings.md`, section 4): TEXT its title, FILE, or `-` for stdin, its body, `medium` when no severity is named; prints `filed: P/N, held by HOLDER`; an area the project lacks exits 2 naming its areas (`../../domain/areas.md`, section 7) | `FileFinding` (`../forge/records.md`) | yes |
+| `finding hand FINDING --area AREA TEXT` | hands a finding on to an area, TEXT why, in a line: its new owner hears it (`../../domain/areas.md`, section 5); prints `handed: P/N, held by HOLDER` | `HandFinding` | yes |
+| `finding route FINDING --goal TASK` | routes a finding to a goal: news to it, `routed` (`../../domain/findings.md`, section 6) | `TriageFinding` | yes |
+| `finding backlog FINDING` | puts a finding in the backlog, `backlog` | `TriageFinding` | yes |
+| `finding drop FINDING REASON` | drops a finding: `dropped`, the reason kept, and its issue, once it has one, closed with the reason | `TriageFinding` | yes |
+| `need ask --project PROJECT [--party PARTY\|--role ROLE] --choice TEXT --choice TEXT [--choice TEXT]... --why TEXT TEXT` | asks a person a question with its choices and why (`../../draft/standing-roles.md`, section 8): a person task addressed to PARTY or to ROLE, role 0, the project's owners, when neither is named; its spec TEXT, a blank line, then `Why: ` and the why; its contract a verdict among the 2 to 6 choices, in order, codes from 1; prints the task, whose answer `task show` reads; jig refuses, in its words, a person the asker's role may not address | `Create` with a person executor, made whole, as `shapes` offers none | yes |
 | `qa choose LANDING` | chooses a landing's mark for the next QA pass (`../../domain/findings.md`, section 8) | the forge's request | yes |
 | `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks/lifecycle.md`, 10) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON` | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |

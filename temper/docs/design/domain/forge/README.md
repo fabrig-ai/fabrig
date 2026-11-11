@@ -335,7 +335,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 | CI on a head | a head's CI, as `keeping-up.md`, 3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 7) |
-| a project's findings | a finding is filed, or its labels change | the project's triager (`../findings.md`, section 6) |
+| a project's findings | a finding is filed, handed on or routed to a task, or its labels change | the task that holds it, or the goal it is routed to, which the root subscribes in that decision (`../areas.md`, section 5; `../findings.md`, section 6) |
 
 The change child domain reads its facts directly and needs no
 subscription; topics are for tasks whose executors are agents, and for

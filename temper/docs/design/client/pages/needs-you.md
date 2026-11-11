@@ -33,6 +33,17 @@
   asking and its offers numbered as any control (1, *Why it
   reached you*); its project's `decided` document is one *Decided
   for you* watches, the unfiltered inbox watching `me`'s first projects.
+- **A finding that is the person's** (`../../domain/areas.md`, section 5)
+  is a card that needs them, from the forge's `findings` subject with
+  `mine` and `new`, watched for each of `me`'s projects as `decided` is
+  (`../forge/records.md`): its tag "Finding", then "PROJECT › P/N TITLE",
+  and its wait since it was filed; its kind, severity and area, "no area"
+  where it has none; the last hand-off's why, quoted, with who handed
+  it; and its acts, "Hand on", an area's menu and a line of why, "Route
+  to a goal", the project's live goals' menu, "Backlog" and "Drop with
+  reason", each the forge's request, a refusal said in its words. Kind
+  holds "Finding" among its choices. The card leaves once the finding
+  leaves `new` or stops being theirs.
 - **An update's card** has its heading as the link that opens it and marks
   a result seen. It repeats no project line or task-number link. The heading
   says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
