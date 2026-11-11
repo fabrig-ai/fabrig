@@ -1106,6 +1106,7 @@ impl World {
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
