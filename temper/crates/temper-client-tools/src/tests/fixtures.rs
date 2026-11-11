@@ -57,6 +57,9 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
 }
 /// One argv per table row and form; the help derivation shares these examples.
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
+    &["role", "list", "--project", "shop"],
+    &["role", "show", "41"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -672,6 +675,8 @@ impl Harness {
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
+                | crate::jig::rows::ROLE_LIST_AT
+                | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {

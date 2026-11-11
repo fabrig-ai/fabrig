@@ -38,6 +38,7 @@ mod replays;
 mod specification;
 
 mod goal_template;
+mod role;
 mod restore;
 
 mod project_remove;

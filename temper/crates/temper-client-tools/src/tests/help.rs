@@ -569,6 +569,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"role", b"ctl-role");
 }
 
 #[test]
