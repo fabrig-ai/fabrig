@@ -2185,7 +2185,9 @@ fn aborting_or_releasing_a_look_waits_for_its_terminal() {
 fn a_look_uses_the_local_deadline() {
     let mut h = Harness::reusing(LIMITS);
     let (hold, _) = h.begin(1, one(b"work"));
-    let Request::Io { op, deadline, .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else { panic!("look after Store") };
+    let Request::Io { op, deadline, .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else {
+        panic!("look after Store")
+    };
     assert_eq!(op.kind(), Kind::Look);
     assert_eq!(deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }
