@@ -1,10 +1,6 @@
 //! Literal prices regenerate only under the same opt-in as codec drift.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 pub fn check(path: &std::path::Path, marker: &str, expected: u64, actual: u64) {
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let source = std::fs::read_to_string(path).expect("memory assertion source");
         let start = source.find(marker).expect("literal marker").checked_add(marker.len()).expect("literal start fits");
         let end = start.checked_add(source[start..].find(';').expect("literal end")).expect("literal end fits");

@@ -40,10 +40,6 @@ pub(super) fn init_document() -> Box<[u8]> {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_pages_configuration_are_what_the_tables_render() {
     let init = init_document();
     let directory = skein_scratch::paths::tree().join("docs/help/reference");
@@ -51,7 +47,7 @@ fn the_pages_configuration_are_what_the_tables_render() {
         ("configuration", startup::configuration_reference),
         ("configuration-engine", startup::engine_configuration_reference),
     ];
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    let write = temper_test_env::rewrite();
     for (name, render) in pages {
         let mut measured = Writer::new(temper_docs::PAGE_BYTES);
         render(&init, &mut measured).expect("configuration page fits PAGE_BYTES");

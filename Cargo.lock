@@ -5079,6 +5079,7 @@ dependencies = [
  "temper-service-shell",
  "temper-settings-form",
  "temper-shell",
+ "temper-test-env",
  "temper-version",
  "temper-worker-domain",
  "temper-worker-shell",
@@ -5216,6 +5217,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-lib",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5264,6 +5266,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-view",
  "temper-fixtures",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5343,6 +5346,7 @@ dependencies = [
  "temper-fixtures",
  "temper-protocol-reaches",
  "temper-settings-form",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5379,6 +5383,7 @@ dependencies = [
  "temper-docs",
  "temper-fixtures",
  "temper-protocol-reaches",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5459,6 +5464,7 @@ dependencies = [
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5759,6 +5765,7 @@ dependencies = [
  "temper-service",
  "temper-service-shell",
  "temper-shell",
+ "temper-test-env",
  "temper-version",
 ]
 
@@ -5911,6 +5918,7 @@ dependencies = [
  "jig-client",
  "skein-io",
  "skein-lib",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -6146,6 +6154,7 @@ dependencies = [
  "temper-client-view",
  "temper-playground",
  "temper-service",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -6364,6 +6373,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-settings-form",
+ "temper-test-env",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",

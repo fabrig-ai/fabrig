@@ -24,10 +24,6 @@ fn entry(queued: bool) -> Stored {
     }
 }
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn queued_and_unqueued_entries_have_v11_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -37,7 +33,7 @@ fn queued_and_unqueued_entries_have_v11_golden_bytes_and_round_trip() {
         let bytes = records::encode(&value);
         let name = if queued { "merge-queued.bin" } else { "merge-unqueued.bin" };
         let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden/v11").join(name);
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        if temper_test_env::rewrite() {
             std::fs::write(&path, &bytes).expect("write queue golden");
         }
         assert_eq!(std::fs::read(path).expect("committed queue golden").as_slice(), bytes.as_ref());

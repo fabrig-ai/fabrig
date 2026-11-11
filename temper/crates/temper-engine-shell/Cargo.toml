@@ -36,6 +36,7 @@ temper-version.workspace = true
 temper-protocol-store.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 skein-scratch.workspace = true
 temper-client-protocol-wire.workspace = true
 serde_json.workspace = true

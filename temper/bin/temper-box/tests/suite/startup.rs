@@ -1816,10 +1816,6 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
 }
 
 /// Hold only the limit maps this derivation owns; keep the document's other text.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     use support::configuration::turn_bounds;
     let text = fs::read_to_string(path).expect("turn-bound document");
@@ -1838,7 +1834,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
             maps.push((&worker["limits"]["overrides"], &after["workers"][index]["limits"]["overrides"]));
         }
     }
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|v| v == "1");
+    let write = temper_test_env::rewrite();
     if !write {
         assert_eq!(
             before,

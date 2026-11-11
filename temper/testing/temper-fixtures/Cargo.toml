@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-test-env.workspace = true
 jig-client.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
