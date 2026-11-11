@@ -16,7 +16,7 @@ pub(super) fn init_document() -> Box<[u8]> {
     let ports = [8367, 8368, 8369, 8370, 8371].map(|port| NonZeroU16::new(port).expect("fixed nonzero port"));
     let facts = temper_init::Facts {
         sign_in: true,
-        binary: b"/opt/temper/bin/temper",
+        binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/usr/bin/claude"),
         ports: temper_init::Ports {

@@ -6,7 +6,7 @@ use skein_lib::{Decimal, List, Overflow, Writer};
 
 /// The document's top level and application members, with values from init's filled document.
 pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Configuration\n\nKind: reference\n\nThe configuration document's top level and application members, their bounds and what temper init --box writes.\n")?;
+    out.put(b"# Configuration\n\nKind: reference\n\nThe configuration document's top level and application members, their bounds and what temper-box init --box writes.\n")?;
     render(init, &members::SHAPES, &members::MEMBERS, false, out)?;
     merge_command(out)?;
     more_slots(out)
@@ -14,7 +14,7 @@ pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Over
 
 /// The engine and worker members, with values from init's filled document.
 pub fn engine_configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine and worker configuration members, their bounds and what temper init --box writes.\n")?;
+    out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine and worker configuration members, their bounds and what temper-box init --box writes.\n")?;
     out.put(b"\nA seeded project's policy must be a number; inline policies are refused.\n")?;
     render(init, &config::members::SHAPES, &config::members::MEMBERS, true, out)
 }

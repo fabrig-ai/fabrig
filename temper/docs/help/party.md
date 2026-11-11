@@ -25,7 +25,7 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   charters and procedures it may name, the deadline it may give.
   The executor lists are complete. If either exceeds the deployment's
   receiving bound `documents.lines`, the engine refuses the creating
-  offer instead of printing a shortened list. `temper init` gives each
+  offer instead of printing a shortened list. `temper-box init` gives each
   list eight entries, enough for the reference settings.
 
 **What each role may do:**
@@ -50,7 +50,7 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   a deployment that signs in with Google, each person its configuration
   lists as a member signs in as a party of their own.
 - **Signed in:** `temper box` prints the first owner's sign-in link on
-  its stdout; `temper serve` prints one when run alone. A link signs in
+  its stdout; `temper-box serve` prints one when run alone. A link signs in
   once, within 2 hours. A spent or expired link, given again,
   makes the deployment print a fresh one; the box passes on each fresh
   link alone on the terminal: a blank line, then the link.
@@ -87,7 +87,7 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
 - **Forge people for approvals:** on a box you need none of these steps:
   temper knows your account on the box's own Forgejo, and on GitHub when temper
   made the App from your own account.
-  With several members (`temper serve`), a managed Forgejo or a pasted App:
+  With several members (`temper-box serve`), a managed Forgejo or a pasted App:
   add the human collaborator on the forge.
   On Forgejo, a repository administrator must also grant temper's forge user
   repository admin: collaborator reads can require it even with write.
@@ -110,7 +110,7 @@ For the configuration members that need a restart, read `temper help configurati
 
 - temper does not let ctl make a party, invite a person, give a role
   or make a service.
-- A box made by `temper init --box` has one person, its owner, and signs in
+- A box made by `temper-box init --box` has one person, its owner, and signs in
   no other.
 - A `DIR` holds one party's sign-in; several parties take several
   directories.

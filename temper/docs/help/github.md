@@ -66,8 +66,8 @@ If not: `credential file must contain 1 to 4085 bytes` or a key
 file's mode (exit 1): mend `FILE`, then the same call with the same
 key. `connected already` (exit 2): the forge holds a key; `forge
 replace FORGE FILE` replaces it. An App short of a permission or an event
-connects, and `temper serve` prints what it lacks on its stderr,
-`temper serve: forge FORGE: App lacks ` then each name, which a box writes
+connects, and `temper-box serve` prints what it lacks on its stderr,
+`temper-box serve: forge FORGE: App lacks ` then each name, which a box writes
 to its `serve` log under `DATA/box/logs/`: grant them in the App's
 settings on GitHub.
 
