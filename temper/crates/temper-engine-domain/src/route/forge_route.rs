@@ -5414,6 +5414,7 @@ pub(crate) fn outputs(
                                         task,
                                         entry,
                                         prior: evidence.prior,
+                                        leaves_queue: task_leaves_queue(domain, env, task),
                                     }));
                                     change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
                                     continue;
@@ -5460,6 +5461,7 @@ pub(crate) fn outputs(
                                     task,
                                     entry,
                                     prior: evidence.prior,
+                                    leaves_queue: true,
                                 }));
                                 change_decision(
                                     domain,
@@ -5833,7 +5835,16 @@ pub(crate) fn effect_ask(
                     } else {
                         None
                     };
-                    domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
+                    // A review request ends its turn through ReviewRequested, retaining First
+                    // until that request has taken its base and started its repair.
+                    let leaves_queue = request.is_none()
+                        && (answer != authority::Answer::Wait || task_leaves_queue(domain, env, task));
+                    domain.work.push(Work::Forge(forge::Event::VetoChange {
+                        task,
+                        entry,
+                        prior: evidence.prior,
+                        leaves_queue,
+                    }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
                     } else if let Some(head) = request {
@@ -5972,6 +5983,19 @@ fn drop_landing(
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
     } else {
         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
+    }
+}
+
+fn task_leaves_queue(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
+    if landing_route::kept(domain, env, task) {
+        return true;
+    }
+    match domain.core.tasks.task(task) {
+        Some(row) => match row.phase {
+            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) => false,
+        },
+        None => true,
     }
 }
 

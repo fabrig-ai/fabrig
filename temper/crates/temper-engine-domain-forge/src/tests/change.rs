@@ -759,7 +759,7 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
             }
         }
         let (entry, prior) = proposed.expect("merge at the checked head");
-        outputs(&mut d, Event::VetoChange { task: fixtures::CHANGE, entry, prior });
+        outputs(&mut d, Event::VetoChange { task: fixtures::CHANGE, entry, prior, leaves_queue: false });
         let row = d.change(fixtures::CHANGE).expect("change waiting for approval");
         assert_eq!(
             row.change.state,
@@ -781,7 +781,9 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
         let mut d = first_change(Protection::Absent, Ci::Passed, true, false);
         let row = d.change(fixtures::CHANGE).expect("first change").clone();
         let requested = outputs(&mut d, Event::ReviewRequested { task: fixtures::CHANGE, head: fixtures::BASE });
-        assert!(requested.is_empty(), "no durable record carries the request");
+        assert!(requested.iter().any(|request| matches!(request,
+            Request::Save { record: Stored::Change(row), .. } if !row.change.owns_turn
+        )), "the request ends the turn without storing its review facts");
         assert!(d.procedure_wakes.contains_key(&fixtures::CHANGE));
         if restart {
             // The same durable change starts without the volatile request.
