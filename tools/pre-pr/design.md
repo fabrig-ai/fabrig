@@ -27,15 +27,18 @@ boundary (smith's run.md, 8.1).
   baselines, clippy and focused tests; Markdown anywhere and every file
   under a `docs/` directory select citations and design size limits.
   Declared documentation inputs to tests select both (sections 3 and 4).
-- **Inherited reds don't refuse.** An exceeded baseline count, lint or
-  test failure is compared with the base; citations compare their counted
-  findings and design sizes there too. Inherited failures are named and
-  pass (section 5). Only what this delivery broke refuses it.
+- **Known reds, and inherited counts.** Nothing is built or tested at the
+  base. A lint or test failure is inherited only when the checked tree's
+  `.temper/known-reds.md` lists it; a build failure is always the
+  delivery's. An exceeded baseline count is compared with the base's, with
+  no build; citations compare their counted findings and design sizes
+  there too. Inherited failures are named and pass (section 5); every
+  other failure refuses.
 - **A summary last,** within the host's kept tail: each failing check and
   test with its log's tail, then the inherited ones (section 6).
 - **Fast on a warm checkout:** no `cargo clean`, no whole-workspace run,
-  the base's builds only on a failure, and the passed-tree cache keyed by
-  tree and base (sections 7 and 8).
+  no build at the base, and the passed-tree cache keyed by tree and base
+  (sections 7 and 8).
 
 ## 2. The base
 
@@ -178,14 +181,19 @@ fetch beyond what cargo's own configuration does.
 
 ## 5. Inherited failures
 
-Only selected checks contribute failures. A failure can be inherited
-only with a base. The format check runs within the code set: its failures are never
-inherited. A red base refuses nothing the delivery did not cause.
+Only selected checks contribute failures. The format check runs within
+the code set: its failures are never inherited. Nothing is built or
+tested at the base: a lint or test failure goes back to the delivery
+unless the known reds list it, and a build failure always does, so a
+failing delivery costs no base build (section 8). The comparisons that
+need no build stand as they are: a red base's exceeded counts, broken
+citations and oversized documents refuse nothing the delivery did not
+cause.
 
 - **An exceeded baseline count** is keyed by tree and form, with its
   current count and recorded limit. The base runs check 2 only for the
-  trees with exceeded counts, in the same kept worktree used for lints
-  and tests. A count is inherited when the base exceeds that form too,
+  trees with exceeded counts, in the kept base worktree below. A count
+  can be inherited only with a base. A count is inherited when the base exceeds that form too,
   the head's count is no greater, and its excess over the limit is no
   greater. A rising count, a newly exceeded form or a tighter limit that
   increases the excess refuses. Each count is judged separately and
@@ -201,51 +209,55 @@ inherited. A red base refuses nothing the delivery did not cause.
   Neither comparison needs a cargo build or the kept base worktree.
 
 - **The base's worktree** is `<git dir>/temper-pre-pr/base`, a detached
-  worktree (`git worktree add --detach --force`), made at the first need
-  and kept; each later need moves it with `git checkout --detach --force
-  <base>` then `git clean -ffdxq`. Its builds use the head's target
-  directory (`cargo metadata`'s `target_directory`, through
-  `CARGO_TARGET_DIR`): what both sides depend on is built once, and cargo
-  can reuse the dependencies. Workspace members have artifact keys
-  relative to their workspace root, so the base can overwrite the head's
-  artifacts, and the base can likewise reuse the head's artifacts.
-  After the base's checkout and clean, before any base build, refresh both
-  checkouts' surviving changed files to a timestamp taken after the head
-  build. After every base judgment, including a failed judgment, a `finally`
-  block refreshes both checkouts' copies to a timestamp taken after the base
-  build. The paths are the NUL-delimited diff from
-  the base to section 3's private snapshot, so committed, staged,
-  unstaged and new files are covered. Deleted files stay absent on each
-  side; cargo sees missing inputs as stale. Build
-  scripts see refreshed tracked inputs and regenerate their outputs.
-  Each refresh touches both checkouts' copies of those paths, each copy that exists: cargo's dep-info records an input outside its package (an `include_str!` reaching a sibling directory, as `temper-docs` embeds `temper/docs/help`) by its absolute path, in the checkout that built it last, so the other side's build judges that input by the first checkout's copy, and refreshing only its own copies would leave it embedding the first side's bytes. A worker's own builds after a delivery check share that target, so they too compile their own checkout's bytes: a generated-document test, and its write mode (`SKEIN_CODEGEN_WRITE=1`), compare the pages their checkout holds.
-  The caller's index and file contents stay as they are. The next head
-  build must rebuild each package whose sources differ; the base judge
-  must likewise build the base's code. Cargo rebuilds their consumers,
-  while unchanged
-  dependencies stay warm. No target scan or clean is needed.
+  worktree (`git worktree add --detach --force`), made at the first
+  exceeded count and kept; each later need moves it with `git checkout
+  --detach --force <base>` then `git clean -ffdxq`. It holds check 2's
+  base runs alone, without the private index (`GIT_INDEX_FILE`): no cargo
+  runs in it, so the head's target directory and the timestamps of either
+  checkout's files stay as they are. It is not made for a lint, test or
+  build failure.
+- **The known reds** are `.temper/known-reds.md`, read from section 3's
+  private snapshot (`git cat-file blob <tree>:.temper/known-reds.md`), so
+  the delivery's own edits to it count, staged, unstaged or new. A tree
+  without it has no known reds. It is read once a run, after the cache's
+  check and before check 1, whatever the selection, with or without a
+  base; when present, one line says so: `pre-pr: known reds: <N> entries
+  (.temper/known-reds.md)`. It is Markdown, so that a designer delivers
+  it. Each line, its trailing whitespace stripped, is an entry when it is
+  one of:
+  - `- test <binary id> <name>`: a failing test, keyed as below: its
+    binary id, which holds no whitespace, then a space and its name, the
+    rest of the line;
+  - `- lint <package> <code> <file>`: a lint error, keyed as below without
+    its message: its package and lint code, neither holding whitespace,
+    then a space and its file, the rest of the line. An error with no
+    lint code has no entry.
+
+  Every other line is prose and is ignored, an indented one included.
+  Entries match exactly, case included.
+- **The cap:** at most 64 entries and 8,192 bytes. A file over either is
+  the failure `known-reds`, never inherited, its log naming the file, what
+  it holds and the cap (`.temper/known-reds.md: 65 entries, 2,310 bytes;
+  the cap is 64 entries and 8,192 bytes`); none of its entries counts.
 - **A lint error** is keyed by its package's name, its lint code (empty
   for a compiler error without one), its primary span's file, relative to
-  its worktree's root, and its message; never by line or column. The base
-  runs check 3 over the packages of C that have an error and are members
-  at the base. A head error whose key the base's run also gives is
-  inherited.
-- **A failing test** is keyed by its binary id and its name. The base runs
-  check 4 over the packages owning them that are members at the base,
-  with `-E` the disjunction of `(binary_id(=<id>) & test(=<name>))` for
-  each, and its own JUnit file. A head failure the base's run also fails
-  is inherited; one the base passes, or doesn't have, is the delivery's.
-- **A build failure** (nextest's 101): the base runs check 4's build alone
-  (`--no-run`) over the same packages that are members at the base. A
-  base that fails to build too makes the head's build failure inherited,
-  and no test of that set ran: the summary says so. Otherwise it is the
-  delivery's.
-- **A base run that cannot run** (the worktree cannot be made, cargo
-  exits for a reason of its own): failures needing that worktree stay the
-  delivery's, and the summary says why the base could not judge them.
-  The citation check's independent comparison still stands.
+  its worktree's root, and its message; never by line or column. It is
+  inherited when a `- lint` entry gives its package, code and file,
+  whatever its message; otherwise it is the delivery's.
+- **A failing test** is keyed by its binary id and its name. It is
+  inherited when a `- test` entry gives both; otherwise, failing at the
+  base or not, it is the delivery's.
+- **A build failure** (nextest's 101) is always the delivery's, whatever
+  the known reds hold; so is a failure of a check itself (`check clippy`,
+  `check nextest`, `check selection`).
+- **A base run that cannot run** (the worktree cannot be made, or a
+  tree's `scripts/old_forms.py` fails of itself at the base): the
+  exceeded counts stay the delivery's, and the summary says why the base
+  could not judge them. The citation check's independent comparison and
+  the known reds still stand.
 - **Inherited never refuses:** each is named in the summary, with the
-  base, and the delivery passes on them.
+  base for a count or a citation and with the file for a known red, and
+  the delivery passes on them.
 
 ## 6. Its output
 
@@ -259,14 +271,15 @@ inherited. A red base refuses nothing the delivery did not cause.
   - the sets: `lints: <packages>`, `tests: <packages>`;
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
-    `check <name>` for a check that failed of itself), then the last lines
+    `known-reds`, `check <name>` for a check that failed of itself), then the last lines
     of its log: a test's JUnit output, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
     `[… N bytes cut]`;
-  - then each inherited failure, one line each: `inherited: test <binary
-    id> <name>` or `inherited: clippy <package> <code> <file>`, and the
-    base's build failure as `inherited: build`, exceeded counts as
-    `inherited: old-forms <tree> <form>`, and the inherited citation total;
+  - then each inherited failure, one line each: a known red as
+    `inherited: test <binary id> <name> (known red, .temper/known-reds.md)`
+    or `inherited: clippy <package> <code> <file> (known red,
+    .temper/known-reds.md)`, exceeded counts as `inherited: old-forms
+    <tree> <form>`, and the inherited citation total;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
@@ -286,8 +299,11 @@ writes it. An earlier record of another shape matches nothing.
 - No `cargo clean` and no whole-workspace run: the sets are what the
   delivery changed and their direct dependents, on the checkout's warm
   target directory.
-- The base's worktree and builds are made only after a failure, and kept
-  for the next.
+- **No build or test at the base.** A lint, test or build failure goes
+  back to the delivery at once, judged against the known reds alone
+  (section 5): a failing delivery takes no longer than a passing one. The
+  base's worktree is made only for an exceeded count, holds no build, and
+  is kept for the next.
 - What a check took is the run's: smith tells its host when checks start,
   with their deadline, and when they end (run.md, 8.1), and the check
   prints each check's seconds. The checks' deadline is the deployment's
@@ -300,10 +316,11 @@ The boundary world `tests/boundary/tests/pre_pr.rs` (package
 repository against fake `cargo` and `rustfmt` programs that record what they
 were asked and answer from a ledger: metadata with members, their
 directories and dependencies; clippy's JSON messages; nextest's exit and a
-JUnit file at the overlay's path, by worktree (head or base). It reads no
+JUnit file at the overlay's path. It reads no
 real build. Its tables: the base (no pin, a pin, a merge in progress, no
 merge base, an unchecked save stepped to its parent); the selection (a package, its dependents, a path reader, a
-path in no package, a deletion); inherited and new failures of each kind;
+path in no package, a deletion); known reds and new failures of each kind,
+with no cargo run and no worktree made at the base;
 the cache by tree and base; the summary's bound.
 
 `tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
@@ -317,17 +334,12 @@ two unchecked saves steps to the checked head: the summary names that head,
 and package selection includes both the saved edits and the delivery's new
 edits. Any other subject keeps the base, and the pin never moves.
 
-It also builds a dependency and its consumer with real offline cargo in a
-scratch workspace. A kept base checkout predates
-the head's shared artifacts: the base judge must execute the base's code,
-then the next head build must execute the head's code. This holds for
-source changes and build-script inputs generating Rust in `OUT_DIR`,
-including an input deleted at head, and for a consumer embedding with `include_str!` a file outside its package, changed at head: after a base judgment the head's next build embeds the head's bytes, and the base's build, after a head build, the base's. The boundary world also models the
-shared artifact's mtime in both directions for lint, test and build
-judgments and a base tool error, with new paths containing
-whitespace and a deleted source. For an out-of-package input it retains
-the last build's absolute input path across checkouts, as cargo's dep-info
-does.
+It reads the known reds from the snapshot: an unstaged entry for a failing
+test or lint makes it `inherited: … (known red, .temper/known-reds.md)` and
+passes, prose lines around it ignored; an entry with another key, or no
+file at all, leaves the failure the delivery's; a build failure refuses whatever the
+entries; and a file over 64 entries or 8,192 bytes fails as `known-reds`.
+No cargo runs at the base. It reads no real build.
 
 ## 10. Later
 
