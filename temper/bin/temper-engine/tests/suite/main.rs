@@ -40,7 +40,8 @@ fn serve_help(text: &str) -> bool {
 
 fn versions(text: &str) -> bool {
     eprintln!("versions stdout:\n{text}");
-    text.lines().next() == Some("level skein none")
+    text == temper_engine_shell::versions()
+        && text.lines().next() == Some("level skein none")
         && text.lines().any(|line| line == format!("family temper {}", temper_protocol_store::STORE_VERSION))
         && text.lines().any(|line| line.starts_with("wire temper-payload "))
 }

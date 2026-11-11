@@ -41,6 +41,7 @@ temper-box-shell.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+temper-engine-shell.workspace = true
 temper-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-engine-domain-forge.workspace = true
