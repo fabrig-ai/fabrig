@@ -261,6 +261,10 @@ pub fn pull(value: d::PullRequest, format: ObjectFormat, ci: api::Ci) -> Result<
     Ok(api::Pull {
         queued: None,
         dequeued: None,
+        size: match (value.changed_files, value.additions, value.deletions) {
+            (Some(files), Some(additions), Some(deletions)) => Some(api::Size { files, additions, deletions }),
+            _ => None,
+        },
         reviewers: reviewers.into_boxed(),
         number: value.number,
         state: state(value.state),

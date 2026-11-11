@@ -196,6 +196,14 @@ fn pull_json(row: &document::Pull, merged: bool, json: &mut Encoder) -> Result<(
     reference(&row.head, &row.head_commit, json)?;
     json.key(b"base");
     reference(&row.base, &row.base_commit, json)?;
+    for (key, count) in
+        [(b"changed_files".as_slice(), row.changed_files), (b"additions", row.additions), (b"deletions", row.deletions)]
+    {
+        if let Some(count) = count {
+            json.key(key);
+            json.unsigned(count);
+        }
+    }
     json.key(b"requested_reviewers");
     json.array_start();
     for reviewer in &row.reviewers {

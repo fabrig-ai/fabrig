@@ -52,6 +52,7 @@ pub(super) fn encode_pull(value: &d::Pull) -> w::Pull {
         ci,
         queued: _,
         dequeued: _,
+        size: _,
     } = value;
     w::Pull::new(
         &w::CEILINGS,
@@ -86,6 +87,7 @@ pub(super) fn decode_pull(value: w::Pull) -> d::Pull {
         ci: topics::decode_ci(ci),
         queued: None,
         dequeued: None,
+        size: None,
     }
 }
 fn encode_step(value: &d::Step) -> w::Step {

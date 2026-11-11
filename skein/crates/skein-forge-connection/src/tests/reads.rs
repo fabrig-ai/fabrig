@@ -163,6 +163,7 @@ fn expected_pull(number: u64, state: api::State) -> api::Pull {
     api::Pull {
         queued: None,
         dequeued: None,
+        size: None,
         reviewers: Box::from([]),
         number,
         state,

@@ -476,6 +476,13 @@ pub struct Comment {
     pub key: Option<Box<[u8]>>,
     pub body: Box<[u8]>,
 }
+/// The forge's own counts at a pull request's head (forge/README.md, 3.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Size {
+    pub files: u64,
+    pub additions: u64,
+    pub deletions: u64,
+}
 /// A pull request and the facts needed by a change decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pull {
@@ -493,6 +500,8 @@ pub struct Pull {
     pub queued: Option<u32>,
     /// Why a queue last ejected it; decoders truncate to `DEQUEUED_BYTES` at a UTF-8 boundary for display.
     pub dequeued: Option<Box<[u8]>>,
+    /// The forge's own counts at the head the same answer gives.
+    pub size: Option<Size>,
 }
 /// A review with its identity, verdict and observed version.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

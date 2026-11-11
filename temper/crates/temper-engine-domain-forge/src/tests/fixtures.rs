@@ -81,6 +81,7 @@ pub fn open_pull() -> skein_forge::api::Pull {
         ci: skein_forge::api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     }
 }
 

@@ -599,3 +599,47 @@ fn refs_prefix_returns_404_one_or_many_among_222_branches() {
         assert_eq!(branch.name.as_ref(), name);
     }
 }
+
+#[test]
+fn forgejo_fake_pull_size_reaches_both_dialect_reads() {
+    let mut h = Harness::new(fixtures::config());
+    let base = h.push(b"main");
+    let head = skein_fake_forge_domain::commit(
+        &mut h.domain,
+        &h.fake_env.limits,
+        base,
+        Box::new([
+            a::File { path: boxed(b"file"), content: boxed(b"changed\n") },
+            a::File { path: boxed(b"new"), content: boxed(b"one\ntwo\nthree\n") },
+        ]),
+        b"head",
+    )
+    .unwrap()
+    .unwrap();
+    h.call(fixtures::PERSON, Op::Git(a::Git::Push { branch: boxed(b"work"), commit: head, expected: None })).unwrap();
+    let a::Answer::Created(number) = h
+        .call(
+            fixtures::PERSON,
+            Op::Write(Write::OpenPull {
+                title: boxed(b"size"),
+                body: Box::new([]),
+                head: boxed(b"work"),
+                base: boxed(b"main"),
+                opens_empty: false,
+            }),
+        )
+        .unwrap()
+    else {
+        panic!("pull")
+    };
+    for request in [
+        Request::Pull { at: fixtures::at(), number },
+        Request::PullFor { at: fixtures::at(), head: boxed(b"work"), base: boxed(b"main") },
+    ] {
+        h.send(&request);
+        assert_eq!(h.status(), 200);
+        let Document::Pull(pull) = h.decoded(&request).document else { panic!("pull response") };
+        assert_eq!((pull.changed_files, pull.additions, pull.deletions), (Some(2), Some(4), Some(1)));
+        assert_eq!(pull.head.sha, Some(crate::routes::object(head)));
+    }
+}

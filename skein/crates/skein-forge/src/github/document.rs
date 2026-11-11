@@ -379,6 +379,9 @@ pub struct Pull {
     pub head_commit: api::Commit,
     pub base_commit: api::Commit,
     pub reviewers: Box<[u64]>,
+    pub changed_files: Option<u64>,
+    pub additions: Option<u64>,
+    pub deletions: Option<u64>,
 }
 /// One context in a combined status page.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
