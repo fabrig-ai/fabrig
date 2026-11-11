@@ -22,7 +22,7 @@ pub(crate) struct State {
     pub(crate) due: Map<u64, Wall>,
     pub(crate) tip_keys: Map<(Repository, Box<[u8]>), p::Judged>,
     walks: Map<(Repository, Box<[u8]>), Walk>,
-    pub(crate) reads: Map<Token, (Repository, Box<[u8]>)>,
+    pub(crate) reads: Map<Token, Read>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
     reds: Map<(Repository, Box<[u8]>), red::Fetch>,
 }
@@ -39,6 +39,11 @@ impl State {
             reds: Map::with_capacity(count),
         }
     }
+}
+#[derive(Hash, Debug)]
+pub(crate) struct Read {
+    pub(crate) tier: (Repository, Box<[u8]>),
+    pub(crate) baseline: bool,
 }
 #[derive(Hash, Debug)]
 struct Walk {
@@ -280,15 +285,26 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             continue;
         }
         let Some(branch) = followed(d, repository, &tier) else { continue };
-        let Some(head) = d.heads.get(&name(repository, &branch)) else { continue };
-        let tip = head.commit;
         let key = (repository, tier.name.clone());
         let mut row = match d.tiers.remove(&key) {
             Some(row) => row,
             None => empty(repository, tier.name),
         };
         if row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
-            row.baseline = Some(TierLanding { commit: tip, key: None });
+            save(&row, out);
+            d.tiers.insert(key.clone(), row).expect("bounded tiers");
+            if !d.stopping && !reading(d, &key) && !d.tier_ops.walks.contains_key(&key) {
+                d.sequence = d.sequence.checked_add(1).expect("tier baseline read sequence");
+                let owner = Token::new(d.sequence | (1_u64 << 59));
+                d.tier_ops.reads.insert(owner, Read { tier: key.clone(), baseline: true }).expect("one read per tier");
+                crate::domain::child(
+                    d,
+                    env,
+                    skein_forge_client::Event::Read { owner, repository, read: api::Read::Branch { branch } },
+                    out,
+                );
+            }
+            continue;
         }
         let mut ready = true;
         for landing in &row.pending {
@@ -382,7 +398,7 @@ fn ask_tree(d: &mut Domain, env: &Env<Limits>, key: (Repository, Box<[u8]>), wal
     let read = api::Read::Tree { object: walk.object, page: walk.page };
     let owner = walk.owner;
     let repository = key.0;
-    d.tier_ops.reads.insert(owner, key.clone()).expect("walk and follower per tier");
+    d.tier_ops.reads.insert(owner, Read { tier: key.clone(), baseline: false }).expect("walk and follower per tier");
     d.tier_ops.walks.insert(key, walk).expect("one walk per tier");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
@@ -497,10 +513,10 @@ pub(crate) fn observed(
             Some(row) => row,
             None => empty(repository, tier),
         };
-        if row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
-            row.baseline = Some(TierLanding { commit: before.unwrap_or(after), key: None });
-        }
-        if before.is_some() && before != Some(after) {
+        if (row.record.judged.is_some() || row.record.run.is_some() || row.baseline.is_some())
+            && before.is_some()
+            && before != Some(after)
+        {
             append(d, env, &mut row, after);
         }
         save(&row, out);
@@ -959,7 +975,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
 }
 fn reading(d: &Domain, key: &(Repository, Box<[u8]>)) -> bool {
     for (owner, candidate) in &d.tier_ops.reads {
-        if candidate == key
+        if &candidate.tier == key
             && match d.tier_ops.walks.get(key) {
                 Some(walk) => Some(walk.owner),
                 None => None,
@@ -1143,7 +1159,10 @@ pub(crate) fn step(
                 {
                     d.sequence = d.sequence.checked_add(1).expect("tier read sequence");
                     let owner = Token::new(d.sequence | (1_u64 << 59));
-                    d.tier_ops.reads.insert(owner, key.clone()).expect("one read per tier");
+                    d.tier_ops
+                        .reads
+                        .insert(owner, Read { tier: key.clone(), baseline: false })
+                        .expect("one read per tier");
                     d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
                     d.tiers.insert(key.clone(), row).expect("replaces tier");
                     crate::domain::child(
@@ -1184,7 +1203,23 @@ pub(crate) fn answered(
     answer: Result<api::Answer, api::Error>,
     out: &mut Queue<Request>,
 ) {
-    let Some(key) = d.tier_ops.reads.remove(&owner) else { return };
+    let Some(read) = d.tier_ops.reads.remove(&owner) else { return };
+    let key = read.tier;
+    if read.baseline {
+        let Some(row) = d.tiers.get_mut(&key) else { return };
+        if !d.stopping
+            && row.record.judged.is_none()
+            && row.record.run.is_none()
+            && row.baseline.is_none()
+            && let Ok(api::Answer::Commit(tip)) = answer
+        {
+            row.baseline = Some(TierLanding { commit: tip, key: None });
+            row.pending = Box::new([]);
+            save(row, out);
+            walk(d, env, &key, out);
+        }
+        return;
+    }
     if let Some(walk) = d.tier_ops.walks.get(&key)
         && walk.owner == owner
     {
@@ -1197,7 +1232,10 @@ pub(crate) fn answered(
     }
     let Some(mut row) = d.tiers.remove(&key) else { return };
     if d.stopping || row.record.run.is_none() {
-        d.tiers.insert(key, row).expect("replaces tier");
+        d.tiers.insert(key.clone(), row).expect("replaces tier");
+        if !d.stopping {
+            start_due(d, env, key.0, out);
+        }
         return;
     }
     let mut follow = d.tier_ops.follows.remove(&key).expect("read's follower");

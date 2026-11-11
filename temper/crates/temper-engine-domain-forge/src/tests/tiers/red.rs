@@ -96,7 +96,7 @@ fn run(d: &Domain) -> api::Run {
     run
 }
 fn read(d: &Domain) -> Token {
-    *d.tier_ops.reads.iter().find(|(_, key)| key == &&(REPO, TIER.into())).expect("pending red read").0
+    *d.tier_ops.reads.iter().find(|(_, key)| key.tier == (REPO, TIER.into())).expect("pending red read").0
 }
 fn respond(d: &mut Domain, answer: Result<api::Answer, api::Error>) -> Box<[Request]> {
     let owner = read(d);
