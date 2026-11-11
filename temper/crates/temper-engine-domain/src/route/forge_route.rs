@@ -1415,6 +1415,7 @@ fn goal_priorities(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed) 
             | forge_change::State::Queued { .. }
             | forge_change::State::First { .. }
             | forge_change::State::Updating { .. }
+            | forge_change::State::WaitingProducer { .. }
             | forge_change::State::Resolving { .. }
             | forge_change::State::Repairing { .. }
             | forge_change::State::Landing { .. }
@@ -2350,6 +2351,7 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         | forge_change::State::Queued { .. }
         | forge_change::State::First { .. }
         | forge_change::State::Updating { .. }
+        | forge_change::State::WaitingProducer { .. }
         | forge_change::State::Resolving { .. }
         | forge_change::State::Repairing { .. }
         | forge_change::State::Landing { .. }
@@ -2417,23 +2419,33 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
     }
 }
 
-// A delegate's task, including between attempts, suspends its change's stall (domain/forge/change/repairs.md).
+// Every live pushing child counts, even after a gate takes the current delegate slot
+// (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.forge.change(task) else { return false };
-    let Some((child, kind)) = row.delegate else { return false };
-    match kind {
-        forge_change::Delegate::Gate { .. } => return false,
-        forge_change::Delegate::Produce
-        | forge_change::Delegate::Close
-        | forge_change::Delegate::Repair(_)
-        | forge_change::Delegate::Resolve { .. }
-        | forge_change::Delegate::Merge { .. } => {}
+    let Some(owner) = domain.core.tasks.task(task) else { return false };
+    for child in &owner.delegates {
+        let Some(child) = domain.core.tasks.task(*child) else { continue };
+        let pushing = match child.contract {
+            tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
+            tasks::Contract::Job { .. } => {
+                child.executor == (tasks::Executor::Job { kind: forge::MERGE_KIND })
+                    || child.executor == (tasks::Executor::Job { kind: forge::CLOSE_KIND })
+            }
+            tasks::Contract::Report { .. } | tasks::Contract::Approval { .. } | tasks::Contract::Verdict { .. } => {
+                false
+            }
+        };
+        if pushing {
+            match child.phase {
+                tasks::Phase::Ended(_) => {}
+                tasks::Phase::Active(_)
+                | tasks::Phase::Closing(_)
+                | tasks::Phase::Held { .. }
+                | tasks::Phase::Waiting => return true,
+            }
+        }
     }
-    let Some(child) = domain.core.tasks.task(child) else { return false };
-    match &child.phase {
-        tasks::Phase::Ended(_) => false,
-        tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } | tasks::Phase::Waiting => true,
-    }
+    false
 }
 
 // A task between attempts is not a run in progress (temper/docs/design/domain/forge/change/repairs.md).
@@ -2653,12 +2665,12 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         if let Some(goal) = tracked_ancestor(domain, context.requester) {
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
-    } else if let Some((child, delegate)) = domain.forge.change(task).expect("registered change").delegate {
+    } else {
         for word in &context.inbox {
-            if word.from != tasks::Party::Task(child) {
-                continue;
-            }
-            let status = if delegate == forge_change::Delegate::Close && close::failed(domain, child, &word.kind) {
+            let tasks::Party::Task(child) = word.from else { continue };
+            let closing = domain.forge.change(task).expect("registered change").delegate
+                == Some((child, forge_change::Delegate::Close));
+            let status = if closing && close::failed(domain, child, &word.kind) {
                 Some((forge_change::Status::Failed, true, false))
             } else {
                 change_delegate_status(&word.kind)
@@ -2673,7 +2685,6 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     cancelled,
                     words: word.words.clone(),
                 }));
-                break;
             }
         }
     }
@@ -2748,6 +2759,7 @@ fn change_step(
                             | forge_change::State::Queued { .. }
                             | forge_change::State::First { .. }
                             | forge_change::State::Updating { .. }
+                            | forge_change::State::WaitingProducer { .. }
                             | forge_change::State::Resolving { .. }
                             | forge_change::State::Repairing { .. }
                             | forge_change::State::Landing { .. }
@@ -4289,7 +4301,9 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
     let category = match was.as_ref() {
         forge_change::State::Producing { .. } => tasks::Hold::EffectFailed,
-        forge_change::State::Repairing { .. } | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
+        forge_change::State::Repairing { .. }
+        | forge_change::State::WaitingProducer { .. }
+        | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
         forge_change::State::Opening { .. }
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }

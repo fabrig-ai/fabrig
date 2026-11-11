@@ -820,6 +820,7 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         | change::State::Ready { .. }
         | change::State::Preparing { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }

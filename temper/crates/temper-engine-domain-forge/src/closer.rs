@@ -298,6 +298,7 @@ fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
         | temper_engine_domain_forge_change::State::Queued { .. }
         | temper_engine_domain_forge_change::State::First { .. }
         | temper_engine_domain_forge_change::State::Updating { .. }
+        | temper_engine_domain_forge_change::State::WaitingProducer { .. }
         | temper_engine_domain_forge_change::State::Resolving { .. }
         | temper_engine_domain_forge_change::State::Repairing { .. }
         | temper_engine_domain_forge_change::State::Landing { .. }
