@@ -116,9 +116,10 @@ part:
   echo ledger and keys (skein's `forge/client.md`, 4 and 7.6); a hint's
   pusher is used for drift alone.
 - **Which change a hint wakes:** within its repository, a named branch
-  wakes changes with that head branch or landing base; a commit wakes
-  changes using it as their last head or observed base tip, including
-  facts already gathered by an unfinished fresh-read step. If the branch
+  wakes changes with that head branch or landing base; a commit is
+  news of its CI for the changes using it as their last head or
+  observed base tip, including facts already gathered by an unfinished
+  fresh-read step, and wakes them as a commit's news (below) has it. If the branch
   and pull reads saw different base tips, both remain dependencies until
   the next step reads them again. An item wakes its pull's change (including reviews on that pull), or a change naming
   that issue or pull. Named resources and subscriptions also retain their
@@ -159,8 +160,15 @@ part:
   its head or base (known by a hint, a read or temper's own push), a
   pull request that reads not mergeable is read again at `hinted`,
   doubling up to `poll` apart, until it reads mergeable or `settle`
-  has passed; and a commit a job's hint named whose CI reads pending
-  is read again the same way. These rereads are temper's fresh reads. `settle` is a limit
+  has passed; and a commit a job's hint named is read again the same
+  way while its CI does not yet show the ends the hints told of. Each
+  job's hint is one job's end: a read of the commit's checks showing as
+  many more rows concluded, since the last read before those hints, as
+  hints named the commit settles them, and its pending is then believed.
+  A later hint for the commit counts one more end and reads it once at
+  `hinted`, without starting the doubling again, so a CI of many jobs
+  is read about once a job, not every few seconds through its run. These rereads are temper's fresh reads,
+  of the commit's checks alone (a commit's news, below). `settle` is a limit
   of the forge client's, which checks only that it is above 0 and runs
   no window (skein's `forge/client.md`, sections 4 and 5).
 - **The window is the change procedure's own wait.** Until `settle` has
@@ -172,6 +180,29 @@ part:
   change's own last push, which it keeps, and the last move a hint or a
   read told of, which it does not: after a restart, only its own push
   opens a window.
+- **A commit's news.** A hint naming a commit, a job's on Forgejo, a
+  status's or a check run's on GitHub, is news of its CI: it reads that
+  commit's checks for each change using it as its head or its base's
+  tip, once, and wakes a change only when they fold to a verdict other
+  than the one the change last read there (3), or when `settle` passes
+  with the ends its hints told of unshown. The change's own fresh read
+  of its other facts, its pull, branches, ancestry and reviews, runs
+  when it decides, not on every hint. A hint naming a branch or an item
+  wakes as above.
+- **A checking change's pace.** While a change waits on CI, its pull and
+  its head's CI are read on the forge's news where it arrives, and
+  otherwise by the keep's fallback poll, its pull resting `poll`,
+  doubling after each quiet read to `poll_max`, and stretched to
+  `fallback` while its repository hears (above; skein's
+  `forge/client.md`, 4 and 4.1): never on a timer of a few seconds. Pinned
+  for one checking change on Forgejo whose Actions CI stays pending for
+  ten minutes, in every minute past its first two
+  (`../../protocol/forge/README.md`, section 9): hearing, a job's delivery
+  every 20 seconds, at most 40 requests a minute in all, its head's
+  statuses read at most 6 times and its pull at most 4; not hearing, its
+  head's statuses and its pull each read at most 3 times a minute, and
+  at most 30 requests a minute in all, its repository's listing among
+  them. A read is a request to that route, a page counted as one.
 - **GitHub settles too.** It answers mergeability unknown until it has
   checked, and may refuse a merge as not mergeable just after a head
   moves (skein's `forge/github.md`): within the window both are not

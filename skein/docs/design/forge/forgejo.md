@@ -63,7 +63,13 @@ sections 1.3 and 1.5, list them.
   `rows`, the forge's `max_response_items` (read at the forge's start,
   `README.md`, 4.1), and the number of that listing's largest rows the client's
   `answer_bytes` holds (1.3), each row by the measure of `README.md`, 3.7, so the
-  size is the same on every target. A listing has
+  size is the same on every target. `Items` alone is sized for real
+  rows: the smallest of `rows` and `max_response_items`, its answer
+  keeping each row whole while it fits `answer_bytes` and cut before the
+  first that doesn't (1.3), so a page of a repository's issues holds as
+  many as its bytes allow, not one where one issue could fill it; or
+  one, where a cut within rows of one time asks it (the client's
+  `forge/client.md`, 4). A listing has
   more after it when it came full, or when Forgejo says so (`X-HasMore`
   on a pull request's files). A combined status's `state` and
   `total_count` are the page's, not the commit's (Forgejo 17 computes
@@ -326,7 +332,11 @@ Notes on the table:
     valid UTF-8 is a malformed answer.
 - **The answer's bound.** The page size (1.1) holds a full page of a
   listing's largest rows within the client's `answer_bytes`, so a paged
-  answer never passes it. An item's comments are kept until the next
+  answer never passes it. An `Items` page, sized for real rows, keeps
+  its rows whole while they fit `answer_bytes` and is cut before the
+  first that would pass it: the rows kept, in order, `more` set, and the
+  answer saying it was cut, so a cut is never read as the forge's last
+  page. A first row that alone passes it is `TooLarge`, as before. An item's comments are kept until the next
   would pass `answer_bytes` or `rows`, and `more` is then set. Raw
   contents are read within what is left of `answer_bytes`: a file's
   after its path, a job's log after its step's name, so the answer never

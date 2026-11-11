@@ -453,7 +453,12 @@ The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../test
   branch moved by another hand, reported as drift; on GitHub, a change
   waiting out 90 seconds of CI without delivery hints, landing within
   the pull keep's maximum poll after its verdict, with request costs
-  bounded by the keep's paces and App log reads counted apart. Its
+  bounded by the keep's paces and App log reads counted apart; on
+  Forgejo, a change whose Actions CI stays pending for ten minutes, with
+  a job's delivery every 20 seconds and with none, its requests, its
+  head's status reads and its pull reads counted in every minute past
+  its first two against `../../domain/forge/keeping-up.md`, 2's pace, and
+  landing on its verdict. Its
   invariants: what the engine's domain asked is what the fake's domain
   did; each call is answered once, however its streams are cut; no credential reaches any
   record but its own in jig's secrets' store, nor any request, fact,
