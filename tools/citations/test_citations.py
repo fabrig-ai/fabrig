@@ -48,6 +48,31 @@ class Citations(unittest.TestCase):
         result = self.since_base()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_changed_sources_ignore_unchanged_readers_but_check_their_own_citations(self):
+        self.write(f"{DESIGN}/a.md", "# a\n\n## 1. One\n")
+        self.commit("remove a section")
+        self.assertEqual(self.since_base().returncode, 1)
+        result = self.run_check("--base", "HEAD~1", "--changed")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.write(f"{DESIGN}/a.md", "# a\n\nSee `gone.md`.\n")
+        self.commit("bad citation in own file")
+        result = self.run_check("--base", "HEAD~1", "--changed")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("gone.md", result.stdout)
+
+    def test_changed_markdown_outside_docs_keeps_its_inherited_red(self):
+        self.write("notes.md", "# Notes\n\nSee `gone.md`.\n")
+        self.commit("red base")
+        self.write("notes.md", "# Notes\n\nSee `gone.md`.\n\nMore prose.\n")
+        self.commit("own edit")
+        result = self.run_check("--base", "HEAD~1", "--changed")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.write("notes.md", "# Notes\n\nSee `gone.md` and `absent.md`.\n")
+        self.commit("new broken citation")
+        result = self.run_check("--base", "HEAD~1", "--changed")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("absent.md", result.stdout)
+
     def test_a_dead_path_fails(self):
         self.write(f"{DESIGN}/c.md", "# c\n\n## 1. One\n\nSee `gone.md`.\n")
         self.commit("head")

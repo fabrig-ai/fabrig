@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-10. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-11. Where temper's code lags or departs from [worker.md](worker.md).
 Section 5's delivery retains the checkout's ancestry through the git
 snapshot operation (`../protocol/git.md`, 4.7): staged and committed merges
 keep their second parent, checked against the remote, and an unchanged
@@ -125,11 +125,6 @@ AGENT.json`, with the same program used for a model list
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
-- **Not yet:** section 5, *A design delivery*: a repository whose push
-  branch is its landing branch delivers as any: no fetch and merge of the
-  branch's moved tip, no Markdown check, Stale when it moved, and a `save`
-  pushes; *A goal's later run* starts on its run branch's head and pushes
-  to it [in flight: change 94].
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

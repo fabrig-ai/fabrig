@@ -324,7 +324,9 @@ fast-forward never forced. Its repository's other writes are as before.
   g holds it (`change/README.md`, 3), and its run starts once a release settles it.
 - **How it calls it:** smith's `deliver`, with a `title` and a `body`
   as a change's delivery has them, at any point in its run and as often
-  as it likes; the project's checks run at it (`../agent/README.md`, section 5).
+  as it likes; its changed Markdown files get citation checks and, in a tree
+  that enforces it, the design size limit. The repository's code checks do
+  not run, and a red base never refuses it (`../worker.md`, section 5).
   It answers a delivery's receipt, `pushed <head> to branch <g>; your
   checkout stays detached, as expected`, or, where g had moved, `pushed
   <head> to branch <g>, merging its tip <tip> first; ...`; or a refusal

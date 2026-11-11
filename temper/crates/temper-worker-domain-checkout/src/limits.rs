@@ -17,8 +17,8 @@ pub struct Limits {
     pub name_bytes: u32,
     /// The longest commit message, its title and body together.
     pub message_bytes: u32,
-    /// Maximum originally or still conflicted paths, or changed paths in a
-    /// design delivery, per repository. Zero disables merge starts; other
+    /// Maximum originally or still conflicted paths per repository.
+    /// Zero disables merge starts; other
     /// workspace preparation remains available.
     pub conflicts: u32,
     /// Maximum bytes of one full relative conflicted or changed path.

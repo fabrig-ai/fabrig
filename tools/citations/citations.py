@@ -3,7 +3,7 @@
 
 Usage, from the repository root:
 
-    python3 -I -B tools/citations/citations.py --base origin/main [--head HEAD]
+    python3 -I -B tools/citations/citations.py --base origin/main [--head HEAD] [--changed]
     python3 -I -B tools/citations/citations.py --all [--head HEAD]
 
 `--base` is the landing gate: it fails when HEAD has a broken citation that BASE lacks
@@ -13,6 +13,8 @@ Both check committed trees (`git archive`), never the working tree, and skip wha
 `tools/citations/allow.txt` lists. In the trees `tools/citations/sized.txt` lists, a design
 document over LIMIT bytes fails too: under `--base`, only one that crossed the limit or grew
 while over it. Exit 0 clean, 1 findings, 2 usage or git failure.
+`--changed` with `--base` judges only changed source files and their design sizes;
+unchanged files are still available for resolving citations.
 """
 import collections
 import fnmatch
@@ -294,11 +296,13 @@ def line_at(marks, offset):
     return ln
 
 
-def check(root, tracked):
+def check(root, tracked, selected=None):
     """Every broken citation under root: (kind, file, line, target, detail, context)."""
     tree = Tree(root, tracked)
     out = []
-    for rel, is_code in walk(root):
+    sources = (walk(root) if selected is None else
+               ((rel, False) for rel in sorted(selected) if rel in tracked and rel.endswith(".md")))
+    for rel, is_code in sources:
         try:
             with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
                 text_all = fh.read()
@@ -613,26 +617,33 @@ def main(argv):
     args = {"--head": "HEAD"}
     it = iter(argv)
     for arg in it:
-        if arg == "--all":
+        if arg in ("--all", "--changed"):
             args[arg] = True
         elif arg in ("--base", "--head"):
             args[arg] = next(it, None)
         else:
             print(__doc__, file=sys.stderr)
             return 2
-    if ("--base" in args) == ("--all" in args) or None in args.values():
+    if (("--base" in args) == ("--all" in args) or None in args.values()
+            or ("--changed" in args and "--base" not in args)):
         print(__doc__, file=sys.stderr)
         return 2
     try:
+        selected = None
+        if "--changed" in args:
+            selected = set(git("diff-tree", "-r", "--no-renames", "--name-only", "-z",
+                               args["--base"], args["--head"]).split("\0"))
         with tempfile.TemporaryDirectory(prefix="citations-") as tmp:
             head_root = os.path.join(tmp, "head")
             os.mkdir(head_root)
             head_tracked = extract(args["--head"], head_root)
             allow = allowed(head_root)
-            head = check(head_root, head_tracked)
+            head = check(head_root, head_tracked, selected)
             head_keys = keys(head, allow)
             trees = sized_trees(head_root)
             head_sizes = sizes(head_root, head_tracked, trees)
+            if selected is not None:
+                head_sizes = {rel: size for rel, size in head_sizes.items() if rel in selected}
             if "--all" in args:
                 show(head, head_keys)
                 big = oversized(head_sizes)
@@ -646,7 +657,9 @@ def main(argv):
             os.mkdir(base_root)
             base_tracked = extract(args["--base"], base_root)
             moved = renames(args["--base"], args["--head"])
-            base_keys = keys(check(base_root, base_tracked), allow, moved)
+            base_selected = (None if selected is None else
+                             {rel for rel in base_tracked if moved.get(rel, rel) in selected})
+            base_keys = keys(check(base_root, base_tracked, base_selected), allow, moved)
             base_sizes = {moved.get(rel, rel): size for rel, size in sizes(base_root, base_tracked, trees).items()}
     except (subprocess.CalledProcessError, ValueError) as error:
         detail = getattr(error, "stderr", None) or error

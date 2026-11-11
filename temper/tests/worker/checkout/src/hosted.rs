@@ -38,7 +38,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         Command::CheckOut { .. } | Command::Clean => Some(git::Kind::CheckOut),
         Command::Merge { .. } => Some(git::Kind::Merge),
         Command::DiffPaths { .. } => Some(git::Kind::DiffPaths),
-        Command::Version => None,
+        Command::DeliveryMode { .. } | Command::Version => None,
         Command::Origin { .. } => Some(git::Kind::Look),
     };
     let mut pipes =

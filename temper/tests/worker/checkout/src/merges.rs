@@ -171,7 +171,14 @@ impl World {
             if let Op::Commit { parent, merging: Some(second), identity, title, .. } = &op {
                 self.commits.push((*parent, *second, *identity, title.to_vec()));
             }
-            if matches!(op, Op::Fetch { into: temper_worker_domain_checkout::git::Into::Landing, .. }) {
+            if matches!(
+                op,
+                Op::Fetch {
+                    into: temper_worker_domain_checkout::git::Into::Landing
+                        | temper_worker_domain_checkout::git::Into::Design,
+                    ..
+                }
+            ) {
                 self.landing_fetches += 1;
             }
             let pushing = matches!(op, Op::Push { .. });
@@ -838,10 +845,10 @@ pub fn design_clean_move() {
     world.push(false, false);
     let next = world.forge.branch(b"forge/temper", b"g").expect("g exists");
     assert_eq!(world.forge.parent(next), Some(head), "next delivery builds on pushed merge");
-    assert_eq!(world.landing_fetches, 1, "design deliveries never move the prepare pin");
+    assert_eq!(world.landing_fetches, 4, "each design delivery refreshes its documentation base");
     assert_eq!(
         world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
-        Some(tip.to_le_bytes().as_slice())
+        Some(head.to_le_bytes().as_slice())
     );
     release_heads(&mut world);
 }

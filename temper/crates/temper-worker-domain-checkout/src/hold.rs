@@ -1320,7 +1320,7 @@ fn prepare_step(
         PrepareStep::FetchLanding { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
-                into: Into::Landing,
+                into: if design::repository(spec) { Into::Design } else { Into::Landing },
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
                 want: Want::Branch { branch: copy_of(pin_branch(spec).expect("writable item names its landing")) },

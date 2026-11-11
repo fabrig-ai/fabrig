@@ -41,6 +41,7 @@ struct Child {
     exited: Option<kernel::Exit>,
     closing: bool,
     stdout: Capped,
+    design_paths: Option<Box<output::DesignPaths>>,
     stderr: ByteRing,
     dropped: u64,
     message: Box<[u8]>,
@@ -135,6 +136,7 @@ impl Operation {
     fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
         match self.command {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
+            Command::DeliveryMode { .. } => None,
             Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotReachable { .. }
@@ -166,6 +168,7 @@ impl Operation {
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
+            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
@@ -227,6 +230,14 @@ impl Operation {
             return sequence::failed(fault, &tail, child.stderr.dropped());
         }
         let stdout = child.stdout.as_bytes();
+        if let Some(paths) = &child.design_paths
+            && child.exited == Some(kernel::Exit::Code(0))
+        {
+            return match paths.finish() {
+                Some(files) => Next::End(git::Done::Paths { files }),
+                None => sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped()),
+            };
+        }
         let merge_listing = self.command == Command::Unmerged
             && match &self.op {
                 Some(git::Op::Merge { .. }) => true,
@@ -251,6 +262,7 @@ impl Operation {
             | Command::SnapshotFetch { .. }
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
+            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Origin { .. }
             | Command::Clone { .. }
@@ -294,6 +306,7 @@ impl Operation {
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
+            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
@@ -366,6 +379,11 @@ impl Operation {
                     exited: None,
                     closing: false,
                     stdout: Capped::new(limits.stdout_bytes),
+                    design_paths: if let Command::DiffPaths { .. } = self.command {
+                        Some(Box::new(output::DesignPaths::new()))
+                    } else {
+                        None
+                    },
                     stderr: ByteRing::new(limits.stderr_bytes),
                     dropped: 0,
                     message,
@@ -435,7 +453,9 @@ impl Operation {
                     match up {
                         stream::Up::Bytes(bytes) if i != 0 => {
                             if i == 1 {
-                                if child.dropped != 0 || child.stdout.write(&bytes).is_err() {
+                                if let Some(paths) = &mut child.design_paths {
+                                    paths.feed(&bytes, checkout.path_bytes);
+                                } else if child.dropped != 0 || child.stdout.write(&bytes).is_err() {
                                     child.dropped = child.dropped.saturating_add(skein_lib::len_u64(bytes.len()));
                                 }
                             } else {

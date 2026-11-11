@@ -4,6 +4,66 @@ use skein_io::kernel;
 use temper_worker_domain_checkout::git;
 const FETCHED: &[u8] =
     b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n";
+
+#[test]
+fn every_push_fault_keeps_gits_stderr_tail() {
+    use git::{Fault, Missing};
+    for (stderr, fault) in [
+        (b"fatal: unknown push failure\n".as_slice(), Fault::Broken),
+        (b"fatal: Authentication failed for 'remote'\n".as_slice(), Fault::Refused),
+        (b"fatal: unable to access 'remote': Could not resolve host\n".as_slice(), Fault::Unreachable),
+        (b"fatal: repository 'remote' not found\n".as_slice(), Fault::Missing { missing: Missing::Repository }),
+    ] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op: fixtures::push_op(None),
+            deadline: fixtures::DEADLINE,
+            identity: Some(fixtures::identity()),
+        });
+        let (child, pipes) = component.spawned();
+        component.stdout(pipes[1], &[b'x'; 600]);
+        component.stdout(pipes[1], b"\n");
+        component.stdout(pipes[1], stderr);
+        component.end(pipes[0]);
+        component.end(pipes[1]);
+        component.exited(child, 128);
+        component.closed(child, &pipes);
+        let (_, git::Done::FailedWithOutput { fault: actual, diagnostic }) = component.done().expect("terminal") else {
+            panic!("push failure carries output");
+        };
+        assert_eq!(actual, fault);
+        assert!(diagnostic.output().ends_with(stderr));
+        assert!(diagnostic.cut() > 0);
+        component.shutdown();
+    }
+}
+
+#[test]
+fn design_paths_stream_past_the_stdout_and_conflict_limits() {
+    let mut component = fixtures::Started::new();
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT },
+        deadline: fixtures::DEADLINE,
+        identity: None,
+    });
+    let (child, pipes) = component.spawned();
+    for _ in 0_u32..100 {
+        component.stdout(pipes[0], b"docs/design.md\0");
+    }
+    component.stdout(pipes[0], b"src/lib");
+    component.stdout(pipes[0], b".rs\0later.md\0");
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    assert_eq!(
+        component.done(),
+        Some((fixtures::OWNER, git::Done::Paths { files: Box::new([Box::from(b"src/lib.rs".as_slice())]) }))
+    );
+    component.shutdown();
+}
 #[test]
 fn a_fetch_runs_one_invocation_and_ends_fetched() {
     let mut component = fixtures::Started::new();

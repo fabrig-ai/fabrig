@@ -87,6 +87,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::WriteTree
             | Command::CommitTree { .. } => {}
             Command::Origin { .. }
+            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::SnapshotFetch { .. }
@@ -203,6 +204,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::SnapshotMerge { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
+        | Command::DeliveryMode { .. }
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
@@ -240,6 +242,9 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         }
         [b"reset", b"--mixed", b"-q", commit] => Command::SnapshotReset { commit: invocation::object(commit)? },
         [b"version"] => Command::Version,
+        [b"config", b"--local", b"temper.designDelivery", value] if *value == b"true" || *value == b"false" => {
+            Command::DeliveryMode { design: *value == b"true", commit: dummy() }
+        }
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
             Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
         }

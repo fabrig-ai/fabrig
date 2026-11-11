@@ -76,11 +76,42 @@ fn standard_rows() {
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&fetch,Command::Fetch { into: git::Into::Fetched,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
-        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
+        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",Next::Run(Command::DeliveryMode { design:false, commit:fixtures::COMMIT })),
         (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
     ];
     for (op, ran, code, stdout, next) in rows {
         assert_eq!(sequence::after(op, &ran, code, stdout, b"", 0, &fixtures::checkout()), next, "{ran:?}: {code}");
+    }
+}
+
+#[test]
+fn landing_fetches_select_checks_before_returning_the_pin() {
+    for (into, design) in [(git::Into::Landing, false), (git::Into::Design, true)] {
+        let op = git::Op::Fetch {
+            at: fixtures::at(),
+            remote: fixtures::REMOTE.into(),
+            want: git::Want::Default,
+            into,
+            identity: 1,
+            account: None,
+        };
+        let command =
+            Command::Fetch { remote: fixtures::REMOTE.into(), source: crate::invocation::Source::Default, into };
+        let setting = Command::DeliveryMode { design, commit: fixtures::COMMIT };
+        assert_eq!(sequence::after(&op, &command, 0,
+            b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",
+            b"", 0, &fixtures::checkout()), Next::Run(setting.clone()));
+        assert_eq!(
+            sequence::after(&op, &setting, 0, b"", b"", 0, &fixtures::checkout()),
+            Next::End(git::Done::Fetched { commit: fixtures::COMMIT })
+        );
+        assert_eq!(
+            sequence::after(&op, &setting, 128, b"", b"fatal: config is locked\n", 2, &fixtures::checkout()),
+            Next::End(git::Done::FailedWithOutput {
+                fault: git::Fault::Broken,
+                diagnostic: git::PushDiagnostic::new(b"fatal: config is locked\n", 2)
+            })
+        );
     }
 }
 
@@ -148,11 +179,12 @@ fn an_always_commit_writes_a_tree_without_comparing_the_parent() {
 }
 
 #[test]
-fn changed_paths_are_complete_bounded_nul_records() {
+fn changed_paths_keep_the_first_code_path_without_a_conflict_count_limit() {
     let op = git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT };
     let command = Command::DiffPaths { before: fixtures::PARENT, after: fixtures::COMMIT };
     assert_eq!(sequence::first(&op), Next::Run(command.clone()));
-    let valid: &[(&[u8], &[&[u8]])] = &[(b"", &[]), (b"docs/a.md\0src/lib.rs\0", &[b"docs/a.md", b"src/lib.rs"])];
+    let valid: &[(&[u8], &[&[u8]])] =
+        &[(b"", &[]), (b"docs/a.md\0src/lib.rs\0", &[b"src/lib.rs"]), (b"one\0two\0three\0four\0five\0", &[b"one"])];
     for (stdout, paths) in valid {
         let mut files = skein_lib::List::with_capacity(u32::try_from(paths.len()).expect("tiny list"));
         for path in *paths {
@@ -164,14 +196,14 @@ fn changed_paths_are_complete_bounded_nul_records() {
             Next::End(git::Done::Paths { files })
         );
     }
-    for stdout in [b"docs/a.md".as_slice(), b"one\0two\0three\0four\0five\0"] {
+    for stdout in [b"docs/a.md".as_slice(), b"\0"] {
         assert_eq!(
             sequence::after(&op, &command, 0, stdout, b"", 0, &fixtures::checkout()),
             Next::End(git::Done::FailedWithOutput {
                 fault: git::Fault::Broken,
                 diagnostic: git::PushDiagnostic::empty(),
             }),
-            "a truncated or over-bound list cannot hide a code path"
+            "an incomplete or empty path cannot hide a code path"
         );
     }
 }

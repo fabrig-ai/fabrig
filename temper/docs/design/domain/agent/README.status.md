@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-10. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 Section 5 has no known gap in recording a save's pushed head: the engine
 accepts it under the attempt's writer claim and records it in the change
@@ -213,9 +213,6 @@ shown: a document built in parts and a receipt's words.
 `tools.md` has no known implementation gap in a goal's delivery grant.
 Stock and reference instructions remain separate work (`README.md`, section 8 and
 `../../draft/goal-as-designer.status.md`).
-- **Not yet:** 5: a design delivery's outcomes: the worker pushes a goal's
-  delivery as any, Stale when its branch moved, with no Markdown check,
-  no merge of the moved tip and no refusal of a `save` [in flight: change 94].
 - **Not yet:** `agents.md`, *A coordinator hears its changes while it
   designs*: a coordinator's first run hears none of its changes' results
   while it lives (jig's `domain/tasks/messages.status.md`, 6), and the stock

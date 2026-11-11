@@ -98,9 +98,15 @@ pub fn after(
         Command::Clone { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
         Command::Fetch { into, .. } if code == 0 => {
             if let Some(commit) = output::fetched(stdout, *into) {
-                return Next::End(git::Done::Fetched { commit });
+                return match into {
+                    git::Into::Fetched => Next::End(git::Done::Fetched { commit }),
+                    git::Into::Landing | git::Into::Design => {
+                        Next::Run(Command::DeliveryMode { design: *into == git::Into::Design, commit })
+                    }
+                };
             }
         }
+        Command::DeliveryMode { commit, .. } if code == 0 => return Next::End(git::Done::Fetched { commit: *commit }),
         Command::Create { branch, .. } => {
             if let Some(next) = pushed(stdout, branch, true, tail, cut) {
                 return next;
@@ -118,7 +124,7 @@ pub fn after(
             _ => {}
         },
         Command::DiffPaths { .. } if code == 0 => {
-            if let Some(files) = output::paths(stdout, checkout) {
+            if let Some(files) = output::design_paths(stdout, checkout) {
                 return Next::End(git::Done::Paths { files });
             }
         }
@@ -201,6 +207,7 @@ pub fn after(
             | git::Op::Commit { .. } => {}
         },
         Command::SnapshotHead
+        | Command::DeliveryMode { .. }
         | Command::SnapshotMerge { .. }
         | Command::SnapshotFetch { .. }
         | Command::SnapshotReachable { .. }

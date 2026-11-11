@@ -103,6 +103,7 @@ impl<T: Transport> Git<T> {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
                 Command::SnapshotHead
+                | Command::DeliveryMode { .. }
                 | Command::SnapshotMerge { .. }
                 | Command::SnapshotReachable { .. }
                 | Command::SnapshotReset { .. }

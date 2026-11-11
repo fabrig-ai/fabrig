@@ -180,7 +180,7 @@ fn fixture() -> skein_scratch::Scratch {
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
     let workspace = skein_scratch::paths::workspace();
-    for path in [".temper/pre-pr", "tools/pre-pr/pre_pr.py"] {
+    for path in [".temper/pre-pr", "tools/pre-pr/pre_pr.py", "tools/citations/citations.py"] {
         if let Ok(source) = fs::read_to_string(workspace.join(path)) {
             write(root, path, &source);
         }
@@ -228,6 +228,56 @@ fn fixture() -> skein_scratch::Scratch {
     git(root, &["add", "."]);
     git(root, &["commit", "-qm", "fixture"]);
     scratch
+}
+
+#[test]
+fn design_delivery_checks_only_its_documentation_on_a_red_base() {
+    let scratch = fixture();
+    let root = scratch.path();
+    write(root, "skein/docs/design/inherited.md", "# Inherited\n\nSee `gone.md`.\n");
+    write(root, "skein/docs/design/large.md", &"x".repeat(65537));
+    write(root, "tools/citations/sized.txt", "skein\n");
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "red base"]);
+    git(root, &["update-ref", "refs/temper/landing", "HEAD"]);
+    git(root, &["config", "--local", "temper.designDelivery", "true"]);
+    reset(root, "format");
+    write(root, "skein/docs/design/new.md", "# Design\n");
+    let output = deliver(root);
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        budget(root)["events"].as_array().expect("events").iter().all(|event| event[0] == "git"),
+        "no code check runs"
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("documentation"));
+
+    write(root, "skein/docs/design/new.md", "# Design\n\nSee `missing.md`.\n");
+    let output = deliver(root);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("missing.md"));
+
+    write(root, "skein/docs/design/new.md", &"x".repeat(65537));
+    let output = deliver(root);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("size"));
+}
+
+#[test]
+fn an_ordinary_markdown_delivery_keeps_the_code_checks() {
+    let scratch = fixture();
+    let root = scratch.path();
+    git(root, &["update-ref", "refs/temper/landing", "HEAD"]);
+    git(root, &["config", "--local", "temper.designDelivery", "false"]);
+    reset(root, "format");
+    write(root, "design.md", "# Design\n");
+    let output = deliver(root);
+    assert!(!output.status.success());
+    assert!(!budget(root)["events"].as_array().expect("events").is_empty());
 }
 
 fn reset(root: &Path, failure: &str) {

@@ -118,7 +118,9 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
 
 A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker.md,
-section 5) has outcomes of its own, and is never stale:
+section 5) checks only its changed Markdown files: citations and the design
+size limit where the tree enforces one. It skips code checks, so an inherited
+red cannot refuse it. It has outcomes of its own, and is never stale:
 
 | The design push | smith's delivery |
 |---|---|

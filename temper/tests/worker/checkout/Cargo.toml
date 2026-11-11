@@ -12,6 +12,8 @@ test = false
 doctest = false
 
 [dependencies]
+skein-scratch.workspace = true
+skein-throwaway-forgejo.workspace = true
 temper-fake-git.workspace = true
 skein-io.workspace = true
 skein-fake-peers.workspace = true

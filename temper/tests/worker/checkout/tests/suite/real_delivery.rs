@@ -1,0 +1,287 @@
+//! The checkout's design delivery against real git and a throwaway HTTP remote.
+use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
+use skein_throwaway_forgejo::{Forgejo, Init, Settings};
+use std::{
+    ffi::OsStr,
+    fs,
+    io::Write,
+    os::unix::ffi::OsStrExt,
+    path::PathBuf,
+    process::{Command, Stdio},
+};
+const LIMITS: checkout::Limits =
+    checkout::Limits { conflicts: 4, path_bytes: 128, ..temper_worker_checkout_world::LIMITS };
+use temper_worker_domain_checkout::{self as checkout, git};
+use temper_worker_protocol_git::{
+    Identity, invocation,
+    sequence::{self, Next},
+};
+
+struct World {
+    root: PathBuf,
+    identity: Identity,
+    domain: checkout::Domain,
+    hold: Option<Token>,
+}
+
+impl World {
+    fn advance_goal(&self, workspace: Token, remote: &[u8]) -> git::Commit {
+        let at = git::Place { workspace, repository: b"peer".as_slice().into(), git: None };
+        assert_eq!(
+            self.perform(git::Op::Clone { at: at.clone(), remote: remote.into(), identity: 1, account: None }),
+            git::Done::Succeeded
+        );
+        let git::Done::Fetched { commit: parent } = self.perform(git::Op::Fetch {
+            at: at.clone(),
+            remote: remote.into(),
+            want: git::Want::Branch { branch: b"goal".as_slice().into() },
+            into: git::Into::Fetched,
+            identity: 1,
+            account: None,
+        }) else {
+            panic!("goal fetched")
+        };
+        assert_eq!(
+            self.perform(git::Op::CheckOut { at: at.clone(), commit: parent, clean: true }),
+            git::Done::Succeeded
+        );
+        fs::write(self.root.join(format!("workspaces/{}/peer/code.rs", workspace.raw())), b"inherited code\n")
+            .expect("peer edit");
+        let git::Done::Committed { commit } = self.perform(git::Op::Commit {
+            at: at.clone(),
+            parent,
+            merging: None,
+            always: false,
+            title: b"Code".as_slice().into(),
+            body: Box::default(),
+            identity: 1,
+            snapshot: Some(git::Snapshot { remote: remote.into(), account: None }),
+        }) else {
+            panic!("peer committed")
+        };
+        assert_eq!(
+            self.perform(git::Op::Push {
+                at,
+                remote: remote.into(),
+                commit,
+                branch: b"goal".as_slice().into(),
+                expected: Some(parent),
+                identity: 1,
+                account: None,
+            }),
+            git::Done::Succeeded
+        );
+        commit
+    }
+
+    fn command(
+        &self,
+        directory: &str,
+        command: &invocation::Command,
+        kind: Option<git::Kind>,
+        message: &[u8],
+    ) -> std::process::Output {
+        let mut process = Command::new("/usr/bin/git");
+        process.current_dir(self.root.join(directory)).env_clear();
+        for entry in invocation::environment(self.root.as_os_str().as_bytes(), kind, Some(&self.identity)) {
+            let at = entry.iter().position(|b| *b == b'=').expect("environment entry");
+            process.env(OsStr::from_bytes(&entry[..at]), OsStr::from_bytes(&entry[at + 1..]));
+        }
+        process.args(invocation::arguments(command).iter().map(|arg| OsStr::from_bytes(arg)));
+        process.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = process.spawn().expect("git ran");
+        child.stdin.take().expect("stdin").write_all(message).expect("message");
+        child.wait_with_output().expect("git output")
+    }
+
+    fn perform(&self, mut op: git::Op) -> git::Done {
+        if let git::Op::Make { workspace } = &op {
+            fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
+            return git::Done::Succeeded;
+        }
+        let at = match &op {
+            git::Op::Clone { at, .. }
+            | git::Op::Fetch { at, .. }
+            | git::Op::Create { at, .. }
+            | git::Op::CheckOut { at, .. }
+            | git::Op::Look { at, .. }
+            | git::Op::DiffPaths { at, .. }
+            | git::Op::IsAncestor { at, .. }
+            | git::Op::Merge { at, .. }
+            | git::Op::Commit { at, .. }
+            | git::Op::Push { at, .. } => at,
+            git::Op::Make { .. } => unreachable!(),
+        };
+        let directory = if matches!(op, git::Op::Clone { .. }) {
+            format!("workspaces/{}", at.workspace.raw())
+        } else {
+            String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory")
+        };
+        let mut next = sequence::first(&op);
+        for _ in 0..20 {
+            next = match next {
+                Next::Run(command) => {
+                    let message = if let (invocation::Command::CommitTree { .. }, git::Op::Commit { title, body, .. }) =
+                        (&command, &op)
+                    {
+                        invocation::message(title, body)
+                    } else {
+                        Box::default()
+                    };
+                    let kind = if matches!(command, invocation::Command::DeliveryMode { .. }) {
+                        None
+                    } else if matches!(command, invocation::Command::SnapshotFetch { .. }) {
+                        Some(git::Kind::Fetch)
+                    } else {
+                        Some(op.kind())
+                    };
+                    let output = self.command(&directory, &command, kind, &message);
+                    sequence::after(
+                        &op,
+                        &command,
+                        u8::try_from(output.status.code().expect("exit")).expect("code"),
+                        &output.stdout,
+                        &output.stderr,
+                        0,
+                        &LIMITS,
+                    )
+                }
+                Next::Snapshot { parent, merging } => {
+                    let git::Op::Commit { parent: target, merging: second, .. } = &mut op else { unreachable!() };
+                    *target = parent;
+                    *second = merging;
+                    Next::Run(if merging.is_some() { invocation::Command::Unmerged } else { invocation::Command::Add })
+                }
+                Next::End(done) => return done,
+                Next::Make | Next::Scan { .. } => panic!("no unresolved paths"),
+            };
+        }
+        panic!("git operation settles")
+    }
+
+    fn finish(&mut self, mut event: checkout::Event) -> checkout::Request {
+        let env = Env { now: Time::ZERO, wall: Wall::from_nanos(0), limits: LIMITS };
+        let mut out = Queue::uncapped();
+        for _ in 0..80 {
+            checkout::step(&mut self.domain, &env, event, &mut out);
+            let mut pending = None;
+            while let Some(request) = out.pop() {
+                match request {
+                    checkout::Request::Held { hold, .. } => self.hold = Some(hold),
+                    checkout::Request::Io { owner, op, .. } => pending = Some((owner, op)),
+                    terminal => return terminal,
+                }
+            }
+            while self.domain.pop_fact().is_some() {}
+            self.domain.reclaim();
+            let (owner, op) = pending.expect("one operation outstanding");
+            event = checkout::Event::Done { owner, done: self.perform(op) };
+        }
+        panic!("delivery settles")
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the real-git world locates the pinned throwaway Forgejo")]
+fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
+    let binary = std::env::var_os("TEMPER_FORGEJO").expect("pinned Forgejo");
+    let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
+    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "design-delivery");
+    let mut settings = Settings::small();
+    settings.actions = false;
+    let mut instance = forgejo.start(&scratch.path().join("forge"), &settings).expect("started");
+    let writer = instance.admin().clone();
+    let repository = instance.create_repository(&writer, "specimen", Init::Readme).expect("repository");
+    let root = scratch.path().join("worker");
+    fs::create_dir_all(&root).expect("worker root");
+    let mut world = World {
+        root,
+        identity: Identity {
+            token: Secret::new(writer.token.value().as_bytes().into()),
+            login: writer.login.as_bytes().into(),
+            name: b"Writer".as_slice().into(),
+            email: b"writer@example.invalid".as_slice().into(),
+        },
+        domain: checkout::Domain::new(&LIMITS),
+        hold: None,
+    };
+    let remote: Box<[u8]> = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name).into_bytes().into();
+    for design in [true, false] {
+        let push = if design { b"goal".as_slice() } else { b"change".as_slice() };
+        let spec = checkout::Spec {
+            key: b"delivery".as_slice().into(),
+            repositories: Box::new([checkout::Repository {
+                name: b"specimen".as_slice().into(),
+                remote: remote.clone(),
+                git: None,
+                start: checkout::Start::Base { branch: push.into() },
+                identity: 1,
+                account: None,
+                push: Some(push.into()),
+                expected: None,
+                landing: Some(b"goal".as_slice().into()),
+                save: None,
+            }]),
+        };
+        let checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, .. }, .. } =
+            world.finish(checkout::Event::Prepare { client: Token::new(1), spec })
+        else {
+            panic!("prepared")
+        };
+        let directory = format!("workspaces/{}/specimen", workspace.raw());
+        let mode = Command::new("/usr/bin/git")
+            .env_clear()
+            .current_dir(world.root.join(&directory))
+            .args(["config", "--local", "--bool", "--get", "temper.designDelivery"])
+            .output()
+            .expect("mode");
+        assert_eq!(mode.stdout, if design { b"true\n".as_slice() } else { b"false\n".as_slice() });
+        for index in 0..=LIMITS.conflicts {
+            fs::write(
+                world.root.join(&directory).join(format!("design{index}.md")),
+                if design { b"# Design\n" } else { b"# Change\n" },
+            )
+            .expect("edit");
+        }
+        let answer = world.finish(checkout::Event::Push {
+            hold: world.hold.expect("held"),
+            message: checkout::Message { title: b"Design".as_slice().into(), body: Box::default() },
+        });
+        let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
+            panic!("push terminal")
+        };
+        let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("delivered: {landings:?}") };
+        assert_eq!(
+            world.perform(git::Op::Fetch {
+                at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
+                remote: remote.clone(),
+                want: git::Want::Branch { branch: push.into() },
+                into: git::Into::Fetched,
+                identity: 1,
+                account: None,
+            }),
+            git::Done::Fetched { commit: *commit },
+            "remote branch reached the delivered commit"
+        );
+        if design {
+            let moved = world.advance_goal(workspace, &remote);
+            fs::write(world.root.join(&directory).join("later.md"), b"# More design\n").expect("later edit");
+            let answer = world.finish(checkout::Event::Push {
+                hold: world.hold.expect("held"),
+                message: checkout::Message { title: b"More design".as_slice().into(), body: Box::default() },
+            });
+            assert!(
+                matches!(answer, checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { ref landings }, .. }
+                if matches!(landings.as_ref(), [checkout::Landing::DesignMerged { tip, .. }] if *tip == moved)),
+                "{answer:?}"
+            );
+            assert_eq!(
+                fs::read(world.root.join(&directory).join("code.rs")).expect("merged code"),
+                b"inherited code\n"
+            );
+        }
+        let hold = world.hold.take().expect("held");
+        assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
+    }
+    instance.stop().expect("stopped");
+}

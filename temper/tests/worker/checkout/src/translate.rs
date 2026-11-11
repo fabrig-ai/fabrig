@@ -131,7 +131,8 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Ok(fetched) => {
                     let reference = match into {
                         temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
-                        temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
+                        temper_worker_domain_checkout::git::Into::Landing
+                        | temper_worker_domain_checkout::git::Into::Design => b"refs/temper/landing".as_slice(),
                     };
                     disk.write(&[path(&at).as_slice(), b"/.git/", reference].concat(), &fetched.to_le_bytes());
                     Done::Fetched { commit: commit(fetched) }
@@ -222,6 +223,8 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 files: paths
                     .into_iter()
                     .filter(|path| before.get(*path) != after.get(*path))
+                    .filter(|path| !path.ends_with(b".md"))
+                    .take(1)
                     .map(|path| path.clone().into_boxed_slice())
                     .collect(),
             }

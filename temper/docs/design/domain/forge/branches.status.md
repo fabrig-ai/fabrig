@@ -1,14 +1,7 @@
 # branches: status
 
-2026-11-10. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-11. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** the whole document: a goal's runs push to its run
-  branch r, and a `"branch": "run"` change lands r into g; g records no
-  design writers, so a push to g by the goal's run would hold the goal as
-  drift and a landing change on g as "branch moved"; a goal's run prepared
-  before g is made and confirmed starts on the base, its run unable to
-  deliver (`temper-engine-domain-forge/src/items.rs`,
-  `task_workspace_item`) [in flight: change 98].
 
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the

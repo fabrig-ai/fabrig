@@ -82,9 +82,9 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
-    /// Paths differing between two commits, including deletions, without rename
-    /// detection, in git's order. Ends Paths, bounded by conflict/path limits;
-    /// an incomplete or over-bound list fails rather than omitting a path.
+    /// Stream paths differing between two commits, including deletions, without
+    /// rename detection. Ends Paths with the first non-Markdown name in git's
+    /// order, or none. Each path is bounded; the file count is not.
     DiffPaths { at: Place, before: Commit, after: Commit },
     /// Merge fetched `theirs` into the checked-out commit, without committing;
     /// leave conflict markers and merge state on disk. Ends Merged/Conflicted.
@@ -129,6 +129,8 @@ pub enum Into {
     Fetched,
     /// The landing pin, written once during prepare.
     Landing,
+    /// The landing pin of a design writer; selects documentation checks.
+    Design,
 }
 
 /// Delivery reads HEAD and `MERGE_HEAD` before committing, preserving a local

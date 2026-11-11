@@ -1387,14 +1387,16 @@ fn failed_git_output_is_bounded_and_survives_push_verification() {
     assert_eq!(diagnostic.output().len(), crate::git::PushDiagnostic::CAPACITY);
     assert!(diagnostic.output().ends_with(b"connection reset after sending commit"));
     assert_eq!(diagnostic.cut(), 7 + u64::try_from(output.len() - diagnostic.output().len()).expect("small test"));
-    for verification in [Done::Fetched { commit: commit(1) }, failed(Fault::Unreachable)] {
-        let mut h = Harness::new(LIMITS);
-        let hold = h.ready(1, one(b"w"));
-        h.one(Event::Push { hold, message: message() });
-        h.next(hold, Done::Committed { commit: commit(11) });
-        h.next(hold, Done::FailedWithOutput { fault: Fault::Unreachable, diagnostic });
-        let end = h.one(Event::Done { owner: hold, done: verification });
-        assert_eq!(&*landings(end), &[Landing::Explained { fault: Fault::Unreachable, diagnostic }]);
+    for fault in [Fault::Broken, Fault::Unreachable, Fault::TimedOut, Fault::Cancelled] {
+        for verification in [Done::Fetched { commit: commit(1) }, failed(Fault::Unreachable)] {
+            let mut h = Harness::new(LIMITS);
+            let hold = h.ready(1, one(b"w"));
+            h.one(Event::Push { hold, message: message() });
+            h.next(hold, Done::Committed { commit: commit(11) });
+            h.next(hold, Done::FailedWithOutput { fault, diagnostic });
+            let end = h.one(Event::Done { owner: hold, done: verification });
+            assert_eq!(&*landings(end), &[Landing::Explained { fault, diagnostic }]);
+        }
     }
 }
 
