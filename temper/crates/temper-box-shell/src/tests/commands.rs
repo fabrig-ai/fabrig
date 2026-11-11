@@ -329,6 +329,8 @@ fn arguments_and_environment_documents_are_the_tables() {
         ("temper-box-args.md", TABLE.arguments_document()),
         ("temper-box-env.md", TABLE.environment_document(&TREE)),
         ("temper-engine-env.md", temper_engine_shell::ENGINE.environment_document(&TREE)),
+        ("temper-worker-args.md", temper_worker_shell::WORKER.arguments_document()),
+        ("temper-worker-env.md", temper_worker_shell::WORKER.environment_document(&TREE)),
         ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
     ];
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

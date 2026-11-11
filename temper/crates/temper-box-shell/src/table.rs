@@ -1,6 +1,6 @@
 //! The box's table and the tree's tables (temper/docs/design/cli/README.md, 6 and 9).
 use crate::{box_command, directories, fake};
-use skein_shell::{Argument, Command, Reach, Set, Switch, Table, Variable, Way};
+use skein_shell::{Argument, Command, Reach, Set, Switch, Table, Variable};
 use temper_engine_shell::commands::{FETCH, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 use temper_shell::{environment, table::HELP};
 
@@ -23,21 +23,12 @@ pub const TABLE: Table = Table {
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
-pub const TREE: [&Table; 2] = [&TABLE, &temper_engine_shell::ENGINE];
+pub const TREE: [&Table; 3] = [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER];
 
 const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
-const JOB: Variable = Variable {
-    name: "TEMPER_JOB",
-    set: Set::Public,
-    form: "DIR",
-    way: Way::Sets,
-    line: "The job's directory, set for its scripts.",
-    absent: "Set when a worker runs a job's scripts.",
-    notes: "",
-};
 const TUI_VARIABLES: &[&Variable] = &[
     &environment::PATH,
     &environment::TERM,
@@ -81,21 +72,6 @@ const FAKE_GIT: Command = Command {
     line: "Run temper's fake git with git's arguments, as the demo's git does.",
     ..INTERNAL
 };
-const PROGRAM_LOGIN: Command = Command {
-    reach: Reach::Words(&["program-login"]),
-    set: Set::Public,
-    forms: temper_worker_shell::PROGRAM_LOGIN.forms,
-    line: temper_worker_shell::PROGRAM_LOGIN.line,
-    arguments: &[
-        DIRECTORIES,
-        Argument { shown: "NAME", line: "The program source's name: 1 to 32 of a to z, 0 to 9 and -." },
-    ],
-    settings: &[&directories::SETTINGS],
-    switches: &[],
-    variables: &[],
-    notes: temper_worker_shell::PROGRAM_LOGIN.notes,
-};
-
 pub(crate) const BOX: Command = Command {
     reach: Reach::Words(&[]),
     set: Set::Public,
@@ -123,7 +99,7 @@ pub(crate) const BOX: Command = Command {
         &environment::LISTEN_FDS,
         &environment::SSL_CERT_FILE,
         &environment::XDG_RUNTIME_DIR,
-        &JOB,
+        &environment::JOB,
     ],
     notes: "In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
@@ -161,10 +137,10 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
         switches: &[],
-        variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &JOB],
+        variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.",
     },
-    PROGRAM_LOGIN,
+    temper_worker_shell::PROGRAM_LOGIN,
     HELP,
     FETCH,
     PREPARE,
@@ -226,7 +202,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
         switches: &[Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
-        variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &JOB],
+        variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",
     },
     FORGE_CHILD,
