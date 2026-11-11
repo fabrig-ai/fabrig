@@ -45,6 +45,8 @@ pub use status::{
     BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
     StatusView, status_paragraphs, status_subject,
 };
+mod drafts;
+pub use drafts::{DRAFTS, DraftRepository, DraftChange, SetDraft, LandedDraft, DraftRefusal, SetDraftAnswer, DraftView, DraftsView, draft_path, drafts_subject};
 mod away;
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
@@ -292,6 +294,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
@@ -593,6 +596,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
+        Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
         Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }

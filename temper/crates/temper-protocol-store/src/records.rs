@@ -32,6 +32,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::LandedDraft(_) => unreachable!("generation bootstrap"),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),

@@ -630,6 +630,7 @@ pub enum ApplicationAnswer {
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
+    SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
