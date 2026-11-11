@@ -784,7 +784,7 @@ presses the switch across projects: the render check and the walk remain
   request `outside-pages` draws the column "No project yet" in that page's place
   (`README.md`, *With no project yet*; `../view.md`, 1). Over 760 px the tab's whole row leaves, "Signed in
   as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
-  one form holds them, and the sheet hides it, since the view knows no width (section
+  one form holds them, and the sheet hides it, since the view knows no width (`../README.md`, section
   5, *The person's login over 760 px*). The rail's new box's menu closes on a
   press outside too, which the request doesn't name: skein's page part gives it to
   every menu.
