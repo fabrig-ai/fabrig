@@ -1,6 +1,6 @@
 # client: status
 
-2026-11-08. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 Unlisted sections have no known gap.
 
 Sections 10 and 11's transport accounting is present: emitted exchanges
@@ -15,6 +15,7 @@ watch ending.
   The plan chose bounded memory rather than a stored history; its direction
   to use the current terminal's link still holds.
 
+- **Not yet:** 10, *A watch's opening and closing wait for credit*: `jig-client-protocol-link` ends an opening that finds every exchange in flight busy, and drops a closing. [in flight: change 842]
 - **Not yet:** 4: a turn read answered gone past its transcript's horizon: no retention drops a transcript (`../store/README.md`, 6.1). 11: the protocol world's stories over an in-process transport: `jig/tests/client-protocol` runs them through native HTTP bytes alone.
 - **Departs:** 8, *Never taken, nothing made*: a take admitted before
   expiry remains reserved until the core answers, even past the approval's
