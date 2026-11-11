@@ -48,7 +48,8 @@ fn keep(domain: &mut crate::Domain, env: &Env<crate::Limits>, number: u64, state
 
 fn verifying_table(settled: bool) -> (crate::Domain, Env<crate::Limits>, Box<jig_domain_tasks::RunContext>) {
     let (mut domain, env, context) = kept(0);
-    for number in (FIRST..FIRST + u64::from(KEPT - 2 - u32::from(settled))).rev() {
+    let pinned = if settled { KEPT - 3 } else { KEPT - 2 };
+    for number in (FIRST..FIRST + u64::from(pinned)).rev() {
         keep(&mut domain, &env, number, change::State::Uncleared { merge: [1; 32] }, context.task);
     }
     keep(&mut domain, &env, 9, change::State::Red { merge: [1; 32], since: env.wall }, 999);
