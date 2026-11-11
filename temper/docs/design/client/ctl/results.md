@@ -248,10 +248,10 @@ digest: task 7c1e09a2b44f0d13
   on from.
 - **An act's outcome** prints what was made or decided and its numbers:
   `done: task 41, chat`; `proposed: p3/17, to maintainers`; `decided
-  first: by ada, accepted, 14:02`; `removed: project 3, fabrig`; for
-  `repository adopt`, `../forge/family.md`, 6's words. A removal kept
+  first: by ada, accepted, 14:02`; `deleted: project 3, fabrig`; for
+  `repository adopt`, `../forge/family.md`, 6's words. A deletion kept
   from an earlier call, which knows no name, prints `kept: remove-project,
-  removed: project 3`, its number from the answer.
+  deleted: project 3`, its number from the answer, the operation jig's.
 - **What a call sends first** (`README.md`, 6.2, step 4) prints on stderr, a line
   each: `kept: `, the request's operation, jig's or the forge's (`stop`,
   `adopt`), then its outcome as an act's prints, which names what it
