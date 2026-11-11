@@ -70,13 +70,13 @@ pub fn document() -> Box<[u8]> {
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);
-    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":2048,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
+    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
     document.extend_from_slice(b"}");
     let document = document.into_boxed_slice();
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
     let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
+    with(&document, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(
@@ -115,6 +115,7 @@ pub fn startup_agent() -> settings::Agent {
     let mut agent = super::agent();
     let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
     agent.host_limits.directories = 4;
+    agent.host_limits.conflicts = 1024;
     agent.host_limits.name_bytes = 600;
     agent.host_limits.accounts = hub.accounts;
     agent.host_limits.messages = hub.held.max(hub.inbox);
@@ -431,7 +432,7 @@ pub fn owned_worker_agent() -> settings::Agent {
         host_limits: smith_host_domain::Limits {
             agents: 1,
             directories: 4,
-            conflicts: 64,
+            conflicts: 1024,
             path_bytes: 4096,
             name_bytes: 256,
             accounts: 4,

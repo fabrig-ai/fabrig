@@ -262,15 +262,21 @@ impl Run {
         };
         let body = if let Some(mut decoder) = decoder {
             client::keep_after(&mut decoder, self.plan.after());
-            let result = decode(decoder, bytes, &self.limits);
-            for row in result.rows.into_boxed() {
-                if let Some(step) = self.hear(Heard::Row(row)) {
-                    return step;
+            let mut feed = tokenizer::Feed::new(bytes, &self.limits.json);
+            let mut demand = tokenizer::Request::Next;
+            loop {
+                let event = feed.answer(demand);
+                match client::step(&mut decoder, &self.limits, &event) {
+                    Step::Demand(next) => demand = next,
+                    Step::Row(row, next) => {
+                        if let Some(step) = self.hear(Heard::Row(row)) {
+                            return step;
+                        }
+                        demand = if self.plan.take_cut() { client::cut(&mut decoder) } else { next };
+                    }
+                    Step::Done(document) => break Body::Document(document),
+                    Step::Malformed(error) => break Body::Malformed(error),
                 }
-            }
-            match result.document {
-                Ok(document) => Body::Document(document),
-                Err(error) => Body::Malformed(error),
             }
         } else if client::encode(request, &self.limits).unwrap().method == Method::Get {
             Body::Raw { bytes: Box::from(bytes), more: false }

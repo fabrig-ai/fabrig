@@ -492,6 +492,24 @@ fn shipped_payload_profiles_pass_complete_startup_checks() {
 }
 
 #[test]
+fn raised_checkout_profiles_pass_complete_startup_checks() {
+    let mut stock: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
+    stock["application"]["limits"]["overrides"]["checkout.conflicts"] = 1024_u32.into();
+    stock["application"]["limits"]["overrides"]["git_component.stdout_bytes"] = 262_144_u32.into();
+    let stock_agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
+    complete_profile_startup(&serde_json::to_vec(&stock).unwrap(), &stock_agent);
+    let generated = fixtures::document();
+    let mut agent = fixtures::startup_agent();
+    agent.host_limits.conflicts = 1024;
+    let mut small: serde_json::Value = serde_json::from_slice(&generated).unwrap();
+    let limits = &mut small["application"]["limits"]["overrides"];
+    limits["checkout.repositories"] = 2_u32.into();
+    limits["checkout.conflicts"] = 1024_u32.into();
+    limits["git_component.stdout_bytes"] = 262_144_u32.into();
+    complete_profile_startup(&serde_json::to_vec(&small).unwrap(), &agent);
+}
+
+#[test]
 fn a_16386_byte_payload_requires_a_larger_model_answer() {
     let Err(refused) = fixtures::stock_configuration(16_386, 8192) else {
         panic!("the input must fit the model answer");

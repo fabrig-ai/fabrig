@@ -217,7 +217,7 @@ fn a_proving_read_uses_the_reserve_while_background_calls_are_held() {
         &mut h.domain.calls,
         crate::calls::Owner::Repository(super::REPO),
         super::REPO,
-        Op::Read(Read::Items { since: at(100), page: 1, kind: None }),
+        Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }),
         crate::Priority::Slow,
     );
     h.step(Event::Settle);

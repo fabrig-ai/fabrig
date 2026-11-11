@@ -113,8 +113,8 @@ impl Harness {
     }
     pub(in crate::tests) fn clock(&mut self) {
         let sent = self.one();
-        assert_eq!(sent.op, Op::Read(Read::Items { since: at(u64::MAX), page: 1, kind: None }));
-        self.answer(sent, Ok(Answer::Items { items: Box::new([]), more: false, now: at(100) }));
+        assert_eq!(sent.op, Op::Read(Read::Items { single: false, since: at(u64::MAX), page: 1, kind: None }));
+        self.answer(sent, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: at(100) }));
     }
     pub(in crate::tests) fn make(&mut self, number: u64, write: Write, condition: Condition) {
         let entry = Entry {

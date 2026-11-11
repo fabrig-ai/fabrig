@@ -43,7 +43,7 @@ enum State {
     Locating,
     Settings,
     Delegated(Box<Delegate>),
-    Items { rows: List<api::Summary>, now: Time, size: u64 },
+    Items { rows: List<api::Summary>, now: Time, size: u64, cut: bool },
     Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64 },
     Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64 },
     Issue { row: Repository, after: u64, since: Option<Wall> },
@@ -171,21 +171,21 @@ impl Plan {
                 let step = plan.begin();
                 return Ok((State::Delegated(Box::new(Delegate::Commits(plan))), step));
             }
-            api::Read::Items { since, page, kind } => {
+            api::Read::Items { since, page, kind, single } => {
                 let kind = match kind {
                     Some(api::Kind::Issue) => Some(r::IssueKind::Issues),
                     Some(api::Kind::Pull) => Some(r::IssueKind::Pulls),
                     None => None,
                 };
                 (
-                    State::Items { rows: List::with_capacity(bounds.page_size), now: Time::ZERO, size: 0 },
+                    State::Items { rows: List::with_capacity(bounds.page_size), now: Time::ZERO, size: 0, cut: false },
                     Request::Issues {
                         at,
                         state: Some(r::StateFilter::All),
                         kind,
                         since: Some(Wall::from_nanos(since.as_nanos())),
                         sort: Some(r::Sort::LeastUpdate),
-                        page: r::Page { page: Some(page), ..page_at },
+                        page: r::Page { page: Some(page), limit: if single { Some(1) } else { page_at.limit } },
                     },
                 )
             }
@@ -440,14 +440,22 @@ impl Plan {
                 )?;
                 rows.push(api::Collaborator { user, permission: api::Permission::None }).expect("room checked");
             }
-            State::Items { rows, size, .. } => {
+            State::Items { rows, size, cut, .. } => {
                 let item = match value {
                     d::Row::Issue(issue) => reading::summary(word, issue),
                     _ => return Err(api::Error::InvalidAnswer),
                 };
                 let added = row_size(crate::measure::SUMMARY_BYTES, size::summary(&item, bounds.rows)?, bounds)?;
-                charge(size, added, rows.len(), rows.capacity(), bounds)?;
-                rows.push(item).expect("room checked");
+                match charge(size, added, rows.len(), rows.capacity(), bounds) {
+                    Ok(()) => {
+                        rows.push(item).expect("room checked");
+                    }
+                    Err(error) if rows.is_empty() => return Err(error),
+                    Err(_) => {
+                        *cut = true;
+                        self.cut = true;
+                    }
+                }
             }
             State::Comments { rows, more, size, .. } => {
                 let comment = match value {

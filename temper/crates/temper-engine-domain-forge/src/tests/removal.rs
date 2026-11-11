@@ -81,7 +81,7 @@ fn releasing_unpushed_change_and_run_branches_drops_their_holds_without_a_write(
             outputs(&mut d, Event::Committed { entry: 20 });
             fixtures::answer_next(
                 &mut d,
-                Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+                Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }),
             );
             let (call, op) = fixtures::next_call(&mut d);
             let branch = [b"temper/7/".as_slice(), suffix].concat().into_boxed_slice();

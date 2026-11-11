@@ -681,10 +681,16 @@ pub fn review() -> skein_forge::api::Review {
         official: true,
     }
 }
-pub fn item_answers() -> [skein_forge::api::Answer; 3] {
+pub fn item_answers() -> [skein_forge::api::Answer; 4] {
     use skein_forge::api::Answer;
     [
-        Answer::Items { items: Box::new([summary(), summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
+        Answer::Items {
+            cut: false,
+            items: Box::new([summary(), summary()]),
+            more: true,
+            now: skein_lib::Time::from_nanos(9),
+        },
+        Answer::Items { cut: true, items: Box::new([summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
         Answer::Item { item: summary(), comments: Box::new([comment(), comment()]), more: true },
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true },
     ]
@@ -697,7 +703,8 @@ pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
 pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
     use crate::v11 as w;
     let answer = w::Answer::Items(
-        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1 }).expect("piece ceiling"),
+        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
+            .expect("piece ceiling"),
     );
     let result = w::ReadResult::Answer(Box::new(
         w::AnswerValue::new(&w::CEILINGS, w::AnswerValueParts { answer }).expect("answer ceiling"),
@@ -899,7 +906,7 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
-    let mut states = List::with_capacity(23);
+    let mut states = List::with_capacity(24);
     for state in [
         State::Producing { requested: true },
         State::Opening { requested: false },
@@ -911,6 +918,7 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
         State::Queued { head: [6; 32], ready_since: skein_lib::Wall::from_nanos(7) },
         State::First { head: [8; 32], ready_since: skein_lib::Wall::from_nanos(9) },
         State::Updating { from: [10; 32], base: [11; 32], ready_since: skein_lib::Wall::from_nanos(12) },
+        State::WaitingProducer { base: [12; 32] },
         State::Resolving { requested: true, base: [13; 32] },
         State::Repairing { requested: true, why: Repair::Gate(14) },
         State::Repairing { requested: true, why: Repair::Review { head: [7; 32] } },

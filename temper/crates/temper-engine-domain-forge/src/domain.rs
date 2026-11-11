@@ -2976,6 +2976,7 @@ fn before_relay_hold(state: &change::State) -> change::State {
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -3159,7 +3160,8 @@ fn delegate_wait(state: &change::State) -> bool {
         change::State::Producing { requested }
         | change::State::Repairing { requested, .. }
         | change::State::Resolving { requested, .. } => *requested,
-        change::State::Opening { .. }
+        change::State::WaitingProducer { .. }
+        | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
@@ -3195,6 +3197,9 @@ fn delegate_result(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.changes.get_mut(&task) else { return };
+    // A pushing child can end after a gate has replaced the delegate slot.
+    // Its terminal still releases the procedure's conflict wait.
+    d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
     if expected != child {
         return;
@@ -3262,9 +3267,6 @@ fn delegate_result(
     if ended {
         emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
     }
-    if agent {
-        d.procedure_wakes.insert(task, true).expect("one pending wake per change");
-    }
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -3322,6 +3324,7 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
         }
         change::State::Producing { .. }
         | change::State::Repairing { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -3538,6 +3541,7 @@ fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -3928,6 +3932,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             | change::State::Preparing { .. }
             | change::State::CancellingGates { .. }
             | change::State::Updating { .. }
+            | change::State::WaitingProducer { .. }
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }
@@ -4207,6 +4212,7 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::Preparing { .. }
         | change::State::CancellingGates { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -4676,6 +4682,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
             | change::State::Ready { .. }
             | change::State::Queued { .. }
             | change::State::First { .. }
+            | change::State::WaitingProducer { .. }
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }
@@ -5072,6 +5079,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -5112,6 +5120,7 @@ fn ended_change_state(
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }

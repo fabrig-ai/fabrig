@@ -105,6 +105,37 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
 }
 
 #[test]
+fn the_checkout_and_its_raise_fit_both_stock_links() {
+    for (profile, conflicts, saved, answer) in [
+        (config::Profile::Small, 512, 265_248, 269_612),
+        (config::Profile::Small, 1024, 530_464, 534_828),
+        (config::Profile::Standard, 512, 265_248, 397_206),
+        (config::Profile::Standard, 1024, 530_464, 662_422),
+    ] {
+        let mut settings = settings(profile);
+        assert_eq!(settings.limits.checkout.conflicts, 512);
+        settings.limits.checkout.conflicts = conflicts;
+        let engine = crate::workers::limits(&settings).expect("engine link at checkout capacity");
+        let mut worker = fixtures::worker_settings();
+        worker.jig.limits = settings.jig.limits;
+        let payload = crate::worker_settings::payload_limits(&settings.limits).unwrap();
+        let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges).unwrap();
+        assert!(kit::valid(&engine), "{profile:?}, {conflicts}");
+        assert!(jig_protocol_worker_link::valid(&worker), "{profile:?}, {conflicts}");
+        for (sizes, room) in [(engine.sizes, engine.room), (worker.sizes, worker.room)] {
+            assert_eq!(sizes.saved, saved, "{profile:?}, {conflicts}");
+            assert_eq!(
+                wire::sizes::largest_body(&sizes, Kind::Answer).unwrap() + 8,
+                answer,
+                "{profile:?}, {conflicts}"
+            );
+            assert_eq!(room, 1_048_576);
+            assert!(answer <= room);
+        }
+    }
+}
+
+#[test]
 fn a_stock_start_crosses_the_link_or_fails_with_its_numbers() {
     for profile in [config::Profile::Small, config::Profile::Standard] {
         let inbox = match profile {

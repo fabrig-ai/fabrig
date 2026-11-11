@@ -178,7 +178,7 @@ fn expected_pull(number: u64, state: api::State) -> api::Pull {
 
 fn measured_answers() -> [(&'static str, Answer); 10] {
     [
-        ("items", Answer::Items { items: Box::new([summary()]), more: false, now: Time::ZERO }),
+        ("items", Answer::Items { cut: false, items: Box::new([summary()]), more: false, now: Time::ZERO }),
         ("item", Answer::Item { item: summary(), comments: Box::new([comment(2), comment(3)]), more: true }),
         ("pull", Answer::Pull(expected_pull(13, api::State::Open))),
         ("reviews", Answer::Reviews { reviews: Box::from([]), more: true }),

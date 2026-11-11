@@ -22,6 +22,7 @@ fn each_step_and_held_step_comes_from_the_retained_record() {
             PanelStep::Preparing { landing: None },
         ),
         (change::State::Producing { requested: true }, PanelStep::Producing),
+        (change::State::WaitingProducer { base: fixtures::BASE }, PanelStep::Producing),
         (change::State::Opening { requested: false }, PanelStep::Opening),
         (change::State::Recreating { head }, PanelStep::Recreating),
         (change::State::Reopening { requested: true, retarget: true }, PanelStep::Reopening),

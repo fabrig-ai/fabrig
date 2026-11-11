@@ -110,7 +110,7 @@ enum Provenance { original, revised, unknown }
 record Summary { labels: bytes 2097152 pieces AnswerName number: u64 kind: Kind state: ItemState author: u64 key: option bytes 1048576 title: bytes 1048576 body: bytes 1048576 updated: u64 }
 record Comment { id: u64 provenance: Provenance author: u64 created: u64 revision: u64 key: option bytes 1048576 body: bytes 1048576 }
 record Review { id: u64 provenance: Provenance revision: u64 author: u64 verdict: Verdict commit: fixed 32 key: option bytes 1048576 body: bytes 1048576 at: u64 official: bool }
-record ItemsAnswer { items: bytes 2097152 pieces Summary more: bool now: u64 }
+record ItemsAnswer { items: bytes 2097152 pieces Summary more: bool now: u64 cut: bool }
 record ItemAnswer { item: Summary comments: bytes 2097152 pieces Comment more: bool }
 record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool }
 
@@ -176,12 +176,13 @@ record Gating { head: fixed 32 asked: list 1024 u64 }
 record ReadyHead { head: fixed 32 ready_since: u64 }
 record Updating { from: fixed 32 base: fixed 32 ready_since: u64 }
 record Resolving { requested: bool base: fixed 32 }
+record WaitingProducer { base: fixed 32 }
 record Repairing { requested: bool why: Repair }
 record MergeChange { merge: fixed 32 }
 record LandedChange { merge: fixed 32 since: u64 }
 record NoChange { words: bytes 65536 }
 record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange }
+enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer }
 record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus }

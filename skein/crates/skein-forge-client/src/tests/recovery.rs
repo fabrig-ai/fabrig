@@ -187,8 +187,8 @@ fn restart_reads_before_settling_the_outbox() {
     h.event(Event::Make { entry: saved });
     h.event(Event::ReadAfresh);
     let listing = h.one();
-    assert_eq!(listing.op, Op::Read(Read::Items { since: at(fixture::START_AT), page: 1, kind: None }));
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(fixture::START_AT) });
+    assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(fixture::START_AT), page: 1, kind: None }));
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(fixture::START_AT) });
     let object = h.one();
     assert_eq!(
         object.op,
@@ -503,7 +503,7 @@ fn valid_accepts_permitted_zeroes() {
 #[test]
 fn invalid_reads_make_no_call() {
     for read in [
-        Read::Items { since: at(fixture::START_AT), page: 0, kind: None },
+        Read::Items { single: false, since: at(fixture::START_AT), page: 0, kind: None },
         Read::Reviews { number: 9, page: 0 },
         Read::Statuses { commit: [1; 32], page: 0 },
         Read::Remarks { number: 9, review: 1, page: 0 },
@@ -630,7 +630,10 @@ fn issue_find_requires_a_believed_key_without_provenance() {
         item.key = Some(Box::from(key));
         item.author = author;
         let find = h.one();
-        h.answer(find, Ok(Answer::Items { items: Box::new([item.clone()]), more: false, now: at(fixture::START_AT) }));
+        h.answer(
+            find,
+            Ok(Answer::Items { cut: false, items: Box::new([item.clone()]), more: false, now: at(fixture::START_AT) }),
+        );
         if found {
             assert_eq!(
                 h.outcomes.as_slice().last(),
@@ -643,7 +646,12 @@ fn issue_find_requires_a_believed_key_without_provenance() {
             let find = h.one();
             h.answer(
                 find,
-                Ok(Answer::Items { items: Box::new([item]), more: false, now: at(fixture::ATTEMPT_DEADLINE) }),
+                Ok(Answer::Items {
+                    cut: false,
+                    items: Box::new([item]),
+                    more: false,
+                    now: at(fixture::ATTEMPT_DEADLINE),
+                }),
             );
             assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Held)), "{name}");
         }

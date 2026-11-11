@@ -7,7 +7,7 @@ fn the_component_starts_and_lists_items_through_the_fakes_bytes() {
     let mut joint = Joint::new(3);
     joint.issue(b"first", b"body");
     joint.run_for(Duration::from_secs(1));
-    joint.call(1, REPO, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None }));
+    joint.call(1, REPO, Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }));
     joint.run_for(Duration::from_secs(1));
     assert!(joint.answered(1).is_some(), "tally {:?}", joint.tally());
     let answered = joint.answered(1).expect("one answer");

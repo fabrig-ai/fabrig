@@ -860,7 +860,9 @@ impl World {
         self.settle();
     }
     fn full_operations(&mut self, forge: u16, github: bool) {
-        self.call(7, forge, || api::Op::Read(api::Read::Items { since: Time::ZERO, page: 1, kind: None }));
+        self.call(7, forge, || {
+            api::Op::Read(api::Read::Items { single: false, since: Time::ZERO, page: 1, kind: None })
+        });
         self.settle();
         self.hold_responses = true;
         for call in [8, 9] {

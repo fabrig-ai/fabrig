@@ -216,7 +216,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         directories: 4,
         directory_name_bytes: 256,
         host_path_bytes: 4096,
-        conflicts: 64,
+        conflicts: 1024,
         conflict_path_bytes: 4096,
         host_tools: inputs.host_tools,
         host_input_bytes: inputs.tool_payload,

@@ -42,6 +42,16 @@ pub(super) fn declarations() -> Configuration {
 }
 
 #[test]
+fn the_host_admits_a_thousand_conflicted_paths_within_the_channel() {
+    assert_eq!(smith_channel::CEILINGS.directory_conflicts, 1024);
+    let selected = profile();
+    let limits = super::derive(&selected, &declarations()).expect("the profile derives");
+    assert_eq!(limits.domain.run.conflicts, 1024);
+    let host = crate::host::host_limits(&selected, &limits).expect("the host derives");
+    assert_eq!(host.conflicts, 1024);
+}
+
+#[test]
 #[expect(
     clippy::disallowed_macros,
     clippy::print_stderr,

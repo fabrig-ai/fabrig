@@ -59,7 +59,8 @@ pub(super) fn build(
     }
 }
 
-/// Every git rule is checked independently, so one start reports them all.
+/// Git's local rules are checked independently; the checkout's capacity
+/// reports stdout with the other carriers once both links' rooms are known.
 pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mut Problems) {
     use temper_worker_protocol_git::{Unfit, check};
     let mut checked = (*git).into();
@@ -72,11 +73,6 @@ pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, pr
                 checked.operations = limits.checkout.workspaces;
             }
             Err(Unfit::StdoutBytes) => {
-                against(
-                    problems,
-                    b"git_component.stdout_bytes",
-                    b"checkout.name_bytes and checkout.conflicts * (checkout.path_bytes + 1)",
-                );
                 let Some(bytes) = temper_worker_protocol_git::limits::largest_output(&limits.checkout.into()) else {
                     break;
                 };
@@ -288,6 +284,10 @@ pub(super) fn check_worker_part(
             Some(_) => problems.push(file.at.clone(), What::Jig(config::What::Bound)),
             None => problems.push(file.at.clone(), What::Jig(config::What::Unreadable)),
         }
+    }
+    super::checkout::capacity(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
+    if !problems.is_empty() {
+        return Err(problems);
     }
     worker(&crate::worker_settings::root_limits(&part.worker, agent, &part.limits), &mut problems);
     checks::turns(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);

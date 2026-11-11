@@ -1,6 +1,23 @@
 use super::*;
 use crate::tests::fixtures;
 
+#[test]
+fn item_call_sizes_distinguish_real_rows_single_recovery_and_github() {
+    let limits = Limits { body_bytes: 16_384, string_bytes: 512, inner: 32, ..fixtures::limits() };
+    let shared = Shared { rows: 8, answer_bytes: 65_536, ..fixtures::shared() };
+    for (kind, single, expected) in [
+        (crate::settings::Kind::Forgejo, false, 8),
+        (crate::settings::Kind::Forgejo, true, 1),
+        (crate::settings::Kind::GitHub, false, 1),
+        (crate::settings::Kind::GitHub, true, 1),
+    ] {
+        let op = api::Op::Read(api::Read::Items { since: Time::ZERO, page: 4, kind: None, single });
+        assert_eq!(calls::page_size(&op, kind, 50, &limits, &shared), expected);
+    }
+    let review = api::Op::Read(api::Read::Reviews { number: 1, page: 1 });
+    assert_eq!(calls::page_size(&review, crate::settings::Kind::Forgejo, 50, &limits, &shared), 2);
+}
+
 // forge/connection.md 6.1 reserves the listener's owner prefix.
 const LISTENER_OWNER: u64 = 1_u64 << 59_u32;
 const LAST_API_OWNER: u64 = LISTENER_OWNER - 1;

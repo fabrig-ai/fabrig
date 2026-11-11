@@ -341,9 +341,9 @@ const CHECKOUT: Checkout = Checkout {
     name_bytes: 256,
     // Holds the agent's largest commit-message argument.
     message_bytes: 4096,
-    // Conflicted paths per repository, from the checkout merges world.
-    conflicts: 4,
-    // Bytes per conflicted path: four NUL-terminated paths fit stdout_bytes 1,024.
+    // Conflicted paths per repository, for a merge of a few hundred paths.
+    conflicts: 512,
+    // Bytes per conflicted path, with its NUL in the git component's stdout.
     path_bytes: 255,
     // Time for an operation reaching a forge, from the checkout world fixture.
     remote_timeout: Duration::from_secs(60),
@@ -554,7 +554,7 @@ const GIT: GitComponent = GitComponent {
     // One operation per cached workspace, plus the component's startup and sweep.
     operations: 3,
     // At least every conflict path including its terminating NUL.
-    stdout_bytes: 1024,
+    stdout_bytes: 131_072,
     // The tail retained for classification and the checkout's diagnostic.
     stderr_bytes: 512,
     // Each stdout/stderr demand, bounded further by io's read size.
