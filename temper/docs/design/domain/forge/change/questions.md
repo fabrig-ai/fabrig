@@ -103,7 +103,14 @@ answers the asker. It decides nothing itself (jig's `domain/tasks/proposals.md`
   8): it steps as ever, and merges nothing, its merge waiting as for
   a pending dependency (`README.md`, 2, step 7). A repair's or a resolution's
   question passed up takes it out of its queue until answered, as a
-  kept change's place is (`../queues.md`).
+  kept change's place is (`../queues.md`). Its requester, a goal among
+  them, is woken by the question, which its run reads labelled with how
+  to answer (`../../agent/README.md`, 4). A run that ends without
+  answering leaves the question shown in every later run's brief, and
+  its requester is woken again while it awaits nothing else (jig's
+  `domain/engine/briefs.md`, 1.2, and `domain/tasks/lifecycle.md`, 2),
+  so a requester with nothing else to wait for is never left idle with
+  the change's question.
 - **The answer relayed down.** The requester's answer, in the answer
   form to the change's question, is relayed at the step that takes it.
   A fresh requester run finds that durable question number and its authorized
