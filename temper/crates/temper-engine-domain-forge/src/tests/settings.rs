@@ -20,6 +20,7 @@ const CI: Requires = Requires { ci: true, up_to_date: false };
 
 fn rule(pattern: GatePattern, asks: Requires) -> LandingRule {
     LandingRule {
+        sets: Box::new([]),
         pattern,
         enforce: true,
         ci: asks.ci,
@@ -94,6 +95,20 @@ fn judge_accepts_rules_within_their_bounds() {
     let rows = [
         ("deployment first", base.clone(), Ok(())),
         (
+            "project sets without classes",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() }) },
+            Ok(()),
+        ),
+        (
+            "project all sets in supplied order",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([6, 5, 4, 3, 2, 1]), ..main_rule() })
+            },
+            Ok(()),
+        ),
+        (
             "project branch exact",
             Item {
                 kind: 2,
@@ -166,6 +181,35 @@ fn judge_refuses_each_fault_by_name() {
     extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
     let rows = [
         ("kind 4", Item { kind: 4, ..base.clone() }, Err(Refusal::Kind)),
+        (
+            "deployment set",
+            with_rule(LandingRule { sets: Box::new([1]), ..valid.clone() }),
+            Err(Refusal::DeploymentSets),
+        ),
+        (
+            "project set twice",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([2, 2]), ..valid.clone() }) },
+            Err(Refusal::SetTwice),
+        ),
+        (
+            "project set zero",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([0]), ..valid.clone() }) },
+            Err(Refusal::SetNumber),
+        ),
+        (
+            "project set seven",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([7]), ..valid.clone() }) },
+            Err(Refusal::SetNumber),
+        ),
+        (
+            "project sets past bound",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() })
+            },
+            Err(Refusal::Sets),
+        ),
         (
             "deployment branch exact",
             with_rule(rule(
@@ -349,6 +393,10 @@ fn refusal_words_are_distinct() {
         Refusal::Pattern,
         Refusal::Gates,
         Refusal::Approvals,
+        Refusal::Sets,
+        Refusal::SetNumber,
+        Refusal::SetTwice,
+        Refusal::DeploymentSets,
         Refusal::Charter,
         Refusal::Value,
         Refusal::Words,

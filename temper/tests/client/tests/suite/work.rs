@@ -98,6 +98,7 @@ fn configuration(limits: &mut engine::Limits) -> engine::Config {
     temper_client_world::front::first_run_projects(&mut config, limits);
     // A pushed change stays on its way until the owner reviews it on the forge.
     let landing = engine::LandingRule {
+        sets: Box::new([]),
         connector: fixtures::FORGE,
         kind: 4,
         enforce: true,

@@ -109,6 +109,7 @@ fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
                 });
             }
             rules.push(LandingRule {
+                sets: Box::new([]),
                 connector: 1,
                 kind: 4,
                 pattern: jig_domain_authority::Pattern {

@@ -203,6 +203,7 @@ pub fn root(
     config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
     config.core.defaults.rules = domain.rules().clone();
     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

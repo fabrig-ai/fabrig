@@ -324,7 +324,7 @@ enum PatternLast { exact: Segment, open: Segment }
 record RulePattern { segments: bytes 65536 pieces Segment last: PatternLast }
 record RuleGate { number: u32 blocking: bool freshness: Freshness }
 record RuleApproval { role: u32 people: u32 freshness: Freshness }
-record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval sets: list 6 u8 }
 record CharterValue { number: u32 }
 record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }

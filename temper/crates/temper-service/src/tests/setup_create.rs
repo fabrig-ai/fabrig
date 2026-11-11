@@ -717,6 +717,7 @@ fn adopt_first(forge: &mut Forge, service: &mut crate::Service) {
 fn approval_value(people: u32) -> domain::settings::Value {
     use domain::settings::{LandingRule, RuleApproval, RuleGate, Value};
     Value::Rule(LandingRule {
+        sets: Box::new([]),
         pattern: domain::GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: domain::GateLast::Open(Box::new([])),

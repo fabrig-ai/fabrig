@@ -8,6 +8,7 @@ const BOUNDS: Bounds = Bounds { segments: 5, segment_bytes: 12, gates: 2, approv
 
 fn deployment() -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),
@@ -38,6 +39,7 @@ fn values() -> [(u32, settings::Value); 14] {
     project.enforce = false;
     project.ci = true;
     project.up_to_date = false;
+    project.sets = Box::new([6, 5, 4, 3, 2, 1]);
     [
         (9, settings::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
         (

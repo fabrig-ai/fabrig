@@ -190,6 +190,7 @@ impl World {
                 rules.ceiling.grants = ceiling_grants.into_boxed();
                 if let Some(freshness) = approval {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,

@@ -1540,6 +1540,7 @@ fn questioning_script() -> Script {
 fn questioning_config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,

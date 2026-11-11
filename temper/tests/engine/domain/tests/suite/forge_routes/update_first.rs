@@ -27,6 +27,7 @@ pub(super) fn goal_world_stall(
         StoryLimits { slots: Some(4), stall, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

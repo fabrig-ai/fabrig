@@ -97,6 +97,7 @@ fn rules(stock: &mut List<settings::Stock>, kind: u32, scope: u32, rules: &[Land
                 .expect("uncapped approvals");
         }
         let value = settings::Value::Rule(settings::LandingRule {
+            sets: rule.sets.clone(),
             pattern: forge::GatePattern { segments: rule.pattern.segments.clone(), last },
             enforce: rule.enforce,
             ci: rule.ci,

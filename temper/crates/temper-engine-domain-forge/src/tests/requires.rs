@@ -5,6 +5,7 @@ use skein_lib::List;
 
 fn template(repository: &Repository, last: GateLast, requires: Requires) -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),

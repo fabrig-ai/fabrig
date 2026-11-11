@@ -29,6 +29,7 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
         StoryLimits { slots: Some(WORKER_SLOTS), result_bytes: Some(RESULT_BYTES), ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,
