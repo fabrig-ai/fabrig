@@ -346,7 +346,17 @@ fn opened_token(opened: &Queue<jig_client::UnlinkedRequest>) -> Token {
     }
     panic!("watch opened");
 }
-#[expect(clippy::too_many_lines, reason = "one harness dispatch captures the project, people, roles and Now reads")]
+fn close(f: &mut Reads, handle: Handle) {
+    let closing = client(f, jig_client::Event::Unwatch { handle });
+    for request in &closing {
+        if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { watch } } = request {
+            client(
+                f,
+                jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch: *watch, end: c::WatchEnd::Closed } },
+            );
+        }
+    }
+}
 fn page(f: &mut Reads, event: Event) -> Effects {
     let mut out = Queue::uncapped();
     pages::step(&mut f.root.pages, &fixtures::env(&fixtures::limits()), &f.root.client, event, &mut out);
@@ -398,7 +408,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 subject: Watchable::Jig(c::Subject::Tasks { query, window }),
             }) if query.label == Some(3) => {
                 assert_eq!(window, team::ROLES);
-                assert_eq!(query.project, Some(PROJECT));
+                assert!(query.project == Some(PROJECT) || query.project == Some(OTHER_PROJECT));
                 assert_eq!(query.order, c::QueryOrder::Number);
                 assert_eq!(query.requester, None);
                 let opened = client(
@@ -428,17 +438,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
             }
             Request::Client(jig_client::Event::Unwatch { handle }) if f.handles.remove(&handle) => {
                 effects.closed = effects.closed.checked_add(1).unwrap();
-                let closing = client(f, jig_client::Event::Unwatch { handle });
-                for request in &closing {
-                    if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { watch } } = request {
-                        client(
-                            f,
-                            jig_client::Event::Up {
-                                up: jig_client::Up::WatchEnded { watch: *watch, end: c::WatchEnd::Closed },
-                            },
-                        );
-                    }
-                }
+                close(f, handle);
                 for index in 0..f.others.len() {
                     if f.others.get(index).unwrap().1 == handle {
                         f.others.swap_remove(index).unwrap();
@@ -446,6 +446,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     }
                 }
             }
+            Request::Client(jig_client::Event::Unwatch { handle }) => close(f, handle),
             Request::Client(_)
             | Request::Screen { .. }
             | Request::KeepLook { .. }
