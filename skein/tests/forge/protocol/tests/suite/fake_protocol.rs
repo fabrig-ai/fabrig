@@ -95,6 +95,83 @@ fn a_failed_job_read_names_its_failed_step_and_reads_its_log() {
 }
 
 #[test]
+fn a_pull_requests_link_numbers_resolve_to_forge_ids_against_the_fake() {
+    use skein_fake_forge_domain::{self as fake, api as raw};
+    use skein_forge_kit::fixtures;
+    let checks = raw::Checks {
+        cues: Box::new([]),
+        contexts: Box::new([Box::from(*b"build"), Box::from(*b"fmt")]),
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        silent: 0,
+        passes: 0,
+        reruns: 0,
+        cue: Some(raw::Cue::PullFile {
+            path: Box::from(*b"changes/{pull}"),
+            no_pull: raw::Check::Skipped,
+            step: Box::from(*b"changes"),
+            log: Box::from(*b"missing changes/{pull}"),
+        }),
+    };
+    let mut settings = fixtures::settings();
+    settings.forges.get_mut(0).unwrap().access.as_mut().unwrap().user = 1;
+    let mut joint = Joint::with(
+        5,
+        0,
+        fixtures::protocol_config(),
+        fixtures::limits(),
+        settings,
+        fixtures::shared(),
+        checks.clone(),
+    );
+    joint.fake_env.limits.limits.repositories = 2;
+    joint.domain = fake::Domain::new(&joint.fake_env.limits, 5);
+    let setup = raw::Setup {
+        id: 2,
+        name: Box::from(*b"org/repo"),
+        default: Box::from(*b"main"),
+        tree: Box::new([]),
+        labels: Box::new([]),
+        checks,
+        workflows: Box::new([]),
+        protection: None,
+        hooked: false,
+    };
+    fake::repository(&mut joint.domain, &joint.fake_env.limits, setup.clone());
+    fake::grant(&mut joint.domain, b"org/repo", 1, raw::Permission::Admin);
+    fake::grant(&mut joint.domain, b"org/repo", 2, raw::Permission::Write);
+    fake::repository(
+        &mut joint.domain,
+        &joint.fake_env.limits,
+        raw::Setup { id: 3, name: Box::from(*b"org/other"), ..setup },
+    );
+    for n in 0..6 {
+        fake::advance(&mut joint.domain, &joint.fake_env, b"org/other", b"main", b"file", &[n], 1).expect("other run");
+    }
+    let head = joint.push(b"work", b"change");
+    joint.pull(b"work", b"main");
+    joint.run_for(Duration::from_secs(1));
+    joint.call(1, REPO, Op::Read(Read::Checks { commit: skein_forge_kit::client::commit(head) }));
+    joint.run_for(Duration::from_secs(1));
+    let Ok(Answer::Checks(checks)) = &joint.answered(1).expect("checks").result else { panic!("checks") };
+    let check = checks.iter().find(|check| check.context.as_ref() == b"build").expect("build");
+    assert!(check.url.ends_with(b"/actions/runs/2/jobs/0"));
+    let attempt = check.job.expect("resolved attempt");
+    assert_eq!((attempt.run, attempt.job, attempt.attempt), (8, 15, 1));
+    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 18, part: skein_forge::api::LogPart::End }));
+    joint.run_for(Duration::from_secs(1));
+    assert_eq!(
+        joint.answered(2).expect("log").result,
+        Ok(Answer::Job {
+            attempt,
+            step: Some(skein_forge::api::Step { number: 1, name: Box::from(*b"changes") }),
+            log: Box::from(*b"missing changes/1\n"),
+            truncated: true,
+        })
+    );
+}
+
+#[test]
 fn a_failed_jobs_log_end_comes_through_a_suffix_range() {
     let mut joint = Joint::failing(5);
     let pushed = joint.push(b"work", b"change");

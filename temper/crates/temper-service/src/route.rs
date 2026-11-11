@@ -463,8 +463,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
-        root::HostDelivery::Render { to, answer, tool, key, .. } => {
-            render_host(engine, to, &answer, &tool, key);
+        root::HostDelivery::Render { to, answer, tool, key, job, .. } => {
+            render_host(engine, to, &answer, &tool, key, job);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -487,6 +487,7 @@ fn render_host(
     answer: &root::CallAnswer,
     tool: &[u8],
     key: jig_domain_core::CallKey,
+    job: Option<skein_forge::api::JobAttempt>,
 ) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
@@ -501,6 +502,7 @@ fn render_host(
             rows: engine.env.limits.forge.client.rows,
             answer_bytes: engine.env.limits.forge.client.answer_bytes,
         },
+        job,
     ));
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {
@@ -511,6 +513,7 @@ fn render_host(
             reason,
             findings: Box::new([]),
             error: None,
+            job,
         });
     }
 }

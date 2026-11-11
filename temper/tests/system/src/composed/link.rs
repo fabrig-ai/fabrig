@@ -115,6 +115,7 @@ pub fn render(
     maximum: u32,
     task: u64,
     receiving: u32,
+    job: Option<skein_forge::api::JobAttempt>,
 ) -> core::SettledAnswer {
     let event = temper_service::render_for_task(
         skein_lib::ReplyTo::new(Token::new(1)),
@@ -124,6 +125,7 @@ pub fn render(
         task,
         receiving,
         temper_engine_smith::ForgeReadBounds::STOCK,
+        job,
     );
     let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
         panic!("rendered host call")
