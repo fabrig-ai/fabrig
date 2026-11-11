@@ -16,7 +16,15 @@ pub(super) fn adopt_pair_cued(world: &mut World) {
 pub(super) fn adopt_pair_without_context(world: &mut World) {
     adopt_pair_configured(world, b"vsr", b"vsr-rs", 1000, true, true, false);
 }
-fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes: u32, following: bool, cued: bool, context: bool) {
+fn adopt_pair_configured(
+    world: &mut World,
+    source: &[u8],
+    target: &[u8],
+    passes: u32,
+    following: bool,
+    cued: bool,
+    context: bool,
+) {
     for (id, name) in [(3, source), (4, target)] {
         let full = [b"org/".as_slice(), name].concat();
         let name = full.as_slice();
@@ -74,7 +82,9 @@ fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes
     .into_iter()
     .enumerate()
     {
-        if role == forge_top::Role::Context && !context { continue; }
+        if role == forge_top::Role::Context && !context {
+            continue;
+        }
         let key = u8::try_from(94 + index).expect("three adoption keys fit u8");
         let mut adoption = temper_engine_domain_world::fixtures::adoption(1);
         adoption.project = project;

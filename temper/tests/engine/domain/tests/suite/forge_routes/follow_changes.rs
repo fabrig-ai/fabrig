@@ -335,6 +335,8 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         None,
         StoryLimits {
             kinds: true,
+            // A seeded source stream and its ports retain more than the basic fake's 16 commits.
+            forge_commits: cued.then_some(256),
             brief: cued.then(|| temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief),
             person_executor: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
@@ -354,11 +356,20 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
     .with_forge_pages(b"https://forge.example")
     .with_second_project();
     if cued {
-        world = world.with_project_landing(2, engine::ProjectLanding {
-            close_job: None, merge_job: None, by: engine::Way::Queue,
-            repositories: Box::new([]),
-            after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-        });
+        world = world.with_project_landing(
+            2,
+            engine::ProjectLanding {
+                close_job: None,
+                merge_job: None,
+                by: engine::Way::Queue,
+                repositories: Box::new([]),
+                after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+            },
+        );
+    }
+    if cued {
+        // At most two check runs per port, across the seed's source stream and drained tail.
+        world.fake_env.limits.limits.workflow_runs = 64;
     }
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world.sign_in();
@@ -508,7 +519,11 @@ fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assig
             return run.clone();
         }
     }
-    panic!("next delegate of {change}: {:?}; check {:?}", questions::row(world, change).change.state, questions::row(world, change).follow_check);
+    panic!(
+        "next delegate of {change}: {:?}; check {:?}",
+        questions::row(world, change).change.state,
+        questions::row(world, change).follow_check
+    );
 }
 #[test]
 fn accepted_follow_makes_owner_waiting_changes_with_code_words_and_chain() {

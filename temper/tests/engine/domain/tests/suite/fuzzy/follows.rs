@@ -8,7 +8,10 @@ use std::collections::BTreeSet;
 use std::ops::Range;
 use temper_engine_domain::{Key, Record};
 use temper_engine_domain_forge::{self as forge, FollowState, follows::FollowAct};
-use temper_engine_domain_world::{forge_routes::World, replay::{same_digest, same_text}};
+use temper_engine_domain_world::{
+    forge_routes::World,
+    replay::{same_digest, same_text},
+};
 #[path = "follows/referee.rs"]
 mod referee;
 use referee::Referee;
@@ -16,9 +19,21 @@ use referee::Referee;
 const SEEDS: u64 = 16;
 const STEPS: u32 = 24;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Files { Inside, Outside, Unknown }
+enum Files {
+    Inside,
+    Outside,
+    Unknown,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Step { Landing(Files), Start(u64), Hold(u64), Merge(u64), Skip(u64), Check(bool), Restart }
+enum Step {
+    Landing(Files),
+    Start(u64),
+    Hold(u64),
+    Merge(u64),
+    Skip(u64),
+    Check(bool),
+    Restart,
+}
 fn drawn(random: &mut Rng) -> Step {
     match random.below(10) {
         0 | 1 => Step::Landing(Files::Inside),
@@ -32,17 +47,26 @@ fn drawn(random: &mut Rng) -> Step {
         _ => Step::Restart,
     }
 }
-struct Driver { world: World, referee: Referee, red: BTreeSet<u64>, key: u8 }
+struct Driver {
+    world: World,
+    referee: Referee,
+    red: BTreeSet<u64>,
+    key: u8,
+}
 impl Driver {
-    fn new() -> Self { Self { world: proof::fixture(), referee: Referee::default(), red: BTreeSet::new(), key: 200 } }
+    fn new() -> Self {
+        Self { world: proof::fixture(), referee: Referee::default(), red: BTreeSet::new(), key: 200 }
+    }
     fn act(&mut self, act: FollowAct) {
         self.key = self.key.checked_add(1).expect("bounded script keys");
-        self.world.sign_in();
+        proof::session(&mut self.world);
         proof::owner(&mut self.world, self.key, act);
     }
     fn entry(&self, at: u64) -> Option<forge::FollowEntry> {
         let queue = &proof::follow(&self.world).queue;
-        if queue.is_empty() { return None; }
+        if queue.is_empty() {
+            return None;
+        }
         let at = usize::try_from(at % u64::try_from(queue.len()).expect("bounded queue")).expect("bounded index");
         queue.get(at).cloned()
     }
@@ -52,8 +76,11 @@ impl Driver {
     fn step(&mut self, step: Step) {
         match step {
             Step::Landing(files) => {
-                // Keep below the shipped queue bound: each observed move remains one landing.
-                if proof::follow(&self.world).queue.len() >= 6 { return; }
+                // Two queued entries fit the fixture's 60-unit follow budget without starving a producer.
+                // Each observed move remains one landing, rather than a full-queue accumulated range.
+                if proof::follow(&self.world).queue.len() >= 2 {
+                    return;
+                }
                 self.world.fail_comparisons = files == Files::Unknown;
                 let path = if files == Files::Inside { b"src/a.c".as_slice() } else { b"src-old/a.c".as_slice() };
                 let message = format!("source move {}", self.referee.moves.len());
@@ -63,17 +90,23 @@ impl Driver {
                 self.referee.moves.push((after, files != Files::Outside));
             }
             Step::Start(at) => {
-                if let Some(entry) = self.entry(at) && Self::waiting(&entry) {
+                if let Some(entry) = self.entry(at)
+                    && Self::waiting(&entry)
+                {
                     self.act(FollowAct::Start { after: entry.after });
                 }
             }
             Step::Hold(at) => {
-                if let Some(entry) = self.entry(at) && Self::waiting(&entry) {
+                if let Some(entry) = self.entry(at)
+                    && Self::waiting(&entry)
+                {
                     self.act(FollowAct::Hold { after: entry.after, reason: b"wait for source fix".as_slice().into() });
                 }
             }
             Step::Skip(at) => {
-                if let Some(entry) = self.entry(at) && Self::waiting(&entry) {
+                if let Some(entry) = self.entry(at)
+                    && Self::waiting(&entry)
+                {
                     self.act(FollowAct::Skip { after: entry.after, reason: b"already ported".as_slice().into() });
                 }
             }
@@ -82,9 +115,17 @@ impl Driver {
                     let queue = &proof::follow(&self.world).queue;
                     if let Some(index) = queue.iter().position(|entry| entry.after == first.after)
                         && let Some(next) = queue.get(index + 1)
-                        && next.change != first.change && Self::waiting(&first) && Self::waiting(next) {
-                        let group: Vec<_> = queue.iter().filter(|entry| entry.change == first.change || entry.change == next.change).collect();
-                        if group.len() <= usize::try_from(self.world.env.limits.forge.follow_merge).expect("merge bound") {
+                        && next.change != first.change
+                        && Self::waiting(&first)
+                        && Self::waiting(next)
+                    {
+                        let group: Vec<_> = queue
+                            .iter()
+                            .filter(|entry| entry.change == first.change || entry.change == next.change)
+                            .collect();
+                        if group.len()
+                            <= usize::try_from(self.world.env.limits.forge.follow_merge).expect("merge bound")
+                        {
                             let afters = group.iter().map(|entry| entry.after).collect();
                             self.act(FollowAct::Merge { afters });
                         }
@@ -95,7 +136,7 @@ impl Driver {
             Step::Restart => {
                 self.world.drain_cut();
                 self.world.restart_same();
-                self.world.sign_in();
+                proof::session(&mut self.world);
                 self.world.drain_cut();
             }
         }
@@ -103,8 +144,12 @@ impl Driver {
         self.referee.check(&mut self.world);
     }
     fn check(&mut self, red: bool) {
-        let Some(entry) = proof::follow(&self.world).queue.first().cloned() else { return; };
-        if entry.state != FollowState::Producing { return; }
+        let Some(entry) = proof::follow(&self.world).queue.first().cloned() else {
+            return;
+        };
+        if entry.state != FollowState::Producing {
+            return;
+        }
         let change = entry.change.expect("made head");
         let producer = proof::delegate(&mut self.world, change, 0);
         let red = red && self.red.insert(change);
@@ -124,16 +169,20 @@ impl Driver {
                 assert_eq!(self.referee.resolved(), self.referee.kept());
                 return;
             };
-            if Self::waiting(&entry) { self.step(Step::Start(0)); }
+            if Self::waiting(&entry) {
+                self.step(Step::Start(0));
+            }
             self.step(Step::Check(false));
         }
         panic!("seed's tail did not settle: {:?}", proof::follow(&self.world));
     }
 }
 fn same(first: &Driver, replay: &Driver, seed: u64, step: Step) {
-    same_digest(&(&first.world.root, &first.world.store.rows, &first.world.events),
+    same_digest(
+        &(&first.world.root, &first.world.store.rows, &first.world.events),
         &(&replay.world.root, &replay.world.store.rows, &replay.world.events),
-        &format_args!("follow seed {seed}: {step:?}"));
+        &format_args!("follow seed {seed}: {step:?}"),
+    );
     assert_eq!(first.world.writes, replay.world.writes, "forge trace seed {seed}: {step:?}");
     assert_eq!(first.world.assigned, replay.world.assigned, "worker trace seed {seed}: {step:?}");
 }
@@ -142,29 +191,60 @@ fn run_replayed(seed: u64) {
     let mut first = Driver::new();
     let mut replay = Driver::new();
     // A live red crosses a restart on every seed; random steps then interleave all stimuli.
-    for step in [Step::Landing(Files::Inside), Step::Landing(Files::Unknown), Step::Landing(Files::Outside),
-        Step::Hold(0), Step::Merge(0), Step::Start(0), Step::Check(true), Step::Restart] {
-        first.step(step); replay.step(step); same(&first, &replay, seed, step);
+    for step in [
+        Step::Landing(Files::Inside),
+        Step::Landing(Files::Unknown),
+        Step::Landing(Files::Outside),
+        Step::Hold(0),
+        Step::Merge(0),
+        Step::Start(0),
+        Step::Check(true),
+        Step::Restart,
+        Step::Check(false),
+    ] {
+        first.step(step);
+        replay.step(step);
+        same(&first, &replay, seed, step);
     }
     for number in 0..STEPS {
-        let step = drawn(&mut random);
+        // The fake worker answers a live run on its next turn, within the shipped run deadline.
+        let step =
+            if proof::follow(&first.world).queue.first().is_some_and(|entry| entry.state == FollowState::Producing) {
+                Step::Check(random.below(2) == 0)
+            } else {
+                drawn(&mut random)
+            };
         eprintln!("follow seed {seed} step {number}: {step:?}");
-        first.step(step); replay.step(step); same(&first, &replay, seed, step);
+        first.step(step);
+        replay.step(step);
+        same(&first, &replay, seed, step);
     }
-    first.finish(); replay.finish();
+    first.finish();
+    replay.finish();
     same(&first, &replay, seed, Step::Check(false));
     same_text(&first.world.store.rows, &replay.world.store.rows, &format_args!("settled follow seed {seed}"));
     same_text(&first.world.fake, &replay.world.fake, &format_args!("settled forge seed {seed}"));
-    first.world.close(); replay.world.close();
+    first.world.close();
+    replay.world.close();
 }
 fn shard(seeds: Range<u64>) {
-    for seed in seeds { run_replayed(seed); }
+    for seed in seeds {
+        run_replayed(seed);
+    }
 }
 #[test]
-fn fuzzy_follows_shard_0() { shard(0..4); }
+fn fuzzy_follows_shard_0() {
+    shard(0..4);
+}
 #[test]
-fn fuzzy_follows_shard_1() { shard(4..8); }
+fn fuzzy_follows_shard_1() {
+    shard(4..8);
+}
 #[test]
-fn fuzzy_follows_shard_2() { shard(8..12); }
+fn fuzzy_follows_shard_2() {
+    shard(8..12);
+}
 #[test]
-fn fuzzy_follows_shard_3() { shard(12..SEEDS); }
+fn fuzzy_follows_shard_3() {
+    shard(12..SEEDS);
+}

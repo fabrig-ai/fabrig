@@ -1654,7 +1654,10 @@ impl World {
                         if self.fail_comparisons {
                             self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                                 skein_forge_client::Event::Answered {
-                                    free: 0, rate: None, call, cost: 1,
+                                    free: 0,
+                                    rate: None,
+                                    call,
+                                    cost: 1,
                                     result: Err(skein_forge::api::Error::Forbidden),
                                 },
                             ))));
@@ -2213,11 +2216,17 @@ impl World {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
                             if let skein_forge::api::Answer::Run(run) = &mut answer {
-                                let raw::Answer::Jobs(jobs) = self.fake.inspect(&self.fake_env.limits, &repository, &raw::Read::Jobs { run: run.id }).expect("dispatched run jobs") else { panic!("run jobs answer") };
+                                let raw::Answer::Jobs(jobs) = self
+                                    .fake
+                                    .inspect(&self.fake_env.limits, &repository, &raw::Read::Jobs { run: run.id })
+                                    .expect("dispatched run jobs")
+                                else {
+                                    panic!("run jobs answer")
+                                };
                                 run.jobs = translate::run_jobs(jobs);
                             }
                             Ok(answer)
-                        },
+                        }
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
@@ -2843,6 +2852,10 @@ impl World {
                     (*watcher == watch).then(|| forge_top::Document::Change(panel.clone()))
                 })
             });
+        if answer.is_some() {
+            self.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: watch }));
+            self.oracle_settle();
+        }
         self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
         self.panels.retain(|(watcher, _)| *watcher != watch);
