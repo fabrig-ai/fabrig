@@ -101,17 +101,29 @@ events of their own, `skein_io::file`'s (`files.md`).
 
 The loop drives io through four entry points: `resume` takes one entry
 of the ready list, `up` one completion, `fire` one expired deadline (a
-graceful close's, or a retry's), and `down` one request. io's stage in
-the up pass is `resume` until the ready list is empty, then `up` for
-each completion, then `fire` while a deadline is due; the loop hands io
-no completion while the ready list holds something, so what the down
-pass made is told first. Requests to the kernel go out as `Submit`
-records into the queue the loop hands the kernel. The kernel's
-submission and completion queues stay capped, with
-`MAX_OUT_DOWN`/`MAX_OUT_UP` and `takes` keeping their room checks
-(../../../foundation/programming-model.md, section 2); the stage relies on an entry point
-submitting no more than its `MAX_OUT_*`, and asserts it at each entry.
-Queues between io and the protocol
+graceful close's, or a retry's), and `down` one request. The free functions
+`skein_io::stage::{up, down}` drive those entry points for the loop:
+
+- **`stage::up(io: &mut Io, env: &Env<Limits>, completions: &mut Queue<Complete>, told: &mut Queue<Event>, submissions: &mut Queue<Submit>, now: Time)`**
+  takes ready work through `resume`, then completions through `up` only
+  once the ready list is empty, then due deadlines through `fire` only
+  once every completion is taken. What the down pass made is told first,
+  and progress that came wins over a deadline that passed while the loop
+  waited. Each entity is resumed at most once a stage. Before taking an
+  entry it checks the kernel's submission queue has room for that entry
+  point's most submissions: `MAX_OUT_RESUME.submissions` (1),
+  `MAX_OUT_UP.submissions` (2), or `MAX_OUT_FIRE.submissions` (2).
+- **`stage::down(io: &mut Io, env: &Env<Limits>, asked: &mut Queue<Request>, submissions: &mut Queue<Submit>)`**
+  takes requests in order through `down`, only while `Io::takes` says io
+  can hold a refusal and the kernel's submission queue has room for
+  `MAX_OUT_DOWN.submissions` (2). Requests it cannot take stay queued.
+
+Both leave work they cannot take for the next iteration, check room
+before taking it, and assert that each entry point submits no more than
+its `MAX_OUT_*`. Requests to the kernel go out as `Submit` records into
+the queue the loop hands the kernel. The kernel's submission and
+completion queues stay capped (../../../foundation/programming-model.md,
+section 2). Queues between io and the protocol
 layer use `Queue::uncapped`: a push cannot fail and the loop reserves no
 room there. New external work waits at the root's watermark
 (../../../foundation/programming-model.md, 7.1).
