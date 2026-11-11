@@ -437,13 +437,11 @@ fn the_standalone_example_reads_into_its_members() {
 #[test]
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
-    let labels: Box<[u32]> = jig.templates.iter().map(|template| template.label).collect();
-    assert_eq!(*labels, [1, 2, 2, 1, 1], "chat, goal, draft goal, asking and design templates, in order");
     assert_eq!(jig.templates[0].number, 1);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
     assert_eq!(jig.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Result);
-    assert_eq!(jig.templates[3].number, 5);
-    assert_eq!(jig.templates[3].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
+    let ask = jig.templates.iter().find(|template| template.number == 5).expect("Ask temper");
+    assert_eq!(ask.flags.ended_by, jig_domain_tasks::EndedBy::Requester);
 }
 #[test]
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {

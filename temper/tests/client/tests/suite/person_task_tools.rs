@@ -261,7 +261,7 @@ fn role_configuration() -> engine::Config {
 fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     use temper_client_world::front::engine_limits;
     use temper_engine_domain_world::{protocol, store::Store};
-    const NOW: &str = "Tests are green.\nWaiting for the next change, then check its tests.";
+    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
     let mut bounds = engine_limits();
     bounds.tasks.charters = 13;
     bounds.journal.run_bytes = 16_384;
@@ -296,10 +296,10 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     assert_eq!(row.label, 3);
     assert_eq!(row.flags.ended_by, tasks::EndedBy::Standing);
     assert_eq!(row.requester, tasks::Party::Person(fixtures::PARTY));
-    let run = ctl.front.engine.last_assignment();
+    let run = ctl.front.assignments.last().expect("standing role assigned").clone();
     assert_eq!(run.task, task);
     let input = format!(
-        r#"{{"scope":{{"kind":"goal","project":1,"goal":{task}}},"description":"now","body":"Tests are green.\nWaiting for the next change, then check its tests."}}"#
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{task}}},"description":"now","body":"Tests are green.\nWaiting for a change, then check its tests."}}"#
     );
     let (answer, failed) =
         temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 1, b"note", input.as_bytes());
@@ -308,7 +308,7 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     ctl.front.engine.settle();
     assert!(ctl.front.engine.task(task).is_some(), "parking does not finish the role");
     ctl.text(&[b"task", b"message", task.to_string().as_bytes(), b"A change landed", b"--key", b"wake-role"]);
-    let next = ctl.front.engine.last_assignment();
+    let next = ctl.front.assignments.last().expect("standing role woken").clone();
     assert_eq!(next.task, task);
     assert!(next.attempt > run.attempt);
     assert!(next.sections.iter().any(|section| {

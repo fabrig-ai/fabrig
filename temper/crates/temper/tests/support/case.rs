@@ -173,8 +173,8 @@ fn process_settings(value: &mut Value) -> Value {
     }
     for (name, minimum) in [
         // Nine slots hold the stock charters.
-        ("tasks.charters", 9),
-        ("core.templates", 5),
+        ("tasks.charters", 10),
+        ("core.templates", 6),
         ("authority.grants", 16),
         ("notes.scopes", 32),
         ("core.policy_bytes", 8192),

@@ -945,7 +945,7 @@ pub const TASK_NOTES: Tool = Tool {
 pub const ROLE_START_AT: u8 = 72;
 pub const ROLE_LIST_AT: u8 = 73;
 pub const ROLE_SHOW_AT: u8 = 74;
-/// Standing roles (temper/docs/design/client/ctl/tools.md, 2 and 3).
+/// Standing roles (client/ctl/tools.md, 2 and 3).
 pub const ROLE_START: Tool = Tool {
     name: b"role start",
     line: b"Start a standing role from template 7",

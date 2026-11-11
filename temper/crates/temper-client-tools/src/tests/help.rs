@@ -298,6 +298,9 @@ const USAGES: &[&[u8]] = &[
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
     b"project remove PROJECT --key KEY\n",
+    b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
+    b"role list --project PROJECT [--after CURSOR]\n",
+    b"role show TASK\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

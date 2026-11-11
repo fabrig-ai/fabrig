@@ -1,4 +1,4 @@
-//! Join standing tasks to their Now (temper/docs/design/domain/agent/standing.md, 6).
+//! Join standing tasks to their Now (domain/agent/standing.md, 6).
 use super::reads::Reading;
 use crate::jig::rows;
 use jig_client::{Readout, contract as c};

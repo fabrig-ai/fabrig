@@ -1,4 +1,4 @@
-//! A standing role fills template 7 (temper/docs/design/domain/agent/standing.md, 6).
+//! A standing role fills template 7 (domain/agent/standing.md, 6).
 use super::{Call, Failed, Limits, Prepared, Request, c, empty, number, shapes, words};
 
 pub(super) fn start(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {

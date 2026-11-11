@@ -3,8 +3,9 @@ use crate::tests::fixtures as f;
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 
-const START: &[&str] = &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"];
-fn me() -> c::Me {
+pub(super) const START: &[&str] =
+    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"];
+pub(super) fn me() -> c::Me {
     let mut me = f::chat_me(100);
     let project = me.projects.get_mut(0).unwrap();
     project.project = 2;
