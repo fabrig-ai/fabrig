@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- cowsql · drafter · Opus 5.5 · xhigh                                               pane: half · Ctrl-P widens
+ cowsql · drafter · Opus 5.5 · xhigh          pane: half · Ctrl-P widens · /goal starts a goal from the draft
 --
 abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc.dddddddddddddd.......................................
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc......................................................
@@ -62,7 +62,7 @@ e......................................................c........................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddcccdddddddddddffffffffffccc
 ee............................................................................................................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-.ffffffcccfffffffcccffffffffffffffff...............................................ffffffffffffffffffffffffff.
+.ffffffcccfffffffcccffffffffffffffff..........fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.
 --
 a: fore #7A736A back #EBEAE9
 b: back #EBEAE9

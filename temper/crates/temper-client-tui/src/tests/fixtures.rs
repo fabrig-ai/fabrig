@@ -385,6 +385,12 @@ impl GoalCase {
                 Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 9 }) } => {
                     Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))) }
                 }
+                Down::Open { watch, subject: Watchable::Jig(c::Subject::Chips { .. }) } if self.linked => Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Chips(List::from_boxed(Box::new([goal_chip(
+                        task.chip.clone(),
+                    )])))),
+                },
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
                         w::Watch::Forges => wire::forges(
@@ -476,12 +482,18 @@ impl GoalCase {
         root
     }
 }
+pub(super) fn goal_chip(mut chip: c::Chip) -> c::Chip {
+    chip.task = 25;
+    chip.title =
+        c::DocumentText::complete(c::Text::new(b"Farewell line for the hello page".as_slice().into(), 64).unwrap());
+    chip
+}
 fn append(out: &mut Queue<Request>, mut more: Queue<Request>) {
     while let Some(request) = more.pop() {
         out.push(request);
     }
 }
-fn goal_forges(repository: bool) -> List<temper_client_protocol_wire::v1::ForgeRow> {
+pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire::v1::ForgeRow> {
     use temper_client_protocol_wire::v1 as w;
     let mut repositories = List::with_capacity(1);
     if repository {

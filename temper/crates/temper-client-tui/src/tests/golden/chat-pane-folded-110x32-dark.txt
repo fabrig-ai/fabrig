@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- cowsql · drafter · Opus 5.5 · xhigh                                              pane: folded · Ctrl-P opens
+ cowsql · drafter · Opus 5.5 · xhigh         pane: folded · Ctrl-P opens · /goal starts a goal from the draft
 --
 abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ..............................................................................................................
@@ -62,7 +62,7 @@ c...............................................................................
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffeeefffffffffffddddddddddeee
 cc............................................................................................................
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-.ddddddeeedddddddeeedddddddddddddddd..............................................ddddddddddddddddddddddddddd.
+.ddddddeeedddddddeeedddddddddddddddd.........dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.
 --
 a: fore #9A9388 back #2D2C2A
 b: back #2D2C2A

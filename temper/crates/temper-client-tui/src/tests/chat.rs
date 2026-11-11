@@ -133,6 +133,7 @@ struct Input {
     draft: bool,
     body: Option<&'static [u8]>,
     draft_title: Option<&'static [u8]>,
+    goal: Option<bool>,
 }
 impl Input {
     fn empty() -> Self {
@@ -150,6 +151,7 @@ impl Input {
             draft: false,
             body: None,
             draft_title: None,
+            goal: None,
         }
     }
 }
@@ -406,31 +408,86 @@ fn root(input: &Input) -> Domain {
             }),
             d::Request::Unlinked {
                 request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
+                    },
+            } if input.goal.is_some() => {
+                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
+                    w::Watch::Forges => wire::forges(
+                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: f::goal_forges(true), linked: false })
+                            .unwrap(),
+                    ),
+                    w::Watch::Dismissed => {
+                        let mut dismissed = List::with_capacity(wire::DISMISSED);
+                        if input.goal == Some(true) {
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts { project: 1, chat: TASK, goal: 25, at: 1 },
+                                    )
+                                    .unwrap(),
+                                ))
+                                .unwrap();
+                        }
+                        wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap())
+                    }
+                    _ => continue,
+                };
+                Some(jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                })
+            }
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Chips { .. }) },
+                    },
+            } if input.goal == Some(true) => Some(jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Chips(List::from_boxed(Box::new([f::goal_chip(
+                    task.chip.clone(),
+                )])))),
+            }),
+            d::Request::Unlinked {
+                request:
                     UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Family { record, .. } } },
             } => {
-                let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                if let w::Read::View(view) = reading.read() {
-                    assert_eq!(view.address(), p::ADDRESS);
-                    let result = match &input.shown {
-                        None | Some(Shown::Asking) => None,
-                        Some(Shown::Failed) => {
-                            Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
-                        }
-                        Some(Shown::Drawn(view)) => {
-                            let answer =
-                                w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() }).unwrap();
-                            Some(jig_client::Readout::Family {
-                                family: wire::FORGE,
-                                record: Some(wire::view_answer(&answer)),
-                            })
-                        }
-                    };
-                    match result {
-                        Some(result) => Some(jig_client::Up::ReadDone { read, result }),
-                        None => None,
-                    }
+                if input.goal.is_some() && f::ways_read(&record.bytes) {
+                    Some(jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Family {
+                            family: wire::FORGE,
+                            record: Some(f::draft_setting(true)),
+                        },
+                    })
                 } else {
-                    None
+                    let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+                    if let w::Read::View(view) = reading.read() {
+                        assert_eq!(view.address(), p::ADDRESS);
+                        let result = match &input.shown {
+                            None | Some(Shown::Asking) => None,
+                            Some(Shown::Failed) => {
+                                Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
+                            }
+                            Some(Shown::Drawn(view)) => {
+                                let answer =
+                                    w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() })
+                                        .unwrap();
+                                Some(jig_client::Readout::Family {
+                                    family: wire::FORGE,
+                                    record: Some(wire::view_answer(&answer)),
+                                })
+                            }
+                        };
+                        match result {
+                            Some(result) => Some(jig_client::Up::ReadDone { read, result }),
+                            None => None,
+                        }
+                    } else {
+                        None
+                    }
                 }
             }
             _ => None,
@@ -1159,7 +1216,7 @@ const PANE_REQUEST: &[u8] = b"Snapshots: can vsr's state transfer carry cowsql's
 const PANE_ANSWER: &[u8] = b"Mostly. vsr's checkpoint is the host's to make, so cowsql keeps its page format. I've written it as 4.1 and 4.2, beside.";
 const PANE_QUESTION: &[u8] = b"One point is yours. While a cluster moves, run raft and vsr side by side, or move it at once?\n\n1. Move it at once: no mixed state\n2. Side by side, raft the fallback\n3. Tell me something else";
 
-fn pane_golden(mode: d::pages::chat::document::Mode, columns: u16) -> crate::View {
+fn pane_golden(mode: d::pages::chat::document::Mode, columns: u16, linked: bool) -> crate::View {
     let mut task = task();
     task.chip.title = c::DocumentText::complete(text(b"Raft to vsr"));
     let mut root = root(&Input {
@@ -1168,6 +1225,7 @@ fn pane_golden(mode: d::pages::chat::document::Mode, columns: u16) -> crate::Vie
         draft: true,
         body: Some(PANE_BODY),
         draft_title: Some(b"Raft to vsr"),
+        goal: Some(linked),
         rows: Box::new([turn(&[note_call(
             b"document",
             "Note 1 revision 2 written · +1 −1 · line 7".as_bytes(),
@@ -1207,7 +1265,7 @@ fn pane_golden(mode: d::pages::chat::document::Mode, columns: u16) -> crate::Vie
 #[expect(
     clippy::disallowed_macros,
     clippy::too_many_lines,
-    reason = "the twelve rows embed both sizes, themes and every pane state"
+    reason = "the rows embed both sizes, themes, pane states and a linked goal"
 )]
 fn pane_goldens() {
     use d::pages::chat::document::Mode;
@@ -1218,6 +1276,7 @@ fn pane_goldens() {
             Mode::Chat,
             Size { columns: 80, rows: 24 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-folded-80x24-dark.txt").as_slice(),
         ),
         (
@@ -1225,6 +1284,7 @@ fn pane_goldens() {
             Mode::Chat,
             Size { columns: 80, rows: 24 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-folded-80x24-light.txt").as_slice(),
         ),
         (
@@ -1232,6 +1292,7 @@ fn pane_goldens() {
             Mode::Chat,
             Size { columns: 110, rows: 32 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-folded-110x32-dark.txt").as_slice(),
         ),
         (
@@ -1239,6 +1300,7 @@ fn pane_goldens() {
             Mode::Chat,
             Size { columns: 110, rows: 32 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-folded-110x32-light.txt").as_slice(),
         ),
         (
@@ -1246,6 +1308,7 @@ fn pane_goldens() {
             Mode::Split,
             Size { columns: 80, rows: 24 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-half-80x24-dark.txt").as_slice(),
         ),
         (
@@ -1253,6 +1316,7 @@ fn pane_goldens() {
             Mode::Split,
             Size { columns: 80, rows: 24 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-half-80x24-light.txt").as_slice(),
         ),
         (
@@ -1260,6 +1324,7 @@ fn pane_goldens() {
             Mode::Split,
             Size { columns: 110, rows: 32 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-half-110x32-dark.txt").as_slice(),
         ),
         (
@@ -1267,6 +1332,7 @@ fn pane_goldens() {
             Mode::Split,
             Size { columns: 110, rows: 32 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-half-110x32-light.txt").as_slice(),
         ),
         (
@@ -1274,6 +1340,7 @@ fn pane_goldens() {
             Mode::Draft,
             Size { columns: 80, rows: 24 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-all-80x24-dark.txt").as_slice(),
         ),
         (
@@ -1281,6 +1348,7 @@ fn pane_goldens() {
             Mode::Draft,
             Size { columns: 80, rows: 24 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-all-80x24-light.txt").as_slice(),
         ),
         (
@@ -1288,6 +1356,7 @@ fn pane_goldens() {
             Mode::Draft,
             Size { columns: 110, rows: 32 },
             Scheme::Dark,
+            false,
             include_bytes!("golden/chat-pane-all-110x32-dark.txt").as_slice(),
         ),
         (
@@ -1295,15 +1364,24 @@ fn pane_goldens() {
             Mode::Draft,
             Size { columns: 110, rows: 32 },
             Scheme::Light,
+            false,
             include_bytes!("golden/chat-pane-all-110x32-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-goal-110x32-dark",
+            Mode::Split,
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            true,
+            include_bytes!("golden/chat-pane-goal-110x32-dark.txt").as_slice(),
         ),
     ];
     let mut views = List::uncapped();
-    for (_, mode, size, _, _) in &rows {
-        views.push(pane_golden(*mode, size.columns)).unwrap();
+    for (_, mode, size, _, linked, _) in &rows {
+        views.push(pane_golden(*mode, size.columns, *linked)).unwrap();
     }
     let mut checks = List::uncapped();
-    for ((name, _, size, scheme, want), view) in rows.iter().zip(&views) {
+    for ((name, _, size, scheme, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
                 name,
