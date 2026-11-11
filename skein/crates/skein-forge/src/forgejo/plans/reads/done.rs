@@ -105,11 +105,11 @@ impl Plan {
                 let step = self.send(Request::Comments { at: row.at(), number: item.number, since });
                 return Ok((State::Comments { item, rows, more: false, size, after }, Some(step)));
             }
-            State::Pull { row } => return Self::pull_status(row, pull(document)?, bounds),
+            State::Pull { row, ci } => return Self::pull_status(row, pull(document)?, bounds, ci),
             State::PullFor { row, head, base } => {
                 let pull = pull(document)?;
                 if pull.state == d::IssueState::Open {
-                    return Self::pull_status(row, pull, bounds);
+                    return Self::pull_status(row, pull, bounds, false);
                 }
                 let step = self.send(Request::Pulls {
                     at: row.at(),
@@ -131,7 +131,7 @@ impl Plan {
                     });
                     return Ok((State::Pulls { row, head, base, pull, found, page }, Some(step)));
                 }
-                return Self::pull_status(row, *pull, bounds);
+                return Self::pull_status(row, *pull, bounds, false);
             }
             State::Branch { format } => match document {
                 d::Document::Branch(branch) => {
@@ -202,13 +202,14 @@ impl Plan {
                 cut,
                 now,
             },
-            State::Reviews { rows, .. } => api::Answer::Reviews {
+            State::Reviews { rows, cut, .. } => api::Answer::Reviews {
                 reviews: rows.into_boxed(),
-                more: self.count.saturating_add(listed(document)?) >= bounds.page_size,
+                more: self.count.saturating_add(listed(document)?) >= bounds.page_size || cut,
+                cut,
             },
-            State::Remarks { rows, more, .. } => {
+            State::Remarks { rows, more, cut, .. } => {
                 listed(document)?;
-                api::Answer::Remarks { remarks: rows.into_boxed(), more }
+                api::Answer::Remarks { remarks: rows.into_boxed(), more, cut }
             }
             State::Comments { item, rows, more, .. } => {
                 listed(document)?;
@@ -239,7 +240,12 @@ impl Plan {
         row: super::Repository,
         pull: d::PullRequest,
         bounds: Bounds,
+        ci: bool,
     ) -> Result<(State, Option<Step>), api::Error> {
+        if !ci {
+            let pull = reading::pull(pull, row.object_format, api::Ci::None)?;
+            return Ok((State::Ended, Some(terminal(api::Answer::Pull(pull), bounds)?)));
+        }
         let commit = pull.head.sha.ok_or(api::Error::InvalidAnswer)?;
         if commit.format != row.object_format {
             return Err(api::Error::InvalidAnswer);

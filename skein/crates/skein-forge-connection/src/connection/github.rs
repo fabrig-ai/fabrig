@@ -27,6 +27,10 @@ impl Exchange {
     pub fn new() -> Self {
         Self { request: None, decoder: None, done: None, heard: Queue::uncapped() }
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the request borrows the component's conditional store while it is composed"
+    )]
     pub fn start(
         &mut self,
         c: &mut Connection,
@@ -35,6 +39,7 @@ impl Exchange {
         user_agent: &[u8],
         exchange: github::plans::plan::Exchange,
         authorization: Option<Secret>,
+        kept: &mut crate::kept::Store,
     ) -> Result<(), github::request::Refusal> {
         let encoded = github::request::encode(&exchange.request, &limits::documents(&env.limits))?;
         match (encoded.auth, &authorization) {
@@ -65,10 +70,12 @@ impl Exchange {
         self.request = Some(Box::new(exchange));
         self.decoder = None;
         self.done = None;
+        c.identity = Some(c.identity.unwrap_or(0));
         c.send(
             env,
             http::Call { method, target: encoded.target, headers: headers.into_boxed(), body, close: false },
             encoded.body,
+            kept,
         );
         Ok(())
     }
@@ -143,9 +150,15 @@ impl Exchange {
         }
     }
     /// Routes the same bounded run of movements before handing an answer to the plan.
-    pub fn pump(&mut self, c: &mut Connection, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+    pub fn pump(
+        &mut self,
+        c: &mut Connection,
+        env: &Env<Limits>,
+        io: &mut Queue<skein_io::Request>,
+        kept: &mut crate::kept::Store,
+    ) {
         for _ in 0_u32..64 {
-            match c.step(env, io, !self.heard.is_empty()) {
+            match c.step(env, io, !self.heard.is_empty(), kept) {
                 Moved::Within => {}
                 Moved::Nothing => break,
                 Moved::Head(response) => self.response(c, env, response),

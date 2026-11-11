@@ -16,6 +16,7 @@ pub mod fixtures;
 pub mod grow;
 pub mod hooks;
 mod installations;
+mod kept;
 pub mod limits;
 mod puller;
 pub mod settings;

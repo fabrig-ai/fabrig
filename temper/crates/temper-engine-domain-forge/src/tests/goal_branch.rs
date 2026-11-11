@@ -838,7 +838,7 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
             }
             Op::Read(Read::Branch { branch }) if branch.as_ref() == GOAL_BRANCH => Answer::Commit(TIP),
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
-            Op::Read(Read::Pull { number: 1 }) => {
+            Op::Read(Read::Pull { number: 1, ci: false }) => {
                 let mut pull = fixtures::open_pull();
                 pull.base = GOAL_BRANCH.into();
                 if merged {

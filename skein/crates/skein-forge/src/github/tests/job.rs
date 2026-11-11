@@ -55,6 +55,12 @@ impl Call {
                     merge: Some(tables::Method::Merge),
                     html_url: Box::from(*b"https://example.test/acme/widgets"),
                     organization: true,
+                    settings: api::Settings {
+                        default_branch: Box::from(*b"main"),
+                        merge: true,
+                        squash: true,
+                        rebase: true,
+                    },
                 },
             );
         }

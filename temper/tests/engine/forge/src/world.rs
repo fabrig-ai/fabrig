@@ -793,6 +793,10 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    pub fn fallback(&mut self, interval: Duration) {
+        self.env.limits.client.fallback = interval;
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.forge_env.limits.latency_min = delay;
         self.forge_env.limits.latency_max = delay;
@@ -970,7 +974,7 @@ impl World {
     /// Merge at the forge, retaining its preceding pull snapshot for the
     /// connector's next fresh-read chain, whose base read sees the merge.
     pub fn merge_before_pull_read(&mut self, number: u64) -> skein_forge::api::Commit {
-        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number });
+        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: false });
         let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
         let skein_forge::api::Answer::Pull(snapshot) =
             translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)

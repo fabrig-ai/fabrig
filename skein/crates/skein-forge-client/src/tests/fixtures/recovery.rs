@@ -132,7 +132,7 @@ pub(in crate::tests) fn keyed_answer(review: bool, key: &[u8]) -> Answer {
         let mut row = super::keep::review(9, 100);
         row.author = 1;
         row.key = Some(Box::from(key));
-        Answer::Reviews { reviews: Box::new([row]), more: false }
+        Answer::Reviews { reviews: Box::new([row]), more: false, cut: false }
     } else {
         let mut row = super::keep::comment(9);
         row.author = 1;

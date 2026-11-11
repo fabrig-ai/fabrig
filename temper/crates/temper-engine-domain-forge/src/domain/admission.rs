@@ -310,7 +310,7 @@ pub(super) fn read_failed(
         StepStage::Pull => (
             b"read pull",
             match row.pull {
-                Some(number) => Read::Pull { number },
+                Some(number) => Read::Pull { number, ci: pending.pull_ci },
                 None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
             },
         ),

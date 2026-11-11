@@ -244,7 +244,7 @@ fn byte_cases() -> [ByteCase; BYTE_CASES] {
     [
         ("items", Read::Items { single: false, since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
         ("item", Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }, item_answer(), ITEM_BYTES),
-        ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
+        ("pull", Read::Pull { number: 9, ci: false }, pull_answer(), PULL_BYTES),
         ("branches", Read::Branches { prefix: Box::from(&b"m"[..]) }, Answer::Branches(branch_rows(40)), 800),
         (
             "job",
@@ -321,7 +321,7 @@ const ROW_CASES: usize = 3; // labels, reviewers, protection contexts
 fn row_reads() -> [(&'static str, Read); ROW_CASES] {
     [
         ("labels", Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }),
-        ("reviewers", Read::Pull { number: 9 }),
+        ("reviewers", Read::Pull { number: 9, ci: false }),
         ("protection", Read::Protection { branch: Box::from(&b"kit"[..]) }),
     ]
 }

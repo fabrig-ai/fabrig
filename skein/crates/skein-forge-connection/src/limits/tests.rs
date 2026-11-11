@@ -5,7 +5,7 @@ use skein_forge::api;
 use skein_lib::{List, Time};
 
 #[test]
-fn item_pages_use_real_rows_and_other_listings_reserve_the_largest() {
+fn real_row_pages_use_rows_and_other_listings_reserve_the_largest() {
     let limits = fixtures::limits();
     for (listing, row) in [
         (Listing::Items, fixtures::ROW_ITEMS),
@@ -33,7 +33,12 @@ fn item_pages_use_real_rows_and_other_listings_reserve_the_largest() {
             (fixtures::PAGE_ROWS * row, fixtures::ONE_PAGE_ROW, fixtures::PAGE_ROWS, fixtures::ONE_PAGE_ROW),
         ] {
             let shared = Shared { rows, answer_bytes, ..fixtures::shared() };
-            let expected = if listing == Listing::Items { rows.min(cap) } else { expected };
+            let expected =
+                if [Listing::Items, Listing::Reviews, Listing::Remarks, Listing::PullFiles].contains(&listing) {
+                    rows.min(cap)
+                } else {
+                    expected
+                };
             assert_eq!(page_size(listing, cap, &limits, &shared), expected, "{listing:?}/{answer_bytes}/{rows}/{cap}");
         }
     }
@@ -46,6 +51,10 @@ fn limits_check_admits_one_largest_row_of_every_listing() {
         [(fixtures::MAX_ROW - 1, Err(Unusable::PageSize { listing: Listing::Items })), (fixtures::MAX_ROW, Ok(()))]
     {
         let shared = Shared { answer_bytes, ..fixtures::shared() };
+        let limits = super::Limits {
+            kept_bytes: u64::from(shared.calls).checked_mul(u64::from(shared.answer_bytes)).expect("answer room"),
+            ..limits
+        };
         assert_eq!(check(&limits, &shared, &settings), expected);
     }
 }
@@ -92,6 +101,7 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 official: false,
             }]),
             more: false,
+            cut: false,
         },
         Listing::Statuses => api::Answer::Statuses {
             ci: api::Ci::Passed,
@@ -114,6 +124,7 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 body: fixtures::filled(body, b'b'),
             }]),
             more: false,
+            cut: false,
         },
         Listing::Branches => api::Answer::Branches(Box::new([fixtures::filled(string, b'p')])),
         Listing::Collaborators => api::Answer::Collaborators {
@@ -136,6 +147,7 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 after: Some(fixtures::filled(body, b'a')),
             }]),
             more: false,
+            cut: false,
         },
     }
 }
@@ -308,6 +320,10 @@ fn installation_pages_use_their_own_full_page_budget() {
             body_bytes: fixtures::BODY_ROOM,
         })
     );
+    let l = super::Limits {
+        kept_bytes: u64::from(s.calls).checked_mul(u64::from(s.answer_bytes)).expect("answer room"),
+        ..l
+    };
     assert_eq!(check(&l, &s, &fixtures::github_settings()), Ok(()));
 }
 #[test]
@@ -356,7 +372,11 @@ fn tree(string: usize) -> api::Answer {
 
 #[test]
 fn valid_accepts_test_limits() {
-    assert_eq!(check(&fixtures::limits(), &fixtures::shared(), &fixtures::settings()), Ok(()));
+    for (kept_bytes, expected) in [(fixtures::limits().kept_bytes, Ok(())), (0, Err(Unusable::Zero))] {
+        let limits = super::Limits { kept_bytes, ..fixtures::limits() };
+        assert_eq!(check(&limits, &fixtures::shared(), &fixtures::settings()), expected);
+        assert_eq!(crate::Component::new(fixtures::settings(), &limits, &fixtures::shared()).err(), expected.err());
+    }
 }
 
 fn refuses_limits(limits: super::Limits, shared: Shared, settings: crate::Settings) {
@@ -408,7 +428,13 @@ fn unrepresentable_capacity_bounds_refuse_validation_and_component_construction(
             (
                 "valid_refuses_socket_slots_past_u32",
                 CapacityRow {
-                    limits: super::Limits { connections: u32::MAX, ..fixtures::limits() },
+                    limits: super::Limits {
+                        connections: u32::MAX,
+                        kept_bytes: u64::from(u32::MAX)
+                            .checked_mul(u64::from(fixtures::shared().answer_bytes))
+                            .expect("answer room"),
+                        ..fixtures::limits()
+                    },
                     shared: Shared { calls: u32::MAX, ..fixtures::shared() },
                     forges: super::Forges { forgejo: 0, github: 1 },
                     settings: fixtures::github_settings(),
@@ -445,5 +471,9 @@ fn valid_ignores_heap_call_tables() {
     let connections = u32::MAX - fixtures::limits().forges;
     let limits = super::Limits { connections, ..fixtures::limits() };
     let shared = Shared { calls: connections, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
+    let limits = super::Limits {
+        kept_bytes: u64::from(shared.calls).checked_mul(u64::from(shared.answer_bytes)).expect("answer room"),
+        ..limits
+    };
     assert_eq!(check(&limits, &shared, &fixtures::settings()), Ok(()));
 }

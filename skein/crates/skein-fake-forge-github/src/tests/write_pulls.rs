@@ -32,7 +32,7 @@ fn github_fake_open_pull_plan_creates_and_reads_back() {
     let head = feature(&mut h);
     let token = r::token(&mut h);
     let api::Answer::Created(number) = w::write(&mut h, &token, open()).unwrap() else { panic!("created pull") };
-    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("pull readback")
     };
     assert_eq!(pull.commit, r::object(head));
@@ -76,7 +76,7 @@ fn github_fake_empty_head_refuses_open_pull_without_creating() {
     };
     assert_eq!(error.errors.as_ref(), &[message]);
     assert!(skein_lib::bytes::find(&response.body, br#""resource":"PullRequest","code":"custom""#).is_some());
-    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 1 }), Err(api::Error::Missing));
+    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 1, ci: false }), Err(api::Error::Missing));
 }
 #[test]
 fn github_fake_update_plan_merges_base_and_checks_expected_head() {
@@ -102,7 +102,7 @@ fn github_fake_update_plan_merges_base_and_checks_expected_head() {
         w::write(&mut h, &token, api::Write::Update { number, style: api::UpdateStyle::Merge }),
         Ok(api::Answer::Done)
     );
-    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("updated pull")
     };
     assert_ne!(pull.commit, r::object(head));
@@ -118,7 +118,7 @@ fn github_fake_update_plan_merges_base_and_checks_expected_head() {
         Request::Update { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number, head: r::object(head) };
     let response = w::ask(&mut h, &token, &request);
     f::refusal(&h, &response, 422, crate::texts::UPDATE_STALE);
-    let api::Answer::Pull(after) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(after) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("stale update readback")
     };
     assert_eq!(after.commit, pull.commit);
@@ -152,7 +152,7 @@ fn github_fake_review_and_reviewer_plans_read_back() {
         w::write(&mut h, &token, api::Write::SetReviewers { number, reviewers: Box::from([31]) }),
         Ok(api::Answer::Done)
     );
-    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("reviewers")
     };
     assert_eq!(pull.reviewers.as_ref(), &[31]);
@@ -160,7 +160,7 @@ fn github_fake_review_and_reviewer_plans_read_back() {
         w::write(&mut h, &token, api::Write::SetReviewers { number, reviewers: Box::from([]) }),
         Ok(api::Answer::Done)
     );
-    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("reviewers removed")
     };
     assert_eq!(pull.reviewers.as_ref(), &[]);
@@ -177,7 +177,8 @@ fn github_fake_review_and_reviewer_plans_read_back() {
     .unwrap() else {
         panic!("reviewed")
     };
-    let api::Answer::Reviews { reviews, .. } = r::read(&mut h, &token, api::Read::Reviews { number, page: 1 }).unwrap()
+    let api::Answer::Reviews { reviews, .. } =
+        r::read(&mut h, &token, api::Read::Reviews { number, page: 1, skip: 0 }).unwrap()
     else {
         panic!("review readback")
     };
@@ -315,7 +316,7 @@ fn github_fake_update_conflict_preserves_the_pull_head() {
         &Request::Update { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number, head: r::object(head) },
     );
     f::refusal(&h, &response, 422, crate::texts::UPDATE_CONFLICT);
-    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("conflicted pull")
     };
     assert_eq!(pull.commit, r::object(head));

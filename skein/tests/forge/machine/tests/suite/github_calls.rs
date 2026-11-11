@@ -158,7 +158,7 @@ fn github_pull_reads_both_ci_sources() {
         ],
     );
     located(&mut w);
-    w.call(2, REPO, Op::Read(Read::Pull { number: 7 }));
+    w.call(2, REPO, Op::Read(Read::Pull { number: 7, ci: true }));
     w.run_for(SECOND);
     let mut base = [0; 32];
     base[..20].fill(0x11);

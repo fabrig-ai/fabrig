@@ -59,9 +59,10 @@ fn github_fake_pull_and_pull_for_drive_complete_plans() {
     let mut h = r::harness();
     let (number, commit) = r::pull(&mut h);
     let token = r::token(&mut h);
-    for read in
-        [api::Read::Pull { number }, api::Read::PullFor { head: f::boxed(b"feature"), base: f::boxed(b"trunk") }]
-    {
+    for read in [
+        api::Read::Pull { number, ci: false },
+        api::Read::PullFor { head: f::boxed(b"feature"), base: f::boxed(b"trunk") },
+    ] {
         let api::Answer::Pull(pull) = r::read(&mut h, &token, read).unwrap() else { panic!("pull answer") };
         assert_eq!(pull.number, number);
         assert_eq!(pull.commit, r::object(commit));
@@ -77,7 +78,7 @@ fn github_fake_pull_and_pull_for_drive_complete_plans() {
         panic!("closed pull answer")
     };
     assert_eq!(closed.state, api::State::Closed, "fallback finds oldest closed pull");
-    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 999 }), Err(api::Error::Missing));
+    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 999, ci: false }), Err(api::Error::Missing));
     assert_eq!(
         r::read(&mut h, &token, api::Read::PullFor { head: f::boxed(b"missing"), base: f::boxed(b"trunk") }),
         Err(api::Error::Missing)
@@ -92,7 +93,7 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
     let first = r::object(h.first);
     for (page, count, more) in [(1, 2, true), (2, 1, false)] {
         let api::Answer::PullFiles { files, more: actual, .. } =
-            r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page })
+            r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page, skip: 0 })
                 .expect("pull file plan")
         else {
             panic!("pull files")
@@ -127,7 +128,10 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
         ),
         Err(api::Error::Missing)
     );
-    assert_eq!(r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1 }), Err(api::Error::Stale));
+    assert_eq!(
+        r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1, skip: 0 }),
+        Err(api::Error::Stale)
+    );
     assert_eq!(h.hooks, 0);
 }
 #[test]
@@ -158,7 +162,7 @@ fn github_fake_compare_uses_the_merge_base_on_divergent_branches() {
     assert_eq!(row.merge_base, None, "names-only Compare keeps no merge base id");
     assert_eq!((row.ahead_by, row.behind_by), (1, 1));
     let api::Answer::PullFiles { files, .. } =
-        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1 }).unwrap()
+        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0 }).unwrap()
     else {
         panic!("files")
     };

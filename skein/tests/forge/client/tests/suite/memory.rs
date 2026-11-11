@@ -138,7 +138,7 @@ impl Measured {
                         })
                         .expect("review capacity");
                 }
-                api::Answer::Reviews { reviews: reviews.into_boxed(), more: false }
+                api::Answer::Reviews { reviews: reviews.into_boxed(), more: false, cut: false }
             }
             Asked::Branch => api::Answer::Commit([1; 32]),
             Asked::Create => api::Answer::Created(9),
@@ -183,7 +183,7 @@ fn asked(op: &api::Op) -> Asked {
         api::Op::Read(read) => match read {
             api::Read::Items { .. } => Asked::Items,
             api::Read::Item { number, .. } => Asked::Item(*number),
-            api::Read::Pull { number } => Asked::Pull(*number),
+            api::Read::Pull { number, .. } => Asked::Pull(*number),
             api::Read::Reviews { .. } => Asked::Reviews,
             api::Read::Branch { .. } => Asked::Branch,
             api::Read::Artifact { .. } => Asked::Artifact,

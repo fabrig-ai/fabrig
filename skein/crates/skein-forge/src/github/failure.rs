@@ -191,7 +191,8 @@ pub fn classify(asked: Asked, status: u16, head: &Head, refusal: Option<&Refusal
         },
         _ => unknown,
     };
-    Verdict::Fail(error, Drop::Nothing)
+    let drop = if error == api::Error::Forbidden && !read { Drop::Row } else { Drop::Nothing };
+    Verdict::Fail(error, drop)
 }
 fn seconds(n: u64) -> Duration {
     Duration::from_nanos(n.saturating_mul(1_000_000_000))
