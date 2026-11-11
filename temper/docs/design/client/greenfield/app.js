@@ -695,40 +695,29 @@
   // ---- The first run: the box's terminal and the welcome's wizard --------
   const WIZ = ['welcome', 'forge', 'model', 'ready'];
   const WIZ_NAMES = { welcome: 'Welcome', forge: 'Forge', model: 'Model', ready: 'Ready' };
-  const utc = t => `${new Date(t).toISOString().slice(11, 19)}Z`;
   const notFirstRun = what => `<div class="setup"><main class="setup-main"><header class="setup-head"><p class="kicker">Mockup</p><h1 class="headline">${esc(what)} belongs to the first run.</h1><p class="lede">The everyday scenario is open: fabrig and hello, long set up. The first run starts from a fresh temper box.</p></header><div class="acts"><button type="button" class="btn primary" data-first-run>Start the first run</button><a class="btn" href="home.html">Back to fabrig</a></div></main></div>`;
 
   function boxPage() {
     if (!FIRST) return notFirstRun('The box’s terminal');
-    const f = forgeInfo();
-    const events = [];
-    if (f && f.kind === 'forgejo') {
-      events.push(`${utc(S.setup.forge.at)} Forge ${FR.forgejo.n} (Forgejo): starting`);
-      if (f.done) events.push(`${utc(f.doneAt)} Forge ${FR.forgejo.n} (Forgejo): started`);
-    }
     return `<div class="box-page">
       <header class="setup-head">
         <p class="kicker">The first run · your terminal</p>
         <h1 class="headline">You ran temper box.</h1>
-        <p class="lede">It starts temper here, in the foreground, and prints a link that signs you in as its owner. After that it stays quiet: a line when something starts, ends or fails. Open the link.</p>
+        <p class="lede">It starts temper here, in the foreground, and prints a link that signs you in as its owner. After that it stays quiet but for errors and a fresh link once this one is spent. Open the link.</p>
       </header>
       <div class="term" role="log" aria-label="Terminal">
         <div class="term-bar"><i></i><i></i><i></i><span>owner@laptop: ~</span></div>
 <pre>$ temper box
-First run: wrote the configuration, ~/.config/temper/temper.json
-Logs: ~/.local/share/temper/box/logs/
-Starting serve
-
-Open this link in a browser on this machine. It signs you in as this
-temper’s owner, once and for a short while, so keep it private.
-Opened again once spent, it prints a fresh one here.
+Open this link in a browser on this machine.
 
 <a href="welcome.html" target="_blank" data-link>${esc(FR.link)}</a>
 
-Ctrl-C stops temper.
-${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor"></span></pre>
+It signs you in as this temper's owner, once, within 2 hours.
+Opened after that, it prints a fresh one here.
+In a terminal: temper ${esc(new URL(FR.link).origin)}
+<span class="cursor"></span></pre>
       </div>
-      <p class="facts">The link opens the welcome in a new tab; this tab keeps showing what the box prints. Each step’s own lines go to its log, so the terminal shows only the box’s.</p>
+      <p class="facts">The link opens the welcome in a new tab; this tab keeps showing what the box prints. The box’s own lines go to its log, so the terminal shows the link and errors alone.</p>
     </div>`;
   }
 
