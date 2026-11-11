@@ -1,4 +1,4 @@
-//! The launchpad's states and hand-written frames (client/tui/pages.md and client/tui/theme.md).
+//! The launchpad's states and hand-written frames (temper/docs/design/client/tui/launchpad.md and temper/docs/design/client/tui/theme.md).
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,
@@ -393,7 +393,10 @@ fn body(tree: &skein_ui::Tree) -> List<Box<[u8]>> {
         let end = start.checked_add(usize::try_from(region.size).unwrap()).unwrap();
         for node in &tree.nodes()[start..end] {
             if node.role == (Role::Heading { level: 1 }) || node.role == Role::Paragraph || node.role == Role::Alert {
-                result.push(f::text(tree, node)).unwrap();
+                let text = f::text(tree, node);
+                if !text.is_empty() {
+                    result.push(text).unwrap();
+                }
             }
         }
     }
@@ -470,8 +473,8 @@ fn the_launchpad_says_each_state() {
             &session,
             &ordinary,
             header,
-            &["Where you left off", "Hello   Away mode, a design session · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a design session · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "the playground running in the project",
@@ -481,12 +484,12 @@ fn the_launchpad_says_each_state() {
             &[
                 "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
                 "Where you left off",
-                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
                 "Needs you",
-                "? Hello   csv-export: comma or semicolon?",
+                "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
                 "• Hello   Held task: Held task  n walks them",
             ][..],
-            None,
+            Some(Wall::from_nanos(583 * MINUTE)),
         ),
         (
             "the playground in another project",
@@ -494,7 +497,7 @@ fn the_launchpad_says_each_state() {
             &ordinary,
             header,
             &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "the playground starting",
@@ -502,7 +505,7 @@ fn the_launchpad_says_each_state() {
             &ordinary,
             header,
             &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "needs read",
@@ -512,7 +515,7 @@ fn the_launchpad_says_each_state() {
             &[
                 "The last change landed 2 hours ago. Two things need you.",
                 "Needs you",
-                "? Hello   csv-export: comma or semicolon?",
+                "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
                 "• Hello   Held task: Held task  n walks them",
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
@@ -523,8 +526,8 @@ fn the_launchpad_says_each_state() {
             &left,
             &noted,
             header,
-            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "new brief",
@@ -532,7 +535,7 @@ fn the_launchpad_says_each_state() {
             &ordinary,
             header,
             &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "no brief",
@@ -548,8 +551,8 @@ fn the_launchpad_says_each_state() {
             &left,
             &ordinary,
             header,
-            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "left off sorts activity",
@@ -558,10 +561,10 @@ fn the_launchpad_says_each_state() {
             header,
             &[
                 "Where you left off",
-                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
-                "Hello   Older, a chat · 00:00 · waiting on you  /chats 2",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
+                "Hello   Older, a chat · today 00:00 · waiting on you  /chats 2",
             ][..],
-            None,
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         ("no live chat", &ended, &ordinary, header, &[][..], None),
         ("start address", &start, &ordinary, header, &[][..], None),
@@ -714,6 +717,7 @@ fn draw_states(failures: &mut List<&'static str>) {
         for number in 0..count {
             needs
                 .push(launchpad::NeedRow {
+                    since: None,
                     mark: match number {
                         0 => NeedMark::Question,
                         1 => NeedMark::Money,
@@ -831,6 +835,7 @@ fn the_launchpads_are_their_goldens() {
         let mut part = launchpad::read(if empty { &none } else { &root }, &tui, &f::words(), NOW);
         if !empty {
             part.needs = Box::new([launchpad::NeedRow {
+                since: Some(Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
                 project: b"Hello".as_slice().into(),
                 words: b"csv-export: comma or semicolon?".as_slice().into(),
@@ -838,21 +843,25 @@ fn the_launchpads_are_their_goldens() {
             if size.columns == 110 {
                 part.needs = Box::new([
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Question,
                         project: b"Hello".as_slice().into(),
                         words: b"csv-export: comma or semicolon?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Money,
                         project: b"Demo".as_slice().into(),
                         words: b"Porter: raise its weekly budget?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::SignOff,
                         project: b"Hello".as_slice().into(),
                         words: b"Monthly totals: ready for review".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Other,
                         project: b"Demo".as_slice().into(),
                         words: b"Proposal: review the new way".as_slice().into(),
@@ -909,6 +918,7 @@ fn rows_keep_their_hint_in_the_room() {
         let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
         part.left_off.get_mut(0).unwrap().title = title.as_bytes().into();
         part.needs = Box::new([launchpad::NeedRow {
+            since: None,
             mark: NeedMark::Question,
             project: b"Demo".as_slice().into(),
             words: title.as_bytes().into(),
@@ -966,7 +976,7 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(8, b"Second", 3, false),
                 line(CHAT, b"Newest", 4, false),
             ][..],
-            &[("Newest", "00:00"), ("Second", "00:00"), ("Older", "00:00")][..],
+            &[("Newest", "today 00:00"), ("Second", "today 00:00"), ("Older", "today 00:00")][..],
         ),
         (
             "tie and bound",
@@ -976,9 +986,9 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(9, b"Higher", 2, false),
                 line(8, b"Lower", 2, false),
             ][..],
-            &[("Lower", "00:00"), ("Higher", "00:00"), ("Third", "00:00")][..],
+            &[("Lower", "today 00:00"), ("Higher", "today 00:00"), ("Third", "today 00:00")][..],
         ),
-        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "07:42")][..]),
+        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "today 07:42")][..]),
     ] {
         let root = home(None, chats);
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
@@ -1326,5 +1336,70 @@ fn surface_root(page: SurfacePage) -> Domain {
         SurfacePage::Chat => question_root(),
         SurfacePage::NoProject => f::live(Some(f::me(&[]))).0,
         SurfacePage::SignedOut => f::signed_out(),
+    }
+}
+
+#[test]
+fn needs_age_is_a_hint_cut_from_the_end_and_keeps_the_soonest_tick() {
+    let root = home_cards(Some(true), &[line(CHAT, b"Away mode", 492 * MINUTE, false)], true);
+    let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+    assert_eq!(part.needs[0].since, Some(Wall::EPOCH));
+    assert_eq!(part.tick, Some(Wall::from_nanos(583 * MINUTE)));
+    assert_eq!(part.left_off.get(0).unwrap().at.as_ref(), b"today 08:12");
+    for (columns, since, expected) in [
+        (110, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked 20 min ago"),
+        (110, None, "csv-export: comma or semicolon?"),
+        (69, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked…"),
+    ] {
+        let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        part.needs = Box::new([launchpad::NeedRow {
+            mark: NeedMark::Question,
+            project: b"Hello".as_slice().into(),
+            words: b"csv-export: comma or semicolon?".as_slice().into(),
+            since,
+        }]);
+        let view = draw(part, columns, 1);
+        let mut line = None;
+        let mut age_hint = false;
+        for node in view.tree().nodes() {
+            if node.role == Role::Description && line.is_none() {
+                line = Some(f::text(view.tree(), node));
+            }
+            if node.styles.as_slice() == [look::HINT]
+                && f::text(view.tree(), node).as_ref() == b" \xc2\xb7 asked 20 min ago"
+            {
+                age_hint = true;
+            }
+        }
+        let line = line.unwrap();
+        assert!(skein_lib::bytes::find(&line, expected.as_bytes()).is_some(), "{line:?}");
+        assert_eq!(age_hint, since.is_some() && columns == 110);
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the frame assertion locates the header's bottom and the next drawn section"
+)]
+fn the_headers_frame_has_one_blank_row_before_a_section_or_note() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let root = home(None, &[]);
+    for section in [true, false] {
+        let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        if !section {
+            part.project = None;
+            part.notes.lines = Box::new([b"A note".as_slice().into()]);
+        }
+        let view = draw(part, 80, 0);
+        let size = Size { columns: 80, rows: 24 };
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
+        let printed = frame.print();
+        let printed = core::str::from_utf8(&printed).unwrap();
+        let mut lines = printed.lines();
+        assert!(lines.find(|line| line.starts_with('╰')).is_some());
+        assert_eq!(lines.next().unwrap().trim(), "");
+        assert_eq!(lines.next().unwrap().trim(), if section { "Start" } else { "A note" });
     }
 }
