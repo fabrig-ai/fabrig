@@ -2241,7 +2241,8 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     assert!(domain.forge.project_landing(
         1,
         forge_change::Way::Turn,
-        Box::new([]), temper_engine_domain_forge_landing::Project::DEFAULT,
+        Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,

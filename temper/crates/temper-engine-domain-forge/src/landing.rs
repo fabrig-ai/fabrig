@@ -14,7 +14,8 @@ use temper_engine_domain_forge_landing as policy;
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
-type ProjectLanding = (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>, Option<Box<[u8]>>, policy::Project);
+type ProjectLanding =
+    (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>, Option<Box<[u8]>>, policy::Project);
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
@@ -69,8 +70,19 @@ enum Stage {
     Pull(u16),
     Reviews(u16, u32),
     Collect,
-    Run { key: ReceiptKey, pages: u32 },
-    Tree { member: u16, gate: u16, candidate: api::Commit, object: api::Commit, page: u32, main: bool, reading_base: bool },
+    Run {
+        key: ReceiptKey,
+        pages: u32,
+    },
+    Tree {
+        member: u16,
+        gate: u16,
+        candidate: api::Commit,
+        object: api::Commit,
+        page: u32,
+        main: bool,
+        reading_base: bool,
+    },
 }
 fn slots(l: &Limits) -> Option<u32> {
     l.landings.checked_mul(l.landing_members)?.checked_mul(l.gates)
@@ -1214,7 +1226,14 @@ fn advance(
             let entries = core::mem::replace(&mut p.entries, List::with_capacity(env.limits.key_entries));
             let count = p.trees.len().saturating_add(p.base_trees.len());
             if count == env.limits.trees_in_flight {
-                crate::refusal::limit(out, p.task, repo, "forge.trees_in_flight", env.limits.trees_in_flight, u64::from(count).saturating_add(1));
+                crate::refusal::limit(
+                    out,
+                    p.task,
+                    repo,
+                    "forge.trees_in_flight",
+                    env.limits.trees_in_flight,
+                    u64::from(count).saturating_add(1),
+                );
                 return;
             }
             let trees = if reading_base { &mut p.base_trees } else { &mut p.trees };
@@ -1242,8 +1261,12 @@ fn advance(
                 &policy::KeyLimits { entries: env.limits.key_entries, path_bytes: env.limits.key_path_bytes },
             );
             let mut reading_base = false;
-            if configured.base && let policy::Keyed::Key(_) = keyed {
-                let base = if main { candidate } else {
+            if configured.base
+                && let policy::Keyed::Key(_) = keyed
+            {
+                let base = if main {
+                    candidate
+                } else {
                     row.landing.members.get(usize::from(member)).expect("member").base.expect("prepared base")
                 };
                 keyed = policy::key(
@@ -1274,7 +1297,21 @@ fn advance(
                         p.stage = Stage::Collect;
                         collect(d, env, owner, p, out);
                     } else {
-                        d.landing.keys.insert((p.task, member, gate), (candidate, if configured.base { row.landing.members.get(usize::from(member)).expect("member").base } else { None }, key)).expect("bounded landing gates");
+                        d.landing
+                            .keys
+                            .insert(
+                                (p.task, member, gate),
+                                (
+                                    candidate,
+                                    if configured.base {
+                                        row.landing.members.get(usize::from(member)).expect("member").base
+                                    } else {
+                                        None
+                                    },
+                                    key,
+                                ),
+                            )
+                            .expect("bounded landing gates");
                         emit(
                             out,
                             Request::LandingDecision {
@@ -1394,7 +1431,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             let fact = fact.gates.get_mut(usize::from(number)).expect("gate fact");
             let candidate = member.candidate.unwrap_or([0; 32]);
             fact.key = match d.landing.keys.get(&(p.task, position, number)) {
-                Some((tip, base, key)) if *tip == candidate && *base == if gate.base { member.base } else { None } => Some(*key),
+                Some((tip, base, key)) if *tip == candidate && *base == if gate.base { member.base } else { None } => {
+                    Some(*key)
+                }
                 Some(_) | None => None,
             };
             if let Some(key) = proof_key(member.gates.get(usize::from(number)).expect("gate proof").proof).or(fact.key)
@@ -1427,10 +1466,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         first: first == Some(p.task),
         released: p.heard.released,
     };
+    let project = match d.landing.projects.get(&row.landing.project) {
+        Some((_, _, _, _, _, settings)) => *settings,
+        None => policy::Project::DEFAULT,
+    };
     let stepped = policy::step(
         &row.landing,
         &facts,
-        &d.landing.projects.get(&row.landing.project).expect("configured project").5,
+        &project,
         &policy::Limits {
             members: env.limits.landing_members,
             gates: env.limits.gates,
@@ -1503,7 +1546,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Key { member, gate, candidate } => {
             let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
-            p.stage = Stage::Tree { member, gate, candidate, object: candidate, page: 1, main: false, reading_base: false };
+            p.stage =
+                Stage::Tree { member, gate, candidate, object: candidate, page: 1, main: false, reading_base: false };
             save(d, row, out);
             ask(d, env, owner, p, repo, api::Read::Tree { object: candidate, page: 1 }, out);
             return;
@@ -1660,13 +1704,14 @@ fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, att
 }
 pub(crate) fn inputs(candidate: api::Commit, key: policy::Key, base: Option<api::Commit>) -> Box<[api::Input]> {
     let mut inputs = List::with_capacity(u32::try_from(api::INPUTS).expect("forge input bound"));
-    inputs.push(api::Input {
-        name: Box::from(b"temper_commit".as_slice()),
-        value: commit_hex(candidate),
-    }).expect("commit input");
+    inputs
+        .push(api::Input { name: Box::from(b"temper_commit".as_slice()), value: commit_hex(candidate) })
+        .expect("commit input");
     inputs.push(api::Input { name: Box::from(b"temper_key".as_slice()), value: hex(&key) }).expect("key input");
     if let Some(base) = base {
-        inputs.push(api::Input { name: Box::from(b"temper_base".as_slice()), value: commit_hex(base) }).expect("base input");
+        inputs
+            .push(api::Input { name: Box::from(b"temper_base".as_slice()), value: commit_hex(base) })
+            .expect("base input");
     }
     inputs.into_boxed()
 }

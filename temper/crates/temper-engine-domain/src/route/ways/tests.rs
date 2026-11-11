@@ -127,7 +127,8 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 span: None,
                 description: b"the slow suites".as_slice().into(),
             }]),
-        }]), temper_engine_domain_forge_landing::Project::DEFAULT,
+        }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 1,

@@ -11,7 +11,7 @@ fn gate() -> Gate {
         workflow: copy_of(b"gate.yml"),
         ignored: Box::new([copy_of(b"docs")]),
         blocking: true,
-                        base: false,
+        base: false,
     }
 }
 fn tree(object: u8, pairs: &[(&[u8], u8)]) -> Tree {
@@ -116,7 +116,10 @@ fn the_encoding_is_landing_6_1s() {
     bytes.put(&[3; 32]).expect("first object");
     bytes.put(&[0, 1, b'b', 0, 0, 0x81, 0xa4]).expect("second entry");
     bytes.put(&[4; 32]).expect("second object");
-    assert_eq!(key(REPOSITORY, b"gate", b"defn", &[], ROOT, &trees, None, &LIMITS), Keyed::Key(digest(&bytes.finish())));
+    assert_eq!(
+        key(REPOSITORY, b"gate", b"defn", &[], ROOT, &trees, None, &LIMITS),
+        Keyed::Key(digest(&bytes.finish()))
+    );
 }
 #[test]
 fn a_filtered_tree_past_its_limits_is_too_large() {
@@ -171,7 +174,10 @@ fn ignored_paths_do_not_consume_the_filtered_paths_budget() {
     let empty = tree(2, &[(b"README.md", 3)]);
     let limits = KeyLimits { entries: 0, path_bytes: 0 };
     let expected = key(REPOSITORY, b"gate", b"definition", &[], ROOT, &[tree(1, &[])], None, &limits);
-    assert_eq!(key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs")], ROOT, &[root.clone()], None, &limits), expected);
+    assert_eq!(
+        key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs")], ROOT, &[root.clone()], None, &limits),
+        expected
+    );
     assert_eq!(
         key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs/README.md")], ROOT, &[root, empty], None, &limits),
         expected
@@ -203,7 +209,7 @@ fn version_two_counts_and_encodes_the_filtered_base_before_the_candidate() {
     let mut base_root = tree(2, &[(b"dir", 3)]);
     directory(&mut base_root, 0);
     let base = [base_root, tree(3, &[(b"ignored", 4), (b"a", 5)])];
-    let mut bytes = Writer::new(117);
+    let mut bytes = Writer::new(115);
     bytes.put(&[2]).expect("version");
     bytes.put(&1_u64.to_be_bytes()).expect("forge");
     bytes.put(&2_u64.to_be_bytes()).expect("repository");
@@ -214,7 +220,16 @@ fn version_two_counts_and_encodes_the_filtered_base_before_the_candidate() {
     bytes.put(b"\0\x01z\0\0\x81\xa4").expect("candidate entry");
     bytes.put(&[9; 32]).expect("candidate object");
     assert_eq!(
-        key(REPOSITORY, b"gate", b"defn", &[copy_of(b"dir/ignored")], ROOT, &candidate, Some(([2; 32], &base)), &LIMITS),
+        key(
+            REPOSITORY,
+            b"gate",
+            b"defn",
+            &[copy_of(b"dir/ignored")],
+            ROOT,
+            &candidate,
+            Some(([2; 32], &base)),
+            &LIMITS
+        ),
         Keyed::Key(digest(&bytes.finish()))
     );
 }
@@ -228,8 +243,22 @@ fn base_keys_depend_on_the_filtered_tree_not_the_base_commit() {
     let mut gate = gate();
     gate.base = true;
     let definition = definition(&gate);
-    let keyed = |commit, trees| complete(key(REPOSITORY, &gate.name, &definition, &gate.ignored, ROOT, &candidate, Some((commit, trees)), &LIMITS));
+    let keyed = |commit, trees| {
+        complete(key(
+            REPOSITORY,
+            &gate.name,
+            &definition,
+            &gate.ignored,
+            ROOT,
+            &candidate,
+            Some((commit, trees)),
+            &LIMITS,
+        ))
+    };
     assert_eq!(keyed([2; 32], &first), keyed([5; 32], &equal));
     assert_ne!(keyed([2; 32], &first), keyed([7; 32], &changed));
-    assert_eq!(key(REPOSITORY, &gate.name, &definition, &gate.ignored, ROOT, &candidate, Some(([2; 32], &[])), &LIMITS), Keyed::Need([2; 32]));
+    assert_eq!(
+        key(REPOSITORY, &gate.name, &definition, &gate.ignored, ROOT, &candidate, Some(([2; 32], &[])), &LIMITS),
+        Keyed::Need([2; 32])
+    );
 }

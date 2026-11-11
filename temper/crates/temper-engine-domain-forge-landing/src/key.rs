@@ -20,7 +20,7 @@ pub enum EntryKind {
     Tree,
     Commit,
 }
-/// A whole tree: root named by candidate, directories by their own ids.
+/// A whole tree: root named by its commit, directories by their own ids.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tree {
     pub object: Commit,
@@ -82,7 +82,8 @@ enum Pending {
     Entry { mode: u32, object: Commit },
 }
 
-/// Hash a filtered tree, requesting the first missing tree in path order.
+/// Hash the candidate and optional base filtered trees, requesting missing trees
+/// in path order (domain/landing.md, 6.1).
 #[must_use]
 #[expect(clippy::too_many_arguments, reason = "a base tree is optional beside the candidate tree and key identity")]
 pub fn key(

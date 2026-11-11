@@ -658,8 +658,8 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                                gate_retries: 2,
+                                gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                                 check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
@@ -680,7 +680,7 @@ impl World {
                                             workflow: b"gate.yml".as_slice().into(),
                                             ignored: Box::new([b"docs".as_slice().into()]),
                                             blocking: true,
-                        base: false,
+                                            base: false,
                                         }])
                                     } else {
                                         Box::new([])
@@ -1275,8 +1275,8 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                        gate_retries: 2,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         check_timeout: bound,
                         by: engine::Way::Queue,
                         merge_job: None,
@@ -1307,8 +1307,8 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                        gate_retries: 2,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         check_timeout: None,
                         close_job: None,
                         merge_job: Some(command.into()),
@@ -1356,8 +1356,8 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+            gate_retries: 2,
+            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
             check_timeout: None,
             by: engine::Way::Queue,
             merge_job: None,

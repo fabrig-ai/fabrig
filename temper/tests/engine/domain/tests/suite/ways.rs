@@ -380,8 +380,8 @@ fn view_driver() -> (Driver, engine::Assignment) {
         .insert(
             PROJECT,
             engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                gate_retries: 2,
+                gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                 check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,
@@ -757,8 +757,8 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 .insert(
                     PROJECT,
                     engine::ProjectLanding {
-                    gate_retries: 2,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                        gate_retries: 2,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         check_timeout: None,
                         by: engine::Way::Queue,
                         close_job: None,

@@ -461,10 +461,10 @@ fn project_landing(
     let check_timeout = optional_check_timeout(object, document, path, problems);
     let gate_retries = optional_integer(object, document, b"gate_retries", 2, u64::from(u8::MAX), path, problems);
     let gate_timeout = optional_integer(object, document, b"gate_timeout_ms", 3_600_000, 86_400_000, path, problems);
-    if let Some(value) = gate_timeout {
-        if value < 60_000 {
-            problems.push(path.member(b"gate_timeout_ms"), What::Jig(config::What::Bound));
-        }
+    if let Some(value) = gate_timeout
+        && value < 60_000
+    {
+        problems.push(path.member(b"gate_timeout_ms"), What::Jig(config::What::Bound));
     }
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);

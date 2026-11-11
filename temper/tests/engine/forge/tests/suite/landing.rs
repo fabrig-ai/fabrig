@@ -215,7 +215,7 @@ fn a_failed_dispatch_still_expires_after_restart() {
                 workflow: Box::from(b"missing.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
-                        base: false,
+                base: false,
             }]),
         }]),
     ));
@@ -316,4 +316,88 @@ fn a_landing_is_read_through_its_watch_while_it_proves_and_after_it_lands() {
             assert_eq!(view.landings[0].task, LANDING);
         }
     }
+}
+
+#[test]
+fn a_moving_base_reruns_only_the_gate_that_reads_it() {
+    let mut world = landings::turn_world();
+    let gate = landing::Gate {
+        name: b"gate".as_slice().into(),
+        workflow: b"gate.yml".as_slice().into(),
+        ignored: Box::new([b"docs".as_slice().into()]),
+        blocking: true,
+        base: false,
+    };
+    assert!(world.project_landing(
+        landings::PROJECT,
+        change::Way::Turn,
+        Box::new([top::RepositoryGates {
+            repository: REPO,
+            gates: Box::new([gate.clone(), landing::Gate { name: b"base".as_slice().into(), base: true, ..gate }]),
+            tiers: Box::new([]),
+        }])
+    ));
+    world.produce(b"temper/51");
+    let base = translate::commit(world.branch(b"main"));
+    landings::ready_change(&mut world, CHANGE, b"temper/51");
+    let mut row = landings::landing_row(world.change(CHANGE));
+    let proof = row.landing.members[0].gates[0];
+    row.landing.members[0].gates = Box::new([proof, proof]);
+    world.event(top::Event::Landing { row });
+    for position in 0..40 {
+        let entry = 100 + position * 2;
+        landings::step_landing(&mut world, LANDING, entry);
+        temper_engine_forge_world::changes::change_step_task(
+            &mut world,
+            CHANGE,
+            entry + 1,
+            change::Status::Passed,
+            Box::new([]),
+            false,
+            false,
+        );
+        if world.landing(LANDING).landing.members[0]
+            .gates
+            .iter()
+            .all(|gate| matches!(gate.proof, landing::Proof::Passed { .. }))
+        {
+            break;
+        }
+    }
+    let first = world.landing(LANDING).landing.members[0].gates.clone();
+    assert!(first.iter().all(|gate| matches!(gate.proof, landing::Proof::Passed { .. })));
+    let initial = runs(&world);
+    assert_eq!(initial.len(), 2);
+    assert_eq!(
+        initial
+            .iter()
+            .filter(|run| run
+                .inputs
+                .iter()
+                .any(|(name, value)| name.as_ref() == b"temper_base" && *value == hex(&base[..20])))
+            .count(),
+        1
+    );
+    assert_eq!(initial.iter().filter(|run| run.inputs.len() == 2).count(), 1);
+    // Main takes the member's content independently: preparing it again changes
+    // its ancestry and base, but not its filtered candidate tree.
+    world.push_file(b"main", b"file", b"change");
+    let next_base = translate::commit(world.branch(b"main"));
+    assert_ne!(base, next_base);
+    world.restart();
+    landings::drive_landing(&mut world, LANDING);
+    let member = &world.landing(LANDING).landing.members[0];
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+    assert_eq!(member.base, Some(next_base));
+    assert_eq!(member.gates[0].proof, first[0].proof, "the non-base receipt holds");
+    assert_ne!(member.gates[1].proof, first[1].proof, "the base key moves");
+    let final_runs = runs(&world);
+    assert_eq!(
+        world.take_calls().iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
+        3
+    );
+    assert!(final_runs.iter().any(|run| !initial.iter().any(|old| old.id == run.id)), "a new run was made");
+    assert!(final_runs.iter().any(|run| {
+        run.inputs.iter().any(|(name, value)| name.as_ref() == b"temper_base" && *value == hex(&next_base[..20]))
+    }));
 }

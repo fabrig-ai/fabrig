@@ -30,6 +30,7 @@ pub struct Gate {
     /// Path prefixes of whole segments, never patterns.
     pub ignored: Box<[Box<[u8]>]>,
     pub blocking: bool,
+    /// Include the round’s base in the key and dispatch inputs.
     pub base: bool,
 }
 

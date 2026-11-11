@@ -757,7 +757,7 @@ fn maximal_proofs(d: &mut Domain) {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
-                        base: false,
+                base: false,
             })
             .expect("gate");
         d.landing

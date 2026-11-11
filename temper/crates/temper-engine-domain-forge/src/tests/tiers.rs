@@ -50,7 +50,8 @@ fn restoring_following(follows: Follows) -> Domain {
                 span: None,
                 description: Box::default(),
             }])
-        }]), temper_engine_domain_forge_landing::Project::DEFAULT,
+        }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: p::Settings { retries: RETRIES, suspects: p::Suspects::Bisect },
             bound: Duration::from_secs(7200)
