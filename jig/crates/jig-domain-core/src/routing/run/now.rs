@@ -183,7 +183,7 @@ pub(crate) fn refused(core: &mut Core, work: &mut Queue<Work>, task: u64, why: n
         | notes::Refusal::PastEnd { .. }
         | notes::Refusal::PastBound { .. }
         | notes::Refusal::RevisionExhausted => {
-            fail(work, task, brief::GatherFate::Permanent, b"the note could not be read")
+            fail(work, task, brief::GatherFate::Permanent, b"the note could not be read");
         }
     }
 }
