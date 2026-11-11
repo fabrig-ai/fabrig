@@ -92,6 +92,11 @@ standing task's Now alone.
   root names the person, and the move's checks and effects are
   `changes.md`'s, its open questions carried, the task funded anew from
   that person's pool for the open period (`../authority.md`, section 7).
+  Where its application's inbox holds its people's answers, it asks its
+  person by a person task addressed to them (`messages.md`, 5), so the
+  application's root makes the move and addresses those person tasks to
+  the new person in one compound decision (`changes.md`, Several
+  operations, one decision); no new act.
   A move refused leaves it as it is, for the application to try again.
 
 ## 4. Its budget per period
