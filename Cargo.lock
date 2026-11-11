@@ -5100,11 +5100,20 @@ dependencies = [
 name = "temper-client-gallery"
 version = "0.0.0"
 dependencies = [
- "jig-client",
  "skein-fail-stop",
+ "skein-scratch",
+ "temper-client-gallery-tool",
+]
+
+[[package]]
+name = "temper-client-gallery-tool"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
  "skein-fake-person",
  "skein-lib",
  "skein-scratch",
+ "skein-shell",
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-web",
@@ -5114,6 +5123,7 @@ dependencies = [
  "temper-client-view",
  "temper-fixtures",
  "temper-protocol-reaches",
+ "temper-version",
 ]
 
 [[package]]

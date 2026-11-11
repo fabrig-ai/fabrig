@@ -50,7 +50,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper temper", until: "cli C2" },
     Exception { what: "temper-agent temper-agent", until: "cli C6" },
     Exception { what: "temper-client temper-client", until: "cli C3" },
-    Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
     Exception { what: "temper-twin twin", until: "cli C8" },
