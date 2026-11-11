@@ -184,7 +184,9 @@ forge, temper adds:
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the
   forge's part of the client, `client/web/README.md` the browser shell,
-  `client/web/journeys.md` its pages recorded and printed, `client/ctl/README.md`
+  `client/web/journeys.md` its pages recorded and printed,
+  `client/web/look-requests.md` the look requests' round trip,
+  `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
