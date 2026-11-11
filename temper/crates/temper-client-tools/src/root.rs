@@ -27,6 +27,7 @@ pub struct Root {
     forges: crate::forges::Forges,
     changes: crate::change::Changes,
     landings: crate::landing::Landings,
+    follows: crate::follow::Follows,
     next: Option<u32>,
     recovery: crate::recovery::Recovery,
     deadline: Option<Time>,
@@ -89,6 +90,7 @@ impl Root {
             forges: crate::forges::Forges::new(),
             changes: crate::change::Changes::new(),
             landings: crate::landing::Landings::new(),
+            follows: crate::follow::Follows::new(),
             next: Some(1),
             recovery: crate::recovery::Recovery::new(),
             deadline: None,
@@ -182,6 +184,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 .expect("bounded calls")
                 .checked_add(root.forges.calls())
                 .expect("bounded calls")
+                .checked_add(root.follows.calls())
+                .expect("bounded calls")
                 .checked_add(root.landings.calls())
                 .expect("bounded calls")
                 .checked_add(root.changes.calls())
@@ -200,6 +204,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 let called = runner::Called { number, call_number, call, json, value };
                 if crate::making::owns(&called.call) {
                     crate::making::call(&mut root.maker, &root.client, env, called, &mut child);
+                } else if crate::follow::owns(&called.call) {
+                    crate::follow::call(&mut root.follows, &root.client, env, called, &mut child);
                 } else if crate::landing::owns(&called.call) {
                     crate::landing::call(&mut root.landings, &root.client, env, called, &mut child);
                 } else if crate::change::owns(&called.call) {
@@ -458,6 +464,7 @@ fn route_owner(
                 | Told::Page { .. } => {}
             }
             crate::making::told(&mut root.maker, &root.client, env, &told, child);
+            crate::follow::told(&mut root.follows, &root.client, env, &told, child);
             crate::landing::told(&mut root.landings, &root.client, env, &told, child);
             crate::change::told(&mut root.changes, &root.client, env, &told, child);
             crate::forges::told(&mut root.forges, &root.client, env, &told, child);
@@ -467,6 +474,7 @@ fn route_owner(
     }
     if me_changed {
         crate::making::ready(&mut root.maker, &root.client, env, child);
+        crate::follow::ready(&mut root.follows, &root.client, env, child);
         crate::landing::ready(&mut root.landings, &root.client, env, child);
         crate::change::ready(&mut root.changes, &root.client, env, child);
         crate::forge::ready(&mut root.adopter, &root.client, &env.limits, child);

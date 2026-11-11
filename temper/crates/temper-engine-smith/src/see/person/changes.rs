@@ -210,6 +210,7 @@ pub(super) fn queues(
             Document::Change(_)
             | Document::Landing(_)
             | Document::Changes(_)
+            | Document::Follows(_)
             | Document::Status(_)
             | Document::Aways(_)
             | Document::Decisions(_)

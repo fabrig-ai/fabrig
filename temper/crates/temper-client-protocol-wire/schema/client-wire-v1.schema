@@ -193,7 +193,8 @@ record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject }
+record FollowsSubject { project: u32 }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, follows: FollowsSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -302,3 +303,15 @@ enum FollowStart { owner, code }
 enum FollowFormat { junit, lines }
 record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
 record Follow { source: FollowSource target: FollowTarget owner: FollowOwner start: FollowStart producer: option bytes 8192 verification: FollowCheck }
+
+# A project's follows (domain/forge/follows.md, 7).
+record FollowWords { words: bytes 8192 }
+record FollowWait { change: u64 }
+enum FollowState { not_made, waits_word, held_by_owner: FollowWords, waits_for: FollowWait, producing, held: FollowWords, ended: FollowWords }
+record FollowEntry { after: fixed 32 change: option u64 state: FollowState }
+record FollowSkip { after: fixed 32 reason: bytes 8192 }
+record FollowFailing { count: u32 }
+enum FollowVerdict { passed, failing: FollowFailing, many }
+record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
+record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
+versioned record FollowsPanel { project: u32 follows: list 256 FollowView }
