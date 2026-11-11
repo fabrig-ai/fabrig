@@ -176,7 +176,38 @@ fn a_refused_source_says_the_forges_words() {
     let words = b"Authentication failed: Clone: exit status 128 - fatal: could not read Username for 'http://127.0.0.1:3001': terminal prompts disabled\n.";
     assert_eq!(world.said(), &[(Token::new(1), words.as_slice().into(), 0)]);
     assert_eq!(marked(&world), Some([1].as_slice()));
-    assert!(world.domain().metadata(FULL).is_err());
+    assert_eq!(world.domain().metadata(FULL).expect("refused copy stays").default_branch.as_ref(), b"main");
+    assert!(world.domain().branches(FULL).is_empty());
+    assert!(world.store().is_private(u64::from(REPOSITORY)));
+}
+
+#[test]
+fn a_refused_copy_run_again_deletes_the_empty_repository_and_finishes() {
+    let mut world = world(fixtures::config());
+    copy(&mut world, 1);
+    assert_eq!(world.heard(), &[stopped(1, Why::Refused(422), Duration::ZERO)]);
+    assert_eq!(marked(&world), Some([1].as_slice()));
+    assert!(world.domain().branches(FULL).is_empty());
+    assert_eq!(world.domain().metadata(FULL).expect("refused copy").default_branch.as_ref(), b"main");
+    let mut config = fixture::catalogue(Fill::Whole);
+    config.repositories = skein_lib::List::with_capacity(1);
+    config.repositories.push(Repository { id: REPOSITORY, full: FULL.into(), protected: None }).expect("refused copy");
+    world.restart_forge(config);
+    copy(&mut world, 2);
+    // The world's admin token has write:organization, required by the fake's deletion route.
+    assert_eq!(world.heard().last(), Some(&copied(2, 2, Duration::ZERO)));
+    assert_eq!(routes(&world, Route::DeleteRepository), 1);
+    assert_eq!(routes(&world, Route::Migrate), 1);
+    assert_eq!(marked(&world), Some([1].as_slice()));
+    assert!(world.store().is_private(2));
+    assert!(!world.store().is_private(u64::from(REPOSITORY)));
+    assert_eq!(world.domain().metadata(FULL).expect("whole copy").default_branch.as_ref(), fixture::BRANCH);
+    assert_eq!(world.domain().branches(FULL).len(), world.domain().branches(fixture::SOURCE).len());
+    assert_eq!(world.domain().branch(FULL, fixture::BRANCH), Some(fixture::STARTER_COMMIT));
+    let object = world.domain().object(fixture::STARTER_COMMIT).expect("starter commit");
+    assert_eq!(object.parent, Some(fixture::SOURCE_COMMIT));
+    assert_eq!(object.tree.get(b"README.md".as_slice()).expect("source readme").as_ref(), fixture::README);
+    assert_eq!(object.tree.get(fixture::PATH).expect("starter file").as_ref(), fixture::CONTENT);
 }
 
 #[test]

@@ -72,6 +72,41 @@ pub fn create_repository(
     Ok(first)
 }
 
+/// Makes an empty private copy destination, without a commit, branch or fault.
+/// The protocol keeps its organization namespace and privacy; `owner` is its account.
+pub fn create_empty_repository(domain: &mut Domain, config: &Config, name: &[u8], owner: u64) -> Result<(), Error> {
+    if domain.names.contains_key(name) {
+        return Err(Error::Exists);
+    }
+    let limits = &config.limits;
+    fits(name, limits.name_bytes)?;
+    fits(b"main", limits.name_bytes)?;
+    if limits.users == 0 || domain.repositories.is_full() {
+        return Err(Error::Full);
+    }
+    let mut last = 0;
+    for (_, repository) in &domain.repositories {
+        last = last.max(repository.id);
+    }
+    let id = last.checked_add(1).ok_or(Error::Full)?;
+    let checks = Checks {
+        cues: Box::new([]),
+        contexts: Box::new([]),
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        silent: 0,
+        passes: 1000,
+        reruns: 0,
+        cue: None,
+    };
+    let mut stored = Repository::empty(limits, copy_of(name), copy_of(b"main"), checks, None, false);
+    stored.id = id;
+    stored.permissions.insert(owner, crate::api::Permission::Admin).expect("owner room");
+    let slot = domain.repositories.insert(stored).expect("repository room checked");
+    domain.names.insert(copy_of(name), slot).expect("one name per repository");
+    Ok(())
+}
+
 /// Commits an absent file on an existing branch and retains both signatures.
 /// An existing path returns `Exists` without moving the branch or adding an object.
 #[expect(clippy::too_many_arguments, reason = "the contents operation carries its branch, file, message and signature")]
