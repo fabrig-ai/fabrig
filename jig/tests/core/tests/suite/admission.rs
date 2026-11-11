@@ -74,6 +74,71 @@ fn admitted_work_is_taken_at_the_watermark() {
 }
 
 #[test]
+fn a_need_arrival_waits_for_its_question_to_be_durable() {
+    let (configuration, limits) = jig_core_world::faults::plan_fixture(9405);
+    let mut driver = World::new(jig_core_world::world::Setup {
+        seed: 9405,
+        configuration: Some(configuration),
+        limits,
+        ..jig_core_world::world::Setup::default()
+    });
+    let parent = run(&driver);
+    let task = parent.0;
+    let mut member = jig_core_world::fixtures::member(&driver, tasks::Executor::Agent { charter: 1 }, b"ask parent");
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let source = jig_core_world::fixtures::delegate(&mut driver, parent, 1, member);
+    let (running, attempt) = run(&driver);
+    assert_eq!(running, source);
+    let (now, wall) = driver.clocks();
+    driver.set_clock(now, wall);
+    driver.manual = true;
+    driver.commits.clear();
+    driver.released.clear();
+    driver.offer(root::Event::Core(core::Event::NamedAction {
+        to: skein_lib::ReplyTo::new(Token::new(990)),
+        key: core::CallKey { task: source, attempt, completion: 1, position: 0 },
+        action: core::NamedAction::Message {
+            target: task,
+            kind: tasks::MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+        },
+    }));
+    driver.collect();
+    assert!(driver.released.is_empty(), "the question's outputs wait for durability");
+    assert!(
+        driver.commits.iter().flatten().any(|write| matches!(write,
+        root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
+        if row.number == task && !row.question_lines.is_empty())),
+        "the question was decided"
+    );
+    driver.commit_one();
+    driver.collect();
+    assert_eq!(
+        driver
+            .released
+            .iter()
+            .filter(|request| matches!(request,
+        root::Request::Deliver(root::Delivery::Core(core::Held::NeedArrived {
+            party: 1, project: 1, task: named, needs: 1,
+        })) if *named == task))
+            .count(),
+        ONCE
+    );
+    driver.drain();
+    assert_eq!(
+        driver
+            .released
+            .iter()
+            .filter(|request| matches!(
+                request,
+                root::Request::Deliver(root::Delivery::Core(core::Held::NeedArrived { .. }))
+            ))
+            .count(),
+        ONCE
+    );
+}
+
+#[test]
 fn a_workers_call_waits_at_the_watermark() {
     let mut driver = admission_support::chat(9402);
     let (task, attempt) = run(&driver);

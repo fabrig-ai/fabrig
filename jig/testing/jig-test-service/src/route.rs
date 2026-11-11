@@ -321,6 +321,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
                 engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
             }
         }
+        // The application's use of need arrivals is its own.
+        core::Held::NeedArrived { .. } => {}
         held @ (core::Held::Acted { .. } | core::Held::Result { .. } | core::Held::SourceSignedOut { .. }) => {
             engine.outputs.push(PartyOutput::Held(root::Delivery::Core(held)));
         }

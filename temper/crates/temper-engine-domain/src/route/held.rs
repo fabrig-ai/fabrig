@@ -16,7 +16,8 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         Err(held) => held,
     };
     match held {
-        core::Held::PublicRead { .. } => {}
+        // The application's use of need arrivals is its own.
+        core::Held::NeedArrived { .. } | core::Held::PublicRead { .. } => {}
         core::Held::PublicWait { read } => emit(decision, &env.limits, Delivery::PublicWait { read }),
         core::Held::ReadList { channel, read, endpoint, grant } => {
             emit(

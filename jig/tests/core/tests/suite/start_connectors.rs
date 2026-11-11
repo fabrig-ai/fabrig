@@ -26,6 +26,7 @@ struct Harness {
     task: u64,
     resource: tasks::Name,
     outcome: Option<core::effects::connector::OutboxOutcome>,
+    arrivals: Vec<(u64, u32, u64, u32)>,
     complete: bool,
     wires: bool,
 }
@@ -195,6 +196,7 @@ impl Harness {
             task,
             resource,
             outcome: None,
+            arrivals: Vec::new(),
             complete: false,
             wires: false,
         }
@@ -205,7 +207,7 @@ impl Harness {
         self.outputs(&mut out);
     }
 
-    fn outputs(&self, out: &mut Queue<core::Request>) {
+    fn outputs(&mut self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
                 core::Request::Write(_) | core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => {}
@@ -213,7 +215,14 @@ impl Harness {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));
                 }
-                core::Request::Ask { .. } | core::Request::Held(_) | core::Request::ProjectMade { .. } => {
+                core::Request::Held(held) => {
+                    let core::Held::NeedArrived { party, project, task, needs } = *held else {
+                        panic!("idle restored task needs no other external delivery")
+                    };
+                    assert!(self.wires, "a recovery decision follows durable Wires");
+                    self.arrivals.push((party, project, task, needs));
+                }
+                core::Request::Ask { .. } | core::Request::ProjectMade { .. } => {
                     panic!("idle restored task needs no connector ask or external delivery")
                 }
             }
@@ -417,6 +426,7 @@ fn unrecoverable_effect_holds_its_task_and_writer() {
     assert!(
         matches!(&row.phase, tasks::Phase::Held { why: tasks::Hold::Uncertain { entry: ENTRY }, source: Some(source), .. } if **source == tasks::HoldSource::Effect { connector: 1, entry: ENTRY })
     );
+    assert_eq!(started.arrivals, [(1, 1, started.task, 1)], "recovery creates a new escalation need");
     assert_eq!(started.system.calls(), 2, "an unrecoverable effect is neither looked up nor retried");
     assert_eq!(started.system.observed().iter().filter(|row| row.applied).count(), 1);
 }

@@ -374,6 +374,9 @@ pub enum Held {
     PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
     /// Recheck a public read after preceding commits (jig/docs/design/domain/people/public-reading.md, 10).
     PublicWait { read: Token },
+    /// A task-derived need reached this party, released after its decision is durable
+    /// (domain/people/README.md, section 8). The application's use is its own.
+    NeedArrived { party: u64, project: u32, task: u64, needs: u32 },
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract/README.md`, 5.2).

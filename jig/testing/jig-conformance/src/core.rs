@@ -902,7 +902,9 @@ impl Observer {
                 requires.push(r::Receipt::Ended(*task));
                 self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) });
             }
-            core::Held::Acted { .. }
+            // The application's use of need arrivals is its own.
+            core::Held::NeedArrived { .. }
+            | core::Held::Acted { .. }
             | core::Held::Drained
             | core::Held::Load(_)
             | core::Held::ApplicationDelivery { .. }
