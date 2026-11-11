@@ -128,7 +128,7 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
     };
     let chromium = CHROMIUM.value(environment).map(OsStr::from_bytes)
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
-    let chromium = fs::canonicalize(&chromium)
+    let chromium = fs::canonicalize(chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
