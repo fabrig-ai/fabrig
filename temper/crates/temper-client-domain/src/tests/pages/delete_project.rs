@@ -94,7 +94,7 @@ fn deleting_sends_the_helper_ask_once_and_waits_for_removed_before_showing_all_h
     assert!(f.out.is_empty());
 }
 #[test]
-fn a_refused_deletion_keeps_the_sheet_and_retries_under_the_same_key() {
+fn a_refused_deletion_keeps_the_sheet_and_retries_under_a_new_key() {
     let mut f = fixture();
     open(&mut f);
     act(&mut f, Act::Confirm);
@@ -106,9 +106,32 @@ fn a_refused_deletion_keeps_the_sheet_and_retries_under_the_same_key() {
     assert_eq!(sheet.failed, Some(Outcome::Answered(jig_client::Answered::Jig(refused))));
     assert!(f.out.is_empty());
     act(&mut f, Act::Confirm);
-    assert_eq!(sent(&mut f), key);
+    assert_ne!(sent(&mut f), key);
     assert_eq!(f.pages.deleting_project().unwrap().failed, None);
 }
+#[test]
+fn live_tasks_refusal_retries_a_new_request_and_joins_only_the_pending_send() {
+    let mut f = fixture();
+    open(&mut f);
+    act(&mut f, Act::Confirm);
+    let first = sent(&mut f);
+    let mut tasks = List::with_capacity(1);
+    tasks.push(12).unwrap();
+    answer(&mut f, first, c::Answer::Refused { refusal: c::Refusal::LiveTasks { tasks, more: 0 }, at: None });
+    assert!(f.pages.deleting_project().unwrap().failed.is_some());
+    act(&mut f, Act::Confirm);
+    let second = sent(&mut f);
+    assert_ne!(second, first, "a kept refusal must not be replayed");
+    assert_eq!(f.pages.deleting_project().unwrap().failed, None);
+    act(&mut f, Act::Confirm);
+    assert!(f.out.is_empty(), "pending presses join the send");
+    answer(&mut f, first, c::Answer::Refused { refusal: c::Refusal::Role { held: None }, at: None });
+    assert_eq!(f.pages.deleting_project().unwrap().sent, Some(second), "old answers cannot finish the new try");
+    answer(&mut f, second, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: 1 })));
+    assert!(f.pages.deleting_project().is_none());
+    assert_eq!(f.out.pop(), Some(Request::Show { address: Address::AllHome }));
+}
+
 #[test]
 fn a_project_that_left_me_closes_without_sending() {
     let mut f = fixture();
