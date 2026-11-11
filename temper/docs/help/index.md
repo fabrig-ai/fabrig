@@ -96,6 +96,8 @@ temper runs software work for people: agents take tasks on the repositories of a
 
 ## The recipes
 
+- temper help review-before-landing: require a person's forge approval, keeping
+  the agent review.
 - temper help weekly-budget: a project's spend capped each week, and
   renewed.
 

@@ -227,6 +227,26 @@ fn configure_example_preserves_stock_landing_gate() {
 }
 
 #[test]
+fn review_recipe_changes_only_approvals() {
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let command = page
+        .text
+        .lines()
+        .find(|line| line.starts_with("temper ctl DIR settings show ") && line.contains(" | jq "))
+        .expect("read and edit the whole rule");
+    let expression = command
+        .strip_prefix("temper ctl DIR settings show landing-rule 1 --project PROJECT --json | jq '")
+        .and_then(|line| line.strip_suffix("' > FILE"))
+        .expect("read project rule 1 as JSON");
+    let approvals = expression
+        .strip_prefix("{items: [{setting: .setting, set: (.value | .approvals = ")
+        .and_then(|value| value.strip_suffix(")}]}"))
+        .expect("preserve the selector and whole value, assigning only approvals");
+    let approvals: serde_json::Value = serde_json::from_str(approvals).expect("one approval");
+    assert_eq!(approvals, serde_json::json!([{"role": 1, "people": 1, "freshness": "exact"}]));
+}
+
+#[test]
 fn policy_help_allows_other_settings_beside_a_set() {
     for name in [b"configure".as_slice(), b"settings-fields"] {
         let page = temper_docs::find(name).expect("policy help");
