@@ -435,9 +435,12 @@ static HOLDS: [Holds; samples::N] = [
                 section: "Drafts · 2",
                 from: &[
                     "draftread-barriers.md · a chat with you · 07:21",
-                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                    "draft · witness-catch-up.md · landed in docs/design/draft/ · ready since Friday 14:10",
                 ],
             },
+            Part::Named { role: Role::Button, name: "Start a goal: Draft first" },
+            Part::Named { role: Role::Button, name: "Another way" },
+            Part::Text { text: "vsr’s way" },
             Part::Named { role: Role::Region, name: "Landed this week · 4" },
             Part::CardChanges {
                 title: "membership-handoff",
@@ -494,9 +497,12 @@ static HOLDS: [Holds; samples::N] = [
                 section: "Drafts · 2",
                 from: &[
                     "draftread-barriers.md · a chat with you · 07:21",
-                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                    "draft · witness-catch-up.md · landed in docs/design/draft/ · ready since Friday 14:10",
                 ],
             },
+            Part::Named { role: Role::Button, name: "Start a goal: Draft first" },
+            Part::Named { role: Role::Button, name: "Another way" },
+            Part::Text { text: "vsr’s way" },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
             Part::Absent { role: Role::Region, name: "Landed this week · 4" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
