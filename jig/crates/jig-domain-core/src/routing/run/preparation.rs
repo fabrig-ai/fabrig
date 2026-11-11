@@ -337,9 +337,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
         return super::results::begin(core, work, task, ids);
     }
     if core.notes.busy() {
-        core.pending_note_briefs
-            .insert(task, crate::routing::NoteBrief::Operation)
-            .expect("brief count bounds waiting notes");
+        crate::routing::effect::note::wait_for_notes(core, work, task, crate::routing::NoteBrief::Operation);
         return out;
     }
     if super::preferences::gather(core, env, work, task) {
