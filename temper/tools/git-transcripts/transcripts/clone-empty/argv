@@ -26,10 +26,10 @@ merge.conflictStyle=merge
 -c
 submodule.recurse=false
 clone
---no-checkout
+--bare
+--single-branch
 --no-tags
---origin
-origin
+--quiet
 --
 http://127.0.0.1:3000/fixture/empty.git
-empty
+new-2

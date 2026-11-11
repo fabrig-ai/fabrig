@@ -4,18 +4,21 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
+mod objects;
+use objects::{Alternates, Make, Store};
 
 #[derive(Debug)]
 pub(crate) struct Directories {
     pub keep: bool,
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
+    pub stores: Option<Fd>,
     pub serial: u64,
     pub failures: u64,
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories { keep: false, trash: None, workspaces: None, serial, failures: 0 }
+        Directories { keep: false, trash: None, workspaces: None, stores: None, serial, failures: 0 }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -31,7 +34,9 @@ pub(crate) struct Task {
 #[derive(Debug)]
 pub(crate) enum Phase {
     Layout(Layout),
-    Make { workspace: Box<[u8]>, creating: bool },
+    Make(Make),
+    Store(Store),
+    Alternates(Alternates),
     Scan(Scan),
     Sweep(Sweep),
     Closing,
@@ -42,6 +47,9 @@ pub(crate) enum Layout {
     OpenTrash,
     Workspaces,
     Home,
+    Stores,
+    NewStores,
+    OpenStores,
     NewWorkspaces,
     NewHome,
     OpenWorkspaces,
@@ -117,11 +125,17 @@ impl Task {
     pub fn layout() -> Task {
         Task { pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
     }
-    pub fn make(workspace: Token) -> Task {
-        Task {
-            pending: Token::new(0),
-            phase: Phase::Make { workspace: Box::from(Decimal::of(workspace.raw()).as_bytes()), creating: false },
-        }
+    pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
+    }
+    pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>, dirs: &mut Directories) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote, dirs)) }
+    }
+    pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Store(Store::install(store, directory, done)) }
+    }
+    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Alternates(Alternates::new(at, store, remote)) }
     }
     pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>) -> Task {
         let marked = List::with_capacity(u32::try_from(files.len()).expect("validated conflict count"));
@@ -158,9 +172,9 @@ impl Task {
     pub fn first(&mut self, dirs: &mut Directories, settings: &Settings) -> Action {
         match &mut self.phase {
             Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
-            Phase::Make { workspace, .. } => {
-                Action::Run(dirs.rename(dirs.workspaces.expect("layout"), workspace.clone()))
-            }
+            Phase::Make(make) => make.first(dirs),
+            Phase::Store(store) => store.first(dirs),
+            Phase::Alternates(alternates) => alternates.first(settings),
             Phase::Scan(scan) => scan.next(settings),
             Phase::Sweep(_) => Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
             Phase::Closing => closing(dirs),
@@ -179,17 +193,9 @@ impl Task {
                 let action = layout(stage, complete.result, dirs, settings);
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }
             }
-            Phase::Make { workspace, creating } => {
-                let accepted = complete.result.is_ok() || (!*creating && complete.result == Err(Error::NotFound));
-                if !accepted {
-                    return Action::Operation(Next::End(git::Done::Failed { fault: git::Fault::Broken }));
-                }
-                if *creating || stop {
-                    return Action::Operation(Next::End(git::Done::Succeeded));
-                }
-                *creating = true;
-                Action::Run(mkdir(dirs.workspaces.expect("layout"), workspace))
-            }
+            Phase::Make(make) => make.complete(complete.result, dirs, settings, stop),
+            Phase::Store(store) => store.complete(complete.result, dirs, stop),
+            Phase::Alternates(alternates) => alternates.complete(complete.result, stop),
             Phase::Scan(scan) => scan.complete(complete, settings, limits, stop),
             Phase::Sweep(sweep) => sweep.complete(complete, dirs, settings, limits, stop),
             Phase::Closing => closing(dirs),
@@ -197,6 +203,9 @@ impl Task {
     }
 }
 fn closing(dirs: &mut Directories) -> Action {
+    if let Some(fd) = dirs.stores.take() {
+        return close(fd);
+    }
     if let Some(fd) = dirs.workspaces.take() {
         return close(fd);
     }
@@ -213,9 +222,9 @@ fn layout(
 ) -> Action {
     let allowed = match stage {
         Layout::Trash => result == Err(Error::Exists),
-        Layout::Workspaces | Layout::Home => result == Err(Error::NotFound),
-        Layout::NewWorkspaces => dirs.keep && result == Err(Error::Exists),
-        Layout::OpenTrash | Layout::NewHome | Layout::OpenWorkspaces => false,
+        Layout::Workspaces | Layout::Stores | Layout::Home => result == Err(Error::NotFound),
+        Layout::NewWorkspaces | Layout::NewStores => dirs.keep && result == Err(Error::Exists),
+        Layout::OpenTrash | Layout::NewHome | Layout::OpenWorkspaces | Layout::OpenStores => false,
     };
     if let Err(error) = result
         && !allowed
@@ -232,14 +241,20 @@ fn layout(
                 (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
             }
         }
-        Layout::Workspaces => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
+        Layout::Workspaces => (Layout::Stores, dirs.rename(settings.root, Box::from(&b"stores"[..]))),
+        Layout::Stores => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),
-        Layout::NewWorkspaces => (Layout::NewHome, mkdir(settings.root, b"home")),
+        Layout::NewWorkspaces => (Layout::NewStores, mkdir(settings.root, b"stores")),
+        Layout::NewStores => (Layout::NewHome, mkdir(settings.root, b"home")),
         Layout::NewHome => {
             (Layout::OpenWorkspaces, open(settings.root, Box::from(&b"workspaces"[..]), OpenHow::DirectoryNoFollow))
         }
         Layout::OpenWorkspaces => {
             dirs.workspaces = Some(fd(result).expect("successful open"));
+            (Layout::OpenStores, open(settings.root, Box::from(&b"stores"[..]), OpenHow::DirectoryNoFollow))
+        }
+        Layout::OpenStores => {
+            dirs.stores = Some(fd(result).expect("successful open"));
             return Action::Layout(Ok(()));
         }
     };
