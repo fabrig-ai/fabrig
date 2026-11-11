@@ -565,7 +565,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         (Address::NewChat { draft: false }, "Work"),
         (Address::Chat { task: 9 }, "Work"),
         (Address::Task { task: 9 }, "Work"),
-        (Address::Team { project: f::PROJECT }, "Team"),
+        (Address::Team { project: f::PROJECT, role: None }, "Team"),
+        (Address::Team { project: f::PROJECT, role: Some(52) }, "Team"),
         (Address::Settings { project: f::PROJECT }, "How work runs"),
         (Address::Role { project: f::PROJECT, charter: 2 }, "How work runs"),
         (Address::Rule { project: f::PROJECT, kind: 2, number: 1 }, "How work runs"),
@@ -1024,7 +1025,10 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
         ),
     ] {
         if let Some(people) = people {
-            f::root_event(&mut root, Event::Went { place: d::Place::Address(Address::Team { project: f::PROJECT }) });
+            f::root_event(
+                &mut root,
+                Event::Went { place: d::Place::Address(Address::Team { project: f::PROJECT, role: None }) },
+            );
             with_people(&mut root, people);
         }
         let view = f::page_view(&root);

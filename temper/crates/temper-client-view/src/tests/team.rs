@@ -33,7 +33,10 @@ fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str,
             people: List::from_boxed(people.into_boxed_slice()),
             cut,
             triager: None,
-            standing_roles: None,
+            roles: List::with_capacity(0),
+            roles_cut: false,
+            selected: None,
+            card: None,
         }),
         lede: Some(lede),
         unreadable: false,
@@ -187,7 +190,15 @@ fn team_draws_what_it_shows() {
     for w in [f::browser_words(), f::words()] {
         for row in &rows {
             let mut b = Builder::new(&f::tree_limits());
-            draw(&mut b, &w, b"shop", &row.shown);
+            draw(
+                &mut b,
+                &w,
+                b"shop",
+                &row.shown,
+                7,
+                &mut crate::frame::Bindings::new(64),
+                &mut crate::words::Times::new(skein_lib::Wall::EPOCH),
+            );
             let tree = b.finish();
             let nodes = tree.nodes();
             for (role, name) in [
@@ -285,5 +296,129 @@ fn team_draws_what_it_shows() {
                 );
             }
         }
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "both phrasebooks draw the row, head, controls and Now without empty parts")]
+fn team_draws_a_standing_roles_row_head_and_now() {
+    use crate::{frame::Bindings, words::Times};
+    use skein_lib::Wall;
+    use temper_client_domain::{
+        Action, Address,
+        pages::{Act, team},
+    };
+    // The gallery's role dates, 2 November and 8 November at 02:41 UTC.
+    let made = Wall::from_nanos(1_793_577_600_000_000_000);
+    let changed = Wall::from_nanos(1_794_105_660_000_000_000);
+    for w in [f::browser_words(), f::words()] {
+        let facts = Facts {
+            people: List::with_capacity(0),
+            cut: false,
+            triager: None,
+            roles: List::from_boxed(Box::new([team::Role {
+                task: 52,
+                name: b"Prover".as_slice().into(),
+                now: Some(b"- A finding".as_slice().into()),
+                spent: 21,
+                budget: 40,
+            }])),
+            roles_cut: true,
+            selected: Some(52),
+            card: Some(Box::new(team::Card {
+                task: 52,
+                name: b"Prover".as_slice().into(),
+                made: Some(made),
+                requester: Some(team::StartedBy::You),
+                hold: None,
+                paused: false,
+                pause: true,
+                resume: false,
+                now: Some(team::Now {
+                    body: b"- A finding\nIts next step.\n- Await a change".as_slice().into(),
+                    changed: Some(changed),
+                    cut: true,
+                }),
+            })),
+        };
+        let mut bindings = Bindings::new(f::tree_limits().bindings);
+        let mut b = Builder::new(&f::tree_limits());
+        draw(&mut b, &w, b"shop", &Shown::Read(facts.clone()), 7, &mut bindings, &mut Times::new(changed));
+        let tree = b.finish();
+        let nodes = tree.nodes();
+        for (role, said) in [
+            (Role::Heading { level: 2 }, "Standing roles"),
+            (Role::Text, "21 of 40"),
+            (Role::Paragraph, "Only the first 16 are shown."),
+            (Role::Paragraph, "A standing role · since 2 November · started by you"),
+            (Role::Button, "Pause"),
+            (Role::Paragraph, "Its Now · written at 02:41"),
+            (Role::Item, "A finding"),
+            (Role::Paragraph, "Its next step."),
+            (Role::Item, "Await a change"),
+            (Role::Paragraph, "…"),
+        ] {
+            assert_eq!(
+                nodes.iter().filter(|n| n.role == role && n.name.as_deref() == Some(said.as_bytes())).count(),
+                1,
+                "{role:?}: {said}"
+            );
+        }
+        assert_eq!(nodes.iter().filter(|n| n.styles.as_slice().contains(&look::TEAM_ROW)).count(), 1, "one role row");
+        let at = nodes.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_ROW)).unwrap();
+        let row = &nodes[at..at + usize::try_from(nodes[at].size).unwrap()];
+        let chip = row.iter().find(|n| n.role == Role::Link).unwrap();
+        assert!(chip.styles.as_slice().contains(&look::HOW_WHO_AGENT));
+        assert!(chip.states.as_slice().contains(&skein_ui::State::Current));
+        assert_eq!(
+            bindings.decode(chip.binding.unwrap().token, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Go { address: Address::Team { project: 7, role: Some(52) } }))
+        );
+        assert_eq!(
+            temper_client_domain::address::print(&Address::Team { project: 7, role: Some(52) }).as_ref(),
+            b"/projects/7/team?role=52"
+        );
+        assert!(row.iter().any(|n| n.name.as_deref() == Some(b"- A finding")));
+        let head = nodes
+            .iter()
+            .find(|n| {
+                n.role == Role::Link
+                    && !n.styles.as_slice().contains(&look::HOW_WHO_AGENT)
+                    && n.name.as_deref() == Some(b"Prover")
+            })
+            .unwrap();
+        assert_eq!(
+            bindings.decode(head.binding.unwrap().token, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Go { address: Address::Task { task: 52 } }))
+        );
+        let pause = nodes.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Pause")).unwrap();
+        assert_eq!(
+            bindings.decode(pause.binding.unwrap().token, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Pause))
+        );
+        assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&look::TEAM_RIGHT)), "no empty right column");
+        let mut unread = facts;
+        let card = unread.card.as_mut().unwrap();
+        card.now = None;
+        card.pause = false;
+        card.made = None;
+        card.requester = None;
+        let mut b = Builder::new(&f::tree_limits());
+        draw(
+            &mut b,
+            &w,
+            b"shop",
+            &Shown::Read(unread),
+            7,
+            &mut Bindings::new(f::tree_limits().bindings),
+            &mut Times::new(changed),
+        );
+        let tree = b.finish();
+        assert!(
+            !tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::TEAM_NOW)
+                || n.styles.as_slice().contains(&look::TEAM_COLUMNS)
+                || n.styles.as_slice().contains(&look::TEAM_ACTS)),
+            "unread parts have no empty frame"
+        );
     }
 }

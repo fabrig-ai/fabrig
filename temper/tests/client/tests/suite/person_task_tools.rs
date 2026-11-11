@@ -257,11 +257,10 @@ fn role_configuration() -> engine::Config {
     config
 }
 
-#[test]
-fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+pub(super) const ROLE_NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
+fn parked_role_ctl() -> (Ctl, u64) {
     use temper_client_world::front::engine_limits;
     use temper_engine_domain_world::{protocol, store::Store};
-    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
     let mut bounds = engine_limits();
     bounds.tasks.charters = 13;
     bounds.journal.run_bytes = 16_384;
@@ -307,15 +306,25 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     ctl.front.engine.answer(WORKER, task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
     ctl.front.engine.settle();
     assert!(ctl.front.engine.task(task).is_some(), "parking does not finish the role");
+    (ctl, task)
+}
+pub(super) fn parked_role() -> (Joint, u64) {
+    let (ctl, task) = parked_role_ctl();
+    (ctl.front, task)
+}
+#[test]
+fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+    let (mut ctl, task) = parked_role_ctl();
+    let attempt = ctl.front.engine.task(task).expect("parked role").attempt;
     ctl.text(&[b"task", b"message", task.to_string().as_bytes(), b"A change landed", b"--key", b"wake-role"]);
     let next = ctl.front.assignments.last().expect("standing role woken").clone();
     assert_eq!(next.task, task);
-    assert!(next.attempt > run.attempt);
+    assert!(next.attempt > attempt);
     assert!(next.sections.iter().any(|section| {
-        matches!(&section.body, engine::BriefBody::Text(text) if skein_lib::bytes::find(text, NOW.as_bytes()).is_some())
+        matches!(&section.body, engine::BriefBody::Text(text) if skein_lib::bytes::find(text, ROLE_NOW.as_bytes()).is_some())
     }), "next brief: {:?}", next.sections);
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
-    assert!(shown.contains(NOW));
+    assert!(shown.contains(ROLE_NOW));
 }
 
 fn sign_in_stranger(ctl: &mut Ctl) -> u64 {
