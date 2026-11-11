@@ -98,15 +98,19 @@
     "every 90 minutes", "every 4 hours", and "every hour" or "every day"
     for one.
   - *Its sessions,* from the role's activity (jig's
-    `domain/tasks/standing.md`, sections 5 and 7): a session is named by
-    the attempt that began it; it begins at that attempt's `RunBegan`,
-    which resumes nothing, and ends at the `SessionEnded` naming it, or
-    is open while none has come. A row: its start's weekday and clock and
-    its length, "Sun 01:52 · 49 min", or "Sun 01:52 · open"; what it did,
+    `domain/tasks/standing.md`, sections 5 and 7): a session holds the
+    runs from the first `RunBegan` after a `SessionEnded`, or after none,
+    up to the next `SessionEnded`, which jig commits at the claim that
+    begins the next session, so it can come hours after its last run; the
+    session is named by its first run's attempt. A row: its first run's
+    start, as a weekday and clock, and its length, from that start to its
+    last run's `RunEnded`, as the view words a span, "Sun 01:52 · 49 min";
+    while one of its runs is live, "Sun 01:52 · running"; what it did,
     its runs' last `Stood` words on one line, while any; and at its right
-    its cost, the sum of its runs' `RunEnded` `spent`, as it comes. The
-    read stops at a line older than the seven days, at the eighth
-    session's start, or after 16 pages.
+    its cost, the sum of its runs' `RunEnded` `spent`, as it comes. A
+    session is drawn once its first run is read. The read stops at a
+    line older than the seven days, at the eighth session's start, or
+    after 16 pages.
   - *People,* a section headed "People": a box for each of the project's
     members of kind person (jig's `domain/people/README.md`, section 4), the
     person reading first, then the others in the document's order, each
