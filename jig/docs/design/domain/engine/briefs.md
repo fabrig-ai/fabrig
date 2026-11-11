@@ -257,3 +257,38 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   every scope's is, evicted least recently used (section 2), and parties are
   never erased (../people/README.md, section 3), so neither is their scope; a party's
   erasure is later, with its scope.
+
+### 2.2 A brief's wait for notes
+
+The notes child serves one operation at a time: a write, a read or a
+project's deletion. A cold index holds it busy while it loads each
+scope it lacks, page by page, until every scope is cached or a load
+fails. A preparation whose brief needs an index (its notes, section 1,
+or its person's preferences, 2.1) while notes is busy waits for it, and
+does not fail:
+
+- **The wait table.** The core keeps one entry per waiting task, keyed
+  by the task: either it waits for notes with its preparation kept, or,
+  refused busy while notes is idle (an index whose load found no room
+  in the root), it gives up its preparation and its next activation
+  returns to due (`executors.md`, 1, step 2). When notes is idle again
+  the core resumes one waiting preparation, and the next as each
+  operation ends, so that none is left waiting while notes is idle. A
+  task's ending removes its entry, and the table starts empty.
+- **Its bound is the live tasks' (`tasks.tasks`),** the bound of the
+  preparation contexts, and not the briefs gathering (`brief.briefs`):
+  every entry is one live task's, and every preparing task may wait at
+  once. A preparation is bounded only by live tasks, and the brief
+  child's table counts briefs gathering, a later step whose briefs are
+  the costly part. After a restart every due task activates together,
+  and the first cold index holds notes busy while the rest arrive: an
+  application that gathers two briefs at once (temper's root does) runs
+  many more preparations than that. An entry is a task number and its
+  mark, so the table costs a few bytes per live task, nothing that grows
+  with the store.
+- **A full table pauses, never aborts.** The bound leaves no room for a
+  full table while the tasks child keeps its own, but the core does not
+  rely on it: a task whose wait finds the table full fails its
+  preparation as capacity, `notes: no room for the index` (1.1), and is
+  due again after a backoff with no try spent. Its activation's reasons
+  and its inbox stay with the tasks child, so nothing is lost.
