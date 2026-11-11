@@ -169,6 +169,14 @@ new to say. Its charter is the stock's 9
   the project's live goals each with its delegates done and total, and the
   failing tests each tier of the project's repositories holds. They say
   only what the engine keeps.
+- **Who signed** (`change/gates.md`, 2, *Sign-offs kept at landing*): a
+  title whose change kept sign-offs ends with them, by party, as "- Refund
+  amounts round half to even. (signed by person 4 and person 7)"; and,
+  after the goals, the root names each party the words name, once, by the
+  name the project's people give it, else its login, under "People who
+  signed:", as "- person 4: Sam". `Request::StatusRun` carries those
+  parties, `signers`, beside its words, the forge knowing no names. A
+  party the project no longer lists is "- person 9: no longer a member".
 - **Heard** at the procedure's next step, from its inbox, as a foreman's
   result is (`change/questions.md`, 1): the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
