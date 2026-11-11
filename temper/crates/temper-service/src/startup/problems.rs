@@ -600,7 +600,12 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
                 put(writer, &mut length, measuring, b", past its bound of ");
                 put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
-                put(writer, &mut length, measuring, b", the most the store's tier rows hold (2 * forge.changes + 1 within ");
+                put(
+                    writer,
+                    &mut length,
+                    measuring,
+                    b", the most the store's tier rows hold (2 * forge.changes + 1 within ",
+                );
                 put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
                 put(writer, &mut length, measuring, b")");
             }
