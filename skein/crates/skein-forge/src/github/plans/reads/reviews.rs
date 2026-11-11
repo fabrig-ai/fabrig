@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
 impl Plan {
     pub(super) fn remarks_initial(&mut self) -> Result<Step, api::Error> {
-        let Read::Remarks { number, review, page , .. } = self.read else {
+        let Read::Remarks { number, review, page, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
@@ -28,7 +28,11 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         };
         self.page_row(bounds)?;
-        if let Read::Remarks { skip, .. } = self.read && self.count <= skip { return Ok(()); }
+        if let Read::Remarks { skip, .. } = self.read
+            && self.count <= skip
+        {
+            return Ok(());
+        }
         let body = match row.body {
             crate::text::Body::Kept(body) => body,
             crate::text::Body::Long(_) => Box::from([]),
@@ -79,13 +83,13 @@ impl Plan {
         }
         let more = self.listing_next()?;
         let remarks = core::mem::replace(&mut self.remarks, List::with_capacity(0)).into_boxed();
-        self.terminal(api::Answer::Remarks { remarks, more , cut: false }, bounds)
+        self.terminal(api::Answer::Remarks { remarks, more, cut: false }, bounds)
     }
 }
 
 impl Plan {
     pub(super) fn reviews_initial(&mut self) -> Result<Step, api::Error> {
-        let Read::Reviews { number, page , .. } = self.read else {
+        let Read::Reviews { number, page, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
@@ -105,7 +109,9 @@ impl Plan {
         let Some(review) = crate::github::plans::reading::review(word, row)? else {
             return Ok(());
         };
-        if let Read::Reviews { skip, .. } = &mut self.read && *skip > 0 {
+        if let Read::Reviews { skip, .. } = &mut self.read
+            && *skip > 0
+        {
             *skip = skip.saturating_sub(1);
             return Ok(());
         }
@@ -129,6 +135,6 @@ impl Plan {
         }
         let more = self.listing_next()?;
         let reviews = core::mem::replace(&mut self.reviews, List::with_capacity(0)).into_boxed();
-        self.terminal(api::Answer::Reviews { reviews, more , cut: false }, bounds)
+        self.terminal(api::Answer::Reviews { reviews, more, cut: false }, bounds)
     }
 }

@@ -329,7 +329,9 @@ impl Protocol {
                         if let Some(job) = job {
                             self.read_jobs.insert(name.clone(), job);
                         }
-                        if let Some(page) = page { self.read_pages.insert(name.clone(), page); }
+                        if let Some(page) = page {
+                            self.read_pages.insert(name.clone(), page);
+                        }
                         self.answers.push((name.clone(), answer));
                         if self.defer_render {
                             self.pending_renders.push((to, name));

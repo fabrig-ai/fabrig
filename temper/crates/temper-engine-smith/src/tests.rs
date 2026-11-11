@@ -2507,11 +2507,22 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
     for skip in [0, 5, u32::MAX] {
         for (tool, members, read) in [
             (b"read_reviews".as_slice(), "\"number\":1", skein_forge::api::Read::Reviews { number: 1, page: 3, skip }),
-            (b"read_remarks", "\"number\":1,\"review\":2", skein_forge::api::Read::Remarks { number: 1, review: 2, page: 3, skip }),
-            (b"read_pull_files", "\"number\":1,\"head\":\"0000000000000000000000000000000000000000000000000000000000000000\"", skein_forge::api::Read::PullFiles { number: 1, head: [0; 32], page: 3, skip }),
+            (
+                b"read_remarks",
+                "\"number\":1,\"review\":2",
+                skein_forge::api::Read::Remarks { number: 1, review: 2, page: 3, skip },
+            ),
+            (
+                b"read_pull_files",
+                "\"number\":1,\"head\":\"0000000000000000000000000000000000000000000000000000000000000000\"",
+                skein_forge::api::Read::PullFiles { number: 1, head: [0; 32], page: 3, skip },
+            ),
         ] {
             let input = format!("{{{members},\"page\":3,\"skip\":{skip}}}");
-            assert_eq!(decided(tool, input.as_bytes()).unwrap().tool, engine::Tool::ReadNamed { repository: None, read });
+            assert_eq!(
+                decided(tool, input.as_bytes()).unwrap().tool,
+                engine::Tool::ReadNamed { repository: None, read }
+            );
         }
     }
     for (tool, input, problem) in [
@@ -2587,7 +2598,10 @@ fn every_forge_read_declares_its_flat_members_as_json() {
         );
         let description =
             properties.required(b"repository").unwrap().required(b"description").unwrap().text(b"description").unwrap();
-        assert!(skein_lib::bytes::find(&description, b"leave it out, or empty").is_some());
+        assert!(
+            skein_lib::bytes::find(&description, b"leave it out, or empty").is_some()
+                || skein_lib::bytes::find(&description, b"omit or empty").is_some()
+        );
         for name in *names {
             let property = properties.required(name).unwrap();
             assert!(!property.required(b"description").unwrap().text(b"description").unwrap().is_empty());
@@ -3152,27 +3166,62 @@ fn item_listings_report_the_answer_byte_cut() {
     }
     for cut in [false, true] {
         for (tool, value) in [
-            (b"read_reviews".as_slice(), api::Answer::Reviews { reviews: Box::new([api::Review {
-                id: 1, author: 2, verdict: api::Verdict::Comment, commit: [0; 32], body: Box::new([]), key: None,
-                at: skein_lib::Time::ZERO, official: false, provenance: api::Provenance::Original, revision: 0,
-            }]), more: true, cut }),
-            (b"read_remarks", api::Answer::Remarks { remarks: Box::new([api::Remark {
-                id: 1, author: 2, path: b"x".as_slice().into(), line: 1, body: Box::new([]),
-            }]), more: true, cut }),
-            (b"read_pull_files", api::Answer::PullFiles { head: [0; 32], files: Box::new([api::File {
-                path: b"x".as_slice().into(), before: None, after: None,
-            }]), more: true, cut }),
+            (
+                b"read_reviews".as_slice(),
+                api::Answer::Reviews {
+                    reviews: Box::new([api::Review {
+                        id: 1,
+                        author: 2,
+                        verdict: api::Verdict::Comment,
+                        commit: [0; 32],
+                        body: Box::new([]),
+                        key: None,
+                        at: skein_lib::Time::ZERO,
+                        official: false,
+                        provenance: api::Provenance::Original,
+                        revision: 0,
+                    }]),
+                    more: true,
+                    cut,
+                },
+            ),
+            (
+                b"read_remarks",
+                api::Answer::Remarks {
+                    remarks: Box::new([api::Remark {
+                        id: 1,
+                        author: 2,
+                        path: b"x".as_slice().into(),
+                        line: 1,
+                        body: Box::new([]),
+                    }]),
+                    more: true,
+                    cut,
+                },
+            ),
+            (
+                b"read_pull_files",
+                api::Answer::PullFiles {
+                    head: [0; 32],
+                    files: Box::new([api::File { path: b"x".as_slice().into(), before: None, after: None }]),
+                    more: true,
+                    cut,
+                },
+            ),
         ] {
             let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
             for (page, skip) in [(1, 0), (3, 5)] {
                 let rendered = crate::answer_for_page(&recorded, tool, 2048, crate::ForgeReadBounds::STOCK, page, skip);
                 assert!(!rendered.error());
-                let ending: Box<[u8]> = if cut { format!("Page cut: read on with page {page}, skip {}.\n", skip + 1).into_bytes().into() } else { b"More pages available.\n".as_slice().into() };
+                let ending: Box<[u8]> = if cut {
+                    format!("Page cut: read on with page {page}, skip {}.\n", skip + 1).into_bytes().into()
+                } else {
+                    b"More pages available.\n".as_slice().into()
+                };
                 assert!(rendered.text().ends_with(&ending), "{:?}", rendered.text());
             }
         }
     }
-
 }
 
 #[test]
@@ -3283,7 +3332,8 @@ fn many_pull_paths_fit_the_text_fragments() {
         head: [0x11; 32],
         files: files.into_boxed(),
         more: false,
-     cut: false })));
+        cut: false,
+    })));
     for (cap, omitted) in [(4096, true), (10_240, false)] {
         let feedback = crate::answer_bounded(&recorded, cap);
         assert!(feedback.error());
@@ -3318,7 +3368,8 @@ fn oversized_file_and_pull_feedback() {
             api::File { path: b"close-out.md".as_slice().into(), before: None, after: Some(vec![b'c'; 6000].into()) },
         ]),
         more: true,
-     cut: false };
+        cut: false,
+    };
     for (tool, value, size) in [(b"read_file".as_slice(), file, 12_962), (b"read_pull_files", files, 18_076)] {
         oversized_file_feedback(tool, value, size);
     }
@@ -3380,7 +3431,8 @@ fn fitting_file_and_pull_feedback() {
             after: Some(b"closed".as_slice().into()),
         }]),
         more: false,
-     cut: false };
+        cut: false,
+    };
     for value in [small, pull] {
         let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
         let whole = answer(&recorded);
@@ -3413,7 +3465,8 @@ fn file_and_pull_rendering_boundaries() {
                     after: None,
                 }]),
                 more: true,
-             cut: false },
+                cut: false,
+            },
             api::Answer::Directory {
                 head: [1; 32],
                 path: vec![byte; 64].into(),
@@ -3461,7 +3514,8 @@ fn pull_inventory_limits() {
             head: [0x11; 32],
             files: files.clone(),
             more,
-         cut: false })));
+            cut: false,
+        })));
         let feedback = crate::answer_bounded(&recorded, 1024);
         let words = feedback.text();
         assert!(feedback.error());

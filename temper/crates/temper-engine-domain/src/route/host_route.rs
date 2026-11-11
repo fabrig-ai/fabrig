@@ -306,8 +306,9 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
         job = super::diagnostics::job_attempt(read);
         if let skein_forge::api::Read::Reviews { page: at, skip, .. }
-            | skein_forge::api::Read::Remarks { page: at, skip, .. }
-            | skein_forge::api::Read::PullFiles { page: at, skip, .. } = read {
+        | skein_forge::api::Read::Remarks { page: at, skip, .. }
+        | skein_forge::api::Read::PullFiles { page: at, skip, .. } = read
+        {
             page = Some((*at, *skip));
         }
         FlightRender::ForgeRead
@@ -548,7 +549,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
             name: flight.name.clone(),
             tool: flight.tool.clone(),
             job: flight.job,
-        page: flight.page,
+            page: flight.page,
             answer,
         })),
     );

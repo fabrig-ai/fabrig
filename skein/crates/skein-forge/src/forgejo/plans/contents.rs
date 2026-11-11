@@ -55,7 +55,7 @@ impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
         let skip = if let api::Read::PullFiles { skip, .. } = &read { *skip } else { 0 };
         let (state, limit) = match read {
-            api::Read::PullFiles { number, head, page , .. } => (
+            api::Read::PullFiles { number, head, page, .. } => (
                 State::Pull {
                     number,
                     head,
@@ -321,12 +321,20 @@ impl Plan {
     fn keep_file(&mut self, mut sides: Sides, file: d::ChangedFile, bounds: Bounds) -> Result<Sides, api::Error> {
         sides.count = sides.count.saturating_add(1);
         if sides.count > self.limit {
-            return Err(api::Error::TooLarge(api::Excess::at_least(api::Bound::Forge, u64::from(self.limit), u64::from(sides.count))));
+            return Err(api::Error::TooLarge(api::Excess::at_least(
+                api::Bound::Forge,
+                u64::from(self.limit),
+                u64::from(sides.count),
+            )));
         }
-        if sides.count <= self.skip || sides.cut { return Ok(sides); }
+        if sides.count <= self.skip || sides.cut {
+            return Ok(sides);
+        }
         let added = skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len()));
         if let Err(error) = self.add_size(added, bounds) {
-            if sides.files.is_empty() { return Err(error); }
+            if sides.files.is_empty() {
+                return Err(error);
+            }
             sides.cut = true;
             return Ok(sides);
         }
@@ -350,6 +358,10 @@ impl Plan {
         clippy::manual_let_else,
         reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
     )]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "each contents state completes one exchange or cuts before an incomplete file"
+    )]
     fn done(&mut self, state: State, body: Option<Body>, bounds: Bounds) -> Result<(State, Step), api::Error> {
         match state {
             State::Pull { number, head, page, changed, files } => {
@@ -366,7 +378,17 @@ impl Plan {
                 let before = reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
                     .ok_or(api::Error::InvalidAnswer)?;
                 Ok((
-                    State::Files(Sides { before, after: head, changed, files, position: 0, head, more: None, cut: false, count: 0 }),
+                    State::Files(Sides {
+                        before,
+                        after: head,
+                        changed,
+                        files,
+                        position: 0,
+                        head,
+                        more: None,
+                        cut: false,
+                        count: 0,
+                    }),
                     Step::send(r::Request::PullFiles {
                         at: self.row.at(),
                         number,
@@ -464,7 +486,9 @@ impl Plan {
         let file = sides.changed.get(sides.position).expect("listed file");
         let added = skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len()));
         if let Err(error) = self.add_size(added, bounds) {
-            if sides.position == 0 { return Err(error); }
+            if sides.position == 0 {
+                return Err(error);
+            }
             return Ok(self.cut_files(sides));
         }
         if file.status == d::FileStatus::Added {
@@ -515,7 +539,8 @@ impl Plan {
             head: sides.head,
             more: sides.cut || sides.more.unwrap_or(sides.count == self.limit),
             files,
-         cut: sides.cut };
+            cut: sides.cut,
+        };
         (State::Ended, Step::Done(Ok(answer)))
     }
 }

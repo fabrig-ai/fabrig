@@ -131,9 +131,20 @@ pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32, forge: 
 /// Render a cut listing with the page and skip that its call asked for.
 #[must_use]
 pub fn answer_for_page(
-    answer: &CallAnswer, tool: &[u8], max_bytes: u32, forge: ForgeReadBounds, page: u32, skip: u32,
+    answer: &CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    forge: ForgeReadBounds,
+    page: u32,
+    skip: u32,
 ) -> HostAnswer {
-    if let CallAnswer::ForgeRead(read) = answer && let Ok(value @ (api::Answer::Reviews { cut: true, .. } | api::Answer::Remarks { cut: true, .. } | api::Answer::PullFiles { cut: true, .. })) = read.as_ref() {
+    if let CallAnswer::ForgeRead(read) = answer
+        && let Ok(
+            value @ (api::Answer::Reviews { cut: true, .. }
+            | api::Answer::Remarks { cut: true, .. }
+            | api::Answer::PullFiles { cut: true, .. }),
+        ) = read.as_ref()
+    {
         let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
         let mut count = Text::counter();
         forge_answer_at(&mut count, value, (page, skip)).expect("counting allocates no answer text");
@@ -370,7 +381,7 @@ fn file_read_bounded(value: &api::Answer, cap: usize, forge: ForgeReadBounds) ->
         answer_configuration(&mut text).expect("configuration recovery");
         return clipped_refusal(text, cap);
     }
-    if let api::Answer::PullFiles { head, files, more , .. } = value {
+    if let api::Answer::PullFiles { head, files, more, .. } = value {
         return pull_inventory(head, files, *more, count.len, cap, forge);
     }
     file_read_refusal(b"read_file", count.len, cap, forge)
@@ -1541,7 +1552,9 @@ fn page_end(text: &mut Text, more: bool, cut: bool, kept: usize, at: (u32, u32))
         text.add(b", skip ")?;
         text.number(u64::from(at.1).saturating_add(skein_lib::len_u64(kept)))?;
         text.add(b".\n")?;
-    } else if more { text.add(b"More pages available.\n")?; }
+    } else if more {
+        text.add(b"More pages available.\n")?;
+    }
     Ok(())
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive forge answer vocabulary")]

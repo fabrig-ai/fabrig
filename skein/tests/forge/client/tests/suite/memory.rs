@@ -138,7 +138,7 @@ impl Measured {
                         })
                         .expect("review capacity");
                 }
-                api::Answer::Reviews { reviews: reviews.into_boxed(), more: false , cut: false }
+                api::Answer::Reviews { reviews: reviews.into_boxed(), more: false, cut: false }
             }
             Asked::Branch => api::Answer::Commit([1; 32]),
             Asked::Create => api::Answer::Created(9),

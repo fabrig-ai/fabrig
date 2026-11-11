@@ -138,9 +138,9 @@ fn review_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "reviews",
-            read: Read::Reviews { number: 1, page: 1 , skip: 0 },
+            read: Read::Reviews { number: 1, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
-            expected: Ok(Answer::Reviews { reviews: Box::new([]), more: false , cut: false }),
+            expected: Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/1/reviews?page=1&limit=2"],
             range: None,
             kept: true,
@@ -161,9 +161,9 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "remarks",
-            read: Read::Remarks { number: 1, review: 7, page: 1 , skip: 0 },
+            read: Read::Remarks { number: 1, review: 7, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
-            expected: Ok(Answer::Remarks { remarks: Box::new([]), more: false , cut: false }),
+            expected: Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
             sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/1/reviews/7/comments"],
             range: None,
             kept: true,
@@ -195,9 +195,9 @@ fn content_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "pull files",
-            read: Read::PullFiles { number: 1, head: HEAD, page: 1 , skip: 0 },
+            read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, PULL), (200, b"[]")],
-            expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false , cut: false }),
+            expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/1",
@@ -413,14 +413,14 @@ fn listings() -> [Listing; 7] {
             &[],
             "issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=",
         ),
-        (Read::Reviews { number: 1, page: 1 , skip: 0 }, &[], "pulls/1/reviews?page=1&limit="),
+        (Read::Reviews { number: 1, page: 1, skip: 0 }, &[], "pulls/1/reviews?page=1&limit="),
         (
             Read::Statuses { commit: HEAD, page: 1 },
             &[],
             "commits/0100000000000000000000000000000000000000/status?page=1&limit=",
         ),
         (Read::Collaborators { page: 1 }, &[], "collaborators?page=1&limit="),
-        (Read::PullFiles { number: 1, head: HEAD, page: 1 , skip: 0 }, &[PULL], "pulls/1/files?page=1&limit="),
+        (Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }, &[PULL], "pulls/1/files?page=1&limit="),
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],
@@ -449,7 +449,11 @@ fn remarks_are_sliced_without_wire_paging() {
         );
         run.begin();
         let result = run.answer(200, REMARKS_JSON);
-        assert_eq!(result, Step::Done(Ok(Answer::Remarks { remarks: remarks(expected), more, cut })), "size {size}/page {page}/skip {skip}");
+        assert_eq!(
+            result,
+            Step::Done(Ok(Answer::Remarks { remarks: remarks(expected), more, cut })),
+            "size {size}/page {page}/skip {skip}"
+        );
         run.assert_sent(&["GET /api/v1/repos/fixture/specimen/pulls/1/reviews/7/comments"]);
     }
 }

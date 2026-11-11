@@ -3854,14 +3854,14 @@ fn step_read(
             pending.contains_base = ancestry_status(result);
             if let Some(pull) = &pending.pull {
                 pending.stage = StepStage::Reviews(1);
-                skein_forge::api::Read::Reviews { number: pull.number, page: 1 , skip: 0 }
+                skein_forge::api::Read::Reviews { number: pull.number, page: 1, skip: 0 }
             } else {
                 finish_step(d, env, pending, out);
                 return;
             }
         }
         StepStage::Reviews(page) => match result {
-            Ok(skein_forge::api::Answer::Reviews { reviews, more , .. }) => {
+            Ok(skein_forge::api::Answer::Reviews { reviews, more, .. }) => {
                 let Some(total) = pending.reviews.len().checked_add(reviews.len()) else {
                     emit(out, Request::Refused { task: pending.task });
                     return;
@@ -3887,7 +3887,7 @@ fn step_read(
                     };
                     pending.stage = StepStage::Reviews(next);
                     let Some(pull) = &pending.pull else { unreachable!("review read has a pull") };
-                    skein_forge::api::Read::Reviews { number: pull.number, page: next , skip: 0 }
+                    skein_forge::api::Read::Reviews { number: pull.number, page: next, skip: 0 }
                 } else {
                     finish_step(d, env, pending, out);
                     return;
@@ -5951,7 +5951,7 @@ fn changed(
                 publish(d, topic, News::Changed { number: item.number }, out);
             }
         }
-        Ok(skein_forge::api::Answer::Reviews { reviews, more: _ , .. }) => match resource.what {
+        Ok(skein_forge::api::Answer::Reviews { reviews, more: _, .. }) => match resource.what {
             skein_forge_client::What::Pull(number) if !reviews.is_empty() => {
                 let topic = Topic::Participation { repository: resource.repository, number };
                 publish(d, topic, News::Changed { number }, out);

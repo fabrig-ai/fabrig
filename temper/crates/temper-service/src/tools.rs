@@ -130,8 +130,14 @@ pub(crate) fn render(
 #[must_use]
 #[expect(clippy::too_many_arguments, reason = "host rendering carries the asked job beside both answer bounds")]
 pub fn render_for_task(
-    to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32,
-    task: u64, receiving_bytes: u32, forge: ForgeReadBounds, job: Option<skein_forge::api::JobAttempt>,
+    to: ReplyTo,
+    answer: &engine::CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    task: u64,
+    receiving_bytes: u32,
+    forge: ForgeReadBounds,
+    job: Option<skein_forge::api::JobAttempt>,
 ) -> engine::Event {
     render_for_task_page(to, answer, tool, max_bytes, task, receiving_bytes, forge, job, None)
 }

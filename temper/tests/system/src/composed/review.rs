@@ -90,7 +90,7 @@ impl World {
         let number = self.reviewed_change().pull.expect("pull opened");
         let answer = self
             .forge
-            .api(b"org/repo", 1, super::fake::Op::Read(super::fake::Read::PullFiles { number, page: 1, limit: 100 , skip: 0 }))
+            .api(b"org/repo", 1, super::fake::Op::Read(super::fake::Read::PullFiles { number, page: 1, limit: 100 }))
             .expect("pull files");
         let super::fake::Answer::PullFiles { files, more, .. } = answer else { panic!("pull files answer") };
         assert!(!more);

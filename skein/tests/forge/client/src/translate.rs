@@ -304,7 +304,7 @@ pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::
         forge::Answer::PullFiles { head, files, more } => {
             let client::Op::Read(client::Read::PullFiles { skip, .. }) = asked else { panic!("pull files read") };
             let files = files.into_iter().skip(usize::try_from(*skip).expect("skip fits")).collect();
-            client::Answer::PullFiles { head: commit(head), files: files_in(files), more , cut: false }
+            client::Answer::PullFiles { head: commit(head), files: files_in(files), more, cut: false }
         }
         forge::Answer::Comparison { base, head, ahead, behind, files, .. } => {
             let changed = skein_lib::len_u64(files.len());
@@ -504,9 +504,9 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                     })
                     .expect("page capacity");
                 }
-                client::Answer::Reviews { reviews: rows.into_boxed(), more: range.1 < pull.reviews.len() , cut: false }
+                client::Answer::Reviews { reviews: rows.into_boxed(), more: range.1 < pull.reviews.len(), cut: false }
             }
-            client::Read::Remarks { .. } => client::Answer::Remarks { remarks: Box::new([]), more: false , cut: false },
+            client::Read::Remarks { .. } => client::Answer::Remarks { remarks: Box::new([]), more: false, cut: false },
             client::Read::Items { .. }
             | client::Read::Item { .. }
             | client::Read::Statuses { .. }

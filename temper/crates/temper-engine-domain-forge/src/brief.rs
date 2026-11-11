@@ -299,7 +299,7 @@ pub(crate) fn brief_answer(
         Ok(skein_forge::api::Answer::Pull(pull)) if fetch.stage == BriefStage::Pull && pull.commit == fetch.head.0 => {
             fetch.base = pull.base_commit;
             fetch.stage = BriefStage::Files;
-            Some(skein_forge::api::Read::PullFiles { number: fetch.item.number, head: fetch.head.0, page: 1 , skip: 0 })
+            Some(skein_forge::api::Read::PullFiles { number: fetch.item.number, head: fetch.head.0, page: 1, skip: 0 })
         }
         Ok(skein_forge::api::Answer::PullFiles { head, files, more, cut })
             if fetch.stage == BriefStage::Files && head == fetch.head.0 =>
@@ -312,11 +312,15 @@ pub(crate) fn brief_answer(
             let mut changed = List::with_capacity(rows);
             if fetch.file_skip > 0 {
                 for path in &fetch.changed {
-                    if changed.room() > 0 { changed.push(path.clone()).expect("checked path room"); }
+                    if changed.room() > 0 {
+                        changed.push(path.clone()).expect("checked path room");
+                    }
                 }
             }
             for file in files {
-                if changed.room() > 0 { changed.push(file.path.clone()).expect("checked path room"); }
+                if changed.room() > 0 {
+                    changed.push(file.path.clone()).expect("checked path room");
+                }
                 match fetch.mode {
                     PullMode::Conflict(_) => {
                         if name_conflict_if_past_room(&mut fetch.words, &file) {
@@ -346,8 +350,9 @@ pub(crate) fn brief_answer(
             };
             if (review || cut) && more {
                 if nonempty && fetch.words.bytes.room() > 0 {
-                    if cut { fetch.file_skip = fetch.file_skip.saturating_add(kept); }
-                    else {
+                    if cut {
+                        fetch.file_skip = fetch.file_skip.saturating_add(kept);
+                    } else {
                         fetch.file_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
                         fetch.file_skip = 0;
                     }
@@ -355,7 +360,8 @@ pub(crate) fn brief_answer(
                         number: fetch.item.number,
                         head: fetch.head.0,
                         page: fetch.file_page,
-                     skip: fetch.file_skip };
+                        skip: fetch.file_skip,
+                    };
                     fetch.read = read.clone();
                     let repository = fetch.repository;
                     domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
@@ -670,7 +676,7 @@ fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     let review = *fetch.review_ids.get(index)?;
     fetch.next_review = fetch.next_review.checked_add(1).expect("bounded review count");
     fetch.stage = BriefStage::Remarks;
-    Some(skein_forge::api::Read::Remarks { number: fetch.item.number, review, page: 1 , skip: 0 })
+    Some(skein_forge::api::Read::Remarks { number: fetch.item.number, review, page: 1, skip: 0 })
 }
 
 /// Append each failed status before asking for its pinned attempt's log.
@@ -770,7 +776,7 @@ pub(super) fn brief_reviews(
         parts,
         bytes,
         stage: BriefStage::Reviews,
-        read: skein_forge::api::Read::Reviews { number: item.number, page: 1 , skip: 0 },
+        read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
         refused: None,
         deadline: None,
         mode: PullMode::Other,
@@ -796,7 +802,7 @@ pub(super) fn brief_reviews(
         event: skein_forge_client::Event::Read {
             owner: call,
             repository,
-            read: skein_forge::api::Read::Reviews { number: item.number, page: 1 , skip: 0 },
+            read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
         },
     });
     None

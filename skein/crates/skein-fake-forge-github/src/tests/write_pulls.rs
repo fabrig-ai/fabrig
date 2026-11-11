@@ -177,7 +177,8 @@ fn github_fake_review_and_reviewer_plans_read_back() {
     .unwrap() else {
         panic!("reviewed")
     };
-    let api::Answer::Reviews { reviews, .. } = r::read(&mut h, &token, api::Read::Reviews { number, page: 1 , skip: 0 }).unwrap()
+    let api::Answer::Reviews { reviews, .. } =
+        r::read(&mut h, &token, api::Read::Reviews { number, page: 1, skip: 0 }).unwrap()
     else {
         panic!("review readback")
     };

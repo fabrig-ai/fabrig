@@ -341,7 +341,9 @@ fn reviews_answered(
         return;
     }
     let next_skip = if cut { skip.saturating_add(u32::try_from(reviews.len()).expect("bounded reviews")) } else { 0 };
-    let next = if cut { page } else if more {
+    let next = if cut {
+        page
+    } else if more {
         match page.checked_add(1) {
             Some(next) => next,
             None => {

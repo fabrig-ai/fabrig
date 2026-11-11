@@ -114,7 +114,7 @@ pub(crate) fn answer(
                     && pull.state == skein_forge::api::State::Open =>
             {
                 pending.stage = Stage::Page(1, 0);
-                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1 , skip: 0 })
+                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1, skip: 0 })
             }
             Ok(_) | Err(_) => None,
         },
@@ -260,19 +260,38 @@ mod tests {
             let env = crate::tests::env();
             let owner = Token::new(99);
             let repository = api::Repository { forge: 1, repository: 2 };
-            d.goal_file_reads.insert(owner, Pending {
-                task: 7, repository, pull: 1, head: [1; 32], stage: Stage::Page(1, 0),
-                paths: List::with_capacity(capacity),
-            }).unwrap();
+            d.goal_file_reads
+                .insert(
+                    owner,
+                    Pending {
+                        task: 7,
+                        repository,
+                        pull: 1,
+                        head: [1; 32],
+                        stage: Stage::Page(1, 0),
+                        paths: List::with_capacity(capacity),
+                    },
+                )
+                .unwrap();
             let mut out = Queue::uncapped();
             for (path, cut, more, next_page, next_skip) in [
-                (b"a", true, true, 1, 1), (b"b", true, true, 1, 2),
-                (b"c", false, true, 2, 0), (b"d", false, false, 0, 0),
+                (b"a", true, true, 1, 1),
+                (b"b", true, true, 1, 2),
+                (b"c", false, true, 2, 0),
+                (b"d", false, false, 0, 0),
             ] {
-                answer(&mut d, &env, owner, Ok(Answer::PullFiles {
-                    head: [1; 32], files: Box::new([api::File { path: Box::from(path.as_slice()), before: None, after: None }]),
-                    more, cut,
-                }), &mut out);
+                answer(
+                    &mut d,
+                    &env,
+                    owner,
+                    Ok(Answer::PullFiles {
+                        head: [1; 32],
+                        files: Box::new([api::File { path: Box::from(path.as_slice()), before: None, after: None }]),
+                        more,
+                        cut,
+                    }),
+                    &mut out,
+                );
                 if !d.goal_file_reads.contains_key(&owner) {
                     assert_eq!(capacity, 2);
                     assert!(d.goal_files.get(&7).unwrap().paths.is_none());

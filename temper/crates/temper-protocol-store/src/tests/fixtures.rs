@@ -692,7 +692,7 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         },
         Answer::Items { cut: true, items: Box::new([summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
         Answer::Item { item: summary(), comments: Box::new([comment(), comment()]), more: true },
-        Answer::Reviews { reviews: Box::new([review(), review()]), more: true , cut: false },
+        Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
 pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
@@ -737,7 +737,8 @@ pub fn remaining_answers() -> [skein_forge::api::Answer; 6] {
         Answer::Remarks {
             remarks: Box::new([Remark { id: 1, author: 2, path: Box::new([3]), line: 4, body: Box::new([5]) }]),
             more: true,
-         cut: false },
+            cut: false,
+        },
         Answer::PullFiles {
             head: [6; 32],
             files: Box::new([
@@ -745,7 +746,8 @@ pub fn remaining_answers() -> [skein_forge::api::Answer; 6] {
                 skein_forge::api::File { path: Box::new([7]), before: None, after: Some(Box::new([8])) },
             ]),
             more: true,
-         cut: false },
+            cut: false,
+        },
         Answer::Compare {
             before: [9; 32],
             after: [10; 32],

@@ -33,7 +33,12 @@ fn real_row_pages_use_rows_and_other_listings_reserve_the_largest() {
             (fixtures::PAGE_ROWS * row, fixtures::ONE_PAGE_ROW, fixtures::PAGE_ROWS, fixtures::ONE_PAGE_ROW),
         ] {
             let shared = Shared { rows, answer_bytes, ..fixtures::shared() };
-            let expected = if [Listing::Items, Listing::Reviews, Listing::Remarks, Listing::PullFiles].contains(&listing) { rows.min(cap) } else { expected };
+            let expected =
+                if [Listing::Items, Listing::Reviews, Listing::Remarks, Listing::PullFiles].contains(&listing) {
+                    rows.min(cap)
+                } else {
+                    expected
+                };
             assert_eq!(page_size(listing, cap, &limits, &shared), expected, "{listing:?}/{answer_bytes}/{rows}/{cap}");
         }
     }
@@ -92,7 +97,8 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 official: false,
             }]),
             more: false,
-         cut: false },
+            cut: false,
+        },
         Listing::Statuses => api::Answer::Statuses {
             ci: api::Ci::Passed,
             statuses: Box::new([api::Status {
@@ -114,7 +120,8 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 body: fixtures::filled(body, b'b'),
             }]),
             more: false,
-         cut: false },
+            cut: false,
+        },
         Listing::Branches => api::Answer::Branches(Box::new([fixtures::filled(string, b'p')])),
         Listing::Collaborators => api::Answer::Collaborators {
             collaborators: Box::new([api::Collaborator { user: fixtures::WRITER, permission: api::Permission::Write }]),
@@ -136,7 +143,8 @@ fn maximal_answer(listing: Listing) -> api::Answer {
                 after: Some(fixtures::filled(body, b'a')),
             }]),
             more: false,
-         cut: false },
+            cut: false,
+        },
     }
 }
 

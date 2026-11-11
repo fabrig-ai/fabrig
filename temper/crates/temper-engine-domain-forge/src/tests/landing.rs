@@ -284,8 +284,12 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         let (call, _) = fixtures::next_at(&mut d, &env);
         fixtures::answer_at(&mut d, &env, call, Ok(Answer::Pull(fixtures::open_pull())));
         let (call, _) = fixtures::next_at(&mut d, &env);
-        let requests =
-            fixtures::answer_at(&mut d, &env, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false , cut: false }));
+        let requests = fixtures::answer_at(
+            &mut d,
+            &env,
+            call,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut decision = None;
         for request in &requests {
             if let Request::LandingDecision { decision: found, .. } = request {
@@ -348,8 +352,9 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 , skip: 0 }));
-    let requests = fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false , cut: false }));
+    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
+    let requests =
+        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
     outputs(&mut d, Event::Withdraw { entry: 92 });
     let mut evidence = None;

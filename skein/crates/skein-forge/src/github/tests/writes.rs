@@ -891,7 +891,7 @@ fn github_review_self_approval_and_bounds() {
 }
 fn review_page(body: &[u8], chunk: u32, page: u32, more: bool, word: &[u8]) -> Box<[api::Review]> {
     let mut tables = cached_tables();
-    let mut proof = Plan::new(KEY, api::Op::Read(api::Read::Reviews { number: NUMBER, page , skip: 0 }));
+    let mut proof = Plan::new(KEY, api::Op::Read(api::Read::Reviews { number: NUMBER, page, skip: 0 }));
     let target =
         alloc::fmt::format(format_args!("/repos/acme/widgets/pulls/9007199254740993/reviews?per_page=4&page={page}"));
     let Step::Send(exchange) = proof.begin(bounds(), word, &mut tables).unwrap() else { panic!("reviews") };
@@ -903,7 +903,7 @@ fn review_page(body: &[u8], chunk: u32, page: u32, more: bool, word: &[u8]) -> B
     for row in &rows {
         assert_eq!(proof.heard(Heard::Row(row.clone()), bounds(), word, &mut tables), Ok(None));
     }
-    let Some(Step::Done(Ok(api::Answer::Reviews { reviews, more: observed , .. }))) =
+    let Some(Step::Done(Ok(api::Answer::Reviews { reviews, more: observed, .. }))) =
         proof.heard(Heard::Done(Body::Document(document.unwrap())), bounds(), word, &mut tables).unwrap()
     else {
         panic!("reviews answer")

@@ -202,11 +202,24 @@ impl Plan {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
             }
             api::Read::Reviews { number, page, skip } => (
-                State::Reviews { format: row.object_format, rows: List::with_capacity(bounds.page_size), size: 0, skip, cut: false },
+                State::Reviews {
+                    format: row.object_format,
+                    rows: List::with_capacity(bounds.page_size),
+                    size: 0,
+                    skip,
+                    cut: false,
+                },
                 Request::Reviews { at, number, page: r::Page { page: Some(page), ..page_at } },
             ),
             api::Read::Remarks { number, review, page, skip } => (
-                State::Remarks { rows: List::with_capacity(bounds.page_size), more: false, page, size: 0, skip, cut: false },
+                State::Remarks {
+                    rows: List::with_capacity(bounds.page_size),
+                    more: false,
+                    page,
+                    size: 0,
+                    skip,
+                    cut: false,
+                },
                 Request::ReviewComments { at, number, review },
             ),
             api::Read::Branch { branch: name } => {
@@ -487,9 +500,14 @@ impl Plan {
                         bounds,
                     )?;
                     match charge(size, added, rows.len(), rows.capacity(), bounds) {
-                        Ok(()) => { rows.push(review).expect("room checked"); }
+                        Ok(()) => {
+                            rows.push(review).expect("room checked");
+                        }
                         Err(error) if rows.is_empty() => return Err(error),
-                        Err(_) => { *cut = true; self.cut = true; }
+                        Err(_) => {
+                            *cut = true;
+                            self.cut = true;
+                        }
                     }
                 }
             }
@@ -510,9 +528,15 @@ impl Plan {
                             bounds,
                         )?;
                         match charge(size, added, rows.len(), rows.capacity(), bounds) {
-                            Ok(()) => { rows.push(remark).expect("room checked"); }
+                            Ok(()) => {
+                                rows.push(remark).expect("room checked");
+                            }
                             Err(error) if rows.is_empty() => return Err(error),
-                            Err(_) => { *more = true; *cut = true; self.cut = true; }
+                            Err(_) => {
+                                *more = true;
+                                *cut = true;
+                                self.cut = true;
+                            }
                         }
                     }
                 }

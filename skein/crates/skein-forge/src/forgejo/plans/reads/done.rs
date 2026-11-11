@@ -205,7 +205,8 @@ impl Plan {
             State::Reviews { rows, cut, .. } => api::Answer::Reviews {
                 reviews: rows.into_boxed(),
                 more: self.count.saturating_add(listed(document)?) >= bounds.page_size || cut,
-             cut },
+                cut,
+            },
             State::Remarks { rows, more, cut, .. } => {
                 listed(document)?;
                 api::Answer::Remarks { remarks: rows.into_boxed(), more, cut }

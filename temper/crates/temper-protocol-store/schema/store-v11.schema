@@ -112,7 +112,7 @@ record Comment { id: u64 provenance: Provenance author: u64 created: u64 revisio
 record Review { id: u64 provenance: Provenance revision: u64 author: u64 verdict: Verdict commit: fixed 32 key: option bytes 1048576 body: bytes 1048576 at: u64 official: bool }
 record ItemsAnswer { items: bytes 2097152 pieces Summary more: bool now: u64 cut: bool }
 record ItemAnswer { item: Summary comments: bytes 2097152 pieces Comment more: bool }
-record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool }
+record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool cut: bool }
 
 # 04.3cb: the rest of the forge's answer items and families.
 record Status { at: u64 context: bytes 1048576 verdict: Check description: bytes 1048576 url: bytes 1048576 job: option JobAttempt }
@@ -120,8 +120,8 @@ record Remark { id: u64 author: u64 path: bytes 1048576 line: u32 body: bytes 10
 record File { path: bytes 1048576 before: option bytes 1048576 after: option bytes 1048576 }
 record Collaborator { user: u64 permission: Permission }
 record StatusesAnswer { ci: Ci statuses: bytes 2097152 pieces Status more: bool }
-record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool }
-record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool }
+record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool cut: bool }
+record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool cut: bool }
 record CompareAnswer { before: fixed 32 after: fixed 32 ahead: u64 behind: u64 files: list 1024 bytes 1048576 changed: u64 }
 record ChecksAnswer { statuses: bytes 2097152 pieces Status }
 record CollaboratorsAnswer { collaborators: list 65536 Collaborator more: bool }

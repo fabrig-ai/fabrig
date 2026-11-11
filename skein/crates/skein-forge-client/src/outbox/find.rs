@@ -162,7 +162,15 @@ pub(super) fn reviews_found(
     };
     match found {
         Some(review) => super::finished(d, env, number, Made::Reviewed(review), true, out),
-        None if more => super::next(d, number, Phase::Find { page: if cut { page } else { page.saturating_add(1) }, after: 0, skip: if cut { skip.saturating_add(u32::try_from(reviews.len()).expect("bounded reviews")) } else { 0 } }),
+        None if more => super::next(
+            d,
+            number,
+            Phase::Find {
+                page: if cut { page } else { page.saturating_add(1) },
+                after: 0,
+                skip: if cut { skip.saturating_add(u32::try_from(reviews.len()).expect("bounded reviews")) } else { 0 },
+            },
+        ),
         None => super::retry::not_found(d, env, number, out),
     }
 }

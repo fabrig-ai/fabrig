@@ -120,18 +120,18 @@ pub enum Read {
     Pull { number: u64 },
     /// The open matching pull, else the oldest.
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
-    /// Read reviews.
+    /// Submitted reviews past the page's first `skip` retained rows.
     Reviews { number: u64, page: u32, skip: u32 },
     /// Read statuses.
     Statuses { commit: Commit, page: u32 },
-    /// Read remarks.
+    /// Remarks past the page or slice's first `skip` rows.
     Remarks { number: u64, review: u64, page: u32, skip: u32 },
     /// Read branch.
     Branch { branch: Box<[u8]> },
     /// Names starting with the nonempty branch prefix, bounded like a branch name.
     /// Only matching names count toward the adapter's answer limit.
     Branches { prefix: Box<[u8]> },
-    /// Read pull files.
+    /// Whole changed files past the page's first `skip` rows.
     PullFiles { number: u64, head: Commit, page: u32, skip: u32 },
     /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
@@ -196,6 +196,7 @@ pub enum Write {
     DeleteBranch { branch: Box<[u8]> },
 }
 /// A decoded terminal value for one forge call.
+/// A listing's `cut` keeps whole rows and sets `more` (forge/README.md, 3.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// The located repository's nonzero id on its forge.
