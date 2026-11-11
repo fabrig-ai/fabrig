@@ -12,11 +12,21 @@ fn help(text: &str) -> bool {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    text == CLIENT.help() && names == ["help"] && text.contains("  temper [ADDRESS]\n")
+    text == CLIENT.help() && names == ["box", "help"] && text.contains("  temper [ADDRESS]\n")
 }
 
 fn internal(text: &str) -> bool {
     text == CLIENT.command_help(&table::CTL) && text.starts_with("internal:")
+}
+
+fn box_help(text: &str) -> bool {
+    text == CLIENT.command_help(&temper_client_shell::box_binary::BOX) && text.contains("temper box [ARGUMENT...]")
+}
+
+fn fetch_help(text: &str) -> bool {
+    text == CLIENT.command_help(&temper_client_shell::box_binary::FETCH)
+        && text.starts_with("internal:")
+        && text.contains("temper internal fetch-box [--cache DIR]")
 }
 
 fn version(text: &str) -> bool {
@@ -30,6 +40,8 @@ fn version(text: &str) -> bool {
 
 fn commands(text: &str) -> bool {
     text == table::commands_page(&CLIENT)
+        && text.contains("box [ARGUMENT...]")
+        && text.contains("internal fetch-box [--cache DIR]")
 }
 
 fn pages(text: &str) -> bool {
@@ -47,6 +59,8 @@ const CASES: &[Case] = &[
     (&["--help"], 0, help, ""),
     (&["help"], 0, help, ""),
     (&["ctl", "--help"], 0, internal, ""),
+    (&["box", "--help"], 0, box_help, ""),
+    (&["internal", "fetch-box", "--help"], 0, fetch_help, ""),
     (&["--version"], 0, version, ""),
     (&["help", "commands"], 0, commands, ""),
     (&["help", "pages"], 0, pages, ""),

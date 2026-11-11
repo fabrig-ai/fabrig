@@ -1,6 +1,7 @@
 //! The client's binary wiring (temper/docs/design/cli/README.md, 7.4 and 10).
 #![forbid(unsafe_code)]
 
+mod box_binary;
 mod help;
 
 fn output(arguments: &[&str]) -> std::process::Output {

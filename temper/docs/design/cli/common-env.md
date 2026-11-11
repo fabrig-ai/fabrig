@@ -68,7 +68,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** FILE
 - **Absent:** Use the machine's certificate trust.
 - Certificate trust file for HTTPS connections.
-- **Read by:** temper-box, temper-engine, temper-agent
+- **Read by:** temper-box, temper-engine, temper-agent, temper
 
 ### `XDG_RUNTIME_DIR`
 
