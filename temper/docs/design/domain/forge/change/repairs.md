@@ -26,7 +26,11 @@
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
-  step failed. The log is read at the job attempt that failed on this
+  step failed. Where its job's failure is the runner's, the brief says so
+  and why, with how many times the job was run again at this head
+  (`README.md`, 2, step 3: `the runner's: set-up failed; run again 1 time
+  at this head, failed again`). A failure the runner caused within
+  `reruns` is run again, never repaired. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
   read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
   On GitHub the pin comes from the failed check's resolved Actions job,

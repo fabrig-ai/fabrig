@@ -29,6 +29,9 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
 #[expect(clippy::too_many_lines, reason = "the ordered guards include requester-branch moves before phase dispatch")]
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
+    if facts.kept {
+        next.owns_turn = false;
+    }
     if change.gates.len() > skein_lib::usize_of(limits.gates)
         || change.clean.len() > skein_lib::usize_of(limits.clean_heads)
         || change.gate_failures.len() > skein_lib::usize_of(limits.gates)
@@ -46,6 +49,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     match facts.pull {
         Pull::Merged { commit } => {
             next.state = State::Landed { merge: commit, since: now };
+            next.owns_turn = false;
             next.released = None;
             return verifying(next, commit, now, facts, standing.cancelled, now);
         }
@@ -886,6 +890,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
         if facts.live_gate == Some(head) {
             change.state = State::CancellingGates { head };
+            change.owns_turn = false;
             return Stepped { change, decision: Decision::CancelGates { head } };
         }
         let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
@@ -915,6 +920,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                 }
             },
             Status::Unknown if !asked.contains(&gate.number) => {
+                change.owns_turn = false;
                 // The top owns one delegate slot: retain it until that gate ends.
                 if facts.live_gate.is_some() {
                     return waiting(change, now, limits);
@@ -936,6 +942,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return waiting(change, now, limits);
     }
     if facts.kept {
+        change.owns_turn = false;
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
     let since = match change.ready_since {
@@ -956,7 +963,8 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
     Stepped { change, decision: Decision::Ready }
 }
 
-fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    change.owns_turn = false;
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -1116,6 +1124,7 @@ fn updated(mut change: Change, from: [u8; 32], head: [u8; 32], now: Wall, limits
 }
 
 fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    change.owns_turn = false;
     if change.way == Way::Queue {
         match facts.contains_base {
             Status::Failed => match facts.branch {
@@ -1133,7 +1142,6 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
         return hold(change, Hold::Repairs);
     }
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
-    change.owns_turn = false;
     match why {
         Repair::Semantic => {}
         Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
@@ -1395,6 +1403,7 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     if *current != head || !asked.contains(&number) {
         return next;
     }
+    next.owns_turn = false;
     let mut failures = List::with_capacity(limits.gates);
     let mut count = 1;
     for failure in &change.gate_failures {

@@ -1925,6 +1925,8 @@ pub enum Event {
         task: u64,
         entry: u64,
         prior: change::Change,
+        /// Holds, refusals and pending dependencies end the turn; an approval wait does not.
+        leaves_queue: bool,
     },
     /// Subscribe a live task to a topic.
     Subscribe {
