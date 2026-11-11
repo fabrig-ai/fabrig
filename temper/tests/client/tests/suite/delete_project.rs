@@ -21,7 +21,18 @@ fn browser(seed: u64) -> (Root, View) {
 #[test]
 fn an_owner_ends_live_work_deletes_the_project_and_reads_its_old_address() {
     let mut world = fixtures::world(fixtures::SEED);
-    *world.front() = Joint::adoption(fixtures::SEED, fixtures::domain_limits());
+    let mut bounds = temper_client_world::front::engine_limits();
+    // Chat, creation, a refused and a successful deletion, the compound close,
+    // and the surviving Home's entry look coexist as kept answers.
+    bounds.people.requests = 8;
+    let configs = std::array::from_fn(|_| {
+        let mut config = temper_engine_domain_world::walking::config(fixtures::SEED);
+        temper_client_world::front::first_run_projects(&mut config, &mut bounds);
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        config
+    });
+    *world.front() = Joint::with_engine(fixtures::SEED, &fixtures::domain_limits(),
+        temper_engine_domain_world::store::Store::with_limits(&bounds), configs, &bounds, 1);
     world.randomness(0, 0, 0);
     let task = fixtures::chat(world.front(), b"A live chat in the project to delete");
     let person = world.client_with(fixtures::PARTY, Address::Settings { project: PROJECT }, fixtures::domain_limits(), browser);

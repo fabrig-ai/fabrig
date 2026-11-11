@@ -234,8 +234,14 @@ fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
         let (mut root, read) = missing_project(address, PROJECT);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let main = main_nodes(view.tree());
-            assert_eq!(main.iter().filter(|node| node.role == Role::Heading { level: 1 }).count(), 1);
-            assert!(!main.iter().any(|node| node.role == Role::Paragraph || node.role == Role::Link || node.role == Role::Button || node.role == Role::Navigation), "only the heading while reading: {main:?}");
+            let mut headings = 0_u32;
+            for node in main {
+                if node.role == (Role::Heading { level: 1 }) {
+                    headings = headings.checked_add(1).expect("headings fit");
+                }
+                assert!(node.role != Role::Paragraph && node.role != Role::Link && node.role != Role::Button && node.role != Role::Navigation, "only the heading while reading, found {:?}", node.role);
+            }
+            assert_eq!(headings, 1);
         }
         answer_missing_project(&mut root, read, c::ReadNone::Gone);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
