@@ -730,6 +730,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
+                size: None,
                 prior,
                 head: Some(SHA1),
                 base_tip: SHA1,
@@ -899,6 +900,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
+            size: None,
             prior: row.change.clone(),
             head: Some(SHA1),
             base_tip: SHA1,

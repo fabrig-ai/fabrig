@@ -39,6 +39,16 @@ pub struct ApprovalRow {
     pub behind: u32,
     pub whole: bool,
     pub yours: YourReview,
+    pub size: Option<ApprovalSize>,
+}
+
+/// The forge's counts narrowed for an approval row (client/forge/records.md, `approvals`).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSize {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
 }
 
 /// One watcher's approvals document (client/forge/records.md).
@@ -137,7 +147,22 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         behind: wait.behind,
         whole: wait.whole,
         yours,
+        size: match wait.size {
+            Some(size) => Some(narrow(size)),
+            None => None,
+        },
     })
+}
+
+fn narrow(size: skein_forge::api::Size) -> ApprovalSize {
+    ApprovalSize {
+        files: u32::try_from(size.files).unwrap_or(u32::MAX),
+        additions: u32::try_from(size.additions).unwrap_or(u32::MAX),
+        deletions: u32::try_from(size.deletions).unwrap_or(u32::MAX),
+        cut: size.files > u64::from(u32::MAX)
+            || size.additions > u64::from(u32::MAX)
+            || size.deletions > u64::from(u32::MAX),
+    }
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository

@@ -822,6 +822,7 @@ pub(crate) fn step(
                     gates: change.verdicts.clone(),
                     reviews: Box::new([]),
                     reviews_complete: false,
+                    size: None,
                 },
             })
             .expect("bounded evidence");
@@ -1046,6 +1047,9 @@ fn advance(
                         wait(d, p.task, env, p.repository, out);
                         return;
                     };
+                    let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
+                    evidence.head = Some(pull.commit);
+                    evidence.size = pull.size;
                     fact.merged = pull.merged;
                     fact.ready = if let change::State::Ready { .. } = change.change.state { true } else { false };
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
@@ -1418,6 +1422,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     let evidence = if let policy::Decision::Merge { member, candidate } = decision {
         let fact = p.facts.get(usize::from(member)).expect("fresh member facts");
         let mut evidence = p.evidence.get(usize::from(member)).expect("member evidence").clone();
+        if evidence.facts.head != Some(candidate) {
+            evidence.facts.size = None;
+        }
         evidence.facts.head = Some(candidate);
         evidence.facts.base_tip = fact.main;
         evidence.facts.contains_base = match fact.contains_main {
