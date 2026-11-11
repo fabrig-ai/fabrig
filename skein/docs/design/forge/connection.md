@@ -477,17 +477,22 @@ A read of something unchanged costs the forge a `304` and no body.
   of printable ASCII (README.md, 3.3), else that one is not kept, with
   the answer as it arrived: its head's fields the plans read (paging's
   among them) and its body. It is keyed by the request: its path
-  and query and the identity it was sent as (the forge's token, or a
-  GitHub installation), so one installation's answer never answers
-  another's read. An answer with neither validator keeps nothing, so
-  where the forge sends none, as Forgejo's branch JSON, nothing changes.
+  and query, its `Range` when it sends one, and the identity it was sent
+  as (the forge's token, or a GitHub installation), so one installation's
+  answer never answers another's read. A `206` answering a `Range` is
+  kept as a `200` is. Only a body received whole is kept: one the step
+  cut, or that ended early, keeps nothing. An answer with neither
+  validator keeps nothing, so where the forge sends none, as Forgejo's
+  branch JSON, nothing changes.
 - **What is sent.** A request with a kept entry carries `If-None-Match`
   with its `ETag` and `If-Modified-Since` with its `Last-Modified`,
   whichever it has.
 - **A `304`** is answered from the kept answer, decoded by the step as
   that `200` was: the call's answer is the one the forge
   would have sent, and it counts as a read, for the client's keep as any
-  answer does. The request counts in the call's cost and in its `free`
+  answer does. The forge's time (`Date`) and its rate are the `304`'s
+  own, read before the kept head is replayed, so a listing's `now`
+  never goes back to the kept answer's. The request counts in the call's cost and in its `free`
   (4.1). A `304` to a request sent with no validator, or whose entry
   is gone, is an invalid answer, as today.
 - **A `200`** replaces the entry, or drops it when the answer has no
