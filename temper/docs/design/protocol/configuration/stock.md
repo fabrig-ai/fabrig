@@ -161,8 +161,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   prices), since a person may pick any of them and a charter's order
   falls to any of them: sized by the first alone, K would admit no run on
   Astra 6 where Opus 5.5 comes first. At `temper-box init`'s models that is
-  Fable 5.1's and Astra 6's, 10,896, so K is 43,584 and a chat's 24K
-  1,046,016. A run is admitted only with two of them free (its reserve,
+  Fable 5.1's, its window at its cache write's price, 13,517 (Astra 6's is
+  10,896), so K is 54,068 and a chat's 24K 1,297,632. A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
   room for its working turns; and at least four units for each of a
   charter's run turns (256 for the chat's 64), so that where C is small
@@ -195,23 +195,43 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   where `demo` is. Each has a window of 1,048,576 and an
   output of 8,192, whatever a provider allows; takes the efforts `low`,
   `medium`, `high`, `xhigh` and `max`, low to high, so that a picker has
-  one scale, where Terra and Luna also take OpenAI's `none`; and is
-  priced for cached input as for input, so that a budget stops early
-  rather than late, its provider's page giving no figure on the stock's
-  terms; and each but the scripted model declares a prompt cache's life
+  one scale, where Terra and Luna also take OpenAI's `none`; is
+  priced for cached input as for input, with no cache write of its own,
+  so that a budget stops early rather than late, where its provider's
+  page gives no figure on the stock's terms, which is OpenAI's; and each
+  but the scripted model declares a prompt cache's life
   of five minutes, `cache_life_ms` 300,000, its provider's default, so
   that a standing role's sessions resume within it, the scripted model
   declaring none (jig's `domain/tasks/standing.md`, 5.3):
 
-  | `name` | `shown` | Provider | `effort` | Input, output |
-  |---|---|---|---|---|
-  | `claude-opus-5-5` | Opus 5.5 | Anthropic | `high` | 4,000, 20,000 |
-  | `claude-sonnet-5-5` | Sonnet 5.5 | Anthropic | `high` | 2,000, 10,000 |
-  | `claude-fable-5-1` | Fable 5.1 | Anthropic | `high` | 10,000, 50,000 |
-  | `gpt-6.1-sol` | GPT-6.1 Sol | OpenAI | `high` | 2,000, 10,000 |
-  | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 |
-  | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 |
-  | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 |
+  | `name` | `shown` | Provider | `effort` | Input, output | Cached, cache write |
+  |---|---|---|---|---|---|
+  | `claude-opus-5-5` | Opus 5.5 | Anthropic | `high` | 4,000, 20,000 | 200, 5,000 |
+  | `claude-sonnet-5-5` | Sonnet 5.5 | Anthropic | `high` | 2,000, 10,000 | 200, 2,500 |
+  | `claude-fable-5-1` | Fable 5.1 | Anthropic | `high` | 10,000, 50,000 | 250, 12,500 |
+  | `gpt-6.1-sol` | GPT-6.1 Sol | OpenAI | `high` | 2,000, 10,000 | as input, none |
+  | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 | as input, none |
+  | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 | as input, none |
+  | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 | as input, none |
+- **Claude's cache prices are Anthropic's,** read on 2026-11-11: a cache
+  read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5 and $0.25 for
+  Fable 5.1, and a cache write 1.25 times the input price, for the
+  five-minute cache smith's marks ask for (skein's `llm/README.md`, 4.7),
+  since Anthropic's page gives them and a key pays them. They are the same
+  whichever way a run reaches Claude, Claude Code's program or a key:
+  a subscription's runs bill nobody, but their spend is counted at the
+  same prices, so that a project's budget means the same either way
+  (`../../draft/claude-api.md`, section 5). jig prices a completion's
+  worst case at the dearest of its input kinds' prices, so Claude's cache
+  write raises C (Budgets in runs of the costliest model, above).
+- **Claude's output stays 8,192.** On the direct route it bounds thinking
+  and the answer together, since `max_tokens` is the declared output
+  (skein's `llm/README.md`, 4.7), as OpenAI's reasoning models' output
+  already does. Up to Anthropic's 128,000 would raise every Claude run's
+  worst-case completion, and so C and every budget below, and the
+  agent's largest turn (`settings.md`, 7), for a cut no run has shown; the
+  walk on a real key after `claude-api.md`'s step 1 shows whether a
+  delegated change at the stock's efforts is cut (section 1).
 - **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
@@ -330,3 +350,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 - **Ask temper's real-model walk** (`stock.md`): the small chat's walk follows
   landing; the request bound covers
   temper's parts, not Claude Code's own MCP-attached overhead.
+
+- **Claude's output on a key** ("Claude's output stays 8,192"): whether
+  Claude's models declare more, up to Anthropic's 128,000, against the
+  budgets and the largest turn a larger output raises. Default: 8,192,
+  until the walk on a real key shows a delegated change cut.

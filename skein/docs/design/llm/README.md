@@ -720,6 +720,28 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
 - **Thinking past the reasoning limit** is always `Limit`: Anthropic's
   thinking is replayed whole or not at all, so the Responses opt-in does
   not apply.
+- **Thinking is adaptive, always.** A prompt's effort, one of `low`,
+  `medium`, `high`, `xhigh` and `max`, sends `thinking:
+  {"type":"adaptive"}` and `output_config: {"effort": EFFORT}`; a prompt
+  with no effort sends neither, the provider's default, for a model that
+  declares no efforts. No effort turns thinking off: `off` is refused at
+  admission as `none` is, so no request carries `{"type":"disabled"}`,
+  which current Claude models (Opus 5.5, Sonnet 5.5 and Fable 5.1) refuse
+  at every effort. A caller whose model declares efforts always sends
+  one, since a model's own default may sit below the caller's: Opus 5.5's
+  is `medium`.
+- **No sampling settings.** No request carries `temperature`, `top_p` or
+  `top_k`: a prompt has none to give, and current Claude models refuse
+  them beside thinking. With tool choice's (above), never `any` or a
+  named tool, these are the shapes current Claude models refuse, and a
+  focused test of the encoder holds each one absent.
+- **History only grows.** An Anthropic account made on or after
+  2026-08-31 refuses a request whose earlier turns were edited while it
+  replays their thinking. The dialect writes each earlier turn's
+  thinking as it was given, whole and in order, and its markers move
+  without touching a block's content; its caller appends turns and never
+  edits one it replays, and smith's own compaction opens its new window
+  with no thinking (smith's `domain/session.md`, 8.2).
 - **Failures, by the error's type before the status.**
   `authentication_error` is `Unauthorized`; `permission_error` is
   `Refused`; `rate_limit_error` is `RateLimited`; `billing_error` is `Exhausted`
