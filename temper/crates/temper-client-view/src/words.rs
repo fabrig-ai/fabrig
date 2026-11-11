@@ -1664,6 +1664,9 @@ pub enum Word {
     NeedsOldest,
     NeedsTell,
     NeedsHeadCut,
+    AllHomeByline,
+    AllHomePhoneLanded,
+    AllHomePhoneOne,
     AllHomeAcross,
     AllHomeIn,
     AllHomeOne,
@@ -1770,7 +1773,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2323;
+const PHRASES: u32 = 2326;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1797,10 +1800,10 @@ const PHRASES: u32 = 2323;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4168;
+const SEGMENTS: u32 = 4177;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56318;
-const ALL: [Word; 1639] = [
+const ENGLISH_BYTES: u32 = 56431;
+const ALL: [Word; 1642] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -3408,6 +3411,9 @@ const ALL: [Word; 1639] = [
     Word::NeedsOldest,
     Word::NeedsTell,
     Word::NeedsHeadCut,
+    Word::AllHomeByline,
+    Word::AllHomePhoneLanded,
+    Word::AllHomePhoneOne,
     Word::AllHomeAcross,
     Word::AllHomeIn,
     Word::AllHomeOne,
@@ -5081,6 +5087,9 @@ impl Word {
             Self::NeedsOldest => 4452,
             Self::NeedsTell => 4453,
             Self::NeedsHeadCut => 4454,
+            Self::AllHomeByline => 4487,
+            Self::AllHomePhoneLanded => 4488,
+            Self::AllHomePhoneOne => 4489,
             Self::AllHomeAcross => 4455,
             Self::AllHomeIn => 4456,
             Self::AllHomeOne => 4457,
@@ -5967,6 +5976,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsProject => (&[b"Needs you \xc2\xb7 ", b""], &[Name]),
         Word::NeedsOldest => (&[b"oldest first"], &[]),
         Word::NeedsTell => (&[b"Or tell it something else"], &[]),
+        Word::AllHomeByline => (
+            &[b"Each project's brief, its first line \xc2\xb7 the newest, ", b"'s, by the status agent at ", b""],
+            &[Name, Name],
+        ),
+        Word::AllHomePhoneLanded => (&[b"", b" changes landed."], &[Number]),
+        Word::AllHomePhoneOne => (&[b"One change landed."], &[]),
         Word::AllHomeAcross => (&[b"", b" changes landed across ", b" projects."], &[Number, Name]),
         Word::AllHomeIn => (&[b"", b" changes landed in ", b"."], &[Number, Name]),
         Word::AllHomeOne => (&[b"One change landed in ", b"."], &[Name]),

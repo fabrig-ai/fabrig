@@ -17,15 +17,10 @@
     "Needs you" open the open project's pages (5.3, *All projects*),
     where `surfaces.md`, section 1 has both read every project and this section makes
     only Work, Team and How work runs a project's.
-  - 3: `../client/pages/README.md`, *Home on All projects*, has no owners'
+  - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who
-    decided, and its cards, as a project's Home's, name no asker (4). Its byline says "Written by the status agent at 07:52",
-    where this section, redrawn after the plan `ui-p2-home` was cut, says
-    "Each project's brief, its first line · the newest, vsr's, by the
-    status agent at 07:52"; and on a phone its headline is the wide
-    page's, "31 changes landed across four projects.", where
-    `phone-home.html` says "31 changes landed.". `../domain/forge/attention.md`,
+    decided, and its cards, as a project's Home's, name no asker (4). `../domain/forge/attention.md`,
     3, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
   - 4: `../client/pages/README.md`, *Needs you*, has no "What reaches
