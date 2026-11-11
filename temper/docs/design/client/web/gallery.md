@@ -198,6 +198,10 @@ from the engine's own answers, is where the look is tuned.
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
 | `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
+| `how-rules` | `how-reaches` with its path set named "protocol core" and a rule by path naming it, as the whole story's `how.html` draws vsr's: no stock way current, "Yours" shown, the project's words' heading "Draft first, with the protocol core asking you"; on its path, on main's segment after its check and repair, the stop "you" with "if protocol core" over it; Rules by path with "+ A rule", no "Review" column, a row of the set's patterns signed off by "you", "once you sign off", and the note |
+| `how-rules-card` | `how-rules` with the sign-off's stop pressed: its card, "Only for" the set's patterns, "Role" "owner", "Asks" "1 of them" and "Counts" |
+| `how-team` | hand-made deliveries as the whole story's `team/how.html` draws shop's, three owners, the reader one of them: "Yours" shown, its path with "review" and "one of you"; Rules by path with "Review", a row "payments/", "an agent", "two of you", "once two have signed this head", then "everything else", "an agent", "one of you", "once signed", and the note |
+| `night-how-team` | `how-team` with the night switch pressed: the table's chips by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |

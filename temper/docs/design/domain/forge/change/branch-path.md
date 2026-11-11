@@ -25,7 +25,13 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   - the project's landing, by queue or by turn, whether it names a
     merge job (`repairs.md`, *The merge job*), and the repository's CI, its test
     gates and its tiers, each with the branch it follows (`../../landing.md`,
-    13.1; `../../after-landing.md`, section 2).
+    13.1; `../../after-landing.md`, section 2);
+  - the project's path sets, its classes' `sets` (kind 8; `../attention.md`,
+    6), each its number, name and patterns, which its rules by path name
+    (*A rule by path*, below);
+  - each role of the project's policy: its name, whether the reader
+    holds it, and how many people hold it in the project, jig's project
+    members counted by role, a service none.
   The ways' paths and a proposal's "after" take the same derivation
   over the settings with items laid over them, each item as its
   decision would leave its setting (`../../../protocol/configuration/settings.md`,
@@ -55,10 +61,21 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      check or a gate precedes it, once on the whole path; then "check"
      again where step 2 drew one. What a repair goes back through, its
      reviews and approvals, the line doesn't repeat; its card says so.
-  5. *Each approval* of the covering rules that enforce: "you approve"
-     where the reader holds the role, otherwise the role's name, as
-     "an owner approves"; "×N" after it where it asks N people, N past
-     one.
+  5. *Each role's sign-off,* one stop a role, for every approval of it
+     the covering rules that enforce ask, at its first approval's place
+     in the rules' order, opening that approval's rule: a person's review
+     counts toward each approval of their role (`gates.md`, 2), so one
+     act of signing meets them all, each by its own count. Its count is
+     the most an approval of a rule covering every change asks of the
+     role, or, where every approval of it is a rule by path's, the most
+     any asks. Its words say who signs: where the reader holds the role
+     alone, "you approve", or "you" where every approval of it is a rule
+     by path's, so that it reads with its small words, "you, if core";
+     where the reader holds it with others, the count in words and "of
+     you", "one of you", "two of you", in figures past ten, "11 of you";
+     where the reader doesn't hold it, the role's name, "an owner
+     approves". "×N" follows "you approve", "you" and the role's name
+     where the count is N, past one.
   6. *By queue:* "conflict", code, opening the queue, and "resolve",
      the producer's, where a covering rule that enforces asks up to
      date: as a change takes its branch at the front of its queue
@@ -88,14 +105,29 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
      path.
+- **A rule by path** (`../../../draft/what-reaches-you.md`, section 7) is a
+  rule whose `sets` the project's classes all hold: it covers a change
+  only where the change touches one of them at the head judged (`gates.md`, 2).
+  A rule naming a set the classes don't hold covers every change
+  (`../../../protocol/configuration/engine.md`, `sets`), and the path draws
+  it as a rule with none. A stop that only rules by path ask is theirs
+  alone: CI's "check", and the second after a repair, where every covering
+  rule that enforces and asks CI is one; a gate's stop where every
+  covering rule asking that gate is one; a role's sign-off where every
+  approval of it is one. Its small words say so: "if NAME", NAME the one
+  set those rules name between them, where the words fit their 16 bytes;
+  otherwise, two sets or more or a longer name, "by path". Its card names
+  the paths (*An approval's card*, below). A repair, a conflict and a
+  resolution keep their own small words, or none.
 - **Drawn apart** (`../../../draft/stock-ways.md`, section 4): a stop made
   only when needed is marked so, which a client draws outlined: each
   "repair", "conflict", "resolve" and "catch up". The small words over a
   stop's own, at most 16 bytes, are a repair's, what it answers:
   "tests" where a check (CI, a check gate, a proof or a tier's check)
   precedes it on its segment, "review" where a review gate does, "tests,
-  review" where both do; and a merge's on a goal's segment, "into goal".
-  No other stop has any.
+  review" where both do; a merge's on a goal's segment, "into goal"; and
+  a stop of rules by path alone, "if NAME" or "by path" (*A rule by
+  path*). No other stop has any.
 - **The conflict's, the resolution's, the catch-up's and the merge's
   cards:**
   - "conflict": `who` "code · BRANCH has moved in a way that clashes
@@ -143,12 +175,28 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   its instructions' first
   sentence, whole, in quotes, within 184 bytes, and past them cut at the
   last word's end that fits with "…"; for a person, the role, how many it asks and what they
-  decide; for code, what it checks or does: CI, the repository's
+  decide (*An approval's card*, below); for code, what it checks or does: CI, the repository's
   gates or tiers by name, the queue or the turn, a merge of exactly
   the commit its checks saw (`gates.md`, 2); for a bar, the branch. A review's
   stop opens its gate and names the gate's reviews' charter beside it,
   the role its card describes and opens. Every other fact's value is at
   most 128 bytes, cut the same way.
+- **An approval's card,** a role's sign-off's (step 5): `who` "a person ·
+  decides whether it lands"; `name` the role's name; its facts, in this
+  order:
+  - "Only for", where the stop is rules by path's alone: their sets'
+    patterns, each set's in its order and the sets in number order, joined
+    by " · ", cut after the last whole pattern that fits, then " · …";
+  - "Role", the role's name, then, where the reader holds it with
+    others, ": the N of you", N how many hold it, in words to ten
+    ("owner: the three of you");
+  - "Asks", the stop's count and "of them", or "of you" where the reader
+    holds the role with others ("1 of you"); then, for each rule by path asking the
+    role more than that, in the rules' order, "; " and its sets' names
+    joined by " or ", ": " and its count ("1 of you; payments: 2");
+  - "Counts", "code counts the sign-offs at this head", then "; a clean
+    update keeps them" where every approval of the stop is `clean`
+    (`../../../protocol/configuration/engine.md`).
 - **What an agent can,** its card's "Can": each tool family its charter
   holds, in this order, "read the code and the forge", "change and push
   its branch", "run commands" and "start sub-agents", joined by "; ",
@@ -186,12 +234,16 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   advice, enforcing nothing" where not; `name` "the deployment's rule N"
   or "the project's rule N"; its facts, in this order, each only where
   the rule has it: "Covers", its pattern in words ("every branch", "the
-  branch main", "branches beginning temper", "OWNER/NAME's branch main"); "Asks",
+  branch main", "branches beginning temper", "OWNER/NAME's branch main"),
+  then, for a rule by path, ", where a change touches " and its sets'
+  names joined by " or " ("the branch main, where a change touches
+  protocol core"); "Asks",
   "CI" and "up to date" as the rule asks them, joined by ", "; "Gates",
   each gate's name as the review stop's card names its charter ("the
   reviewer"), "blocking" or "advice", "at a clean head" where `clean`,
-  joined by "; "; "Approvals", each as its stop's words say it ("an
-  owner approves", "×N" past one), joined by "; ". A rule there is none
+  joined by "; "; "Approvals", each as a role's sign-off asking it alone
+  would say it, of a rule covering every change ("an owner approves",
+  "×N" past one; "one of you"), joined by "; ". A rule there is none
   of is `not_drawn`, "no rule K/N.".
 - **The project's roles,** the view `roles` (`../../../client/pages/chat/conversation.md`,
   3): every agent the project's work runs, whether or not its path
@@ -233,6 +285,39 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   path's cards and the view keep their bounds; every stock charter's
   words fit whole. A standing role and a close-out join as the
   settings come to hold them.
+- **Rules by path,** How work runs' table
+  (`../../../client/pages/settings.md`, 2, *Rules by path*), derived beside
+  the project's own path from the same inputs, over its landing branch's
+  segment: a row a rule by path of the covering rules that enforce, in
+  their order, at most 8; then, where the rules covering every change ask
+  a review or a sign-off, a last row for the changes no rule by path
+  covers. None where the project holds no rule by path, and no last row
+  then either. A row says what a change it covers gets from every
+  covering rule, those covering every change included, as the path draws
+  it, so that a rule asking two owners where every change asks one says
+  "two of you":
+  - *paths,* at most 256 bytes: its sets' patterns, as "Only for" gives
+    them; "everything else" on the last row;
+  - *review,* at most 64: the review gates covering it, once by number,
+    "an agent" for one, the count in words and "agents" for more ("two
+    agents"); empty for none;
+  - *sign-off,* at most 64: each role asked, in step 5's order, as its
+    sign-off's words say it there without " approve" or " approves", its
+    count the most any approval covering the row asks of the role: "you",
+    "one of you", "two of you", "an owner", "an owner ×2"; joined by " and ";
+    empty for none;
+  - *lands,* at most 64: "on its own" with no sign-off; with one role,
+    "once you sign off" where the reader holds it alone and it asks one,
+    "once signed" where it asks one, otherwise "once N have signed this
+    head", N in words to ten ("once two have signed this head"); with
+    several roles, "once each has signed".
+  Under the rows a note, at most 160 bytes, where a row has a sign-off:
+  "A sign-off is for one head. A change pushed after it needs signing
+  again; taking BRANCH cleanly keeps it." where every approval the rows
+  count is `clean`, BRANCH the landing branch; "A sign-off is for one
+  head. A change pushed after it, or taking BRANCH, needs signing again."
+  where every one is `exact`; and "A sign-off is for one head." where
+  they differ. Empty otherwise.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the

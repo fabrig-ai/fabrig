@@ -625,15 +625,21 @@
   - `current`, option, the index of the way the project runs; `own`, the
     project's own path; `words`, option, the project's words, kind 10, a
     `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480
-    (`../../protocol/configuration/settings.md`, 2); `may_change`, whether the
-    reader may change the project's settings, an owner of it.
+    (`../../protocol/configuration/settings.md`, 2); `rules`, a `PathRules`,
+    the project's rules by path (`../../domain/forge/change/branch-path.md`,
+    *Rules by path*): `rows`, at most 9, each a `PathRule`, `paths` at most
+    256 bytes, `review`, `sign_off` and `lands` at most 64 each, an empty
+    `review` or `sign_off` for none; and `note`, at most 160, empty for
+    none; no rows where the project holds no rule by path; `may_change`,
+    whether the reader may change the project's settings, an owner of it.
 
   Marked at each committed change of settings, at each adoption into the
-  project or removal from it, and at a change of the reader's role. A
+  project or removal from it, and at a change of any person's role in the
+  project, since how many hold a role words its sign-offs. A
   path's bounds are set so that the worst document the root makes, the
   stock's ways and the project's own path, each at 24 stops of the
-  largest agent's card, fits one decision's delivery in the smallest
-  profile.
+  largest agent's card, with its rules by path at every bound, fits one
+  decision's delivery in the smallest profile.
 - **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
   512 bytes, a `view` block's line (`../pages/chat/conversation.md`, 3), read in the project's scope by a
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
