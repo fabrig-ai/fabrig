@@ -570,6 +570,7 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
             behind: if no_account { 0 } else { 2 },
             whole: true,
             yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+            size: None,
         },
     )
     .expect("approval fixture");
