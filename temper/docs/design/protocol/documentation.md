@@ -1,6 +1,6 @@
 # Documentation in the binary
 
-Provisional, 2026-10-26, revised 2026-11-05. temper's documentation,
+Provisional, 2026-10-26, revised 2026-11-11. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
 temper's own runs through a host tool. It builds `../draft/agent-docs.md`
@@ -11,12 +11,13 @@ help. People read the site, which is outside temper's design.
 ## 1. In one page
 
 - **For agents.** The operator's agent runs the binary, the driver
-  works through `temper ctl`, and temper's runs read with `read_docs`
-  (`../draft/agent-docs.md`, section 2). Every page is written for an
-  agent about to act.
+  works through `temper ctl`, and temper's runs read with `read_docs`,
+  except Ask temper, which reads with `see help`
+  (`../domain/agent/agents.md`, 1). Every page is written for an agent
+  about to act.
 - **Pages in `docs/help/`, one table.** `temper-docs` holds a row per
   page: its name, kind, title, summary and text. The table is the map
-  (`../draft/agent-docs.md`, section 4), and the directory equals it.
+  (2.4), and the directory equals it.
 - **Six kinds, each with its template and bound:** `index`, `concept`,
   `walk`, `recipe`, `way` and `reference`, the last generated from the
   code's tables (2.2).
@@ -32,6 +33,26 @@ help. People read the site, which is outside temper's design.
   command line in a page to its parser, every address to a page, every
   named setting field to its table, the placeholders to their set, and
   the generated pages to what their tables render (section 6).
+
+| Reader | Who | Reaches the text by | Needs first |
+|---|---|---|---|
+| The operator's agent | sets up and keeps a deployment for a person: `init`, `box` or `serve`, a forge, accounts, an upgrade (`binaries.md`) | a shell, often before anything is configured: help works before `init` (section 4) | the index, a walk, the binary's reference |
+| The driver | works through a deployment for a person: adopts, asks, follows, answers, decides, configures | `temper ctl`, a process per call | the page `ctl`, then each result's acts; a group's reference; a concept when the model surprises it |
+| temper's own runs, except Ask temper | a chat, a coder | its charter's instructions, its host tools' descriptions, and `read_docs`; no shell into temper | the settings' concepts and reference, the recipes, the limits |
+| Ask temper | configures how work runs for a person | its charter's instructions, its host tools' descriptions, and `see help`; no shell into temper | the settings inventory, then each setting the change touches, whole, by the addresses the inventory names; it explains from what it reads and from temper's pages (`../domain/agent/agents.md`, 1), its instructions naming no list of pages |
+
+- **The moments:** first contact (the index, then a walk); every call
+  (its result and acts); a failure (the error, its remedy, an address);
+  a surprise in the model (the concept); configuring (the settings'
+  concepts, their reference and the recipes).
+- **QA reads what a user reads.** A pass is given a walk and its rung
+  (`../../development/qa.md`, section 3), never a list of commands, so
+  a rename reaches it through the walk. A step it finds only in the
+  design or the source is a finding (`../../development/qa.md`,
+  section 6).
+- **People read the site,** the user's: it may render any page of
+  `docs/help/` as it is; nothing here is written for it.
+  `temper open`, a person's terminal, keeps its usage line alone.
 
 ## 2. The source
 
@@ -51,12 +72,15 @@ help. People read the site, which is outside temper's design.
 - **Links** between pages are `temper help NAME` in the text, NAME in
   lower case, which the step test resolves; a word of capitals after
   `temper help` is a placeholder, never a link.
-- **Placeholders,** in written pages, are `../draft/agent-docs.md` 5's
-  set alone: `DIR`, `CONFIG`, `DATA`, `CACHE`, `FILE`, `TEXT`, `KEY`,
-  `TASK`, `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`,
-  `PROPOSAL`, `PROVIDER`. In a fenced line that starts `temper `, a
-  word of capitals is one of them, or one that a walk's `Before you
-  start` declares, in a bullet that starts with it in a code span.
+- **Placeholders:** one set, defined once in the index, and no other in
+  a written page: `DIR` (ctl's directory), `CONFIG`, `DATA` and `CACHE`
+  (the three directories), `FILE`, `TEXT`, `KEY`, `TASK`, `PROJECT`,
+  `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`, `PROPOSAL`, `PROVIDER`.
+  A walk that needs another value names it in `Before you start`. In a
+  fenced line that starts `temper `, a word of capitals is one of them,
+  or one that a walk's `Before you start` declares, in a bullet that
+  starts with it in a code span. Reference pages print the tables'
+  argument names (`../client/ctl/tools.md`, 1).
 - **Where it lives** is the repository: a change of behaviour and the
   page that tells it land in one change.
 
@@ -86,10 +110,69 @@ help. People read the site, which is outside temper's design.
 
 ### 2.3 The voice, checked
 
+- **For an agent about to act:** the present of `main`; steps in the
+  imperative; one fact a sentence.
+- **temper's words,** each defined once, in its concept; never a word of
+  the design's: no crate, no section number, no kit's name.
+- **Exact:** commands as typed, values with their units and bounds,
+  outputs verbatim, a limit as a fact.
+- **Nothing twice:** a fact lives on one page and others give its
+  address. The exit classes and the wait conditions are `ctl`'s; what
+  needs a restart is `configuration`'s; a verb's syntax is its row's.
+- **True of `main`:** no page describes what `main` does not do. A
+  behaviour and the text that tells it land in one change.
+
 Outside code spans and fenced blocks, a written page holds none of these
 words of the design's: `jig`, `smith`, `skein`, `.md`, `temper-` (a
-crate's prefix). The rest of the voice (`../draft/agent-docs.md`,
-section 6) is the writer's and the review's.
+crate's prefix). The rest of the voice is the writer's and the review's.
+
+### 2.4 The map
+
+The map's single copy is `temper-docs`' table, a row per page; this
+section is its design. It lists the end state: a page joins the table
+with the part that makes it true of `main`.
+
+| Noun | Concept | ctl groups | Covers |
+|---|---|---|---|
+| ctl | `ctl` | the client's: `sign-in`, `sign-out`, `pending`, `help` | a call's loop (read, act, wait), the wait conditions, keys and kept requests, acts and the revisions they name, the exit classes, JSON; the forge read with tools of the agent's choosing, and what temper owns there changed only through temper |
+| deployment | `deployment` | `deployment` | the engine, the worker, a box, a server, the three directories, the configuration document |
+| party | `party` | `me`, `party` | people and services, roles, pools, signing in to temper, credentials as files |
+| project | `project` | `project` | projects, their home, their members |
+| forge | `forge` | `forge` | kinds, modes (connected, managed, owned), GitHub's App and installations, the repositories a forge reaches |
+| repository | `repository` | `repository` | adoption, its role, the home, the landing branch, CI and checks |
+| account | `account` | `account`, `model` | LLM providers, accounts, sources, keys, a provider's sign-in, a program's login, a move between deployments, models |
+| task | `task` | `task` | tasks and their parts (tree, activity, turns, run), delegates, phases, a task's own holds and their release, stop and cancel, amendments, a task's settings revision |
+| hold | `hold` | `hold` | a placed hold: its owner, its mode (stop or drain), its scope (a task's subtree or a project), what lifts it; placed by `task hold` and `project hold` |
+| chat | `chat` | `chat` | a conversation, its template, following it as a task, closing it |
+| goal | `goal` | `goal` | tracked work, priority, plans, advisors |
+| change | `change` | `change` | a change's way to landing: its pull request, CI, gates, queue, repairs, holds, merge; what the forge shows and temper does not |
+| landing | `landing` | `landing` | a landing task: its members, each candidate with its base, its gates' receipts and runs, its proof, the turn; a repository's receipts (`repository receipts`) |
+| finding | `finding` | `finding` | something found that is not its finder's to fix now: a labelled issue in the project's home, its kind, severity, area and state; triage (route, backlog, drop) |
+| qa | `qa` | `qa` | QA after landing: the marks of what a user can now do, the chooser, the passes on the newest cleared `main` |
+| inbox | `inbox` | `inbox` | what waits on the party: questions, proposals, escalations; updates |
+| proposal | `proposal` | `proposal` | proposals of every kind, deciding, withdrawing |
+| settings | `settings` | `settings` | the settings and their kinds, applying, proposing, running work |
+| revision | `revision` | `revision` | revisions, the history, restoring, moving running work to the newest |
+| charter | `charter` | (settings) | a charter's fields and defaults; the forge's charter |
+| template | `template` | (settings) | a template's fields and defaults |
+| policy | `policy` | (settings) | a policy's fields and defaults; the rules |
+| landing rule | `landing-rule` | (settings) | a landing rule, the deployment's and a project's |
+| budget | `budget` | (none) | what work spends, budgets, deadlines |
+| playground | `playground` | `playground` | the demo, its fakes, starting it |
+
+- **Walks:** `box` (a local box from nothing to a landed change, and
+  back), `server` (a long-lived deployment), `forgejo` and `github`
+  (connecting each, GitHub's shared App read-only among them),
+  `configure` (changing how work runs), `upgrade`.
+- **Recipes:** "review before landing", "a tester that cannot land", "a
+  weekly budget". Each comes with the part that makes it true.
+- **Reference pages:** `ctl-GROUP` for each group, `commands` for the
+  binary's, `host-tools`, `settings-fields`, `configuration` (its
+  members, and which need a restart) and `limits` (the bounds).
+- **The rules:** every group names its concept; a concept may cover
+  several groups, or none; a row's name, kind and noun are the table's,
+  and the gate holds the directory to the table. A noun, walk or recipe
+  the design does not name is no row.
 
 ## 3. `temper-docs`
 
@@ -207,11 +290,11 @@ Each reference page is rendered from one table by the crate that holds
 the table, checked in under `docs/help/reference/`, and held equal to
 its rendering by its crate's step test (section 6), which prints the page
 as it should be. A table's text (its lines and notes) is documentation,
-in `../draft/agent-docs.md` 6's voice.
+in section 2.3's voice.
 
 | Page | Its table | A row |
 |---|---|---|
-| `commands` | a binary's table: `temper-box`'s, as the page is compiled, and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
+| `commands` | the binaries' tables, as the page is compiled (8.1; `temper_shell::table::commands_reference`), and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, under each binary that runs it, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
@@ -253,6 +336,35 @@ in `../draft/agent-docs.md` 6's voice.
   member's line points to it. Its words sit beside the page's renderer,
   which reads the bounds and the `PATH` it names from the limits that hold
   them, so the section cannot drift from them.
+
+### 8.1 The page `commands`
+
+The compiled page names each command's binary
+(`../draft/deployment-binaries.md`, section 9, item 6): it is rendered
+from the deployment's tables and the box's, in this order, the
+client's, `temper-engine`'s, `temper-worker`'s, `temper-agent`'s and
+`temper-box`'s (`../cli/README.md`, 6 and 7).
+`temper-box-shell`'s step test holds the checked-in page equal to that
+rendering, since the box's crate links every table.
+
+- **Its head:** the title `temper's commands`, `Kind: reference`, and
+  one line: `Every command of temper's binaries, a section each: its
+  usage, what it does, its arguments and its notes. A command two
+  binaries share is written under the first and named under the
+  others.`
+- **A section per binary,** `## BINARY`, then the table's line, then
+  each of its commands as a section of its own, `### BINARY WORDS` (`###
+  BINARY` for the bare form, `### run as PROGRAM` for one run as
+  another name), its public commands first, then its internal ones, in
+  the table's order, as `commands_page` renders one.
+- **A command an earlier table holds,** the same `skein_shell::Command`
+  value, is named, not written again: its heading and its usage lines
+  under this binary's name, then `As BINARY WORDS, above.`, naming the
+  first binary's section. So `temper-box forge fetch` points to
+  `temper-engine forge fetch`, and `temper-box program-login` to
+  `temper-worker program-login`.
+- **Bounded as every reference page** (32,768 bytes); each binary's
+  `help commands` still prints its own table alone, by `commands_page`.
 
 ## 9. Errors
 

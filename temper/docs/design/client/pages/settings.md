@@ -674,7 +674,7 @@ the document gives them; the client hides nothing of its own.
 
 - **Settings, Models after landing** (`README.md`): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
-  including the named states and screenshots (`../../draft/look-requests.md`,
+  including the named states and screenshots (`../web/look-requests.md`,
   section 4). Default: the client world's switches and adding across
   reloads, reads, failures, retries, retained names and unchanged reads;
   view tables and gallery states for the read ages and expiring new tags;

@@ -400,7 +400,7 @@ fn stop_answer(which: u8) -> d::Domain {
         match which {
             0 => Stop::Apply { offer: Offer::Decide(Subject::Kind(Kind::Implementation)) },
             1 => Stop::Propose { offer: Offer::Decide(Subject::Kind(Kind::Implementation)) },
-            2 | 3 => Stop::Keep,
+            2 | 3 => Stop::Keep { object },
             _ => panic!("four stop asking outcomes"),
         },
     ] {
