@@ -379,11 +379,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   (or queue merges) into that repository while one of its landings is
   red, instead.
 - **A goal that has ended,** or a landing temper did not make: the red
-  is kept as a red of no goal's, which findings file (`findings.md`,
-  section 4), and the project's triager is told. The tier keeps them
-  within its bound; past it, the oldest is dropped and counted on the
-  tier's record, never holding the tier, so that no repository's
-  verification stops for want of a triage.
+  is a red of no goal's, which the root files as a finding of its
+  project in the decision that keeps the verdict, once per landing it
+  reddens (`findings.md`, section 4), with no area, so that the project's
+  triager holds it and hands it on (`areas.md`, section 5). Past the
+  project's findings' bound it is not filed, never holding the tier, so
+  that no repository's verification stops for want of a triage.
 
 Red news fits `tasks.message_bytes` in order: header and test IDs as whole
 lines, then the run URL, then failed-job log ends sharing the remaining room

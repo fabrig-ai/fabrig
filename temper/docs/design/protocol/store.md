@@ -135,7 +135,14 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, a ring of its last
   `landings_kept` landings, each its commit, branch and time, its changes,
   each with its task, pull request and title (at most 256 bytes), its
-  trailers and its verdicts, erased with its repository; 31 `Finding`, 32
+  trailers and its verdicts, erased with its repository; 31 `Finding`,
+  keyed `Finding { project, number }`, a finding's record
+  (`../domain/findings.md`, section 2): its kind, severity, area, state,
+  title, body, filer, when, the last hand-off's why and hander, its goal,
+  a drop's reason, and the fields its issue and matching add, each an
+  option appended after these; written by the forge's finding requests
+  and the root's filing of a red, erased with its project, bounded by
+  `forge.findings_per_project` times `forge.judge_projects`; 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,
@@ -188,7 +195,9 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     number, 3 and an issue's;
   - `Topic` is its variant (0 `Landings`, 1 `Ci`, 2 `Pull`, 3
     `Participation`), then the repository, then the branch, the commit
-    or the number;
+    or the number; or 4 `Findings`, then the project
+    (`../domain/forge/README.md`, 5.1);
+  - `Finding` is the project, then the number;
   - `Making` is the forge, then the org and the name, each one byte
     string;
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its

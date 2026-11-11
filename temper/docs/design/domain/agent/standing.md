@@ -7,10 +7,11 @@ its Now as each ends, and answers to a person: jig's task that stands
 (jig's `domain/tasks/standing.md`), run under a charter of its own. This
 document says what temper fills in: the stock's charter and template
 for one, its person and what follows when that person leaves the
-project, what it may do, and how a person starts and reads one. Its
-area, said in words and routed to by the project's triager, is later
-work of `../../draft/standing-roles.md`, sections 4, 8 and 10; until then a role's spec words
-say what it covers.
+project, what it may do, and how a person starts and reads one. What it owns is the
+areas that name it as their owner, said in words, and what the
+project's triager hands it (`../areas.md`); the stock's standing roles,
+the triager first, are charters 14 to 16
+(`../../protocol/configuration/stock.md`).
 
 ## 1. In one page
 
@@ -54,8 +55,10 @@ say what it covers.
   `ended_by` `standing` (jig's `protocol/configuration.md`, 3.2), not a
   conversation, listed, kept, untracked, labelled 3, its contract a
   report as template 1's, its budget the creator's, a period's amount,
-  and no deadline. Its spec's words are what it covers and how, until
-  areas are settings (`../../draft/standing-roles.md`, section 4).
+  and no deadline. Its spec's words say how it works; what it owns is
+  the areas naming it as their owner, or as the project's triager
+  (`../areas.md`, sections 2 and 6), which its runs read with the
+  `finding` tool (`tools.md`).
 - **Label 3** marks a standing role, beside 1, a chat, and 2, a goal, so
   that a project's roles are listed by label (section 6).
 

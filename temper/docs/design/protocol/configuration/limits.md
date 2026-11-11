@@ -57,6 +57,11 @@
   keeps 7 days (`../../domain/forge/attention.md`, 5): 1,024 in both profiles, so a
   busy night's every task fits beside the day before. The forge's family
   holds it times `forge.judge_projects`.
+- **A project's findings:** `forge.findings_per_project`, the findings
+  the forge keeps for a project (`../../domain/findings.md`, section 9):
+  256 in both profiles, room for weeks of reds, words and outside
+  parties' filings between triages. The forge's family holds it times
+  `forge.judge_projects`.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
