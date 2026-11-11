@@ -1216,4 +1216,4 @@ you across projects after landing*); what the draft draws beyond them is
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Not yet:** 2: the client's binary's package, `temper-client` at `temper/bin/temper-client`, and its crate `temper-client-shell`: today one package, `temper/crates/temper-client`, holds both.
+- **Not yet:** 2: the client's binary's package, `temper-client` at `temper/bin/temper-client`, and its crate `temper-client-shell`: today one package, `temper/crates/temper-client`, holds both [in flight: change 587].
