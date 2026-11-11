@@ -102,16 +102,24 @@ fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
 #[must_use]
 pub fn operations() -> Vec<(&'static str, Scenario)> {
     vec![
-        ("make", scenario(git::Op::Make { workspace: Token::new(7) }, &[], Expected::done(git::Done::Succeeded))),
+        (
+            "make",
+            scenario(
+                git::Op::Make { workspace: Token::new(7), stores: Box::new([]) },
+                &[],
+                Expected::done(git::Done::Succeeded),
+            ),
+        ),
         (
             "clone",
             scenario(
-                git::Op::Clone { at: at(), remote: remote(), identity: 1, account: None },
-                &["clone"],
+                git::Op::Clone { at: at(), remote: remote(), store: Token::new(9) },
+                &["clone", "remote-add"],
                 Expected::done(git::Done::Succeeded),
             ),
         ),
         ("fetch", fetch()),
+        ("point", point()),
         (
             "create",
             scenario(
@@ -182,17 +190,28 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
     ]
 }
 #[must_use]
+pub fn point() -> Scenario {
+    let mut point = scenario(
+        git::Op::Point { at: at(), into: git::Into::Landing, commit: TWO },
+        &["update-ref"],
+        Expected::done(git::Done::Succeeded),
+    );
+    point.identity = false;
+    point
+}
+#[must_use]
 pub fn fetch() -> Scenario {
     scenario(
         git::Op::Fetch {
+            store: Token::new(9),
             into: git::Into::Fetched,
-            at: at(),
+            at: git::Place { workspace: Token::new(1), ..at() },
             remote: remote(),
             want: git::Want::Default,
             identity: 1,
             account: None,
         },
-        &["fetch-default"],
+        &["fetch-default", "update-ref"],
         Expected::done(git::Done::Fetched { commit: TWO }),
     )
 }

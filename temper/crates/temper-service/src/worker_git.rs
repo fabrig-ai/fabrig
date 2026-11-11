@@ -77,12 +77,14 @@ fn unfit(unfit: component::Unfit) -> Problems {
 #[must_use]
 pub(crate) fn identity(op: &git::Op) -> Option<u32> {
     match op {
-        git::Op::Clone { identity, .. }
-        | git::Op::Fetch { identity, .. }
+        git::Op::Fetch { identity, .. }
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
-        git::Op::Make { .. }
+        git::Op::Point { .. }
+        | git::Op::Store { .. }
+        | git::Op::Clone { .. }
+        | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -103,8 +105,7 @@ pub(crate) fn pick(
         Value::GitHub { login, name, email, entries } => (login, name, email, entries),
     };
     let (at, account) = match op {
-        git::Op::Clone { at, account, .. }
-        | git::Op::Fetch { at, account, .. }
+        git::Op::Fetch { at, account, .. }
         | git::Op::Create { at, account, .. }
         | git::Op::Push { at, account, .. } => (at, account),
         git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at, &snapshot.account),
@@ -116,7 +117,10 @@ pub(crate) fn pick(
                 email: email.clone(),
             }));
         }
-        git::Op::Make { .. }
+        git::Op::Point { .. }
+        | git::Op::Store { .. }
+        | git::Op::Clone { .. }
+        | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }

@@ -71,6 +71,8 @@ pub enum Op {
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    /// Point a repository reference at a commit already present. Ends in `Succeeded`.
+    Point { at: Place, into: Into, commit: Commit },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -238,6 +240,7 @@ pub enum Kind {
     Make,
     Clone,
     Fetch,
+    Point,
     Create,
     CheckOut,
     Merge,
@@ -256,6 +259,7 @@ impl Op {
             Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
+            Op::Point { .. } => Kind::Point,
             Op::Create { .. } => Kind::Create,
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
@@ -272,7 +276,8 @@ impl Op {
         match self {
             Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Store { .. }
+            Op::Point { .. }
+            | Op::Store { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
             | Op::IsAncestor { .. }

@@ -76,23 +76,12 @@ fn collect(
     while let Some(request) = world.out.pop() {
         match request {
             Request::Io { owner, op, .. } => {
-                let workspace = match &op {
-                    checkout::git::Op::Make { workspace } => {
-                        places.insert(owner, *workspace);
-                        *workspace
-                    }
-                    checkout::git::Op::Clone { at, .. }
-                    | checkout::git::Op::Fetch { at, .. }
-                    | checkout::git::Op::Create { at, .. }
-                    | checkout::git::Op::CheckOut { at, .. }
-                    | checkout::git::Op::Look { at, .. }
-                    | checkout::git::Op::DiffPaths { at, .. }
-                    | checkout::git::Op::IsAncestor { at, .. }
-                    | checkout::git::Op::Merge { at, .. }
-                    | checkout::git::Op::Commit { at, .. }
-                    | checkout::git::Op::Push { at, .. } => at.workspace,
-                };
-                report.crossed.push(Crossing::Io { workspace });
+                if let checkout::git::Op::Make { workspace, .. } = &op {
+                    places.insert(owner, *workspace);
+                }
+                if let Some(workspace) = translate::workspace(&op) {
+                    report.crossed.push(Crossing::Io { workspace });
+                }
                 held.push_back((owner, translate::perform(&mut world.forge, &mut world.disk, op)));
             }
             Request::Answer { run, .. } => {

@@ -136,11 +136,9 @@ impl Component {
         out: &mut Outputs,
     ) {
         let needs_identity = match op {
-            git::Op::Fetch { .. }
-            | git::Op::Create { .. }
-            | git::Op::Commit { .. }
-            | git::Op::Push { .. } => true,
-            git::Op::Store { .. }
+            git::Op::Fetch { .. } | git::Op::Create { .. } | git::Op::Commit { .. } | git::Op::Push { .. } => true,
+            git::Op::Point { .. }
+            | git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::CheckOut { .. }
@@ -261,13 +259,16 @@ impl Component {
         self.index.remove(&key).expect("live index");
         self.slots.retire(id);
     }
+    #[expect(clippy::too_many_lines, reason = "the fixed sequence's steps advance in one table")]
     fn advance(&mut self, id: Id<Operation>, next: Next, out: &mut Outputs) {
         let next = match next {
             Next::End(done) => {
                 let operation = self.slots.get(id).expect("live operation");
                 if let Command::Store { directory } = &operation.command {
                     Next::InstallStore { directory: directory.clone(), done: Box::new(done) }
-                } else { Next::End(done) }
+                } else {
+                    Next::End(done)
+                }
             }
             Next::Snapshot { parent, merging } => {
                 let operation = self.slots.get_mut(id).expect("live snapshot");
@@ -282,7 +283,12 @@ impl Component {
                 let command = if merging.is_some() { Command::Unmerged } else { Command::Add };
                 Next::Run(command)
             }
-            other @ (Next::Run(_) | Next::Make | Next::Store | Next::InstallStore { .. } | Next::Alternates | Next::Scan { .. }) => other,
+            other @ (Next::Run(_)
+            | Next::Make
+            | Next::Store
+            | Next::InstallStore { .. }
+            | Next::Alternates
+            | Next::Scan { .. }) => other,
         };
         match next {
             Next::Run(command) => {
@@ -315,11 +321,15 @@ impl Component {
             Next::Snapshot { .. } => unreachable!("snapshot parents were resolved before dispatch"),
             Next::End(done) => self.finish(id, done, out),
             Next::Make => {
-                let Some(git::Op::Make { workspace, stores }) = &self.slots.get(id).expect("live index").op else { unreachable!("Make sequence") };
+                let Some(git::Op::Make { workspace, stores }) = &self.slots.get(id).expect("live index").op else {
+                    unreachable!("Make sequence")
+                };
                 self.file_start(id, Task::make(*workspace, stores.clone()), out);
             }
             Next::Store => {
-                let Some(git::Op::Store { store, aside, .. }) = &self.slots.get(id).expect("live index").op else { unreachable!("Store sequence") };
+                let Some(git::Op::Store { store, aside, .. }) = &self.slots.get(id).expect("live index").op else {
+                    unreachable!("Store sequence")
+                };
                 let task = Task::store(*store, *aside, &mut self.directories);
                 self.file_start(id, task, out);
             }
@@ -331,15 +341,18 @@ impl Component {
                 self.file_start(id, task, out);
             }
             Next::Alternates => {
-                let Some(git::Op::Clone { at, store, remote }) = &self.slots.get(id).expect("live index").op else { unreachable!("Clone sequence") };
+                let Some(git::Op::Clone { at, store, remote }) = &self.slots.get(id).expect("live index").op else {
+                    unreachable!("Clone sequence")
+                };
                 self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
             }
             Next::Scan { files } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
-                    git::Op::Store { .. }
-            | git::Op::Make { .. }
+                    git::Op::Point { .. }
+                    | git::Op::Store { .. }
+                    | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }

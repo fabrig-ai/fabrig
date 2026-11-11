@@ -90,7 +90,9 @@ impl Operation {
         };
         let kind = self.environment_kind(kind);
         let mut credentials = true;
-        if let Command::UpdateRef { .. } = self.command { credentials = false; }
+        if let Command::UpdateRef { .. } = self.command {
+            credentials = false;
+        }
         let mut pipes = skein_lib::List::with_capacity(3);
         if self.is_commit_tree() {
             pipes.push(kernel::Pipe { child: 0, way: kernel::Way::In, parent: None }).expect("three pipes");
@@ -197,7 +199,13 @@ impl Operation {
         {
             match next {
                 Next::End(_) => return,
-                Next::Run(_) | Next::Snapshot { .. } | Next::Make | Next::Store | Next::InstallStore { .. } | Next::Alternates | Next::Scan { .. } => {}
+                Next::Run(_)
+                | Next::Snapshot { .. }
+                | Next::Make
+                | Next::Store
+                | Next::InstallStore { .. }
+                | Next::Alternates
+                | Next::Scan { .. } => {}
             }
         }
         if self.stop.is_none() {
@@ -238,6 +246,7 @@ impl Operation {
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
@@ -350,8 +359,9 @@ impl Operation {
                     Some(git::Op::Commit { title, body, .. }) if commit => invocation::message(title, body),
                     Some(
                         git::Op::Store { .. }
-                    | git::Op::Make { .. }
+                        | git::Op::Make { .. }
                         | git::Op::Clone { .. }
+                        | git::Op::Point { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
                         | git::Op::CheckOut { .. }
@@ -597,21 +607,32 @@ impl Child {
 }
 
 fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
-    if let Command::Store { directory } = command { return directory.clone(); }
+    if let Command::Store { directory } = command {
+        return directory.clone();
+    }
     match op {
         git::Op::Clone { at, .. } => {
             if let Command::Clone { .. } = command {
                 invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
-            } else { invocation::place(at) }
+            } else {
+                invocation::place(at)
+            }
         }
         git::Op::Fetch { at, store, .. } => {
             if let Command::Fetch { .. } = command {
                 invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()])
-            } else { invocation::place(at) }
+            } else {
+                invocation::place(at)
+            }
         }
         git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Create { at, .. } | git::Op::CheckOut { at, .. } | git::Op::DiffPaths { at, .. }
-        | git::Op::IsAncestor { at, .. } | git::Op::Merge { at, .. } | git::Op::Commit { at, .. }
+        git::Op::Point { at, .. }
+        | git::Op::Create { at, .. }
+        | git::Op::CheckOut { at, .. }
+        | git::Op::DiffPaths { at, .. }
+        | git::Op::IsAncestor { at, .. }
+        | git::Op::Merge { at, .. }
+        | git::Op::Commit { at, .. }
         | git::Op::Push { at, .. } => invocation::place(at),
     }
 }

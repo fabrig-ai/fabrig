@@ -38,7 +38,7 @@ fn each_fetch_transcript_parses_to_its_fetched_commit() {
     for (case, commit) in FETCHES {
         let transcript = transcripts::read(case);
         assert_eq!(transcript.exit, 0, "{case}");
-        assert_eq!(output::fetched(&transcript.stdout, git::Into::Fetched), Some(*commit), "{case}");
+        assert_eq!(output::fetched(&transcript.stdout, b"refs/temper/1/fetched"), Some(*commit), "{case}");
         assert!(transcript.argv.starts_with(b"git\n-c\ncore.hooksPath=/dev/null\n"), "{case}");
     }
 }
@@ -113,7 +113,7 @@ fn mutated_outputs_parse_to_none_never_to_another_value() {
     for (case, expected) in FETCHES {
         for mutation in transcripts::mutations(&transcripts::read(case).stdout) {
             assert!(
-                output::fetched(&mutation, git::Into::Fetched).is_none_or(|actual| actual == *expected),
+                output::fetched(&mutation, b"refs/temper/1/fetched").is_none_or(|actual| actual == *expected),
                 "{case}: {mutation:?}"
             );
         }

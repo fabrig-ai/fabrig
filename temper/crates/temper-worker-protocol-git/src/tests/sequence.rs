@@ -37,6 +37,27 @@ fn each_operation_s_next_invocation_is_git_md_s() {
     }
 }
 
+#[test]
+fn a_point_succeeds_or_breaks_in_one_invocation() {
+    let op = git::Op::Point { at: fixtures::at(), into: git::Into::Landing, commit: fixtures::COMMIT };
+    let command = Command::UpdateRef { into: git::Into::Landing, commit: fixtures::COMMIT };
+    assert_eq!(sequence::first(&op), Next::Run(command.clone()));
+    assert!(!op.is_remote());
+    for code in [0, 1, 128] {
+        let expected = if code == 0 {
+            git::Done::Succeeded
+        } else {
+            git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
+        };
+        assert_eq!(sequence::after(&op, &command, code, b"", b"", 0, &fixtures::checkout()), Next::End(expected));
+    }
+    assert_eq!(
+        crate::invocation::environment(fixtures::HOME, Some(git::Kind::Point), Some(&fixtures::identity())),
+        crate::invocation::environment(fixtures::HOME, None, None),
+        "a point never carries an identity or an authorization header",
+    );
+}
+
 fn standard_rows() {
     let commit = fixtures::commit_op(None);
     let merging = fixtures::commit_op(Some(fixtures::COMMIT));

@@ -59,6 +59,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
+        | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
@@ -85,6 +86,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -280,12 +282,18 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
 pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>) -> Box<[Box<[u8]>]> {
     environment_for(home, kind, identity, true)
 }
-pub(crate) fn environment_for(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>, credentials: bool) -> Box<[Box<[u8]>]> {
+pub(crate) fn environment_for(
+    home: &[u8],
+    kind: Option<git::Kind>,
+    identity: Option<&Identity>,
+    credentials: bool,
+) -> Box<[Box<[u8]>]> {
     let identity = match kind {
         Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
         None
         | Some(
-            git::Kind::Store
+            git::Kind::Point
+            | git::Kind::Store
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
@@ -324,7 +332,8 @@ pub(crate) fn environment_for(home: &[u8], kind: Option<git::Kind>, identity: Op
         }
         Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
             if let Some(identity) = identity
-                && credentials {
+                && credentials
+            {
                 let raw = joined(&[&identity.login, b":", identity.token.expose()]);
                 let size = u32::try_from(raw.len()).expect("channel identity length fits u32");
                 let size =
@@ -337,7 +346,8 @@ pub(crate) fn environment_for(home: &[u8], kind: Option<git::Kind>, identity: Op
         }
         None
         | Some(
-            git::Kind::Store
+            git::Kind::Point
+            | git::Kind::Store
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths

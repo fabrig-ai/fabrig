@@ -26,9 +26,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
-        git::Op::Clone { at, .. } => {
-            Command::Clone { directory: at.repository.clone() }
-        }
+        git::Op::Clone { at, .. } => Command::Clone { directory: at.repository.clone() },
         git::Op::Fetch { at, remote, want, into, .. } => Command::Fetch {
             workspace: at.workspace,
             into: *into,
@@ -42,6 +40,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Create { remote, branch, commit, .. } => {
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit: *commit }
         }
+        git::Op::Point { into, commit, .. } => Command::UpdateRef { into: *into, commit: *commit },
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
         git::Op::DiffPaths { before, after, .. } => Command::DiffPaths { before: *before, after: *after },
@@ -90,8 +89,9 @@ pub fn after(
                 _ => {}
             },
             git::Op::Store { .. }
-        | git::Op::Make { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -102,8 +102,13 @@ pub fn after(
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
         },
         Command::Store { directory } => {
-            let done = if code == 0 { git::Done::Succeeded } else {
-                git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::new(tail, cut) }
+            let done = if code == 0 {
+                git::Done::Succeeded
+            } else {
+                git::Done::FailedWithOutput {
+                    fault: git::Fault::Broken,
+                    diagnostic: git::PushDiagnostic::new(tail, cut),
+                }
             };
             return Next::InstallStore { directory: directory.clone(), done: Box::new(done) };
         }
@@ -114,7 +119,13 @@ pub fn after(
                 return Next::Run(Command::UpdateRef { into: *into, commit });
             }
         }
-        Command::UpdateRef { commit, .. } if code == 0 => return Next::End(git::Done::Fetched { commit: *commit }),
+        Command::UpdateRef { commit, .. } if code == 0 => {
+            return Next::End(if op.kind() == git::Kind::Point {
+                git::Done::Succeeded
+            } else {
+                git::Done::Fetched { commit: *commit }
+            });
+        }
         Command::Create { branch, .. } => {
             if let Some(next) = pushed(stdout, branch, true, tail, cut) {
                 return next;
@@ -150,8 +161,9 @@ pub fn after(
                 });
             }
             git::Op::Store { .. }
-        | git::Op::Make { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -208,8 +220,9 @@ pub fn after(
             git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
             | git::Op::Store { .. }
-        | git::Op::Make { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -278,6 +291,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -296,6 +310,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -314,6 +329,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }
@@ -328,11 +344,26 @@ fn checked_out(op: &git::Op) -> Next {
 fn remote(command: &Command) -> bool {
     match command {
         Command::Fetch { .. } | Command::Create { .. } | Command::Push { .. } => true,
-        Command::Version | Command::Origin { .. } | Command::Clone { .. } | Command::Remote { .. }
-        | Command::Store { .. } | Command::UpdateRef { .. } | Command::SnapshotHead
-        | Command::SnapshotMerge { .. } | Command::SnapshotFetch { .. } | Command::SnapshotReachable { .. }
-        | Command::SnapshotReset { .. } | Command::CheckOut { .. } | Command::Clean | Command::Merge { .. }
-        | Command::Unmerged | Command::Add | Command::DiffIndex { .. } | Command::DiffPaths { .. }
-        | Command::WriteTree | Command::CommitTree { .. } | Command::IsAncestor { .. } => false,
+        Command::Version
+        | Command::Origin { .. }
+        | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::Store { .. }
+        | Command::UpdateRef { .. }
+        | Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotFetch { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::CheckOut { .. }
+        | Command::Clean
+        | Command::Merge { .. }
+        | Command::Unmerged
+        | Command::Add
+        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+        | Command::WriteTree
+        | Command::CommitTree { .. }
+        | Command::IsAncestor { .. } => false,
     }
 }

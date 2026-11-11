@@ -41,9 +41,15 @@ pub const PARENT: git::Commit = COMMIT_256;
 pub const EXPECTED: git::Commit = COMMIT_256;
 pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
+pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
 pub const SERIAL: u64 = 1000;
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
-    crate::Request::Io { owner, op: git::Op::Make { workspace, stores: Box::new([]) }, deadline: DEADLINE, identity: None }
+    crate::Request::Io {
+        owner,
+        op: git::Op::Make { workspace, stores: Box::new([]) },
+        deadline: DEADLINE,
+        identity: None,
+    }
 }
 pub fn at() -> git::Place {
     git::Place { git: None, workspace: WORKSPACE, repository: Box::from(&b"app"[..]) }
@@ -212,11 +218,11 @@ impl Started {
         started.component = crate::Component::new(
             &limits(),
             &checkout(),
-            crate::Settings { serial: SERIAL.checked_sub(2).expect("layout names"), ..settings() },
+            crate::Settings { serial: SERIAL.checked_sub(3).expect("layout names"), ..settings() },
         )
         .expect("valid");
         started.version();
-        for _ in 0_u8..7 {
+        for _ in 0_u8..10 {
             started.file_operation();
             started.complete_ok();
         }
@@ -241,9 +247,11 @@ impl Started {
     }
     pub fn complete_ok(&mut self) {
         let result = match &self.file.as_ref().expect("file inspected").kind {
-            skein_io::kernel::Op::Open { path, .. } => {
-                skein_io::kernel::Done::Fd(if &**path == b"trash" { TRASH } else { WORKSPACES })
-            }
+            skein_io::kernel::Op::Open { path, .. } => skein_io::kernel::Done::Fd(match &**path {
+                b"trash" => TRASH,
+                b"stores" => STORES,
+                _ => WORKSPACES,
+            }),
             skein_io::kernel::Op::Read { .. } | skein_io::kernel::Op::List { .. } => skein_io::kernel::Done::Count(0),
             skein_io::kernel::Op::Rename { .. }
             | skein_io::kernel::Op::MakeDirectory { .. }
@@ -375,7 +383,7 @@ impl Started {
     }
     pub fn shutdown(&mut self) {
         self.down(crate::Request::Shutdown);
-        for _ in 0_u8..2 {
+        for _ in 0_u8..3 {
             self.file_operation();
             self.complete_ok();
         }

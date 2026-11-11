@@ -103,12 +103,18 @@ impl World {
         if let git::Op::Store { store, .. } = &op {
             let directory = format!("stores/{}", store.raw());
             fs::create_dir_all(self.root.join(&directory)).expect("store directory");
-            let output = self.command(&directory, &invocation::Command::Store { directory: directory.as_bytes().into() }, None, b"");
+            let output = self.command(
+                &directory,
+                &invocation::Command::Store { directory: directory.as_bytes().into() },
+                None,
+                b"",
+            );
             assert!(output.status.success(), "store init: {:?}", output.stderr);
             return git::Done::Succeeded;
         }
         let at = match &op {
             git::Op::Clone { at, .. }
+            | git::Op::Point { at, .. }
             | git::Op::Fetch { at, .. }
             | git::Op::Create { at, .. }
             | git::Op::CheckOut { at, .. }
@@ -139,8 +145,12 @@ impl World {
                         Some(op.kind())
                     };
                     let directory = match (&op, &command) {
-                        (git::Op::Clone { .. }, invocation::Command::Clone { .. }) => format!("workspaces/{}", workspace.raw()),
-                        (git::Op::Fetch { store, .. }, invocation::Command::Fetch { .. }) => format!("stores/{}", store.raw()),
+                        (git::Op::Clone { .. }, invocation::Command::Clone { .. }) => {
+                            format!("workspaces/{}", workspace.raw())
+                        }
+                        (git::Op::Fetch { store, .. }, invocation::Command::Fetch { .. }) => {
+                            format!("stores/{}", store.raw())
+                        }
                         _ => repository.clone(),
                     };
                     let kind = if matches!(command, invocation::Command::UpdateRef { .. }) { None } else { kind };
@@ -164,10 +174,16 @@ impl World {
                 Next::End(done) => return done,
                 Next::Alternates => {
                     let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };
-                    fs::write(self.root.join(&repository).join(".git/objects/info/alternates"), format!("../../../../../stores/{}/objects\n", store.raw())).expect("alternates");
+                    fs::write(
+                        self.root.join(&repository).join(".git/objects/info/alternates"),
+                        format!("../../../../../stores/{}/objects\n", store.raw()),
+                    )
+                    .expect("alternates");
                     Next::Run(invocation::Command::Remote { remote: remote.clone() })
                 }
-                Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => panic!("no unresolved paths"),
+                Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => {
+                    panic!("no unresolved paths")
+                }
             };
         }
         panic!("git operation settles")
