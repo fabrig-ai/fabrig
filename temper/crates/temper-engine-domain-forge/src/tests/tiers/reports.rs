@@ -98,7 +98,7 @@ fn failed_rerun() -> Domain {
     d
 }
 fn report_error(d: &mut Domain, error: api::Error) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Err(error), &mut out);
     collect(out)
@@ -355,6 +355,34 @@ fn probes_skip_unchanged_keys_and_blame_the_first_failure() {
     finish(&mut d);
     assert!(row(&d).record.run.is_none());
     assert_eq!(d.landing.receipts.len(), 1);
+}
+#[test]
+fn a_missing_probe_workflow_names_the_probes_commit_when_held() {
+    let mut d = three();
+    confirmed(&mut d);
+    send(&mut d, PROBE_OPEN);
+    tier_step(&mut d, PROBE_DISPATCH, false);
+    let kind = b"workflow tier.yml not found at 0606060606060606060606060606060606060606060606060606060606060606";
+    for fault in 0..=RETRIES {
+        let entry = PROBE_DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        let out = tier_step(&mut d, entry + 1, false);
+        if fault == RETRIES {
+            assert_eq!(
+                choice(&out),
+                Some(&TierDecision::Held {
+                    words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+                })
+            );
+        }
+    }
+    let words = d.tier_execution_words(TIER_TASK).unwrap();
+    let line = join_words(&[
+        b"Runner fault: Bisection probe: commit 0606060606060606060606060606060606060606060606060606060606060606, branch temper/tier/browser.1.1; ",
+        kind, b"\n",
+    ]);
+    assert_eq!(skein_lib::bytes::count(&words, &line, 4), 3);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().tip, LAST_TIP);
 }
 #[test]
 fn many_failures_probe_the_whole_tier() {
