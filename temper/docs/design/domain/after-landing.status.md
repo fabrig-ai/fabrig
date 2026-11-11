@@ -28,15 +28,6 @@ in section 14. The log's other gaps and the retained change rows remain below.
   waiting for main's tier and its cleared result naming its run, the
   rest running under queue alone
   (`tests/engine/domain/tests/suite/forge_routes/`).
-- **Not yet:** 3: a run whose task ends without its verdict is not
-  dropped as its task closes: its record keeps naming the ended task,
-  and a restore of that record stops the engine's start; 10: a dropped
-  run's number is not spent. [in flight: change 321]
-- **Not yet:** 2, 3, 11: a baseline starts at the head the engine last
-  knew, not at its branch's tip read afresh. [in flight: change 322]
-- **Not yet:** 3: a dispatch refused for a missing workflow is a `lost`
-  fault, not one of its own worded `workflow WORKFLOW not found at
-  COMMIT` and stored as its own kind. [in flight: change 323]
 - **Departs:** 10: a tier task holds the project's whole ceiling, not
   kinds 6, 7, 9, 16 and 17 alone, as a landing does (`landing.md`,
   section 11), because jig gives a procedure the deployment starts its
