@@ -267,7 +267,11 @@ impl Walking {
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Core(
-                core::Held::Delivery { .. } | core::Held::WatchEnded { .. } | core::Held::Grant { .. },
+                // The application's use of need arrivals is its own.
+                core::Held::NeedArrived { .. }
+                | core::Held::Delivery { .. }
+                | core::Held::WatchEnded { .. }
+                | core::Held::Grant { .. },
             ) => {}
             other @ (root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }

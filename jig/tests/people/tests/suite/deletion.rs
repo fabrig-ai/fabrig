@@ -79,6 +79,7 @@ fn route(rows: &[Request]) -> Token {
             | Request::Save { .. }
             | Request::Erase { .. }
             | Request::RolesRefused { .. }
+            | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
         .expect("one admitted flight")

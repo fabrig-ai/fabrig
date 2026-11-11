@@ -299,6 +299,7 @@ fn forget_party(core: &mut Core, env: &Env<Limits>, record: &tasks::TaskRecord, 
             | people::Request::Reply { .. }
             | people::Request::Save { .. }
             | people::Request::RolesRefused { .. }
+            | people::Request::NeedArrived { .. }
             | people::Request::RestoreRefused { .. } => {
                 unreachable!("forget only removes read positions")
             }

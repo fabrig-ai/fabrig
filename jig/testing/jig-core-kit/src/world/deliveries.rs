@@ -230,6 +230,7 @@ impl World {
                 | core::Held::Inbound { .. }
                 | core::Held::Relayed { .. }
                 | core::Held::Relay { .. }
+                | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::TaskTurnKept { .. }
