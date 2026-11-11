@@ -228,7 +228,7 @@ binaries; and decides by
     forge run killed takes Forgejo with it at once. Kill, not Terminate:
     a Forgejo still stopping gracefully when nothing waits for it would
     meet the restarted forge run's on the box's socket and its database
-    (`crates/temper/tests/suite/startup.rs`,
+    (`bin/temper-box/tests/suite/startup.rs`,
     `killing_forge_run_alone_kills_its_forgejo_child`).
     Forgejo's graceful stop is forge run's forwarded Terminate. The box
     names Terminate for each of its steps (`box.md`, 1). A

@@ -21,5 +21,5 @@ prints from a build script of its own (`protocol/binaries.status.md`).
   `temper --version` and `temper version`: the box's binary prints no
   version. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
   its start; only `temper init` warns of a missing git
-  (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
+  (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.

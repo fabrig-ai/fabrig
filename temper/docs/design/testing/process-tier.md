@@ -1,6 +1,6 @@
 # The process tier
 
-`crates/temper/tests/process.rs`, after jig's reference binary's (jig's
+`bin/temper-box/tests/process.rs`, after jig's reference binary's (jig's
 `protocol/service.md`, section 8): temper as it ships, as processes.
 
 - **Only what processes show** (skein/docs/foundation/testing-strategy.md, 2.9; the user,
@@ -83,7 +83,7 @@
   run in this profile. A box started ignoring hangups asks for no step: it
   is one path through `main`, and stays in the `suite` binary with the
   other paths of a box's first run
-  (`crates/temper/tests/suite/box_listeners.rs`).
+  (`bin/temper-box/tests/suite/box_listeners.rs`).
 
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper versions`' lines; `temper
@@ -199,7 +199,7 @@
   is tested with simulated clocks, not by sleeping through it here.
 
 - **Forgejo signing in through temper,** a test of its own at the end of
-  `crates/temper/tests/process.rs`, on `support/forgejo_sign_in.rs`
+  `bin/temper-box/tests/process.rs`, on `support/forgejo_sign_in.rs`
   (../protocol/openid-provider.md, 8): an owned Forgejo prepared by temper's
   commands with no group's file (../protocol/setup/box.md, 4), with 9.4's
   settings in its `app.ini`, beside `temper serve` with jig's provider
@@ -246,7 +246,7 @@
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup/README.md, sections 3 and 5).
-- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`crates/temper/tests/support/forge_land.rs`): "A
+- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`bin/temper-box/tests/support/forge_land.rs`): "A
   Forgejo set up from the client" (above), its set-up, first repository
   and landing reused, carried on with ChatGPT's sign-in as above, a
   chat on the plan, and a restart from a fresh client. The module writes
@@ -284,9 +284,9 @@
     turn's included.
 - **The cluster,** its own tests (../protocol/cluster.md, 6), on
   temper's fakes as processes, never on Forgejo:
-  `crates/temper/tests/fixtures/cluster/`, the process tier's cluster
+  `bin/temper-box/tests/fixtures/cluster/`, the process tier's cluster
   fixture (../protocol/cluster.md, 5), read by
-  `crates/temper/tests/support/cluster.rs`, which starts the fake forge,
+  `bin/temper-box/tests/support/cluster.rs`, which starts the fake forge,
   the fake LLM, the engine alone and two workers alone as processes,
   each in a cgroup of its own, awaits their ready lines and stops them
   in reverse. Its stories: a task on each worker, on the box's binary
@@ -306,12 +306,12 @@
 - **Two drivers' offline proofs** (the user's request `ignored-tiers`,
   2026-11-08). Each test sets up what its script sets up, and the
   script runs the test:
-  - *B0's,* `crates/temper/tests/proof_live.rs`: the rung's setup through
+  - *B0's,* `bin/temper-box/tests/proof_live.rs`: the rung's setup through
     its last read before the account's import, on the fake model with no
     account, and its whole walk on its twin, the driver the live rung
     runs (`live-tier.md`). Real Forgejo, as the stories above.
   - *The managed GitHub sitting's Ready,*
-    `crates/temper/tests/live_github_managed.rs`'s `managed_ready_client`:
+    `bin/temper-box/tests/live_github_managed.rs`'s `managed_ready_client`:
     the sitting's fake half as `scripts/proof-live-github-managed.sh fake`
     sets it up. That is the fake GitHub with the sitting's accounts and
     its two repositories, the sitting's relay in its fake mode, and the
@@ -377,7 +377,7 @@
 - **The fake box keeps two walks** (the user, 2026-11-01): fake-based
   coverage on `temper box --fake-backends` is one short path through
   `main` on its fakes, not a story per feature
-  (`crates/temper/tests/fake_backends/walk`):
+  (`bin/temper-box/tests/fake_backends/walk`):
   - `here_key::forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
     the owned welcome walk (`README.md`, section 2, above), the one short end-to-end
     test;

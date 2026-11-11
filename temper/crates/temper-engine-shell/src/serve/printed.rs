@@ -10,7 +10,7 @@ pub(crate) struct Machine<'a> {
     pub canonical: &'a dyn Fn(&[u8]) -> Option<Box<[u8]>>,
 }
 pub(crate) fn program_word(machine: &Machine<'_>) -> Box<[u8]> {
-    let Some(executable) = machine.executable else { return b"temper".as_slice().into() };
+    let Some(executable) = machine.executable else { return b"temper-box".as_slice().into() };
     let executable = executable.strip_suffix(b" (deleted)").unwrap_or(executable);
     if let Some(path) = machine.path {
         let first = path.split(|byte| *byte == b':').filter(|entry| entry.starts_with(b"/")).find_map(|entry| {
@@ -18,13 +18,13 @@ pub(crate) fn program_word(machine: &Machine<'_>) -> Box<[u8]> {
             if !candidate.ends_with(b"/") {
                 candidate.push(b'/');
             }
-            candidate.extend_from_slice(b"temper");
+            candidate.extend_from_slice(b"temper-box");
             (machine.canonical)(&candidate)
         });
         if let Some(first) = first
             && (machine.canonical)(executable).as_deref() == Some(first.as_ref())
         {
-            return b"temper".as_slice().into();
+            return b"temper-box".as_slice().into();
         }
     }
     path_word(executable, machine.home)

@@ -153,15 +153,15 @@ jobs:
         if: ${{ !cancelled() && steps.rust.outcome == 'success' }}
         id: fetch
         run: |
-          $RUN build cargo build -p temper --bin temper
+          $RUN build cargo build -p temper-box --bin temper-box
           $RUN build-fake-claude cargo build -p smith-fake-claude --bin fake-claude
           root="$RUNNER_TEMP/fetch"
           mkdir -m 700 "$root" "$root/config" "$root/data" "$root/cache"
           flags=(--config "$root/config" --data "$root/data" --cache "$root/cache")
-          $RUN init target/debug/temper init "${flags[@]}" --box
+          $RUN init target/debug/temper-box init "${flags[@]}" --box
           mkdir -p "$root/data/box/groups"
           printf 'owned\n' >"$root/data/box/groups/1"
-          $RUN fetch target/debug/temper forge fetch "${flags[@]}" 1
+          $RUN fetch target/debug/temper-box forge fetch "${flags[@]}" 1
           forgejo=$(echo "$root"/cache/forgejo/*/forgejo)
           runner=$(echo "$root"/cache/forgejo-runner/*/forgejo-runner)
           $RUN forgejo-runs "$forgejo" --version
@@ -173,7 +173,7 @@ jobs:
       - name: The one story
         if: ${{ !cancelled() && steps.rust.outcome == 'success' && steps.fetch.outcome == 'success' }}
         run: |
-          $RUN story cargo nextest run --profile process-temper -p temper --test process \
+          $RUN story cargo nextest run --profile process-temper -p temper-box --test process \
               -E 'test(=a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart)'
 
       - name: The disk

@@ -116,9 +116,9 @@ class RunnerTests(unittest.TestCase):
             '[binaries]\n'
             'browser-skein = [{package="skein-ui-example-server", bin="skein-ui-example"}]\n'
             'browser-jig = [{package="jig-test", bin="jig-test"}]\n'
-            'browser-temper = [{package="temper", bin="temper"}]\n'
+            'browser-temper = [{package="temper-box", bin="temper-box"}]\n'
             'qa-temper = [{package="smith-fake-claude", bin="fake-claude"}, '
-            '{package="temper", bin="temper"}]\n'
+            '{package="temper-box", bin="temper-box"}]\n'
             'qa-smith = []\nprocess-jig = []\nexhaustive-skein = []\n')
         with self.packages.open('a') as output:
             output.write(self.binary_lists)
@@ -179,7 +179,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "wrap"] * 3)
         self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "smith-fake-claude", "--bin", "fake-claude"])
-        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper", "--bin", "temper"])
+        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper-box", "--bin", "temper-box"])
         self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
         self.assertIsNone(calls[5]['env']['TEMPER_TEST_BUNDLE'])
 
@@ -201,7 +201,7 @@ class RunnerTests(unittest.TestCase):
               "--noscript", "jig needs WebAssembly and scripts."]),
         )
         shell = "temper/crates/temper-client-shell-web"
-        cases += (("temper", "browser", "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
+        cases += (("temper", "browser", "temper-client-shell-web", "temper-box", "TEMPER_TEST_BUNDLE",
                    "temper-bundle", ["--features", "loopback-navigation,small-window"],
                    ["--title", "temper", "--placeholder", f"{shell}/loading.html",
                     "--placeholder-stylesheet", f"{shell}/loading.css",

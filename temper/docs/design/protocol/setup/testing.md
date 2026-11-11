@@ -54,7 +54,7 @@ relies on.
   temper-box, a spawn's arguments with and without the box's id; a hangup
   starting the stop's order; a hangup during a stop closing nothing; a
   second termination after a hangup closing them. On the shipped binary,
-  in `crates/temper/tests/suite/box_listeners/lifetime.rs`, a box started
+  in `bin/temper-box/tests/suite/box_listeners/lifetime.rs`, a box started
   ignoring hangups runs on: one focused path through `main`. The running
   steps' process boundaries are checked in 13.4.
 - **The fetch's machine** (`owned.md`, 6), in temper-fetch, and in
@@ -80,7 +80,7 @@ relies on.
   of another size refused and left; two commands at once making one
   request. No test reaches `downloads.claude.ai` (`README.md`, section 9).
 - **Claude Code's offer and launcher** (`owned.md`, 6, `init.md`, 2, 3), on the shipped
-  binary with an empty environment, in `crates/temper/tests/suite/startup.rs`:
+  binary with an empty environment, in `bin/temper-box/tests/suite/startup.rs`:
   a fresh box's Model step reads ChatGPT's and Claude's cards, its
   program's path `"fetched"`; `temper program-login` and the launcher's
   own link reach a build placed in the cache, its arguments unchanged,
@@ -294,7 +294,7 @@ The tier, its budget and its referee are `../../testing/README.md`'s (2.6). What
 it checks of this document:
 
 - **The box's lifetime with running steps** (`box.md`, 1, 2), in
-  `crates/temper/tests/suite/box_lifetime.rs`: a hangup stops a box whose
+  `bin/temper-box/tests/suite/box_lifetime.rs`: a hangup stops a box whose
   playground steps run, nothing left, its log's last line `Stopped`,
   and the same retained configuration binds again; and, on Linux, a
   killed box takes its running steps with it. These checks need real

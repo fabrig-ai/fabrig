@@ -65,7 +65,7 @@ if [ -e "$evidence" ] || [ -L "$evidence" ]; then
     exit 2
 fi
 printf '%s\n' 'building the sitting offline'
-if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo test --locked -p temper --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
+if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo test --locked -p temper-box --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
     # Compilation has no sitting credentials. Surface its diagnostics before cleanup.
     python3 - "$scratch/build.jsonl" <<'PYBUILD'
 import json

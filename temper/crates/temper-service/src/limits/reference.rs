@@ -34,12 +34,12 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
     for name in &setup::FETCH_NAMES {
         row(name.name, setup_unit(name.unit), (name.value)(&setup::FETCH_BYTES), name.line, &mut owner, out)?;
     }
-    let limits = temper_box::limits::small();
-    for name in &temper_box::limits::NAMES {
+    let limits = temper_box_machine::limits::small();
+    for name in &temper_box_machine::limits::NAMES {
         let unit = match name.unit {
-            temper_box::limits::Unit::Count => "count",
-            temper_box::limits::Unit::Bytes => "bytes",
-            temper_box::limits::Unit::Milliseconds => "milliseconds",
+            temper_box_machine::limits::Unit::Count => "count",
+            temper_box_machine::limits::Unit::Bytes => "bytes",
+            temper_box_machine::limits::Unit::Milliseconds => "milliseconds",
         };
         row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
     }

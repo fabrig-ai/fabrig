@@ -203,7 +203,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 
 ## 5. Its description
 
-- **One fixture, `crates/temper/tests/fixtures/cluster/`,** whose
+- **One fixture, `bin/temper-box/tests/fixtures/cluster/`,** whose
   description, `experiment.json`, has the format `lab-experiment/1` and
   the cost label `temper-m1-calibration`. Each process keeps its `argv`, whole `env`, `ready`
   lines (3), `after`, `memory_bytes` (1) and `files`: its
@@ -211,7 +211,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   Templates name addresses by `{proc.P.ready.C}` and directories by
   `{proc.P.dir}`. The description is canonical JSON, with integers
   within ±(2^53−1); each process's `memory_bytes` matches its document.
-- **The process tier's reader,** `crates/temper/tests/support/cluster.rs`:
+- **The process tier's reader,** `bin/temper-box/tests/support/cluster.rs`:
   templates rendered; processes started by skein-world's `Binary`, in
   cgroups, by `after`, ties in name order, with no seed; ready lines
   awaited on streams; processes stopped in reverse, a termination signal,
@@ -254,7 +254,7 @@ Each where `../testing/README.md` puts it (2.4 to 2.6):
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 3 as printed |
 | the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
+| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
 
 The process tier's first stories, one slot on each worker: the
 cluster's fixtures give each worker one. Two tasks on two workers need

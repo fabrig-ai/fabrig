@@ -13,7 +13,7 @@ fn setup_journeys(root: &Path, walk: &[u8]) -> (std::path::PathBuf, std::path::P
 }
 
 fn walker_paths(scratch: &Path) -> Paths {
-    Paths { temper: "temper".into(), bundle: "bundle".into(), chromium: "chromium".into(), scratch: scratch.into() }
+    Paths { temper: "temper-box".into(), bundle: "bundle".into(), chromium: "chromium".into(), scratch: scratch.into() }
 }
 
 #[test]

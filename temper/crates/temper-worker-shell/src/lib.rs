@@ -1,6 +1,6 @@
 //! The worker's half of a start and program-login, for every binary that runs a worker (temper/docs/design/protocol/binaries.md, 1 and 5).
 #[cfg(test)]
-extern crate self as temper;
+extern crate self as temper_box_shell;
 use std::{
     ffi::OsString,
     os::unix::ffi::OsStrExt,
@@ -50,7 +50,7 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 #[cfg(test)]
-#[path = "../../temper/tests/support/configuration.rs"]
+#[path = "../../../bin/temper-box/tests/support/configuration.rs"]
 pub mod test_configuration;
 #[cfg(test)]
 mod tests;

@@ -129,7 +129,7 @@ binary (`jig-test`).
 | engine alone | `temper serve` on a document with an engine and no worker, its workers' listener on loopback (`cluster.md`, 1) |
 | worker alone | `temper serve` on a document with one worker and no engine, dialling an engine alone on loopback (`cluster.md`, 1) |
 | the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier runs it (`cluster.md`) |
-| the cluster's description | `crates/temper/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (`cluster.md`, 5) |
+| the cluster's description | `bin/temper-box/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (`cluster.md`, 5) |
 | the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 4 and 5) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
 | the forge component | skein's `skein-forge-connection` (forge/README.md; skein's `forge/connection.md`) |

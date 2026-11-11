@@ -515,7 +515,7 @@ spawned        temper-agent AGENT.json
   environment and stdin closed and comparing its exit, stdout and
   stderr: `--version`, `--help` and `--list --help`; the refusals; the
   relay's usage, alone and before `--help`; the program child's refusal
-  and both statuses, as `crates/temper/tests/suite/agent_modes.rs` has
+  and both statuses, as `bin/temper-box/tests/suite/agent_modes.rs` has
   them; a run and a list refused for a missing document; a run and a
   list started on a loopback plaintext document, ending as `temper
   internal agent` and `temper internal agent-list` end with stdin
