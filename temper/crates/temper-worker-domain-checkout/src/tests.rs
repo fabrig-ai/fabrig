@@ -90,6 +90,13 @@ impl Harness {
         io(self.one(Event::Done { owner: hold, done }), hold)
     }
 
+    /// Finish a replaced-head read and its pin, returning the start's next operation.
+    fn replaced(&mut self, hold: Token, head: Commit) -> Op {
+        let pin = self.next(hold, Done::Fetched { commit: head });
+        assert!(matches!(pin, Op::Fetch { into: Into::Landing, .. }), "prepare pins the replaced head");
+        self.next(hold, Done::Fetched { commit: head })
+    }
+
     /// Prepares `spec` for `client`: returns the hold and its first
     /// operation.
     fn prepare(&mut self, client: u64, spec: Spec) -> (Token, Op) {
@@ -307,7 +314,8 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     };
     assert_eq!(h.next(hold, Done::Succeeded), fetch_a);
     let check_out_a = Op::CheckOut { at: place(workspace, b"a"), commit: commit(1), clean: true };
-    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }), check_out_a);
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }), fetch_a);
+    assert_eq!(h.replaced(hold, commit(1)), check_out_a);
     let fetch_b = Op::Fetch {
         into: Into::Fetched,
         at: place(workspace, b"b"),
@@ -554,7 +562,8 @@ fn a_missing_base_branch_is_created_from_the_default_branch() {
         account: None,
     };
     assert_eq!(create, expected, "created at the default branch's tip");
-    let check_out = h.next(hold, Done::Succeeded);
+    assert!(matches!(h.next(hold, Done::Succeeded), Op::Fetch { into: Into::Fetched, .. }));
+    let check_out = h.replaced(hold, commit(1));
     assert_eq!(check_out, Op::CheckOut { at, commit: commit(9), clean: true });
     let ready = prepared(h.one(Event::Done { owner: hold, done: Done::Succeeded }));
     let Prepared::Ready { .. } = ready else { panic!("ready: {ready:?}") };
@@ -572,7 +581,8 @@ fn a_base_branch_created_meanwhile_is_fetched_again_and_not_moved() {
     let refetch = h.next(hold, Done::Exists);
     let Op::Fetch { want: Want::Branch { branch }, .. } = refetch else { panic!("fetched again: {refetch:?}") };
     assert_eq!(&*branch, b"temper/1");
-    let check_out = h.next(hold, Done::Fetched { commit: commit(5) });
+    h.next(hold, Done::Fetched { commit: commit(5) });
+    let check_out = h.replaced(hold, commit(1));
     let Op::CheckOut { commit: at, .. } = check_out else { panic!("checked out: {check_out:?}") };
     assert_eq!(at, commit(5), "where the other party put it");
     // Gone again by the time it is fetched: transient.
@@ -621,7 +631,9 @@ fn preparation_failures_are_typed() {
         ),
         (3, failed(Fault::TimedOut), Failure::Transient, b"fetch: TimedOut".as_slice()),
         (0, failed(Fault::Broken), Failure::Transient, b"make: Broken".as_slice()),
-        (4, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
+        (4, failed(Fault::Broken), Failure::Transient, b"fetch push: Broken".as_slice()),
+        (5, failed(Fault::Broken), Failure::Transient, b"fetch landing: Broken".as_slice()),
+        (6, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
         (
             3,
             Done::FailedWithOutput {
@@ -635,8 +647,15 @@ fn preparation_failures_are_typed() {
     for (after, fault, failure, detail) in cases {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, two(b"w"));
-        // Make, clone a, clone b, fetch a, check out a.
-        let answers = [Done::Succeeded, Done::Succeeded, Done::Succeeded, Done::Fetched { commit: commit(1) }];
+        // Make, clone a, clone b, fetch a, fetch its push, pin, check out a.
+        let answers = [
+            Done::Succeeded,
+            Done::Succeeded,
+            Done::Succeeded,
+            Done::Fetched { commit: commit(1) },
+            Done::Fetched { commit: commit(1) },
+            Done::Fetched { commit: commit(1) },
+        ];
         for done in answers.into_iter().take(after) {
             h.next(hold, done);
         }
@@ -846,7 +865,7 @@ fn landing_comparison_is_frozen_per_hold_and_only_a_push_can_deliver_it() {
                     ..repository(b"a", true)
                 };
                 let (hold, ops) = pin_ready(&mut h, client, repo, commit(u8::try_from(client + 7).expect("small tip")));
-                assert_eq!(pin_count(&ops), usize::from(supplied), "start kind {kind}");
+                assert_eq!(pin_count(&ops), 1, "start kind {kind}");
                 // A real edit takes the ordinary push and ambiguous verification path.
                 h.one(Event::Push { hold, message: message() });
                 assert_eq!(h.next(hold, Done::Committed { commit: commit(11) }).kind(), Kind::Push);
@@ -1423,7 +1442,8 @@ fn merge_preparation_transfers_conflict_paths_and_facts_keep_only_counts() {
     h.next(hold, Done::Succeeded);
     let fetch = h.next(hold, Done::Succeeded);
     let Op::Fetch { want: Want::Branch { .. }, .. } = fetch else { panic!("branch fetch") };
-    let base = h.next(hold, Done::Fetched { commit: commit(1) });
+    h.next(hold, Done::Fetched { commit: commit(1) });
+    let base = h.replaced(hold, commit(1));
     let Op::Fetch { want: Want::Commit { commit: c }, .. } = base else { panic!("base fetch") };
     assert_eq!(c, commit(7));
     let Op::CheckOut { commit: c, .. } = h.next(hold, Done::Fetched { commit: commit(7) }) else {
@@ -1535,6 +1555,7 @@ fn releasing_an_inflight_merge_waits_for_its_terminal_and_never_exposes_a_ready_
         h.next(hold, Done::Succeeded);
         h.next(hold, Done::Succeeded);
         h.next(hold, Done::Fetched { commit: commit(1) });
+        h.replaced(hold, commit(1));
         h.next(hold, Done::Fetched { commit: commit(7) });
         let Op::Merge { .. } = h.next(hold, Done::Succeeded) else { panic!("merge in flight") };
         assert_eq!(h.one(Event::Release { hold }), Request::Cancel { owner: hold });
@@ -1585,8 +1606,10 @@ fn each_git_op_carries_its_repositorys_account() {
         assert_account(h.next(hold, failed(Fault::Missing { missing: Missing::Branch })), account, Kind::Fetch);
         assert_account(h.next(hold, Done::Fetched { commit: commit(1) }), account, Kind::Create);
         assert_account(h.next(hold, Done::Exists), account, Kind::Fetch);
+        assert_account(h.next(hold, Done::Fetched { commit: commit(1) }), account, Kind::Fetch);
+        assert_account(h.next(hold, Done::Fetched { commit: commit(1) }), account, Kind::Fetch);
         let Op::CheckOut { .. } = h.next(hold, Done::Fetched { commit: commit(1) }) else {
-            panic!("checkout follows fetch")
+            panic!("checkout follows pin")
         };
         let Request::Prepared { .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else {
             panic!("prepared after checkout")
@@ -1652,6 +1675,8 @@ fn fetching_saved_delivery() -> (Harness, Token) {
 fn a_saved_producer_delivers_before_its_delivery_branch_exists() {
     let (mut h, hold) = fetching_saved_delivery();
     let op = h.next(hold, failed(Fault::Missing { missing: Missing::Branch }));
+    assert!(matches!(op, Op::Fetch { into: Into::Landing, want: Want::Commit { commit: c }, .. } if c == commit(9)));
+    let op = h.next(hold, Done::Fetched { commit: commit(9) });
     let Op::CheckOut { clean, .. } = op else { panic!("saved checkout") };
     assert!(!clean);
     h.one(Event::Done { owner: hold, done: Done::Succeeded });
@@ -1688,7 +1713,7 @@ fn a_saved_head_already_on_its_push_branch_delivers_with_a_guard() {
 #[test]
 fn a_saved_start_keeps_its_delivery_branch_as_the_push_baseline() {
     let (mut h, hold) = fetching_saved_delivery();
-    let op = h.next(hold, Done::Fetched { commit: commit(3) });
+    let op = h.replaced(hold, commit(3));
     let Op::CheckOut { commit: head, clean, .. } = op else { panic!("saved tree is checked out") };
     assert_eq!((head, clean), (commit(9), false));
     h.one(Event::Done { owner: hold, done: Done::Succeeded });
@@ -1710,7 +1735,8 @@ fn begin_merged(h: &mut Harness, heads: &[Commit]) -> Token {
     let (hold, _) = h.prepare(1, merged_spec(heads));
     h.next(hold, Done::Succeeded);
     h.next(hold, Done::Succeeded);
-    let mut op = h.next(hold, Done::Fetched { commit: commit(1) });
+    h.next(hold, Done::Fetched { commit: commit(1) });
+    let mut op = h.replaced(hold, commit(1));
     for head in heads {
         let Op::Fetch { want: Want::Commit { commit }, .. } = op else { panic!("head fetched") };
         assert_eq!(commit, *head);
@@ -2028,7 +2054,8 @@ fn a_first_hold_looks_in_spec_order_then_fetches_and_caches_the_clones() {
     );
     assert_eq!(h.next(hold, Done::Looked { holds: true }).kind(), Kind::Fetch);
     assert_eq!(h.domain.workstream(0), Some(&b"work"[..]));
-    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }).kind(), Kind::CheckOut);
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }).kind(), Kind::Fetch);
+    assert_eq!(h.replaced(hold, commit(1)).kind(), Kind::CheckOut);
     assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Fetch);
     assert_eq!(h.next(hold, Done::Fetched { commit: commit(2) }).kind(), Kind::CheckOut);
     h.one(Event::Done { owner: hold, done: Done::Succeeded });

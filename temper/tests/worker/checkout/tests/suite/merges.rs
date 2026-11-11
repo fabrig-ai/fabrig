@@ -1,4 +1,29 @@
-use temper_worker_checkout_world::merges::{self, Case};
+use temper_worker_checkout_world::merges::{self, Case, PinCase};
+
+#[test]
+fn a_repair_replaces_the_cached_producers_pin_and_freezes_it_for_deliveries() {
+    merges::replaced_pin(PinCase::Repair);
+}
+
+#[test]
+fn a_saved_repair_pins_the_push_head_not_its_saved_start() {
+    merges::replaced_pin(PinCase::Saved);
+}
+
+#[test]
+fn a_resolution_pins_the_push_head_before_merging() {
+    merges::replaced_pin(PinCase::Resolution);
+}
+
+#[test]
+fn a_missing_push_branch_pins_the_start_commit() {
+    merges::replaced_pin(PinCase::NewBranch);
+}
+
+#[test]
+fn a_read_only_item_leaves_the_cached_pin_untouched() {
+    merges::replaced_pin(PinCase::ReadOnly);
+}
 
 #[test]
 fn merges_conflicts_saving_head_movement_and_ambiguous_pushes_settle() {

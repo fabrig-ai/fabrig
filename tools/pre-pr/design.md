@@ -302,7 +302,7 @@ were asked and answer from a ledger: metadata with members, their
 directories and dependencies; clippy's JSON messages; nextest's exit and a
 JUnit file at the overlay's path, by worktree (head or base). It reads no
 real build. Its tables: the base (no pin, a pin, a merge in progress, no
-merge base); the selection (a package, its dependents, a path reader, a
+merge base, an unchecked save stepped to its parent); the selection (a package, its dependents, a path reader, a
 path in no package, a deletion); inherited and new failures of each kind;
 the cache by tree and base; the summary's bound.
 
@@ -312,7 +312,10 @@ private snapshots: new and inherited broken citations, a deleted cited
 document, and a design size violation. It checks that docs-only changes
 skip every code check even on a red baseline; unchanged red counts pass
 while a rising count or tighter limit refuses. Non-Markdown fixtures,
-declared docs inputs and check configuration select code.
+declared docs inputs and check configuration select code. A pin at one or
+two unchecked saves steps to the checked head: the summary names that head,
+and package selection includes both the saved edits and the delivery's new
+edits. Any other subject keeps the base, and the pin never moves.
 
 It also builds a dependency and its consumer with real offline cargo in a
 scratch workspace. A kept base checkout predates
