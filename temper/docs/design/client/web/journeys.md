@@ -6,7 +6,7 @@ browser's client (`README.md`) recorded on a fresh `temper box
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
 pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
-(`../mockups/README.md`, 4), which are worlds walked in the mockups.
+(`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
 file (3.2), redaction (3.6) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
@@ -18,7 +18,7 @@ journeys, 10 what is open.
   10-26). A page a journey records looks as its print does:
   `temper.css` over skein's sheet, tuned on the print. The mockups are
   reconciled to it gradually, and stay the design of what is not built
-  yet (`../mockups/README.md`, 1; `look.md`).
+  yet (`mockups/README.md`, 1; `look.md`).
 - **One seam, the host's.** The browser shell gives its host each
   report of a turn and carries out what the host asks back. The
   recorder keeps what crosses that seam; the replay gives it back to
@@ -40,7 +40,7 @@ journeys, 10 what is open.
   journey that starts past the first page says how to reach it in a
   setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
-  `docs/design/client/journeys/`: a page per mark, one tag per line, the
+  `docs/design/client/web/journeys/`: a page per mark, one tag per line, the
   acted control leading to the next page, the shell's stylesheets
   linked from the checkout, then an empty `overlay.css`; beside them the
   journey's `../README.md`, its description. No browser, no box, the same
@@ -429,7 +429,7 @@ workspace beside the gallery (`gallery.md`):
 
 ### 5.2 What it writes
 
-Under `docs/design/client/journeys/`:
+Under `docs/design/client/web/journeys/`:
 
 - **A journey's directory,** `NAME/`: its `recording`; its
   `../README.md`, the journey's description, what it walks and what each
@@ -495,7 +495,7 @@ them the same:
 
 ```sh
 python3 -m http.server 8766
-# http://localhost:8766/docs/design/client/journeys/
+# http://localhost:8766/docs/design/client/web/journeys/
 ```
 
 ## 6. Its tests
@@ -579,7 +579,7 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   names, roles and regions, which the view sets, never by a part's
   position among its siblings.
 - **The diff is the request:** the overlay's rules and the pages'
-  changes, under `docs/design/client/journeys/`.
+  changes, under `docs/design/client/web/journeys/`.
 - **Requests stack** on a branch of the person's own, `look-requests`,
   one commit each, named by exactly one `Look-request: NAME` trailer
   (NAME `[a-z0-9][a-z0-9-]*`, unique on the branch), which a rebase keeps.

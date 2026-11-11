@@ -475,6 +475,7 @@ fn a_member_left_out_is_refused_naming_it() {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
+            || (field.shape == Shape::LandingRule && field.name == b"sets")
             || (field.shape == Shape::Charter
                 && [b"wake".as_slice(), b"tools", b"rest", b"parts"].contains(&field.name))
             || (field.shape == Shape::Llm && field.name == b"later")

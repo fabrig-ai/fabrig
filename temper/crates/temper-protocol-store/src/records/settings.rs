@@ -57,7 +57,7 @@ fn decode_pattern(value: w::RulePattern, bounds: &Bounds) -> Result<GatePattern,
     Err(Undecodable)
 }
 fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
-    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals } = value;
+    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value;
     let mut encoded_gates = List::with_capacity(u32::try_from(gates.len()).expect("bounded gates"));
     for gate in gates {
         let d::RuleGate { number, blocking, freshness } = gate;
@@ -93,12 +93,13 @@ fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
             up_to_date: *up_to_date,
             gates: encoded_gates,
             approvals: encoded_approvals,
+            sets: List::from_boxed(sets.clone()),
         },
     )
     .expect(FITS)
 }
 fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule, Undecodable> {
-    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals } = value.into_parts();
+    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value.into_parts();
     let mut decoded_gates = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
         let w::RuleGateParts { number, blocking, freshness } = gate.into_parts();
@@ -114,6 +115,7 @@ fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule,
             .expect("same count");
     }
     Ok(d::LandingRule {
+        sets: sets.into_boxed(),
         pattern: decode_pattern(pattern, bounds)?,
         enforce,
         ci,

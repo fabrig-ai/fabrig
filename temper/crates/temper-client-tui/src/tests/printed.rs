@@ -1,4 +1,4 @@
-//! Printed view lines and their paint (temper/docs/design/client/tui/pages.md).
+//! Printed view lines and their paint (temper/docs/design/client/tui/pages/README.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

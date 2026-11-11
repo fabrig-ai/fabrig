@@ -57,11 +57,7 @@ milestones C3 to C8 of `temper/docs/design/draft/cli.execution.md`.
    the `debt-28` request of 2026-11-06 has each of its items end with fewer
   lines than it started; the keeper's fence ended 48 lines of Rust up, 9 in code
   and 39 in tests, since a change of path removes no body.
-   `linux` and `darwin` each keep `count`, `process::fd` and
-  `files::truncate`, differing only in a panic's words or a path, where the
-  section has identical calls live once in `posix`. These three were outside
-  the six-function task's scope (section 9), and no debt item holds them.
-  Seen by reading.
+   the shared-posix-call gap remains `readiness.status.md`, 5.
   14.2: the page's `environment:` part, and a command page's, also list
   the host's variables a setting's `Fallback::Base` reads, after the
   twins and the table's variables, in the settings' order, so `HOME`

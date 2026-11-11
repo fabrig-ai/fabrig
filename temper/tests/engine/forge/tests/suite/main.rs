@@ -12,6 +12,7 @@ mod memory;
 mod protection;
 mod public;
 mod replay;
+mod rules_by_path;
 mod settle;
 mod simulation;
 mod tiers;
@@ -20,6 +21,7 @@ mod writer;
 
 mod fuzzy {
     mod branch_patterns;
+    mod rules_by_path;
     mod simulation;
 }
 

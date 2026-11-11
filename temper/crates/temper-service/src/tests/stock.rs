@@ -1514,6 +1514,7 @@ fn kinds_are_declared_with_their_bounds() {
     limits.forge.landing_rules = 7;
     limits.templates = 9;
     let rule = settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([1, 2, 3, 4, 5, 6]),
         pattern: forge::GatePattern {
             segments: Box::new([
                 b"forge".as_slice().into(),
@@ -1656,6 +1657,7 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
     assert_eq!(
         stock[0].value.value,
         settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([b"branch".as_slice().into()]),
                 last: forge::GateLast::Open(Box::default()),
@@ -1757,6 +1759,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
         last: forge::GateLast::Open(Box::default()),
     };
     let review = LandingRule {
+        sets: Box::new([]),
         pattern: all.clone(),
         enforce: true,
         ci: true,
@@ -1772,6 +1775,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
             vec![(
                 1,
                 LandingRule {
+                    sets: Box::new([]),
                     pattern: all,
                     enforce: true,
                     ci: true,
@@ -1801,6 +1805,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 (
                     1,
                     LandingRule {
+                        sets: Box::new([]),
                         pattern: forge::GatePattern {
                             segments: Box::new([b"branch".as_slice().into()]),
                             last: forge::GateLast::Exact(b"main".as_slice().into()),
@@ -1815,6 +1820,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 (
                     2,
                     LandingRule {
+                        sets: Box::new([]),
                         pattern: forge::GatePattern {
                             segments: Box::new([b"branch".as_slice().into()]),
                             last: forge::GateLast::Open(b"temper".as_slice().into()),

@@ -187,6 +187,7 @@ pub enum Limit {
     LandingOpen,
     LandingGates,
     LandingApprovals,
+    LandingSets,
     ClassesItems,
     ClassesSets,
     ClassWords,
@@ -264,7 +265,8 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             | Limit::LandingExact
             | Limit::LandingOpen
             | Limit::LandingGates
-            | Limit::LandingApprovals => landing_limit(limit, limits),
+            | Limit::LandingApprovals
+            | Limit::LandingSets => landing_limit(limit, limits),
         },
     })
 }
@@ -293,6 +295,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
             .min(kinds::CEILINGS.landing_open_value),
         Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
         Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+        Limit::LandingSets => limits.kinds.landing_rule_sets.min(kinds::CEILINGS.landing_rule_sets),
         _ => unreachable!("landing limit"),
     }
 }

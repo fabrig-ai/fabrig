@@ -40,4 +40,5 @@ pub struct LandingRule {
     pub up_to_date: bool,
     pub gates: Box<[Gate]>,
     pub approvals: Box<[Approval]>,
+    pub sets: Box<[u8]>,
 }

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en"
+><head
+><meta charset="utf-8"
+><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
+><title
+>Welcome · first run · temper</title
+><link rel="stylesheet" href="../skein-ui.css"
+><link rel="stylesheet" href="../../../../../../crates/temper-client-shell-web/temper.css"
+><link rel="stylesheet" href="../../../../../../crates/temper-client-shell-web/task-pages.css"
+><link rel="stylesheet" href="../overlay.css"
+><link rel="prev" href="04.html"
+><link rel="next" href="06.html"
+><script src="../journey.js" defer
+></script
+></head
+><body
+><div id="app"
+><header class="temper-top"
+><a aria-label="temper" class="temper-brand" href="/"
+><span
+>temper</span
+></a
+><div class="temper-welcome-box-line"
+><span
+><strong
+>temper box</strong
+> · on this machine, to try it · more later, from Settings · </span
+><a aria-label="Run temper on a server ↗" class="temper-flow-quiet" href="https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md" rel="noopener noreferrer" target="_blank"
+><span
+>Run temper on a server ↗</span
+></a
+></div
+><ul aria-label="Steps" class="temper-flow-steps"
+><li class="temper-flow-step temper-flow-done"
+><a aria-label="Welcome" href="/welcome?at=welcome"
+><span
+>Welcome</span
+></a
+></li
+><li aria-current="true" class="temper-flow-step"
+><a aria-label="Forge" href="/welcome?at=forge"
+><span
+>Forge</span
+></a
+></li
+><li class="temper-flow-step"
+><a aria-label="Model" href="/welcome?at=model"
+><span
+>Model</span
+></a
+></li
+><li class="temper-flow-step"
+><a aria-label="Ready" href="/welcome?at=ready"
+><span
+>Ready</span
+></a
+></li
+></ul
+><div class="temper-top-end"
+><section data-region="temper-link"
+><div role="status" aria-label="Live" class="temper-live"
+><span
+>Live</span
+></div
+></section
+><div role="status" aria-label="Owner"
+><span
+>Owner</span
+></div
+><button type="button"
+>Sign out</button
+></div
+></header
+><main class="temper-main temper-welcome"
+><h1 aria-label="Connect a forge"
+><span
+>Connect a forge</span
+></h1
+><p aria-label="Where your code lives: you tell temper what you want, agents push and land code." class="temper-welcome-lead"
+><span
+>Where your code lives: you tell temper what you want, agents push and land code.</span
+></p
+><div class="temper-flow-choices"
+><section aria-label="Forgejo" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="Forgejo"
+><span
+>Forgejo</span
+></h2
+><p aria-label="A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."
+><span
+>A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.</span
+></p
+><p aria-label="Here · about a minute" class="temper-flow-muted"
+><span
+>Here · about a minute</span
+></p
+><div class="temper-flow-actions"
+><a aria-label="Run on this machine" class="temper-flow-primary" href="/welcome?at=forge&amp;forge=owned"
+><span
+>Run on this machine</span
+></a
+></div
+></section
+><section aria-label="GitHub" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="GitHub"
+><span
+>GitHub</span
+></h2
+><p aria-label="Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use."
+><span
+>Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</span
+></p
+><p aria-label="In this tab, on GitHub · about two minutes" class="temper-flow-muted"
+><span
+>In this tab, on GitHub · about two minutes</span
+></p
+><button type="button" class="temper-flow-secondary"
+>Connect GitHub</button
+></section
+></div
+><dialog open aria-label="Forgejo on this machine" class="temper-welcome-sheet"
+><div class="temper-welcome-sheet-head"
+><h2 aria-label="Forgejo on this machine"
+><span
+>Forgejo on this machine</span
+></h2
+><p aria-label="temper starts it here and connects to it; you connect your model meanwhile."
+><span
+>temper starts it here and connects to it; you connect your model meanwhile.</span
+></p
+></div
+><fieldset role="radiogroup" aria-label="Start it with" class="temper-welcome-start"
+><legend role="heading" aria-label="Start it with" class="temper-welcome-legend"
+><span
+>Start it with</span
+></legend
+><div class="temper-welcome-option"
+><input type="radio" checked="" id="skein-ui-label-85"
+><label for="skein-ui-label-85"
+>An empty repository</label
+><p aria-label="A README and a starter CI check."
+><span
+>A README and a starter CI check.</span
+></p
+></div
+><div class="temper-welcome-option-more"
+><div
+><label for="skein-ui-label-90"
+>Organization</label
+><input type="text" value="work" id="skein-ui-label-90"
+></div
+><div
+><label for="skein-ui-label-92"
+>Name</label
+><input type="text" value="hello" id="skein-ui-label-92"
+></div
+></div
+><div class="temper-welcome-option"
+><input type="radio" id="skein-ui-label-94"
+><label for="skein-ui-label-94"
+>Copies of public repositories</label
+><p aria-label="Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."
+><span
+>Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.</span
+></p
+></div
+><div class="temper-welcome-option"
+><input type="radio" id="skein-ui-label-98"
+><label for="skein-ui-label-98"
+>Nothing for now</label
+><p aria-label="Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
+><span
+>Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.</span
+></p
+></div
+></fieldset
+><div class="temper-welcome-sheet-foot"
+><button type="button" aria-keyshortcuts="Escape"
+>Cancel</button
+><button type="button" class="temper-flow-primary"
+>Run on this machine</button
+></div
+></dialog
+><div class="temper-welcome-foot"
+><a aria-label="‹ Back" class="temper-flow-quiet" href="/welcome?at=forge"
+><span
+>‹ Back</span
+></a
+><button type="button"
+>Try the playground instead</button
+></div
+></main
+></div
+></body
+></html
+>

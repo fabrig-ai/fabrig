@@ -394,7 +394,12 @@ fn setting_row(rng: &mut Rng, bounds: &Bounds) {
     let value = if rng.below(2) == 0 {
         s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
     } else {
+        let mut sets = skein_lib::List::with_capacity(6);
+        for _ in 0..rng.below(7) {
+            sets.push(u8::try_from(rng.below(256)).expect("u8 draw")).expect("bounded sets");
+        }
         s::Value::Rule(s::LandingRule {
+            sets: sets.into_boxed(),
             pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
             enforce: rng.below(2) == 0,
             ci: rng.below(2) == 0,

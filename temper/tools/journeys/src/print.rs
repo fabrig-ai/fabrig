@@ -55,8 +55,8 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
         );
         for stylesheet in [
             "../skein-ui.css",
-            "../../../../../crates/temper-client-shell-web/temper.css",
-            "../../../../../crates/temper-client-shell-web/task-pages.css",
+            "../../../../../../crates/temper-client-shell-web/temper.css",
+            "../../../../../../crates/temper-client-shell-web/task-pages.css",
             "../overlay.css",
         ] {
             write!(document, "<link rel=\"stylesheet\" href=\"{stylesheet}\">").expect("write string");

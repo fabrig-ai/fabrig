@@ -477,6 +477,7 @@ A landing rule for the deployment or one project. Its criteria apply to every la
 - `up_to_date`: true or false. The change's head must contain its base's tip.
 - `gates`: list of at most 64, each `landing-gate`. The gates every change it covers asks for.
 - `approvals`: list of at most 64, each `landing-approval`. The distinct people holding each role who must approve the change by a forge review.
+- `sets`: list of at most 6, each integer, 0 to 255. Project path sets 1 to 6, unique. Default [], omitted when empty. None for deployments.
 
 ## landing-gate
 

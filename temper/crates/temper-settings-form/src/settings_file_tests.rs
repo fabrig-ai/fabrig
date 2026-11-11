@@ -186,6 +186,55 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+fn landing_sets(member: &[u8]) -> Box<[u8]> {
+    joined(&[LANDING.strip_suffix(b"}").expect("rule object"), member, b"}"])
+}
+#[test]
+fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
+    use temper_client_protocol_wire::v1 as w;
+    for (member, expected, printed) in [
+        (b"".as_slice(), b"".as_slice(), b"".as_slice()),
+        (br#","sets":[]"#, b"", b""),
+        (br#","sets":[1,3]"#, &[1, 3], br#","sets":[1,3]"#),
+        (br#","sets":[6,5,4,3,2,1]"#, &[6, 5, 4, 3, 2, 1], br#","sets":[6,5,4,3,2,1]"#),
+    ] {
+        let items =
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard()).expect("sets file");
+        let item = items.get(0).expect("one rule");
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
+        let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
+        assert_eq!(rule.sets().as_slice(), expected);
+        let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        }));
+        assert_eq!(
+            shown(&document),
+            joined(&[br#"{"setting":"#, PROJECT_RULE, br#","revision":1,"value":"#, &landing_sets(printed), b"}"])
+        );
+    }
+}
+#[test]
+fn landing_sets_refuse_wrong_types_numbers_and_counts_by_path() {
+    for (member, expected) in [
+        (br#","sets":false"#.as_slice(), b"settings file item 1: landing-rule.sets: expected array".as_slice()),
+        (br#","sets":[true]"#, b"settings file item 1: landing-rule.sets: expected unsigned integer"),
+        (br#","sets":[-1]"#, b"settings file item 1: landing-rule.sets: expected unsigned integer"),
+        (br#","sets":[256]"#, b"settings file item 1: landing-rule.sets: u8 bound"),
+        (br#","sets":[1,2,3,4,5,6,1]"#, b"settings file item 1: landing-rule.sets: bound 6"),
+    ] {
+        assert_eq!(
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard())
+                .expect_err("bad sets")
+                .as_ref(),
+            expected
+        );
+    }
+}
 #[test]
 fn temper_kind_edits_keep_removed_and_reset() {
     for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER, TEMPLATE_GOAL] {
