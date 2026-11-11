@@ -38,6 +38,8 @@ enum LifeState {
 pub struct ServiceHost {
     pub(crate) pending_streak: crate::patience::PendingStreak,
     restartable: bool,
+    start_failures: u32,
+    failed_starts: Vec<String>,
     wait_check: bool,
     now: Time,
     lives: Vec<Life>,
@@ -150,6 +152,8 @@ impl ServiceHost {
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
+            start_failures: 0,
+            failed_starts: Vec::new(),
             wait_check: std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
@@ -262,6 +266,37 @@ impl ServiceHost {
         assert!(self.state == LifeState::Stopping && self.settled(), "restart a settled cluster service");
         // The referee requests only; dropping and preparing stay in this host's iteration.
         self.state = LifeState::Restarting;
+    }
+    pub(crate) fn restart_after_failures(&mut self, failures: u32) {
+        self.restart();
+        self.start_failures = failures;
+    }
+    /// Starts refused by the shipped configuration checks, before a service is made.
+    #[must_use]
+    pub fn failed_starts(&self) -> &[String] {
+        &self.failed_starts
+    }
+    fn refuse_starts(&mut self) {
+        if self.start_failures == 0 {
+            return;
+        }
+        assert!(matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })));
+        let directories = Self::directories(&self.path, true);
+        let document = directories.document();
+        let original = std::fs::read(&document).expect("engine document");
+        let mut invalid: serde_json::Value = serde_json::from_slice(&original).expect("engine JSON");
+        invalid["engine"]["limits"]["profile"] = serde_json::json!("unknown-profile");
+        fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
+            .expect("misconfigured start");
+        for _ in 0..self.start_failures {
+            let Err(failure) = temper::prepare_in_with(&directories, &fixtures::given(&self.path)) else {
+                panic!("unknown engine profile must refuse the start")
+            };
+            assert!(failure.contains("engine.limits.profile"), "{failure}");
+            self.failed_starts.push(failure);
+        }
+        fixtures::private(&document, &original).expect("corrected engine document");
+        self.start_failures = 0;
     }
     fn begin_next_life(&mut self) {
         self.life_tasks = self.runs.tasks.len();
@@ -496,6 +531,7 @@ impl Host for ServiceHost {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         if self.state == LifeState::Restarting {
+            self.refuse_starts();
             self.begin_next_life();
         }
         if self.service.is_none()

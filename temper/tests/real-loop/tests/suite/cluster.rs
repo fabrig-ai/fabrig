@@ -40,7 +40,7 @@ fn interrupted_script() -> llm::Recipe {
     }]))
 }
 
-fn restart_chat_steps(past: bool) -> Vec<calls::Step> {
+fn restart_chat_steps(past: bool, failures: u32) -> Vec<calls::Step> {
     const CHAT: usize = 1;
     let mut steps = vec![
         calls::sign_in(D1),
@@ -55,7 +55,7 @@ fn restart_chat_steps(past: bool) -> Vec<calls::Step> {
     if past {
         steps.push(calls::worker_cancelled("w1"));
     }
-    steps.push(calls::start_engine());
+    steps.push(calls::start_engine_after_failures(failures));
     if past {
         steps.push(calls::held(CONTACT_HOLD));
     }
@@ -70,8 +70,9 @@ fn restart_chat_steps(past: bool) -> Vec<calls::Step> {
 
 #[test]
 fn past_the_engine_away_bound_the_attempt_is_interrupted_and_resumes_without_a_try() {
-    let cluster =
-        run_cluster_with_grace(&["w1"], Duration::from_millis(1_000), interrupted_script, || restart_chat_steps(true));
+    let cluster = run_cluster_with_grace(&["w1"], Duration::from_millis(1_000), interrupted_script, || {
+        restart_chat_steps(true, 0)
+    });
     for (at, called) in cluster.calls().iter().enumerate() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}", String::from_utf8_lossy(&called.stderr));
     }
@@ -105,8 +106,19 @@ fn past_the_engine_away_bound_the_attempt_is_interrupted_and_resumes_without_a_t
 
 #[test]
 fn an_engine_restarted_within_the_bound_keeps_the_same_attempt() {
-    let cluster =
-        run_cluster_with_grace(&["w1"], Duration::from_secs(60), interrupted_script, || restart_chat_steps(false));
+    same_attempt_after_starts(0);
+}
+
+#[test]
+fn two_refused_engine_starts_within_the_bound_keep_the_same_attempt() {
+    same_attempt_after_starts(2);
+}
+
+fn same_attempt_after_starts(failures: u32) {
+    let cluster = run_cluster_with_grace(&["w1"], Duration::from_secs(60), interrupted_script, || {
+        restart_chat_steps(false, failures)
+    });
+    assert_eq!(cluster.failed_starts().len(), usize::try_from(failures).expect("small start count"));
     for (at, called) in cluster.calls().iter().enumerate() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}", String::from_utf8_lossy(&called.stderr));
     }

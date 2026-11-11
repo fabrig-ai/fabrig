@@ -92,6 +92,11 @@ impl skein_world::Referee<Proc> for Referee {
                             views.held_at_restart = store.pending.front().map(|commit| commit.number);
                             self.injected = true;
                         }
+                        if matches!(self.story, crate::stories::Story::FailedStarts { .. })
+                            && host.failed_starts.ended == 0
+                        {
+                            host.failed_starts.arm();
+                        }
                         store.crash();
                         self.period = false;
                     }
@@ -606,6 +611,13 @@ impl Referee {
         if matches!(self.story, crate::stories::Story::HeldCommit) && now >= Time::from_nanos(1_000_000_000) {
             self.injected = true;
         }
+        if matches!(self.story, crate::stories::Story::FailedStarts { .. }) {
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    crate::failed_starts::advance(host);
+                }
+            }
+        }
         self.drain_engine(procs);
         self.resume_runs(procs);
         self.inject_refusal(procs);
@@ -665,6 +677,7 @@ impl Referee {
             | crate::stories::Story::Window
             | crate::stories::Story::InvalidCharter
             | crate::stories::Story::Restart { .. }
+            | crate::stories::Story::FailedStarts { .. }
             | crate::stories::Story::HeldCommit
             | crate::stories::Story::DurableRestart
             | crate::stories::Story::Providers => return,

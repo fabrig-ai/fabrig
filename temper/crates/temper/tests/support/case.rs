@@ -686,7 +686,7 @@ impl Judge {
             Step::Advance => panic!("Advance unsupported"),
             Step::Push { .. } => panic!("Push unsupported"),
             Step::ReleaseHold { .. } => panic!("ReleaseHold unsupported"),
-            Step::StopEngine | Step::StartEngine | Step::WorkerCancelled { .. } => {
+            Step::StopEngine | Step::StartEngine { .. } | Step::WorkerCancelled { .. } => {
                 panic!("engine restart steps unsupported")
             }
             Step::Probe { .. } => panic!("Probe unsupported"),
@@ -1000,7 +1000,7 @@ fn describe(step: &calls::Step) -> String {
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
         Step::StopEngine => "StopEngine".into(),
-        Step::StartEngine => "StartEngine".into(),
+        Step::StartEngine { .. } => "StartEngine".into(),
         Step::WorkerCancelled { name } => format!("WorkerCancelled {name}"),
         Step::StopWorker { name } => format!("StopWorker {name}"),
         Step::StartWorker { name } => format!("StartWorker {name}"),

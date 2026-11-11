@@ -41,6 +41,7 @@ pub enum Story {
     MidFrame,
     InvalidCharter,
     Restart { before: u32 },
+    FailedStarts { before: u32 },
     HeldCommit,
     DurableRestart,
     Partition { engine: Duration, worker: Duration },
@@ -64,7 +65,8 @@ fn script(story: Story) -> crate::world::Script {
     script.story = story;
     if matches!(
         story,
-        Story::Drain
+        Story::FailedStarts { .. }
+            | Story::Drain
             | Story::Shutdown
             | Story::Providers
             | Story::Progress
@@ -80,7 +82,11 @@ fn script(story: Story) -> crate::world::Script {
     }
     if matches!(
         story,
-        Story::Restart { .. } | Story::Providers | Story::ApplicationGeneration | Story::Key { replaced: true }
+        Story::Restart { .. }
+            | Story::FailedStarts { .. }
+            | Story::Providers
+            | Story::ApplicationGeneration
+            | Story::Key { replaced: true }
     ) {
         script.latency = Duration::from_secs(1);
     }
