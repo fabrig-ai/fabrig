@@ -31,8 +31,44 @@ pub(super) fn acknowledge_cancel(world: &mut World, run: &engine::Assignment, re
             break;
         }
     }
-    assert!(matches!(ended(world, run.task).expect("cancelled delegate ended").phase,
-        tasks::Phase::Ended(tasks::Ending::Cancelled { .. })));
+    assert!(matches!(
+        ended(world, run.task).expect("cancelled delegate ended").phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { .. })
+    ));
+}
+
+#[test]
+fn a_no_change_completion_cancels_its_live_delegate() {
+    let (mut world, _, producer, branch) = change_world(false, 1000, None);
+    let tasks::Party::Task(task) = live_task(&world, producer.task).requester else { panic!("change") };
+    world.drain_cut();
+    // Restore a completed forge snapshot while the core still owns the delegate.
+    let mut completed = row(&world, task).clone();
+    completed.change.state = change::State::NoChange { words: b"Nothing to settle.".as_slice().into() };
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore {
+        record: forge_top::Stored::Change(Box::new(completed)),
+    })));
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch),
+            key: None,
+        },
+    })));
+    acknowledge_cancel(&mut world, &producer, b"its change ended", engine::Parts::none());
+    for _ in 0..STEPS {
+        world.tick();
+        if ended(&world, task).is_some() {
+            break;
+        }
+    }
+    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words })) =
+        &ended(&world, task).expect("delegate terminal wakes no-change completion").phase
+    else {
+        panic!("change must offer its no-change result")
+    };
+    assert_eq!(words.as_ref(), b"Nothing to settle.");
+    world.close();
 }
 
 #[test]
@@ -46,13 +82,18 @@ fn a_landed_change_cancels_its_live_resolution() {
         .expect("conflicting base");
     super::delegates::fixtures::answer_producer(&mut world, &producer);
     let resolution = super::delegates::fixtures::next_delegate(&mut world);
-    assert!(matches!(row(&world, task).delegate, Some((child, change::Delegate::Resolve { .. })) if child == resolution.task));
+    assert!(
+        matches!(row(&world, task).delegate, Some((child, change::Delegate::Resolve { .. })) if child == resolution.task)
+    );
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"base change", 1)
         .expect("resolve conflict");
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"resolved", b"kept change", 1)
         .expect("resolution head");
     let pull = row(&world, task).pull.expect("open pull");
-    assert!(matches!(world.external(1, raw::Op::Write(raw::Write::Merge { number: pull, head, how: raw::MergeHow::Style })), raw::Answer::Merged(_)));
+    assert!(matches!(
+        world.external(1, raw::Op::Write(raw::Write::Merge { number: pull, head, how: raw::MergeHow::Style })),
+        raw::Answer::Merged(_)
+    ));
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
             repository: forge_world::REPO,
@@ -68,7 +109,9 @@ fn a_landed_change_cancels_its_live_resolution() {
         }
     }
     assert!(matches!(row(&world, task).change.state, change::State::Landed { .. }));
-    assert!(matches!(ended(&world, task).expect("resolution terminal wakes its change").phase,
-        tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { .. }))));
+    assert!(matches!(
+        ended(&world, task).expect("resolution terminal wakes its change").phase,
+        tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { .. }))
+    ));
     world.close();
 }
