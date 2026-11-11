@@ -447,25 +447,6 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
-- **Not yet:** `tui/pages.md`, *A design session*, *The pane's states*
-  and *The draft*, and `tui/theme.md`'s region `tui-pane`, milestone T2
-  of [whole-story.execution.md](../draft/whole-story.execution.md): the
-  pane in the side region `tui-pane`, its three states, `HALVES`,
-  Ctrl-P (`pane_key`), the body's scroll as the state changes, the
-  draft's head and sections, "new" (`marked`) and a flow's fenced text;
-  and *The quiet line*'s pane state and the next Ctrl-P's words, built
-  with the pane they name (the user, 2026-11-10). [in flight: change 173]
-- **Not yet:** `tui/pages.md`, *A design session*, *`/goal`* and *A
-  linked goal*, and *The commands*' *Offered* and *`/open`*, milestone
-  T2: the root's `/goal` on a chat, which *Offered* still leaves out;
-  `/goal`'s prompt of ways, a way taken, a goal made from it reopening
-  the chat, a proposed goal's notice, and a linked goal's `/open`.
-  [in flight: change 174]
-- **Not yet:** `tui/pages.md`, *A design session*, *The quiet line*'s
-  goal part, "/goal starts a goal from the draft" or "goal TITLE ·
-  /open opens it", and its place in *A narrow terminal*, milestone T2,
-  built with the `/goal` it names (the user, 2026-11-10).
-  [in flight: change 179]
 
 `pages/README.md` and `forge/records.md` and `pages/goal.md`, section 2 and `pages/settings.md`, section 2 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
