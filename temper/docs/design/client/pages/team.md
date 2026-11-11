@@ -75,14 +75,14 @@
     `wake` (jig's `client/domain/contract/README.md`, section 4; jig's
     `domain/tasks/messages.md`, 3 and 4), a row each, in the document's
     order:
-    - *a timer with a period:* "A timer", and its period: a week, the
-      weekday and clock of its `at` where the view keeps time, "Mondays
-      06:00"; a day, "daily 06:00"; any other, "every" and the period,
-      "every 4 hours"; its class the policy's `timers`: "at once" while
-      it is set, else "with its next wake";
-    - *a timer without one:* "A timer", and "once, at" and its `at` as the
-      view says a clock time, "once, at 06:00" today, else with its date;
-      its class as a timer's with a period;
+    - *a timer with a period:* "A timer", and in its class's place its
+      period: a week, the weekday and clock of its `at` where the view
+      keeps time, "Mondays 06:00"; a day, "daily 06:00"; any other,
+      "every" and the period, "every 4 hours"; while the policy's
+      `timers` is unset, its words are "A timer, with its next wake";
+    - *a timer without one:* as a timer with a period, with "once, at"
+      and its `at` as the view says a clock time, "once, at 06:00" today,
+      else with its date, in its period's place;
     - *another task's state:* "Task N held", "Task N's result", or "Task N
       held, or its result", by its `held` and `result`, N a link to the
       task's page; jig delivers either as a notice (jig's
