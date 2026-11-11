@@ -459,6 +459,35 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
     task_show::assert_words(&mut world, number, &before);
 }
 
+#[test]
+fn a_cancelled_tier_task_restarts_with_its_next_number_and_branch() {
+    let (mut world, _) = start_chat(task_show::world());
+    until(&mut world, LANDING_TICKS, "baseline running", |world| {
+        tier(world).task.is_some_and(|number| execution_words(world, number).contains("forge run "))
+            && restart_cut(world)
+    });
+    let number = tier(&world).task.expect("running baseline task");
+    assert_eq!(tier(&world).record.run.as_ref().unwrap().number, 1);
+    assert_eq!(dispatched_runs(&world)[0].state, raw::RunState::Running);
+    cancel_task(&mut world, number);
+    assert!(matches!(task(&world, number).phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. })));
+    assert_ne!(tier(&world).task, Some(number), "the close decision drops its tier task");
+    assert_eq!(tier(&world).record.sequence, 1);
+    until(&mut world, LANDING_TICKS, "cancelled run restart cut", restart_cut);
+    world.restart_same();
+    until(&mut world, LANDING_TICKS, "next tier run dispatched", |world| {
+        world.writes.iter().any(|write| {
+            matches!(write,
+            skein_forge::api::Write::Dispatch { branch, .. } if branch.as_ref() == b"temper/tier/slow.2")
+        })
+    });
+    assert_eq!(tier(&world).record.sequence, 1);
+    assert_eq!(tier(&world).record.run.as_ref().unwrap().number, 2);
+    assert_ne!(tier(&world).task, Some(number));
+    assert!(!world.writes.iter().any(|write| matches!(write,
+        skein_forge::api::Write::DeleteBranch { branch } if branch.as_ref() == b"temper/tier/slow.1")));
+}
+
 fn assert_part_words(
     world: &World,
     number: u64,
