@@ -99,7 +99,7 @@ impl Harness {
 
     /// Prepares `spec` for `client`: returns the hold and its first
     /// operation.
-    fn prepare(&mut self, client: u64, spec: Spec) -> (Token, Op) {
+    fn begin(&mut self, client: u64, spec: Spec) -> (Token, Op) {
         step(&mut self.domain, &self.env, Event::Prepare { client: Token::new(client), spec }, &mut self.out);
         let Some(Request::Held { client: held, hold }) = self.out.pop() else {
             panic!("the prepare is admitted");
@@ -108,6 +108,15 @@ impl Harness {
         let op = io(self.out.pop().expect("and its first operation asked for"), hold);
         assert!(self.out.is_empty(), "nothing else");
         self.domain.reclaim();
+        (hold, op)
+    }
+
+    /// Workspace cases start after making any stores their spec needs.
+    fn prepare(&mut self, client: u64, spec: Spec) -> (Token, Op) {
+        let (hold, mut op) = self.begin(client, spec);
+        while let Op::Store { .. } = op {
+            op = self.next(hold, Done::Succeeded);
+        }
         (hold, op)
     }
 
@@ -121,9 +130,12 @@ impl Harness {
                 Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Merge { .. } => Done::Merged,
-                Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } | Op::Push { .. } => {
-                    Done::Succeeded
-                }
+                Op::Store { .. }
+                | Op::Make { .. }
+                | Op::Clone { .. }
+                | Op::Create { .. }
+                | Op::CheckOut { .. }
+                | Op::Push { .. } => Done::Succeeded,
                 Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
                     panic!("a prepare commits or compares nothing")
                 }
@@ -280,7 +292,8 @@ fn refused(request: Request) -> Refusal {
 /// The workspace a held workspace's operations name.
 fn workspace_of(op: &Op) -> Token {
     match op {
-        Op::Make { workspace } => *workspace,
+        Op::Store { .. } => panic!("a store has no workspace"),
+        Op::Make { workspace, .. } => *workspace,
         Op::Clone { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -297,14 +310,32 @@ fn workspace_of(op: &Op) -> Token {
 #[test]
 fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out() {
     let mut h = Harness::new(LIMITS);
-    let (hold, op) = h.prepare(7, two(b"issue-1"));
-    let Op::Make { workspace } = op else { panic!("a new workspace is made: {op:?}") };
+    let (hold, op) = h.begin(7, two(b"issue-1"));
+    assert_eq!(
+        op,
+        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
+    );
+    assert_eq!(
+        h.next(hold, Done::Succeeded),
+        Op::Store {
+            store: Token::new(1_u64 << 32),
+            aside: None,
+            remote: remote(b"b"),
+            identity: 0,
+            account: None,
+            git: None
+        }
+    );
+    let op = h.next(hold, Done::Succeeded);
+    let Op::Make { workspace, ref stores } = op else { panic!("a new workspace is made: {op:?}") };
+    assert_eq!(stores.as_ref(), &[Token::new(0), Token::new(1_u64 << 32)]);
     let identity = 0;
-    let clone_a = Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), identity, account: None };
+    let clone_a = Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: Token::new(0) };
     assert_eq!(h.next(hold, Done::Succeeded), clone_a);
-    let clone_b = Op::Clone { at: place(workspace, b"b"), remote: remote(b"b"), identity, account: None };
+    let clone_b = Op::Clone { at: place(workspace, b"b"), remote: remote(b"b"), store: Token::new(1_u64 << 32) };
     assert_eq!(h.next(hold, Done::Succeeded), clone_b);
     let fetch_a = Op::Fetch {
+        store: Token::new(0),
         into: Into::Fetched,
         at: place(workspace, b"a"),
         remote: remote(b"a"),
@@ -317,6 +348,7 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }), fetch_a);
     assert_eq!(h.replaced(hold, commit(1)), check_out_a);
     let fetch_b = Op::Fetch {
+        store: Token::new(1_u64 << 32),
         into: Into::Fetched,
         at: place(workspace, b"b"),
         remote: remote(b"b"),
@@ -341,15 +373,20 @@ fn every_operation_has_a_deadline_by_where_it_runs() {
     let remote = NOW.saturating_add(LIMITS.remote_timeout);
     let mut h = Harness::new(LIMITS);
     let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"w") });
-    let Some(Request::Io { owner, op: Op::Make { .. }, deadline }) = requests.get(1) else {
+    let Some(Request::Io { owner, op: Op::Store { .. }, deadline }) = requests.get(1) else {
         panic!("a new workspace is made");
     };
-    assert_eq!(*deadline, local, "making a directory is local");
+    assert_eq!(*deadline, remote, "Store reaches the forge");
     let owner = *owner;
+    h.next(owner, Done::Succeeded);
     let Request::Io { deadline, op: Op::Clone { .. }, .. } = h.one(Event::Done { owner, done: Done::Succeeded }) else {
         panic!("a clone follows");
     };
-    assert_eq!(deadline, remote, "a clone reaches the forge");
+    assert_eq!(deadline, local, "a clone is local");
+    let Request::Io { deadline, op: Op::Fetch { .. }, .. } = h.one(Event::Done { owner, done: Done::Succeeded }) else {
+        panic!("fetch follows clone")
+    };
+    assert_eq!(deadline, remote, "fetch reaches the forge");
 }
 
 #[test]
@@ -393,7 +430,7 @@ fn the_least_recently_used_idle_workspace_is_evicted_when_the_cache_is_full() {
     h.one(Event::Release { hold: a });
     h.facts();
     let (_, op) = h.prepare(3, one(b"c-work"));
-    let Op::Make { workspace } = op else { panic!("the evicted workspace is made again: {op:?}") };
+    let Op::Make { workspace, .. } = op else { panic!("the evicted workspace is made again: {op:?}") };
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
     // c's is being built: it is not listed until it is cloned.
     assert_eq!((h.domain.workstream(0), h.domain.workstream(1)), (Some(&b"a-work"[..]), None));
@@ -473,7 +510,7 @@ fn an_evicted_workspace_spoiled_by_a_broken_operation_is_made_again() {
     h.one(Event::Release { hold });
     h.facts();
     let (_, op) = h.prepare(3, one(b"new"));
-    assert_eq!(op, Op::Make { workspace });
+    assert_eq!(op, Op::Make { workspace, stores: Box::new([Token::new(0)]) });
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
 }
 
@@ -486,7 +523,7 @@ fn reuse_considers_only_the_least_recently_used_idle_workspace() {
     h.one(Event::Release { hold: matching });
     h.facts();
     let (_, op) = h.prepare(3, one(b"new"));
-    assert_eq!(op, Op::Make { workspace: Token::new(0) });
+    assert_eq!(op, Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0)]) });
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
     let (_, op) = h.prepare(4, one(b"matching"));
     assert_eq!(op.kind(), Kind::Fetch, "the newer matching workspace stays with its workstream");
@@ -809,7 +846,8 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
-            Op::Make { .. }
+            Op::Store { .. }
+            | Op::Make { .. }
             | Op::Look { .. }
             | Op::Clone { .. }
             | Op::CheckOut { .. }
@@ -951,7 +989,8 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::CheckOut { .. } => Done::Succeeded,
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
-                    other @ (Op::Make { .. }
+                    other @ (Op::Store { .. }
+                    | Op::Make { .. }
                     | Op::Look { .. }
                     | Op::Clone { .. }
                     | Op::Fetch { .. }
@@ -1373,13 +1412,15 @@ fn the_facts_tell_what_happened_and_drop_what_does_not_fit() {
     let facts = h.facts();
     let expected = [
         Fact::Held { client, cached: Cached::New },
+        Fact::Started { client, op: Kind::Store },
+        Fact::Ended { client, done: crate::Ending::Succeeded },
         Fact::Started { client, op: Kind::Make },
         Fact::Ended { client, done: crate::Ending::Succeeded },
         Fact::Started { client, op: Kind::Clone },
     ];
     assert_eq!(facts.as_slice(), &expected);
     let mut h = Harness::new(Limits { facts: 1, ..LIMITS });
-    h.prepare(1, one(b"w"));
+    h.begin(1, one(b"w"));
     assert_eq!(h.domain.facts_lost(), 1);
 }
 
@@ -1603,7 +1644,7 @@ fn each_git_op_carries_its_repositorys_account() {
         let repo = Repository { account, start: Start::Base { branch: bytes(b"topic") }, ..repository(b"a", true) };
         let (hold, make) = h.prepare(1, spec(b"w", Box::new([repo])));
         let Op::Make { .. } = make else { panic!("workspace made first") };
-        assert_account(h.next(hold, Done::Succeeded), account, Kind::Clone);
+        assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
         assert_account(h.next(hold, Done::Succeeded), account, Kind::Fetch);
         assert_account(h.next(hold, failed(Fault::Missing { missing: Missing::Branch })), account, Kind::Fetch);
         assert_account(h.next(hold, Done::Fetched { commit: commit(1) }), account, Kind::Create);
@@ -1626,11 +1667,12 @@ fn each_git_op_carries_its_repositorys_account() {
 fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
     assert_eq!(op.kind(), kind);
     match op {
-        Op::Clone { account, .. }
-        | Op::Fetch { account, .. }
-        | Op::Create { account, .. }
-        | Op::Push { account, .. } => assert_eq!(account, expected),
-        Op::Look { .. }
+        Op::Fetch { account, .. } | Op::Create { account, .. } | Op::Push { account, .. } => {
+            assert_eq!(account, expected);
+        }
+        Op::Store { .. }
+        | Op::Clone { .. }
+        | Op::Look { .. }
         | Op::DiffPaths { .. }
         | Op::IsAncestor { .. }
         | Op::Make { .. }
@@ -2077,7 +2119,10 @@ fn a_look_that_does_not_hold_makes_then_clones() {
         if holds_first {
             h.next(hold, Done::Looked { holds: true });
         }
-        assert_eq!(h.next(hold, Done::Looked { holds: false }), Op::Make { workspace: Token::new(0) });
+        assert_eq!(
+            h.next(hold, Done::Looked { holds: false }),
+            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
+        );
         assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
     }
 }
@@ -2088,7 +2133,10 @@ fn a_first_saved_start_makes_without_looking() {
         let mut h = if reuse { Harness::reusing(LIMITS) } else { Harness::new(LIMITS) };
         let repo = Repository { start: Start::Saved { branch: bytes(b"saved") }, ..repository(b"b", false) };
         let (_, op) = h.prepare(1, spec(b"work", Box::new([repository(b"a", true), repo])));
-        assert_eq!(op, Op::Make { workspace: Token::new(0) });
+        assert_eq!(
+            op,
+            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
+        );
         assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::New }));
     }
 }
@@ -2136,10 +2184,12 @@ fn aborting_or_releasing_a_look_waits_for_its_terminal() {
 #[test]
 fn a_look_uses_the_local_deadline() {
     let mut h = Harness::reusing(LIMITS);
-    let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"work") });
-    let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
+    let (hold, _) = h.begin(1, one(b"work"));
+    let Request::Io { op, deadline, .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else {
+        panic!("look after Store")
+    };
     assert_eq!(op.kind(), Kind::Look);
-    assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
+    assert_eq!(deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }
 
 #[test]
@@ -2173,5 +2223,119 @@ fn unchecked_work_pushes_to_its_own_branch_and_the_next_commit_is_fresh() {
         let op = io(h.one(Event::Push { hold, message: message() }), hold);
         let Op::Commit { always, .. } = op else { panic!("later commit: {op:?}") };
         assert!(!always, "the replacement head is no longer the unchecked commit");
+    }
+}
+
+#[test]
+fn a_made_remote_needs_no_store_for_another_workstream() {
+    let mut h = Harness::new(LIMITS);
+    let first = h.ready(1, one(b"a"));
+    let (second, op) = h.begin(2, one(b"b"));
+    let Op::Make { workspace, stores } = op else { panic!("no Store after the first made it: {op:?}") };
+    assert_eq!(stores.as_ref(), &[Token::new(0)]);
+    assert_eq!(
+        h.next(second, Done::Succeeded),
+        Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: Token::new(0) }
+    );
+    h.one(Event::Release { hold: first });
+}
+#[test]
+fn concurrent_prepares_make_one_remote_independently() {
+    let mut h = Harness::new(LIMITS);
+    let (first, store) = h.begin(1, one(b"a"));
+    let (second, same) = h.begin(2, one(b"b"));
+    assert_eq!(
+        store,
+        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
+    );
+    assert_eq!(same, store);
+    for hold in [first, second] {
+        let Op::Make { stores, .. } = h.next(hold, Done::Succeeded) else { panic!("each successful Store goes on") };
+        assert_eq!(stores.as_ref(), &[Token::new(0)]);
+    }
+}
+#[test]
+fn a_full_store_table_replaces_only_an_unborrowed_slot_under_a_new_token() {
+    let mut h = Harness::new(Limits { repositories: 1, ..LIMITS });
+    let held = h.ready(1, one(b"held"));
+    let mut other = one(b"old");
+    other.repositories[0].remote = remote(b"b");
+    let idle = h.ready(2, other);
+    h.one(Event::Release { hold: idle });
+    let mut replacement = one(b"new");
+    replacement.repositories[0].remote = remote(b"c");
+    let (_, op) = h.begin(3, replacement);
+    let Op::Store { store, aside, .. } = op else { panic!("new remote needs a store") };
+    assert_eq!(aside, Some(Token::new(1_u64 << 32)), "the held store was not evicted");
+    assert_ne!(Some(store), aside);
+    assert_eq!(store.raw() >> 32_u32, 1, "the unborrowed slot has a new generation");
+    h.one(Event::Release { hold: held });
+}
+#[test]
+fn a_damaged_fetch_rebuilds_its_workspace_but_never_its_store() {
+    for fault in [Fault::Broken, Fault::TimedOut, Fault::Cancelled] {
+        let mut h = Harness::new(LIMITS);
+        let first = h.ready(1, one(b"w"));
+        h.one(Event::Release { hold: first });
+        let (hold, op) = h.begin(2, one(b"w"));
+        let Op::Fetch { store, .. } = op else { panic!("reused workspace fetches") };
+        let Request::Prepared { prepared: Prepared::Failed { .. }, .. } =
+            h.one(Event::Done { owner: hold, done: failed(fault) })
+        else {
+            panic!("failed prepare")
+        };
+        h.one(Event::Release { hold });
+        let (next, op) = h.begin(3, one(b"w"));
+        let Op::Make { stores, .. } = op else { panic!("workspace rebuilt without Store: {op:?}") };
+        assert_eq!(stores.as_ref(), &[store]);
+        let Op::Clone { store: borrowed, .. } = h.next(next, Done::Succeeded) else { panic!("clone after Make") };
+        assert_eq!(borrowed, store);
+    }
+}
+#[test]
+fn store_capacity_must_fit_even_when_hold_capacity_fits() {
+    assert!(valid(&Limits { workspaces: 1, repositories: u32::MAX, ..LIMITS }));
+    assert!(!valid(&Limits { workspaces: 2, repositories: u32::MAX, ..LIMITS }));
+}
+
+#[test]
+fn a_failed_store_is_not_marked_made_and_is_tried_again() {
+    for (fault, expected) in [
+        (Fault::Broken, Failure::Transient),
+        (
+            Fault::Missing { missing: Missing::Repository },
+            Failure::Missing { repository: 0, missing: Missing::Repository },
+        ),
+    ] {
+        let mut h = Harness::new(LIMITS);
+        let (hold, first) = h.begin(1, one(b"w"));
+        let Op::Store { .. } = first else { panic!("new remote") };
+        let Prepared::Failed { failure, .. } = prepared(h.one(Event::Done { owner: hold, done: failed(fault) })) else {
+            panic!("Store failure ends prepare")
+        };
+        assert_eq!(failure, expected);
+        h.one(Event::Release { hold });
+        let (_, again) = h.begin(2, one(b"w"));
+        assert_eq!(again, first, "a failed Store is tried again, not borrowed");
+    }
+}
+#[test]
+fn design_delivery_and_push_verification_fetch_through_the_repositorys_store() {
+    for design in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let mut spec = one(b"w");
+        if design {
+            spec.repositories[0].landing = spec.repositories[0].push.clone();
+        }
+        let hold = h.ready(1, spec);
+        h.one(Event::Push { hold, message: message() });
+        let mut op = h.next(hold, Done::Committed { commit: commit(11) });
+        if !design {
+            let Op::Push { .. } = op else { panic!("ordinary push") };
+            op = h.next(hold, failed(Fault::TimedOut));
+        }
+        let Op::Fetch { store, remote: source, .. } = op else { panic!("design tip or push verification fetched") };
+        assert_eq!(store, Token::new(0));
+        assert_eq!(source, remote(b"a"));
     }
 }

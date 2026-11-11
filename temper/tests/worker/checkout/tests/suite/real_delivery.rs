@@ -28,10 +28,11 @@ impl World {
     fn advance_goal(&self, workspace: Token, remote: &[u8]) -> git::Commit {
         let at = git::Place { workspace, repository: b"peer".as_slice().into(), git: None };
         assert_eq!(
-            self.perform(git::Op::Clone { at: at.clone(), remote: remote.into(), identity: 1, account: None }),
+            self.perform(git::Op::Clone { at: at.clone(), remote: remote.into(), store: Token::new(0) }),
             git::Done::Succeeded
         );
         let git::Done::Fetched { commit: parent } = self.perform(git::Op::Fetch {
+            store: Token::new(0),
             at: at.clone(),
             remote: remote.into(),
             want: git::Want::Branch { branch: b"goal".as_slice().into() },
@@ -95,8 +96,23 @@ impl World {
     }
 
     fn perform(&self, mut op: git::Op) -> git::Done {
-        if let git::Op::Make { workspace } = &op {
+        if let git::Op::Make { workspace, .. } = &op {
             fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
+            return git::Done::Succeeded;
+        }
+        if let git::Op::Store { store, remote, .. } = &op {
+            let directory = format!("stores/{}", store.raw());
+            fs::create_dir_all(self.root.join(&directory)).expect("store directory");
+            let output = self.command(
+                "stores",
+                &invocation::Command::Store {
+                    directory: store.raw().to_string().into_bytes().into(),
+                    remote: remote.clone(),
+                },
+                Some(git::Kind::Store),
+                b"",
+            );
+            assert!(output.status.success(), "store init: {:?}", output.stderr);
             return git::Done::Succeeded;
         }
         let at = match &op {
@@ -110,13 +126,10 @@ impl World {
             | git::Op::Merge { at, .. }
             | git::Op::Commit { at, .. }
             | git::Op::Push { at, .. } => at,
-            git::Op::Make { .. } => unreachable!(),
+            git::Op::Store { .. } | git::Op::Make { .. } => unreachable!(),
         };
-        let directory = if matches!(op, git::Op::Clone { .. }) {
-            format!("workspaces/{}", at.workspace.raw())
-        } else {
-            String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory")
-        };
+        let repository = String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory");
+        let workspace = at.workspace;
         let mut next = sequence::first(&op);
         for _ in 0..20 {
             next = match next {
@@ -133,6 +146,17 @@ impl World {
                     } else {
                         Some(op.kind())
                     };
+                    let directory = match (&op, &command) {
+                        (git::Op::Clone { .. }, invocation::Command::Clone { .. }) => {
+                            format!("workspaces/{}", workspace.raw())
+                        }
+                        (git::Op::Clone { store, .. }, invocation::Command::Format)
+                        | (git::Op::Fetch { store, .. }, invocation::Command::Fetch { .. }) => {
+                            format!("stores/{}", store.raw())
+                        }
+                        _ => repository.clone(),
+                    };
+                    let kind = if matches!(command, invocation::Command::UpdateRef { .. }) { None } else { kind };
                     let output = self.command(&directory, &command, kind, &message);
                     sequence::after(
                         &op,
@@ -151,7 +175,18 @@ impl World {
                     Next::Run(if merging.is_some() { invocation::Command::Unmerged } else { invocation::Command::Add })
                 }
                 Next::End(done) => return done,
-                Next::Make | Next::Scan { .. } => panic!("no unresolved paths"),
+                Next::Alternates => {
+                    let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };
+                    fs::write(
+                        self.root.join(&repository).join(".git/objects/info/alternates"),
+                        format!("../../../../../stores/{}/objects\n", store.raw()),
+                    )
+                    .expect("alternates");
+                    Next::Run(invocation::Command::Remote { remote: remote.clone() })
+                }
+                Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => {
+                    panic!("no unresolved paths")
+                }
             };
         }
         panic!("git operation settles")
@@ -244,6 +279,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
         let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("delivered: {landings:?}") };
         assert_eq!(
             world.perform(git::Op::Fetch {
+                store: Token::new(0),
                 at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
                 remote: remote.clone(),
                 want: git::Want::Branch { branch: push.into() },

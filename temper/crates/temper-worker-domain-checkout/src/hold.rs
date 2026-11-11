@@ -129,6 +129,7 @@ struct Holding {
     /// The client's token, echoed on every record back to it.
     client: Token,
     workspace: Id<Workspace>,
+    stores: Box<[crate::cache::Borrowed]>,
     /// The spec's repositories, in its order.
     repositories: Box<[Repository]>,
     /// Where each repository checked out so far stands, in the same order.
@@ -176,6 +177,10 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
+    Store {
+        repository: u32,
+        look: bool,
+    },
     Look {
         repository: u32,
     },
@@ -342,7 +347,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         return;
     }
     let Spec { key, repositories } = spec;
-    let (workspace, cached) = match domain.cache.hold(key, &repositories) {
+    let crate::cache::Granted { workspace, cached, stores } = match domain.cache.hold(key, &repositories) {
         Ok(holding) => holding,
         Err(refusal) => {
             refuse_prepare(&mut domain.facts, client, refusal, out);
@@ -352,14 +357,16 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     domain.facts.push(Fact::Held { client, cached });
     let tips = List::with_capacity(count(repositories.len()));
     let conflicts = List::with_capacity(count(repositories.len()));
-    let holding = Holding { client, workspace, repositories, tips, conflicts };
+    let holding = Holding { client, workspace, stores, repositories, tips, conflicts };
     let hold = Hold { holding, state: State::Closed };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
     let first = match cached {
-        Cached::Looking => PrepareStep::Look { repository: 0 },
+        Cached::Looking => stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, true),
         Cached::Reused | Cached::Kept => PrepareStep::Fetch { repository: 0 },
-        Cached::Rebuilt | Cached::Evicted | Cached::New => PrepareStep::Make,
+        Cached::Rebuilt | Cached::Evicted | Cached::New => {
+            stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, false)
+        }
     };
     let hold = domain.holds.get_mut(id).expect("inserted above");
     hold.state = prepare_step(&hold.holding, id, first, env, out);
@@ -615,13 +622,30 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
+        PrepareStep::Store { repository, look } => match done {
+            Done::Succeeded => {
+                cache.made(borrowed(holding, repository).store);
+                Next::Step(stores_step(holding, after(repository), look))
+            }
+            Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
+            Done::Paths { .. }
+            | Done::Looked { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. }
+            | Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected => unreachable!("store terminals"),
+        },
         PrepareStep::Look { repository } => match done {
             Done::Paths { .. } => unreachable!("a look has its own terminals"),
             Done::Looked { holds: true } if repository < last => {
                 Next::Step(PrepareStep::Look { repository: after(repository) })
             }
             Done::Looked { holds: true } => {
-                cache.cloned(holding.workspace, &holding.repositories);
+                cache.cloned(holding.workspace, &holding.repositories, &holding.stores);
                 Next::Step(PrepareStep::Fetch { repository: 0 })
             }
             Done::Looked { holds: false } => Next::Step(PrepareStep::Make),
@@ -655,7 +679,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         PrepareStep::Clone { repository } => match done {
             Done::Succeeded if repository < last => Next::Step(PrepareStep::Clone { repository: after(repository) }),
             Done::Succeeded => {
-                cache.cloned(holding.workspace, &holding.repositories);
+                cache.cloned(holding.workspace, &holding.repositories, &holding.stores);
                 Next::Step(PrepareStep::Fetch { repository: 0 })
             }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
@@ -1015,7 +1039,8 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
-        PrepareStep::Look { .. }
+        PrepareStep::Store { .. }
+        | PrepareStep::Look { .. }
         | PrepareStep::Make
         | PrepareStep::Clone { .. }
         | PrepareStep::Fetch { .. }
@@ -1209,6 +1234,7 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         }
     };
     let step: &[u8] = match step {
+        PrepareStep::Store { .. } => b"store",
         PrepareStep::Look { .. } => b"look",
         PrepareStep::Make => b"make",
         PrepareStep::Clone { .. } => b"clone",
@@ -1300,15 +1326,33 @@ fn prepare_step(
             let repository = nth(holding, repository);
             Op::Look { at: place(workspace, repository), remote: copy_of(&repository.remote) }
         }
-        PrepareStep::Make => Op::Make { workspace },
+        PrepareStep::Store { repository, .. } => {
+            let store = borrowed(holding, repository);
+            let spec = nth(holding, repository);
+            Op::Store {
+                store: store.store.token(),
+                aside: store.aside,
+                remote: spec.remote.clone(),
+                identity: spec.identity,
+                account: spec.account,
+                git: spec.git.clone(),
+            }
+        }
+        PrepareStep::Make => {
+            let mut stores = List::with_capacity(count(holding.stores.len()));
+            for borrowed in &holding.stores {
+                stores.push(borrowed.store.token()).expect("spec room");
+            }
+            Op::Make { workspace, stores: stores.into_boxed() }
+        }
         PrepareStep::Clone { repository } => {
+            let store = borrowed(holding, repository).store.token();
             let repository = nth(holding, repository);
             let remote = copy_of(&repository.remote);
-            let identity = repository.identity;
-            let account = repository.account;
-            Op::Clone { at: place(workspace, repository), remote, identity, account }
+            Op::Clone { at: place(workspace, repository), remote, store }
         }
         PrepareStep::Fetch { repository } | PrepareStep::Refetch { repository } => {
+            let store = borrowed(holding, repository).store.token();
             let repository = nth(holding, repository);
             let want = match &repository.start {
                 Start::Base { branch }
@@ -1321,14 +1365,16 @@ fn prepare_step(
             let remote = copy_of(&repository.remote);
             let identity = repository.identity;
             let account = repository.account;
-            Op::Fetch { into: Into::Fetched, at: place(workspace, repository), remote, want, identity, account }
+            Op::Fetch { store, into: Into::Fetched, at: place(workspace, repository), remote, want, identity, account }
         }
         PrepareStep::Default { repository } => {
+            let store = borrowed(holding, repository).store.token();
             let repository = nth(holding, repository);
             let remote = copy_of(&repository.remote);
             let identity = repository.identity;
             let account = repository.account;
             Op::Fetch {
+                store,
                 into: Into::Fetched,
                 at: place(workspace, repository),
                 remote,
@@ -1357,6 +1403,7 @@ fn prepare_step(
         PrepareStep::FetchLanding { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
+                store: borrowed(holding, repository).store.token(),
                 into: Into::Landing,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
@@ -1372,6 +1419,7 @@ fn prepare_step(
                 None => Want::Commit { commit: ours },
             };
             Op::Fetch {
+                store: borrowed(holding, repository).store.token(),
                 into: Into::Landing,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
@@ -1383,6 +1431,7 @@ fn prepare_step(
         PrepareStep::FetchPush { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
+                store: borrowed(holding, repository).store.token(),
                 into: Into::Fetched,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
@@ -1397,8 +1446,10 @@ fn prepare_step(
             clean: !nth(holding, repository).start.is_saved(),
         },
         PrepareStep::FetchBase { repository, base, .. } => {
+            let store = borrowed(holding, repository).store.token();
             let repository = nth(holding, repository);
             Op::Fetch {
+                store,
                 into: Into::Fetched,
                 at: place(workspace, repository),
                 remote: copy_of(&repository.remote),
@@ -1790,7 +1841,20 @@ fn verify(
     let remote = copy_of(&spec.remote);
     let identity = spec.identity;
     let account = spec.account;
-    io(id, Op::Fetch { into: Into::Fetched, at, remote, want, identity, account }, env, out);
+    io(
+        id,
+        Op::Fetch {
+            store: borrowed(holding, repository).store.token(),
+            into: Into::Fetched,
+            at,
+            remote,
+            want,
+            identity,
+            account,
+        },
+        env,
+        out,
+    );
     State::Pushing { push, step: PushStep::Verify { repository, failure }, asked }
 }
 
@@ -2105,4 +2169,16 @@ fn branch_of(repository: &Repository, to: &To) -> Box<[u8]> {
 
 fn after(repository: u32) -> u32 {
     repository.checked_add(1).expect("fewer repositories than a u32 counts")
+}
+
+fn borrowed(holding: &Holding, repository: u32) -> &crate::cache::Borrowed {
+    holding.stores.get(usize::try_from(repository).expect("bounded index")).expect("spec store")
+}
+fn stores_step(holding: &Holding, from: u32, look: bool) -> PrepareStep {
+    for repository in from..count(holding.stores.len()) {
+        if borrowed(holding, repository).make {
+            return PrepareStep::Store { repository, look };
+        }
+    }
+    if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make }
 }

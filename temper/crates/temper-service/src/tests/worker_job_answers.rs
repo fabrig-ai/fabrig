@@ -62,7 +62,9 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-        Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
+        Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => {
+            Done::Succeeded
+        }
     }
 }
 
@@ -87,7 +89,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, fault: GitFault) -
         match request {
             root::Request::Io { owner, op, .. } => {
                 let done = match (&op, fault) {
-                    (root::checkout::git::Op::Clone { .. }, GitFault::CloneRefused) => {
+                    (root::checkout::git::Op::Store { .. }, GitFault::CloneRefused) => {
                         root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
                     }
                     (

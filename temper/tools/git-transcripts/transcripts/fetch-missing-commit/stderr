@@ -1,2 +1,2 @@
-POST git-upload-pack (308 bytes)
+POST git-upload-pack (258 bytes)
 fatal: remote error: upload-pack: not our ref 0000000000000000000000000000000000000003

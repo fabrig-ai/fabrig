@@ -104,7 +104,9 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 }
                 Op::DiffPaths { .. } => panic!("this job scripts no design delivery"),
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-                Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
+                Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => {
+                    Done::Succeeded
+                }
                 Op::Merge { .. } => Done::Merged,
             };
             for request in h.step(Event::Done { owner: *owner, done }) {

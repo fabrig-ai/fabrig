@@ -135,7 +135,7 @@ impl World {
             Request::Io { owner, op, deadline } => {
                 assert!(deadline > self.env.now);
                 match &op {
-                    git::Op::Make { workspace } => self.workspace = Some(*workspace),
+                    git::Op::Make { workspace, .. } => self.workspace = Some(*workspace),
                     git::Op::Commit { at, title, body, .. } => {
                         assert_eq!(at.repository, self.repository);
                         assert_eq!(title, &self.title);
@@ -147,7 +147,8 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
-                    git::Op::Clone { .. }
+                    git::Op::Store { .. }
+                    | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }

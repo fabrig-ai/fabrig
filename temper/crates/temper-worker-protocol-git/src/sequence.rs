@@ -13,6 +13,9 @@ pub enum Next {
     Run(Command),
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
+    Store,
+    InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
+    Alternates,
     Scan { files: Box<[Box<[u8]>]> },
     End(git::Done),
 }
@@ -21,11 +24,11 @@ pub enum Next {
 pub fn first(op: &git::Op) -> Next {
     Next::Run(match op {
         git::Op::Make { .. } => return Next::Make,
+        git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
-        git::Op::Clone { at, remote, .. } => {
-            Command::Clone { remote: remote.clone(), directory: at.repository.clone() }
-        }
-        git::Op::Fetch { remote, want, into, .. } => Command::Fetch {
+        git::Op::Clone { .. } => Command::Format,
+        git::Op::Fetch { at, remote, want, into, .. } => Command::Fetch {
+            workspace: at.workspace,
             into: *into,
             remote: remote.clone(),
             source: match want {
@@ -84,7 +87,8 @@ pub fn after(
                 1 | 128 => return Next::End(git::Done::Looked { holds: false }),
                 _ => {}
             },
-            git::Op::Make { .. }
+            git::Op::Store { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -95,12 +99,39 @@ pub fn after(
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
         },
-        Command::Clone { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
-        Command::Fetch { into, .. } if code == 0 => {
-            if let Some(commit) = output::fetched(stdout, *into) {
-                return Next::End(git::Done::Fetched { commit });
+        Command::Format if code == 0 => {
+            let format = match stdout {
+                b"sha1\n" => Some(invocation::Format::Sha1),
+                b"sha256\n" => Some(invocation::Format::Sha256),
+                other => {
+                    let _length = other.len();
+                    None
+                }
+            };
+            if let Some(format) = format {
+                let git::Op::Clone { at, .. } = op else { unreachable!("format is a clone's first invocation") };
+                return Next::Run(Command::Clone { directory: at.repository.clone(), format });
             }
         }
+        Command::Store { directory, .. } => {
+            let done = if code == 0 {
+                git::Done::Succeeded
+            } else {
+                git::Done::FailedWithOutput {
+                    fault: output::classify(tail, git::Kind::Store),
+                    diagnostic: git::PushDiagnostic::new(tail, cut),
+                }
+            };
+            return Next::InstallStore { directory: directory.clone(), done: Box::new(done) };
+        }
+        Command::Clone { .. } if code == 0 => return Next::Alternates,
+        Command::Remote { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
+        Command::Fetch { into, workspace, .. } if code == 0 => {
+            if let Some(commit) = output::fetched(stdout, &invocation::store_reference(*workspace, *into)) {
+                return Next::Run(Command::UpdateRef { into: *into, commit });
+            }
+        }
+        Command::UpdateRef { commit, .. } if code == 0 => return Next::End(git::Done::Fetched { commit: *commit }),
         Command::Create { branch, .. } => {
             if let Some(next) = pushed(stdout, branch, true, tail, cut) {
                 return next;
@@ -135,7 +166,8 @@ pub fn after(
                     Command::DiffIndex { parent: *parent }
                 });
             }
-            git::Op::Make { .. }
+            git::Op::Store { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -192,6 +224,7 @@ pub fn after(
             },
             git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
+            | git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
@@ -206,7 +239,10 @@ pub fn after(
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Version
+        | Command::Format
         | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::UpdateRef { .. }
         | Command::Fetch { .. }
         | Command::CheckOut { .. }
         | Command::Clean
@@ -216,7 +252,7 @@ pub fn after(
         | Command::WriteTree
         | Command::CommitTree { .. } => {}
     }
-    let fault = if code == 0 { git::Fault::Broken } else { output::classify(tail, op.kind()) };
+    let fault = if code == 0 || !remote(ran) { git::Fault::Broken } else { output::classify(tail, op.kind()) };
     failed(fault, tail, cut)
 }
 fn id(stdout: &[u8]) -> Option<git::Commit> {
@@ -257,7 +293,8 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
             let files = output::paths(stdout, checkout)?;
             Some(if files.is_empty() { Next::Run(Command::Add) } else { Next::Scan { files } })
         }
-        git::Op::Make { .. }
+        git::Op::Store { .. }
+        | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -274,7 +311,8 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         git::Op::Commit { parent, merging, .. } => {
             Some(Command::CommitTree { tree, parent: *parent, merging: *merging })
         }
-        git::Op::Make { .. }
+        git::Op::Store { .. }
+        | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -291,6 +329,7 @@ fn checked_out(op: &git::Op) -> Next {
     match op {
         git::Op::CheckOut { clean: false, .. } => Next::End(git::Done::Succeeded),
         git::Op::CheckOut { clean: true, .. }
+        | git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
@@ -301,5 +340,32 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Merge { .. }
         | git::Op::Commit { .. }
         | git::Op::Push { .. } => Next::Run(Command::Clean),
+    }
+}
+
+fn remote(command: &Command) -> bool {
+    match command {
+        Command::Store { .. } | Command::Fetch { .. } | Command::Create { .. } | Command::Push { .. } => true,
+        Command::Format
+        | Command::Version
+        | Command::Origin { .. }
+        | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::UpdateRef { .. }
+        | Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotFetch { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::CheckOut { .. }
+        | Command::Clean
+        | Command::Merge { .. }
+        | Command::Unmerged
+        | Command::Add
+        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+        | Command::WriteTree
+        | Command::CommitTree { .. }
+        | Command::IsAncestor { .. } => false,
     }
 }

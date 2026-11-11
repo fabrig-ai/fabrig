@@ -6,3 +6,4 @@ mod output;
 mod program;
 mod sequence;
 mod snapshot;
+mod stores;

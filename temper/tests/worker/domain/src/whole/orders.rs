@@ -77,9 +77,10 @@ fn collect(
         match request {
             Request::Io { owner, op, .. } => {
                 let workspace = match &op {
-                    checkout::git::Op::Make { workspace } => {
+                    checkout::git::Op::Store { .. } => None,
+                    checkout::git::Op::Make { workspace, .. } => {
                         places.insert(owner, *workspace);
-                        *workspace
+                        Some(*workspace)
                     }
                     checkout::git::Op::Clone { at, .. }
                     | checkout::git::Op::Fetch { at, .. }
@@ -90,9 +91,11 @@ fn collect(
                     | checkout::git::Op::IsAncestor { at, .. }
                     | checkout::git::Op::Merge { at, .. }
                     | checkout::git::Op::Commit { at, .. }
-                    | checkout::git::Op::Push { at, .. } => at.workspace,
+                    | checkout::git::Op::Push { at, .. } => Some(at.workspace),
                 };
-                report.crossed.push(Crossing::Io { workspace });
+                if let Some(workspace) = workspace {
+                    report.crossed.push(Crossing::Io { workspace });
+                }
                 held.push_back((owner, translate::perform(&mut world.forge, &mut world.disk, op)));
             }
             Request::Answer { run, .. } => {

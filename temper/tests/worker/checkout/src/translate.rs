@@ -41,9 +41,10 @@ pub fn path(place: &Place) -> Vec<u8> {
 
 /// The workspace an operation is in.
 #[must_use]
-pub fn workspace(op: &Op) -> Token {
+pub fn workspace(op: &Op) -> Option<Token> {
     match op {
-        Op::Make { workspace } => *workspace,
+        Op::Store { .. } => None,
+        Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -53,7 +54,7 @@ pub fn workspace(op: &Op) -> Token {
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
-        | Op::Push { at, .. } => at.workspace,
+        | Op::Push { at, .. } => Some(at.workspace),
     }
 }
 
@@ -61,12 +62,13 @@ pub fn workspace(op: &Op) -> Token {
 #[must_use]
 pub fn identity(op: &Op) -> Option<u32> {
     match op {
-        Op::Clone { identity, .. }
+        Op::Store { identity, .. }
         | Op::Fetch { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Make { .. }
+        Op::Clone { .. }
+        | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
@@ -79,11 +81,12 @@ pub fn identity(op: &Op) -> Option<u32> {
 #[must_use]
 pub fn remote(op: &Op) -> Option<&[u8]> {
     match op {
-        Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
+        Op::Store { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
             Some(remote)
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
-        Op::Make { .. }
+        Op::Clone { .. }
+        | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
@@ -97,11 +100,16 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
 pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
-        Op::Make { workspace } => {
+        Op::Make { workspace, stores } => {
             // Empty: whatever is there goes first.
             let dir = dir(workspace);
             disk.remove(&dir);
             disk.mkdir(&dir);
+            for store in stores {
+                disk.remove(
+                    &[store_path(store).as_slice(), b"/refs/temper/", workspace.raw().to_string().as_bytes()].concat(),
+                );
+            }
             Done::Succeeded
         }
         Op::Look { at, remote } => {
@@ -110,30 +118,48 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),
             }
         }
-        Op::Clone { at, remote, identity: _, account: _ } => {
-            assert!(disk.exists(&dir(at.workspace)), "a repository is cloned into a workspace made");
-            match git::clone_repository(forge, disk, &remote, &path(&at)) {
-                Ok(()) => {
-                    disk.write(&[path(&at).as_slice(), b"/.git/temper-remote"].concat(), &remote);
-                    Done::Succeeded
-                }
-                Err(fault) => failed(fault),
+        Op::Store { store, aside, remote, .. } => {
+            if let Some(aside) = aside {
+                disk.remove(&store_path(aside));
             }
+            if !disk.exists(&store_path(store))
+                && let Err(fault) = git::clone_bare(forge, disk, &remote, &store_path(store))
+            {
+                return failed(fault);
+            }
+            Done::Succeeded
         }
-        Op::Fetch { at, remote, want, into, identity: _, account: _ } => {
+        Op::Clone { at, remote, store } => {
+            assert!(disk.exists(&dir(at.workspace)), "a workspace made before its clone");
+            let format = git::object_format(disk, &store_path(store));
+            git::init_with_format(disk, &path(&at), false, format);
+            let alternate = format!("../../../../../stores/{}/objects\n", store.raw());
+            disk.write(&[path(&at).as_slice(), b"/.git/objects/info/alternates"].concat(), alternate.as_bytes());
+            disk.write(&[path(&at).as_slice(), b"/.git/temper-remote"].concat(), &remote);
+            Done::Succeeded
+        }
+        Op::Fetch { at, store, remote, want, into, identity: _, account: _ } => {
             assert_cloned(disk, &at);
             let want = match &want {
                 Want::Branch { branch } => git::Want::Branch(branch),
                 Want::Commit { commit } => git::Want::Commit(fake(*commit)),
                 Want::Default => git::Want::Default,
             };
-            match git::fetch(forge, disk, &remote, &path(&at), want) {
+            match git::fetch(forge, disk, &remote, &store_path(store), want) {
                 Ok(fetched) => {
                     let reference = match into {
                         temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
                         temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
                     };
-                    disk.write(&[path(&at).as_slice(), b"/.git/", reference].concat(), &fetched.to_le_bytes());
+                    let store_ref = [
+                        b"refs/temper/".as_slice(),
+                        at.workspace.raw().to_string().as_bytes(),
+                        b"/",
+                        reference.strip_prefix(b"refs/temper/").expect("fixed ref"),
+                    ]
+                    .concat();
+                    git::update_ref(disk, &store_path(store), &store_ref, fetched).expect("fetched into store");
+                    git::update_ref(disk, &path(&at), reference, fetched).expect("borrowed from store");
                     Done::Fetched { commit: commit(fetched) }
                 }
                 Err(fault) => failed(fault),
@@ -310,4 +336,10 @@ fn contains(forge: &impl Remote, ancestor: u64, commit: u64) -> bool {
 fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
     let bytes = disk.content(&[path(at).as_slice(), b"/.git/", name].concat())?;
     Some(commit(u64::from_le_bytes(bytes.try_into().expect("fake git head"))))
+}
+
+/// A shared bare repository on the world's fake disk.
+#[must_use]
+pub fn store_path(store: Token) -> Vec<u8> {
+    format!("stores/{}", store.raw()).into_bytes()
 }
