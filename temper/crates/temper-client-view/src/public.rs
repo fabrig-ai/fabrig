@@ -12,6 +12,7 @@ use temper_client_domain::{
 };
 
 mod forge;
+pub(crate) use forge::short;
 mod lines;
 mod pages;
 

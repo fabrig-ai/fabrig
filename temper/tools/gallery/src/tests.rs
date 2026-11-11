@@ -420,7 +420,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
@@ -438,7 +438,7 @@ static HOLDS: [Holds; samples::N] = [
                     "draftwitness-catch-up.md · a chat with you · 07:20",
                 ],
             },
-            Part::Named { role: Role::Region, name: "Landed this week · 4" },
+            Part::Named { role: Role::Region, name: "Landed this week · 3" },
             Part::CardChanges {
                 title: "membership-handoff",
                 changes: &[
@@ -488,7 +488,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "work-drafts",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "Drafts · 2",
@@ -498,7 +498,7 @@ static HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
-            Part::Absent { role: Role::Region, name: "Landed this week · 4" },
+            Part::Absent { role: Role::Region, name: "Landed this week · 3" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
@@ -508,7 +508,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Goals { rows: &["membership-handoff", "fuzz-corpus"] },
@@ -521,7 +521,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Named { role: Role::Link, name: "Witness rejoin test" },
@@ -590,7 +590,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "night-work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
