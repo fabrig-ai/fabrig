@@ -8,7 +8,7 @@ fn address_lines_keep_independent_validation_and_repairs() {
     use super::{Line, lines};
     let parsed = lines(
         b" github.com/octo/vsr\n octo/vsr\ngithub/octo/vsr\na\nhttps://host.example/o/n.git\n\nwork/taken\n",
-        &|org, name| org == b"work" && name == b"taken",
+        &|_address, org, name| org == b"work" && name == b"taken",
     );
     assert_eq!(
         parsed.as_slice(),
