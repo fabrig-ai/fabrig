@@ -267,7 +267,12 @@ fn facts_gather_the_open_projects_domain_values() {
             },
         ),
         ("other project", &project_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, ..BASE }),
-        ("across", &across_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, away: true, ..BASE }),
+        (
+            "across",
+            &across_root,
+            OTHER,
+            Facts { projects: PROJECTS, needs: NEEDS, needs_cut: true, away: true, ..BASE },
+        ),
         ("unread", &unread, f::PROJECT, BASE),
     ] {
         assert_eq!(rail::facts(root, project, f::NOW), expected, "{name}");

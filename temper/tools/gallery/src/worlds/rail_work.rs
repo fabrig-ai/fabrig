@@ -53,9 +53,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         }
                         Some(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })))
                     }
-                    c::Subject::Inbox { .. } => {
-                        Some(c::Delivery::Inbox(Box::new(super::inbox_document(super::World::Bare))))
-                    }
+                    c::Subject::Inbox { .. } => Some(c::Delivery::Inbox(Box::new(inbox(name)))),
                     c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
                         newest: 0,
                         settings: List::with_capacity(0),
@@ -97,6 +95,22 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
             }
             Down::Read { read, what: Readable::Jig(what) } => {
                 let value = match what {
+                    c::Read::Inbox { group, .. } if name == "rail-across" => {
+                        Some(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                            rows: if group == c::InboxReadGroup::Needs {
+                                inbox(name).needs
+                            } else {
+                                List::with_capacity(0)
+                            },
+                            before: None,
+                            after: None,
+                            cut: false,
+                            selection: None,
+                        })))
+                    }
+                    c::Read::Question { task, .. } if name == "rail-across" => {
+                        Some(c::ReadValue::Question(Box::new(across_question(task))))
+                    }
                     c::Read::Tasks { query, .. } => Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
                         live: List::with_capacity(0),
                         live_after: None,
@@ -139,6 +153,40 @@ fn family(root: &mut Domain, watch: Token, bytes: Box<[u8]>, out: &mut Queue<Req
         step(root, Event::Client { event: jig_client::Event::Up { up } }, out);
     }
 }
+fn across_question(task: u64) -> c::Question {
+    let mut chip = base_task(task, if task == 1 { "Witness rejoin" } else { "Budget alerts" }).chip;
+    chip.details.details.project = u32::try_from(task).expect("two projects");
+    c::Question {
+        task: chip,
+        from: Some(c::Requester::Task(task)),
+        message: 1,
+        words: doc(if task == 1 {
+            "Count the witness only once caught up?\nChoice: Only once caught up (recommended)\nChoice: Add a catch-up barrier"
+        } else {
+            "Send budget alerts by email?\nChoice: Only in the app (recommended)\nChoice: By email too"
+        }),
+        since: at(-60),
+        acts: super::offers(&[c::ActKind::Answer]),
+        ending: None,
+    }
+}
+fn inbox(name: &str) -> c::Inbox {
+    if name != "rail-across" {
+        return super::inbox_document(super::World::Bare);
+    }
+    let mut rows = List::with_capacity(2);
+    for project in [1, 2] {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: u64::from(project), message: 1 },
+            project,
+            1,
+            at(-60),
+            None,
+        ))
+        .expect("a need in each project");
+    }
+    temper_fixtures::client_documents::inbox(rows, 2, c::Count { value: 0, limited: false }, 0, false)
+}
 fn frame(work: Work, name: &str) -> c::Me {
     let mut me = base_frame("Owner", if matches!(work, Work::Pair) { "pocket" } else { "vsr" });
     if name == "limits-not-owner" {
@@ -163,6 +211,10 @@ fn frame(work: Work, name: &str) -> c::Me {
         projects.push(project.clone()).expect("vsr");
         projects.push(second).expect("cowsql");
         me.projects = projects;
+    }
+    if name == "rail-across" {
+        me.needs.questions = 2;
+        me.needs_total = 2;
     }
     me
 }
