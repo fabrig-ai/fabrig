@@ -9,9 +9,6 @@
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
   `conflict_files` is no limit, on `files`, `settled` or `left`.
-- **Not yet:** 4.2: fabrig's close command fails on a tag naming no
-  change of its request rather than keeping it and listing it as kept, and
-  reads no tag followed by sentence punctuation (`tools/close/close.py`) [in flight: change 651]
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
