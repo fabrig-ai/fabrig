@@ -43,6 +43,7 @@ pub(crate) struct Foot {
     pub closed: Option<Box<[u8]>>,
     pub columns: u16,
     pub pane: Option<chat::document::Mode>,
+    pub goal: Option<Box<[u8]>>,
     pub list: Option<Options>,
     pub reply: Box<[Event]>,
 }
@@ -224,6 +225,19 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
             Some(chat) => super::pane::shown(chat, tui.columns()),
             None => None,
         },
+        goal: if super::goal_offered(root) {
+            Some(words.say(Word::PaneGoal, &[]))
+        } else {
+            match chat {
+                Some(chat) => match chat.goal_chip(root) {
+                    Some(chip) => Some(
+                        words.say(Word::PaneLinkedGoal, &[Hole::Name(conversation::cut(chip.title.bytes(), words))]),
+                    ),
+                    None => None,
+                },
+                None => None,
+            }
+        },
         list,
         reply: reply.into_boxed(),
     }
@@ -293,6 +307,7 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     };
     let mut right = List::with_capacity(7);
     let mut shortcut = None;
+    let mut goal = None;
     if let Some(notice) = &part.notice {
         right.push((copy_of(notice), look::SIGNAL)).expect("one notice fits");
     } else {
@@ -314,6 +329,10 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
             right.push((words.say(state, &[]), look::HINT)).expect("seven quiet line parts");
             shortcut = Some(usize::try_from(right.len()).expect("quiet parts fit usize"));
             right.push((words.say(key, &[]), look::HINT)).expect("seven quiet line parts");
+            if let Some(line) = &part.goal {
+                goal = Some(usize::try_from(right.len()).expect("quiet parts fit usize"));
+                right.push((copy_of(line), look::HINT)).expect("seven quiet line parts");
+            }
         }
         if !needing.is_empty() {
             right.push((needing, look::SIGNAL)).expect("seven quiet line parts");
@@ -345,12 +364,18 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let walk_width = width(&walk).saturating_add(width(&separator));
     let room = if part.columns == 0 { u32::MAX } else { u32::from(part.columns) };
     let mut total = left_width.saturating_add(closed_width).saturating_add(right_width).saturating_add(4);
-    let mut omit = None;
-    if total > room && part.notice.is_none() && part.pane.is_some() {
-        for (index, (line, _style)) in right.iter().enumerate() {
-            if Some(index) == shortcut {
-                omit = Some(index);
-                total = total.saturating_sub(width(line).saturating_add(width(&separator)));
+    let mut omit_goal = false;
+    let mut omit_shortcut = false;
+    for candidate in [goal, shortcut] {
+        if total > room
+            && let Some(index) = candidate
+        {
+            let (line, _style) = right.as_slice().get(index).expect("quiet part is present");
+            total = total.saturating_sub(width(line).saturating_add(width(&separator)));
+            if candidate == goal {
+                omit_goal = true;
+            } else {
+                omit_shortcut = true;
             }
         }
     }
@@ -389,11 +414,11 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     if !narrow_notice {
         let mut drawn = false;
         for (index, (line, style)) in right.iter().enumerate() {
-            if omit == Some(index) {
+            if (omit_goal && goal == Some(index)) || (omit_shortcut && shortcut == Some(index)) {
                 continue;
             }
             if drawn {
-                let style = if Some(index) == shortcut { look::HINT } else { look::FAINT };
+                let style = if Some(index) == shortcut || Some(index) == goal { look::HINT } else { look::FAINT };
                 text(b, Role::Text, &separator, Some(style));
             }
             text(b, Role::Text, line, Some(*style));

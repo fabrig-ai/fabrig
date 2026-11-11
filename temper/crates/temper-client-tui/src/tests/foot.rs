@@ -961,6 +961,93 @@ fn quiet_states() {
             "{name}: pane separator is a hint"
         );
     }
+    for (name, case, columns, count, right, goal) in [
+        (
+            "goal offered",
+            f::GoalCase::READY,
+            110,
+            1,
+            "pane: half · Ctrl-P widens · /goal starts a goal from the draft · 1 needs you",
+            Some("/goal starts a goal from the draft"),
+        ),
+        (
+            "linked goal",
+            f::GoalCase { linked: true, ..f::GoalCase::READY },
+            110,
+            0,
+            "pane: half · Ctrl-P widens · goal Farewell line for… · /open opens it",
+            Some("goal Farewell line for… · /open opens it"),
+        ),
+        (
+            "goal fits exactly",
+            f::GoalCase::READY,
+            96,
+            0,
+            "pane: half · Ctrl-P widens · /goal starts a goal from the draft",
+            Some("/goal starts a goal from the draft"),
+        ),
+        ("goal one column short", f::GoalCase::READY, 95, 0, "pane: half · Ctrl-P widens", None),
+        (
+            "linked goal fits exactly",
+            f::GoalCase { linked: true, ..f::GoalCase::READY },
+            102,
+            0,
+            "pane: half · Ctrl-P widens · goal Farewell line for… · /open opens it",
+            Some("goal Farewell line for… · /open opens it"),
+        ),
+        (
+            "linked goal one column short",
+            f::GoalCase { linked: true, ..f::GoalCase::READY },
+            101,
+            0,
+            "pane: half · Ctrl-P widens",
+            None,
+        ),
+        ("goal at eighty", f::GoalCase::READY, 80, 0, "pane: half · Ctrl-P widens", None),
+        (
+            "linked goal at eighty",
+            f::GoalCase { linked: true, ..f::GoalCase::READY },
+            80,
+            0,
+            "pane: half · Ctrl-P widens",
+            None,
+        ),
+        (
+            "neither offered nor linked",
+            f::GoalCase { body: Some(b"Words\n"), ..f::GoalCase::READY },
+            110,
+            0,
+            "pane: half · Ctrl-P widens",
+            None,
+        ),
+        ("no pane", f::GoalCase { body: None, linked: true, ..f::GoalCase::READY }, 110, 0, "", None),
+    ] {
+        let root = case.root();
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Size { columns });
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.closed = Some("model · high".as_bytes().into());
+        part.needs = d::pages::needs::Count { count, cut: false };
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
+        assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
+        if let Some(goal) = goal {
+            assert!(has(tree, look::HINT, goal.as_bytes()), "{name}: goal is a hint");
+        }
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(
+                    |node| node.styles.as_slice() == [look::HINT] && f::text(tree, node).as_ref() == " · ".as_bytes()
+                )
+                .count(),
+            usize::from(!right.is_empty()).checked_add(usize::from(goal.is_some())).unwrap(),
+            "{name}: pane separators are hints",
+        );
+    }
     front_quiet(&root, &words);
     let no_picker = root_state(true, false, false, false, false, TaskState::Idle);
     assert_eq!(
