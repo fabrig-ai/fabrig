@@ -200,6 +200,7 @@ pub fn fields(named: &[(&[u8], &[u8])]) -> agent::Fields {
 pub fn charter() -> agent::Charter {
     use smith_domain_run::charter::{Endpoint, Grants, Llm, Reserve, Tools};
     let value = smith_domain_run::Charter {
+        check_timeout: None,
         mode: smith_domain_run::Mode::Finite,
         resume: false,
         waiting: Duration::ZERO,

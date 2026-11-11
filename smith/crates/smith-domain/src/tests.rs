@@ -381,6 +381,7 @@ fn account_grants() -> Box<[crate::Grant]> {
 
 fn charter() -> Charter {
     Charter {
+        check_timeout: None,
         mode: run::Mode::Finite,
         reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },
         instructions: Box::new([]),

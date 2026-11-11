@@ -158,7 +158,7 @@ pub(crate) struct Run {
     /// Its conversations, main included, opened and not ended.
     conversations: u32,
     /// When its budget's time runs out.
-    deadline: Time,
+    pub(crate) deadline: Time,
     state: State,
     /// Opaque restored history binding consumed when main opens.
     transcript: Option<Token>,
@@ -1247,6 +1247,10 @@ fn standing(run: &Run, now: Time) -> crate::facts::Standing {
         reserve_spend: crate::budget::reserve_spend(run.charter.reserve, &run.charter.llm)
             .expect("admission checked reserve spend"),
     }
+}
+
+pub(crate) fn check_retry_deadline(run: &Run) -> Option<Time> {
+    if run.wind_down.is_some() { None } else { Some(ordinary_deadline(run)) }
 }
 
 fn ordinary_deadline(run: &Run) -> Time {

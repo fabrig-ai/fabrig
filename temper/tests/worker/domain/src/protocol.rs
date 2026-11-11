@@ -58,6 +58,7 @@ pub fn charter() -> Box<[u8]> {
     )
     .expect("tools");
     let parts = CharterParts {
+        check_timeout: None,
         instructions: Box::new([]),
         brief: List::with_capacity(0),
         tools,

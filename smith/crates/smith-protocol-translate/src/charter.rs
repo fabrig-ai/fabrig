@@ -160,6 +160,7 @@ pub fn encode_charter(
     let record = match wire::Charter::new(
         limits,
         wire::CharterParts {
+            check_timeout: source.check_timeout,
             mode: match source.mode {
                 run::Mode::Finite => wire::Mode::Finite,
                 run::Mode::Open => wire::Mode::Open,
@@ -296,6 +297,23 @@ fn llm(source: &run::charter::Llm, limits: &wire::v4::Limits, endpoints: &Endpoi
 mod tests {
     use super::*;
     use skein_lib::{Duration, Reader};
+
+    #[test]
+    #[expect(clippy::disallowed_macros, reason = "programming-model.md, section 10.2: frozen charter fixture")]
+    fn optional_check_bounds_cross_the_charter_boundary() {
+        let mut endpoints = List::with_capacity(1);
+        endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
+        let endpoints = Endpoints::new(endpoints);
+        let source = include_bytes!("../../smith-charter/golden/v4/record_charter_smallest.bin");
+        let mut charter = crate::decode_charter(source, &wire::CEILINGS, &endpoints).expect("smallest charter");
+        assert_eq!(charter.check_timeout, None);
+        for bound in [None, Some(Duration::from_secs(1)), Some(Duration::from_secs(86_400))] {
+            charter.check_timeout = bound;
+            let encoded = encode_charter(&charter, &wire::CEILINGS, &endpoints).expect("bounded charter");
+            assert_eq!(crate::decode_charter(&encoded, &wire::CEILINGS, &endpoints), Ok(charter));
+            charter = crate::decode_charter(source, &wire::CEILINGS, &endpoints).expect("smallest charter");
+        }
+    }
 
     #[test]
     #[expect(
