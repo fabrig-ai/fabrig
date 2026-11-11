@@ -487,13 +487,13 @@ pub fn step_4_6(base: usize) -> Vec<calls::Step> {
 const RULES_ENDED: usize = 3;
 pub const READS_5_1: &[(Read, usize)] = &[
     (Read::RulesWaiting, 5),
-    (Read::RulesHeld, 7),
-    (Read::ScopeHeld, 8),
-    (Read::RulesQuestionWaiting, 11),
+    (Read::RulesHeld, 8),
+    (Read::ScopeHeld, 9),
+    (Read::RulesQuestionWaiting, 12),
     (Read::RulesEnded, RULES_ENDED),
-    (Read::ScopeEnded, 13),
-    (Read::RulesActivity, 14),
-    (Read::ScopeActivity, 15),
+    (Read::ScopeEnded, 14),
+    (Read::RulesActivity, 15),
+    (Read::ScopeActivity, 16),
 ];
 
 #[must_use]
@@ -534,6 +534,9 @@ pub fn step_5_1() -> Vec<calls::Step> {
             b"\"work\":\"waiting\"",
             b"\"phase\":\"running\"",
         ),
+        // Hold the owner's response, not its checkout preparation: stopping
+        // during setup would exercise cancellation before it can ask anything.
+        calls::writing_task(D1, SCOPE),
         call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
         calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
         calls::until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
