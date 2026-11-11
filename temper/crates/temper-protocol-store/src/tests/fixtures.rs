@@ -782,6 +782,7 @@ pub fn pull() -> skein_forge::api::Pull {
         ci: Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     }
 }
 

@@ -491,6 +491,11 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                 },
                 queued: None,
                 dequeued: None,
+                size: Some(client::Size {
+                    files: pull.size.files,
+                    additions: pull.size.additions,
+                    deletions: pull.size.deletions,
+                }),
             }),
             client::Read::Reviews { page, skip, .. } => {
                 let mut range = page_range(pull.reviews.len(), *page, l.rows);

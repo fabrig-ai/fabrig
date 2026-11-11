@@ -179,6 +179,7 @@ fn github_pull_reads_both_ci_sources() {
             ci: api::Ci::None,
             queued: None,
             dequeued: None,
+            size: None,
         })),
     );
     assert!(w.script_done());
