@@ -53,6 +53,8 @@ chosen.
 - **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
   drafter, and each role's `who` says when it runs alone, where
   `whole-story/how.html` says what it does too [in flight: change 316].
+- **Not yet:** 2: `sheet-from-home` and `sheet-from-chats` are not in
+  the gallery (`tools/gallery/src/samples.rs`) [in flight: change 525].
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
