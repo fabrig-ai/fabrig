@@ -329,9 +329,11 @@ Decided for you on Home and Needs you, each row saying what allowed it;
 each need's why, Stop asking and Keep asking; and kind 7 without
 `away`. The joint world walks it on Agents review's table. A standing
 role's case waits for R1 and an asker's change's paths for N2; the TUI
-draws no why; Needs you's Decided head, a words offer's order and
-Home's spell with no row showing lag the design; its render check and
-walk follow landing (`domain/forge/README.status.md`;
+draws no why; its repair, goal 367, draws Needs you's Decided head,
+a words offer's sentence over its field, Home's Away spell with no row
+showing, and the why line on the signal ground with "Keep asking" and
+the narrower rule on it, as the whole story's `needs.html` does; its
+render check and walk follow landing (`domain/forge/README.status.md`;
 `client/pages/README.status.md`; `draft/what-reaches-you.status.md`;
 `draft/surfaces.status.md`, 4). Only you is the whole story's milestone
 N3a, by plan `ui-n3a-only`: one pure read of the person's own accounts,

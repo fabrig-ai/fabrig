@@ -25,7 +25,7 @@ pub enum Act {
     Words { words: Box<[u8]> },
     Apply { offer: Offer },
     Propose { offer: Offer },
-    Keep,
+    Keep { object: c::ObjectKey },
 }
 #[derive(Debug)]
 pub struct Open {
@@ -143,7 +143,7 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
         }
         Act::Apply { offer } => change(root, env, offer, true, out),
         Act::Propose { offer } => change(root, env, offer, false, out),
-        Act::Keep => keep(root, env, out),
+        Act::Keep { object } => keep(root, env, object, out),
     }
     root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
 }
@@ -209,13 +209,22 @@ fn next(pages: &mut Pages) -> Key {
     pages.serial = pages.serial.checked_add(1).expect("page keys fit");
     Key { asker: Owner::Pages.asker(), number: pages.serial }
 }
-fn keep(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let Some(open) = &root.pages.stop_asking else { return };
-    if open.busy() {
+fn keep(root: &mut Domain, env: &Env<Limits>, object: c::ObjectKey, out: &mut Queue<Request>) {
+    if let Some(open) = &root.pages.stop_asking
+        && open.busy()
+    {
         return;
     }
-    let project = open.project;
-    let Some(subject) = subject(open.reach) else { return };
+    let Some(inbox) = root.pages.inbox() else { return };
+    let mut why = None;
+    for need in &root.pages.needs().needs(inbox, root.forge.approvals()) {
+        if need.object() == object && offered(root, *need, env.wall).is_some() {
+            why = needs::why(root, *need);
+            break;
+        }
+    }
+    let Some(Why::Reach { project, reach }) = why else { return };
+    let Some(subject) = subject(reach) else { return };
     let Some(request) = dismissed::ask(PersonFact::KeepAsking { project, subject, at: env.wall }, &env.limits.forge)
     else {
         return;
