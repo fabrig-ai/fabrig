@@ -36,6 +36,7 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
+        ("sheet_delete_project", fixtures::chat::deleting_project()),
         ("models", fixtures::page(&temper_client_domain::Address::Models { project: 1 }, false)),
         ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),

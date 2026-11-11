@@ -1,6 +1,8 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+
+- **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -195,9 +197,7 @@ of refusals under both names.
   (`../README.md`, section 5); and any ending where `me` offers no ChatGPT plan's sign-in,
   since the function finds that way before it draws the ending's words.
    a plan's first use, its card in the conversation. 
-  Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no such act in `temper-client-domain`. `README.md`, The welcome:
+  `README.md`, The welcome:
   for a person whose role does not hold the deployment's forges, the model
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a

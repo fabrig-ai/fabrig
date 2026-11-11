@@ -402,8 +402,8 @@ credential.
   does (jig's `client/domain/objects.md`, section 1; jig's
   `client/domain/contract/documents.md`, 4). Closing a chat says only what closing
   changes (*The sheet,* below). Removing a forge says what goes and what stays on the
-  forge (`forge/deployment.md`); deleting a project asks for the project's
-  name, and sends nothing until it is typed whole (`pages/README.md`). Pause and Resume, on a
+  forge (`forge/deployment.md`); deleting a project names it and says what
+  goes with it (*The sheet,* below; `pages/settings.md`, 1). Pause and Resume, on a
   chat, a goal or an agent's task, are undone by each other and sent at once. A
   goal's Close says that what landed on its branch stays there (`pages/task.md`, 4). Where the document offers an act
   as proposable (jig's `client/domain/contract/documents.md`, 3), the card says
@@ -425,6 +425,7 @@ credential.
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
   | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
   | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+  | deleting a project | "Delete NAME?", NAME the project's name as `me` gives it | "NAME leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone." | "Keep it" | "Delete project" |
 
   - *What it changes,* under a hairline, each line present only where it holds,
     and no count at zero:

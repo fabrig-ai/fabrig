@@ -337,5 +337,6 @@ record StoredAnswer { key: RequestKey ask: Ask models: list 64 ModelName outcome
 enum DeletionStep { tasks, rows, release }
 record StoredDeletion { project: u32 step: DeletionStep grace: option u64 }
 record StoredPublic { project: u32 }
-enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed, deletion: StoredDeletion, public: StoredPublic }
+record StoredDeleted { project: u32 }
+enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed, deletion: StoredDeletion, public: StoredPublic, deleted: StoredDeleted }
 versioned record Row { value: Value }

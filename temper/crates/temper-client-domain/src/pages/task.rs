@@ -485,6 +485,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
@@ -628,6 +629,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older

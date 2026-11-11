@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
 
 `pages/README.md` (*Away*, *Decided for you*, *Home on any project*, and
 *Needs you*'s *Why it reached you*, *Stop asking* and *Keep asking*),
@@ -1192,10 +1194,8 @@ you across projects after landing*); what the draft draws beyond them is
   account usable, since `pages/accounts.md`, 2 has no words for it and no walk has ended so
   (section 5); and any ending where `me` offers no ChatGPT plan's sign-in,
   since the function finds that way before it draws the ending's words.
-   a plan's first use, its card in the conversation. 3.6:
-  Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no such act in `temper-client-domain`. `pages/README.md`, The welcome:
+   a plan's first use, its card in the conversation.
+  `pages/README.md`, The welcome:
   for a person whose role does not hold the deployment's forges, the model
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a

@@ -362,7 +362,10 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
         people::Stored::Answer { ask, .. } => ask_names(ask, project),
         // Every task and conversation in this fixture belongs to the removed project.
         people::Stored::ReadConversation { .. } | people::Stored::EndedRead { .. } => true,
-        people::Stored::Person { .. } | people::Stored::ReadResults { .. } | people::Stored::SignIn { .. } => false,
+        people::Stored::Deleted { .. }
+        | people::Stored::Person { .. }
+        | people::Stored::ReadResults { .. }
+        | people::Stored::SignIn { .. } => false,
     }
 }
 
@@ -468,7 +471,7 @@ fn an_owner_ends_live_work_then_removes_under_a_new_key() {
 }
 
 #[test]
-fn a_deleted_project_leaves_only_its_spend() {
+fn a_deleted_project_leaves_its_mark_and_spend() {
     let mut world = deleted_world(SEED);
     let number = world.store.applied + 1;
     world.cut = Some(Cut::Durable(number));
@@ -482,6 +485,9 @@ fn a_deleted_project_leaves_only_its_spend() {
             ..
         })))
     )));
+    assert!(world.commits.last().expect("closing decision").contains(&root::Write::Save(root::Record::Core(
+        core::Record::People(people::Stored::Deleted { project: PROJECT })
+    ))));
     world.drain();
     removed(&world);
     finish(&mut world);
@@ -751,6 +757,59 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
     let core::reads::Answer::Document(document) = reads::latest(&world) else { panic!("party frame") };
     let documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
     assert!(frame.projects.iter().all(|row| row.project != PROJECT));
+}
+
+#[test]
+fn a_deleted_project_reads_gone_to_any_signed_in_party() {
+    const STRANGER: u64 = 8;
+    const STRANGER_SIGN_IN: u64 = 88;
+    let mut world = deleted_world(SEED);
+    let owner = world.sign_in.expect("owner signed in");
+    world.seed(Box::new([
+        root::Record::Core(core::Record::People(people::Stored::Person {
+            number: STRANGER,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 1, subject: b"stranger".as_slice().into() },
+                login: b"stranger".as_slice().into(),
+                name: b"Stranger".as_slice().into(),
+            },
+        })),
+        root::Record::Core(core::Record::People(people::Stored::SignIn {
+            number: STRANGER_SIGN_IN,
+            person: STRANGER,
+            expires: skein_lib::Wall::from_nanos(
+                world.wall_time().as_nanos().saturating_add(Duration::from_secs(3600).as_nanos()),
+            ),
+        })),
+    ]));
+    restart_world(&mut world);
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    for sign_in in [owner, STRANGER_SIGN_IN] {
+        world.sign_in = Some(sign_in);
+        reads::ask(&mut world, 810, core::reads::Read::Project { project: UNKNOWN });
+        assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Unknown));
+    }
+    reads::ask(&mut world, 811, core::reads::Read::Project { project: PROJECT });
+    assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Unknown), "live but hidden");
+    remove(&mut world, REMOVE);
+    assert!(world.store.rows.contains_key(&deletion()));
+    for ended in [false, true] {
+        if ended {
+            finish(&mut world);
+        }
+        for sign_in in [owner, STRANGER_SIGN_IN] {
+            world.sign_in = Some(sign_in);
+            reads::ask(&mut world, 812, core::reads::Read::Project { project: PROJECT });
+            assert_eq!(
+                reads::latest(&world),
+                &core::reads::Answer::None(core::reads::Why::Gone),
+                "ended {ended}, sign-in {sign_in}"
+            );
+        }
+    }
+    restart_world(&mut world);
+    reads::ask(&mut world, 813, core::reads::Read::Project { project: PROJECT });
+    assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Gone));
 }
 
 #[test]

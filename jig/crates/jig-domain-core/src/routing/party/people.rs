@@ -181,6 +181,7 @@ pub(crate) fn tag_people_part(
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
                     | people::Key::Deletion(_)
+                    | people::Key::Deleted(_)
                     | people::Key::Public(_)
                     | people::Key::Policy(_) => {}
                 }
