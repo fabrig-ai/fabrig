@@ -115,7 +115,10 @@ fn shared_role(project: &c::Project) -> Option<c::HeldRole> {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one sweep checks every Team part against independent randomized facts")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "each seed checks independent people and standing-role facts, parts and moves"
+)]
 fn sweep(seed: u64) -> bool {
     let mut rng = Rng::new(seed);
     let mut project = random_project(&mut rng);
