@@ -82,8 +82,9 @@ test doubles   temper-box fake llm|forge|oauth|git ...
     deployment's people run it by is the user's to choose
     (`../draft/deployment-binaries.status.md`, Open), and the release job
     names the published file by it.
-  - **Its story,** in the process tier: `temper-client ctl` signs in to an
-    engine with the link it printed and reads `me`, as `temper ctl` does
+  - **Its story,** in the process tier: `temper-client ctl` signs in to a
+    `temper-engine serve` on an engine alone's document, with the link
+    it printed, and reads `me`, as `temper ctl` does
     (`../draft/deployment-binaries.md`, section 10).
 
 `DIRECTORIES` is `[--config DIR] [--data DIR] [--cache DIR]`, given

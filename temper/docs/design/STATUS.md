@@ -1078,13 +1078,13 @@ The deployment's client, `temper-client`, is built (M1 of
 `draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
 and `ctl`, run by the box's code from the shells both binaries link, its
 help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
-prints its table from. Its ctl story runs the box's `temper-box serve` as the
-engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
-accounts protocol and engine-side crates through an unused line of ctl's
-manifest, and no test yet holds its closure: its boundary row is M5's; its
+prints its table from. Its ctl story signs in to a `temper-engine` and runs
+after landing. Its closure is held by the boundary test's row, with its five
+shared vocabulary crates as named exceptions; its
 `--version` reads a build script of its own, not `temper-version`
-(`protocol/binaries.status.md`; `client/README.status.md`, 2). The `commands`
-page names no command's binary (`draft/deployment-binaries.status.md`).
+(`protocol/binaries.status.md`; `client/README.status.md`, 2). The compiled
+`commands` page names each command's binary but the client's, whose table
+joins it with `draft/cli.execution.md`'s C3 (`protocol/documentation.status.md`).
 
 The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
 `serve` of an engine alone's document with the web client, the owned
@@ -1098,6 +1098,7 @@ feature, off in the engine's build; the brief's fitter is
 worker's domain and smith's agent but `smith-domain` and three of its
 crates, named with their reason; the closure keeps the box's machine and
 the fakes' crates for the document's check (`draft/deployment-binaries.status.md`).
+The box's `temper-box versions` is the engine's row and code.
 `upgrade` waits on jig's rehearsal and going back, and the feature-off
 service is built only by the engine's own build, not the gate
 (`protocol/binaries.status.md`, 1 and 2; `release.status.md`, 3).
@@ -1112,15 +1113,14 @@ row loosened: Claude Code's launcher is a crate of its own,
 `temper-launcher`; jig's form of the three directories is
 `temper-engine-shell`'s, out of `temper-shell`; and the agent's
 `--version` is `temper-version`'s (`protocol/binaries.status.md`, 1 to 4
-; `protocol/setup/owned.status.md`, 6, and `protocol/setup/README.status.md`, 7). Which of the
-closures' two test shapes every binary's row takes is M5's
-(`draft/deployment-binaries.status.md`). The `agent-binary`
+; `protocol/setup/owned.status.md`, 6, and `protocol/setup/README.status.md`, 7). One
+test shape holds every binary's row (`protocol/binaries.md`, 4). The `agent-binary`
 plan is retired and its vision folded into the design; removal of
 the read-only draft is proposed, with its four accepted departures
-retained (`draft/agent-binary.status.md`). M3's
-worker program, M5's box integration and remaining closure rows, M6's
-release job, and figures are not done by that plan; the parent's Later
-section is unchanged (`draft/deployment-binaries.status.md`).
+retained (`draft/agent-binary.status.md`). M3's worker program and M5's
+box integration, closure rows and help are built by their own plans; M6's
+release job and figures remain, and the parent's Later section is
+unchanged (`draft/deployment-binaries.status.md`).
 
 temper's command lines, `draft/cli.execution.md`'s C2 and C6: the box's
 binary is `temper-box`, a package under `bin/` whose crate is
