@@ -483,6 +483,8 @@ fn a_line_at_long_text_decodes_whole() {
                 | c::Activity::Turn { .. }
                 | c::Activity::Decided { .. }
                 | c::Activity::Milestone { .. }
+                | c::Activity::Stood { .. }
+                | c::Activity::SessionEnded { .. }
                 | c::Activity::Kept { .. }) => panic!("word line: {other:?}"),
             };
             assert_eq!(words_read.bytes(), words.as_ref());

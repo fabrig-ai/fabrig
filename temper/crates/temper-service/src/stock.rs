@@ -182,6 +182,7 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                             endpoint: endpoint.number,
                             dialect: endpoint.dialect,
                             program: endpoint.program.clone(),
+                            cache_life_ms: 0,
                             window: 1_048_576,
                             output: 8192,
                             input_price: row.input,

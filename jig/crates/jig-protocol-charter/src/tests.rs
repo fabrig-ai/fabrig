@@ -364,6 +364,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
                 dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 8192,
                 output: 1024,
                 input_price: 1,
@@ -698,7 +699,9 @@ fn a_persons_approval_and_a_missing_main_source_are_not_agent_assignments() {
 
 #[test]
 fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
-    for ended_by in [jig_domain_tasks::EndedBy::Result, jig_domain_tasks::EndedBy::Requester] {
+    for ended_by in
+        [jig_domain_tasks::EndedBy::Result, jig_domain_tasks::EndedBy::Requester, jig_domain_tasks::EndedBy::Standing]
+    {
         for resume in [false, true] {
             for resumed in [false, true] {
                 let mut value = assignment_fixture(b"Brief", 64, 20, 4);
@@ -722,7 +725,8 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
                     match ended_by {
                         jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_) =>
                             smith_domain_run::Mode::Finite,
-                        jig_domain_tasks::EndedBy::Requester => smith_domain_run::Mode::Open,
+                        jig_domain_tasks::EndedBy::Requester | jig_domain_tasks::EndedBy::Standing =>
+                            smith_domain_run::Mode::Open,
                     }
                 );
                 assert_eq!(translated.brief.sections[0].text.as_ref(), b"First");

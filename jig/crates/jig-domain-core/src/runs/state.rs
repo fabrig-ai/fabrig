@@ -393,6 +393,8 @@ pub struct Model {
     pub name: Box<[u8]>,
     /// The input tokens a conversation's window may hold on this model.
     pub window: u32,
+    /// Prompt cache life in milliseconds; zero for none (domain/tasks/standing.md, 5.3).
+    pub cache_life_ms: u32,
     /// The most output tokens one completion may have, thinking included.
     pub output: u32,
     pub input_price: u64,
@@ -422,6 +424,7 @@ impl Model {
             program: None,
             name: Box::default(),
             window: 0,
+            cache_life_ms: 0,
             output: 0,
             input_price: 0,
             cached_price: 0,

@@ -652,6 +652,7 @@ pub fn encode_ended_by(value: c::EndedBy, out: &mut Encoder) {
     match value {
         c::EndedBy::Result => out.string(b"result"),
         c::EndedBy::Requester => out.string(b"requester"),
+        c::EndedBy::Standing => out.string(b"standing"),
         c::EndedBy::Closer(closer) => {
             out.object_start();
             out.key(b"closer");

@@ -242,7 +242,9 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     crate::clients::check_public(&engine.limits, problems);
     for (index, template) in engine.templates.iter().enumerate() {
         match template.flags.ended_by {
-            jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Requester => {}
+            jig_domain_tasks::EndedBy::Result
+            | jig_domain_tasks::EndedBy::Requester
+            | jig_domain_tasks::EndedBy::Standing => {}
             jig_domain_tasks::EndedBy::Closer(closer) => {
                 let path = check::index(&Path::root().member(b"templates"), index).member(b"ended_by");
                 connector(engine, closer.connector, &path, problems);
