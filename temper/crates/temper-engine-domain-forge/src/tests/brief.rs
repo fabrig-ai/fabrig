@@ -368,7 +368,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
                 event: skein_forge_client::Event::Read {
                     owner,
                     repository: REPO,
-                    read: Read::PullFiles { number: 1, head, page: 1, skip: 0 },
+                    read: Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true },
                 }
             }),
             "{writer:?}"
@@ -496,7 +496,7 @@ fn a_review_brief_reads_on_at_the_cut_page_and_skip() {
                 event: skein_forge_client::Event::Read {
                     owner,
                     repository: REPO,
-                    read: Read::PullFiles { number: 1, head: HEAD, page, skip },
+                    read: Read::PullFiles { number: 1, head: HEAD, page, skip, sides: true },
                 }
             })
         );

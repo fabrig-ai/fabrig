@@ -68,11 +68,7 @@ pub(crate) fn start_tier_step(domain: &mut Domain, env: &Env<Limits>, context: &
     }
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_tier(task);
-    domain.work.push(Work::Forge(forge::Event::StepTier {
-        task,
-        entry,
-        heard: forge::TierHeard { released, cancelled: false },
-    }));
+    domain.work.push(Work::Forge(forge::Event::StepTier { task, entry, heard: forge::TierHeard { released } }));
 }
 
 pub(super) fn tier_decision(

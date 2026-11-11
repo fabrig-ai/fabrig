@@ -25,7 +25,7 @@ enum Stage {
 /// One coherent pull-file read chain; at most one per live change.
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
-    task: u64,
+    pub(crate) task: u64,
     pub(crate) repository: skein_forge::api::Repository,
     pull: u64,
     head: skein_forge::api::Commit,
@@ -118,7 +118,13 @@ pub(crate) fn answer(
                     && pull.state == skein_forge::api::State::Open =>
             {
                 pending.stage = Stage::Page(1, 0);
-                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1, skip: 0 })
+                Some(skein_forge::api::Read::PullFiles {
+                    number: pending.pull,
+                    head: pending.head,
+                    page: 1,
+                    skip: 0,
+                    sides: false,
+                })
             }
             Ok(_) | Err(_) => None,
         },
@@ -145,7 +151,7 @@ pub(crate) fn answer(
                     };
                     let skip = if cut { skip.saturating_add(kept) } else { 0 };
                     pending.stage = Stage::Page(page, skip);
-                    Some(skein_forge::api::Read::PullFiles { number: pending.pull, head, page, skip })
+                    Some(skein_forge::api::Read::PullFiles { number: pending.pull, head, page, skip, sides: false })
                 } else {
                     pending.stage = Stage::After;
                     Some(skein_forge::api::Read::Pull { number: pending.pull, ci: false })
@@ -198,12 +204,7 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
     }
     let mut unknown = false;
     for task in tasks {
-        let Some(row) = d.changes.get(task) else {
-            if subscriber.paths.is_empty() {
-                unknown = true;
-            }
-            continue;
-        };
+        let Some(row) = d.changes.get(task) else { continue };
         match row.change.state {
             change::State::Landed { .. }
             | change::State::Red { .. }
@@ -260,7 +261,7 @@ mod tests {
     #[test]
     fn file_collection_resumes_cuts_before_advancing_and_stays_bounded() {
         for capacity in [2, 4] {
-            let mut d = crate::tests::domain();
+            let mut d = crate::tests::fixtures::connected_domain();
             let env = crate::tests::env();
             let owner = Token::new(99);
             let repository = api::Repository { forge: 1, repository: 2 };
@@ -272,29 +273,37 @@ mod tests {
                         repository,
                         pull: 1,
                         head: [1; 32],
-                        stage: Stage::Page(1, 0),
+                        stage: Stage::Before,
                         paths: List::with_capacity(capacity),
                     },
                 )
                 .unwrap();
             let mut out = Queue::uncapped();
+            let mut pull = crate::tests::fixtures::open_pull();
+            pull.commit = [1; 32];
+            answer(&mut d, &env, owner, Ok(Answer::Pull(pull)), &mut out);
             for (path, cut, more, next_page, next_skip) in [
                 (b"a", true, true, 1, 1),
                 (b"b", true, true, 1, 2),
                 (b"c", false, true, 2, 0),
                 (b"d", false, false, 0, 0),
             ] {
-                answer(
+                let pending = d.goal_file_reads.get(&owner).unwrap();
+                let Stage::Page(page, skip) = pending.stage else { panic!("file page") };
+                let (call, op) = crate::tests::fixtures::next_call(&mut d);
+                assert_eq!(
+                    op,
+                    api::Op::Read(api::Read::PullFiles { number: 1, head: [1; 32], page, skip, sides: false })
+                );
+                crate::tests::fixtures::answer(
                     &mut d,
-                    &env,
-                    owner,
+                    call,
                     Ok(Answer::PullFiles {
                         head: [1; 32],
                         files: Box::new([api::File { path: Box::from(path.as_slice()), before: None, after: None }]),
                         more,
                         cut,
                     }),
-                    &mut out,
                 );
                 if !d.goal_file_reads.contains_key(&owner) {
                     assert_eq!(capacity, 2);

@@ -31,6 +31,16 @@ impl ResultText {
         self.add(&text.bytes, bound);
         self.cut = self.cut.saturating_add(text.cut);
     }
+    /// Least room for either the whole text or a mark counting every omitted byte.
+    pub(crate) fn minimum_room(&self) -> u64 {
+        let length = skein_lib::len_u64(self.bytes.len());
+        let lost = self.cut.saturating_add(length);
+        let marker = 2_u64
+            .saturating_add(skein_lib::len_u64(Decimal::of(lost).as_bytes().len()))
+            .saturating_add(skein_lib::len_u64(b" bytes cut]\n".len()));
+        if self.cut == 0 { length.min(marker) } else { marker }
+    }
+
     /// Fit from the end, marking every omitted byte. No unmarked partial UTF-8.
     #[must_use]
     pub fn fitted(&self, bound: u32) -> Option<Box<[u8]>> {

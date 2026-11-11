@@ -50,10 +50,12 @@ pub struct Plan {
     size: u64,
     limit: u32,
     skip: u32,
+    sides: bool,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
-        let skip = if let api::Read::PullFiles { skip, .. } = &read { *skip } else { 0 };
+        let (skip, sides) =
+            if let api::Read::PullFiles { skip, sides, .. } = &read { (*skip, *sides) } else { (0, false) };
         let (state, limit) = match read {
             api::Read::PullFiles { number, head, page, .. } => (
                 State::Pull {
@@ -101,7 +103,7 @@ impl Plan {
             | api::Read::Commits { .. }
             | api::Read::Job { .. } => return Err(api::Error::InvalidAnswer),
         };
-        Ok(Self { state, row, size: 0, limit, skip })
+        Ok(Self { state, row, size: 0, limit, skip, sides })
     }
     pub fn begin(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
         let state = core::mem::replace(&mut self.state, State::Ended);
@@ -375,8 +377,12 @@ impl Plan {
                 {
                     return Err(api::Error::Stale);
                 }
-                let before = reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
-                    .ok_or(api::Error::InvalidAnswer)?;
+                let before = if self.sides {
+                    reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
+                        .ok_or(api::Error::InvalidAnswer)?
+                } else {
+                    head
+                };
                 Ok((
                     State::Files(Sides {
                         before,
@@ -398,6 +404,9 @@ impl Plan {
             }
             State::Files(sides) => {
                 listed(body)?;
+                if !self.sides {
+                    return Ok(self.terminal(sides));
+                }
                 self.size = 0;
                 self.next_side(sides, bounds)
             }

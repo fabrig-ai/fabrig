@@ -24,12 +24,14 @@ mod connection_wait;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
+mod landed;
 #[path = "make.rs"]
 pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
 #[path = "restore.rs"]
 mod restore;
+mod room;
 pub use restore::{RestoreFit, RestoreSet};
 #[path = "design.rs"]
 mod design;
@@ -1014,49 +1016,18 @@ impl Domain {
         limits: &Limits,
         subscription: &Subscriber,
     ) -> Option<(&'static [u8], Option<u32>)> {
-        if let Some(tasks) = &subscription.goal_tasks
-            && tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items)
-        {
-            return Some((b"goal_tasks exceeds issue_policy.plan_items", Some(limits.issue_policy.plan_items)));
-        }
-        if subscription.number == 0 {
-            return Some((b"subscription number must be positive", None));
-        }
-        if subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription) {
-            return Some((b"paths exceeds paths_per_subscription", Some(limits.paths_per_subscription)));
-        }
-        match self.subscriptions.get(&(subscription.task, subscription.topic.clone())) {
-            Some(existing) if existing.number != subscription.number => {
-                return Some((b"duplicate topic; keep the existing subscription or unsubscribe it first", None));
+        let problem = admission::subscription_problem(self, limits, subscription)?;
+        let configured = match problem.failure {
+            Some((_, crate::RefusalCause::Limit { configured, .. })) => {
+                Some(u32::try_from(configured).expect("u32 limit"))
             }
-            None if self.subscriptions.len() == limits.subscriptions => {
-                return Some((b"forge subscription room exhausted: subscriptions", Some(limits.subscriptions)));
-            }
-            Some(_) | None => {}
-        }
-        for path in &subscription.paths {
-            if path.len() > skein_lib::usize_of(limits.name_bytes) {
-                return Some((b"path exceeds name_bytes", Some(limits.name_bytes)));
-            }
-        }
-        let repository = match &subscription.topic {
-            Topic::Landings { repository, branch } => {
-                if branch.len() > skein_lib::usize_of(limits.name_bytes) {
-                    return Some((b"branch exceeds name_bytes", Some(limits.name_bytes)));
-                }
-                *repository
-            }
-            Topic::Ci { repository, .. } | Topic::Pull { repository, .. } | Topic::Participation { repository, .. } => {
-                *repository
-            }
+            Some((
+                _,
+                crate::RefusalCause::Unadopted | crate::RefusalCause::InvalidName | crate::RefusalCause::Backend(_),
+            ))
+            | None => None,
         };
-        if !self.repositories.contains_key(&repository) {
-            return Some((b"repository is not adopted; select an adopted owner/name", None));
-        }
-        match &subscription.topic {
-            Topic::Landings { branch, .. } => admission::landing_subscription_problem(self, limits, repository, branch),
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
-        }
+        Some((problem.words, configured))
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.
@@ -1712,6 +1683,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 project(d, env, entry, row.repository, view.clone(), out);
             }
         }
+        Event::DropChange { task } => room::drop_change(d, env, task, out),
         Event::Change { row } => register_change(d, env, row, out),
         Event::Priority { task, priority } => d.priority(env, task, priority, out),
         Event::QueueRepairStarted { owner, repair } => {
@@ -2252,41 +2224,32 @@ fn outcome_facts(
                     save_change(d, out, saved);
                 }
             }
-            if d.landed.len() < env.limits.landings.max(env.limits.changes) || d.landed.contains_key(&commit) {
-                d.landed.insert(commit, task).expect("preflighted landed capacity");
-                emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Landed { commit, task } });
-                if let Some(change) = d.changes.get(&task) {
-                    let repository = change.repository;
-                    let branch = change.base.clone();
-                    let resource = skein_forge_client::Resource {
-                        repository,
-                        what: skein_forge_client::What::Branch(branch.clone()),
-                    };
-                    let name = from_client(&resource, &env.limits);
-                    let before = match &name {
-                        Some(name) => match d.heads.get(name) {
-                            Some(head) => Some(head.commit),
-                            None => None,
-                        },
+            landed::landed_room(d, env, commit, task, out);
+            if let Some(change) = d.changes.get(&task) {
+                let repository = change.repository;
+                let branch = change.base.clone();
+                let resource =
+                    skein_forge_client::Resource { repository, what: skein_forge_client::What::Branch(branch.clone()) };
+                let name = from_client(&resource, &env.limits);
+                let before = match &name {
+                    Some(name) => match d.heads.get(name) {
+                        Some(head) => Some(head.commit),
                         None => None,
-                    };
-                    if let Some(name) = name
-                        && let Some(head) = d.heads.get_mut(&name)
-                        && head.owned
-                    {
-                        head.commit = commit;
-                        emit(
-                            out,
-                            Request::Save {
-                                read_afresh: None,
-                                release: None,
-                                record: Stored::BranchHead(head.clone()),
-                            },
-                        );
-                        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
-                    }
-                    crate::tiers::observed(d, env, repository, &branch, before, commit, out);
+                    },
+                    None => None,
+                };
+                if let Some(name) = name
+                    && let Some(head) = d.heads.get_mut(&name)
+                    && head.owned
+                {
+                    head.commit = commit;
+                    emit(
+                        out,
+                        Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) },
+                    );
+                    child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
                 }
+                crate::tiers::observed(d, env, repository, &branch, before, commit, out);
             }
         }
         skein_forge_client::Outcome::Made {
@@ -2414,7 +2377,15 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Q
             }
             let participating = participating(d, &resource);
             if !present && list.push(skein_forge_client::Watch { resource, participating }).is_err() {
-                emit(out, Request::Refused { task });
+                crate::refusal::resource_limit(
+                    out,
+                    task,
+                    b"unwatch resources",
+                    Some(name.clone()),
+                    "forge.client.resources",
+                    env.limits.client.resources,
+                    u64::from(list.len()).saturating_add(1),
+                );
                 return;
             }
         }
@@ -2428,7 +2399,15 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Q
                 }
             }
             if !present && list.push(skein_forge_client::Watch { resource, participating: false }).is_err() {
-                emit(out, Request::Refused { task });
+                crate::refusal::resource_limit(
+                    out,
+                    task,
+                    b"unwatch resources",
+                    Some(name.clone()),
+                    "forge.client.resources",
+                    env.limits.client.resources,
+                    u64::from(list.len()).saturating_add(1),
+                );
                 return;
             }
         }
@@ -2523,11 +2502,24 @@ fn hold(
         Some((_, crate::resources::HoldKind::Exclusive { .. })) => true,
         Some((_, crate::resources::HoldKind::Shared)) | None => false,
     };
-    if !holdable
-        || !valid_name(d, &env.limits, &resource)
-        || (!d.holds.contains_key(&resource) && d.holds.len() == env.limits.holds)
-    {
+    if let Err((resource, cause)) = admission::validate(d, &env.limits, &resource) {
+        emit(out, Request::ResourceRefused { task, operation: b"hold resource", resource, cause });
+        return;
+    }
+    if !holdable {
         emit(out, Request::Refused { task });
+        return;
+    }
+    if !d.holds.contains_key(&resource) && d.holds.len() == env.limits.holds {
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"hold resource",
+            Some(resource),
+            "forge.holds",
+            env.limits.holds,
+            u64::from(d.holds.len()).saturating_add(1),
+        );
         return;
     }
     if let Some(existing) = d.holds.get(&resource) {
@@ -2569,7 +2561,15 @@ fn claim(
     out: &mut Queue<Request>,
 ) {
     if writes.len() > skein_lib::usize_of(env.limits.resources_per_task) {
-        emit(out, Request::Refused { task });
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"claim resources",
+            writes.first().cloned(),
+            "forge.resources_per_task",
+            env.limits.resources_per_task,
+            skein_lib::len_u64(writes.len()),
+        );
         return;
     }
     if !design_claim_permitted(d, env, task, attempt, designs, holders, out) {
@@ -3036,15 +3036,24 @@ fn enqueue(d: &mut Domain, env: &Env<Limits>, entry: skein_forge_client::Entry, 
         emit(out, Request::Refused { task });
         return;
     };
-    if repository.role == Role::Context
-        || !effect_permitted(repository.kinds, &entry.effect.write)
-        || (!d.entries.contains_key(&entry.number) && d.entries.len() == env.limits.entries)
-    {
+    if repository.role == Role::Context || !effect_permitted(repository.kinds, &entry.effect.write) {
         emit(out, Request::Refused { task });
         return;
     }
     if d.entries.contains_key(&entry.number) {
         emit(out, Request::Refused { task });
+        return;
+    }
+    if d.entries.len() == env.limits.entries {
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"enqueue effect",
+            None,
+            "forge.entries",
+            env.limits.entries,
+            u64::from(d.entries.len()).saturating_add(1),
+        );
         return;
     }
     let release = Some(entry.number);
@@ -3128,16 +3137,38 @@ fn before_relay_hold(state: &change::State) -> change::State {
 
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
     let task = row.task;
-    if !d.repositories.contains_key(&row.repository)
-        || row.change.task != task
-        || row.branch.is_empty()
-        || row.base.is_empty()
-        || row.branch.len() > skein_lib::usize_of(env.limits.name_bytes)
-        || row.base.len() > skein_lib::usize_of(env.limits.name_bytes)
-        || (!d.changes.contains_key(&task) && d.changes.len() == env.limits.changes)
-        || d.changes.contains_key(&task)
-    {
+    if row.change.task != task || row.branch.is_empty() || row.base.is_empty() || d.changes.contains_key(&task) {
         emit(out, Request::Refused { task });
+        return;
+    }
+    if !d.repositories.contains_key(&row.repository) {
+        room::refused(out, &row, crate::RefusalCause::Unadopted);
+        return;
+    }
+    for name in [&row.branch, &row.base] {
+        if name.len() > skein_lib::usize_of(env.limits.name_bytes) {
+            room::refused(
+                out,
+                &row,
+                crate::RefusalCause::Limit {
+                    member: "forge.name_bytes",
+                    configured: u64::from(env.limits.name_bytes),
+                    needed: u64::try_from(name.len()).expect("name length fits u64"),
+                },
+            );
+            return;
+        }
+    }
+    if d.changes.len() == env.limits.changes {
+        room::refused(
+            out,
+            &row,
+            crate::RefusalCause::Limit {
+                member: "forge.changes",
+                configured: u64::from(env.limits.changes),
+                needed: u64::from(d.changes.len()).saturating_add(1),
+            },
+        );
         return;
     }
     row.change.way = d.landing.way(d.repositories.get(&row.repository).expect("adopted").project);
@@ -3375,8 +3406,8 @@ fn delegate_result(
     row.delegate_status = if no_change { change::Status::Failed } else { status };
     match kind {
         change::Delegate::Gate { number, head } => {
-            if !record_review(row, env, number, head, (status, failed, cancelled), words) {
-                emit(out, Request::Refused { task });
+            if let Err(cause) = record_review(row, env, number, head, (status, failed, cancelled), words) {
+                emit(out, Request::ResourceRefused { task, operation: b"record gate review", resource: None, cause });
                 return;
             }
         }
@@ -3518,7 +3549,7 @@ fn record_review(
     head: [u8; 32],
     standing: (change::Status, bool, bool),
     words: &[u8],
-) -> bool {
+) -> Result<(), crate::RefusalCause> {
     let (status, failed, cancelled) = standing;
     let verdict = review_terminal_words(status, failed, cancelled);
     for gate in &row.change.gates {
@@ -3529,7 +3560,7 @@ fn record_review(
     // A result racing the CI cancellation is no verdict or review failure.
     let cancelling = row.change.state == (change::State::CancellingGates { head });
     if cancelled || cancelling {
-        return true;
+        return Ok(());
     }
     let report = change::GateReport { number, head, status };
     let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
@@ -3539,7 +3570,11 @@ fn record_review(
         }
     }
     if !failed && verdicts.push(report).is_err() {
-        return false;
+        return Err(crate::RefusalCause::Limit {
+            member: "forge.change_policy.gates",
+            configured: u64::from(env.limits.change_policy.gates),
+            needed: u64::from(verdicts.len()).saturating_add(1),
+        });
     }
     row.verdicts = verdicts.into_boxed();
     if failed {
@@ -3553,11 +3588,15 @@ fn record_review(
     }
     let text = crate::ResultText { bytes: Box::from(words), cut: 0 };
     let Some(words) = text.fitted(env.limits.client.answer_bytes) else {
-        return false;
+        return Err(crate::RefusalCause::Limit {
+            member: "forge.client.answer_bytes",
+            configured: u64::from(env.limits.client.answer_bytes),
+            needed: text.minimum_room(),
+        });
     };
     remarks.push(crate::GateRemark { number, head, words }).expect("gate room checked");
     row.gate_remarks = remarks.into_boxed();
-    true
+    Ok(())
 }
 
 fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
@@ -3602,7 +3641,15 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         }
     }
     if gates.len() > skein_lib::usize_of(env.limits.change_policy.gates) {
-        emit(out, Request::Refused { task });
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"step change",
+            None,
+            "forge.change_policy.gates",
+            env.limits.change_policy.gates,
+            skein_lib::len_u64(gates.len()),
+        );
         return;
     }
     if let Some(owner) = owner {
@@ -3630,7 +3677,15 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     if d.steps.len() == env.limits.changes {
-        emit(out, Request::Refused { task });
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"step change",
+            None,
+            "forge.changes",
+            env.limits.changes,
+            u64::from(d.steps.len()).saturating_add(1),
+        );
         return;
     }
     let repository = row.repository;
@@ -4763,8 +4818,20 @@ fn emit_change_effect(
         );
         return;
     };
-    if d.entries.contains_key(&pending.entry) || d.entries.len() == env.limits.entries {
+    if d.entries.contains_key(&pending.entry) {
         emit(out, Request::Refused { task: row.task });
+        return;
+    }
+    if d.entries.len() == env.limits.entries {
+        crate::refusal::resource_limit(
+            out,
+            row.task,
+            b"emit change effect",
+            None,
+            "forge.entries",
+            env.limits.entries,
+            u64::from(d.entries.len()).saturating_add(1),
+        );
         return;
     }
     let condition = match effect {
@@ -5172,6 +5239,7 @@ fn settle_effects(
     out: &mut Queue<Request>,
 ) {
     crate::landing::closing(d, task, ending, out);
+    crate::tiers::closing(d, env, task, ending, out);
     let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
         if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
@@ -6185,8 +6253,13 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
         Topic::Ci { repository, head } => Some((*repository, *head)),
         Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
     };
-    if !d.can_subscribe(&env.limits, &subscription) {
-        emit(out, Request::Refused { task });
+    if let Some(problem) = admission::subscription_problem(d, &env.limits, &subscription) {
+        match problem.failure {
+            Some((resource, cause)) => {
+                emit(out, Request::ResourceRefused { task, operation: b"subscribe", resource, cause });
+            }
+            None => emit(out, Request::Refused { task }),
+        }
         return;
     }
     let key = (task, subscription.topic.clone());

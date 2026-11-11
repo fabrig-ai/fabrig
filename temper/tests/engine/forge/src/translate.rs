@@ -317,9 +317,11 @@ pub fn answer_as(
         forge::Answer::Commit(id) => client::Answer::Commit(commit(id)),
         forge::Answer::Cloned { branches, .. } => branches_answer(asked, branches),
         forge::Answer::PullFiles { head, files, more } => {
-            let client::Op::Read(client::Read::PullFiles { skip, .. }) = asked else { panic!("pull files read") };
+            let client::Op::Read(client::Read::PullFiles { skip, sides, .. }) = asked else {
+                panic!("pull files read")
+            };
             let files = files.into_iter().skip(usize::try_from(*skip).expect("skip fits")).collect();
-            client::Answer::PullFiles { head: commit(head), files: files_in(files), more, cut: false }
+            client::Answer::PullFiles { head: commit(head), files: files_in(files, *sides), more, cut: false }
         }
         forge::Answer::Comparison { base, head, ahead, behind, files, .. } => {
             let changed = skein_lib::len_u64(files.len());
@@ -573,10 +575,15 @@ fn collaborators_answer(asked: &client::Op, collaborators: &[forge::Collaborator
     }
     client::Answer::Collaborators { collaborators: rows.into_boxed(), more: range.1 < collaborators.len() }
 }
-fn files_in(files: Box<[forge::ChangedFile]>) -> Box<[client::File]> {
+fn files_in(files: Box<[forge::ChangedFile]>, sides: bool) -> Box<[client::File]> {
     let mut rows = List::with_capacity(u32::try_from(files.len()).expect("bounded fake files"));
     for f in files {
-        rows.push(client::File { path: f.path, before: f.before, after: f.after }).expect("files capacity");
+        rows.push(client::File {
+            path: f.path,
+            before: if sides { f.before } else { None },
+            after: if sides { f.after } else { None },
+        })
+        .expect("files capacity");
     }
     rows.into_boxed()
 }

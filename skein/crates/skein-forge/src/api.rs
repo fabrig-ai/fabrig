@@ -131,8 +131,8 @@ pub enum Read {
     /// Names starting with the nonempty branch prefix, bounded like a branch name.
     /// Only matching names count toward the adapter's answer limit.
     Branches { prefix: Box<[u8]> },
-    /// Whole changed files past the page's first `skip` rows.
-    PullFiles { number: u64, head: Commit, page: u32, skip: u32 },
+    /// Changed paths past the page's first `skip` rows; `sides` asks for their whole contents.
+    PullFiles { number: u64, head: Commit, page: u32, skip: u32, sides: bool },
     /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
     /// Provider descriptions and links, with a failing job's attempt.
