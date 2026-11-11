@@ -168,6 +168,14 @@ keeps of a goal's work in its own files.
   reaches a forge. temper commits the tree as it left it, with one parent, the
   tip, its message `Settle goal G's status`, and pushes it as the close
   change's head; an unchanged tree is no commit.
+- **fabrig's, on a tag:** a tag naming no change of the request,
+  another goal's or one of another form, is kept: its entry stays as it
+  is, the command succeeds, and its result lists the tag as kept, within
+  the bound and counted past it (fabrig's `tools/close/README.md`). A tag
+  followed by sentence punctuation (`[in flight: change 161].`) is a tag
+  all the same: its entry is deleted when its change landed, and
+  otherwise the tag alone goes, with the space before it, the
+  punctuation staying.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
@@ -175,8 +183,7 @@ keeps of a goal's work in its own files.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, its stderr's last `tooling_log_bytes` kept; the
   close change's producer fails and holds it (`../domain/forge/change/repairs.md`),
-  which escalates to the goal (11.2 there). A tag naming no change of the
-  request is a failure of fabrig's.
+  which escalates to the goal (11.2 there).
 - **Deterministic by contract,** as `merge`: the same tree and request
   give the same staged tree, and a second run over its own commit stages
   nothing.
