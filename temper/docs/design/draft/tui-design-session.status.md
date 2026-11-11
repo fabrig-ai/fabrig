@@ -2,8 +2,7 @@
 
 2026-11-11. Where the design lags or departs from [tui-design-session.md](tui-design-session.md).
 
-- **Design lags:** none: `../client/tui/pages.md`, *A design
-  session*, and skein's `ui/screen.md`, 5.2, *A side region*, hold it,
+- **Design lags:** none: `../client/tui/pages/design-session.md`, 1, and skein's `ui/screen.md`, 5.2, *A side region*, hold it,
   and the journey `design-session` is `../client/tui/journeys.md`,
   section 9.
 - **Design departs:**

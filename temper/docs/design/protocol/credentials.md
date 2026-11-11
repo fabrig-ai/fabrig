@@ -574,8 +574,8 @@ sources in its holder's order. temper configures the LLM providers
   an agent its LLM grants only.
 - **A forge that refuses the identity** fails the workspace, never the
   credential: a preparation it refuses is `Preparation::Refused`
-  (`../domain/worker.md`, 4.3), a push `Landing::Refused`
-  (`../domain/worker.md`, section 5). Limited, refused and unauthorized
+  (`../domain/worker/README.md`, 4.3), a push `Landing::Refused`
+  (`../domain/worker/checkouts.md`). Limited, refused and unauthorized
   are LLM accounts' notices only (jig's `domain/accounts.md`, 3.5).
 - **Withdrawn with its forge.** A forge's removal takes its identity's
   values out of the identities' table at once, and withdraws its grant

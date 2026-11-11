@@ -1,5 +1,5 @@
 //! Workspace reuse is opt-in, and eviction keeps the workspace's path.
-//! Dirty holds follow temper/docs/design/domain/worker.md, 5 and
+//! Dirty holds follow temper/docs/design/domain/worker/checkouts.md and
 //! temper/docs/design/protocol/git.md, 4.5.
 
 use std::collections::BTreeSet;

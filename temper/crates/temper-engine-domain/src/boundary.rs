@@ -100,7 +100,7 @@ pub enum ForgeStart {
         base: skein_forge::api::Commit,
     },
     /// The landing branch with each head merged into it in order
-    /// (temper/docs/design/domain/worker.md, 4.1).
+    /// (temper/docs/design/domain/worker/README.md, 4.1).
     Merged {
         branch: Box<[u8]>,
         heads: Box<[skein_forge::api::Commit]>,
@@ -1204,7 +1204,7 @@ pub struct Unsettled {
     pub task: u64,
 }
 
-/// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunDiagnostic {
@@ -1220,7 +1220,7 @@ pub struct RunDiagnostic {
     pub detail: Box<[u8]>,
 }
 
-/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunRefusalDiagnostic {
@@ -1234,7 +1234,7 @@ pub struct RunRefusalDiagnostic {
     pub reason: jig_domain_host::Refusal,
 }
 
-/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker.md, 4.4).
+/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct JobDiagnostic {
     pub task: u64,

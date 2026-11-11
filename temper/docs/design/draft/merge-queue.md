@@ -67,7 +67,7 @@
 
 ### 5.1 The merge train
 
-- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker.md`, 4.4), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message.
+- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker/jobs.md`), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message.
 - **Each merge is a prefix,** pushed by the worker to a branch of its own that the landing makes and holds, named per landing, round and member under the landing's branch name (`../domain/forge/branches.md`), each push expecting the branch new. The last is the round's candidate. The job writes under the landing's hold, as a pin-only member's does (`../domain/landing.md`, 4.1).
 - **Its report** gives, per member, the prefix commit it pushed, or the conflict that made it skip the member (5.2); and each prefix's keys where the project's key command runs in it, otherwise the top reads the prefixes' trees and computes them (`../domain/landing.md`, 6.1).
 - **Prepares again** only from the first prefix that changed, a new round's branches beside the old. The prefixes below it keep their commits, keys and receipts.

@@ -3,7 +3,7 @@
 Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`../README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`../README.md`;
-`../forge/README.md`). The greenfield mock (`../greenfield/README.md`) is the look's
+`../forge/README.md`). The greenfield mock (`greenfield/README.md`) is the look's
 target, with later look requests, and takes precedence over `mockups/`
 (the user, 2026-11-05). Journeys record and print what temper draws
 (`journeys.md`). How a view runs in a browser is
@@ -714,12 +714,7 @@ without it.
   `look.status.md`: Plex's phone size, adjacent-note spacing and
   options unchanged on hover.
 
-- **A filter row while its project's ways arrive** (`README.md`, 2.3, `testing.md`, 6): Drafts
-  appears before Closed once the ways offer drafts, moving Closed under
-  a person's pointer. Default: keep the conditional Drafts button; a
-  separate look decision settles whether the row should reserve its
-  place. The history story reads the filter by name and pressed state,
-  and makes no claim that the row stays still.
+- A filter row while its project's ways arrive: `testing.md`, section 7.
 
 - **Settings, Models comparison** (`look.md`; `../pages/README.md`): temper/ui owns
   page 07 of `model-picker` beside the shipped page, its named states and
@@ -756,10 +751,7 @@ without it.
   shared view and domain tables, focused client stories from a chat and
   Goals, and gallery prints; no new browser test for `ui-goal-asks-2`.
 
-- **A failed link with a live cookie** (2.4): falling back to the cookie
-  instead of keeping the link's reason is jig's client question
-  (`jig/docs/design/client/domain/client/README.md`, section 15). Default: the
-  reason remains until another sign-in; reload to use the cookie.
+- A failed link with a live cookie: `../README.md`, section 5.8.
 
 - **The fresh project's draft flow** (`../pages/README.md`, `../view.md`, 3, `../pages/settings.md`, 2):
   the real-box check of an Ask temper chat's draft offer and the draft-to-goal
@@ -824,12 +816,7 @@ without it.
   nothing shown. Default: a group that sections arrive beside takes a
   role of its own, as Accounts' Sign out does, page by page; skein's
   diff stays.
-- **A phone's width in a test** (`look.md`): skein's browser kit opens pages at
-  1280 by 800 and offers `Viewport` to change their CSS pixel dimensions,
-  with desktop input behaviour. The public board and task story (`public.md`, 4)
-  checks 1440 px and 420 px. Other phone rules remain held by their sheet
-  checks and throwaway walks alone: the accounts tabs, owner menu, rail,
-  chat and document panes have no retained viewport story.
+- A phone's width in a test: `testing.md`, section 7.
 - **The rail's foot on a phone** (`look.md`; `../view.md`, 3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
   link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
@@ -846,65 +833,18 @@ without it.
   view has no fact of a tab refused, so the note's plain title and primary link have
   no state of their own. Default: the view's test holds them, until that draft gives
   the fact.
-- **A chat's way to the Closed filter** (`testing.md`, 6): a chat closed on the box took 8.5 s
-  to show there, and no measure splits that between the chat template's 5 s of
-  grace (`temper-service`'s `stock.rs`) and the box's 5 s `agent_stop_ms`. A person
-  waits it, and no test of the tier does. Default: as it stands, until the wait is
-  split and a request asks it shorter.
-- **The box's pace in the tier** (`testing.md`, 6): the stories on `temper box` keep story A's
-  paces, a reply's 1200 ms and CI's 4000 ms. None waits for a landing, and unpaced
-  fakes would land in the background for CPU nobody reads. Default: paced.
-- **A wait's CPU in the tier** (`testing.md`, 3): a `See` asks Chromium's accessibility tree
-  again at `skein-browser`'s `poll`, 50 ms. Default: that poll stays. Repeated-miss
-  backoff needs a measured saving without delaying presses or the notice of a
-  change; the repaired long story's query count alone gives no reason to add it.
-- **The remaining browser cost** (`testing.md`, 3, 6): another repair may prepare the
-  other stories' histories outside the page, and combine stories sharing a setup
-  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
-  membership and cap; the four reading stories retain their layout, focus and
-  scroll proofs. A whole-tier run after landing decides its remaining cost.
-- **Merged stories after landing** (`testing.md`, 2, 3, 6): check the call line's
-  open node across a reply, the composer's model picker, both sign-in tabs
-  with the welcome first, and reading's four page loads with anchoring off
-  only for the position story. Default: compile during the plan; run in
-  Chromium after landing, preserving every assertion, the forty-second
-  run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
-  half by the user's word of 11-08, for now, to be revisited. A whole-tier
-  run supplies the cost proof; separate story measurements do not.
-- **Reading's test past its run's forty seconds** (`testing.md`, 3; `testing.md`, 6, story 14). Default: it
-  becomes two tests, the long chat's apart, and test 15, which shares its setup
-  with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
-- **A long chat at the person's whole bound** (`testing.md`, 3; `../pages/chat/conversation.md`, 2): the
-  small-window stories prove eviction and recovery through the same mechanism,
-  but leave the 1,048,576-byte window's manual reading check separate. Default:
-  keep the person's bound and check opening, position, both ends, Latest and
-  sending there by hand.
-- **A public page's plain text in one query** (`public.md`, 4): the page-text walk,
-  apart from geometry measurement, reads a node at a time, about 0.8 CPU s
-  over its seven pages. Default: read a node at a time, accepting `public.md`, 4's
-  queued and unqueued landings forms, until that passes 1 CPU s, when the
-  browser kit would read a page's text at once.
-- **Every wrapped text fragment** (`public.md`, 4): checking all of a title's wrapped
-  fragments needs a browser testing interface decision (skein's
-  `testing/browser.md`, 11). Default: keep `Seen` and its first content quad;
-  missing rectangles remain failures, with the text and measurement stage.
-- **A public page changing during measurement** (`public.md`, 2, 4): one terminal
-  boxed query avoids repeating every rectangle request for each text node,
-  but is no atomic snapshot of the page. Default: keep the field, gutter,
-  wrapping, navigation and overlap assertions and read a missing box's text
-  and stage from its failure. A node gone between requests refuses the
-  query, which fails the page assertions; that alone does not explain an
-  answered query with a missing rectangle. A timer-driven read remains an
-  unproved explanation.
-- **Expected browser errors scoped to an act** (`public.md`, 4): the public walk's
-  sign-out permits an expired stream's 401 console message. Expectations
-  match text for the whole walk, so the same words from a later public
-  read are accepted too. Default: keep that expectation; distinguishing
-  the act or resource needs a harness interface decision.
-- **A compile cache across the tier's tests** (`testing.md`, 3): each test's fresh profile
-  compiles the bundle's wasm again, where a second load in one profile hits
-  Chromium's own cache. Default: none, since a shared profile would change what each
-  test starts from.
+- A chat's way to the Closed filter: `testing.md`, section 7.
+- The box's pace in the tier: `testing.md`, section 7.
+- A wait's CPU in the tier: `testing.md`, section 7.
+- The remaining browser cost: `testing.md`, section 7.
+- Merged stories after landing: `testing.md`, section 7.
+- Reading's test past its run's forty seconds: `testing.md`, section 7.
+- A long chat at the person's whole bound: `testing.md`, section 7.
+- A public page's plain text in one query: `testing.md`, section 7.
+- Every wrapped text fragment: `testing.md`, section 7.
+- A public page changing during measurement: `testing.md`, section 7.
+- Expected browser errors scoped to an act: `testing.md`, section 7.
+- A compile cache across the tier's tests: `testing.md`, section 7.
 - **A heading drawn after its page, in skein's reference** (2.3): the kit's rule
   stops at the main (skein's `ui/web/README.md`, 5), and any application whose page reads
   before it draws its heading meets what this shell repairs. Default: this shell's
