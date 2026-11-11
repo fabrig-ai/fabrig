@@ -1,4 +1,6 @@
 //! The standing follow and its target-project work, on the independent fake forge.
+#[path = "follow_changes/proof.rs"]
+pub(crate) mod proof;
 use super::*;
 use forge_top::{FollowRow, FollowState, settings as s};
 use jig_domain_core::settings as cs;
@@ -253,8 +255,8 @@ fn revision(world: &World) -> u32 {
         .max()
         .expect("settings head")
 }
-fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
-    let value = start.map(|start| s::Follow {
+fn setting(start: s::FollowStart) -> s::Follow {
+    s::Follow {
         source: s::FollowSource {
             repository: SOURCE,
             branch: b"main".as_slice().into(),
@@ -269,7 +271,14 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
             artifact: b"results".as_slice().into(),
             format: temper_engine_domain_forge_tiers::Format::Lines,
         },
-    });
+    }
+}
+fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
+    let against = revision(world);
+    change_setting(world, start.map(setting), key);
+    assert_eq!(revision(world), against + 1, "{:?}; adoptions {:?}", world.web_replies, world.adopted);
+}
+fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
     let against = revision(world);
     let kinds = value
         .clone()
@@ -300,7 +309,6 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
         kinds,
     }));
     settle(world);
-    assert_eq!(revision(world), against + 1, "{:?}; adoptions {:?}", world.web_replies, world.adopted);
 }
 fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
@@ -309,6 +317,15 @@ fn world_passing(start: s::FollowStart, passes: u32) -> World {
     world_with_gate(start, passes, Gate::default())
 }
 fn world_with_gate(start: s::FollowStart, passes: u32, gate: Gate) -> World {
+    configured_follow(start, passes, gate, false)
+}
+fn configured_follow(start: s::FollowStart, passes: u32, gate: Gate, cued: bool) -> World {
+    let mut world = unaccepted_follow(passes, gate, cued, true);
+    keep(&mut world, Some(start), 110);
+    assert!(row(&world).heard.is_some());
+    world
+}
+fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -318,6 +335,7 @@ fn world_with_gate(start: s::FollowStart, passes: u32, gate: Gate) -> World {
         None,
         StoryLimits {
             kinds: true,
+            brief: cued.then(|| temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief),
             person_executor: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
             spec_bytes: Some(2048),
@@ -335,13 +353,24 @@ fn world_with_gate(start: s::FollowStart, passes: u32, gate: Gate) -> World {
     )
     .with_forge_pages(b"https://forge.example")
     .with_second_project();
+    if cued {
+        world = world.with_project_landing(2, engine::ProjectLanding {
+            close_job: None, merge_job: None, by: engine::Way::Queue,
+            repositories: Box::new([]),
+            after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+        });
+    }
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world.sign_in();
-    super::context_projects::adopt_pair_passing(&mut world, b"vsr", b"vsr-rs", passes);
+    if !context {
+        super::context_projects::adopt_pair_without_context(&mut world);
+    } else if cued {
+        super::context_projects::adopt_pair_cued(&mut world);
+    } else {
+        super::context_projects::adopt_pair_passing(&mut world, b"vsr", b"vsr-rs", passes);
+    }
     world.send(engine::Event::Party(engine::PartyInput::Period { project: 2, period: 1, budget: 1000, next: None }));
     world.send(protocol::hello_slots(Token::new(7), 4, Box::new([])));
-    keep(&mut world, Some(start), 110);
-    assert!(row(&world).heard.is_some());
     world
 }
 fn push(world: &mut World, message: &[u8]) -> skein_forge::api::Commit {
@@ -479,7 +508,7 @@ fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assig
             return run.clone();
         }
     }
-    panic!("next delegate of {change}: {:?}", questions::row(world, change).change.state);
+    panic!("next delegate of {change}: {:?}; check {:?}", questions::row(world, change).change.state, questions::row(world, change).follow_check);
 }
 #[test]
 fn accepted_follow_makes_owner_waiting_changes_with_code_words_and_chain() {

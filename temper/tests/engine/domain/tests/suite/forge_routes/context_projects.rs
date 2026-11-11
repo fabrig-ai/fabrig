@@ -5,12 +5,18 @@ fn adopt_source_and_target(world: &mut World) {
     adopt_pair(world, b"source", b"target");
 }
 pub(super) fn adopt_pair(world: &mut World, source: &[u8], target: &[u8]) {
-    adopt_pair_configured(world, source, target, 1000, false);
+    adopt_pair_configured(world, source, target, 1000, false, false, true);
 }
 pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8], passes: u32) {
-    adopt_pair_configured(world, source, target, passes, true);
+    adopt_pair_configured(world, source, target, passes, true, false, true);
 }
-fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes: u32, following: bool) {
+pub(super) fn adopt_pair_cued(world: &mut World) {
+    adopt_pair_configured(world, b"vsr", b"vsr-rs", 1000, true, true, true);
+}
+pub(super) fn adopt_pair_without_context(world: &mut World) {
+    adopt_pair_configured(world, b"vsr", b"vsr-rs", 1000, true, true, false);
+}
+fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes: u32, following: bool, cued: bool, context: bool) {
     for (id, name) in [(3, source), (4, target)] {
         let full = [b"org/".as_slice(), name].concat();
         let name = full.as_slice();
@@ -34,7 +40,7 @@ fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes
                         fails: Box::new([]),
                         flaky: Box::new([]),
                         select: None,
-                        cue: None,
+                        cue: cued.then(|| raw::Cue::Tests { path: b"failures".as_slice().into() }),
                         report: Some(raw::Report {
                             artifact: b"results".as_slice().into(),
                             format: raw::ReportFormat::Lines,
@@ -68,6 +74,7 @@ fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes
     .into_iter()
     .enumerate()
     {
+        if role == forge_top::Role::Context && !context { continue; }
         let key = u8::try_from(94 + index).expect("three adoption keys fit u8");
         let mut adoption = temper_engine_domain_world::fixtures::adoption(1);
         adoption.project = project;

@@ -3940,4 +3940,4 @@ mod live_delegate;
 mod close_change;
 
 #[path = "forge_routes/follow_changes.rs"]
-mod follow_changes;
+pub(crate) mod follow_changes;
