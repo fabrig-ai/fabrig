@@ -107,6 +107,7 @@ pub struct World {
     pub fake_env: Env<fake::Config>,
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
+    pending_repositories: BTreeMap<Token, Box<[u8]>>,
     located_names: BTreeMap<u32, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
@@ -140,6 +141,10 @@ pub struct World {
     pub review_files_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
+    /// Source comparisons withheld before their terminal, including across a cold restart.
+    pub held_comparisons: Option<Vec<engine::Request>>,
+    /// An unusable comparison must conservatively keep a source landing.
+    pub fail_comparisons: bool,
     pub merges: u32,
     pub writes: Vec<skein_forge::api::Write>,
     pub repository_writes: Vec<(skein_forge::api::Repository, skein_forge::api::Write)>,
@@ -1078,6 +1083,7 @@ impl World {
             fake_env,
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
+            pending_repositories: BTreeMap::new(),
             located_names: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
@@ -1105,6 +1111,8 @@ impl World {
             review_files_delay: None,
             gate,
             held_reads: None,
+            held_comparisons: None,
+            fail_comparisons: false,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
             lose_writes: 0,
@@ -1152,6 +1160,21 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid two-project configuration");
+        self
+    }
+
+    /// Configure an additional project's verification policy before startup.
+    #[must_use]
+    pub fn with_project_landing(mut self, project: u32, landing: engine::ProjectLanding) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        let mut landings = skein_lib::Map::with_capacity(self.env.limits.authority.projects);
+        for (number, value) in &self.restart_config.landings {
+            landings.insert(*number, value.clone()).expect("configured project");
+        }
+        landings.insert(project, landing).expect("additional project");
+        self.restart_config.landings = landings;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("project verification configuration");
         self
     }
 
@@ -1623,6 +1646,24 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {
+                        if let Some(reads) = &mut self.held_comparisons {
+                            reads.push(engine::Request::Forge { call, repository, op });
+                            continue;
+                        }
+                        if self.fail_comparisons {
+                            self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                                skein_forge_client::Event::Answered {
+                                    free: 0,
+                                    rate: None,
+                                    call,
+                                    cost: 1,
+                                    result: Err(skein_forge::api::Error::Forbidden),
+                                },
+                            ))));
+                            continue;
+                        }
+                    }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
                         && self.store.rows.values().any(|row| matches!(row,
@@ -1757,6 +1798,7 @@ impl World {
                                 if branch == slow);
                     let raw = translate::op(&op, &self.env.limits.forge.client);
                     self.pending.insert(call, op);
+                    self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits;
                     if slow {
                         limits.latency_min = Duration::from_secs(20);
@@ -2169,8 +2211,22 @@ impl World {
                 fake::Request::Reply { to, result } => {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
+                    let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
                     let result = match result {
-                        Ok(answer) => Ok(translate::answer(&op, answer, &self.env.limits.forge.client)),
+                        Ok(answer) => {
+                            let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
+                            if let skein_forge::api::Answer::Run(run) = &mut answer {
+                                let raw::Answer::Jobs(jobs) = self
+                                    .fake
+                                    .inspect(&self.fake_env.limits, &repository, &raw::Read::Jobs { run: run.id })
+                                    .expect("dispatched run jobs")
+                                else {
+                                    panic!("run jobs answer")
+                                };
+                                run.jobs = translate::run_jobs(jobs);
+                            }
+                            Ok(answer)
+                        }
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
@@ -2796,6 +2852,10 @@ impl World {
                     (*watcher == watch).then(|| forge_top::Document::Change(panel.clone()))
                 })
             });
+        if answer.is_some() {
+            self.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: watch }));
+            self.oracle_settle();
+        }
         self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
         self.panels.retain(|(watcher, _)| *watcher != watch);
