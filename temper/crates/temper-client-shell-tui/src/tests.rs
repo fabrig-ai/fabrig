@@ -3556,6 +3556,25 @@ pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
         .expect("launchpad's chats watch")
 }
 
+#[test]
+fn the_terminal_control_p_cycles_the_pane() {
+    use root::pages::chat::document::Mode;
+    use skein_ui_screen_terminal::Decoder;
+
+    let mut decoder = Decoder::new(1);
+    let mut keys = skein_lib::Queue::with_capacity(1);
+    decoder.read(b"\x10", &mut keys);
+    let key = keys.pop().expect("the terminal's Ctrl-P");
+    let mut host = reply_host_draft(true);
+    give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
+    for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
+        host.frame();
+        assert_eq!(host.event_of(&key), Some(Event::Act { act: Act::Mode { mode } }));
+        host.report(Report::Key(key.clone()));
+        assert_eq!(host.root.pages().chat().expect("chat with a draft").mode, mode);
+    }
+}
+
 fn pane_events() {
     use root::pages::chat::document::Mode;
     for (name, draft, columns, mode, words, next) in [
@@ -3575,8 +3594,8 @@ fn pane_events() {
         typed(&mut host, words.as_bytes());
         host.frame();
         let want = next.map(|mode| Event::Act { act: Act::Mode { mode } });
-        assert_eq!(host.event_of(&Key::Control(16)), want, "{name}");
-        host.report(Report::Key(Key::Control(16)));
+        assert_eq!(host.event_of(&Key::Control(b'p')), want, "{name}");
+        host.report(Report::Key(Key::Control(b'p')));
         assert_eq!(host.root.pages().chat().unwrap().mode, next.unwrap_or(mode), "{name}");
         assert_eq!(host.words(), words.as_bytes(), "{name}: composer unchanged");
     }

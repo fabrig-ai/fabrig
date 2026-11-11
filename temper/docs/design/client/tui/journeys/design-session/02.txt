@@ -1,0 +1,24 @@
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:33207 ─╮
+╰──────────────────────────────────────────────────────────────────────────────╯
+ Start
+   /draft    a design session that ends in a draft and a goal
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ /draft Plan a farewell line for hello.
+────────────────────────────────────────────────────────────────────────────────
+ Hello · GPT-6 Astra · high · ● Live
