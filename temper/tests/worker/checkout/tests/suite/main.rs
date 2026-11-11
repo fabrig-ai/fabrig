@@ -7,6 +7,7 @@ mod delivery;
 mod git;
 mod memory;
 mod merges;
+mod real_delivery;
 mod retries;
 mod reuse;
 mod simulation;

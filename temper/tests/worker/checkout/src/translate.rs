@@ -222,6 +222,8 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 files: paths
                     .into_iter()
                     .filter(|path| before.get(*path) != after.get(*path))
+                    .filter(|path| !path.ends_with(b".md"))
+                    .take(1)
                     .map(|path| path.clone().into_boxed_slice())
                     .collect(),
             }

@@ -1,6 +1,6 @@
 # The delivery check
 
-Provisional, 2026-11-09. What fabrig's `.temper/pre-pr` runs when a run
+Provisional, 2026-11-11. What fabrig's `.temper/pre-pr` runs when a run
 delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`. Coding agents run no build
@@ -23,13 +23,14 @@ boundary (smith's run.md, 8.1).
 - **What changed, and who reads it.** The packages owning a path the
   delivery changed against its base, and their direct dependents in the
   workspace (section 3).
-- **Four checks:** the format check and the counted baselines, as before,
-  on everything; `cargo clippy --all-targets -- -D warnings` on the changed
-  packages; the focused tests (`cargo nextest run`, profile `default`) of
-  the changed packages and their direct dependents (section 4).
-- **Inherited reds don't refuse.** A lint or test failure is run again at
-  the base; one the base has too is reported as inherited, by name, and
-  passes (section 5). Only what this delivery broke refuses it.
+- **Code, docs, or both:** code inputs select the format check, counted
+  baselines, clippy and focused tests; Markdown anywhere and every file
+  under a `docs/` directory select citations and design size limits.
+  Declared documentation inputs to tests select both (sections 3 and 4).
+- **Inherited reds don't refuse.** An exceeded baseline count, lint or
+  test failure is compared with the base; citations compare their counted
+  findings and design sizes there too. Inherited failures are named and
+  pass (section 5). Only what this delivery broke refuses it.
 - **A summary last,** within the host's kept tail: each failing check and
   test with its log's tail, then the inherited ones (section 6).
 - **Fast on a warm checkout:** no `cargo clean`, no whole-workspace run,
@@ -66,6 +67,36 @@ boundary (smith's run.md, 8.1).
   before.
 - **Changed paths:** `git diff-tree -r --no-renames --name-only -z <base> <tree>`,
   deletions included.
+- **Docs inputs:** every Markdown path (`.md`), anywhere, and every file
+  with a `docs` directory component. Additions, edits and deletions all
+  select check 5. No docs input means no full citation check.
+- **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
+  clippy and Rust toolchain configuration, including under `docs/`;
+  non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
+  `.temper/pre-pr`; `skein/scripts/*.sh` (the boundary profile check's
+  inputs); each tree's
+  `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
+  owned by workspace packages or matching a prefixed path reader below.
+  Package ownership includes fixtures, generated goldens and build-script
+  inputs of any format, without guessing from their extension. The
+  tooling directories include the checks' programs, configuration and
+  fixtures.
+- **Declared readers:** globs in `.config/gate/read-by-tests.txt` and
+  reader-bearing fixture entries' `paths` and generator `regenerate`
+  paths in `.config/fixture-readers.toml` are code inputs too, even when
+  they are Markdown or under `docs/`. These lists distinguish prose
+  from data read by code. A package README or a drawing under `docs/`
+  selects docs alone unless declared as an input. The fixture list
+  classifies inputs here; it does not add package mappings to the
+  selection below.
+- **Select the sets before running checks:** code inputs select checks
+  1–4, docs inputs select check 5, and both select both sets. With neither,
+  no check runs. Plain docs require no cargo metadata. Each selected set
+  gets one line naming its checks and a changed input that selected it:
+  `pre-pr: docs only: citations and design size limits (docs input …)`,
+  `pre-pr: code only: format, counted baselines, clippy, focused tests (code input …)`,
+  or a line each starting `pre-pr: code and docs:`. With neither, print
+  `pre-pr: no code or docs inputs changed`.
 - **The workspace's packages:** `cargo metadata --offline --no-deps
   --format-version 1` at the tree. A member's directory is its
   manifest's parent; a changed path belongs to the member whose directory
@@ -73,26 +104,28 @@ boundary (smith's run.md, 8.1).
   member's directory belongs to none: the root's `Cargo.toml` and
   `Cargo.lock`, a tree's `clippy.toml`, `.config/`, `tools/` and the
   docs above a crate.
-- **Changed packages (C):** the members owning a changed path.
+- **Changed packages (C):** the members owning a changed code input.
 - **Direct dependents (D):** the members outside C one of whose
   `dependencies` entries, of any kind and any target, has a `path` and
   names a member of C by its package name.
 - **Path readers (R):** each `.config/gate/always.txt` line of the form
-  `PACKAGE PATH-PREFIX` whose prefix, as written, starts a changed path
+  `PACKAGE PATH-PREFIX` whose prefix, as written, starts a changed code input
   adds its package, where it is a member. A line without a prefix runs
   for every change in the gate, not here. A line naming no member is
   skipped and printed.
 - **The lints' set** is C; **the tests' set** is C ∪ D ∪ R. Each is
   ordered by package name and passed as one `-p` per package.
-- **Nothing selected:** both sets empty, the check runs checks 1 and 2
-  alone, printing `pre-pr: no package changed`.
+- **No package selected for code:** the lints' and tests' sets empty,
+  code still runs checks 1 and 2, printing `pre-pr: no package changed`.
+  Docs still run check 5 when selected. Without a base, section 2's
+  fallback remains checks 1 and 2 alone: selection needs a base.
 
 ## 4. What it runs
 
 In this order, each announced by a line `pre-pr: <check> …` before it
 starts and ended by `pre-pr: <check>: passed|failed|inherited, <seconds> s`.
-Every check runs, whatever an earlier one ended in, so that one delivery
-hears every failure; the verdict is section 6's.
+Every selected check runs, whatever an earlier one ended in, so that one
+delivery hears every failure; the verdict is section 6's.
 
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
@@ -113,6 +146,16 @@ hears every failure; the verdict is section 6's.
    an `error`, named by its suite (the binary id) and its name; 101, a
    build failure; any other, a failure of the check itself.
 
+5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
+   --head <tree>` against section 3's private snapshot, including staged,
+   unstaged and untracked documentation. The checker also enforces the
+   design size limit for `tools/citations/sized.txt`'s trees (`DESIGN.md`,
+   5). A docs-only delivery runs no formatter, counted baseline, clippy
+   or test. A code-only delivery runs no full citation checker; smith's
+   counted `comment:dead_citation` baseline still checks Markdown path
+   existence in Rust comments as part of check 2, as before
+   (`tools/old_forms/README.md`).
+
 **The environment** is the check's, with `TEMPER_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
 private index; their scratch repositories keep their own indexes. No
@@ -121,9 +164,27 @@ fetch beyond what cargo's own configuration does.
 
 ## 5. Inherited failures
 
-Only after check 3 or 4 failed, and only with a base. The format check and
-the counted baselines are never inherited: they are cheap to fix and the
-base passes them by the gate.
+Only selected checks contribute failures. A failure can be inherited
+only with a base. The format check runs within the code set: its failures are never
+inherited. A red base refuses nothing the delivery did not cause.
+
+- **An exceeded baseline count** is keyed by tree and form, with its
+  current count and recorded limit. The base runs check 2 only for the
+  trees with exceeded counts, in the same kept worktree used for lints
+  and tests. A count is inherited when the base exceeds that form too,
+  the head's count is no greater, and its excess over the limit is no
+  greater. A rising count, a newly exceeded form or a tighter limit that
+  increases the excess refuses. Each count is judged separately and
+  named as `old-forms <tree> <form>`; a malformed baseline or a tool error
+  cannot be inherited from an exit code alone.
+- **A broken citation** uses the citation checker's counted keys per
+  source file and target, with renames mapped; line movement does not
+  make an old finding new. Check 5's `--base` comparison already refuses
+  only new occurrences. Its inherited total is reported as
+  `inherited: citations (N broken at base)`, even when new findings also
+  refuse. Design documents already over the size limit pass when they
+  do not grow; crossing the limit or growing while over it refuses.
+  Neither comparison needs a cargo build or the kept base worktree.
 
 - **The base's worktree** is `<git dir>/temper-pre-pr/base`, a detached
   worktree (`git worktree add --detach --force`), made at the first need
@@ -166,14 +227,16 @@ base passes them by the gate.
   and no test of that set ran: the summary says so. Otherwise it is the
   delivery's.
 - **A base run that cannot run** (the worktree cannot be made, cargo
-  exits for a reason of its own): every failure stays the delivery's, and
-  the summary says why the base could not judge it.
+  exits for a reason of its own): failures needing that worktree stay the
+  delivery's, and the summary says why the base could not judge them.
+  The citation check's independent comparison still stands.
 - **Inherited never refuses:** each is named in the summary, with the
   base, and the delivery passes on them.
 
 ## 6. Its output
 
-- **As it goes:** each check's announcement, then what its tools print,
+- **As it goes:** section 3's selection lines, each selected check's
+  announcement, then what its tools print,
   so a stopped check's tail shows where it was (smith's run.md, 8.1).
 - **The summary, last,** at most 8,192 bytes, which smith's kept tail
   holds (smith's `protocol/limits.md`, `shell_tail`):
@@ -188,7 +251,8 @@ base passes them by the gate.
     `[… N bytes cut]`;
   - then each inherited failure, one line each: `inherited: test <binary
     id> <name>` or `inherited: clippy <package> <code> <file>`, and the
-    base's build failure as `inherited: build`;
+    base's build failure as `inherited: build`, exceeded counts as
+    `inherited: old-forms <tree> <form>`, and the inherited citation total;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
@@ -228,8 +292,16 @@ merge base); the selection (a package, its dependents, a path reader, a
 path in no package, a deletion); inherited and new failures of each kind;
 the cache by tree and base; the summary's bound.
 
-`tools/pre-pr/test_pre_pr.py` builds a dependency and its consumer with
-real offline cargo in a scratch workspace. A kept base checkout predates
+`tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
+and neither in scratch repositories. It runs the citation checker against
+private snapshots: new and inherited broken citations, a deleted cited
+document, and a design size violation. It checks that docs-only changes
+skip every code check even on a red baseline; unchanged red counts pass
+while a rising count or tighter limit refuses. Non-Markdown fixtures,
+declared docs inputs and check configuration select code.
+
+It also builds a dependency and its consumer with real offline cargo in a
+scratch workspace. A kept base checkout predates
 the head's shared artifacts: the base judge must execute the base's code,
 then the next head build must execute the head's code. This holds for
 source changes and build-script inputs generating Rust in `OUT_DIR`,
@@ -242,14 +314,15 @@ does.
 
 ## 10. Later
 
-- **Inputs read by tests** (`.config/gate/read-by-tests.txt`) map to no
-  package: a delivery changing only them runs checks 1 and 2, and the
-  landing's CI runs their readers.
+- **Inputs read by tests** (`.config/gate/read-by-tests.txt`) outside
+  workspace packages and prefixed path readers still map to no package:
+  they select the code set, but no lint or test package. The landing's CI
+  runs their readers.
 - **What no package owns** (the root manifest and lock, a tree's
-  `clippy.toml`, `.config/nextest.toml`) selects nothing; the landing's CI
-  checks it.
-- **The gate's other checks** (wasm32 clippy, the fuzzy suite, citations,
-  the lint profiles) stay the landing's.
+  `clippy.toml`, `.config/nextest.toml`) selects the code set but no lint
+  or test package; the landing's CI checks its consumers.
+- **The gate's other checks** (wasm32 clippy, the fuzzy suite, the lint
+  profiles) stay the landing's.
 - **Repairs, resolutions and merge jobs** are given no landing branch
   (`temper/docs/design/domain/worker.md`, 4.1), so their checks run
   without a base.

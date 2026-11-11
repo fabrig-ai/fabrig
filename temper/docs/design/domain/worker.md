@@ -688,24 +688,25 @@ runs as contained processes and whose output it parses.
   branch since the run started goes unseen. Saved starts use the fetched
   delivery head when none was supplied; for other starts without one,
   a rewind of the branch to an ancestor goes unseen (section 12).
-- **A design delivery.** A repository whose item names one branch as both
-  its push branch and its landing branch is a goal's design delivery
-  (`forge/branches.md`, 3). Its delivery commits the checked tree as any delivery
-  does, then fetches the branch's tip. Where that tip is not in the commit,
-  the worker merges the tip into it: a clean merge is committed at once,
-  with two parents (the delivery's commit and the tip), the repository's
-  identity as its author and the title `Merge <branch>`; a conflict is left
-  in progress in the checkout, its files marked, and the delivery is
-  refused naming them, so that the run settles them and delivers again,
-  which commits the merge. Every path that differs between the tip and the
-  commit to push must end in `.md`: the first that does not, in git's
-  order, refuses the delivery, naming it, since code goes through a change,
-  and nothing is pushed. The push is a fast-forward, never forced, leased on
-  the tip fetched; a branch that moved again meanwhile is fetched and merged
-  afresh, three tries in all, and then the delivery is refused, saying the
-  branch kept moving. A design delivery is never stale: its refusals leave
-  the run going. A `save` there pushes nothing and is refused. Its receipt
-  is a delivery's, and says when it merged the tip first.
+- **A design delivery.** A repository naming the same push and landing
+  branch is a goal's design delivery (`forge/branches.md`, 3). It runs
+  the repository's `.temper/pre-pr` as any delivery does (smith's
+  `domain/run.md`, 8.1); a failed check refuses it. The checked tree is
+  committed, then the goal tip fetched. If the commit lacks that tip, it is
+  merged: a clean merge is committed with two
+  parents (delivery commit and tip), the repository's identity as author
+  and title `Merge <branch>`; a conflict stays in progress, its files
+  marked and named in the refusal, for the run to settle and deliver again,
+  committing the merge. Every path differing between the tip and commit
+  must end in `.md`; the first that does not, in git's order, refuses it
+  naming the path, since code goes through a change. The scan streams every
+  name, without the conflict count limiting changed files. The push is a
+  fast-forward, never forced, leased on the fetched tip. Movement meanwhile
+  is fetched and merged afresh, up to three tries; then refusal says the
+  branch kept moving. It is never stale: refusals leave the run going.
+  A `save` pushes nothing and is refused. Its delivery receipt says when it
+  merged the tip first. Every git fault keeps its bounded stderr tail in
+  the refusal, including an unclassified failure.
 - **A save pushes unchecked.** A run's `save` (`agent/tools.md` and `agent/README.md`, 5
   ) is a push to the same branch, with no check run before it;
   new commits are titled as unchecked; its landing is this hold's last push as a

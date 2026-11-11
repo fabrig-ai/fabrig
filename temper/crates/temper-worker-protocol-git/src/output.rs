@@ -94,6 +94,58 @@ pub fn paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]
     listed_paths(stdout, checkout, false)
 }
 
+/// Streaming admission of a design's changed paths. Retains only the first
+/// non-Markdown name; the conflict count does not bound a delivery's files.
+#[derive(Debug)]
+pub(crate) struct DesignPaths {
+    path: crate::capped::Capped,
+    first: Option<Box<[u8]>>,
+    invalid: bool,
+}
+
+impl DesignPaths {
+    pub fn new() -> Self {
+        Self { path: crate::capped::Capped::new(0), first: None, invalid: false }
+    }
+
+    pub fn feed(&mut self, bytes: &[u8], path_bytes: u32) {
+        for byte in bytes {
+            if *byte == 0 {
+                let path = core::mem::replace(&mut self.path, crate::capped::Capped::new(path_bytes)).finish();
+                if path.is_empty() {
+                    self.invalid = true;
+                } else if !path.ends_with(b".md") && self.first.is_none() {
+                    self.first = Some(path);
+                }
+            } else {
+                if self.path.as_bytes().is_empty() {
+                    self.path = crate::capped::Capped::new(path_bytes);
+                }
+                if self.path.write(&[*byte]).is_err() {
+                    self.invalid = true;
+                }
+            }
+        }
+    }
+
+    pub fn finish(&self) -> Option<Box<[Box<[u8]>]>> {
+        if self.invalid || !self.path.as_bytes().is_empty() {
+            return None;
+        }
+        Some(match &self.first {
+            Some(path) => Box::new([path.clone()]),
+            None => Box::new([]),
+        })
+    }
+}
+
+/// The complete changed-path stream, retaining only the first code path.
+pub(crate) fn design_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
+    let mut paths = DesignPaths::new();
+    paths.feed(stdout, checkout.path_bytes);
+    paths.finish()
+}
+
 /// The first checkout-bounded paths, dropping a last incomplete path (git.md, 4.6).
 #[must_use]
 pub(crate) fn conflict_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {

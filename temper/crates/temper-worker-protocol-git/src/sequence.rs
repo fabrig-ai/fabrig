@@ -118,7 +118,7 @@ pub fn after(
             _ => {}
         },
         Command::DiffPaths { .. } if code == 0 => {
-            if let Some(files) = output::paths(stdout, checkout) {
+            if let Some(files) = output::design_paths(stdout, checkout) {
                 return Next::End(git::Done::Paths { files });
             }
         }

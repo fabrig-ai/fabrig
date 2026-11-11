@@ -6454,6 +6454,8 @@ dependencies = [
  "skein-fake-peers",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
+ "skein-throwaway-forgejo",
  "skein-world",
  "temper-fake-checkout",
  "temper-fake-git",

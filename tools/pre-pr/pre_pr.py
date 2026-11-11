@@ -3,14 +3,17 @@
 The private snapshot leaves the caller's index alone; only head failures need a
 base worktree. Every tool streams before the bounded, final verdict.
 """
+import fnmatch
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import xml.etree.ElementTree as ET
 
 
@@ -145,6 +148,94 @@ def select(data, changed, always):
         elif any(path.startswith(prefix) for path in changed.values()):
             tests.add(name)
     return sorted(changed_packages), sorted(tests)
+
+
+def lines(root, name):
+    path = root / name
+    return [line.split('#', 1)[0].strip() for line in path.read_text().splitlines()
+            if line.split('#', 1)[0].strip()] if path.exists() else []
+
+
+def documentation(path):
+    return path.endswith('.md') or 'docs' in Path(path).parts[:-1]
+
+
+def code_inputs(paths, data, root):
+    """Use package ownership and the gate's declared readers (section 3)."""
+    directories = [Path(p['manifest_path']).parent for p in members(data).values()]
+    globs = lines(root, '.config/gate/read-by-tests.txt')
+    registry = root / '.config/fixture-readers.toml'
+    if registry.exists():
+        for fixture in tomllib.loads(registry.read_text()).get('fixture', []):
+            if fixture.get('reader'):
+                globs.extend(fixture['paths'])
+            globs.extend(fixture.get('regenerate', []))
+    prefixes = [fields[1] for line in lines(root, '.config/gate/always.txt')
+                if len(fields := line.split()) == 2]
+    selected = []
+    for path in paths:
+        name = Path(path).name
+        registered = any(fnmatch.fnmatchcase(path, pattern) for pattern in globs)
+        source = path.endswith('.rs') or name in (
+            'Cargo.toml', 'Cargo.lock', 'clippy.toml', 'rustfmt.toml', '.rustfmt.toml',
+            'rust-toolchain', 'rust-toolchain.toml')
+        # Prose is code only when a reader is declared; directory ownership
+        # alone must not turn a package README into a build.
+        if source or registered or (not documentation(path) and (
+                '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
+                or path == '.temper/pre-pr'
+                or (path.startswith('skein/scripts/') and path.endswith('.sh'))
+                or any(path.startswith(prefix) for prefix in prefixes)
+                or any((root / path).is_relative_to(directory) for directory in directories)
+                or any(path in (f'{tree}/scripts/old_forms.py', f'{tree}/scripts/old-forms.txt')
+                       for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')))):
+            selected.append(path)
+    return selected
+
+
+def baselines(name, root, env):
+    """Keep each exceeded count, without a bounded-log parsing limit (section 5)."""
+    errors = []
+
+    def consume(line, log):
+        log.add(line)
+        sys.stderr.buffer.write(line)
+        sys.stderr.flush()
+        match = re.fullmatch(r'([^\n]+): count (\d+), baseline (\d+)\r?\n?',
+                             line.decode(errors='replace'))
+        if match:
+            form, count, limit = match.groups()
+            if int(count) > int(limit):
+                errors.append(failure(f'old-forms {name} {form}', line.decode(errors='replace'),
+                                      (name, form, int(count), int(limit))))
+
+    code, log = run(['python3', '-I', '-B', 'scripts/old_forms.py'], root / name, env, consume)
+    if code != 1 or not errors:
+        errors = [failure('old-forms ' + name, log)] if code else []
+    return code, errors
+
+
+def citations(base_id, tree_id, root, env):
+    """The citation gate compares counted findings and design sizes itself."""
+    inherited_count = 0
+
+    def consume(line, log):
+        nonlocal inherited_count
+        log.add(line)
+        sys.stdout.buffer.write(line)
+        sys.stdout.flush()
+        match = re.search(rb'citations: (\d+) new broken since .* \((\d+) in all\)', line)
+        if match:
+            inherited_count = int(match[2]) - int(match[1])
+
+    code, log = run(['python3', '-I', '-B', 'tools/citations/citations.py',
+                     '--base', base_id, '--head', tree_id], root, env, consume)
+    errors = [failure('citations', log)] if code else []
+    if inherited_count:
+        error = failure(f'citations ({inherited_count} broken at base)', '')
+        error['inherited'] = True
+        errors.append(error)
+    return code, errors
 
 
 def _configuration(source, root):
@@ -307,7 +398,8 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
     """Judge only failures seen at head, in a kept detached worktree (section 5)."""
     base_env = env.copy()
     base_env.pop('GIT_INDEX_FILE', None)
-    base_env['CARGO_TARGET_DIR'] = str(data['target_directory'])
+    if data is not None:
+        base_env['CARGO_TARGET_DIR'] = str(data['target_directory'])
     worktree = git_dir / 'temper-pre-pr/base'
     worktree.parent.mkdir(parents=True, exist_ok=True)
     if (worktree / '.git').exists():
@@ -320,12 +412,33 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
         if code:
             return 'base could not judge: ' + log
     refresh((worktree, root), paths)
+    reasons = []
+    count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
+    for name in sorted({e['key'][0] for e in count_errors}):
+        code, base_errors = timed('base old-forms ' + name,
+                                  lambda: baselines(name, worktree, base_env))
+        if code not in (0, 1) or any(e['key'] is None for e in base_errors):
+            reasons.append('base could not judge old-forms ' + name + ': ' +
+                           ''.join(e['log'] for e in base_errors))
+            continue
+        counts = {e['key'][1]: e['key'][2:] for e in base_errors}
+        for error in count_errors:
+            tree_name, form, count, limit = error['key']
+            if tree_name == name and form in counts:
+                base_count, base_limit = counts[form]
+                error['inherited'] = count <= base_count and count - limit <= base_count - base_limit
+    if not any(e['name'].startswith(('clippy ', 'test ')) or e['name'] == 'build' for e in errors):
+        if reasons:
+            for error in count_errors:
+                error['inherited'] = False
+        return '\n'.join(reasons)
     try:
         base_data = metadata(worktree, base_env)
     except (OSError, ValueError, RuntimeError) as error:
+        for finding in count_errors:
+            finding['inherited'] = False
         return f'base could not judge: {error}'
     available = members(base_data)
-    reasons = []
     lint_errors = [e for e in errors if e['name'].startswith('clippy ')]
     selected = sorted({e['package'] for e in lint_errors} & available.keys() & set(lints))
     if selected:
@@ -359,7 +472,8 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
             reasons.append('base could not judge build: ' + ''.join(e['log'] for e in base_errors))
     if reasons:
         for error in errors:
-            error['inherited'] = False
+            if error['key'] is not None or error['name'] == 'build':
+                error['inherited'] = False
     return '\n'.join(reasons)
 
 
@@ -375,7 +489,11 @@ def timed(name, action, pending=None):
     if failed and pending is not None:
         pending[name] = seconds
     else:
-        print(f'pre-pr: {name}: {"failed" if failed else "passed"}, {seconds:.3f} s', flush=True)
+        status = 'failed' if failed else 'passed'
+        if isinstance(result, tuple) and result[1] and isinstance(result[1], list):
+            if all(error['inherited'] for error in result[1]):
+                status = 'inherited'
+        print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
     return result
 
 
@@ -419,48 +537,81 @@ def main():
         if cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"})', flush=True)
             return 0
+        data = None
+        paths, selected = [], []
+        docs = False
         if not base_id:
             print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
-        data = None
-
-        def format_check():
-            nonlocal data
-            try:
-                data = metadata(root, private)
-                return formatting(data, root, private)
-            except (OSError, ValueError, RuntimeError) as error:
-                return [failure('format', str(error))]
-
-        errors += timed('format', format_check)
-        for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
-            code, log = timed('old-forms ' + name,
-                              lambda: run(['python3', '-I', '-B', 'scripts/old_forms.py'], root / name, private))
-            if code:
-                errors.append(failure('old-forms ' + name, log))
-        if base_id and data is not None:
+            code_checks = True
+        else:
             diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
             if diff.returncode:
                 errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
             else:
                 paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+            docs = any(documentation(path) for path in paths)
+            try:
+                # Plain documentation needs neither Cargo nor package selection.
+                empty = {'packages': [], 'workspace_members': []}
+                selected = code_inputs(paths, empty, root)
+                if selected or any(not documentation(path) for path in paths):
+                    data = metadata(root, private)
+                    selected = code_inputs(paths, data, root)
+            except (OSError, ValueError, RuntimeError) as error:
+                errors.append(failure('check selection', str(error)))
+            code_checks = bool(selected)
+            kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
+            if code_checks:
+                print(f'pre-pr: {kind}: format, counted baselines, clippy, focused tests '
+                      f'(code input {selected[0]!r})', flush=True)
+            if docs:
+                path = next(path for path in paths if documentation(path))
+                print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
+            if not code_checks and not docs:
+                print('pre-pr: no code or docs inputs changed', flush=True)
+
+        def format_check():
+            nonlocal data
+            try:
+                if data is None:
+                    data = metadata(root, private)
+                return formatting(data, root, private)
+            except (OSError, ValueError, RuntimeError) as error:
+                return [failure('format', str(error))]
+
+        pending = {}
+        if code_checks:
+            errors += timed('format', format_check)
+            for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
+                _, found = timed('old-forms ' + name, lambda: baselines(name, root, private), pending)
+                errors += found
+            if base_id and data is not None:
                 always = root / '.config/gate/always.txt'
-                lints, tests = select(data, {root / p: p for p in paths}, always.read_text() if always.exists() else '')
+                lints, tests = select(data, {root / p: p for p in selected},
+                                      always.read_text() if always.exists() else '')
                 if not lints and not tests:
                     print('pre-pr: no package changed', flush=True)
-                pending = {}
                 if lints:
                     _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                     errors += found
                 if tests:
                     _, found = timed('tests', lambda: nextest(tests, root, env), pending)
                     errors += found
-                if any(e['key'] is not None or e['name'] == 'build' for e in errors):
-                    why = inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths)
-                for name, seconds in pending.items():
-                    prefixes = ('clippy ', 'check clippy') if name == 'clippy' else ('test ', 'build', 'check nextest')
-                    found = [e for e in errors if e['name'].startswith(prefixes)]
-                    status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
-                    print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
+        if docs:
+            _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+            errors += found
+        if base_id and any(e['key'] is not None or e['name'] == 'build' for e in errors):
+            why = inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths)
+        for name, seconds in pending.items():
+            if name == 'clippy':
+                prefixes = ('clippy ', 'check clippy')
+            elif name == 'tests':
+                prefixes = ('test ', 'build', 'check nextest')
+            else:
+                prefixes = (name,)
+            found = [e for e in errors if e['name'].startswith(prefixes)]
+            status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
+            print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
         verdict = summary(base_id, lints, tests, errors, why if base_id else None)
         if not verdict:
             temporary = git_dir / 'pre-pr-passed.tmp'

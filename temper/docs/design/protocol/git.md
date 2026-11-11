@@ -532,6 +532,20 @@ contains a head or a producer's base it would merge
 receipt.
 
 
+`DiffPaths { at, before, after }` admits a design delivery's changed paths:
+
+```
+git diff-tree --no-commit-id --name-only --no-renames -r -z <before> <after> --
+```
+
+The complete stdout stream is read as NUL-terminated paths, including
+additions and deletions. Each name stays within `path_bytes`; no count of
+changed files is imposed by the merge-conflict limit. The component keeps
+only the current path and the first path not ending in `.md`, and returns
+`Paths` with that first non-Markdown name or no names. An incomplete,
+empty or oversized path fails as `Broken`. A later code path cannot hide
+behind a long list of Markdown files or the stdout retention cap.
+
 ### 4.10 Rewrite
 
 A prepare job's (`../domain/worker.md`, 4.4). `Rewrite { at,
@@ -594,10 +608,13 @@ variable of the worker's own process reaches git.
   git is never blocked on its pipe, and an operation whose output passed
   the cap ends `Broken`, but for a merge's progress, which is not parsed,
   and its listing of unmerged paths, read as far as it was kept (4.6).
+  A design's changed paths stream through their own admission (4.9).
 - **stderr,** its last `stderr_bytes`, with the count of bytes dropped
   before them. It is read only to classify a failure, and its last
   `PushDiagnostic::CAPACITY` bytes, with that count, are the diagnostic
-  (`PushDiagnostic::new`).
+  (`PushDiagnostic::new`). Every fault, including `Broken` when no
+  classification matches, keeps those bytes through push verification
+  and into the delivery refusal's `tail`, with its `cut` count.
 
 **How an operation ends,** in this order:
 
