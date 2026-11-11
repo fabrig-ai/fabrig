@@ -26,8 +26,8 @@ enum Shape {
 #[derive(Debug)]
 enum State {
     Listing { checks: Checks, page: u32 },
-    RunLookup { checks: Checks, run_number: u64, job_index: u32, run: Option<u64>, missing: bool },
-    JobsLookup { checks: Checks, job_index: u32, run: u64, missing: bool },
+    RunLookup { checks: Checks, run_number: u64, run: Option<u64>, missing: bool },
+    JobsLookup { checks: Checks, run_number: u64, run: u64, missing: bool },
     Run { attempt: api::JobAttempt, max: u32, part: api::LogPart },
     Job { attempt: api::JobAttempt, max: u32, part: api::LogPart, step: Option<api::Step> },
     Log { attempt: api::JobAttempt, max: u32, part: api::LogPart, step: Option<api::Step>, truncated: bool },
@@ -229,7 +229,7 @@ impl Plan {
                 State::Ended => unreachable!("owner stops feeding an ended actions plan"),
             },
             d::Row::Run(value) => match state {
-                State::RunLookup { checks, run_number, job_index, mut run, missing } => {
+                State::RunLookup { checks, run_number, mut run, missing } => {
                     if self.count > 1 {
                         return Err(api::Error::TooLarge(api::Excess::at_least(
                             api::Bound::Forge,
@@ -242,7 +242,7 @@ impl Plan {
                     if commit == checks.head && value.index_in_repo == run_number {
                         run = Some(value.id);
                     }
-                    Ok(State::RunLookup { checks, run_number, job_index, run, missing })
+                    Ok(State::RunLookup { checks, run_number, run, missing })
                 }
                 State::Listing { .. }
                 | State::JobsLookup { .. }
@@ -252,17 +252,17 @@ impl Plan {
                 State::Ended => unreachable!("owner stops feeding an ended actions plan"),
             },
             d::Row::Job(job) => match state {
-                State::JobsLookup { mut checks, job_index, run, missing } => {
-                    if self.count.saturating_sub(1) == job_index && job.run_id == run {
-                        checks.statuses.get_mut(checks.position.saturating_sub(1)).expect("lookup status").job =
-                            Some(api::JobAttempt {
-                                head: checks.head,
-                                run: job.run_id,
-                                job: job.id,
-                                attempt: job.attempt,
+                State::JobsLookup { mut checks, run_number, run, missing } => {
+                    for position in 0..checks.statuses.len() {
+                        let status = checks.statuses.get_mut(position).expect("status position");
+                        if header::job_link(&status.url, &self.row.html_url)
+                            == Some((run_number, self.count.saturating_sub(1))) && job.run_id == run {
+                            status.job = Some(api::JobAttempt {
+                                head: checks.head, run: job.run_id, job: job.id, attempt: job.attempt,
                             });
+                        }
                     }
-                    Ok(State::JobsLookup { checks, job_index, run, missing })
+                    Ok(State::JobsLookup { checks, run_number, run, missing })
                 }
                 State::Listing { .. }
                 | State::RunLookup { .. }
@@ -400,7 +400,7 @@ impl Plan {
                 };
                 self.next_check(checks)
             }
-            State::RunLookup { checks, job_index, run, .. } => {
+            State::RunLookup { checks, run_number, run, .. } => {
                 match document {
                     d::Document::Tree { .. } | d::Document::Runs { .. } => {}
                     _ => return Err(api::Error::InvalidAnswer),
@@ -408,7 +408,7 @@ impl Plan {
                 match run {
                     Some(run) => {
                         let step = self.send(r::Request::Jobs { at: self.row.at(), run });
-                        Ok((State::JobsLookup { checks, job_index, run, missing: false }, Some(step)))
+                        Ok((State::JobsLookup { checks, run_number, run, missing: false }, Some(step)))
                     }
                     None => self.next_check(checks),
                 }
@@ -474,16 +474,24 @@ impl Plan {
                 };
                 return Ok((State::Ended, Some(Step::Done(Ok(answer)))));
             }
-            let status = checks.statuses.get(checks.position).expect("check position");
+            let position = checks.position;
+            let status = checks.statuses.get(position).expect("check position");
             checks.position = checks.position.saturating_add(1);
-            if let Some((run_number, job_index)) = header::job_link(&status.url, &self.row.html_url) {
+            if let Some((run_number, _)) = header::job_link(&status.url, &self.row.html_url) {
+                let mut seen = false;
+                for prior in checks.statuses.as_slice().get(..skein_lib::usize_of(position)).expect("prior statuses") {
+                    if let Some((number, _)) = header::job_link(&prior.url, &self.row.html_url) {
+                        seen |= number == run_number;
+                    }
+                }
+                if seen { continue; }
                 let step = self.send(r::Request::Runs {
                     at: self.row.at(),
                     head_sha: self.row.id(checks.head),
                     run_number,
                     page: r::Page { page: Some(1), limit: Some(1) },
                 });
-                return Ok((State::RunLookup { checks, run_number, job_index, run: None, missing: false }, Some(step)));
+                return Ok((State::RunLookup { checks, run_number, run: None, missing: false }, Some(step)));
             }
         }
         Err(api::Error::InvalidAnswer)

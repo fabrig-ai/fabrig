@@ -182,8 +182,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     slow: Duration::from_secs(40),
     // Bound Forgejo's settling of mergeability and hinted CI after a move.
     settle: Duration::from_secs(30),
-    // Fallback 0 stretches no pace (skein/docs/design/forge/client.md, 4.1).
-    fallback: Duration::ZERO,
+    // Events first; timed reads fall back while deliveries arrive (forge/client.md, 4.1).
+    fallback: Duration::from_secs(300),
     // Facts awaiting drain, from the engine forge world fixture.
     facts: 16,
 };
@@ -686,6 +686,17 @@ pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn forge_fallback_defaults_and_dotted_overrides() {
+        for selected in [Profile::Small, Profile::Standard] {
+            let mut limits = profile(selected);
+            assert_eq!(limits.forge.client.fallback, Duration::from_secs(300));
+            for millis in [0, 1, 300_000] {
+                assert_eq!(apply(&mut limits, b"forge.client.fallback_ms", millis), Ok(()));
+                assert_eq!(limits.forge.client.fallback, Duration::from_millis(millis));
+            }
+        }
+    }
     use super::*;
     #[test]
     fn making_limits_default_to_thirty_two() {

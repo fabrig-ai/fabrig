@@ -130,9 +130,12 @@ impl Protocol {
         });
     }
     pub fn job_status(&mut self, branch: &[u8], job: u32) {
+        let context = format!("job-{job}").into_bytes().into_boxed_slice();
+        let raw::Answer::Checks(rows) = self.external(raw::Op::Read(raw::Read::Checks { commit: self.branch(branch) }), self.fixture.writer) else { panic!("checks") };
+        let link = rows.iter().find(|row| row.status.context == context).expect("job status").link.clone();
         self.external(raw::Op::Write(raw::Write::Status {
-            commit: self.branch(branch), context: format!("job-{job}").into_bytes().into_boxed_slice(),
-            state: raw::Check::Passed, description: Box::new([]), link: Box::new([]),
+            commit: self.branch(branch), context,
+            state: raw::Check::Passed, description: Box::new([]), link,
         }), self.fixture.writer);
     }
     fn with(seed: u64, joint: Joint, fixture: fixtures::Fixture) -> Self {
@@ -531,6 +534,10 @@ impl Protocol {
                     .min(end)
                     .max(self.env.now.saturating_add(Duration::from_nanos(1)));
                 self.joint.time(next);
+                self.env.now = self.joint.env.now;
+                self.env.wall = self.joint.env.wall;
+            } else {
+                self.joint.time(self.env.now.saturating_add(Duration::from_nanos(100_000)));
                 self.env.now = self.joint.env.now;
                 self.env.wall = self.joint.env.wall;
             }

@@ -625,7 +625,7 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     row.hinted = false;
     row.state = State::Idle;
     let next = env.now.saturating_add(interval);
-    let next = if row.presence != super::Presence::Missing && row.inbox.repair_at > env.now {
+    let next = if row.record.watch.participating && row.presence != super::Presence::Missing && row.inbox.repair_at > env.now {
         next.min(row.inbox.repair_at)
     } else {
         next

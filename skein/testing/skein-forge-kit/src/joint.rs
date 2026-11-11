@@ -224,6 +224,8 @@ impl Joint {
     #[must_use]
     pub fn busy(&self) -> bool {
         !self.below.is_empty()
+            || !self.hook_posts.is_empty()
+            || self.hook_peers.values().any(|peer| peer.wire.received.is_empty())
             || self.github.as_ref().is_some_and(github::Github::busy)
             || self.peers.values().any(|peer| {
                 peer.pipe.has_work() || peer.server.has_work() || !peer.below.is_empty() || !peer.above.is_empty()
