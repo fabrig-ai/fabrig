@@ -11,6 +11,7 @@ proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
 landing  Landings: read one or a project's landings
+draft  Landed drafts: say ready or not ready, list them
 repository  Repositories: make, copy or adopt one into a project
 forge  Forges: read them, set one up, connect it, accept an installation, read what it reaches
 account  LLM accounts: read them, connect one, manage its keys and sources, move one in or out
