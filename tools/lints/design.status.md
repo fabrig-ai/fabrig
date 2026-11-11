@@ -7,7 +7,7 @@ boundary scopes its `unsafe` expectation. No gap remains in that addition.
 
 Section 4's ban of the process's arguments and environment is in all three variants, and every
 read in the four trees' packages is under a scoped expectation whose reason starts with what it is
-or the round or milestone that removes it (temper's, the milestones C2 to C8 of
+or the round or milestone that removes it (temper's, the milestones C2 to C6 of
 `temper/docs/design/draft/cli.execution.md`), but for the seven of the last departure below.
 
 - **Not yet:** 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
