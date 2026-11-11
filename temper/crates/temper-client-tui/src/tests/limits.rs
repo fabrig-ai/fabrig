@@ -288,6 +288,7 @@ fn the_trees_fit_their_limits() {
         for _row in 0_u32..5 {
             needs
                 .push(launchpad::NeedRow {
+                    since: None,
                     mark: temper_client_view::shared::NeedMark::SignOff,
                     project: name.into(),
                     words: Box::new([b'w'; 512]),

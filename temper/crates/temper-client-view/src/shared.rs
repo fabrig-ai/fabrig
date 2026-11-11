@@ -14,8 +14,8 @@ pub use question::{Question, QuestionChoice, question};
 pub(crate) use refusal::{Feedback, composer_refusals, outcome_feedback};
 pub use refusal::{refusal, start_goal_refusal};
 pub use words::{
-    NeedKind, NeedLine, Run, RunLine, TerminalWord, chat_state, closed_line, description, heading, home_headline,
-    need_line, note, offered, running, say,
+    NeedKind, NeedLine, Run, RunLine, TerminalWord, all_home_headline, chat_state, closed_line, description, heading,
+    home_headline, joined_brief, need_line, note, offered, running, say,
 };
 
 /// Whether the open chat's run line is under way (temper/docs/design/client/pages/README.md).
