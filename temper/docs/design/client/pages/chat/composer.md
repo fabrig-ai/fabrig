@@ -86,8 +86,10 @@
     - "All models" and how many the offer holds, where the picker shows fewer.
   - *All models* takes the menu's place: "‹ Models", back to it; a field "Find a
     model", matching any part of a shown name or a name, in any case; every model
-    of the offer, by account as above; and "Choose what the list shows, in Settings",
-    a link to `Models { project }` for the picker's project. A model whose `new_until`
+    of the offer, by account as above; and "Choose what the list shows, in Deployment",
+    a link to `Models { project }` for the picker's project, Deployment's tab
+    (`../../view.md`, 3), the rail naming no Settings (`../../../draft/surfaces.md`,
+    section 2). A model whose `new_until`
     is later than now has `.temper-model-tag`, "new", beside its shown name.
   - *A started chat:* the menu opens with "A change applies from the next turn."
     One press of a model or an effort applies it, an amendment or, where the task

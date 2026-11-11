@@ -1802,7 +1802,7 @@ const PHRASES: u32 = 2326;
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 const SEGMENTS: u32 = 4177;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56431;
+const ENGLISH_BYTES: u32 = 56443;
 const ALL: [Word; 1642] = [
     Word::StopAsking,
     Word::StopAskingDecide,
@@ -6043,8 +6043,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeProjectReady => (&[b"", b" is ready."], &[Name]),
         Word::HomeOptional => (&[b"Optional"], &[]),
         Word::HomeSkip => (&[b"Skip"], &[]),
-        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in Settings and Ask temper."], &[]),
-        Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in Settings."], &[]),
+        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in How work runs and Ask temper."], &[]),
+        Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in How work runs."], &[]),
         Word::HomeSkipRefused => (&[b"temper couldn't keep that. Try Skip again."], &[]),
         Word::HomeBegin => (&[b"To begin"], &[]),
         Word::HomeHow => (&[b"Tell temper how you work"], &[]),
@@ -6457,7 +6457,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllModels => (&[b"All models"], &[]),
         Word::ModelsBack => (&[b"\xe2\x80\xb9 Models"], &[]),
         Word::FindModel => (&[b"Find a model"], &[]),
-        Word::ModelsAccounts => (&[b"Choose what the list shows, in Settings"], &[]),
+        Word::ModelsAccounts => (&[b"Choose what the list shows, in Deployment"], &[]),
         Word::ModelNextTurn => (&[b"A change applies from the next turn."], &[]),
         Word::ModelChanging => (&[b"Changing\xe2\x80\xa6"], &[]),
         Word::ModelSubscription => (&[b"your subscription"], &[]),

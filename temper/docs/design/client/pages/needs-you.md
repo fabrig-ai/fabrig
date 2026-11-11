@@ -402,6 +402,11 @@
     deployment's in each the person owns; "N+" where its document is cut, and no
     count before it is delivered. A card marked later still counts. The open
     project's rows of `approvals` add to it, "N+" where that document is cut too.
+    On a page across projects (`../view.md`, 3, *All projects*) it counts
+    what *Needs you* across them shows: each of the needs' rows once,
+    whatever projects it shows in, less those answered, and every row of
+    `approvals`, "N+" where either document is cut; so it is never the sum
+    of the projects' counts, which counts a row of several projects in each.
     `me`'s `needs_total`, with every row of `approvals` added, is shown
     nowhere outside a project: the top bar offers no navigation (`../view.md`, 1).
   - *The approvals,* the forge side's watch of the subject `approvals` (`../forge/records.md`),

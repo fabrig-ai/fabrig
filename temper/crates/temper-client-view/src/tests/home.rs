@@ -1764,9 +1764,9 @@ fn ask_line_reads_back_types_and_sends_on_both_homes() {
 #[test]
 fn home_notes_name_where_the_remaining_steps_stay() {
     for (configured, repository, note) in [
-        (false, false, "Two steps left. Skip them if you like; they stay in Settings and Ask temper."),
+        (false, false, "Two steps left. Skip them if you like; they stay in How work runs and Ask temper."),
         (false, true, "One step left. Skip it if you like; it stays in Ask temper."),
-        (true, false, "One step left. Skip it if you like; it stays in Settings."),
+        (true, false, "One step left. Skip it if you like; it stays in How work runs."),
     ] {
         let (root, _) = home_root(forge_rows(repository), configured, false);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -2653,7 +2653,7 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
         }
         let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
         settle_home(&mut root, &mut out, None, Some(&chat_fixture(0, 0, false, false)), None);
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             if address == (Address::Home { project: f::PROJECT }) && !skipped {
                 let styles = section_styles(view.tree());
                 for style in [crate::look::HOME_NEEDS, crate::look::HOME_CHATS, crate::look::GOALS_SECTION] {
@@ -2661,14 +2661,21 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
                 }
             }
             let nav = styled(view.tree(), crate::look::RAIL_NAV);
-            let entries: Vec<_> =
-                children(subtree(view.tree(), nav.id)).iter().filter_map(|node| node.name.as_deref()).collect();
-            let expected = if cut {
-                vec![b"Home".as_slice(), b"Ask temper"]
-            } else {
-                vec![b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper", b"How work runs"]
-            };
+            let rows = children(subtree(view.tree(), nav.id));
+            let entries: Vec<_> = rows.iter().map(|node| (node.role, node.name.as_deref())).collect();
+            let mut expected = vec![(Role::Link, Some(b"Home".as_slice()))];
+            if !cut {
+                expected.extend([(Role::Link, Some(b"Needs you".as_slice())), (Role::Link, Some(b"Work".as_slice()))]);
+            }
+            expected.extend([
+                (Role::Link, Some(b"Ask temper".as_slice())),
+                (Role::Slot, None),
+                (Role::Link, Some(b"How work runs".as_slice())),
+            ]);
             assert_eq!(entries, expected, "{address:?}, skipped={skipped}");
+            let separator = rows.get(rows.len().checked_sub(2).unwrap()).unwrap();
+            assert_eq!(separator.styles.as_slice(), &[crate::look::RAIL_SEP]);
+            let how = rows.last().unwrap().id;
             assert_eq!(
                 view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::RAIL_NEW)),
                 !cut
@@ -2678,6 +2685,10 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
                 subtree(view.tree(), foot.id)
                     .iter()
                     .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Deployment"))
+            );
+            assert_eq!(
+                crate::act(&mut view, how, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Settings { project: f::PROJECT } }))
             );
         }
         let view = f::browser_page_view(&root);
