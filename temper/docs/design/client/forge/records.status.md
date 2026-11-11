@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** `AddDevice`, `RemoveDevice`, their outcomes, the subject `devices` and `DeploymentAnswer`'s `push`.
+
 - **Not yet:** the whole document: the walk the request `first-usable-model` of
   2026-11-06 asks: none on record has a real box with one account, unedited, start
   a chat that answers, or a box with no usable account say why it waits. A real

@@ -84,7 +84,7 @@ or the nearest thing, and says so in that draft's status.
 | N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | landed but for a standing role's case, which waits on R1; its repair's web part landed, its render check and walk following (section 5) |
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | landed but for what waits on a login and Only you's other kinds, which wait on reads (section 5) |
-| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
+| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | landed for a push; a mail and the digest left, designed and not built, and a sign-off's push waits on N2 (section 5) |
 | N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge/change/gates.md`, 1; its entry below | | temper/migration | should | done |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
@@ -298,7 +298,8 @@ P4a's on 2026-11-11, as its repair retired, and
 P3a's and P3e's on 2026-11-11, as goal 310, their repairs, landed, and
 P1's that day, as goal 368, its repair, landed, and
 P2's, as goal 338, its repair's wording, landed, and
-N1's that day, as goal 367, its repair's web part, landed. Plans
+N1's that day, as goal 367, its repair's web part, landed, and
+N3b's that day, as goal 492, its push, landed. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -321,7 +322,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N1 | landed; its render check and walk follow | `ui-reaches` built `what-reaches-you.md`, 2 to 6, in the engine and the web client; a standing role's case waits on R1, and the paths an asker's change touches at its head on N2 (`what-reaches-you.status.md`, 4); its repair, goal 367, draws Needs you's Decided head with "Limits" on a filtered page, a words offer's sentence over its field and Home's Away spell with no row showing, and the why line on the signal ground, over the choices, with "Keep asking" and the narrower rule on it, as `needs.html` does, saying "agents" where it says "goals" (`surfaces.status.md`, 4); the TUI's reason line is temper/tui's, T1 having drawn none; its render check and walk follow landing (`../client/README.md`, 5) |
 | N2 | starts | |
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
-| N3b | starts | |
+| N3b | landed for a push; its walk follows | goal 492 built `what-reaches-you.md`, 9's push against fakes alone: a person's devices, jig's need's arrival, the root's pushes and the service's Web Push (`../domain/forge/attention.md`, section 7), `temper ctl push add`, and Telling you in the browser (`../client/pages/told.md`); mail and the digest are designed and not built (`../domain/forge/attention.md`, 7.4), left as nice when push took the six changes it was given; a sign-off's wait pushes nothing until N2 reshapes it; a real push needs a deployment at a name over HTTPS and its VAPID key, which a person sets (`../protocol/configuration/engine.md`, `push`); its walk needs a fake push service a box runs, which no design has yet (`what-reaches-you.status.md`, 9) |
 | N4 | done | goal 147, PR #41 |
 | N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
@@ -337,5 +338,5 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
 - **Next to start:** P7; T2, whose needs have landed: T1 by
-  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair; N2,
-  temper/migration's, and N3b, both must.
+  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair; and N2,
+  temper/migration's, must.

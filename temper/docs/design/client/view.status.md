@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [view.md](view.md).
 
+- **Not yet:** 3: the person's menu has no "Telling you".
+
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws

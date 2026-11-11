@@ -2,6 +2,8 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2.2: step 6's root files and the policy's `worker-src` and `manifest-src`; 2.7: no service worker, manifest or push glue in the shell.
+
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
   proposal's acts among them, and the path's stops on Ask temper's page

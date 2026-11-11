@@ -2,6 +2,8 @@
 
 2026-11-09. Where temper's code lags or departs from [store.md](store.md).
 
+- **Not yet:** 2: the family 41, `Device`, and its record, `Value`'s `device`.
+
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only
 for provider 0 and rejects other lengths. Its table holds the exact bytes,

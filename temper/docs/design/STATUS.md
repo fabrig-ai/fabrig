@@ -346,7 +346,14 @@ for reads, the terminal's inbox lists none, and its item's look lags
 `needs.html`; its render check and walk follow landing
 (`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
 2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
-4). Ask temper's
+4). Being told is the whole story's milestone N3b, goal 492, built
+against fakes alone: a person's devices, jig's need's arrival, the
+root's pushes and the service's Web Push, `temper ctl push add`, and
+Telling you in the browser, its service worker and manifest; mail and
+the digest are designed and not built, a sign-off's wait pushes nothing
+until N2, and a real push needs a deployment at a name over HTTPS and
+its VAPID key (`domain/forge/attention.status.md`, 7.4;
+`draft/what-reaches-you.status.md`, 9). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing, and its reading milestone, M2:
