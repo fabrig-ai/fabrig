@@ -1,13 +1,41 @@
 //! Work places each item by its own facts (temper/docs/design/client/pages/README.md).
 
+use alloc::boxed::Box;
 use skein_lib::{Duration, List, Set, Wall};
 
-/// The goals, changes and person's chats read for the project.
+/// The four lists read for Work.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
     pub goals: List<Goal>,
     pub changes: List<Change>,
     pub chats: List<Chat>,
+    pub landed: List<Landed>,
+}
+
+/// A landed draft's identity, card and listing facts (client/pages/work.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Landed {
+    pub forge: u16,
+    pub owner: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub path: Box<[u8]>,
+    pub at: Wall,
+    pub title: Box<[u8]>,
+    pub listed: bool,
+}
+impl Landed {
+    #[must_use]
+    pub fn row(row: &temper_client_protocol_wire::v1::LandedDraft) -> Self {
+        Self {
+            forge: row.forge(),
+            owner: row.owner().into(),
+            name: row.name().into(),
+            path: row.path().into(),
+            at: Wall::from_nanos(row.at()),
+            title: row.title().into(),
+            listed: row.ready() && row.goal().is_none(),
+        }
+    }
 }
 
 /// A goal, live or ended, with its last activity.
@@ -56,6 +84,7 @@ pub enum Item {
     Change(u64),
     Chat(u64),
     Draft(u64),
+    Landed(u32),
 }
 
 /// An item's card, with changes on their way by place, then landed newest first.
@@ -85,7 +114,7 @@ pub struct Filters {
 
 impl Default for Facts {
     fn default() -> Self {
-        Self { goals: List::uncapped(), changes: List::uncapped(), chats: List::uncapped() }
+        Self { goals: List::uncapped(), changes: List::uncapped(), chats: List::uncapped(), landed: List::uncapped() }
     }
 }
 
@@ -123,7 +152,7 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
     let mut work = Work::default();
     work.filters.changes = changes.len();
     let mut in_flight = List::uncapped();
-    let mut drafts = List::with_capacity(facts.chats.len());
+    let mut drafts = List::uncapped();
     let mut goals = Set::with_capacity(facts.goals.len());
     let mut live_goals = Set::with_capacity(facts.goals.len());
     for goal in &facts.goals {
@@ -133,7 +162,7 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         if goal.live {
             live_goals.insert(goal.task).expect("no more live goals than goal rows");
             let card = Card { item: Item::Goal(goal.task), changes: belonging(&changes, Belongs::Goal(goal.task)) };
-            insert_card(&mut in_flight, ActiveCard { activity: goal.activity, task: goal.task, card });
+            insert_card(facts, &mut in_flight, ActiveCard { activity: goal.activity, task: goal.task, card });
         }
     }
     work.filters.goals = goals.len();
@@ -148,11 +177,23 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         }
         if has_queued(&changes, Belongs::Chat(chat.task)) {
             let card = Card { item: Item::Chat(chat.task), changes: held };
-            insert_card(&mut in_flight, ActiveCard { activity: chat.activity, task: chat.task, card });
+            insert_card(facts, &mut in_flight, ActiveCard { activity: chat.activity, task: chat.task, card });
         }
         if chat.draft {
             let card = Card { item: Item::Draft(chat.task), changes: List::with_capacity(0) };
-            insert_card(&mut drafts, ActiveCard { activity: chat.activity, task: chat.task, card });
+            insert_card(facts, &mut drafts, ActiveCard { activity: chat.activity, task: chat.task, card });
+        }
+    }
+    let mut landed = Set::with_capacity(facts.landed.len());
+    for (index, draft) in facts.landed.iter().enumerate() {
+        let key = (draft.forge, draft.owner.clone(), draft.name.clone(), draft.path.clone());
+        if !landed.insert(key).expect("one key per landed draft row") {
+            continue;
+        }
+        if draft.listed {
+            let index = u32::try_from(index).expect("landed facts fit");
+            let card = Card { item: Item::Landed(index), changes: List::with_capacity(0) };
+            insert_card(facts, &mut drafts, ActiveCard { activity: draft.at, task: 0, card });
         }
     }
     let week_start = Wall::from_nanos(wall.as_nanos().saturating_sub(LANDED_THIS_WEEK.as_nanos()));
@@ -166,7 +207,7 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
                 };
                 if !held {
                     let card = Card { item: Item::Change(change.task), changes: List::with_capacity(0) };
-                    insert_card(&mut in_flight, ActiveCard { activity: since, task: change.task, card });
+                    insert_card(facts, &mut in_flight, ActiveCard { activity: since, task: change.task, card });
                 }
             }
             Where::Landed { at } => {
@@ -190,15 +231,34 @@ fn newer(left: Wall, left_task: u64, right: Wall, right_task: u64) -> bool {
     left > right || (left == right && left_task < right_task)
 }
 
-fn insert_card(cards: &mut List<ActiveCard>, mut card: ActiveCard) {
+fn insert_card(facts: &Facts, cards: &mut List<ActiveCard>, mut card: ActiveCard) {
     for next in cards.iter_mut() {
-        if newer(card.activity, card.task, next.activity, next.task) {
+        if card_before(facts, &card, next) {
             core::mem::swap(next, &mut card);
         }
     }
     cards.push(card).expect("one card per listed item");
 }
 
+fn card_before(facts: &Facts, left: &ActiveCard, right: &ActiveCard) -> bool {
+    if left.activity != right.activity {
+        return left.activity > right.activity;
+    }
+    match (landed_card(facts, left.card.item), landed_card(facts, right.card.item)) {
+        (Some(left), Some(right)) => {
+            (left.forge, &left.owner, &left.name, &left.path) < (right.forge, &right.owner, &right.name, &right.path)
+        }
+        (Some(_), None) => false,
+        (None, Some(_)) => true,
+        (None, None) => left.task < right.task,
+    }
+}
+fn landed_card(facts: &Facts, item: Item) -> Option<&Landed> {
+    match item {
+        Item::Landed(index) => facts.landed.get(index),
+        Item::Goal(_) | Item::Change(_) | Item::Chat(_) | Item::Draft(_) => None,
+    }
+}
 fn ordered_changes(changes: &List<Change>) -> List<Change> {
     let mut seen = Set::with_capacity(changes.len());
     let mut ordered = List::with_capacity(changes.len());
@@ -297,13 +357,14 @@ pub fn overrides(root: &crate::Domain, project: u32) -> Overrides {
     }
 }
 
-/// Gather the three lists only once each has answered (client/pages/README.md, Work).
+/// Gather the four lists only once each has answered (client/pages/README.md, Work).
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
     use super::changes::State;
     let goals = root.pages().goals()?;
     let changes = root.pages().changes()?;
     let chats = root.pages().chats()?;
+    let drafts = root.pages().drafts()?;
     if root.pages().project() != Some(project)
         || changes.project != project
         || !goals.known(root.client())
@@ -318,6 +379,15 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
         State::Ended => None,
     };
     let mut facts = Facts::default();
+    match drafts.state() {
+        super::drafts::State::Loading => return None,
+        super::drafts::State::Shown(panel) => {
+            for row in panel.drafts() {
+                facts.landed.push(Landed::row(row)).expect("one fact per landed draft");
+            }
+        }
+        super::drafts::State::Ended => {}
+    }
     for line in &goals.live(root.client())?.rows {
         facts
             .goals

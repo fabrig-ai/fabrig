@@ -496,3 +496,200 @@ fn no_funds_blocks_unless_the_way_has_an_amount() {
         }
     }
 }
+
+fn landed() -> pages::work::Landed {
+    pages::work::Landed {
+        forge: 3,
+        owner: b"author".as_slice().into(),
+        name: b"project".as_slice().into(),
+        path: PATH.into(),
+        at: skein_lib::Wall::from_nanos(FACT_AT),
+        title: b"Away mode".as_slice().into(),
+        listed: true,
+    }
+}
+fn open_landed(h: &mut Harness, start: bool) {
+    h.event(Event::Went { address: Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All } });
+    h.out = Queue::uncapped();
+    h.act(Act::OpenLanded { draft: landed(), start });
+}
+#[test]
+fn another_way_holds_the_landed_path_and_create_marks_it_started_after_the_sheet_closes() {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut h = Harness::new(me());
+    open_landed(&mut h, false);
+    let start = h.pages.start().unwrap();
+    assert_eq!(start.landed, Some(landed()));
+    assert_eq!(start.given.as_deref(), Some(PATH));
+    assert_eq!(start.chat, None);
+    assert!(start.body.is_none());
+    assert!(start.pending.is_none());
+    assert!(h.out.is_empty());
+    h.act(Act::StartGoal);
+    let (key, ask) = h.sent();
+    let c::Ask::Create { tasks, .. } = ask else { panic!("create from path") };
+    assert_eq!(
+        tasks.get(0).unwrap().spec.words.bytes(),
+        b"away-mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md"
+    );
+    h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
+    let Some(Request::Client(jig_client::Event::Send {
+        key: started,
+        name: None,
+        request: jig_client::Ask::Family { scope, record },
+    })) = h.out.pop()
+    else {
+        panic!("keyed started request")
+    };
+    assert_ne!(key, started);
+    assert_eq!(scope, c::Scope::Project(fixtures::PROJECT));
+    let w::Request::SetDraft(value) =
+        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+    else {
+        panic!("SetDraft")
+    };
+    assert_eq!(value.project(), fixtures::PROJECT);
+    assert_eq!(value.repository().as_ref().unwrap().owner(), b"author");
+    assert_eq!(value.repository().as_ref().unwrap().name(), b"project");
+    assert_eq!(value.path(), PATH);
+    let w::DraftChange::Started(value) = value.change() else { panic!("started") };
+    assert_eq!(value.goal(), GOAL);
+    assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
+    assert!(h.pages.start().is_none());
+    h.event(Event::Went { address: Address::Task { task: GOAL } });
+    h.out = Queue::uncapped();
+    h.answer(
+        started,
+        Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None })),
+    );
+    assert!(h.out.is_empty());
+    assert!(h.pages.start().is_none());
+    assert_eq!(h.pages.needs().toast(), None);
+}
+#[test]
+fn recommended_landed_start_sends_once_only_when_the_sheet_is_enabled() {
+    for funded in [true, false] {
+        let mut me = me();
+        if !funded {
+            me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.budget = 0;
+        }
+        let mut h = Harness::new(me);
+        open_landed(&mut h, true);
+        assert_eq!(h.pages.start().unwrap().way, Some(WAY));
+        assert_eq!(h.pages.start().unwrap().pending.is_some(), funded);
+        if funded {
+            h.sent();
+        } else {
+            assert_eq!(
+                start_goal::unfunded(h.pages.me(h.root.client()).unwrap(), fixtures::PROJECT, Some(WAY)),
+                Some(start_goal::Unfunded::Empty)
+            );
+        }
+        h.act(Act::StartGoal);
+        assert!(h.out.is_empty());
+    }
+}
+#[test]
+fn a_proposed_goal_from_a_landed_draft_does_not_mark_it_started() {
+    let to = c::Recipient::Party(fixtures::PARTY);
+    let mut h = Harness::new(beyond(me(), c::Beyond::Proposed { to: to.clone() }));
+    open_landed(&mut h, true);
+    let (key, ask) = h.sent();
+    let c::Ask::Propose { .. } = ask else { panic!("proposed") };
+    h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
+    assert!(h.pages.start().is_none());
+    assert_eq!(h.pages.needs().toast(), Some(&Toasted::Proposed { to }));
+    assert!(h.out.is_empty());
+}
+#[test]
+fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
+    use jig_client::{Down, Readable, Readout, Up};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = TEXT;
+    limits.client.domain.long_text = TEXT;
+    limits.client.domain.turn_text = TEXT;
+    limits.client.domain.handles = 64;
+    limits.client.domain.reads = 32;
+    limits.client.exchanges = 32;
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    let watch = fixtures::start(&mut root, List::uncapped());
+    let mut frame = me();
+    let templates = &mut frame.projects.get_mut(0).unwrap().templates;
+    let mut preferred = templates.get(0).unwrap().clone();
+    preferred.number = 9;
+    preferred.label = 9;
+    *templates = List::from_boxed(Box::new([templates.get(0).unwrap().clone(), preferred]));
+    let out = root_event(
+        &mut root,
+        &limits,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame))) },
+            },
+        },
+    );
+    let mut setting = None;
+    for request in &out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+        } = request
+            && let w::Read::Setting(key) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && key.kind() == 7
+        {
+            setting = Some(*read);
+        }
+    }
+    let ways =
+        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals: true, changes: true, way: 9 })
+            .unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).unwrap());
+    ways.encode(&mut writer).unwrap();
+    let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap();
+    root_event(
+        &mut root,
+        &limits,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::ReadDone {
+                    read: setting.unwrap(),
+                    result: Readout::Family { family: wire::FORGE, record: Some(wire::setting_answer(&answer)) },
+                },
+            },
+        },
+    );
+    root_event(
+        &mut root,
+        &limits,
+        crate::Event::Went {
+            place: crate::Place::Address(Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All }),
+        },
+    );
+    let out = root_event(
+        &mut root,
+        &limits,
+        crate::Event::Act { action: crate::Action::Pages(Act::OpenLanded { draft: landed(), start: true }) },
+    );
+    let start = root.pages().start().unwrap();
+    assert_eq!(start.way, Some(9));
+    assert!(start.pending.is_some());
+    let mut sent = false;
+    for request in &out {
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        } = request
+        {
+            let c::Ask::Create { tasks, .. } = ask.as_ref() else { panic!("create goal") };
+            assert_eq!(tasks.get(0).unwrap().label, 9);
+            sent = true;
+        }
+    }
+    assert!(sent);
+}
+
+fn root_event(root: &mut crate::Domain, limits: &crate::Limits, event: crate::Event) -> Queue<crate::Request> {
+    let mut out = Queue::uncapped();
+    crate::step(root, &fixtures::env(limits), event, &mut out);
+    out
+}

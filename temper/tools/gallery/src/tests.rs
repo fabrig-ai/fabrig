@@ -435,9 +435,12 @@ static HOLDS: [Holds; samples::N] = [
                 section: "Drafts · 2",
                 from: &[
                     "draftread-barriers.md · a chat with you · 07:21",
-                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                    "draft · witness-catch-up.md · landed in docs/design/draft/ · ready since Fri 14:10",
                 ],
             },
+            Part::Named { role: Role::Button, name: "Start a goal: Draft first" },
+            Part::Named { role: Role::Button, name: "Another way" },
+            Part::Text { text: "vsr’s way" },
             Part::Named { role: Role::Region, name: "Landed this week · 4" },
             Part::CardChanges {
                 title: "membership-handoff",
@@ -494,9 +497,12 @@ static HOLDS: [Holds; samples::N] = [
                 section: "Drafts · 2",
                 from: &[
                     "draftread-barriers.md · a chat with you · 07:21",
-                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                    "draft · witness-catch-up.md · landed in docs/design/draft/ · ready since Fri 14:10",
                 ],
             },
+            Part::Named { role: Role::Button, name: "Start a goal: Draft first" },
+            Part::Named { role: Role::Button, name: "Another way" },
+            Part::Text { text: "vsr’s way" },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
             Part::Absent { role: Role::Region, name: "Landed this week · 4" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
@@ -4521,7 +4527,7 @@ fn no_state_reads_of_zero(sample: &Sample, view: &temper_client_view::View) {
     }
 }
 // A browser's button, tab and option show their name as their text (skein/docs/design/ui/web/elements.md), so text under one
-// is more words; recommended/default/new tags and All models' count are intentional children (temper/docs/design/client/pages/README.md).
+// is more words; recommended/default/new tags, Work's project way and All models' count are intentional children (temper/docs/design/client/pages/README.md).
 fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temper_client_view::View) {
     let nodes = view.tree().nodes();
     for (index, node) in nodes.iter().enumerate() {
@@ -4530,13 +4536,21 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
         }
         let mut text = Vec::new();
         let mut tagged = Vec::new();
+        let mut way = Vec::new();
+        let mut way_end = 0;
         let mut tag_end = 0;
         for (offset, inner) in nodes.iter().enumerate().skip(index).take(usize::try_from(node.size).unwrap()) {
             if inner.styles.as_slice().contains(&temper_client_view::look::MODEL_TAG) {
                 tag_end = offset + usize::try_from(inner.size).unwrap();
             }
+            if inner.styles.as_slice().contains(&temper_client_view::look::WORK_WAY) {
+                way_end = offset + usize::try_from(inner.size).unwrap();
+            }
             for run in &inner.text {
                 text.extend_from_slice(&run.text);
+                if offset < way_end {
+                    way.extend_from_slice(&run.text);
+                }
                 if offset < tag_end {
                     tagged.extend_from_slice(&run.text);
                 }
@@ -4549,6 +4563,10 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
                 || tagged == b"defaultnew"
                 || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
                     && tagged.iter().all(u8::is_ascii_digit)));
+        let project_way = node.role == Role::Button
+            && node.styles.as_slice().contains(&temper_client_view::look::WORK_CHOICE)
+            && !way.is_empty()
+            && text == way;
         let path_stop = node.role == Role::Button
             && node.name.as_deref() == Some(text.as_slice())
             && nodes[..index].iter().enumerate().any(|(start, ancestor)| {
@@ -4556,7 +4574,7 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
                     && index < start + usize::try_from(ancestor.size).expect("drawing span")
             });
         assert!(
-            text.is_empty() || text == b"recommended" || model_tag || path_stop,
+            text.is_empty() || text == b"recommended" || model_tag || project_way || path_stop,
             "{}: {:?} {:?} also draws the text {:?}",
             sample.name,
             node.role,

@@ -186,6 +186,8 @@ impl Limits {
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
             )?
+            // Each landed draft has its from line, title and two choices, one with a small byline.
+            .checked_add(temper_client_protocol_wire::v1::CEILINGS.drafts_panel_drafts.checked_mul(24)?)?
             // The toast holds a refusal, its Look again sentence and button (six nodes),
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
