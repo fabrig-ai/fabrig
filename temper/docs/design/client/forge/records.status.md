@@ -62,9 +62,6 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Not yet:** *A project's changes*: `ChangesLanded`'s `commit` and
-  `default_branch`, and `ChangesPanel`'s `landed_default` and
-  `landed_default_more`. [in flight: change 626]
 - **Departs:** `../pages/README.md`, *The first chat*, and `../view.md`, 3: the rail's "Ask temper", the
   tab bar's "Ask" and To begin's "Start" choose among the rows
   `temper-client-domain`'s `Chats::open_asking` is delivered, whose
