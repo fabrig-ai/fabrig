@@ -4242,3 +4242,51 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
     }
 }
+
+#[test]
+fn set_draft_is_undecodable_until_the_engine_keeps_drafts() {
+    let request = w::SetDraft::new(
+        &w::CEILINGS,
+        w::SetDraftParts {
+            project: 7,
+            repository: None,
+            path: b"docs/design/draft/catch-up.md".as_slice().into(),
+            change: w::DraftChange::Ready(
+                w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let record =
+        w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::SetDraft(request) }).unwrap();
+    let refused = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+        &fixtures::forge_table(&[]),
+        None,
+        &family::Deployment { welcome: false, owned: false, program_login: None },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap_err();
+    let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *refused else { panic!("undecodable") };
+    assert_eq!(to, REPLY);
+}
+
+#[test]
+fn drafts_watch_is_refused_until_the_engine_keeps_drafts() {
+    let subject = w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: 7 }).unwrap();
+    let record = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Drafts(subject) }).unwrap();
+    let refused = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&record)),
+        &fixtures::forge_table(&[]),
+        None,
+        &family::Deployment { welcome: false, owned: false, program_login: None },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap_err();
+    let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
+    assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+}
