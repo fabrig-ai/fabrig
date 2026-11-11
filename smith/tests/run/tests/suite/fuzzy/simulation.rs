@@ -366,10 +366,16 @@ fn deadlines_find_runs_in_every_state_they_run_in_over_many_seeds_cells() -> BTr
             time: Span::millis(2_000, 15_000),
             tokens_min: 80_000,
             tokens_max: 100_000,
+            delivery: Span::millis(20_000, 20_000),
             ..landing.host
         };
         let partner = Script { changes: 1000, turn: Span::millis(100, 2_000), ..landing.partner };
         let checkout = Checkouts { check: Span::millis(2_000, 8_000), check_failures: 3, ..landing.checkout };
+        let settings = Settings { run, host, partner, checkout, hop: Span::millis(0, 1_500), ..landing };
+        tally(&settled(&settings), &mut cancels, &mut deadlines);
+        // Checks end at the run deadline, before its alarm is handled. Also
+        // let checks pass so a submitted delivery awaits its host terminal.
+        let checkout = Checkouts { check: Span::millis(100, 100), check_failures: 0, ..landing.checkout };
         let settings = Settings { run, host, partner, checkout, hop: Span::millis(0, 1_500), ..landing };
         tally(&settled(&settings), &mut cancels, &mut deadlines);
     }
