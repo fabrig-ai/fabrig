@@ -41,7 +41,11 @@ fn setup() -> (Driver, u64, u64) {
     }])));
     driver.connect_forges(); driver.settle(); driver.sign_in(); driver.settle();
     let (party, sign_in) = driver.delivered.iter().find_map(|delivery| match delivery { root::Delivery::WebReply { reply: people::Reply::SignedIn { person, sign_in, .. }, .. } => Some((*person, *sign_in)), _ => None }).expect("signed-in writer");
-    application(&mut driver, sign_in, 95, root::Application::Forge(forge::Ask::Adopt(fixtures::adoption(1))));
+    driver.send(root::Event::Party(root::PartyInput::Application {
+        scope: ApplicationScope::Project(1), reply_to: ReplyTo::new(Token::new(95)), sign_in,
+        key: [95; 16], digest: [95; 32], carried: None,
+        request: root::Application::Forge(forge::Ask::Adopt(fixtures::adoption(1))),
+    }));
     driver.settle(); driver.delivered.clear();
     (driver, party, sign_in)
 }
