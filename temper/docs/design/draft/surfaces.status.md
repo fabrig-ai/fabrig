@@ -62,8 +62,8 @@
     left off and Needs you are the project's, where 11.1 has them across
     the person's projects: 3.5, *Home on All projects*, reads every
     project and joins their briefs in `pages::all_home::brief`, which the
-    launchpad doesn't read (3). 6.14, *A design session*, holds 11.2 and
-    11.1's and 11.4's `/draft` (the plan `tui-design-session`), where it
+    launchpad doesn't read (3). `../client/tui/pages.md`, *A design session*, holds 11.2 and
+    11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
     `tui-design-session.status.md` records. No design holds 11.3's
     talking with a role.

@@ -9,6 +9,7 @@ pub const SECTIONS: Region = Region { owner: OWNER, number: 2 };
 pub const WORKING: Region = Region { owner: OWNER, number: 3 };
 pub const BOX: Region = Region { owner: OWNER, number: 4 };
 pub const LIST: Region = Region { owner: OWNER, number: 5 };
+pub const PANE: Region = Region { owner: OWNER, number: 6 };
 pub const TITLE: Style = Style { owner: OWNER, token: 0 };
 pub const HINT: Style = Style { owner: OWNER, token: 1 };
 pub const LIVE: Style = Style { owner: OWNER, token: 2 };
@@ -83,7 +84,7 @@ pub const NAMES: Names<'static> = Names {
         b"tui-playground",
         b"tui-end-faint",
     ],
-    regions: &[b"tui-top", b"tui-bottom", b"tui-sections", b"tui-working", b"tui-box", b"tui-list"],
+    regions: &[b"tui-top", b"tui-bottom", b"tui-sections", b"tui-working", b"tui-box", b"tui-list", b"tui-pane"],
 };
 /// The link field's binding token under OWNER.
 pub const LINK: Token = Token::new(1);

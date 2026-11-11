@@ -167,6 +167,9 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.change_policy.resolutions" => {
             limits.forge.change_policy.resolutions = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"forge.change_policy.reruns" => {
+            limits.forge.change_policy.reruns = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.change_policy.updates" => {
             limits.forge.change_policy.updates = u32::try_from(value).or(Err(Refused::Range))?;
         }
@@ -330,7 +333,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 171] = [
+pub static NAMES: [Name; 172] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -924,6 +927,12 @@ pub static NAMES: [Name; 171] = [
         unit: Unit::Count,
         line: "Bounds conflict resolution attempts in a change.",
         value: |limits| u64::from(limits.forge.change_policy.resolutions),
+    },
+    Name {
+        name: "forge.change_policy.reruns",
+        unit: Unit::Count,
+        line: "Bounds re-runs of a runner-failed job at one head.",
+        value: |limits| u64::from(limits.forge.change_policy.reruns),
     },
     Name {
         name: "forge.change_policy.updates",
