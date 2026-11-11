@@ -93,7 +93,11 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Qu
     domain::child(
         d,
         env,
-        skein_forge_client::Event::Read { owner, repository, read: skein_forge::api::Read::Pull { number: pull } },
+        skein_forge_client::Event::Read {
+            owner,
+            repository,
+            read: skein_forge::api::Read::Pull { number: pull, ci: false },
+        },
         out,
     );
 }
@@ -144,7 +148,7 @@ pub(crate) fn answer(
                     Some(skein_forge::api::Read::PullFiles { number: pending.pull, head, page, skip })
                 } else {
                     pending.stage = Stage::After;
-                    Some(skein_forge::api::Read::Pull { number: pending.pull })
+                    Some(skein_forge::api::Read::Pull { number: pending.pull, ci: false })
                 }
             }
             Ok(_) | Err(_) => None,

@@ -183,7 +183,7 @@ fn asked(op: &api::Op) -> Asked {
         api::Op::Read(read) => match read {
             api::Read::Items { .. } => Asked::Items,
             api::Read::Item { number, .. } => Asked::Item(*number),
-            api::Read::Pull { number } => Asked::Pull(*number),
+            api::Read::Pull { number, .. } => Asked::Pull(*number),
             api::Read::Reviews { .. } => Asked::Reviews,
             api::Read::Branch { .. } => Asked::Branch,
             api::Read::Artifact { .. } => Asked::Artifact,

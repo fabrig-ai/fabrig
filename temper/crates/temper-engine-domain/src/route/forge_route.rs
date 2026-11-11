@@ -643,7 +643,7 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         segments.push(Box::from(segment)).ok()?;
     }
     let what = match read {
-        skein_forge::api::Read::Pull { number }
+        skein_forge::api::Read::Pull { number, .. }
         | skein_forge::api::Read::Reviews { number, .. }
         | skein_forge::api::Read::Remarks { number, .. }
         | skein_forge::api::Read::PullFiles { number, .. } => Some((b"pull".as_slice(), Some(decimal(*number)))),

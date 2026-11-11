@@ -1039,7 +1039,7 @@ fn advance(
                         change::Status::Unknown | change::Status::Pending => policy::Status::Unknown,
                     };
                     p.stage = Stage::Pull(index);
-                    api::Read::Pull { number: member.pull }
+                    api::Read::Pull { number: member.pull, ci: false }
                 }
                 Stage::Pull(_) => {
                     let Ok(api::Answer::Pull(pull)) = answer else {

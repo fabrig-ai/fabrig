@@ -377,7 +377,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
                     Answer::Commit(fixtures::HEAD)
                 }
             }
-            Op::Read(Read::Pull { number }) => {
+            Op::Read(Read::Pull { number, ci: false }) => {
                 pulls = pulls.checked_add(1).expect("bounded reads");
                 let mut pull = fixtures::open_pull();
                 pull.number = number;
@@ -651,7 +651,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             Op::Read(Read::Items { .. }) => {
                 Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
             }
-            Op::Read(Read::Pull { number: 1 }) => {
+            Op::Read(Read::Pull { number: 1, ci: false }) => {
                 let mut pull = fixtures::open_pull();
                 if merged {
                     pull.state = skein_forge::api::State::Closed;

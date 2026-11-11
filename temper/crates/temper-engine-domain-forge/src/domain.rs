@@ -98,6 +98,7 @@ pub(crate) struct PendingStep {
     branch_fresh: bool,
     base_tip: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
+    pull_ci: bool,
     ci: change::Status,
     base_ci: change::Status,
     contains_base: change::Status,
@@ -3567,6 +3568,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         branch_fresh: read_branch,
         base_tip: None,
         pull: None,
+        pull_ci: false,
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
@@ -3679,6 +3681,7 @@ fn step_verified(
         branch_fresh: false,
         base_tip: Some(merge),
         pull: None,
+        pull_ci: false,
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
@@ -3779,6 +3782,11 @@ fn step_read(
         Some(repository) => crate::ci::required(&repository.protection),
         None => &[],
     };
+    let result_rows = result_contexts(&preparing);
+    let mut pull_ci = required.is_empty() && !result_rows;
+    if let change::State::Repairing { .. } = preparing {
+        pull_ci = required.is_empty();
+    }
     let next = match pending.stage {
         StepStage::Branch => {
             if pending.branch_fresh
@@ -3872,8 +3880,9 @@ fn step_read(
                 skein_forge::api::Read::Commits { before: pending.base_tip.expect("base read"), after: commit, page: 1 }
             } else {
                 pending.stage = StepStage::Pull;
+                pending.pull_ci = pull_ci && pull_number.is_some();
                 match pull_number {
-                    Some(number) => skein_forge::api::Read::Pull { number },
+                    Some(number) => skein_forge::api::Read::Pull { number, ci: pull_ci },
                     None => skein_forge::api::Read::PullFor { head: branch, base },
                 }
             }
@@ -3889,8 +3898,9 @@ fn step_read(
                 return;
             }
             pending.stage = StepStage::Pull;
+            pending.pull_ci = pull_ci && pull_number.is_some();
             match pull_number {
-                Some(number) => skein_forge::api::Read::Pull { number },
+                Some(number) => skein_forge::api::Read::Pull { number, ci: pull_ci },
                 None => skein_forge::api::Read::PullFor { head: branch, base },
             }
         }
@@ -3925,43 +3935,55 @@ fn step_read(
                 );
                 return;
             };
-            skein_forge::api::Read::Checks { commit }
+            let pull_ci = match &pending.pull {
+                Some(pull) if pending.pull_ci && pull_number.is_some() && pull.commit == commit => Some(pull.ci),
+                Some(_) | None => None,
+            };
+            if let Some(ci) = pull_ci {
+                pending.ci = status(ci);
+                ci_news::observe_verdict(d, env, pending.task, commit, ci);
+                if let Some(row) = d.changes.get_mut(&pending.task)
+                    && row.result.head != Some(commit)
+                    && row.result.checked(commit, &[], env.limits.client.answer_bytes)
+                {
+                    let saved = row.clone();
+                    emit(
+                        out,
+                        Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
+                    );
+                }
+                if ci == skein_forge::api::Ci::Failed || result_rows {
+                    // Repairs retain the contexts they observed, beside the pull verdict.
+                    skein_forge::api::Read::Checks { commit }
+                } else {
+                    step_after_ci(d, &mut pending, out)
+                }
+            } else {
+                skein_forge::api::Read::Checks { commit }
+            }
         }
         StepStage::Ci => {
-            match result {
-                Ok(skein_forge::api::Answer::Checks(rows)) => {
-                    pending.ci = match &pending.pull {
-                        Some(pull) if required.is_empty() && Some(pull.commit) == pending.branch => status(pull.ci),
-                        Some(_) | None => status(crate::ci::fold(&rows, required)),
-                    };
-                    if let Some(head) = pending.branch {
-                        let ci = crate::ci::fold(&rows, required);
-                        ci_news::observe(d, env, pending.task, head, &rows, ci);
-                    }
-                    if let Some(head) = pending.branch
-                        && let Some(row) = d.changes.get_mut(&pending.task)
-                        && row.result.checked(head, &rows, env.limits.client.answer_bytes)
-                    {
-                        let saved = row.clone();
-                        emit(
-                            out,
-                            Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
-                        );
-                    }
+            if let Ok(skein_forge::api::Answer::Checks(rows)) = result {
+                let ci = match &pending.pull {
+                    Some(pull) if pending.pull_ci && Some(pull.commit) == pending.branch => pull.ci,
+                    Some(_) | None => crate::ci::fold(&rows, required),
+                };
+                pending.ci = status(ci);
+                if let Some(head) = pending.branch {
+                    ci_news::observe(d, env, pending.task, head, &rows, ci);
                 }
-                Ok(_) | Err(_) => {
-                    pending.ci = match &pending.pull {
-                        Some(pull) if required.is_empty() && Some(pull.commit) == pending.branch => status(pull.ci),
-                        Some(_) | None => change::Status::Unknown,
-                    };
+                if let Some(head) = pending.branch
+                    && let Some(row) = d.changes.get_mut(&pending.task)
+                    && row.result.checked(head, &rows, env.limits.client.answer_bytes)
+                {
+                    let saved = row.clone();
+                    emit(
+                        out,
+                        Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
+                    );
                 }
             }
-            if let Some(head) = pending.branch {
-                keep_panel_ci(d, pending.task, change::Ci { head, status: pending.ci }, out);
-            }
-            pending.stage = StepStage::BaseCi;
-            let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
-            skein_forge::api::Read::Checks { commit: base_tip }
+            step_after_ci(d, &mut pending, out)
         }
         StepStage::BaseCi => {
             match result {
@@ -4034,6 +4056,50 @@ fn step_read(
     };
     d.steps.insert(owner, pending).expect("replaces step");
     child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
+}
+
+/// Landings, repairs and held observations retain the head's context rows.
+fn result_contexts(state: &change::State) -> bool {
+    match state {
+        change::State::First { .. }
+        | change::State::Queued { .. }
+        | change::State::Held { .. }
+        | change::State::Repairing { .. } => true,
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    }
+}
+
+/// Once the head's verdict is known, the same commit also serves as the base's CI.
+fn step_after_ci(d: &mut Domain, pending: &mut PendingStep, out: &mut Queue<Request>) -> skein_forge::api::Read {
+    let head = pending.branch.expect("head read before CI");
+    keep_panel_ci(d, pending.task, change::Ci { head, status: pending.ci }, out);
+    let base_tip = pending.base_tip.expect("base read before CI");
+    if head == base_tip {
+        pending.base_ci = pending.ci;
+        pending.stage = StepStage::Compare;
+        skein_forge::api::Read::Commits { before: head, after: base_tip, page: 1 }
+    } else {
+        pending.stage = StepStage::BaseCi;
+        skein_forge::api::Read::Checks { commit: base_tip }
+    }
 }
 
 pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<change::Ready>, Option<u64>) {
@@ -6292,14 +6358,32 @@ fn landing_read(
 }
 
 /// A changed pull invalidates a gather even while its procedure is already due.
-fn wake_pull_changes(d: &mut Domain, repository: skein_forge::api::Repository, pull: &skein_forge::api::Pull) {
+fn wake_pull_changes(
+    d: &mut Domain,
+    repository: skein_forge::api::Repository,
+    pull: &skein_forge::api::Pull,
+    facts: bool,
+) {
     for (_, row) in &d.changes {
         if row.repository != repository || row.pull != Some(pull.number) {
             continue;
         }
+        if !facts {
+            let required = match d.repositories.get(&repository) {
+                Some(repository) => !crate::ci::required(&repository.protection).is_empty(),
+                None => false,
+            };
+            if required || ci_news::seen(d, row.task, pull.commit, pull.ci) {
+                continue;
+            }
+        }
         let mut reading = None;
         for (owner, pending) in &d.steps {
-            if pending.task == row.task && pending.pull.as_ref() != Some(pull) {
+            let different = match &pending.pull {
+                Some(gathered) => !same_pull_facts(gathered, pull) || (pending.pull_ci && gathered.ci != pull.ci),
+                None => true,
+            };
+            if pending.task == row.task && different {
                 reading = Some(*owner);
             }
         }
@@ -6308,6 +6392,12 @@ fn wake_pull_changes(d: &mut Domain, repository: skein_forge::api::Repository, p
         }
         d.procedure_wakes.insert(row.task, true).expect("one pending wake per change");
     }
+}
+
+fn same_pull_facts(left: &skein_forge::api::Pull, right: &skein_forge::api::Pull) -> bool {
+    let mut left = left.clone();
+    left.ci = right.ci;
+    left == *right
 }
 
 fn pull_changed(
@@ -6323,17 +6413,18 @@ fn pull_changed(
         None => None,
     };
     // Only what the gather reads wakes the change: an unchanged poll does not (8.3).
-    let wakes = match (&prior, &name) {
+    let facts = match (&prior, &name) {
         (Some(row), Some(name)) => {
-            row.head != pull.commit
-                || row.ci != pull.ci
-                || row.state != pull.state
-                || d.pull_mergeable.get(name) != Some(&pull.mergeable)
+            row.head != pull.commit || row.state != pull.state || d.pull_mergeable.get(name) != Some(&pull.mergeable)
         }
         (Some(_), None) | (None, _) => true,
     };
-    if wakes {
-        wake_pull_changes(d, resource.repository, &pull);
+    let ci = match &prior {
+        Some(row) => row.ci != pull.ci,
+        None => true,
+    };
+    if facts || ci {
+        wake_pull_changes(d, resource.repository, &pull, facts);
     }
     let mut changed = List::with_capacity(env.limits.changes);
     for (_, row) in &d.changes {
@@ -6398,6 +6489,7 @@ fn pull_changed(
         if required.is_empty() {
             ci_observed(d, resource.repository, pull.commit, pull.ci, out);
         } else {
+            ci_news::refreshing(d, resource.repository, pull.commit);
             ci_refresh(d, env, resource.repository, pull.commit, out);
         }
     }

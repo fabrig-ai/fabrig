@@ -48,7 +48,7 @@ enum State {
     Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64, skip: u32, cut: bool },
     Issue { row: Repository, after: u64, since: Option<Wall> },
     Comments { item: api::Summary, rows: List<api::Comment>, more: bool, size: u64, after: u64 },
-    Pull { row: Repository },
+    Pull { row: Repository, ci: bool },
     PullFor { row: Repository, head: Box<[u8]>, base: Box<[u8]> },
     Pulls { row: Repository, head: Box<[u8]>, base: Box<[u8]>, pull: Box<d::PullRequest>, found: bool, page: u32 },
     Status { row: Repository, pull: Box<d::PullRequest>, actions: Box<super::actions::Plan> },
@@ -199,7 +199,7 @@ impl Plan {
                 },
                 Request::Issue { at, number },
             ),
-            api::Read::Pull { number } => (State::Pull { row }, Request::Pull { at, number }),
+            api::Read::Pull { number, ci } => (State::Pull { row, ci }, Request::Pull { at, number }),
             api::Read::PullFor { head, base } => {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
             }
@@ -694,8 +694,9 @@ fn terminal(answer: api::Answer, bounds: Bounds) -> Result<Step, api::Error> {
 }
 fn checks_ci(answer: api::Answer) -> Result<api::Ci, api::Error> {
     match answer {
-        api::Answer::Checks(statuses) => Ok(reading::checks_ci(&statuses)),
-        api::Answer::Runs { .. }
+        api::Answer::Statuses { ci, .. } => Ok(ci),
+        api::Answer::Checks(_)
+        | api::Answer::Runs { .. }
         | api::Answer::Run(_)
         | api::Answer::Tree { .. }
         | api::Answer::Commits { .. }
@@ -703,7 +704,6 @@ fn checks_ci(answer: api::Answer) -> Result<api::Ci, api::Error> {
         | api::Answer::Item { .. }
         | api::Answer::Pull(_)
         | api::Answer::Reviews { .. }
-        | api::Answer::Statuses { .. }
         | api::Answer::Remarks { .. }
         | api::Answer::Commit(_)
         | api::Answer::Branches(_)

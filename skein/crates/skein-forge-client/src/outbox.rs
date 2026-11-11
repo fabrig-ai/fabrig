@@ -336,7 +336,7 @@ fn operation(w: &mut Writing, phase: Phase) -> Op {
         }
         Phase::Ancestry { head, base } => Read::Commits { before: head, after: base, page: 1 },
         Phase::Check | Phase::Queued | Phase::AfterUpdate | Phase::AfterMerge { .. } => {
-            Read::Pull { number: w.lane.number.expect("conditional effect names an item") }
+            Read::Pull { number: w.lane.number.expect("conditional effect names an item"), ci: false }
         }
         Phase::Find { page, after, skip } => match &w.entry.effect.write {
             Write::Dispatch { branch, .. } => Read::Branch { branch: branch.clone() },
@@ -350,7 +350,7 @@ fn operation(w: &mut Writing, phase: Phase) -> Op {
             Write::OpenPull { head, base, .. } => Read::PullFor { head: head.clone(), base: base.clone() },
             Write::Post { number, .. } => Read::Item { number: *number, after, since: Time::ZERO },
             Write::Review { number, .. } => Read::Reviews { number: *number, page, skip },
-            Write::Merge { number, .. } | Write::Update { number, .. } => Read::Pull { number: *number },
+            Write::Merge { number, .. } | Write::Update { number, .. } => Read::Pull { number: *number, ci: false },
             Write::CreateBranch { branch, .. } | Write::DeleteBranch { branch } => {
                 Read::Branch { branch: branch.clone() }
             }

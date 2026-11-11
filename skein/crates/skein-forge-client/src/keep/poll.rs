@@ -86,7 +86,7 @@ fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
             What::Repository | What::Branch(_) => unreachable!("item stage"),
         },
         Phase::Pull => match key.what {
-            What::Pull(number) => Read::Pull { number },
+            What::Pull(number) => Read::Pull { number, ci: true },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("pull stage"),
         },
         Phase::Reviews(page, skip) => match key.what {
@@ -266,13 +266,9 @@ fn affected(row: &Live, key: &Resource, change: &Change) -> bool {
             What::Issue(_) => false,
         },
         Change::Commit(commit) => match key.what {
-            What::Pull(_) => match &row.record.cached.pull {
-                Some(pull) => pull.commit == *commit || pull.base_commit == Some(*commit),
-                None => true,
-            },
             What::Branch(_) => row.record.cached.tip == Some(*commit),
             What::Repository => true,
-            What::Issue(_) => false,
+            What::Pull(_) | What::Issue(_) => false,
         },
     }
 }

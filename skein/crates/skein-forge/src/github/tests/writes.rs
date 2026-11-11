@@ -1162,7 +1162,7 @@ fn github_update_422_and_first_failure() {
     }
 }
 fn fresh_update_pull(tables: &mut Tables, current: api::Commit, chunk: u32) -> api::Pull {
-    let mut proof = Plan::new(KEY, api::Op::Read(api::Read::Pull { number: NUMBER }));
+    let mut proof = Plan::new(KEY, api::Op::Read(api::Read::Pull { number: NUMBER, ci: false }));
     assert_eq!(
         begin(&mut proof, tables),
         Request::Pull { owner: Box::from(*b"acme"), name: Box::from(*b"widgets"), number: NUMBER }
@@ -1173,21 +1173,6 @@ fn fresh_update_pull(tables: &mut Tables, current: api::Commit, chunk: u32) -> a
     let mut wire = skein_lib::Writer::new(4096);
     crate::github::server::pull(&fresh, &mut wire).unwrap();
     let (_, document) = decode(Kind::Pull, &super::fixtures::bytes(wire), chunk, &limits());
-    let Some(Step::Send(exchange)) = finish(&mut proof, Body::Document(document.unwrap()), tables).unwrap() else {
-        panic!("combined")
-    };
-    let Request::CombinedStatus { commit: observed, .. } = exchange.request else { panic!("combined request") };
-    assert_eq!(observed, current);
-    head(&mut proof, 200, tables);
-    let (_, document) =
-        decode(Kind::CombinedStatus, br#"{"state":"pending","total_count":0,"statuses":[]}"#, chunk, &limits());
-    let Some(Step::Send(exchange)) = finish(&mut proof, Body::Document(document.unwrap()), tables).unwrap() else {
-        panic!("runs")
-    };
-    let Request::CheckRuns { commit: observed, .. } = exchange.request else { panic!("runs request") };
-    assert_eq!(observed, current);
-    head(&mut proof, 200, tables);
-    let (_, document) = decode(Kind::CheckRuns, br#"{"check_runs":[]}"#, chunk, &limits());
     assert_eq!(
         finish(&mut proof, Body::Document(document.unwrap()), tables),
         Ok(Some(Step::send(Request::PullGraphql {

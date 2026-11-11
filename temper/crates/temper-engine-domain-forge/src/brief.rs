@@ -294,7 +294,7 @@ pub(crate) fn brief_answer(
             append(&mut fetch.words, &item.body);
             append(&mut fetch.words, b"\n");
             fetch.stage = BriefStage::Pull;
-            Some(skein_forge::api::Read::Pull { number: fetch.item.number })
+            Some(skein_forge::api::Read::Pull { number: fetch.item.number, ci: false })
         }
         Ok(skein_forge::api::Answer::Pull(pull)) if fetch.stage == BriefStage::Pull && pull.commit == fetch.head.0 => {
             fetch.base = pull.base_commit;

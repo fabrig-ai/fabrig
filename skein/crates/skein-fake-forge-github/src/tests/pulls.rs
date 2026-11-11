@@ -59,9 +59,10 @@ fn github_fake_pull_and_pull_for_drive_complete_plans() {
     let mut h = r::harness();
     let (number, commit) = r::pull(&mut h);
     let token = r::token(&mut h);
-    for read in
-        [api::Read::Pull { number }, api::Read::PullFor { head: f::boxed(b"feature"), base: f::boxed(b"trunk") }]
-    {
+    for read in [
+        api::Read::Pull { number, ci: false },
+        api::Read::PullFor { head: f::boxed(b"feature"), base: f::boxed(b"trunk") },
+    ] {
         let api::Answer::Pull(pull) = r::read(&mut h, &token, read).unwrap() else { panic!("pull answer") };
         assert_eq!(pull.number, number);
         assert_eq!(pull.commit, r::object(commit));
@@ -77,7 +78,7 @@ fn github_fake_pull_and_pull_for_drive_complete_plans() {
         panic!("closed pull answer")
     };
     assert_eq!(closed.state, api::State::Closed, "fallback finds oldest closed pull");
-    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 999 }), Err(api::Error::Missing));
+    assert_eq!(r::read(&mut h, &token, api::Read::Pull { number: 999, ci: false }), Err(api::Error::Missing));
     assert_eq!(
         r::read(&mut h, &token, api::Read::PullFor { head: f::boxed(b"missing"), base: f::boxed(b"trunk") }),
         Err(api::Error::Missing)

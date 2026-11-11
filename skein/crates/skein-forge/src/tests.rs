@@ -475,7 +475,7 @@ fn vocabulary_queued_is_not_a_merged_commit() {
 
 fn vocabulary_forgejo_pull() -> api::Pull {
     use crate::forgejo::plans::plan::Step;
-    let mut run = fixtures::Run::known(api::Op::Read(api::Read::Pull { number: 1 }));
+    let mut run = fixtures::Run::known(api::Op::Read(api::Read::Pull { number: 1, ci: true }));
     run.begin();
     run.answer(200, fixtures::PULL);
     let Step::Done(Ok(Answer::Pull(pull))) = run.answer(200, fixtures::EMPTY_STATUS) else {

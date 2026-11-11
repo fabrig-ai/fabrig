@@ -258,9 +258,17 @@ fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]
     pull.commit = head;
     pull.ci = skein_forge::api::Ci::Pending;
     fixtures::answer_next(d, Ok(Answer::Pull(pull)));
-    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-    fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    for _ in 0_u32..3 {
+        let (call, op) = fixtures::next_call(d);
+        if let Op::Read(Read::Checks { commit }) = op {
+            let check = if commit == head { skein_forge::api::Check::Pending } else { skein_forge::api::Check::Passed };
+            fixtures::answer(d, call, Ok(fixtures::checks(check)));
+        } else {
+            let Op::Read(Read::Commits { .. }) = op else { panic!("{op:?}") };
+            fixtures::answer(d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+            break;
+        }
+    }
     fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 

@@ -119,7 +119,7 @@ fn shared_resource(op: &Op) -> Option<crate::What> {
     };
     match read {
         Read::Branch { branch } => Some(crate::What::Branch(branch.clone())),
-        Read::Pull { number } => Some(crate::What::Pull(*number)),
+        Read::Pull { number, .. } => Some(crate::What::Pull(*number)),
         Read::Item { number, .. } => Some(crate::What::Issue(*number)),
         Read::Locate { .. }
         | Read::Items { .. }

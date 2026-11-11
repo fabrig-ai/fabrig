@@ -20,17 +20,19 @@ pub fn ci(state: Option<d::StatusState>, total_count: u64) -> api::Ci {
     }
 }
 #[must_use]
-pub fn checks_ci(statuses: &[api::Status]) -> api::Ci {
-    let mut ci = api::Ci::None;
-    for status in statuses {
-        match status.check {
-            api::Check::Failed => return api::Ci::Failed,
-            api::Check::Pending => ci = api::Ci::Pending,
-            api::Check::Passed if ci == api::Ci::None => ci = api::Ci::Passed,
-            api::Check::Passed => {}
-        }
+pub fn fold_ci(ci: api::Ci, check: api::Check) -> api::Ci {
+    if ci == api::Ci::Failed {
+        return ci;
     }
-    ci
+    match check {
+        api::Check::Failed => api::Ci::Failed,
+        api::Check::Pending => api::Ci::Pending,
+        api::Check::Passed => match ci {
+            api::Ci::Pending => ci,
+            api::Ci::None | api::Ci::Passed => api::Ci::Passed,
+            api::Ci::Failed => unreachable!("failed verdict returned"),
+        },
+    }
 }
 #[must_use]
 pub fn check(state: d::StatusState) -> api::Check {

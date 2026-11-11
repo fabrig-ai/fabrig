@@ -1055,7 +1055,7 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
     let pull = world.open_pull(b"temper/51", b"main");
     let head = translate::commit(world.branch(b"temper/51"));
     assert_eq!(&head[20..], &[0; 12], "the fake Forgejo serves SHA-1 heads");
-    let Answer::Pull(observed) = commit_read(&mut world, Read::Pull { number: pull }) else {
+    let Answer::Pull(observed) = commit_read(&mut world, Read::Pull { number: pull, ci: false }) else {
         panic!("pull through bytes")
     };
     assert_eq!(observed.commit, head);

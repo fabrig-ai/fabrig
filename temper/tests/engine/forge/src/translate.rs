@@ -121,9 +121,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
         client::Read::Item { number, after, since } => {
             forge::Read::Item { number: *number, after: *after, since: Some(*since) }
         }
-        client::Read::Pull { number } | client::Read::Reviews { number, .. } | client::Read::Remarks { number, .. } => {
-            forge::Read::Pull { number: *number }
-        }
+        client::Read::Pull { number, .. }
+        | client::Read::Reviews { number, .. }
+        | client::Read::Remarks { number, .. } => forge::Read::Pull { number: *number },
         client::Read::PullFor { head, base } => forge::Read::PullFor { head: head.clone(), base: base.clone() },
         client::Read::Statuses { commit, .. } => forge::Read::Statuses { commit: number(*commit) },
         client::Read::Branch { branch } => forge::Read::Branch { branch: branch.clone() },
@@ -484,7 +484,11 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                 merged: pull.merged.map(commit),
                 reviewers: pull.reviewers,
                 mergeable: pull.mergeable,
-                ci: combined(&pull.statuses),
+                ci: if let client::Read::Pull { ci: true, .. } = read {
+                    combined(&pull.statuses)
+                } else {
+                    client::Ci::None
+                },
                 queued: None,
                 dequeued: None,
             }),

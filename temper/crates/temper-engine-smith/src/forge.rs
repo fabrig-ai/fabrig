@@ -91,7 +91,7 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
             after: optional_number(value, b"after", 0)?,
             since: Time::ZERO,
         }),
-        b"pull" => Ok(api::Read::Pull { number: positive_number(value, b"number")? }),
+        b"pull" => Ok(api::Read::Pull { number: positive_number(value, b"number")?, ci: true }),
         b"pull_for" => Ok(api::Read::PullFor {
             head: value.required(b"head")?.text(b"head")?,
             base: value.required(b"base")?.text(b"base")?,
