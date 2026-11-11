@@ -43,7 +43,7 @@ pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
 pub const SERIAL: u64 = 1000;
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
-    crate::Request::Io { owner, op: git::Op::Make { workspace }, deadline: DEADLINE, identity: None }
+    crate::Request::Io { owner, op: git::Op::Make { workspace, stores: Box::new([]) }, deadline: DEADLINE, identity: None }
 }
 pub fn at() -> git::Place {
     git::Place { git: None, workspace: WORKSPACE, repository: Box::from(&b"app"[..]) }
@@ -52,6 +52,7 @@ pub fn fetch(owner: skein_lib::Token, deadline: skein_lib::Time) -> crate::Reque
     crate::Request::Io {
         owner,
         op: git::Op::Fetch {
+            store: skein_lib::Token::new(9),
             into: git::Into::Fetched,
             at: at(),
             remote: Box::from(REMOTE),

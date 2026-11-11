@@ -11,6 +11,7 @@ mod real_delivery;
 mod retries;
 mod reuse;
 mod simulation;
+mod stores;
 
 mod fuzzy {
     mod merges;

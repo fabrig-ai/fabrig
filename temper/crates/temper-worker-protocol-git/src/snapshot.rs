@@ -9,7 +9,8 @@ use temper_worker_domain_checkout::git;
 pub(crate) fn enabled(op: &git::Op) -> bool {
     match op {
         git::Op::Commit { snapshot, .. } => snapshot.is_some(),
-        git::Op::Make { .. }
+        git::Op::Store { .. }
+        | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
@@ -97,6 +98,9 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::Version
         | Command::Origin { .. }
         | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::Store { .. }
+        | Command::UpdateRef { .. }
         | Command::Fetch { .. }
         | Command::Create { .. }
         | Command::CheckOut { .. }
@@ -117,6 +121,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
     match op {
         git::Op::Commit { parent, merging, snapshot: Some(snapshot), .. } => (parent, merging, snapshot),
         git::Op::Commit { snapshot: None, .. }
+        | git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }

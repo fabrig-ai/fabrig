@@ -84,21 +84,7 @@ impl Operation {
             (Box::from(&b""[..]), None)
         } else {
             match &self.op {
-                Some(op) => match op {
-                    git::Op::Clone { at, .. } => (
-                        invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()]),
-                        Some(op.kind()),
-                    ),
-                    git::Op::Look { .. } | git::Op::Make { .. } => (Box::from(&b""[..]), Some(op.kind())),
-                    git::Op::Fetch { at, .. }
-                    | git::Op::Create { at, .. }
-                    | git::Op::CheckOut { at, .. }
-                    | git::Op::DiffPaths { at, .. }
-                    | git::Op::IsAncestor { at, .. }
-                    | git::Op::Merge { at, .. }
-                    | git::Op::Commit { at, .. }
-                    | git::Op::Push { at, .. } => (invocation::place(at), Some(op.kind())),
-                },
+                Some(op) => (directory(op, &self.command), Some(op.kind())),
                 None => (Box::from(&b""[..]), None),
             }
         };
@@ -117,7 +103,7 @@ impl Operation {
                 spawn: kernel::Spawn {
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
                     args: invocation::arguments(&self.command),
-                    env: invocation::environment(&settings.home, kind, self.identity.as_ref()),
+                    env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), !is_update(&self.command)),
                     root: settings.root,
                     dir: directory,
                     pipes: pipes.into_boxed(),
@@ -143,6 +129,9 @@ impl Operation {
             | Command::Version
             | Command::Origin { .. }
             | Command::Clone { .. }
+            | Command::Store { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
@@ -169,6 +158,9 @@ impl Operation {
             | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
+            | Command::Store { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
@@ -203,7 +195,7 @@ impl Operation {
         {
             match next {
                 Next::End(_) => return,
-                Next::Run(_) | Next::Snapshot { .. } | Next::Make | Next::Scan { .. } => {}
+                Next::Run(_) | Next::Snapshot { .. } | Next::Make | Next::Store | Next::InstallStore { .. } | Next::Alternates | Next::Scan { .. } => {}
             }
         }
         if self.stop.is_none() {
@@ -240,7 +232,8 @@ impl Operation {
             && match &self.op {
                 Some(git::Op::Merge { .. }) => true,
                 Some(
-                    git::Op::Make { .. }
+                    git::Op::Store { .. }
+                    | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }
@@ -263,6 +256,9 @@ impl Operation {
             | Command::Version
             | Command::Origin { .. }
             | Command::Clone { .. }
+            | Command::Store { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
@@ -305,6 +301,9 @@ impl Operation {
             | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
+            | Command::Store { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
@@ -348,7 +347,8 @@ impl Operation {
                 let message = match &self.op {
                     Some(git::Op::Commit { title, body, .. }) if commit => invocation::message(title, body),
                     Some(
-                        git::Op::Make { .. }
+                        git::Op::Store { .. }
+                    | git::Op::Make { .. }
                         | git::Op::Clone { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
@@ -591,5 +591,28 @@ impl Child {
             );
         }
         self.closing = true;
+    }
+}
+
+fn is_update(command: &Command) -> bool {
+    if let Command::UpdateRef { .. } = command { true } else { false }
+}
+fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
+    if let Command::Store { directory } = command { return directory.clone(); }
+    match op {
+        git::Op::Clone { at, .. } => {
+            if let Command::Clone { .. } = command {
+                invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
+            } else { invocation::place(at) }
+        }
+        git::Op::Fetch { at, store, .. } => {
+            if let Command::Fetch { .. } = command {
+                invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()])
+            } else { invocation::place(at) }
+        }
+        git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
+        git::Op::Create { at, .. } | git::Op::CheckOut { at, .. } | git::Op::DiffPaths { at, .. }
+        | git::Op::IsAncestor { at, .. } | git::Op::Merge { at, .. } | git::Op::Commit { at, .. }
+        | git::Op::Push { at, .. } => invocation::place(at),
     }
 }

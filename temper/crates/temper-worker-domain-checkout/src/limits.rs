@@ -38,7 +38,7 @@ pub struct Limits {
 /// needed by construction is representable.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some()
+    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some() && stores(limits).is_some()
 }
 
 /// The hold slab's capacity: two for each workspace. A hold holds one
@@ -49,3 +49,6 @@ pub fn valid(limits: &Limits) -> bool {
 pub(crate) fn holds(limits: &Limits) -> Option<u32> {
     limits.workspaces.checked_mul(2)
 }
+
+/// Most stores the workspaces can borrow (domain/worker.md, 5).
+pub(crate) fn stores(limits: &Limits) -> Option<u32> { limits.workspaces.checked_mul(limits.repositories) }

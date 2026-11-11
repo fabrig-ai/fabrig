@@ -60,17 +60,17 @@ pub struct Place {
 pub enum Op {
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
-    Make { workspace: Token },
+    Make { workspace: Token, stores: Box<[Token]> },
+    /// Make a bare object store whole before moving it into place (protocol/git.md, 4.11).
+    Store { store: Token, aside: Option<Token>, git: Option<Box<[u8]>> },
     /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
     Look { at: Place, remote: Box<[u8]> },
-    /// Clone the repository at `remote` on the forge into its directory, which
-    /// does not exist yet, without checking a tree out. Fails `Missing` if the
-    /// forge has no such repository.
-    Clone { at: Place, remote: Box<[u8]>, identity: u32, account: Option<u64> },
-    /// Fetch `want` from the repository at `remote` into the repository. Ends
+    /// Make an empty repository borrowing its store, without reaching the forge.
+    Clone { at: Place, remote: Box<[u8]>, store: Token },
+    /// Fetch `want` into the store and point the repository at it. Ends
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
-    Fetch { at: Place, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -233,6 +233,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Store,
     Look,
     Make,
     Clone,
@@ -250,6 +251,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Store { .. } => Kind::Store,
             Op::Make { .. } => Kind::Make,
             Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
@@ -268,9 +270,11 @@ impl Op {
     #[must_use]
     pub const fn is_remote(&self) -> bool {
         match self {
-            Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
+            Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Look { .. }
+            Op::Store { .. }
+            | Op::Clone { .. }
+            | Op::Look { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
             | Op::Make { .. }

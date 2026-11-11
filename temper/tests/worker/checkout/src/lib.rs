@@ -40,4 +40,4 @@ mod world;
 
 pub use noisy::{noisy, submit_noisily};
 pub use skein_world::domain::Span;
-pub use world::{IDENTITY, LIMITS, Settings, Stats, Told, World};
+pub use world::{IDENTITY, LIMITS, Settings, Stats, Told, Transfer, World};

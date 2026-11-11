@@ -237,7 +237,7 @@ fn request(program: Option<&[u8]>, remote: bool) -> Request {
     Request::Io {
         owner: fixtures::OWNER,
         op: if remote {
-            git::Op::Clone { at, remote: Box::from(REMOTE), identity: 1, account: None }
+            git::Op::Clone { at, remote: Box::from(REMOTE), store: skein_lib::Token::new(9) }
         } else {
             git::Op::CheckOut { at, commit: fixtures::COMMIT, clean: true }
         },

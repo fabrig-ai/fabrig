@@ -14,6 +14,23 @@ use crate::client::{Client, Interrupt, Operation, Pick, Plan, Release, Repo};
 use crate::forge::{Forge, Move};
 use crate::translate;
 
+fn object_markers(disk: &Checkout) -> BTreeSet<(Vec<u8>, u64)> {
+    let mut markers = BTreeSet::new();
+    for root in [b"ws".as_slice(), b"stores"] {
+        for path in disk.tree(root).into_keys() {
+            let parts: Vec<_> = path.split(|byte| *byte == b'/').collect();
+            if let [.., objects, name] = parts.as_slice()
+                && *objects == b"objects"
+                && let Ok(name) = std::str::from_utf8(name)
+                && let Ok(commit) = name.parse::<u64>()
+            {
+                markers.insert(([root, b"/", &path].concat(), commit));
+            }
+        }
+    }
+    markers
+}
+
 /// Who the worker is to the forge, in every spec.
 pub const IDENTITY: u32 = 0;
 
@@ -195,6 +212,13 @@ pub struct Told {
     pub released: u32,
 }
 
+/// Object markers a clone or fetch added anywhere on the fake disk.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Transfer {
+    pub kind: Kind,
+    pub commits: BTreeSet<u64>,
+}
+
 /// Something on its way, delivered at its time.
 #[derive(Debug)]
 enum Delivery {
@@ -288,6 +312,7 @@ pub struct World {
     checked_out: BTreeMap<(Token, Vec<u8>), u64>,
     checkouts: BTreeMap<u64, Vec<(Vec<u8>, bool)>>,
     touched: BTreeMap<(u64, Vec<u8>), BTreeSet<Vec<u8>>>,
+    transfers: BTreeMap<(u64, Vec<u8>), Vec<Transfer>>,
     /// The pushes of each hold's push or save under way, by remote.
     attempts: BTreeMap<(Token, Vec<u8>), Attempt>,
     ops: Ledger<Token, Pending>,
@@ -349,6 +374,7 @@ impl World {
             checked_out: BTreeMap::new(),
             checkouts: BTreeMap::new(),
             touched: BTreeMap::new(),
+            transfers: BTreeMap::new(),
             attempts: BTreeMap::new(),
             ops: Ledger::new("operation"),
             cancel_lost: BTreeSet::new(),
@@ -442,6 +468,12 @@ impl World {
     #[must_use]
     pub fn touched(&self, client: u64, repository: &[u8]) -> BTreeSet<Vec<u8>> {
         self.touched.get(&(client, repository.to_vec())).cloned().unwrap_or_default()
+    }
+
+    /// Every clone and fetch performed for this client and repository, in order.
+    #[must_use]
+    pub fn transfers(&self, client: u64, repository: &[u8]) -> &[Transfer] {
+        self.transfers.get(&(client, repository.to_vec())).map_or(&[], Vec::as_slice)
     }
 
     /// Has a client carry out `plan`, sending its prepare at `at`. Returns
@@ -1180,9 +1212,21 @@ impl World {
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
+        let transfer = match &op {
+            Op::Clone { at, .. } | Op::Fetch { at, .. } => {
+                Some((at.repository.to_vec(), op.kind(), object_markers(&self.disk)))
+            }
+            _ => None,
+        };
         let creates = op.kind() == Kind::Create;
         self.forge.at(self.now);
         let done = translate::perform(&mut self.forge, &mut self.disk, op);
+        if let Some((repository, kind, before)) = transfer {
+            let after = object_markers(&self.disk);
+            let commits = after.difference(&before).map(|(_, commit)| *commit).collect();
+            let client = *self.holds.get(&owner).expect("a hold's client");
+            self.transfers.entry((client, repository)).or_default().push(Transfer { kind, commits });
+        }
         if let Some((repository, path, before)) = before {
             let after = self.disk.tree(&path);
             let client = *self.holds.get(&owner).expect("a hold's client");
