@@ -229,6 +229,9 @@
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
         an approval's question as on *Needs you*;
+      - *its reason line,* under the question, as *Needs you*'s on the
+        signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
+        *Why it reached you* and *Stop asking*);
       - *its acts* in a row, min-height 40, the recommended one first and
         primary, the others quiet: a question's choices, the recommended
         one first as *Needs you* orders them, then "Tell it something
@@ -448,7 +451,10 @@
     heading "Decided for you · 4", every row showing counted, "4+" where a
     document is `cut` or, unfiltered, `me` holds more projects than are
     watched; at its right "Limits", to the project's Settings, on Home and on
-    a filtered *Needs you*. Then `temper-decided` (the mock's `.decided`, a
+    a filtered *Needs you*, and on the unfiltered *Needs you* "for 24 hours,
+    then in each task's history", muted, as the whole story's `needs.html`
+    draws its head, a row being any task's. The region is named by that
+    heading on both pages. Then `temper-decided` (the mock's `.decided`, a
     top rule), a `temper-decision` a row (`.decision`), at most 7, the newest
     kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
     `../view.md`, 6's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
@@ -477,7 +483,7 @@
   - *On Home* (1, *Home on any project*), the first region after the
     intro. While the party's Away row there is on, or its spell ended less
     than 24 hours before the wall, the intro takes the spell's form, in the
-    intro's one function:
+    intro's one function, whether or not a row shows:
     - *the kicker:* "While you were away · 23:10 to now", or "· 23:10 to
       08:03" once off, by `../view.md`, 6's *clock*: `since`, then `off`, or `until` once
       past;
@@ -485,7 +491,9 @@
       `landed` is above 0, "One change landed." for 1, nothing for 0; then
       "Four things were decided for you." in number words to "Nine", digits
       after, or "One thing was decided for you." in place of the needs
-      sentence. The lede and the byline as *Home on any project* has them;
+      sentence; with no row showing, the needs sentence keeps its place,
+      so "57 changes landed. Nothing needs you.", or the needs sentence
+      alone where nothing landed. The lede and the byline as *Home on any project* has them;
     - *Needs' head:* "Still needs you · 2", or "Still needs you" with none,
       and the rest of *Needs you* as it is.
 

@@ -111,6 +111,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `home-away-quiet` | hand-made Home deliveries: `AwayRow` on and no `Decision` showing: the spell's kicker, "While you were away · 23:10 to now", its headline's landed count and the needs sentence, "Still needs you", and no *Decided for you* (`../pages/home.md`, 1, *Decided for you*, *On Home*) |
 | `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
@@ -318,10 +319,11 @@ from the engine's own answers, is where the look is tuned.
 | `needs-held` | a held task's card |
 | `needs-funds` | a held task out of budget: "S of L used." |
 | `needs-plain-words` | a question in no line form: "Reply…" alone |
-| `needs-decided` | the unfiltered *Needs you*: a question, then *Decided for you* with rows of two projects, each "PROJECT · TITLE · 01:05" |
-| `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." and "Stop asking" |
-| `needs-stop-asking` | `needs-why` with Stop asking open for an owner: "Let agents decide implementation choices, then tell you." with "Apply", and "Keep asking" |
-| `needs-stop-asking-set` | a question that changes a path set, Stop asking open for a member: the words offer's field, the split, each with "Propose" |
+| `needs-decided` | the unfiltered *Needs you*: a question, then the region "Decided for you · 2", "for 24 hours, then in each task's history" at its head's right, with rows of two projects, each "PROJECT · TITLE · 01:05" |
+| `needs-decided-project` | *Needs you* filtered by one project: a question, then the region "Decided for you · N" with "Limits" at its head's right, each row "TITLE · 01:05" (`../pages/home.md`, 1, *Decided for you*) |
+| `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." then "Keep asking" and "Stop asking: let agents decide implementation choices" on the line |
+| `needs-stop-asking` | `needs-why` with its rule open for an owner: "Let agents decide implementation choices, then tell you." with "Apply"; "Keep asking" on the line, none under the offers |
+| `needs-stop-asking-set` | a question that changes a path set, its rule "Stop asking: let agents decide some changes to protocol core" open for a member: the words offer's sentence over its field, the split, each with "Propose" |
 | `needs-only-you` | the unfiltered *Needs you* (`../pages/README.md`, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
 | `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
 | `night-needs-only-you` | `needs-only-you` with the night look on |

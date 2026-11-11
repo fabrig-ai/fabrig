@@ -31,20 +31,29 @@ follow landing (`README.md`, section 5).
   prints it; milestone T1 of
   [whole-story.execution.md](../draft/whole-story.execution.md), landed by
   plan `tui-whole-t1`, drew none, so it stays temper/tui's.
-- **Not yet:** `pages/README.md`, *Decided for you*, *The region*, on *Needs you*: the
+- **Not yet:** `pages/home.md`, 1, *Decided for you*, *The region*, on *Needs you*: the
   head's right says "for 24 hours, then in each task's history" where a
   filtered page has "Limits"; the region is named "Decided for you", not by
   its heading; and a filtered page's rows say "PROJECT · TITLE · 01:05" as
   well (`temper-client-view`'s `pages/decided.rs`), which the view's and
   the gallery's tests hold.
-- **Not yet:** `pages/README.md`, *Decided for you*, *On Home*: the intro takes the
+- **Not yet:** `pages/home.md`, 1, *Decided for you*, *On Home*: the intro takes the
   spell's form only while a row shows too (`temper-client-domain`'s
   `pages/home.rs`), so Away on, or ended less than a day ago, with no row
   showing draws *Home on any project*'s intro.
-- **Not yet:** `pages/README.md`, *Needs you*, *Stop asking*, *Its offers in words*: a
+- **Not yet:** `pages/needs-you.md`, 1, *Stop asking*, *Its offers in words*: a
   path set's words offer draws its "Which changes" field above "Let agents
   decide changes to NAME that are:", where the sentence stands over it
   (`temper-client-view`'s `pages/needs.rs`).
+- **Not yet:** `pages/needs-you.md`, 1, *The card*, *Stop asking* and *Keep
+  asking*, and `pages/home.md`, 1, *The cards*: a need's reason line is 14
+  px in `--gf-ink-2`, under the question on *Needs you* too, not on the
+  signal ground over the choices; on *Needs you* it ends in "Stop asking"
+  alone, its offers opening with "Keep asking" under them, where the line
+  itself holds "Keep asking" and "Stop asking: let agents decide RULE";
+  and `stop_asking::Act::Keep` keeps the open offers' reach alone, naming
+  no card (`temper-client-view`'s `pages/needs.rs`,
+  `temper-client-domain`'s `pages/stop_asking.rs`).
 
 `tui/README.md`, section 3 and `tui/pages.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
