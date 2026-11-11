@@ -159,8 +159,8 @@ section 5, *Away on All projects after landing*).
   `forge_choice`), words for a forge added to the configuration by hand,
   which names none (`../forge/README.status.md`).  `google-sign-in`,
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
-  states the gallery holds (`tools/gallery/names.txt`,
-  `tools/gallery/src/samples.rs`) that the table does not list.
+  states the gallery holds (`crates/temper-client-gallery-tool/names.txt`,
+  `crates/temper-client-gallery-tool/src/samples.rs`) that the table does not list.
 
 `README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
 `code` query, transport sign-in by cookie, the signed-out state with

@@ -1031,7 +1031,7 @@ presses the switch across projects: the render check and the walk remain
   both a name and a text child in a browser, and a recommended choice's button has its
   name and the tag "recommended", which this section draws: those are other words, not
   the name twice. `no_named_control_draws_a_text_child_in_any_state`
-  (`temper/tools/gallery/src/tests.rs`) excepts that word alone.
+  (`temper/crates/temper-client-gallery-tool/src/tests.rs`) excepts that word alone.
 - **Design departs:** `forge/records.md`, *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
   nothing: with no `HOME` and an XDG variable placing some of the directories, not all,

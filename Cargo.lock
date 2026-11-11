@@ -302,16 +302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-transcripts"
-version = "0.0.0"
-dependencies = [
- "serde_json",
- "skein-fail-stop",
- "skein-scratch",
- "skein-throwaway-forgejo",
-]
-
-[[package]]
 name = "github-conformance"
 version = "0.0.0"
 dependencies = [
@@ -5045,7 +5035,6 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-browser",
- "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",
@@ -5101,11 +5090,20 @@ dependencies = [
 name = "temper-client-gallery"
 version = "0.0.0"
 dependencies = [
- "jig-client",
  "skein-fail-stop",
+ "skein-scratch",
+ "temper-client-gallery-tool",
+]
+
+[[package]]
+name = "temper-client-gallery-tool"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
  "skein-fake-person",
  "skein-lib",
  "skein-scratch",
+ "skein-shell",
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-web",
@@ -5115,6 +5113,7 @@ dependencies = [
  "temper-client-view",
  "temper-fixtures",
  "temper-protocol-reaches",
+ "temper-version",
 ]
 
 [[package]]
@@ -5123,8 +5122,23 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-protocol-wire",
- "skein-browser",
  "skein-fail-stop",
+ "skein-lib",
+ "skein-scratch",
+ "skein-ui-screen",
+ "skein-ui-web",
+ "temper-client-journeys-tool",
+ "temper-client-shell-tui",
+ "temper-client-shell-web",
+ "temper-client-tui",
+]
+
+[[package]]
+name = "temper-client-journeys-tool"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-io",
@@ -5139,6 +5153,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-version",
 ]
 
 [[package]]
@@ -5878,6 +5893,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-git-transcripts"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-git-transcripts-tool",
+]
+
+[[package]]
+name = "temper-git-transcripts-tool"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
+ "skein-throwaway-forgejo",
+ "temper-version",
+]
+
+[[package]]
 name = "temper-github-app"
 version = "0.0.0"
 dependencies = [
@@ -6055,6 +6090,24 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "temper-playground-serve"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-playground-serve-tool",
+]
+
+[[package]]
+name = "temper-playground-serve-tool"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-shell",
+ "temper-version",
 ]
 
 [[package]]
@@ -6355,11 +6408,21 @@ dependencies = [
 name = "temper-stage-one"
 version = "0.0.0"
 dependencies = [
- "serde",
- "serde_json",
  "skein-fail-stop",
  "skein-scratch",
+ "temper-stage-one-tool",
+]
+
+[[package]]
+name = "temper-stage-one-tool"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
  "temper-settings-form",
+ "temper-version",
 ]
 
 [[package]]
@@ -6419,17 +6482,29 @@ dependencies = [
 name = "temper-twin"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-fake",
+ "temper-twin-tool",
+]
+
+[[package]]
+name = "temper-twin-tool"
+version = "0.0.0"
+dependencies = [
  "jig-domain-core",
  "jig-protocol-store",
  "serde_json",
- "skein-fail-stop",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-lib",
  "skein-llm",
  "skein-scratch",
+ "skein-shell",
  "smith-transcript",
  "temper-fake",
+ "temper-version",
 ]
 
 [[package]]

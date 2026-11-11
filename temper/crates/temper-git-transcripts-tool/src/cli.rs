@@ -68,6 +68,7 @@ pub const TABLE: Table = Table {
 };
 
 /// Capture once and answer the table before recording anything.
+#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-git-transcripts' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
@@ -92,7 +93,8 @@ pub fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            let result = TEMPER_FORGEJO.value(&environment)
+            let result = TEMPER_FORGEJO
+                .value(&environment)
                 .ok_or_else(|| "TEMPER_FORGEJO must name the pinned Forgejo".into())
                 .and_then(|forgejo| crate::run(git, scratch, out, Path::new(OsStr::from_bytes(forgejo))));
             match result {

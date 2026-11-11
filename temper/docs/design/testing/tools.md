@@ -33,9 +33,11 @@ named, answered and tested.
 
 ## 2. The binaries
 
-Each binary's line is its table's, word for word: help's first line
-prints it after the binary's name (`skein/docs/design/runtime/shell.md`,
-14.2).
+Each binary's line is its table's, word for word: help's opening
+paragraph prints it after the binary's name, wrapped at 80 columns
+(`skein/docs/design/runtime/shell.md`, 14.2): where `BINARY: LINE` is
+longer than 80 columns, as the gallery's, the journeys', the
+transcripts' and playground-serve's are, it takes two lines of the page.
 
 | Binary | Before | Its line | Designed in |
 |---|---|---|---|
@@ -215,6 +217,13 @@ it byte for byte in its crate's tests.
   `tests/boundary/tests/cli.rs` and every `expect` whose reason starts
   `cli C8` (`../draft/cli.execution.md`, 2). A `cli C5` exception that
   names a moved manifest follows it, its path changed alone.
+  `temper-forge-setup-shell`'s scan of process and lock operations
+  (`tests/suite/boundary.rs`, which reads every crate under
+  `temper/crates/`) skips the six tools' crates by name, as it never read
+  `temper/tools/`: the tools spawn builds, browsers and git by design,
+  outside the setup's process boundary (`../protocol/setup/README.md`,
+  7). Every other crate stays scanned as before, and the twin's per-file
+  `ExitCode` exemption goes with the skip.
 
 ## 6. Its tests
 
@@ -223,13 +232,16 @@ it byte for byte in its crate's tests.
   arguments, a cleared environment and stdin closed, in a scratch
   directory, and checks its exit code, stdout and stderr, as
   `temper-worker`'s does. The rows:
-  - `--help`, `-h` and `help` print the same page, whose first line is
-    `BINARY: LINE` and which names no internal command;
+  - `--help`, `-h` and `help` print the same page, whose opening
+    paragraph is `BINARY: LINE` as help wraps it, at spaces to 80
+    columns (`skein/docs/design/runtime/shell.md`, 14.2), and which names
+    no internal command: a row checks that paragraph, its lines joined
+    by single spaces, never the page's first line alone;
   - `--version` prints `BINARY VERSION (COMMIT)`, the commit twelve
     hexadecimal digits, with `-dirty` or not, or `unknown`;
-  - each command of words answers `--help` with a page whose first line
-    is `internal: not part of BINARY's public command line; it may change
-    without notice.`;
+  - each command of words answers `--help` with a page whose opening
+    paragraph, wrapped and joined as above, is `internal: not part of
+    BINARY's public command line; it may change without notice.`;
   - a command the table lacks is refused, exit 2: with the front's words
     where the table has no bare command, and otherwise by its bare
     command, with `TABLE.refusal`'s words, as is a flag the bare command

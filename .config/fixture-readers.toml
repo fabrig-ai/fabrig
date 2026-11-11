@@ -761,11 +761,15 @@ filter = "binary(=suite) & test(/^fuzzy::repair::/)"
 # suite/frames.rs: fixture(tasks) copies TASKS as hexadecimal filenames; frames/round_trip.rs
 # calls fixture; suite/cli.rs copies task 5.
 [[fixture]]
-paths = ["temper/tools/twin/tests/fixtures/*"]
+paths = ["temper/crates/temper-twin-tool/tests/fixtures/*"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-twin-tool"
+filter = "binary(=suite)"
 [[fixture.reader]]
 pair = "default"
 package = "temper-twin"
-filter = "binary(=suite)"
+filter = "binary(=suite) & test(/^cli::/)"
 
 # test_cpu.py builds cpu-settlement.c into its private offline supervisor fixture.
 [[fixture]]

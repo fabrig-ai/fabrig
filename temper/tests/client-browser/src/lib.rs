@@ -37,9 +37,19 @@ pub const FIRST_CHAT_ADDRESS: &[u8] = b"/chats/1";
 /// The `temper` binary beside the test executable.
 #[must_use]
 pub fn temper() -> PathBuf {
+    binary("temper")
+}
+
+/// The static host beside the test executable (temper/docs/design/testing/tools.md, 5).
+#[must_use]
+pub fn playground_serve() -> PathBuf {
+    binary("temper-playground-serve")
+}
+
+fn binary(name: &str) -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(Path::parent).expect("target directory").join("temper");
-    assert!(binary.is_file(), "build the browser server with cargo build -p temper: {}", binary.display());
+    let binary = exe.parent().and_then(Path::parent).expect("target directory").join(name);
+    assert!(binary.is_file(), "build the browser server with cargo build -p {name}: {}", binary.display());
     binary
 }
 #[must_use]
