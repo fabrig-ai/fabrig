@@ -28,7 +28,7 @@ env:
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
   # testing-strategy.md, section 8: nextest starts each test directly.
   NEXTEST_DOUBLE_SPAWN: "0"
-  TEMPER_BUNDLE: none
+  TEMPER_INTERNAL_BUNDLE: none
 
 jobs:
   macos:

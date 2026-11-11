@@ -525,7 +525,7 @@ def summary(base_id, lints, tests, errors, reason):
 def main():
     root = Path.cwd()
     env = os.environ.copy()
-    env.setdefault('TEMPER_BUNDLE', 'none')
+    env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
     base_id, why = base(root, env)
     errors = []

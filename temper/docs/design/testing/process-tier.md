@@ -156,7 +156,7 @@
   deliveries carry the job's end (../protocol/setup/testing.md, 4).
 
 - **The build it runs in.** The tier runs the binary its build made,
-  with or without its browser (`TEMPER_BUNDLE`; ../client/web/README.md,
+  with or without its browser (`TEMPER_INTERNAL_BUNDLE`; ../client/web/README.md,
   2.6), and passes in both: where a start with `clients.bundle` `null`
   shows the browser (init's line for no browser, the page at `/`), the
   test expects what the binary holds, as `temper_box_shell::bundle::OWN` says,

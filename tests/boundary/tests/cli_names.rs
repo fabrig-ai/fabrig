@@ -72,7 +72,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "SMITH_UNSET_FIXTURE", until: "smith's round" },
     Exception { what: "TEMPER_BENIGN", until: "cli C4" },
     Exception { what: "TEMPER_BOX_PARENT_TEST", until: "cli C4" },
-    Exception { what: "TEMPER_BUNDLE", until: "cli C2" },
     Exception { what: "TEMPER_E4_CAPTURE", until: "cli C4" },
     Exception { what: "TEMPER_E4_LIFE", until: "cli C4" },
     Exception { what: "TEMPER_E4_RESTART", until: "cli C4" },

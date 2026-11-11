@@ -356,7 +356,7 @@ tests nothing (`../release.md`, 5.1).
 - **What it installs:** Rust 1.95, the workspace's `rust-version`, and
   `cargo-nextest`, each download checked by its SHA-256.
 - **The runner is small:** line tables only for debug information, no
-  incremental build, `TEMPER_BUNDLE=none`, the registry and the
+  incremental build, `TEMPER_INTERNAL_BUNDLE=none`, the registry and the
   dependencies' build cached by the lock, and each run reports its disk.
 - **A failure reads without a login:** the repository is public, and
   each failing check annotates its run with its failing tests or errors

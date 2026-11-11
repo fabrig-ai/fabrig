@@ -18,7 +18,7 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
   `profile`; a Web application client whose one redirect URI is
   `https://temper.example.com/sign-in/google/return`.
 - **The binary,** built at the commit you deploy, with its browser:
-  `TEMPER_BUNDLE=embed cargo build --release --locked -p temper-box`,
+  `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper-box`,
   which needs Rust's `wasm32-unknown-unknown` target; copy
   `target/release/temper-box`, `docs/examples/owned.json` and
   `docs/examples/owned/` of the same commit to both hosts.

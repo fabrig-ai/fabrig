@@ -57,7 +57,7 @@ jobs:
           restore-keys: cargo-home-macos-26-
 
       - name: The build, under the release profile as the workspace has it
-        run: TEMPER_BUNDLE=embed cargo build --release --locked -p temper-box --bin temper-box
+        run: TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper-box --bin temper-box
 
       # Stripping invalidates the linker's ad hoc signature, without which
       # Apple Silicon runs no file; codesign makes it again, in place, so

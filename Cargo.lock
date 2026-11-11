@@ -5131,6 +5131,9 @@ dependencies = [
 [[package]]
 name = "temper-client-bundle"
 version = "0.0.0"
+dependencies = [
+ "skein-shell",
+]
 
 [[package]]
 name = "temper-client-domain"

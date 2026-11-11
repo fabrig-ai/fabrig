@@ -14,6 +14,7 @@ pub const ENGINE: Table = Table {
         &temper_service_shell::CUT_AT_LISTEN,
         &super::forge_sign_in::NO_REGISTRATION,
         &temper_version::INTERNAL_COMMIT,
+        &temper_client_bundle::INTERNAL_BUNDLE,
     ],
     more: "temper-engine COMMAND --help prints one command; temper-engine help pages lists the pages.",
 };

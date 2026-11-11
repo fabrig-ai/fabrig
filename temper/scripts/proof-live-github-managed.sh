@@ -25,7 +25,7 @@ if [ "$mode" = live ]; then
 else
     person=managed-person
 fi
-export CARGO_NET_OFFLINE=true TEMPER_BUNDLE=none
+export CARGO_NET_OFFLINE=true TEMPER_INTERNAL_BUNDLE=none
 export CARGO_TARGET_DIR="$HOME/src/rust/tmp/owners/github-managed/target" NEXTEST_DOUBLE_SPAWN=0
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github-managed.XXXXXX")")
 runner=
@@ -80,7 +80,7 @@ PYBUILD
     exit 1
 fi
 if [ "$mode" = live ]; then
-    # Keep TEMPER_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
+    # Keep TEMPER_INTERNAL_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
     printf '%s\n' 'building the browser bundle offline'
     if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
         tail -n 15 "$scratch/web-build.log" >&2

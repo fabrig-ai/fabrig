@@ -44,7 +44,7 @@ file the site serves beside it (5.1). The site that links them is
 ## 2. The file
 
 - **Its target:** `x86_64-unknown-linux-gnu`, built with
-  `TEMPER_BUNDLE=embed` and the release profile, stripped; one file,
+  `TEMPER_INTERNAL_BUNDLE=embed` and the release profile, stripped; one file,
   nothing beside it at run time but section 4's programs.
 - **Its floors:** Linux 6.12, skein's (skein's `runtime/shell.md`, section 4 and `runtime/readiness.md`
   ); glibc 2.39, the oldest that has the process calls skein's
@@ -126,7 +126,7 @@ file the site serves beside it (5.1). The site that links them is
   2. **The build:** entered with bubblewrap alone (`bwrap`, user
      namespaces, the network shared for the archives and crates), the
      checkout bound read-only, a target directory of the root's own;
-     `TEMPER_BUNDLE=embed cargo build --release --locked -p temper`,
+     `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper`,
      stripped.
   3. **The checks:** no `GLIBC_` symbol version newer than 2.39
      (`objdump -T`); `--version` printing VERSION and the tag's commit.
@@ -161,7 +161,7 @@ release's: no tag names it, and the workflow writes no checksum.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,
   and nothing is saved; the release's target is never cached, so each
   file is built from the commit and the registry's sources alone.
-- **The build:** `TEMPER_BUNDLE=embed cargo build --release --locked -p
+- **The build:** `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p
   temper --bin temper`, for the runner's own target,
   `aarch64-apple-darwin`, under the release profile exactly as the
   workspace's `Cargo.toml` has it: the workflow sets no profile, flag

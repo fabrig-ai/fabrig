@@ -401,7 +401,7 @@ playground and no Forgejo on this machine.
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
     binary's own (`../../client/web/README.md`, 2.6): a temper built with its
     browser starts its first run with it. From a binary built without
-    one (`TEMPER_BUNDLE=none`), init says the browser is not served;
+    one (`TEMPER_INTERNAL_BUNDLE=none`), init says the browser is not served;
     the link still signs in a terminal (`temper-box open`), and a browser
     that opens it is answered the clients' listener's page for no
     bundle (`../../client/web/README.md`, 2.2), never a bare `404`;
@@ -432,7 +432,7 @@ playground and no Forgejo on this machine.
   reservations through startup. The walk `box`, step 1, and the
   `commands` page's init entry explain these choices (`temper help`).
 - **What it says,** on stderr: `init: wrote <path>` for each file;
-  `init: this temper has no browser (built with TEMPER_BUNDLE=none):
+  `init: this temper has no browser (built with TEMPER_INTERNAL_BUNDLE=none):
   the browser is not served` from a binary built without its bundle;
   `init: no git on PATH: a real forge's repositories need git
   2.41 or later, set as workers[].git` when there is none; with

@@ -120,7 +120,7 @@ elif [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
     exit 2
 fi
 export NEXTEST_DOUBLE_SPAWN=0
-export TEMPER_BUNDLE=${TEMPER_BUNDLE:-none}
+export TEMPER_INTERNAL_BUNDLE=${TEMPER_INTERNAL_BUNDLE:-none}
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")")
 # Snapshot process working directories in one process, without opening their files.
 processes_in() {

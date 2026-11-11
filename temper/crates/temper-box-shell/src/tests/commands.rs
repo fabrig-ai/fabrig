@@ -310,6 +310,16 @@ fn every_ctl_group_page_is_what_the_table_renders() {
 }
 
 #[test]
+fn bundle_build_variable_is_internal_in_both_tables() {
+    for table in [TABLE, temper_engine_shell::ENGINE] {
+        let bundle = table.variables.iter().find(|variable| variable.name == "TEMPER_INTERNAL_BUNDLE");
+        let bundle = bundle.unwrap_or_else(|| panic!("{} must declare the bundle's build variable", table.binary));
+        assert_eq!(bundle.set, Set::Internal, "{}: build variable is internal", table.binary);
+        assert_eq!(bundle.way, skein_shell::Way::Reads, "{}: build variable is read", table.binary);
+    }
+}
+
+#[test]
 #[expect(
     clippy::disallowed_methods,
     reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the checked documents; the test table will pass it"
