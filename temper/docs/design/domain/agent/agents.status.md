@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [agents.md](agents.md).
 
+- **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2) [in flight: change 108].
+
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
   goal template whose charter designs first or makes a close-out carries
   its `template-goal`: `ask.txt` holds no words for it, as this section

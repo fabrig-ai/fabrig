@@ -323,6 +323,16 @@ fn model(
     }
     let endpoint = check::text(&mut object, document, b"endpoint", path, problems);
     let window = check::count(&mut object, document, b"window", path, problems);
+    let cache_life_ms = match object.member(document, b"cache_life_ms") {
+        Some(at) => match read::integer(document, at, u64::from(u32::MAX)) {
+            Ok(value) => u32::try_from(value).expect("cache life bounded by u32"),
+            Err(what) => {
+                problems.push(path.member(b"cache_life_ms"), what);
+                0
+            }
+        },
+        None => 0,
+    };
     let output = check::count(&mut object, document, b"output", path, problems);
     let mut efforts = Some(Box::default());
     if let Some(at) = object.member(document, b"efforts") {
@@ -390,6 +400,7 @@ fn model(
     model.endpoint = endpoint.number;
     model.program.clone_from(&endpoint.program);
     model.window = window?;
+    model.cache_life_ms = cache_life_ms;
     model.output = output?;
     model.efforts = efforts?;
     model.effort = effort;
@@ -461,6 +472,7 @@ fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
         endpoint: 0,
         program: None,
         window: 0,
+        cache_life_ms: 0,
         output: 0,
         input_price: input_price?,
         cached_price: cached_price?,

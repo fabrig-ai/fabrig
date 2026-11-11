@@ -37,6 +37,7 @@ fn llm() -> jig_protocol_config::Llm {
             endpoint: 1,
             program: None,
             name: Box::from(b"x".as_slice()),
+            cache_life_ms: 0,
             window: 8192,
             output: 1024,
             input_price: 1,
@@ -216,8 +217,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // The fixture has one model, nine charters, five templates, one policy and the rules.
-    const STOCK_VALUES: usize = 17;
+    // The fixture has one model, ten charters, six templates, one policy and the rules.
+    const STOCK_VALUES: usize = 19;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::with_models(

@@ -656,6 +656,7 @@ fn held_assignment() -> crate::Assignment {
                     dialect: 1,
                     endpoint: 1,
                     name: b"m".as_slice().into(),
+                    cache_life_ms: 0,
                     window: 1,
                     output: 1,
                     input_price: 1,

@@ -125,6 +125,8 @@ pub enum EndedBy {
     Requester,
     /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
+    /// A standing agent task ends only by cancel (jig/docs/design/domain/tasks/standing.md, 2).
+    Standing,
 }
 
 /// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).

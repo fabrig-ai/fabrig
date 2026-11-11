@@ -207,6 +207,7 @@ pub fn limits() -> engine::Limits {
                 plan: 128,
                 notes: 64,
                 preferences: 64,
+                now: 64,
             },
             brief_bytes: 384,
             gather: Duration::from_secs(1),
@@ -451,6 +452,7 @@ pub fn charter() -> engine::Charter {
                 dialect: 1,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 1024,
                 input_price: 1,
@@ -994,6 +996,7 @@ impl World {
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

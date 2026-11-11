@@ -93,7 +93,7 @@ record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: Re
 enum RecurringOverlap { skip, wait }
 enum Retention { kept, forgotten_once_read }
 record Closer { connector: u16 code: u32 }
-enum EndedBy { result, requester, closer: Closer }
+enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
@@ -220,7 +220,10 @@ record DecidedProposal { number: u64 made: bool }
 record DecidedLine { revision: u64 proposal: option DecidedProposal }
 record MilestoneLine { position: u64 }
 record KeptLine { attempt: u64 pending: list 64 Number question: option u64 }
-enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine }
+record StoodLine { attempt: u64 words: bytes 512 }
+enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules }
+record SessionEndedLine { attempt: u64 end: SessionEnd }
+enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine, stood: StoodLine, session_ended: SessionEndedLine }
 record ActivityLine { task: u64 position: u64 at: u64 line: Line }
 enum Status { done, failed, cancelled }
 record Stub { task: u64 phase: Status result: u64 }
@@ -348,7 +351,8 @@ record TaskOutcome {
     phase: Phase
     room_wait: option RoomWait
 }
-record TaskRecord { closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
+record Session { first: u64 reasons: u32 last: u64 }
+record TaskRecord { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
 enum HoldOwner { party: Person, task: Number }

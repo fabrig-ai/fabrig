@@ -704,6 +704,8 @@ fn sent(b: &mut Builder, root: &Domain, page: &temper_client_domain::pages::task
                 | c::Activity::Turn { .. }
                 | c::Activity::Decided { .. }
                 | c::Activity::Milestone { .. }
+                | c::Activity::Stood { .. }
+                | c::Activity::SessionEnded { .. }
                 | c::Activity::Kept { .. } => {}
             }
         }

@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
+- **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6) [in flight: change 107].
+
 - **Not yet:**  runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the remaining point-load fences.

@@ -1547,7 +1547,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
         },
-        tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+        tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
     }
     let mut previous = domain.forge.topic_subscriber(goal, &topic).cloned();
     for work in &domain.work {

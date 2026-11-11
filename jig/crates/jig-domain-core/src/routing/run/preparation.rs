@@ -159,15 +159,44 @@ pub(crate) fn workspace_prepared(
         );
     }
     // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors.md, 2).
-    let resume = !transcript.closed
+    let mut resume = !transcript.closed
         && !transcript.cut
         && core.charter_of(task).policy.resume
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
-    let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
     let charter = core.charter_of(task);
-    let own = core.tasks.task(task).expect("live task").instructions.as_deref();
-    let instructions = super::parts::run_instructions(charter, own, context.reasons);
-    let offered = super::parts::offered_kinds(charter, own.is_some(), context.reasons);
+    let row = core.tasks.task(task).expect("live task");
+    let standing = row.flags.ended_by == tasks::EndedBy::Standing;
+    let own = row.instructions.as_deref();
+    let mut session_end = None;
+    let mut reasons = context.reasons;
+    if standing {
+        if let Some(session) = row.session {
+            if context.session_wake {
+                let model = &allowance.choice.policy.model;
+                session_end = tasks::session_end(
+                    session,
+                    tasks::SessionWake {
+                        at: env.wall,
+                        span: tasks::quiet_span(model.cache_life_ms),
+                        bytes: transcript.bytes,
+                        bound: tasks::context_bound(model.window),
+                        kinds: context.session_kinds,
+                        offered: super::parts::offered_kinds(charter, own.is_some(), session.reasons, true),
+                        resumable: resume && transcript.last.is_some(),
+                    },
+                );
+            }
+            if session_end.is_none() {
+                reasons = session.reasons;
+            }
+        }
+        if row.session.is_none() || session_end.is_some() {
+            resume = false;
+        }
+    }
+    let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
+    let instructions = super::parts::run_instructions(charter, own, reasons, standing);
+    let offered = super::parts::offered_kinds(charter, own.is_some(), reasons, standing);
     let messages = start_messages(context.inbox, env.limits.tasks.run_inbox, offered);
     let mut proof = start_proof(core, task, attempt, conversation, &messages);
     proof.host = allowance.choice.placement.kind;
@@ -221,7 +250,7 @@ pub(crate) fn workspace_prepared(
         authority: context.authority,
         budget: allowance.spend,
     };
-    assert!(core.claiming.insert(task, (attempt, offered)) == Ok(None), "one pending claim per task");
+    assert!(core.claiming.insert(task, (attempt, offered, session_end)) == Ok(None), "one pending claim per task");
     out.push(Request::Now(Box::new(Now::RunPrepared {
         live: crate::LiveAsk {
             text: core.tasks.task(task).expect("live task").flags.conversation,
@@ -340,7 +369,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
         crate::routing::effect::note::wait_for_notes(core, work, task, crate::routing::NoteBrief::Operation);
         return out;
     }
-    if super::preferences::gather(core, env, work, task) {
+    if super::preferences::gather(core, env, work, task) || super::now::gather(core, env, work, task) {
         return out;
     }
     let context = core.contexts.get(&task).expect("current preparation context");
@@ -411,6 +440,9 @@ pub(crate) fn plan_brief(
             required: true,
         })
         .expect("task brief room");
+    if !super::now::plan(core, &env.limits, work, task, &mut wanted) {
+        return out;
+    }
     if !context.dependencies.is_empty() || !context.spec.inputs.is_empty() {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Dependencies) else {
             work.push(Work::PreparationFailed {
@@ -519,11 +551,16 @@ pub(crate) fn plan_brief(
 }
 
 fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
+    let context = core.contexts.get(&task).expect("brief owns a preparation context");
+    let standing = context.ended_by == tasks::EndedBy::Standing;
+    if standing && core.tasks.task(task).expect("preparing task").retry_notice.is_none() {
+        return false;
+    }
     let transcript = core.transcripts.get(&task).expect("brief owns a loaded transcript");
     if transcript.closed {
         return transcript.last.is_some();
     }
-    core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
+    standing || core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
 }
 
 pub(crate) fn brief_parent(requester: tasks::Party) -> Option<u64> {
@@ -707,7 +744,7 @@ pub(crate) fn route_claim_prepared(
     budget: u64,
     writes: Box<[tasks::Name]>,
 ) -> Queue<Request> {
-    if let Some(&(prepared, offered)) = core.claiming.get(&task)
+    if let Some(&(prepared, offered, session_end)) = core.claiming.get(&task)
         && prepared == attempt
     {
         let mut reasons = tasks::Reasons::FIRST;
@@ -726,7 +763,7 @@ pub(crate) fn route_claim_prepared(
                 None => false,
             };
             if !valid {
-                let _: Option<(u64, tasks::Reasons)> = core.claiming.remove(&task);
+                let _: Option<(u64, tasks::Reasons, Option<tasks::SessionEnd>)> = core.claiming.remove(&task);
                 core.restore_replaced_proof(task);
                 work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
                 let mut out = Queue::uncapped();
@@ -745,6 +782,7 @@ pub(crate) fn route_claim_prepared(
         };
         let resumed = earlier_transcript && turned;
         work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
+            session_end,
             offered,
             reasons,
             account: match core.proofs.get(&task) {

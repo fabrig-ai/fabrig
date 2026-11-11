@@ -36,6 +36,7 @@ fn running_holder() -> Harness {
     h.send(Event::Make { reply_to: to(), creator: Party::Task(HOLDER), batch: Box::new([child]) });
     h.send(Event::Prepare { reply_to: to(), task: HOLDER });
     h.send(Event::Claim {
+        session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
         account: None,

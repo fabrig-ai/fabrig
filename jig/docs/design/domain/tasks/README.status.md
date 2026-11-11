@@ -2,6 +2,9 @@
 
 2026-11-10. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4) [in flight: change 103].
+- **Not yet:** 3: a standing task's session (`standing.md`, 5.1) [in flight: change 106].
+
 `lifecycle.md`, section 6's classified activation cause has no known gap. `FailedWithReason`
 uses the existing reason bound and retry policy, and keeps its UTF-8 words
 on the retry notice and exhausted hold through task restoration. The job

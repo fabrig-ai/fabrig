@@ -187,6 +187,7 @@ fn profile() -> root::Limits {
                 plan: 128,
                 notes: 64,
                 preferences: 64,
+                now: 64,
             },
             accounts: accounts::Limits {
                 accounts: 1,
@@ -271,6 +272,7 @@ pub fn scripted_model() -> core::Model {
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
+        cache_life_ms: 0,
         window: 8192,
         output: 1024,
         input_price: 1,

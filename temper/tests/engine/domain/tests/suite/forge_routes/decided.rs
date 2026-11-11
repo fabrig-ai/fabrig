@@ -8,10 +8,10 @@ const CALL: u64 = 96;
 const STEPS: u32 = 200; // A root call's durable round trip, without forge IO.
 
 fn start(tracked: bool, words: &[u8]) -> (World, engine::Assignment) {
-    start_as(tracked, !tracked, words)
+    start_as(tracked, !tracked, people::EndedBy::Result, words)
 }
 
-fn start_as(tracked: bool, conversation: bool, words: &[u8]) -> (World, engine::Assignment) {
+fn start_as(tracked: bool, conversation: bool, ended_by: people::EndedBy, words: &[u8]) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -26,6 +26,7 @@ fn start_as(tracked: bool, conversation: bool, words: &[u8]) -> (World, engine::
     let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("chat template") };
     batch[0].tracked = tracked.then_some(0);
     batch[0].flags.conversation = conversation;
+    batch[0].flags.ended_by = ended_by;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
     batch[0].authority.tools = 1 | 2 | 4 | 512;
     batch[0].authority.delegation.tasks = 11;
@@ -95,6 +96,7 @@ enum Caller {
     Goal,
     Chat,
     PersonTask,
+    Standing,
     ServedGoal,
     GoalsChild,
 }
@@ -142,10 +144,11 @@ fn caller(case: &Case) -> (World, engine::Assignment) {
     let (mut world, parent) = match case.caller {
         Caller::Goal | Caller::GoalsChild => start(true, case.words),
         Caller::Chat | Caller::ServedGoal => start(false, case.words),
-        Caller::PersonTask => start_as(false, false, case.words),
+        Caller::PersonTask => start_as(false, false, people::EndedBy::Result, case.words),
+        Caller::Standing => start_as(false, false, people::EndedBy::Standing, case.words),
     };
     let tool = match case.caller {
-        Caller::Goal | Caller::Chat | Caller::PersonTask => return (world, parent),
+        Caller::Goal | Caller::Chat | Caller::PersonTask | Caller::Standing => return (world, parent),
         Caller::ServedGoal => engine::Tool::Goal { words: case.words.into(), advisor: false, agree: false },
         Caller::GoalsChild => {
             let mut child = temper_engine_domain_world::fixtures::report_delegate(case.words, Box::new([]));
@@ -375,6 +378,7 @@ fn each_callers_person_and_reach_are_kept() {
         case("goal away", Caller::Goal, Kind::Implementation, Class::Ask, true, ""),
         case("chat", Caller::Chat, Kind::Wording, Class::Decide, false, ""),
         case("person-made untracked task", Caller::PersonTask, Kind::Wording, Class::Decide, false, ""),
+        case("standing role", Caller::Standing, Kind::Wording, Class::Decide, false, ""),
         case("served goal", Caller::ServedGoal, Kind::Wording, Class::Decide, false, ""),
         Case {
             reach: None,
@@ -457,6 +461,10 @@ fn each_callers_person_and_reach_are_kept() {
             )
         },
         Case { after: After::Overturn, ..case("overturn chat", Caller::Chat, Kind::Wording, Class::Decide, false, "") },
+        Case {
+            after: After::Overturn,
+            ..case("overturn standing role", Caller::Standing, Kind::Wording, Class::Decide, false, "")
+        },
         Case {
             after: After::Overturn,
             ..case("overturn untracked task", Caller::PersonTask, Kind::Wording, Class::Decide, false, "")

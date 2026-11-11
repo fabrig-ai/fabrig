@@ -201,9 +201,12 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
         | jig_protocol_store::Request::Secrets { .. } => unreachable!("fixture requests a commit"),
     }
 }
+#[expect(clippy::too_many_lines, reason = "the fixture names every retained task field")]
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
     use jig_domain_tasks as tasks;
     Box::new(tasks::TaskRecord {
+        session: None,
+        activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
