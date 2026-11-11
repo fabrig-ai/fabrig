@@ -51,6 +51,7 @@ v11 in place, its ceilings the store's limits `adopted_workflows` and
 Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store, written before it, is made afresh at its next redeploy, which waits for the running goals to settle.
 
 - **Not yet:** 4: `ItemsAnswer`'s `cut`, in store v11 in place [in flight: change 44].
+- **Not yet:** 2: the `Change` row's and family 30 `LandingLog`'s changes' `signed`, in store v11 in place [in flight: change 867].
 - **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`'s trailers and tier verdicts, until `../domain/after-landing.md`, sections 6, 8 and 9 need them; the families of findings, `Finding`, `Mark` and `QaPass`.
 - **Design departs:** 2, from the request `ui-away` of 2026-11-05, decided by its plan's cut: `Away` keeps `off` where the request has `on`, and `Decided` keeps `party`, a field it doesn't name (`../domain/forge/attention.status.md`, 4 and 5).
 

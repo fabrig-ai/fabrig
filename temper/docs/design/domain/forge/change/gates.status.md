@@ -3,6 +3,9 @@
 2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
 
 - **Not yet:**
+  - 2, *Sign-offs kept at landing*: no `SignOff`, `SIGN_OFFS` or
+    `signed`; `judge::Reviewer` has no `at`, and nothing keeps the
+    people a merge's judgement counted [in flight: change 867].
   - 2, *The panel's approval evidence* and *Enforced, and waited for*:
     a step of a ready change hands the root no reviews
     (`Request::Reviewed`), so review facts are kept from a merge's wait

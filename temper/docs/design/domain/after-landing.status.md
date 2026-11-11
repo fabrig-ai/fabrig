@@ -6,6 +6,8 @@ Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
+- **Not yet:** 10: the landing log's changes keep no sign-offs
+  (`LoggedChange` has no `signed`) [in flight: change 867].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 3: the pending verdict status a run posts on its tip
