@@ -27,6 +27,10 @@ boundary (smith's run.md, 8.1).
   baselines, clippy and focused tests; Markdown anywhere and every file
   under a `docs/` directory select citations and design size limits.
   Declared documentation inputs to tests select both (sections 3 and 4).
+- **A binary is a process.** The focused tests run through
+  `tools/tiers/one-process default`: each test binary's selected tests in
+  one process, one at a time, binaries in parallel, nextest only selecting
+  and building (section 4). A starved run is a warning.
 - **Known reds, and inherited counts.** Nothing is built or tested at the
   base. A lint or test failure is inherited only when the checked tree's
   `.temper/known-reds.md` lists it; a build failure is always the
@@ -153,15 +157,48 @@ delivery hears every failure; the verdict is section 6's.
 3. **The lints:** `cargo clippy --all-targets --message-format=json -p … -- -D warnings`
    over the lints' set. The check prints each compiler message's
    `rendered` text as it arrives, and keeps each error's key (section 5).
-4. **The focused tests:** `cargo nextest run --profile default
-   --no-fail-fast --no-tests=warn -p …` over the tests' set, with
-   `--tool-config-file temper-pre-pr:<dir>/nextest.toml`, an overlay
-   holding only `[profile.default.junit] path = "<dir>/junit.xml"`, `<dir>`
-   a private temporary directory removed at the end. The repository's
-   `.config/nextest.toml` is not changed. nextest's exit decides: 0
-   passed; 100, test failures, each a JUnit `testcase` with a `failure` or
-   an `error`, named by its suite (the binary id) and its name; 101, a
-   build failure; any other, a failure of the check itself.
+4. **The focused tests:** `tools/tiers/one-process --out <dir>/tests
+   default -p … --no-tests=warn` over the tests' set, from the tree's root,
+   `<dir>` a private temporary directory removed at the end. Each test
+   binary's selected tests run in one process, one at a time, and binaries
+   in parallel; nextest is the front end, selecting with
+   `.config/nextest.toml`'s `default` profile and building
+   (`tools/tiers/design.md`, 11;
+   `skein/docs/foundation/testing-strategy.md`, 8, *A binary is a
+   process*). The check passes no budgets and no configuration of its own:
+   the repository's `.config/nextest.toml` is read as it stands, and the
+   profile's `global-timeout` is the run's only bound. The run's exit
+   decides:
+   - **0:** passed, a starved run included (below);
+   - **100:** test failures, each a `testcase` of the run directory's
+     `junit.xml` with a `failure` or an `error`, named by its suite (the
+     binary id) and its name, its log the case's text, but a test the
+     directory's `results.json` gives the `outcome` `cancelled`: stopped at
+     the global timeout, it is starved, not failed
+     (`tools/tiers/design.md`, 11.6). A failure whose `results.json` test
+     has `alone` `passed` ends its log with one-process's label as a line,
+     `may depend on an earlier test: A, B`, the tests its `before` names,
+     joined by `, `, so that a test which cannot yet share its binary's
+     process is told from one that fails alone. A 100 that leaves no failure is a failure of the check
+     itself;
+   - **2, its output ending with the line `one-process: nextest listing
+     exited with 101`:** a build failure. The listing builds the tests as
+     nextest's run would (`tools/tiers/design.md`, 11.2), and nextest's
+     101 is a failed build;
+   - **any other:** a failure of the check itself, a 2 that names no
+     failed build included (a refusal or an invalid run:
+     `tools/tiers/design.md`, 11.1 and 11.7).
+
+   **A starved run is a warning** (`skein/docs/foundation/testing-strategy.md`,
+   8.1). Where the directory's `run.json` has `starved` true, or
+   `results.json` gives any test the `outcome` `starved` or `cancelled`,
+   the check prints, after the run, `pre-pr: tests starved: <N> starved or
+   cancelled, <M> unobserved, a warning
+   (skein/docs/foundation/testing-strategy.md, 8.1)`, N those tests and M
+   the entries of `results.json`'s `unobserved`, and the summary repeats
+   the line (section 6). It refuses nothing; a failure beside it still
+   refuses. A `junit.xml`, `results.json` or `run.json` the check needs and
+   cannot read is a failure of the check itself.
 
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
@@ -247,9 +284,11 @@ cause.
 - **A failing test** is keyed by its binary id and its name. It is
   inherited when a `- test` entry gives both; otherwise, failing at the
   base or not, it is the delivery's.
-- **A build failure** (nextest's 101) is always the delivery's, whatever
+- **A build failure** (section 4's) is always the delivery's, whatever
   the known reds hold; so is a failure of a check itself (`check clippy`,
-  `check nextest`, `check selection`).
+  `check one-process`, `check selection`).
+- **A starved test** is neither failed nor inherited: section 4's warning
+  names it, and it refuses nothing, listed or not.
 - **A base run that cannot run** (the worktree cannot be made, or a
   tree's `scripts/old_forms.py` fails of itself at the base): the
   exceeded counts stay the delivery's, and the summary says why the base
@@ -269,10 +308,12 @@ cause.
   - `pre-pr: passed` or `pre-pr: refused`, with the base (`base <id>,
     merge base of refs/temper/landing and HEAD`) or that there was none;
   - the sets: `lints: <packages>`, `tests: <packages>`;
+  - section 4's starved line, where the tests starved;
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
     `known-reds`, `check <name>` for a check that failed of itself), then the last lines
-    of its log: a test's JUnit output, an error's rendered text, a tool's
+    of its log: a test's JUnit output, with its alone label last where it
+    has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
     `[… N bytes cut]`;
   - then each inherited failure, one line each: a known red as
@@ -313,14 +354,19 @@ writes it. An earlier record of another shape matches nothing.
 
 The boundary world `tests/boundary/tests/pre_pr.rs` (package
 `fabrig-boundary`, in the focused suite) runs `.temper/pre-pr` in a scratch
-repository against fake `cargo` and `rustfmt` programs that record what they
-were asked and answer from a ledger: metadata with members, their
-directories and dependencies; clippy's JSON messages; nextest's exit and a
-JUnit file at the overlay's path. It reads no
-real build. Its tables: the base (no pin, a pin, a merge in progress, no
-merge base, an unchecked save stepped to its parent); the selection (a package, its dependents, a path reader, a
-path in no package, a deletion); known reds and new failures of each kind,
-with no cargo run and no worktree made at the base;
+repository against fake `cargo`, `rustfmt` and `tools/tiers/one-process`
+programs that record what they were asked and answer from a ledger:
+metadata with members, their directories and dependencies; clippy's JSON
+messages; the one-process run's exit and its `junit.xml`, `results.json`
+and `run.json` in the `--out` directory it was given. It reads no real
+build and runs no real `tools/tiers/one-process`, whose own suite proves it
+(`tools/tiers/design.md`, 11.10). Its tables: the base (no pin, a pin, a
+merge in progress, no merge base, an unchecked save stepped to its parent);
+the selection (a package, its dependents, a path reader, a path in no
+package, a deletion), with the tests' set given to one-process as section
+4's command and no nextest run of the check's own; known reds and new
+failures of each kind, a build failure among them, with no cargo run and
+no worktree made at the base; a starved run that passes with its warning;
 the cache by tree and base; the summary's bound.
 
 `tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
@@ -341,6 +387,15 @@ file at all, leaves the failure the delivery's; a build failure refuses whatever
 entries; and a file over 64 entries or 8,192 bytes fails as `known-reds`.
 No cargo runs at the base. It reads no real build.
 
+It reads a one-process run's directory as section 4 does, from a fake run
+that writes the files: failures from `junit.xml`, keyed by binary id and
+name; a cancelled test left out and the starved line printed, with the
+check passing; the alone label ending a failure's log; exit 2 as a build
+failure when its output ends with the listing's 101 line and as `check
+one-process` otherwise; and the command: `default`, a `--out` that does not
+yet exist, one `-p` per package, `--no-tests=warn`, and no `--workspace`,
+`--profile` or `--tool-config-file`.
+
 ## 10. Later
 
 - **Inputs read by tests** (`.config/gate/read-by-tests.txt`) outside
@@ -352,6 +407,11 @@ No cargo runs at the base. It reads no real build.
   or test package; the landing's CI checks its consumers.
 - **The gate's other checks** (wasm32 clippy, the fuzzy suite, the lint
   profiles) stay the landing's.
+- **A test that cannot yet share its binary's process** fails every
+  delivery whose tests' set holds its package, with the alone label
+  (section 4). Its repair is its own tree's; until then the stopgap is the
+  `process-of-its-own` test group (`tools/tiers/design.md`, 11.3), an
+  override in `.config/nextest.toml` saying why beside it.
 - **A resolution's own edits.** A resolution's base is the branch's head
   before the merge (section 2), so its selection holds what the merge
   brings in as well as its hand edits; a merge of a far-moved landing
