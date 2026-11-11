@@ -29,7 +29,7 @@ fn help(text: &str) -> bool {
         .filter_map(|line| line.split_whitespace().next())
         .collect();
     text == TABLE.help()
-        && names == ["init", "serve", "program-login", "help"]
+        && names == ["init", "serve", "program-login", "help", "versions"]
         && text.contains("temper-box [--config DIR]")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
@@ -114,4 +114,54 @@ fn the_binary_answers_its_table_and_refuses_arguments() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn versions_are_the_engines_lines_and_refusals() {
+    let output = Command::new(skein_scratch::paths::binary("temper-box"))
+        .arg("versions")
+        .env_clear()
+        .stdin(Stdio::null())
+        .output()
+        .expect("run versions");
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(output.stderr.is_empty(), "{output:?}");
+    assert_eq!(output.stdout, temper_engine_shell::versions().as_bytes());
+    let refused = Command::new(skein_scratch::paths::binary("temper-box"))
+        .args(["versions", "x"])
+        .env_clear()
+        .stdin(Stdio::null())
+        .output()
+        .expect("refuse versions arguments");
+    assert_eq!(refused.status.code(), Some(2), "{refused:?}");
+    assert!(refused.stdout.is_empty(), "{refused:?}");
+    assert_eq!(
+        String::from_utf8(refused.stderr).expect("UTF-8 refusal"),
+        "temper-box versions: invalid arguments\nusage: temper-box versions\n"
+    );
+}
+
+#[test]
+fn missing_agent_documents_keep_the_boxs_runtime_words() {
+    let scratch = skein_scratch::Scratch::new("box-agent-words");
+    let missing = scratch.path().join("AGENT.json");
+    let reason = format!("configuration metadata: {}: file absent\n", missing.display());
+    for mode in ["agent", "agent-list"] {
+        let output = Command::new(skein_scratch::paths::binary("temper-box"))
+            .args(["internal", mode])
+            .arg(&missing)
+            .env_clear()
+            .current_dir(scratch.path())
+            .stdin(Stdio::null())
+            .output()
+            .expect("missing agent document");
+        assert_eq!(output.status.code(), Some(1), "{mode}: {output:?}");
+        assert!(output.stdout.is_empty(), "{mode}: {output:?}");
+        let mut expected = if mode == "agent" { format!("smith: {reason}") } else { String::new() };
+        for line in reason.lines() {
+            use std::fmt::Write;
+            writeln!(expected, "temper internal {mode}: {line}").expect("write expected error");
+        }
+        assert_eq!(String::from_utf8(output.stderr).expect("UTF-8 failure"), expected);
+    }
 }

@@ -10,6 +10,7 @@ fn configured(words: &[&str]) -> Result<Command, String> {
 fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
+        Command::Versions => vec!["versions"],
         Command::Usage(row) => match row.reach {
             Reach::Words(words) => words.to_vec(),
             Reach::RunAs(name) => vec![name],
@@ -47,6 +48,7 @@ fn command_words(command: &Command) -> Vec<&str> {
 fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
+        (&["versions"], &["versions"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),
@@ -131,7 +133,7 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help"]);
+    assert_eq!(names, ["init", "serve", "program-login", "help", "versions"]);
     assert!(text.contains("temper-box [--config DIR]"));
 }
 
@@ -191,7 +193,12 @@ fn rows_are_within_bounds() {
 
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
-    let rendered = temper_shell::table::commands_page(&TABLE);
+    let rendered = temper_shell::table::commands_reference(&[
+        &temper_engine_shell::ENGINE,
+        &temper_worker_shell::WORKER,
+        &temper_agent_shell::AGENT,
+        &TABLE,
+    ]);
     let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
@@ -324,5 +331,17 @@ fn arguments_and_environment_documents_are_the_tables() {
                 "{name}: regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
             );
         }
+    }
+}
+
+#[test]
+fn shared_rows_are_the_deployment_binaries_constants() {
+    for command in [
+        temper_engine_shell::commands::VERSIONS,
+        temper_agent_shell::RELAY,
+        temper_agent_shell::PROGRAM_CHILD,
+        temper_agent_shell::CLAUDE,
+    ] {
+        assert!(TABLE.commands.contains(&command), "shared row: {:?}", command.reach);
     }
 }

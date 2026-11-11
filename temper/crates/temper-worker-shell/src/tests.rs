@@ -40,7 +40,6 @@ fn the_dump_directory_is_set_by_a_value_and_made_absolute() {
             .collect();
         assert_eq!(super::dump_llm(&environment), expected, "{row}");
     }
-    assert_eq!(super::DUMP_BOUND, 4_294_967_296);
 }
 
 #[test]

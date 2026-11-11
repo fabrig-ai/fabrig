@@ -854,7 +854,8 @@ a world's loop and the browser tier's run it.
   press on a check or a choice is a `Toggle`. It fails a step on a node
   unbound or disabled, or whose act the node's role does not take
   (section 6), as a person could not make it. It reads a drawing by its
-  name and fallback, as a screen reader does.
+  name and fallback, as a screen reader does. A progress's words are its
+  own runs, so a find by text reaches it.
 - **Its names for roles,** one per role, are what its failures print, so
   an added role is a build error there too.
 - **The random person,** for the fuzzy suite, acts on any bound node but

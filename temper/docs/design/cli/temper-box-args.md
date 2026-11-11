@@ -60,6 +60,13 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Arguments:** `NAME`: A page's name, as the index and the pages give it.; `WORDS`: Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.
 - **Notes:** Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then "and more; narrow the words" when more matched.
 
+### `temper-box versions`
+
+- **Set:** public
+- **Forms:** ``
+- Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
+- **Notes:** Reads no configuration and no store.
+
 ### `--config CONFIG`
 
 - **Set:** public
@@ -241,13 +248,15 @@ Refused, changing nothing, when the configuration directory already holds temper
 
 - **Set:** internal
 - **Forms:** `127.0.0.1:PORT`
-- Run smith's MCP relay.
+- Relay a program's MCP connection to its agent.
+- **Arguments:** `PORT`: The agent's relay listener on loopback; the secret is in SMITH_MCP_SECRET.
 
 ### `temper-box --program-child`
 
 - **Set:** internal
-- **Forms:** `PARENT PROGRAM ARGS...`
-- Run smith's program child.
+- **Forms:** `PARENT PROGRAM ARGUMENTS...`
+- Run a program as the agent's child, which ends with its parent.
+- **Arguments:** `PARENT`: The agent's process id.; `PROGRAM`: The program's path, with its ARGUMENTS.
 
 ### `temper-box --list internal agent-list`
 
