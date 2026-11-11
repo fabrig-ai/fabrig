@@ -73,6 +73,76 @@ impl World {
         assert_eq!(world.top.repository_role(5, REPO), Some(top::Role::Context));
         world
     }
+    /// A target with a dispatch runner and an independently adopted context source.
+    #[must_use]
+    pub fn checking_follow(seed: u64, workflow: raw::Workflow) -> Self {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            Some(workflow),
+            repository_config(2),
+        );
+        world.adopt();
+        forge::repository(
+            &mut world.forge,
+            &world.forge_env.limits,
+            raw::Setup {
+                id: 3,
+                name: b"org/second".as_slice().into(),
+                default: b"main".as_slice().into(),
+                tree: Box::new([]),
+                labels: Box::new([]),
+                workflows: Box::new([]),
+                protection: None,
+                hooked: false,
+                checks: raw::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+            },
+        );
+        forge::grant(&mut world.forge, b"org/second", 1, raw::Permission::Admin);
+        world.event(top::Event::Application {
+            role: None,
+            carried: None,
+            request: Token::new(102),
+            token: Token::new(102),
+            retention: Duration::from_secs(60),
+            ask: top::Ask::Adopt(top::Adoption {
+                project: 5,
+                home: false,
+                forge: REPO.forge,
+                host: b"forge.example".as_slice().into(),
+                owner: b"org".as_slice().into(),
+                name: b"second".as_slice().into(),
+                prefix: b"temper/".as_slice().into(),
+                role: top::Role::Context,
+                landing: b"main".as_slice().into(),
+                ci: true,
+                checks: Box::new([]),
+            }),
+        });
+        world.run_for(2);
+        assert!(
+            world.top.repository(skein_forge::api::Repository { forge: 1, repository: 3 }).is_some(),
+            "source adoption: {:?}",
+            world.seen
+        );
+        assert!(world.project_landing(5, temper_engine_domain_forge_change::Way::Queue, Box::new([])));
+        world
+    }
     pub fn keep_follow(&mut self, number: u32, value: Option<top::settings::Follow>) {
         let edit = match value {
             Some(value) => top::settings::Edit::Set(top::settings::SizedValue {

@@ -321,7 +321,7 @@ fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Faul
         w::TierFault::Lost => Fault::Lost,
     }
 }
-fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
+pub(super) fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     let mut pending = List::with_capacity(u32::try_from(flight.pending.len()).expect(FITS));
     for attempt in &flight.pending {
         pending.push(answers::encode_job_attempt(attempt)).expect(FITS);
@@ -363,7 +363,7 @@ fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     )
     .expect(FITS)
 }
-fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
+pub(super) fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
     let w::TierFlightParts { entry, start, since, waiting, next, run, pending, fault, report } = flight.into_parts();
     let mut attempts = List::with_capacity(pending.len());
     for attempt in pending.into_boxed() {

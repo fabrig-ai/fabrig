@@ -1249,6 +1249,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 

@@ -16,6 +16,7 @@ mod dismissed;
 mod early;
 pub(crate) mod fixtures;
 mod flight;
+mod follow_check;
 mod forge_user;
 mod goal_branch;
 mod goal_start;
