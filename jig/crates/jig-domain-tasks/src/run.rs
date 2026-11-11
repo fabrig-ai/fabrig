@@ -131,6 +131,11 @@ fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: C
         task.record.kept_account = Some(account);
     }
     if task.record.flags.ended_by == crate::EndedBy::Standing {
+        if !task.record.activation_open
+            && crate::talk_state(task.record.talk, task.record.session, env.wall) == crate::TalkState::Lapsed
+        {
+            crate::session::leave(&mut task.record, env.wall, true, out);
+        }
         if let Some(end) = session_end {
             crate::session::end(&mut task.record, env.wall, end, out);
         }

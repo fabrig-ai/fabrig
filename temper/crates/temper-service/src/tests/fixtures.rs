@@ -210,6 +210,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use skein_lib::Wall;
     tasks::TaskRecord {
         session: None,
+        talk: None,
         activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,

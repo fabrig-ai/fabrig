@@ -1313,8 +1313,8 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its 32-byte optional session.
-            limits.journal.transcript_bytes = 8224;
+            // The deep task row includes its optional session and talk, 32 bytes each.
+            limits.journal.transcript_bytes = 8256;
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;

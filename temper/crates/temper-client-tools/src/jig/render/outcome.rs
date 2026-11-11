@@ -70,6 +70,8 @@ impl Operation {
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
                     (creation_word(tasks), None)
                 }
+                c::Ask::Talk { task, .. } => (b"talk", Some(*task)),
+                c::Ask::Leave { task, .. } => (b"leave", Some(*task)),
                 c::Ask::Message { task, .. } => (b"message", Some(*task)),
                 c::Ask::Compound { operations, .. } => {
                     let mut task = None;
@@ -1101,6 +1103,8 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
             | c::Ask::Withdraw { .. }
+            | c::Ask::Talk { .. }
+            | c::Ask::Leave { .. }
             | c::Ask::Message { .. }
             | c::Ask::Compound { .. }
             | c::Ask::Answer { .. }

@@ -11,7 +11,7 @@ pub(crate) fn words(ask: &Ask, task: u64) -> Option<&Text> {
 }
 fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
     match ask {
-        Ask::Message { task: written, words, .. } => {
+        Ask::Talk { task: written, words, .. } | Ask::Message { task: written, words, .. } => {
             if *written == task {
                 Some((words, 0))
             } else {
@@ -59,6 +59,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
         | Ask::MakeService { .. }
+        | Ask::Leave { .. }
         | Ask::SetPool { .. } => None,
     }
 }

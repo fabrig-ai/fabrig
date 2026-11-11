@@ -1110,6 +1110,8 @@ fn chip(task: u64, project: u32) -> c::Chip {
 }
 fn task_document(task: u64, project: u32) -> c::Task {
     c::Task {
+        talk: None,
+        session: None,
         settings: None,
         label: 0,
         flags: c::TaskFlags {

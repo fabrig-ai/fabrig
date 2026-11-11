@@ -545,7 +545,8 @@ impl World {
             }
             Event::Turn { task, cumulative, .. }
             | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
-            Event::CloseProject { .. }
+            Event::Leave { .. }
+            | Event::CloseProject { .. }
             | Event::Place { .. }
             | Event::Lift { .. }
             | Event::MoveToNewest { .. }
@@ -608,6 +609,7 @@ impl World {
             | Event::Message { .. }
             | Event::PersonQuestion { .. }
             | Event::PersonQuestionAnswer { .. }
+            | Event::Talk { .. }
             | Event::AuthorizedMessage { .. }
             | Event::Introduce { .. }
             | Event::DelegateResult { .. }
@@ -640,12 +642,14 @@ impl World {
             Event::Message { operation: tasks::Message { word, .. }, .. }
             | Event::PersonQuestion { word, .. }
             | Event::PersonQuestionAnswer { word, .. }
+            | Event::Talk { operation: tasks::Message { word, .. }, .. }
             | Event::AuthorizedMessage { operation: tasks::Message { word, .. }, .. }
             | Event::DelegateResult { word, .. }
             | Event::Notice { word, .. } => {
                 self.message = self.message.max(word.number);
             }
-            Event::CloseProject { .. }
+            Event::Leave { .. }
+            | Event::CloseProject { .. }
             | Event::Place { .. }
             | Event::Lift { .. }
             | Event::Charters { .. }

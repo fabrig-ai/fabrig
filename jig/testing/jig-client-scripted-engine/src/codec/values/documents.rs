@@ -26,6 +26,8 @@ pub(in crate::codec) fn wire_offered(value: &c::Offered, limits: &w::Limits) -> 
 
 pub(in crate::codec) fn wire_act_kind(value: &c::ActKind, _limits: &w::Limits) -> Result<w::ActKind, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::ActKind::Talk => w::ActKind::Talk,
+        c::ActKind::Leave => w::ActKind::Leave,
         c::ActKind::Message => w::ActKind::Message,
         c::ActKind::Answer => w::ActKind::Answer,
         c::ActKind::Take => w::ActKind::Take,
@@ -215,6 +217,21 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
     w::Task::new(
         limits,
         w::TaskParts {
+            talk: value
+                .talk
+                .map(|talk| {
+                    w::Talk::new(
+                        limits,
+                        w::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
+                    )
+                })
+                .transpose()?,
+            session: value
+                .session
+                .map(|session| {
+                    w::Session::new(limits, w::SessionParts { first: session.first, last: session.last.as_nanos() })
+                })
+                .transpose()?,
             settings: value.settings.as_ref().map(|item| wire_task_settings(item, limits)).transpose()?,
             label: value.label,
             flags: wire_task_flags(&value.flags, limits)?,
