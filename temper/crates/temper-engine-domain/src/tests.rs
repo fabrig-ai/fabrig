@@ -627,6 +627,7 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
 fn held_assignment() -> crate::Assignment {
     use jig_domain_brief as brief;
     crate::Assignment {
+        check_timeout: None,
         task: 1,
         attempt: 1,
         conversation: 1,

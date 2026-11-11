@@ -26,6 +26,7 @@ fn decided(tool: &[u8], json: &[u8]) -> Result<engine::Call, Problem> {
 
 fn assignment() -> engine::Assignment {
     engine::Assignment {
+        check_timeout: None,
         task: 23,
         attempt: 7,
         conversation: 7,
@@ -400,6 +401,18 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
     assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
     assert!(charter.outcome.change.is_none());
     assert!(charter.outcome.report.is_some());
+}
+
+#[test]
+fn an_assignments_check_bound_reaches_the_smith_charter() {
+    for bound in [Some(Duration::from_secs(900)), None] {
+        let mut assignment = delivering_assignment();
+        assignment.check_timeout = bound;
+        assert_eq!(crate::charter(&assignment).check_timeout, bound);
+        // A resumed attempt uses the same application assignment field.
+        assignment.transcript = Box::new([b"history".as_slice().into()]);
+        assert_eq!(crate::charter(&assignment).check_timeout, bound);
+    }
 }
 
 #[test]

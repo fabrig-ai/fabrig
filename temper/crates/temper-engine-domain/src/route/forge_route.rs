@@ -1796,6 +1796,30 @@ pub(crate) fn unheld_run_branch(
     Some(domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &limits.tasks)?).is_none())
 }
 
+/// Read the change project's checks' bound anew for each assignment
+/// (temper/docs/design/domain/agent/charter.md, 4).
+/// Reviews and runs outside a change's coding delegates name no bound.
+pub(crate) fn check_timeout(domain: &Domain, task: u64) -> Option<skein_lib::Duration> {
+    let context = domain.core.tasks.task(task)?;
+    let tasks::Party::Task(parent) = context.requester else { return None };
+    let row = domain.forge.change(parent)?;
+    let (child, kind) = row.delegate?;
+    if child != task {
+        return None;
+    }
+    match kind {
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => {
+            let repository = domain.forge.repository(row.repository)?;
+            domain.config.landings.get(&repository.project)?.check_timeout
+        }
+        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {
+            None
+        }
+    }
+}
+
 /// Resolve a run's repository tags and change ancestry before asking policy
 /// or taking the connector writer slot.
 #[expect(clippy::too_many_lines, reason = "one claim translates and checks all repository writes and holds")]

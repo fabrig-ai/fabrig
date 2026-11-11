@@ -187,6 +187,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
                     .insert(
                         1,
                         engine::ProjectLanding {
+                            check_timeout: None,
                             by: engine::Way::Queue,
                             close_job: None,
                             merge_job: None,

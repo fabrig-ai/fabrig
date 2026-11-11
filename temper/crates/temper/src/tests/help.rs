@@ -749,6 +749,7 @@ fn tier_help_contains_a_complete_landing_configuration_example() {
     assert_eq!(project["project"], 1);
     assert!(project.get("rules").is_none());
     assert_eq!(project["by"], "queue");
+    assert_eq!(project["check_timeout_ms"], 900_000);
     assert_eq!(project["tier_retries"], 2);
     assert_eq!(project["verification_bound_ms"], 7_200_000);
     let repositories = project["gates"].as_array().expect("project repository entries");

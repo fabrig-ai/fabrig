@@ -29,6 +29,7 @@ fn payload(domain: &mut Domain) -> Token {
 
 fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
     let crate::Assignment {
+        check_timeout: _,
         task,
         attempt,
         conversation,

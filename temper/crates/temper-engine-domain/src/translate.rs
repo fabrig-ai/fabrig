@@ -62,6 +62,7 @@ pub struct LandingRules {
 /// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
+    pub check_timeout: Option<skein_lib::Duration>,
     pub by: Way,
     pub merge_job: Option<Box<[u8]>>,
     pub close_job: Option<Box<[u8]>>,
