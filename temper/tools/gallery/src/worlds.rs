@@ -4901,6 +4901,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            commit: [0xab; 32],
+                            default_branch: true,
                             task,
                             title: title.as_bytes().into(),
                             at: offset(Reference, minute).as_nanos(),
@@ -4916,6 +4918,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        commit: [0xab; 32],
+                        default_branch: true,
                         task: 107,
                         title: b"Hello in Rust".as_slice().into(),
                         at: offset(Reference, -58).as_nanos(),
@@ -4928,6 +4932,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     v::ChangesPanel::new(
         &v::CEILINGS,
         v::ChangesPanelParts {
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
             project: PROJECT,
             landing: b"main".as_slice().into(),
             queues,
