@@ -66,7 +66,7 @@ check follows landing.
 - **Not yet:** 2, *Roles*: the view `roles` gives the drafter no row,
   and a role's `who` says when it runs alone, so Roles says no
   charter's words (`../../domain/forge/change/branch-path.md`, *The
-  project's roles*) [in flight: change 314].
+  project's roles*).
 
 `README.md`, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and `../view.md`, 3, *The rail*, *The rail's parts*, *Projects in the rail* and *All

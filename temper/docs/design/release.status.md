@@ -16,9 +16,9 @@ its library holds `VERSION`, `COMMIT` and `line`, and its tests hold
 the commit's word and the watched paths. `temper-engine --version` and
 `temper-agent --version` print from it.
 
-- **Not yet:** 3: `temper-client --version` from `temper-version`, under `TEMPER_INTERNAL_COMMIT`, in place of a build script of its own [in flight: change 93].
+- **Not yet:** 3: `temper-client --version` from `temper-version`, under `TEMPER_INTERNAL_COMMIT`, in place of a build script of its own.
 
-- **Not yet:** 3: `temper-box --version` [in flight: change 91].
+- **Not yet:** 3: `temper-box --version`.
 - **Not yet:** 2: the release's file, its symbol check and checksum. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
   its start; only `temper-box init` warns of a missing git
   (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a

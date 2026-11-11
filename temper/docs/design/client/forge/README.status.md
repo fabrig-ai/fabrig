@@ -34,12 +34,12 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
 3). Older public history remains deferred in `README.md`, section 8.
 
 - **Not yet:** 4.1, *Its context*: the rule's sentence still says "C so
-  far.", and no sentence says who has signed and who can still sign
-  [in flight: change 847].
+  far.", and no sentence says who has signed and who can still sign.
+  [in flight: change 847]
 - **Not yet:** 4.1: a row names no path set, so the card says no
   "Signs off changes to NAME." and leads no "Sign off on Forgejo ↗";
   it still says how many changes wait behind it, and the row carries
-  `behind` [in flight: change 207].
+  `behind`.
 - **Departs:** `deployment.md`, A managed Forgejo: a stop empties the admin’s
   token whatever connect it ends: with no admin connect sent, any
   stopped managed Forgejo's row empties it, and while the sent

@@ -2,13 +2,12 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6) [in flight: change 108].
+- **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6).
 
-- **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
+- **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject`.
 
 - **Not yet:** 3: a settings file's landing rule has no `sets`, in
-  `temper-settings-form` or `temper-client-tools`' `render_rule`
-  [in flight: change 202].
+  `temper-settings-form` or `temper-client-tools`' `render_rule`.
 
 - **Not yet:** 1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.

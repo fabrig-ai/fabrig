@@ -2,9 +2,9 @@
 
 2026-11-11. Where jig's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 3 and 3.2: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7) [in flight: change 102].
-- **Not yet:** 3: parts under a resuming charter (`../domain/tasks/standing.md`, 5.4) [in flight: change 106].
-- **Not yet:** 3: a profile's `brief_core_budgets.now` (`../domain/tasks/standing.md`, section 6) [in flight: change 107].
+- **Not yet:** 3 and 3.2: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7).
+- **Not yet:** 3: parts under a resuming charter (`../domain/tasks/standing.md`, 5.4).
+- **Not yet:** 3: a profile's `brief_core_budgets.now` (`../domain/tasks/standing.md`, section 6).
 
 `configuration.md`, sections 3 and 3.1 and `limits.md` have no known gap in ordered charter parts and
 their instruction files, path-specific refusals, the

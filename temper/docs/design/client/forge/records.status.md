@@ -4,8 +4,8 @@
 
 - **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
 - **Not yet:** the subject `approvals`: `ApprovalRow` has no `signed`,
-  `can_sign` or `can_sign_more`, and the schema no `ApprovalPerson`
-  [in flight: change 847].
+  `can_sign` or `can_sign_more`, and the schema no `ApprovalPerson`.
+  [in flight: change 847]
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
    the project-only settings-role gap remains `../pages/settings.status.md`, 2.
