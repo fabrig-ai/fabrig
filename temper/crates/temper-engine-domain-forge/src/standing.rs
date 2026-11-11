@@ -81,28 +81,53 @@ impl Domain {
     ) -> Option<Box<[change::Gate]>> {
         let selected = self.held_gates(limits, repository, &row.base, touched)?;
         let rules = self.landing_rules(repository.project);
-        let mut gates = List::with_capacity(limits.change_policy.gates);
+        let mut gates: List<change::Gate> = List::with_capacity(limits.change_policy.gates);
         for gate in &row.change.gates {
-            let mut from_rule = false;
+            let mut by_path = false;
             for held in &rules {
-                if !gates::covers(&held.rule, repository, &row.base, Touched::UNKNOWN) {
+                if held.rule.sets.is_empty() || !gates::covers(&held.rule, repository, &row.base, Touched::UNKNOWN) {
                     continue;
                 }
                 for named in &held.rule.gates {
-                    from_rule |= gate.number == u64::from(named.number);
+                    let check = !repository.ci && repository.checks.contains(&named.number);
+                    let configured = change::Gate {
+                        number: u64::from(named.number),
+                        kind: if check { change::GateKind::Check } else { change::GateKind::Agent },
+                        blocking: check || (held.rule.enforce && named.blocking),
+                        freshness: if check {
+                            change::Freshness::Exact
+                        } else {
+                            match named.freshness {
+                                JudgeFreshness::Exact => change::Freshness::Exact,
+                                JudgeFreshness::Clean => change::Freshness::Clean,
+                            }
+                        },
+                        eager: false,
+                    };
+                    by_path |= *gate == configured;
                 }
             }
-            if !repository.ci {
-                for number in &repository.checks {
-                    from_rule |= gate.number == u64::from(*number);
-                }
-            }
-            if !from_rule {
+            if !by_path {
                 gates.push(*gate).ok()?;
             }
         }
         for gate in selected {
-            gates.push(gate).ok()?;
+            let mut present = false;
+            for own in gates.iter_mut() {
+                if own.number == gate.number {
+                    present = true;
+                    own.blocking |= gate.blocking;
+                    if gate.freshness == change::Freshness::Exact {
+                        own.freshness = change::Freshness::Exact;
+                    }
+                    if gate.kind == change::GateKind::Check {
+                        own.kind = change::GateKind::Check;
+                    }
+                }
+            }
+            if !present {
+                gates.push(gate).ok()?;
+            }
         }
         Some(gates.into_boxed())
     }

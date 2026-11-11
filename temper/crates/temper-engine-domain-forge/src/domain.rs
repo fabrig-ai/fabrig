@@ -108,6 +108,14 @@ pub(crate) struct PendingStep {
     paths_whole: bool,
     woken: bool,
 }
+/// Comparison at its head and the first time the last judged reviews were kept.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct ReviewHead {
+    head: Option<skein_forge::api::Commit>,
+    touched: crate::Touched,
+    since: Option<skein_lib::Wall>,
+}
+
 struct StepInput {
     task: u64,
     entry: u64,
@@ -197,9 +205,8 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
     pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
-    pub(crate) review_since: Map<u64, skein_lib::Wall>,
-    /// Last compared paths' coverage per live change, pinned to its head and unsaved.
-    pub(crate) touched: Map<u64, (Option<skein_forge::api::Commit>, crate::Touched)>,
+    /// Comparison and review time per live change, unsaved and bounded like review facts.
+    pub(crate) review_heads: Map<u64, ReviewHead>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     pub(crate) entries: Map<u64, Outboxed>,
     pub(crate) flights: Map<(u64, u64), ()>,
@@ -587,9 +594,30 @@ impl Domain {
     }
 
     pub(crate) fn touched_at(&self, row: &ChangeRow) -> crate::Touched {
-        match self.touched.get(&row.task) {
-            Some((head, touched)) if *head == row.change.last_head && !row.terminal() => *touched,
+        match self.review_heads.get(&row.task) {
+            Some(kept) if kept.head == row.change.last_head && !row.terminal() => kept.touched,
             Some(_) | None => crate::Touched::UNKNOWN,
+        }
+    }
+
+    pub(crate) fn review_since(&self, task: u64) -> Option<skein_lib::Wall> {
+        match self.review_heads.get(&task) {
+            Some(kept) => kept.since,
+            None => None,
+        }
+    }
+
+    pub(crate) fn keep_touched(&mut self, task: u64, head: Option<skein_forge::api::Commit>, touched: crate::Touched) {
+        match self.review_heads.get_mut(&task) {
+            Some(kept) => {
+                kept.head = head;
+                kept.touched = touched;
+            }
+            None => {
+                self.review_heads
+                    .insert(task, ReviewHead { head, touched, since: None })
+                    .expect("one head per bounded live change");
+            }
         }
     }
 
@@ -607,7 +635,17 @@ impl Domain {
             None => false,
         };
         if !same_head {
-            self.review_since.insert(task, wall).expect("one review time per bounded live change");
+            match self.review_heads.get_mut(&task) {
+                Some(kept) => kept.since = Some(wall),
+                None => {
+                    self.review_heads
+                        .insert(
+                            task,
+                            ReviewHead { head: facts.head, touched: crate::Touched::UNKNOWN, since: Some(wall) },
+                        )
+                        .expect("one head per bounded live change");
+                }
+            }
         }
         self.review_facts.insert(task, facts).expect("one review read per bounded live change");
         true
@@ -757,8 +795,7 @@ impl Domain {
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
-            touched: Map::with_capacity(l.changes),
-            review_since: Map::with_capacity(l.changes),
+            review_heads: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
             flights: Map::with_capacity(l.entries),
@@ -4031,6 +4068,10 @@ fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) ->
     if d.approval_short(row) {
         return false;
     }
+    let (ready, repair) = queue_ready(d, row, l);
+    if let Some(task) = repair {
+        return row.task == task;
+    }
     for (_, other) in &d.changes {
         if other.repository == row.repository
             && other.base == row.base
@@ -4041,11 +4082,7 @@ fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) ->
             return row.task == other.task;
         }
     }
-    let (ready, repair) = queue_ready(d, row, l);
-    match repair {
-        Some(task) => row.task == task,
-        None => change::first(ready.as_slice(), l.queue_window, now) == Some(row.task),
-    }
+    change::first(ready.as_slice(), l.queue_window, now) == Some(row.task)
 }
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
@@ -4187,7 +4224,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         accept_released_branch(d, env, &mut row, head, out);
     }
     let touched = step_touched(d, &row, pending);
-    d.touched.insert(row.task, (pending.branch, touched)).expect("one comparison per bounded live change");
+    d.keep_touched(row.task, pending.branch, touched);
     if let Some(repository) = d.repositories.get(&row.repository) {
         let Some(gates) = d.step_gates(&env.limits, &row, repository, touched) else {
             emit(out, Request::Refused { task: row.task });
@@ -5775,8 +5812,7 @@ fn committed(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Req
             for (change, row) in &d.changes {
                 if (direct && *change == task) || (!direct && row.change.landing == Some(task)) {
                     let facts = d.review_facts.remove(change);
-                    d.review_since.remove(change);
-                    d.touched.remove(change);
+                    d.review_heads.remove(change);
                     if facts.is_some() {
                         emit(out, Request::Marked { tasks: Box::new([crate::APPROVALS_SUBJECT, *change]) });
                     }
@@ -5916,9 +5952,13 @@ fn veto_change(
     row.effect = change::EffectResult::None;
     row.effect_account = None;
     let mut saved = row.clone();
-    yield_approval_turn(d, &mut saved);
+    let yielded = yield_approval_turn(d, &mut saved);
+    let repository = saved.repository;
     d.changes.insert(task, saved.clone()).expect("replaces change");
     save_queue_change(d, env, before, saved, out);
+    if yielded && let Some(tasks) = crate::views::changes_mark(d, repository) {
+        emit(out, Request::Marked { tasks: Box::from(tasks) });
+    }
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }
@@ -7082,8 +7122,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     }
     d.review_requests.remove(&row.task);
     d.review_facts.remove(&row.task);
-    d.review_since.remove(&row.task);
-    d.touched.remove(&row.task);
+    d.review_heads.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
         Some(_) | None => row.ci,

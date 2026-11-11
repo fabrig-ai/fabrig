@@ -91,7 +91,7 @@ impl Domain {
             if short.is_empty() {
                 continue;
             }
-            let since = *self.review_since.get(task).expect("kept review facts have their first time");
+            let since = self.review_since(*task).expect("kept review facts have their first time");
             let mut behind = 0_u32;
             let mut found = false;
             if let Some(ordered) = self.changes_order(row, now, limits) {

@@ -619,10 +619,10 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     assert_eq!((waits[0].since, waits[0].behind), (a, 0), "a short approval is outside the queue");
     assert_eq!(waits[0].title.len(), LOGGED_TITLE_BYTES);
     assert!(waits[0].title.ends_with("…".as_bytes()));
-    assert_eq!(d.review_since.get(&CHANGE), Some(&a));
+    assert_eq!(d.review_since(CHANGE), Some(a));
     let next = ReviewFacts { head: Some(fixtures::BASE), ..facts.clone() };
     assert!(d.keep_review_facts(c, CHANGE, next));
-    assert_eq!(d.review_since.get(&CHANGE), Some(&c));
+    assert_eq!(d.review_since(CHANGE), Some(c));
     assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "old facts leave the read");
     d.changes.get_mut(&CHANGE).expect("change").change.last_head = Some(fixtures::BASE);
     d.changes.get_mut(&52).expect("second").change.state = change::State::Landing { head: HEAD };
@@ -689,7 +689,7 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     let row = row.clone();
     domain::save_change(&mut d, &mut Queue::uncapped(), row);
     assert!(!d.review_facts.contains_key(&CHANGE));
-    assert!(!d.review_since.contains_key(&CHANGE));
+    assert!(d.review_since(CHANGE).is_none());
 }
 
 #[test]
@@ -775,7 +775,7 @@ fn path_rules_select_merge_waits_gates_panels_and_approval_rows() {
         row.change.last_head = Some(HEAD);
         row.change.state = change::State::Queued { head: HEAD, ready_since: env().wall };
         row.pull = Some(1);
-        d.touched.insert(CHANGE, (Some(HEAD), touched)).expect("one comparison");
+        d.keep_touched(CHANGE, Some(HEAD), touched);
         d.keep_review_facts(
             env().wall,
             CHANGE,
@@ -827,11 +827,11 @@ fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
         fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
         let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
-        let mut reviews = 0_usize;
+        let mut reviewed = 0_usize;
         let mut waited = false;
         for request in &finished {
             if let Request::Reviewed { task, evidence } = request {
-                reviews = reviews.saturating_add(1);
+                reviewed = reviewed.saturating_add(1);
                 assert_eq!(*task, CHANGE);
                 assert_eq!(evidence.head, Some(HEAD));
                 assert!(evidence.reviews_complete);
@@ -843,7 +843,7 @@ fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
                 waited = true;
             }
         }
-        assert_eq!(reviews, usize::from(covered), "enforce {enforce}, asks {asks}");
+        assert_eq!(reviewed, usize::from(covered), "enforce {enforce}, asks {asks}");
         assert!(waited);
         assert!(d.entries.is_empty(), "the queued step attempts no merge");
     }
@@ -892,7 +892,7 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
     let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
-    let mut merge = None;
+    let mut proposed = None;
     for request in &finished {
         if let Request::ChangeDecision {
             decision: change::Decision::Effect(change::Effect::Merge { .. }),
@@ -901,10 +901,10 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
             ..
         } = request
         {
-            merge = Some((*entry, evidence.prior.clone()));
+            proposed = Some((*entry, evidence.prior.clone()));
         }
     }
-    let (entry, prior) = merge.expect("without facts the first still asks to merge");
+    let (entry, prior) = proposed.expect("without facts the first still asks to merge");
     assert!(d.keep_review_facts(env().wall, CHANGE, facts));
     outputs(&mut d, Event::VetoChange { task: CHANGE, entry, prior });
     let row = d.change(CHANGE).expect("waiting merge");

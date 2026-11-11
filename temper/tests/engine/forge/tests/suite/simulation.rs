@@ -1207,6 +1207,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::SetUp { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
@@ -1256,7 +1257,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
-                | top::Request::Reviewed { .. }
                 | top::Request::Call { .. } => {}
             }
         }

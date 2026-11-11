@@ -198,7 +198,8 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         (br#","sets":[1,3]"#, &[1, 3], br#","sets":[1,3]"#),
         (br#","sets":[6,5,4,3,2,1]"#, &[6, 5, 4, 3, 2, 1], br#","sets":[6,5,4,3,2,1]"#),
     ] {
-        let items = file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard()).expect("sets file");
+        let items =
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard()).expect("sets file");
         let item = items.get(0).expect("one rule");
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
@@ -211,7 +212,10 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
             application: None,
             proposed: None,
         }));
-        assert_eq!(shown(&document), joined(&[br#"{"setting":"#, PROJECT_RULE, br#","revision":1,"value":"#, &landing_sets(printed), b"}"]));
+        assert_eq!(
+            shown(&document),
+            joined(&[br#"{"setting":"#, PROJECT_RULE, br#","revision":1,"value":"#, &landing_sets(printed), b"}"])
+        );
     }
 }
 #[test]
@@ -223,7 +227,12 @@ fn landing_sets_refuse_wrong_types_numbers_and_counts_by_path() {
         (br#","sets":[256]"#, b"settings file item 1: landing-rule.sets: u8 bound"),
         (br#","sets":[1,2,3,4,5,6,1]"#, b"settings file item 1: landing-rule.sets: bound 6"),
     ] {
-        assert_eq!(file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard()).expect_err("bad sets").as_ref(), expected);
+        assert_eq!(
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard())
+                .expect_err("bad sets")
+                .as_ref(),
+            expected
+        );
     }
 }
 #[test]

@@ -93,6 +93,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                     scope: if rng.chance(500) { 0 } else { 9 },
                     number: u32::try_from(number).unwrap(),
                     rule: LandingRule {
+                        sets: Box::new([]),
                         pattern: GatePattern { segments, last },
                         enforce: rng.chance(500),
                         ci: rng.chance(500),

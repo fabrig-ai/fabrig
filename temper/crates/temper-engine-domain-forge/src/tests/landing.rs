@@ -758,11 +758,11 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         let mark = Request::Marked { tasks: Box::new([APPROVALS_SUBJECT, fixtures::CHANGE]) };
         assert_eq!(requests.contains(&mark), merge, "turn={turn}, merge={merge}: {requests:?}");
         assert_eq!(d.review_facts.get(&fixtures::CHANGE), if merge { None } else { Some(&facts) });
-        assert_eq!(d.review_since.get(&fixtures::CHANGE).copied(), if merge { None } else { Some(env().wall) });
+        assert_eq!(d.review_since(fixtures::CHANGE), if merge { None } else { Some(env().wall) });
         let panel = d.panel(fixtures::CHANGE, ApplicationScope::Project(5), env().wall, &LIMITS).expect("panel");
         assert_eq!(panel.approvals[0].read, if merge { ReviewRead::Unread } else { ReviewRead::Complete });
         assert_eq!(d.review_facts.get(&52), Some(&facts), "another change keeps its facts");
-        assert_eq!(d.review_since.get(&52), Some(&env().wall));
+        assert_eq!(d.review_since(52), Some(env().wall));
         assert!(!outputs(&mut d, Event::Committed { entry: 91 }).contains(&mark), "no repeated drop mark");
     }
 }
