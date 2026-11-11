@@ -3,20 +3,6 @@
 2026-11-11. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
-  - 2: `../client/view.md`, 3, *While To begin shows*, keeps the rail
-    to "Home" and "Ask temper", with no hairline and no "How work runs",
-    where this section, redrawn after the plan `ui-p1-rail` was cut, adds
-    both (`pair/first-run.html`); and 3.5, *To begin*'s card and *The
-    work's account and model*'s All models still send the person to
-    Settings, which the rail
-    no longer names: "they stay in Settings and Ask temper", "it stays in
-    Settings" and "Choose what the list shows, in Settings". On a page
-    across projects the rail's "Needs you" counts
-    the open project's needs, where this section counts across what it
-    shows (`surfaces.md`, sections 3 and 4); under All projects the rail's "Home" and
-    "Needs you" open the open project's pages (5.3, *All projects*),
-    where `surfaces.md`, section 1 has both read every project and this section makes
-    only Work, Team and How work runs a project's.
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who

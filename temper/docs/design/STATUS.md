@@ -261,12 +261,14 @@ Goals and Changes its filters; Deployment's six tabs, Members and Limits
 new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
 walk follow landing. Team shows from a project's second person, not yet
-for a standing role; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail and drops the words
-that still name Settings, which the design doesn't yet say
-(`client/pages/README.status.md` and `client/view.status.md`, 3;
+for a standing role. Its repair, goal 368, draws To begin's rail with the
+hairline and How work runs, turns the words that still named Settings to
+How work runs and Deployment, and keeps Home and Needs you across projects
+under All projects, Needs you's count across them; its render check and
+walk, and `project-landing`'s new recording, follow landing
+(`client/view.md`, 3; `client/pages/README.status.md` and `client/view.status.md`, 3;
 `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Team is the whole story's
+`draft/surfaces.status.md`, 5, 8 and 10). Team is the whole story's
 milestone P4a, by plan `ui-p4a-team`: a project's people from its
 document, the reader first, each with their role and what waits on them,
 the reader's from Needs you's entries and another's from the tasks they

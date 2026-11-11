@@ -898,6 +898,39 @@ fn standing_watch_opens_once_for_project_closes_on_welcome_and_signout_and_reope
     }
 }
 #[test]
+fn across_count_counts_shared_proposals_once_and_subtracts_a_held_answer() {
+    let (mut root, watch) = count_root();
+    let mut rows = List::with_capacity(3);
+    for (object, project) in [(FIRST, fixtures::PROJECT), (SECOND, OTHER_PROJECT)] {
+        rows.push(crate::tests::documents::entry(object, project, 1, Wall::EPOCH, None)).unwrap();
+    }
+    let mut proposal =
+        crate::tests::documents::entry(ObjectKey::Proposal(f::PROPOSAL), fixtures::PROJECT, 1, Wall::EPOCH, None);
+    proposal.project = None;
+    proposal.projects = List::with_capacity(2);
+    proposal.projects.push(fixtures::PROJECT).unwrap();
+    proposal.projects.push(OTHER_PROJECT).unwrap();
+    rows.push(proposal).unwrap();
+    let inbox = crate::tests::documents::inbox(rows, 99, c::Count { value: 0, limited: false }, 0, false);
+    super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
+    assert_eq!(
+        root.pages().needs().count_across(root.client(), root.forge().approvals()),
+        needs::Count { count: 3, cut: false }
+    );
+    assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 2);
+    root.pages.inbox = fixture().inbox.take();
+    root_event(
+        &mut root,
+        crate::Event::Act {
+            action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object: FIRST, words: Box::from(CHOICE) })),
+        },
+    );
+    assert!(root.pages().needs().held(FIRST));
+    assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()).count, 2);
+    assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 1);
+}
+
+#[test]
 fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cut_and_end() {
     for (inbox_cut, more) in [(false, 1), (true, 0)] {
         let (mut root, watch, approvals) = approval_root();
@@ -914,6 +947,7 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
             ],
             more,
         );
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()), needs::Count::default());
         let mut rows = List::with_capacity(4);
         for (object, project) in [
             (FIRST, fixtures::PROJECT),
@@ -931,6 +965,10 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
             root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
             needs::Count { count: 3, cut: true }
         );
+        assert_eq!(
+            root.pages().needs().count_across(root.client(), root.forge().approvals()),
+            needs::Count { count: 5, cut: true }
+        );
         let mut cards = fixture();
         add(&mut cards, SECOND, fixtures::PROJECT);
         root.pages.inbox = cards.inbox.take();
@@ -943,6 +981,7 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
             },
         );
         assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 3);
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()).count, 5);
         root_event(
             &mut root,
             crate::Event::Act {
@@ -953,6 +992,7 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
             },
         );
         assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 2);
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()).count, 4);
         let before = pages::shown(root.pages());
         let out = root_event(
             &mut root,
@@ -967,6 +1007,7 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
             root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
             needs::Count::default()
         );
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()), needs::Count::default());
         assert!(opens(&out).is_empty());
     }
 }

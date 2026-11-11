@@ -115,7 +115,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
-| `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
+| `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the line "Two steps left. Skip them if you like; they stay in How work runs and Ask temper." |
 | `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
@@ -145,7 +145,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
 | `home-skip-refused` | hand-made Home deliveries: Skip refused; the alert under the note and Skip offered again |
 | `home-begin-with-needs` | hand-made Home deliveries: To begin showing, with one question and one chat delivered and neither drawn: no Needs you and no Chats under the card |
-| `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in Settings; its Ask temper chat delivered and not drawn: no Chats under the card |
+| `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in How work runs; its Ask temper chat delivered and not drawn: no Chats under the card |
 | `night-home` | `home-begin-ask-left` with the night switch pressed: the night look, the switch a sun (the look request `night-mode`'s page 01) |
 | `night-ask` | `ask-first-run` with the night switch pressed: Ask temper as "Start" opens it on the first run's project, template 5 listed, at night (its page 02) |
 | `night-chat-split` | `chat-draft-split` at night: a chat beside its draft (its page 03) |
@@ -162,7 +162,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; the lede and the ways, Agents review current and shown with "Keep it", Send disabled while the words are empty |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede and the ways, Agents review current and shown with "Keep it", Send disabled while the words are empty |
 | `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and "Use this" |
 | `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" shown: its two landings, the goal branch's bar dimmer, "verify" before main |
 | `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
@@ -283,7 +283,7 @@ from the engine's own answers, is where the look is tuned.
 | `rail-person-menu` | the rail's person with its menu open |
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
 | `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
-| `rail-across` | *Needs you* across projects: the switcher names "All projects", the rail's Work and How work runs the project last open |
+| `rail-across` | *Needs you* across projects, a need in each of two projects: the switcher names "All projects"; the rail's "Needs you 2", current, counting both, its Home to `AllHome`, and the phone's Home and "Needs 2" the same; its Work and How work runs the project last open (`../view.md`, 3, *All projects*) |
 | `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
 | `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
 | `work-drafts` | `work` under Drafts: the drafts' cards alone |
