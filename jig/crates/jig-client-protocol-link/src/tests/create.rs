@@ -79,34 +79,39 @@ fn a_span_keeps_its_duration_through_create_propose_and_restore() {
 
 #[test]
 fn a_new_tasks_closer_crosses_the_wire_both_ways() {
-    let limits = fixtures::limits();
-    let mut task = fixtures::new_task(c::Executor::Agent { charter: 1 }, c::NewContract::Report { words: 32 });
-    task.flags.ended_by = c::EndedBy::Closer(c::Closer { connector: 1, code: 6 });
-    let ask = c::Ask::Create { project: 7, tasks: fixtures::list([task]) };
-    let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
-    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
-    wire.encode(&mut out).unwrap();
-    let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
-    assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));
+    for ended_by in [c::EndedBy::Closer(c::Closer { connector: 1, code: 6 }), c::EndedBy::Standing] {
+        let limits = fixtures::limits();
+        let mut task = fixtures::new_task(c::Executor::Agent { charter: 1 }, c::NewContract::Report { words: 32 });
+        task.flags.ended_by = ended_by;
+        let ask = c::Ask::Create { project: 7, tasks: fixtures::list([task]) };
+        let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
+        wire.encode(&mut out).unwrap();
+        let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
+        assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));
+    }
 }
 #[test]
 fn a_templates_closer_reaches_me() {
-    let limits = fixtures::limits();
-    let values = jig_client_test_records::settings::settings_values();
-    let mut template = None;
-    for value in &values {
-        if let c::SettingValue::Template(value) = value {
-            template = Some(value.clone());
+    for ended_by in [c::EndedBy::Closer(c::Closer { connector: 1, code: 6 }), c::EndedBy::Standing] {
+        let limits = fixtures::limits();
+        let values = jig_client_test_records::settings::settings_values();
+        let mut template = None;
+        for value in &values {
+            if let c::SettingValue::Template(value) = value {
+                template = Some(value.clone());
+            }
         }
+        let mut template = template.expect("template fixture");
+        template.flags.conversation = false;
+        template.tracked = None;
+        template.flags.ended_by = ended_by;
+        let value = c::SettingValue::Template(template.clone());
+        let w::SettingValue::Template(wire) = translate::settings::wire_setting_value(&value, limits.wire()).unwrap()
+        else {
+            panic!("template");
+        };
+        let restored = translate::documents::me::template(&wire, &limits).unwrap();
+        assert_eq!(restored, *template);
     }
-    let mut template = template.expect("template fixture");
-    template.flags.conversation = false;
-    template.flags.ended_by = c::EndedBy::Closer(c::Closer { connector: 1, code: 6 });
-    let value = c::SettingValue::Template(template.clone());
-    let w::SettingValue::Template(wire) = translate::settings::wire_setting_value(&value, limits.wire()).unwrap()
-    else {
-        panic!("template");
-    };
-    let restored = translate::documents::me::template(&wire, &limits).unwrap();
-    assert_eq!(restored, *template);
 }

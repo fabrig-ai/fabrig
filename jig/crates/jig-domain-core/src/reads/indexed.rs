@@ -94,6 +94,8 @@ pub(super) fn valid_update(party: u64, row: &super::Row) -> bool {
                 | tasks::Line::RunBegan { .. }
                 | tasks::Line::RunEnded { .. }
                 | tasks::Line::Decided { .. }
+                | tasks::Line::Stood { .. }
+                | tasks::Line::SessionEnded { .. }
                 | tasks::Line::Kept { .. }
                 | tasks::Line::Milestone { .. } => return false,
             };

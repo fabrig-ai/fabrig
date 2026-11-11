@@ -451,6 +451,7 @@ pub fn charter() -> engine::Charter {
                 dialect: 1,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 1024,
                 input_price: 1,

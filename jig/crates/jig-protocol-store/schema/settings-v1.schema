@@ -3,7 +3,7 @@ family jig-store-settings 1
 # Settings hold each value whole; instructions are their text bytes, never a path.
 record Text { bytes: bytes 32 }
 record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
-record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
+record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 cache_life_ms: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
 record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 }
 enum Kinds { workers, engine, both }
 record WakeBatch { count: u32 age: duration }
@@ -71,7 +71,7 @@ record Change { connector: u16 kind: u16 words: u32 }
 enum Contract { approval: Approval, report: Report, verdict: VerdictChoices, change: Change }
 enum Retention { kept, forgotten_once_read }
 record Closer { connector: u16 code: u32 }
-enum EndedBy { result, requester, closer: Closer }
+enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }

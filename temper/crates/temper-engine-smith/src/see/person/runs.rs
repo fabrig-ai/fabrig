@@ -82,7 +82,9 @@ pub(super) fn activity(task: u64, answer: &Answer, names: &SeeNames, lines: &mut
                 (b"its run".as_slice().into(), join(&[b"decision ", &words::number(*revision)]))
             }
             t::Line::Milestone { .. } => (b"its run".as_slice().into(), b"phase changed".as_slice().into()),
-            t::Line::Kept { .. } => (b"its run".as_slice().into(), b"parked".as_slice().into()),
+            t::Line::Stood { .. } | t::Line::SessionEnded { .. } | t::Line::Kept { .. } => {
+                (b"its run".as_slice().into(), b"parked".as_slice().into())
+            }
         };
         lines
             .push(join(&[&words::time(line.at), " · ".as_bytes(), &who, " · ".as_bytes(), &what, b"\n"]))

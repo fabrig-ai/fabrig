@@ -38,7 +38,7 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
     Some(Charter {
         mode: match run.ended_by {
             tasks::EndedBy::Result | tasks::EndedBy::Closer(_) => Mode::Finite,
-            tasks::EndedBy::Requester => Mode::Open,
+            tasks::EndedBy::Requester | tasks::EndedBy::Standing => Mode::Open,
         },
         instructions: policy.instructions,
         brief,

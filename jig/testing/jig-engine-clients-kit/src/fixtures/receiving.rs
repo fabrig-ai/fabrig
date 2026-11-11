@@ -12,6 +12,7 @@ fn model() -> core::Model {
         endpoint: 1,
         program: None,
         name: Box::from(b"scripted".as_slice()),
+        cache_life_ms: 0,
         window: 8192,
         output: 1024,
         input_price: 1,
