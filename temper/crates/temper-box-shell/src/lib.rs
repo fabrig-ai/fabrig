@@ -49,6 +49,7 @@ use temper_shell::directories::{errno, unread};
 pub enum Command {
     Overview,
     Version,
+    Versions,
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -212,6 +213,7 @@ fn configure_row(
         skein_shell::Reach::Words(words) => words,
     };
     match words {
+        ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -278,6 +280,10 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             print!("{}", TABLE.help());
             return Ok(0);
         }
+        Command::Versions => {
+            print!("{}", temper_engine_shell::versions());
+            return Ok(0);
+        }
         Command::Version => {
             print!("{}", TABLE.version_line());
             return Ok(0);
@@ -306,23 +312,17 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
         Command::Box { directories, echo, no_tui } => {
             box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
         }
-        Command::Agent { configuration } => temper_worker_shell::agent::decoded(&configuration)
-            .inspect_err(|why| {
-                use std::io::Write;
-                drop(writeln!(std::io::stderr(), "smith: {why}"));
-            })
-            .and_then(|decoded| match temper_worker_shell::dump_llm(environment) {
-                Some(directory) => smith_agent_shell::run_dumping(
-                    decoded,
-                    smith_agent_shell::dump::Dumps::new(directory, temper_worker_shell::DUMP_BOUND),
-                    Box::new(std::io::stderr()),
-                ),
-                None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
-            })
-            .map_err(|why| prefixed("temper internal agent", &why))?,
-        Command::AgentList { configuration } => temper_worker_shell::agent::decoded(&configuration)
-            .and_then(|decoded| smith_agent_shell::list::run_decoded(decoded, Box::new(std::io::stderr())))
-            .map_err(|why| prefixed("temper internal agent-list", &why))?,
+        Command::Agent { configuration } => {
+            return temper_agent_shell::run(
+                "temper internal agent",
+                &configuration,
+                environment,
+                &Ok(path(working).into()),
+            );
+        }
+        Command::AgentList { configuration } => {
+            return temper_agent_shell::list("temper internal agent-list", &configuration);
+        }
         Command::ProgramLogin { directories, name } => {
             return temper_worker_shell::program_login::run(
                 &directories,

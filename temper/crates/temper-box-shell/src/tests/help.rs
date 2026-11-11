@@ -899,7 +899,7 @@ fn help_search_names_the_server_section_or_says_nothing_matches() {
 fn help_search_finds_port_selection_in_init_and_the_box_walk() {
     let text =
         help::answer(&configured(&["help", "--search", "ports", "init"])).expect("help explains init's port selection");
-    for section in ["box: 1. Write the configuration: ", "commands: temper-box init: "] {
+    for section in ["box: 1. Write the configuration: ", "commands: temper-box: "] {
         assert!(text.lines().any(|line| line.starts_with(section)), "{section} missing from {text}");
     }
 }
