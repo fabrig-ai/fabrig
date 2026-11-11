@@ -79,16 +79,6 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Runtime directory for the engine link file.
 - **Read by:** temper-box, temper-engine, temper-worker
 
-### `HOME`
-
-- **Set:** public
-- **Reads**
-- **Form:** DIR
-- **Absent:** A directory setting needs an absolute XDG base or an explicit value.
-- Base for a setting's directory when its XDG base is unusable.
-- **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker
-
 ### `XDG_CONFIG_HOME`
 
 - **Set:** public
@@ -96,6 +86,16 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** DIR
 - **Absent:** Use $HOME/.config when HOME is absolute.
 - Base for a setting's configuration directory, before the tool's name.
+- **Notes:** Only absolute paths are used.
+- **Read by:** temper-box, temper-engine, temper-worker
+
+### `HOME`
+
+- **Set:** public
+- **Reads**
+- **Form:** DIR
+- **Absent:** A directory setting needs an absolute XDG base or an explicit value.
+- Base for a setting's directory when its XDG base is unusable.
 - **Notes:** Only absolute paths are used.
 - **Read by:** temper-box, temper-engine, temper-worker
 

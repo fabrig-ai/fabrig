@@ -72,6 +72,19 @@ const ROWS: &[Case] = &[
         empty,
         "temper-box help: invalid arguments\nusage: temper-box help [NAME | pages | --search WORDS...]\n",
     ),
+    (
+        &["--front", "--echo", "steps"],
+        2,
+        empty,
+        "temper-box: --front cannot be used with --echo steps\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]\n",
+    ),
+    (
+        &["--no-tui"],
+        2,
+        empty,
+        "temper-box: unknown flag --no-tui\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]\n",
+    ),
+    (&["internal", "tui"], 2, empty, "temper-box: no command internal tui; temper-box --help lists them\n"),
     (&["frobnicate"], 2, empty, "temper-box: no command frobnicate; temper-box --help lists them\n"),
     (&["init", "extra"], 2, empty, "temper-box init: invalid arguments\nusage: temper-box init [DIRECTORIES]\n"),
 ];

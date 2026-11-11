@@ -204,7 +204,7 @@ Run a deployment as one box: the setup steps of each forge it sets up, then temp
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
+Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ### temper-box init
 
@@ -351,14 +351,6 @@ Run temper-box serve as the box's step, on the listeners and the pipe the box gi
 `temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...`
 
 As temper-engine internal forge-child, above.
-
-### temper-box internal tui
-
-`temper-box internal tui --box ADDRESS`
-
-Run the TUI in front of the box that started it, signed in by the link the box hands it. Internal: it may change without notice.
-
-- `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
 
 ### temper-box fake llm
 
