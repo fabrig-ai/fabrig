@@ -1,0 +1,99 @@
+//! Shared binary tables (temper/docs/design/cli/README.md, 5).
+use skein_shell::{Command, Reach, Set, Table};
+use std::fmt::Write;
+
+pub const HELP: Command = Command {
+    reach: Reach::Words(&["help"]),
+    set: Set::Public,
+    forms: &["[NAME | pages | --search WORDS...]"],
+    line: "Print this, a page, the pages, or a search.",
+    arguments: &[
+        skein_shell::Argument { shown: "NAME", line: crate::rows::HELP.arguments[0].line },
+        skein_shell::Argument { shown: "WORDS", line: crate::rows::HELP.arguments[1].line },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[],
+    notes: crate::rows::HELP.notes,
+};
+
+/// Help's words: stdout on success, or an exit code and stderr.
+pub fn help(table: &Table, words: &[Box<[u8]>]) -> Result<String, (u8, String)> {
+    if words.is_empty() {
+        return Ok(table.help());
+    }
+    let request = crate::help::request(words).ok_or_else(|| (2, refused(table, &HELP, "invalid arguments")))?;
+    if let crate::help::Request::Page(page) = &request
+        && page.as_ref() == b"commands"
+    {
+        return Ok(commands_page(table));
+    }
+    if let crate::help::Request::Search(words) = &request {
+        let found = temper_docs::search(&temper_docs::PAGES, words, 20)
+            .map_err(|why| (2, refused(table, &HELP, why.says())))?;
+        return crate::help::search_answer(table.binary, &found).map_err(|why| (1, why));
+    }
+    crate::help::answer(table.binary, &request).map_err(|why| (1, why))
+}
+
+/// A command's arguments refused, followed by its usage lines.
+#[must_use]
+pub fn refused(table: &Table, command: &Command, why: &str) -> String {
+    let name = name(table, command);
+    let mut text = format!("{name}: {why}\n");
+    for form in command.forms {
+        writeln!(text, "usage: {}", with_form(&name, form)).expect("writing into a string");
+    }
+    text
+}
+
+/// The binary's own `commands` reference page.
+#[must_use]
+pub fn commands_page(table: &Table) -> String {
+    let mut text = format!(
+        "# temper's commands\n\nKind: reference\n\nEvery command of the {} binary, by who runs it: its usage, what it does, its arguments and its notes.\n",
+        table.binary,
+    );
+    for set in [Set::Public, Set::Internal] {
+        for command in table.commands.iter().filter(|command| command.set == set) {
+            let name = name(table, command);
+            let heading = match command.reach {
+                Reach::Words(_) => name.clone(),
+                Reach::RunAs(program) => format!("run as {program}"),
+            };
+            write!(text, "\n## {heading}\n").expect("writing into a string");
+            for form in command.forms {
+                write!(text, "\n`{}`\n", with_form(&name, form)).expect("writing into a string");
+            }
+            write!(text, "\n{}", command.line).expect("writing into a string");
+            if set == Set::Internal {
+                text.push_str(" Internal: it may change without notice.");
+            }
+            text.push('\n');
+            if !command.arguments.is_empty() {
+                text.push('\n');
+                for argument in command.arguments {
+                    writeln!(text, "- `{}`: {}", argument.shown, argument.line).expect("writing into a string");
+                }
+            }
+            if !command.notes.is_empty() {
+                write!(text, "\n{}\n", command.notes).expect("writing into a string");
+            }
+        }
+    }
+    text
+}
+
+fn name(table: &Table, command: &Command) -> String {
+    match command.reach {
+        Reach::Words(words) => with_form(table.binary, &words.join(" ")),
+        Reach::RunAs(program) => program.into(),
+    }
+}
+
+fn with_form(name: &str, form: &str) -> String {
+    if form.is_empty() { name.into() } else { format!("{name} {form}") }
+}
+
+#[cfg(test)]
+mod tests;
