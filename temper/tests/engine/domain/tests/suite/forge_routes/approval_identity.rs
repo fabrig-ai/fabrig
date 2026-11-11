@@ -231,6 +231,10 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     }
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the table varies the link, box and forge identities independently"
+)]
 fn approval_identity_world(link: bool, under_box: bool, second_forge: bool, fake_forge: bool) -> World {
     let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
     let mut world = world_with_owner(identity);
