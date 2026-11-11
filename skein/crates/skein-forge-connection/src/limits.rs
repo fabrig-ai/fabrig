@@ -27,6 +27,8 @@ pub struct Limits {
     pub string_bytes: u32,
     /// The longest body kept whole: at least twice the client's `op_bytes` plus the word's length and 15.
     pub body_bytes: u32,
+    /// Conditional answers in all: the client's `calls` times `answer_bytes` (4.6).
+    pub kept_bytes: u64,
     /// The most elements kept of a list inside one document (06's `inner`).
     pub inner: u32,
     /// The longest request target (06's `target_bytes`).
@@ -151,6 +153,8 @@ pub enum Unusable {
     Listener,
     /// `connections` is not the client's `calls`.
     Connections { connections: u32, calls: u32 },
+    /// Conditional storage disagrees with the client's outstanding answer room.
+    KeptBytes { kept_bytes: u64, calls: u32, answer_bytes: u32 },
     /// `deadline` passes the client's `lifetime`.
     Deadline { deadline: Duration, lifetime: Duration },
     /// `body_bytes` below the largest body the owner writes, its marker included.
@@ -204,6 +208,9 @@ const MAX_RENEW_BEFORE: Duration = Duration::from_secs(1800);
 /// Checks neighbours' agreements, stacked demands, then every configured forge.
 pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable> {
     nonzero(l)?;
+    if l.kept_bytes == 0 {
+        return Err(Unusable::Zero);
+    }
     if l.hook_secret_bytes < 32 {
         return Err(Unusable::SecretBytes { bytes: l.hook_secret_bytes });
     }
@@ -216,6 +223,10 @@ pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable
     stack(Stacked::JsonOverServer, tokenizer::largest_demand(&hook_documents(l).json), server.read)?;
     if l.connections != s.calls {
         return Err(Unusable::Connections { connections: l.connections, calls: s.calls });
+    }
+    let kept_bytes = u64::from(s.calls).checked_mul(u64::from(s.answer_bytes)).ok_or(Unusable::Zero)?;
+    if l.kept_bytes != kept_bytes {
+        return Err(Unusable::KeptBytes { kept_bytes: l.kept_bytes, calls: s.calls, answer_bytes: s.answer_bytes });
     }
     if l.deadline > s.lifetime {
         return Err(Unusable::Deadline { deadline: l.deadline, lifetime: s.lifetime });
@@ -399,6 +410,9 @@ pub(crate) fn check_added(l: &Limits, s: &Shared, owner: &Owner, forge: &Forge) 
     check_github_kind(l, s, forge.kind == Kind::GitHub)?;
     check_forge(l, s, owner.webhooks.is_some(), &owner.user_agent, forge)
 }
+fn conditional_fields() -> Option<u64> {
+    len_u64(api::VALIDATOR_BYTES).checked_add(22)?.checked_mul(2)?.checked_add(192)
+}
 fn check_forge(l: &Limits, s: &Shared, listener: bool, user_agent: &[u8], forge: &Forge) -> Result<(), Unusable> {
     if let Some(a) = &forge.access
         && let Err(value) = access(l, forge.kind, listener, a)
@@ -431,7 +445,7 @@ fn check_forge(l: &Limits, s: &Shared, listener: bool, user_agent: &[u8], forge:
         skein_io::Addr::InProcess(_) => return Err(Unusable::Address { forge: forge.number }),
     }
     check_origins(l, s, user_agent, forge, tls)?;
-    // Longest method, target, seven fields and final empty line. Decimal lengths
+    // Longest method, target, conditional fields and final empty line. Decimal lengths
     // use u64's longest spelling; headers here reserve their complete framing.
     let head = u64::from(l.target_bytes)
         .checked_add(len_u64(crate::settings::host(forge).ok_or(Unusable::Zero)?.len()))
@@ -447,7 +461,7 @@ fn check_forge(l: &Limits, s: &Shared, listener: bool, user_agent: &[u8], forge:
         .ok_or(Unusable::Zero)?
         .checked_add(len_u64(user_agent.len()))
         .ok_or(Unusable::Zero)?
-        .checked_add(192)
+        .checked_add(conditional_fields().ok_or(Unusable::Zero)?)
         .ok_or(Unusable::Zero)?;
     if !header_value(user_agent) || head > u64::from(http(l, tls, &s.io).request) {
         return Err(Unusable::Request { forge: forge.number });
@@ -480,7 +494,7 @@ fn check_origins(l: &Limits, s: &Shared, user_agent: &[u8], forge: &Forge, tls: 
             .ok_or(Unusable::Zero)?
             .checked_add(len_u64(user_agent.len()))
             .ok_or(Unusable::Zero)?
-            .checked_add(192)
+            .checked_add(conditional_fields().ok_or(Unusable::Zero)?)
             .ok_or(Unusable::Zero)?;
         if head > u64::from(http(l, origin.tls, &s.io).request) {
             return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
@@ -519,17 +533,14 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
 pub(crate) fn stack(stacked: Stacked, demand: u32, cap: u32) -> Result<(), Unusable> {
     if demand > cap { Err(Unusable::Stack { stacked, demand, cap }) } else { Ok(()) }
 }
-/// Items keep whole rows by bytes; other listings reserve their largest rows.
+/// Real-row pages keep rows whole by bytes; other listings reserve their largest rows.
 #[must_use]
 pub fn page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {
     match listing {
-        Listing::Items => s.rows.min(cap),
-        Listing::Reviews
-        | Listing::Statuses
-        | Listing::Remarks
+        Listing::Items | Listing::Reviews | Listing::Remarks | Listing::PullFiles => s.rows.min(cap),
+        Listing::Statuses
         | Listing::Branches
         | Listing::Collaborators
-        | Listing::PullFiles
         | Listing::Compare
         | Listing::Runs
         | Listing::Tree => bounded_page_size(listing, cap, l, s),

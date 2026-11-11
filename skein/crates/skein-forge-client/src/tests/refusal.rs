@@ -59,7 +59,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
     use RefusalStep::{Fire, Hint, HintOut, Listed, Pushed, Quiet, Read as R, UnchangedTip, Writer};
     let compare = Read::Commits { before: [2; 32], after: [1; 32], page: 1 };
     let pull_read = Read::Pull { number: 9, ci: true };
-    let reviews = Read::Reviews { number: 9, page: 1 };
+    let reviews = Read::Reviews { number: 9, page: 1, skip: 0 };
     let oversized = Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false };
     // One inbox page/row is the exact bound; two comments exceed rows.
     let rows: [(&str, RefusalCase); 8] = [
@@ -146,7 +146,10 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 Box::new([
                     R(object_read(0), Ok(empty_object())),
                     R(pull_read.clone(), Ok(Answer::Pull(current()))),
-                    R(reviews.clone(), Ok(Answer::Reviews { reviews: Box::new([review(1, 90)]), more: true })),
+                    R(
+                        reviews.clone(),
+                        Ok(Answer::Reviews { reviews: Box::new([review(1, 90)]), more: true, cut: false }),
+                    ),
                     Fire(101),
                     Quiet,
                     Fire(105),
@@ -161,7 +164,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Fire(116),
                     R(object_read(0), Ok(empty_object())),
                     R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
-                    R(reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
+                    R(reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false })),
                 ]),
             ),
         ),
@@ -195,8 +198,8 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     R(object_read(0), Ok(empty_object())),
                     R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
                     R(
-                        Read::Reviews { number: 9, page: 1 },
-                        Ok(Answer::Reviews { reviews: Box::new([review(1, 90)]), more: true }),
+                        Read::Reviews { number: 9, page: 1, skip: 0 },
+                        Ok(Answer::Reviews { reviews: Box::new([review(1, 90)]), more: true, cut: false }),
                     ),
                     Fire(105),
                     R(
@@ -215,7 +218,10 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Fire(136),
                     R(object_read(0), Ok(changed_object())),
                     R(Read::Pull { number: 9, ci: true }, Ok(Answer::Pull(current()))),
-                    R(Read::Reviews { number: 9, page: 1 }, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
+                    R(
+                        Read::Reviews { number: 9, page: 1, skip: 0 },
+                        Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+                    ),
                 ]),
             ),
         ),
@@ -228,7 +234,10 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 Box::new([
                     R(object_read(0), Ok(empty_object())),
                     R(Read::Pull { number: 9, ci: true }, Err(Error::TooLarge(api::Excess::unnamed()))),
-                    R(Read::Reviews { number: 9, page: 1 }, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
+                    R(
+                        Read::Reviews { number: 9, page: 1, skip: 0 },
+                        Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+                    ),
                     Fire(105),
                     R(object_read(0), Ok(empty_object())),
                     Quiet,

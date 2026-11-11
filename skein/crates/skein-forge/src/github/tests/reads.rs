@@ -378,7 +378,7 @@ fn remark(id: u64) -> document::Remark {
     }
 }
 fn remarks_read() -> api::Read {
-    api::Read::Remarks { number: 3, review: 4, page: 2 }
+    api::Read::Remarks { number: 3, review: 4, page: 2, skip: 0 }
 }
 #[test]
 fn github_remarks_line_fallbacks() {
@@ -413,10 +413,13 @@ fn github_remarks_page_and_long_body() {
     let mut long = remark(1);
     long.body = crate::text::Body::Long(129);
     document(Kind::RemarkRows, &bytes(out), Document::Rows, &[Row::Remark(long.clone())]);
-    for more in [false, true] {
-        let mut call = Call::new(remarks_read(), bounds(), true);
+    for (more, skip) in [(false, 0), (true, 0), (false, 1), (true, 1)] {
+        let mut call = Call::new(api::Read::Remarks { number: 3, review: 4, page: 2, skip }, bounds(), true);
         call.begin().unwrap();
         call.head(more);
+        if skip != 0 {
+            call.heard(Heard::Row(Row::Remark(remark(2)))).unwrap();
+        }
         assert_eq!(call.heard(Heard::Row(Row::Remark(long.clone()))), Ok(None));
         assert_eq!(
             call.done(Document::Rows),
@@ -428,7 +431,8 @@ fn github_remarks_page_and_long_body() {
                     path: remark(1).path,
                     line: 0,
                     body: Box::from([])
-                }])
+                }]),
+                cut: false
             }))
         );
     }
@@ -480,10 +484,10 @@ fn review(id: u64) -> document::Review {
     }
 }
 fn reviews_read() -> api::Read {
-    api::Read::Reviews { number: 3, page: 2 }
+    api::Read::Reviews { number: 3, page: 2, skip: 0 }
 }
 fn review_answer(call: &mut Call) -> (Box<[api::Review]>, bool) {
-    let Ok(Some(Step::Done(Ok(api::Answer::Reviews { reviews, more })))) = call.done(Document::Rows) else {
+    let Ok(Some(Step::Done(Ok(api::Answer::Reviews { reviews, more, .. })))) = call.done(Document::Rows) else {
         panic!("Reviews answer");
     };
     (reviews, more)
@@ -575,11 +579,21 @@ fn github_reviews_marker_revision_and_long_body() {
 #[test]
 fn github_reviews_page_bounds_and_failures() {
     for more in [false, true] {
-        let mut call = Call::new(reviews_read(), Bounds { answer_bytes: 133, ..bounds() }, true);
-        call.begin().unwrap();
-        call.head(more);
-        call.heard(Heard::Row(Row::Review(review(1)))).unwrap();
-        assert_eq!(review_answer(&mut call).1, more);
+        for skip in [0, 1] {
+            let read = api::Read::Reviews { number: 3, page: 2, skip };
+            let mut call =
+                Call::new(read, Bounds { answer_bytes: if skip == 0 { 133 } else { 266 }, ..bounds() }, true);
+            call.begin().unwrap();
+            call.head(more);
+            if skip != 0 {
+                call.heard(Heard::Row(Row::Review(review(1)))).unwrap();
+            }
+            call.heard(Heard::Row(Row::Review(review(2)))).unwrap();
+            let (reviews, actual_more) = review_answer(&mut call);
+            assert_eq!(reviews.len(), 1);
+            assert_eq!(reviews.first().unwrap().id, 2);
+            assert_eq!(actual_more, more);
+        }
     }
     let mut call = started(reviews_read(), Bounds { answer_bytes: 132, ..bounds() });
     let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Review(review(1)))) else {
@@ -815,13 +829,16 @@ fn github_compare_answer_budget_keeps_the_names_that_fit() {
 }
 
 fn pull_files_read() -> api::Read {
-    api::Read::PullFiles { number: 3, head: review(1).commit, page: 2 }
+    api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0 }
 }
 fn merge_base() -> api::Commit {
     crate::github::id::commit(b"1111111111111111111111111111111111111111").unwrap()
 }
 fn pull_files_listing(cap: Bounds, next: bool) -> Call {
-    let mut call = started(pull_files_read(), cap);
+    pull_files_listing_skipping(cap, next, 0)
+}
+fn pull_files_listing_skipping(cap: Bounds, next: bool, skip: u32) -> Call {
+    let mut call = started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip }, cap);
     let exchange = sent(call.done(Document::Pull(fixtures::pull(3))));
     assert_eq!(exchange.comparison, crate::github::plans::plan::Comparison::MergeBase);
     assert_eq!(
@@ -966,6 +983,7 @@ fn github_pull_files_merge_base_rename_add_remove() {
             api::File { path: Box::from(*b"added"), before: None, after: Some(Box::from(*b"add")) },
             api::File { path: Box::from(*b"removed"), before: Some(Box::from(*b"gone")), after: None },
         ]),
+        cut: false,
     };
     assert_eq!(raw_body(&mut call, b"gone", false), ended(Ok(expected)));
     for wire in [
@@ -981,15 +999,18 @@ fn github_pull_files_merge_base_rename_add_remove() {
 }
 #[test]
 fn github_pull_files_page_and_budget() {
-    for more in [false, true] {
+    for (more, skip) in [(false, 0), (true, 0), (false, 1), (true, 1)] {
         let mut call = pull_files_listing(bounds(), more);
         assert_eq!(
             call.done(Document::Rows),
-            ended(Ok(api::Answer::PullFiles { head: review(1).commit, files: Box::from([]), more }))
+            ended(Ok(api::Answer::PullFiles { head: review(1).commit, files: Box::from([]), more, cut: false }))
         );
-        let mut call = pull_files_listing(bounds(), more);
+        let mut call = pull_files_listing_skipping(bounds(), more, skip);
+        if skip != 0 {
+            call.heard(Heard::Row(Row::File(file(b"skipped")))).unwrap();
+        }
         call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
-        sent(call.done(Document::Rows));
+        side(sent(call.done(Document::Rows)), b"x", merge_base());
         let mut raw_head = Head::new();
         raw_head.next = !more;
         call.heard(Heard::Head { status: 404, head: raw_head }).unwrap();
@@ -998,7 +1019,8 @@ fn github_pull_files_page_and_budget() {
             ended(Ok(api::Answer::PullFiles {
                 head: review(1).commit,
                 files: Box::from([api::File { path: Box::from(*b"x"), before: None, after: None }]),
-                more
+                more,
+                cut: false
             }))
         );
     }
@@ -1020,7 +1042,8 @@ fn github_pull_files_page_and_budget() {
                         path: Box::from(*b"x"),
                         before: None,
                         after: Some(Box::from(*b"abc"))
-                    }])
+                    }]),
+                    cut: false
                 }))
             );
         } else {

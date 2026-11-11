@@ -16,6 +16,9 @@ pub fn limits() -> Limits {
         delivery_bytes: 1_048_576,
         renew_before: Duration::from_secs(10 * 60),
         connections: 2,
+        kept_bytes: u64::from(shared().calls)
+            .checked_mul(u64::from(shared().answer_bytes))
+            .expect("fixture answer room"),
         head_bytes: 4096,
         headers: 32,
         body_bytes_in: 1_048_576,
@@ -132,6 +135,16 @@ pub fn writer_settings() -> Settings {
 #[must_use]
 pub fn protocol_shared() -> Shared {
     protocol_shared_for(&temper_engine_forge_world::LIMITS.client)
+}
+/// Default domain client's derived component limits.
+#[must_use]
+pub fn protocol_limits() -> Limits {
+    limits_for(&temper_engine_forge_world::LIMITS.client)
+}
+/// Conditional storage follows the explicit client's outstanding answer room.
+#[must_use]
+pub fn limits_for(client: &skein_forge_client::Limits) -> Limits {
+    Limits { kept_bytes: u64::from(client.calls) * u64::from(client.answer_bytes), ..limits() }
 }
 /// Component bounds for a world's explicit client limits.
 #[must_use]

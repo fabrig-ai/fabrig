@@ -128,6 +128,39 @@ pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32, forge: 
     bounded(answer, tool, max_bytes, None, forge, None)
 }
 
+/// Render a cut listing with the page and skip that its call asked for.
+#[must_use]
+pub fn answer_for_page(
+    answer: &CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    forge: ForgeReadBounds,
+    page: u32,
+    skip: u32,
+) -> HostAnswer {
+    if let CallAnswer::ForgeRead(read) = answer
+        && let Ok(
+            value @ (api::Answer::Reviews { cut: true, .. }
+            | api::Answer::Remarks { cut: true, .. }
+            | api::Answer::PullFiles { cut: true, .. }),
+        ) = read.as_ref()
+    {
+        let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
+        let mut count = Text::counter();
+        forge_answer_at(&mut count, value, (page, skip)).expect("counting allocates no answer text");
+        if count.len <= cap {
+            let mut text = Text::new();
+            forge_answer_at(&mut text, value, (page, skip)).expect("measured page fits");
+            return text.finish(false).expect("measured page fits");
+        }
+        let mut text = Text::new();
+        read_size(&mut text, tool, count.len, cap, forge).expect("fixed size guidance");
+        answer_configuration(&mut text).expect("configuration recovery");
+        return clipped_refusal(text, cap);
+    }
+    answer_for_tool(answer, tool, max_bytes, forge)
+}
+
 /// Render host feedback with the proposing task's ctl name, retaining its holder.
 /// Task, file, pull-file and job reads use the configured host body bound.
 #[must_use]
@@ -348,7 +381,7 @@ fn file_read_bounded(value: &api::Answer, cap: usize, forge: ForgeReadBounds) ->
         answer_configuration(&mut text).expect("configuration recovery");
         return clipped_refusal(text, cap);
     }
-    if let api::Answer::PullFiles { head, files, more } = value {
+    if let api::Answer::PullFiles { head, files, more, .. } = value {
         return pull_inventory(head, files, *more, count.len, cap, forge);
     }
     file_read_refusal(b"read_file", count.len, cap, forge)
@@ -1509,8 +1542,23 @@ fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive forge answer vocabulary")]
 fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
+    forge_answer_at(text, answer, (1, 0))
+}
+fn page_end(text: &mut Text, more: bool, cut: bool, kept: usize, at: (u32, u32)) -> Result<(), Problem> {
+    if cut {
+        text.add(b"Page cut: read on with page ")?;
+        text.number(u64::from(at.0))?;
+        text.add(b", skip ")?;
+        text.number(u64::from(at.1).saturating_add(skein_lib::len_u64(kept)))?;
+        text.add(b".\n")?;
+    } else if more {
+        text.add(b"More pages available.\n")?;
+    }
+    Ok(())
+}
+#[expect(clippy::too_many_lines, reason = "one exhaustive forge answer vocabulary")]
+fn forge_answer_at(text: &mut Text, answer: &api::Answer, at: (u32, u32)) -> Result<(), Problem> {
     match answer {
         api::Answer::Located { repository } => {
             text.add(b"Repository ")?;
@@ -1562,7 +1610,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             text.add(b" CI ")?;
             ci(text, pull.ci)?;
         }
-        api::Answer::Reviews { reviews, more } => {
+        api::Answer::Reviews { reviews, more, cut } => {
             for review in reviews {
                 text.add(b"Review ")?;
                 text.number(review.id)?;
@@ -1572,9 +1620,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(&review.body)?;
                 text.add(b"\n")?;
             }
-            if *more {
-                text.add(b"More reviews available.\n")?;
-            }
+            page_end(text, *more, *cut, reviews.len(), at)?;
         }
         api::Answer::Statuses { ci: status, statuses, more } => {
             text.add(b"CI ")?;
@@ -1587,7 +1633,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(b"More statuses available.\n")?;
             }
         }
-        api::Answer::Remarks { remarks, more } => {
+        api::Answer::Remarks { remarks, more, cut } => {
             for remark in remarks {
                 text.add(b"Remark on ")?;
                 text.add(&remark.path)?;
@@ -1595,9 +1641,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(&remark.body)?;
                 text.add(b"\n")?;
             }
-            if *more {
-                text.add(b"More remarks available.\n")?;
-            }
+            page_end(text, *more, *cut, remarks.len(), at)?;
         }
         api::Answer::Commit(commit) | api::Answer::Merged(commit) => text.commit(commit)?,
         api::Answer::Branches(branches) => {
@@ -1606,13 +1650,11 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(b"\n")?;
             }
         }
-        api::Answer::PullFiles { files, more, .. } => {
+        api::Answer::PullFiles { files, more, cut, .. } => {
             for file in files {
                 file_text(text, file)?;
             }
-            if *more {
-                text.add(b"More files available.\n")?;
-            }
+            page_end(text, *more, *cut, files.len(), at)?;
         }
         api::Answer::Compare { before, after, ahead, behind, files, changed } => {
             text.commit(after)?;

@@ -176,9 +176,12 @@ fn a_call_without_a_kept_path_resolves_by_id_and_counts_it() {
 #[test]
 fn a_pending_review_is_skipped_but_fills_the_page() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Reviews { number: 1, page: 1 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
     answer(&mut h, br#"[{"id":1,"user":{"id":2,"login":"writer"},"state":"PENDING","commit_id":"0000000000000000000000000000000000000000","body":"","official":false,"dismissed":false},{"id":2,"user":{"id":2,"login":"writer"},"state":"REQUEST_REVIEW","commit_id":"0000000000000000000000000000000000000000","body":"","official":false,"dismissed":false}]"#);
-    assert_eq!(h.answered(1).expect("reviews").result, Ok(Answer::Reviews { reviews: Box::from([]), more: true }));
+    assert_eq!(
+        h.answered(1).expect("reviews").result,
+        Ok(Answer::Reviews { reviews: Box::from([]), more: true, cut: false })
+    );
     last(&h, b"GET /api/v1/repos/fixture/specimen/pulls/1/reviews?page=1&limit=2 HTTP/1.1");
 }
 #[test]
@@ -484,12 +487,12 @@ fn settings_from_the_kept_repository_costs_nothing() {
 #[test]
 fn remarks_select_the_requested_slice_and_cut_after_it() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Remarks { number: 1, review: 2, page: 2 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Remarks { number: 1, review: 2, page: 2, skip: 0 }));
     let row = br#"{"id":3,"user":{"id":2,"login":"writer"},"path":"file","position":4,"body":"abc"}"#;
     answer(&mut h, &concat(&[b"[", row, b",", row, b",", row, b",", row, b",", row, b"]"]));
     let remark = api::Remark { id: 3, author: 2, path: Box::from(&b"file"[..]), line: 4, body: Box::from(&b"abc"[..]) };
     assert_eq!(
         h.answered(1).expect("remarks").result,
-        Ok(Answer::Remarks { remarks: Box::new([remark.clone(), remark]), more: true })
+        Ok(Answer::Remarks { remarks: Box::new([remark.clone(), remark]), more: true, cut: false })
     );
 }

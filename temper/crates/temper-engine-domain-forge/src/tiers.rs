@@ -398,7 +398,7 @@ fn tree_answer(
         return;
     }
     if answer == Err(api::Error::Busy) {
-        walk.next = Some(env.now.saturating_add(env.limits.client.poll));
+        walk.next = Some(d.poll_at(env, key.0));
         d.tier_ops.walks.insert(key, walk).expect("replaces walk");
         return;
     }
@@ -1224,7 +1224,7 @@ pub(crate) fn answered(
             out.push(Request::WakeProcedure { task });
         }
     } else if let Some(flight) = &mut row.flight {
-        flight.next = Some(env.now.saturating_add(env.limits.client.poll));
+        flight.next = Some(d.poll_at(env, row.repository));
         save(&row, out);
     }
     d.tiers.insert(key.clone(), row).expect("replaces tier");

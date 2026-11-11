@@ -68,9 +68,9 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
     ] {
         facts.push(h.observe(name, repo, read.operation(), |a| matches!(a, Answer::Pull(p) if p.number == f.feature && p.commit == head && p.head.as_ref() == b"feature/slash" && p.base.as_ref() == b"main" && p.state == api::State::Open)));
     }
-    facts.push(h.observe("component-read-reviews", repo, Read::Reviews { number: f.feature, page: 1 }.operation(), |a| matches!(a, Answer::Reviews { reviews, .. } if reviews.len() == 1 && reviews[0].id == review && reviews[0].body.as_ref() == b"review fixture" && reviews[0].verdict == api::Verdict::Comment)));
+    facts.push(h.observe("component-read-reviews", repo, Read::Reviews { number: f.feature, page: 1 , skip: 0 }.operation(), |a| matches!(a, Answer::Reviews { reviews, .. } if reviews.len() == 1 && reviews[0].id == review && reviews[0].body.as_ref() == b"review fixture" && reviews[0].verdict == api::Verdict::Comment)));
     facts.push(h.observe("component-read-statuses", repo, Read::Statuses { commit: head, page: 1 }.operation(), |a| matches!(a, Answer::Statuses { ci: api::Ci::Passed, statuses, more: false } if statuses.len() == 1 && statuses[0].context.as_ref() == b"fixture/test" && statuses[0].check == api::Check::Passed)));
-    facts.push(h.observe("component-read-remarks", repo, Read::Remarks { number: f.feature, review, page: 1 }.operation(), |a| matches!(a, Answer::Remarks { remarks, more: false } if remarks.len() == 1 && remarks[0].path.as_ref() == b"file-0.txt" && remarks[0].line == 1 && remarks[0].body.as_ref() == b"remark fixture")));
+    facts.push(h.observe("component-read-remarks", repo, Read::Remarks { number: f.feature, review, page: 1 , skip: 0 }.operation(), |a| matches!(a, Answer::Remarks { remarks, more: false , .. } if remarks.len() == 1 && remarks[0].path.as_ref() == b"file-0.txt" && remarks[0].line == 1 && remarks[0].body.as_ref() == b"remark fixture")));
     facts.push(h.observe(
         "component-read-branch",
         repo,
@@ -89,7 +89,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
         Read::Branches { prefix: Box::from(&b"m"[..]) }.operation(),
         |a| matches!(a, Answer::Branches(b) if { let mut b = b.to_vec(); b.sort(); b == names }),
     ));
-    facts.push(h.observe("component-read-pull-files", repo, Read::PullFiles { number: f.feature, head, page: 1 }.operation(), |a| matches!(a, Answer::PullFiles { head: got, files, more: true } if *got == head && files.len() == 1 && files.iter().enumerate().all(|(i,f)| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n")))))));
+    facts.push(h.observe("component-read-pull-files", repo, Read::PullFiles { number: f.feature, head, page: 1 , skip: 0 }.operation(), |a| matches!(a, Answer::PullFiles { head: got, files, more: true , .. } if *got == head && files.len() == 1 && files.iter().enumerate().all(|(i,f)| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n")))))));
     facts.push(h.observe("component-read-compare", repo, Read::Compare { before: base, after: head }.operation(), |a| matches!(a, Answer::Compare {before, after, files, ahead: 3, behind: 0, changed: 3} if *before == base && *after == head && files.len() == 3 && (0..3).all(|i| files.iter().any(|path| *path == bytes(&format!("file-{i}.txt")))))));
     actions(runner, f, h, facts)?;
     facts.push(h.observe("component-read-file", repo, Read::File { head, path: bytes("file-0.txt"), max_bytes: 4 }.operation(), |a| matches!(a, Answer::File { head: got, path, bytes, truncated: true } if *got == head && path.as_ref() == b"file-0.txt" && bytes.as_ref() == b"file")));

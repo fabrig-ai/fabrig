@@ -701,7 +701,7 @@ fn connected_github_with_two_installations() -> skein_forge_kit::joint::Joint {
     let mut world = Joint::github(
         11,
         0,
-        fixtures::limits(),
+        fixtures::protocol_limits(),
         fixtures::github_settings(),
         fixtures::protocol_shared(),
         joint::checks(1000),
@@ -1059,8 +1059,8 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
         panic!("pull through bytes")
     };
     assert_eq!(observed.commit, head);
-    let Answer::PullFiles { head: observed, files, more } =
-        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1 })
+    let Answer::PullFiles { head: observed, files, more, .. } =
+        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0 })
     else {
         panic!("pull files matched by the client")
     };

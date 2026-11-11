@@ -269,7 +269,7 @@ fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]
             break;
         }
     }
-    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }))
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
 #[test]

@@ -89,6 +89,9 @@ impl Hosted {
             token_bytes: 512,
             key_bytes: 1200,
             connections: 2,
+            kept_bytes: u64::from(client.calls)
+                .checked_mul(u64::from(client.answer_bytes))
+                .expect("client answer room"),
             head_bytes: 16384,
             headers: 64,
             body_bytes_in: 16_777_216,

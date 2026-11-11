@@ -60,6 +60,8 @@ pub struct Joint {
     closed_counts: RequestCounts,
     starts: StartCounts,
     lines: Vec<Vec<u8>>,
+    /// Sanitized Forgejo entrances in wire order.
+    pub request_heads: Vec<skein_http::server::Call>,
     /// Component events as emitted, before the driver's dispatch.
     pub events: Vec<String>,
     // Forge identities whose public start boundaries tag first-byte writes.
@@ -202,6 +204,7 @@ impl Joint {
             closed_counts: RequestCounts::default(),
             starts: StartCounts::default(),
             lines: Vec::new(),
+            request_heads: Vec::new(),
             events: Vec::new(),
             forges,
             connected: 0,
@@ -275,6 +278,7 @@ impl Joint {
     fn up(&mut self, event: skein_io::Event) {
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
     }
+    #[expect(clippy::too_many_lines, reason = "one turn drives the joint's peers and captures their entrances")]
     pub fn tick(&mut self) {
         while let Some(request) = self.below.pop() {
             self.io(request);
@@ -293,8 +297,11 @@ impl Joint {
                 &mut peer.above,
                 &mut peer.below,
             );
-            if peer.server.take_head().is_some() && peer.heads.pop_front().expect("head follows first byte") {
-                self.starts.served += 1;
+            if let Some(head) = peer.server.take_head() {
+                self.request_heads.push(head);
+                if peer.heads.pop_front().expect("head follows first byte") {
+                    self.starts.served += 1;
+                }
             }
             while let Some(down) = peer.below.pop() {
                 peer.pipe.server_down(down);
@@ -308,8 +315,11 @@ impl Joint {
                     &mut peer.above,
                     &mut peer.below,
                 );
-                if peer.server.take_head().is_some() && peer.heads.pop_front().expect("head follows first byte") {
-                    self.starts.served += 1;
+                if let Some(head) = peer.server.take_head() {
+                    self.request_heads.push(head);
+                    if peer.heads.pop_front().expect("head follows first byte") {
+                        self.starts.served += 1;
+                    }
                 }
             }
             let client_up = peer.pipe.client_up();

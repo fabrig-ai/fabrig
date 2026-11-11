@@ -142,6 +142,7 @@ pub struct Component {
 /// What the configured forges share (skein/docs/design/forge/connection.md, 7.1).
 #[derive(Debug)]
 pub(crate) struct Common {
+    kept: crate::kept::Store,
     hooks: crate::hooks::Hooks,
     owner: Owner,
     forgejo_tables: Tables,
@@ -169,6 +170,7 @@ impl Component {
         Ok(Self {
             forges,
             common: Common {
+                kept: crate::kept::Store::new(limits.kept_bytes),
                 hooks: crate::hooks::Hooks::new(limits),
                 owner,
                 forgejo_tables: Tables::new(
@@ -438,6 +440,7 @@ impl Component {
             c.role = Use::Calls;
             c.close(env, c.in_flight(), io);
         }
+        common.forget_kept(number);
         dialect.forget_exchange();
         match &mut *dialect {
             Dialect::Forgejo { plan, .. } => *plan = None,
@@ -639,6 +642,20 @@ impl Component {
 
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         let Self { forges, common } = self;
+        common.kept.reset_active();
+        for (_, id) in &common.connections {
+            let c = common.connection_slab.get(*id).expect("indexed connection");
+            if let Some(pin) = c.kept_pin() {
+                common.kept.repin(pin);
+            }
+            common.kept.held_room(c.kept_room());
+        }
+        common.kept.prune();
+        for entry in forges.iter_mut() {
+            if stopped(entry.base.start).is_some() || common.lifecycle != Lifecycle::Live {
+                common.forget_kept(entry.base.forge.number);
+            }
+        }
         // Each pass includes removed connections whose socket io names later.
         for (_, id) in &common.connections {
             let c = common.connection_slab.get_mut(*id).expect("indexed connection");
@@ -692,6 +709,15 @@ impl Component {
 }
 
 impl Common {
+    fn forget_kept(&mut self, forge: u16) {
+        for (_, id) in &self.connections {
+            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+            if c.forge == forge {
+                c.forget_kept();
+            }
+        }
+        self.kept.forget(forge);
+    }
     fn start_heard(&mut self, base: &mut Base, heard: StartHeard, env: &Env<Limits>, up: &mut Queue<Event>) {
         let previous = base.start;
         base.start =
@@ -766,9 +792,10 @@ impl Common {
                     *plan = Some(StartPlan::new(read));
                 }
                 let plan = plan.as_mut().expect("active start read");
-                send_start(c, exchange, env, &base.forge, &self.owner.user_agent, plan);
+                send_start(c, exchange, env, &base.forge, &self.owner.user_agent, plan, &mut self.kept);
             }
-            exchange.pump(c, env, io);
+            exchange.pump(c, env, io, &mut self.kept);
+            let _free = c.take_free();
             if let Some(heard) = exchange.heard(c) {
                 let step = match plan.as_mut() {
                     Some(plan) => plan.heard(heard),
@@ -845,6 +872,7 @@ fn send_start(
     forge: &Forge,
     user_agent: &[u8],
     plan: &mut StartPlan,
+    kept: &mut crate::kept::Store,
 ) {
     let skein_forge::forgejo::plans::start::Step::Send(pending) = plan.begin() else {
         unreachable!("a new start plan sends its read");
@@ -852,7 +880,7 @@ fn send_start(
     let authorization =
         skein_forge::forgejo::credential::authorization(&forge.access.as_ref().expect("held access").credential)
             .expect("checked credential length");
-    exchange.start(connection, env, forge, user_agent, pending, authorization).expect("checked start request");
+    exchange.start(connection, env, forge, user_agent, pending, authorization, kept).expect("checked start request");
 }
 
 fn start_read(state: Start) -> Option<Read> {
