@@ -4,6 +4,7 @@ use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
 mod away;
+mod drafts;
 mod binding;
 mod brief_document;
 mod change;

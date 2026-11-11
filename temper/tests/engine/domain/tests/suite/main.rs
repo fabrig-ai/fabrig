@@ -26,6 +26,7 @@ mod oracle;
 mod orders;
 mod panel_before_change;
 mod panels;
+mod drafts;
 mod periods;
 mod playground;
 mod preparation;

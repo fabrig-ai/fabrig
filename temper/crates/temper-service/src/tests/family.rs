@@ -4244,49 +4244,45 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
 }
 
 #[test]
-fn set_draft_is_undecodable_until_the_engine_keeps_drafts() {
-    let request = w::SetDraft::new(
-        &w::CEILINGS,
-        w::SetDraftParts {
-            project: 7,
-            repository: None,
-            path: b"docs/design/draft/catch-up.md".as_slice().into(),
-            change: w::DraftChange::Ready(
-                w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-    let record =
-        w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::SetDraft(request) }).unwrap();
-    let refused = family::to_root(
-        &jig_protocol_config::Directories::working(),
-        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-        &fixtures::forge_table(&[]),
-        None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
-        None,
-        &w::CEILINGS,
-    )
-    .unwrap_err();
-    let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *refused else { panic!("undecodable") };
-    assert_eq!(to, REPLY);
+fn set_draft_maps_every_change_and_repository() {
+    for (change, expected) in [
+        (w::DraftChange::Ready(w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap()), forge::DraftChange::Ready { chat: Some(7) }),
+        (w::DraftChange::NotReady, forge::DraftChange::NotReady),
+        (w::DraftChange::Started(w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal: 40 }).unwrap()), forge::DraftChange::Started { goal: 40 }),
+    ] {
+        for named in [false, true] {
+            let repository = if named { Some(w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() }).unwrap()) } else { None };
+            let request = w::SetDraft::new(&w::CEILINGS, w::SetDraftParts { project: 9, repository, path: b"draft.md".as_slice().into(), change: change.clone() }).unwrap();
+            assert_eq!(away_request(w::Request::SetDraft(request)), root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft { project: 9, repository: if named { Some(forge::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() }) } else { None }, path: b"draft.md".as_slice().into(), change: expected })));
+        }
+    }
 }
-
 #[test]
-fn drafts_watch_is_refused_until_the_engine_keeps_drafts() {
-    let subject = w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: 7 }).unwrap();
+fn drafts_watch_names_its_project_subject() {
+    let subject = w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: 9 }).unwrap();
     let record = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Drafts(subject) }).unwrap();
-    let refused = family::to_root(
-        &jig_protocol_config::Directories::working(),
-        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&record)),
-        &fixtures::forge_table(&[]),
-        None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
-        None,
-        &w::CEILINGS,
-    )
-    .unwrap_err();
-    let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
-    assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&record))) else { panic!("drafts watch") };
+    assert_eq!(watcher, WATCHER);
+    assert_eq!(subject, jig_domain_core::documents::Watched::Application { scope: people::ApplicationScope::Project(9), connector: wire::FORGE, subject: Token::new(forge::drafts_subject(9)) });
+}
+fn draft_view() -> forge::DraftView {
+    forge::DraftView { owner: b"org".as_slice().into(), name: b"repo".as_slice().into(), row: forge::LandedDraft { repository: skein_forge::api::Repository { forge: 2, repository: 3 }, path: b"draft.md".as_slice().into(), project: 9, branch: b"main".as_slice().into(), commit: [3; 32], title: b"Catch-up barrier".as_slice().into(), writer: 7, at: skein_lib::Wall::from_nanos(100), chat: Some(7), goal: Some(40), ready: false } }
+}
+#[test]
+fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
+    let view = draft_view();
+    let w::Outcome::Drafted(row) = away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Kept(view.clone())))) else { panic!("drafted") };
+    assert_eq!(row.into_parts(), w::LandedDraftParts { forge: 2, owner: b"org".as_slice().into(), name: b"repo".as_slice().into(), path: b"draft.md".as_slice().into(), branch: b"main".as_slice().into(), commit: forge::commit_text(&[3; 32]), title: b"Catch-up barrier".as_slice().into(), writer: 7, at: 100, chat: Some(7), goal: Some(40), ready: false });
+    let bytes = family::document(forge::Document::Drafts(forge::DraftsView { project: 9, rows: Box::new([view.clone()]) }), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let panel = wire::decode_drafts_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(panel.project(), 9); assert_eq!(panel.drafts().len(), 1);
+    assert_eq!(away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Kept(view)))), w::Outcome::Drafted(panel.drafts().get(0).unwrap().clone()));
+    for (why, expected) in [
+        (forge::DraftRefusal::NoRepository, w::DraftRefusal::NoRepository), (forge::DraftRefusal::Path, w::DraftRefusal::Path),
+        (forge::DraftRefusal::Missing, w::DraftRefusal::Missing), (forge::DraftRefusal::NotAFile, w::DraftRefusal::NotAFile),
+        (forge::DraftRefusal::Unreachable, w::DraftRefusal::Unreachable), (forge::DraftRefusal::Unknown, w::DraftRefusal::Unknown), (forge::DraftRefusal::Full, w::DraftRefusal::Full),
+    ] {
+        assert_eq!(away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Refused(why)))), w::Outcome::DraftRefused(w::DraftRefused::new(&w::CEILINGS, w::DraftRefusedParts { reason: expected }).unwrap()));
+    }
+    assert_eq!(away_answer(None), w::Outcome::Unknown);
 }
