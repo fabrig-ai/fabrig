@@ -952,7 +952,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) {
     let arguments: Vec<Box<[u8]>> = arguments.iter().map(|s| s.as_bytes().into()).collect();
     let (directories, _) = temper_box_shell::directories::resolve(&arguments, &[], b"/").expect("worker directories");
     let operations =
-        temper_box_shell::operations_in(&directories, &serde_json::to_vec(&document).expect("worker JSON"))
+        temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(&document).expect("worker JSON"))
             .expect("owned worker starts at its declared figures");
     assert!(operations <= 32_768, "Linux IORING_MAX_ENTRIES");
 }

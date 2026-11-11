@@ -3,7 +3,6 @@ use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use std::os::unix::ffi::OsStrExt;
 use temper_service::{self as service, settings::Seeds};
 use temper_service_shell::{close, jig_directories, read_files_with_asked};
 use temper_shell::directories::{Directories, EnvironmentEntry, unread};
@@ -53,7 +52,7 @@ pub fn program_environment(
         .cloned()
         .collect();
     let defaults = temper_shell::directories::resolve(&[], &defaults, working).ok().map(|(defaults, _)| defaults);
-    let home = environment.iter().find(|(name, _)| name.as_ref() == b"HOME").map(|(_, value)| value.as_ref());
+    let home = skein_shell::HOME.value(environment);
     let mut words = Vec::new();
     for (name, path, default) in [
         (b"TEMPER_CONFIG=".as_slice(), &directories.config, defaults.as_ref().map(|dirs| &dirs.config)),
@@ -132,34 +131,48 @@ fn github_runtime(
 }
 pub fn prepare(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<service::Service, String> {
-    prepare_with_store(binary, worker, directories, bytes, owned).map(|(service, _)| service)
+    prepare_with_store(binary, environment, working, worker, directories, bytes, owned).map(|(service, _)| service)
 }
 pub fn prepare_with_store(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with_limits(binary, worker, directories, bytes, owned, false, None, None, &service::stock::Given::Stock)
-        .map(|(service, store, _)| (service, store))
+    prepare_with_limits(
+        binary,
+        environment,
+        working,
+        worker,
+        directories,
+        bytes,
+        owned,
+        false,
+        None,
+        None,
+        &service::stock::Given::Stock,
+    )
+    .map(|(service, store, _)| (service, store))
 }
 #[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "startup supplies the binary and worker half beside the resolved process facts"
 )]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment supplies agent program settings and the running word; the binary's table will pass it"
-)]
 fn prepare_with_limits(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     bytes: &[u8],
@@ -262,12 +275,7 @@ fn prepare_with_limits(
         if under_box { Some(limits.line_bytes) } else { None },
         program_login,
         given,
-        program_environment(
-            directories,
-            &skein_shell::environment(),
-            std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
-            &printed::running_word(&skein_shell::environment()),
-        ),
+        program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);
@@ -288,23 +296,29 @@ fn prepare_with_limits(
 /// derived without retaining its descriptors.
 pub fn operations_in(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, worker, directories, config, false)
+    operations_in_mode(binary, environment, working, worker, directories, config, false)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, worker, directories, config, true)
+    operations_in_mode(binary, environment, working, worker, directories, config, true)
 }
 fn operations_in_mode(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     config: &[u8],
@@ -314,6 +328,8 @@ fn operations_in_mode(
     let mut owned = Vec::new();
     let result = prepare_with_limits(
         binary,
+        environment,
+        working,
         worker,
         directories,
         config,
@@ -329,12 +345,14 @@ fn operations_in_mode(
 }
 pub fn prepare_in(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result = prepare(binary, worker, directories, &bytes, &mut owned);
+    let result = prepare(binary, environment, working, worker, directories, &bytes, &mut owned);
     if result.is_err() {
         close(owned);
     }
@@ -343,14 +361,28 @@ pub fn prepare_in(
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(binary, worker, directories, &bytes, &mut owned, false, None, None, given)
-        .map(|(service, _, _)| service);
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        worker,
+        directories,
+        &bytes,
+        &mut owned,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -359,6 +391,8 @@ pub fn prepare_in_with(
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     worker: Option<&dyn WorkerHalf>,
     directories: &Directories,
     config: &[u8],
@@ -366,20 +400,36 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(binary, worker, directories, config, &mut owned, false, None, None, given)
-        .map(|(service, _, _)| service.operations());
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        worker,
+        directories,
+        config,
+        &mut owned,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
 pub fn run(
     binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     directories: &Directories,
     boxed: bool,
     worker: Option<&dyn WorkerHalf>,
 ) -> Result<Exit, String> {
-    temper_service_shell::run(binary, directories, boxed, |bytes, owned, secrets| {
+    temper_service_shell::run(binary, directories, environment, boxed, |bytes, owned, secrets| {
         prepare_with_limits(
             binary,
+            environment,
+            working,
             worker,
             directories,
             bytes,

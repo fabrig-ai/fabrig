@@ -73,7 +73,18 @@ fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
         return Ok(smith_agent_shell::program_child::main());
     }
     if let Command::Claude { arguments, .. } = command {
-        return Ok(ExitCode::from(crate::claude_code::run(std::ffi::OsStr::from_bytes(&captured.run_as), &arguments)));
+        return Ok(ExitCode::from(crate::claude_code::run(
+            std::ffi::OsStr::from_bytes(&captured.run_as),
+            &arguments,
+            &captured.environment,
+        )));
     }
-    crate::run(command).map(ExitCode::from).map_err(|why| (1, why))
+    crate::run(
+        command,
+        &captured.environment,
+        captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?.as_os_str().as_bytes(),
+        &captured.run_as,
+    )
+    .map(ExitCode::from)
+    .map_err(|why| (1, why))
 }

@@ -25,7 +25,19 @@ use temper_forge_setup_shell::process as locks;
 const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
-const CHOSEN_PORTS: &str = "TEMPER_FAKE_BOX_PORTS";
+pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
+    name: "TEMPER_INTERNAL_FAKE_BOX_PORTS",
+    set: skein_shell::Set::Internal,
+    form: "PORTS",
+    line: "Choose the fake box's nine listener and peer ports.",
+    absent: "Reserve available ports.",
+    notes: "Nine comma-separated nonzero ports; used only for a new sandbox.",
+    way: skein_shell::Way::Reads,
+};
+const CHOSEN_PORTS: &str = FAKE_BOX_PORTS.name;
+fn ports_from(environment: &[crate::EnvironmentEntry]) -> Result<Option<Chosen>, String> {
+    FAKE_BOX_PORTS.value(environment).map(OsStr::from_bytes).map(chosen_ports).transpose()
+}
 struct Chosen {
     listeners: [u16; 5],
     peers: [u16; 4],
@@ -84,21 +96,18 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     }
     Ok(bundle)
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: TEMPER_FAKE_BOX_PORTS selects fake listeners; temper-box's table will pass it"
-)]
 pub(crate) fn run(
     source: &Directories,
     bundle: Option<&Path>,
     echo: temper_box_machine::host::Echo,
     no_tui: bool,
+    environment: &[crate::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let adapter = sibling(&binary)?;
-    let chosen = std::env::var_os(CHOSEN_PORTS).as_deref().map(chosen_ports).transpose()?;
+    let chosen = ports_from(environment)?;
     let Prepared { directories, bytes, mut listeners, peers, _lock: lock } =
-        prepare(source, bundle, &adapter, chosen.as_ref())?;
+        prepare(source, bundle, &adapter, chosen.as_ref(), environment)?;
     let first = backends::steps(&directories.config, &peers);
     let opening = crate::box_command::Opening {
         log_lines: Box::new([]),
@@ -112,6 +121,7 @@ pub(crate) fn run(
         echo,
         no_tui,
         opening,
+        environment,
     );
     drop(lock);
     result
@@ -537,22 +547,10 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
 }
 // The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
 #[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment configures fake backends; temper-box's table will pass it"
-)]
-fn prepare(
-    source_dirs: &Directories,
-    bundle: Option<&Path>,
-    adapter: &Path,
-    chosen: Option<&Chosen>,
-) -> Result<Prepared, String> {
-    prepare_with_environment(source_dirs, bundle, adapter, chosen, &skein_shell::environment())
-}
-#[expect(
     clippy::too_many_lines,
     reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
 )]
-fn prepare_with_environment(
+fn prepare(
     source_dirs: &Directories,
     bundle: Option<&Path>,
     adapter: &Path,
@@ -574,7 +572,7 @@ fn prepare_with_environment(
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => false,
         Err(why) => return Err(format!("{}: {why}", root.display())),
     };
-    let source = Source::read(source_dirs).map_err(|why| if exists { reset(&root, &why) } else { why })?;
+    let source = Source::read(source_dirs, environment).map_err(|why| if exists { reset(&root, &why) } else { why })?;
     // Reuse checks the retained effective bundle, which may differ from the source's directory.
     let provisioned = if exists {
         None

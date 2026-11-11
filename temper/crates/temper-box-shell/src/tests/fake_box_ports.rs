@@ -19,7 +19,7 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
     let adapter = root.join("fake-claude");
     fs::write(&adapter, b"#!/bin/sh\nexit 1\n").expect("fixture adapter");
     fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
-    let prepared = prepare(&source, Some(&bundle), &adapter, None).expect("fresh fake box");
+    let prepared = prepare(&source, Some(&bundle), &adapter, None, &[]).expect("fresh fake box");
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(prepared.directories.document()).expect("written deployment"))
             .expect("deployment JSON");
@@ -39,4 +39,18 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
             .expect("socket address");
         assert!(!(8367..=8371).contains(&address.port()), "{pointer}: a fake box wrote preferred port {address}");
     }
+}
+
+#[test]
+fn fake_ports_use_the_given_environment() {
+    let environment = [(
+        Box::from(b"TEMPER_INTERNAL_FAKE_BOX_PORTS".as_slice()),
+        Box::from(b"7101,7102,7103,7104,7105,7106,7107,7108,7109".as_slice()),
+    )];
+    let chosen = super::ports_from(&environment).expect("ports").expect("chosen ports");
+    assert_eq!(chosen.listeners, [7101, 7102, 7103, 7104, 7105]);
+    assert_eq!(chosen.peers, [7106, 7107, 7108, 7109]);
+    assert!(super::ports_from(&[]).expect("no ports").is_none());
+    let empty = [(Box::from(b"TEMPER_INTERNAL_FAKE_BOX_PORTS".as_slice()), Box::from(b"".as_slice()))];
+    assert!(super::ports_from(&empty).expect("empty is unset").is_none());
 }

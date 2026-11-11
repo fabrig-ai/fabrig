@@ -12,7 +12,12 @@ pub(super) fn run() -> ExitCode {
     if let Some(program) = env::args_os().next()
         && temper_launcher::is_launcher(&program)
     {
-        return ExitCode::from(temper_launcher::run(NAME, &program, &skein_shell::arguments()));
+        return ExitCode::from(temper_launcher::run(
+            NAME,
+            &program,
+            &skein_shell::arguments(),
+            &skein_shell::environment(),
+        ));
     }
     if env::args_os().nth(1).as_deref() == Some(OsStr::new(smith_agent_shell::relay::FLAG)) {
         return smith_agent_shell::relay::main();

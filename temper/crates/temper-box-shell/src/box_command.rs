@@ -8,9 +8,9 @@ use temper_box_machine::host::{Echo, FirstLink, Front, Service, Settings};
 /// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box.md, 2).
 pub(crate) fn link_form(
     stdout: &impl std::io::IsTerminal,
-    environment: &[Box<[u8]>],
+    environment: &[super::EnvironmentEntry],
 ) -> temper_box_machine::terminal::LinkForm {
-    let term = environment.iter().find_map(|entry| entry.strip_prefix(b"TERM="));
+    let term = temper_shell::environment::TERM.value(environment);
     temper_box_machine::terminal::LinkForm::of(stdout.is_terminal(), term)
 }
 
@@ -45,10 +45,15 @@ pub(crate) fn echo(
 }
 
 /// Checks the document before starting its steps; refusals contain unprefixed lines.
-pub fn run(directories: &super::Directories, echo: Echo, no_tui: bool) -> Result<Exit, String> {
-    let (bytes, held, first_run) = configuration(directories)?;
+pub fn run(
+    directories: &super::Directories,
+    echo: Echo,
+    no_tui: bool,
+    environment: &[super::EnvironmentEntry],
+) -> Result<Exit, String> {
+    let (bytes, held, first_run) = configuration(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, no_tui, opening)
+    run_configuration(directories, &bytes, held, Box::new([]), echo, no_tui, opening, environment)
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -59,8 +64,8 @@ pub(crate) struct Opening {
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
 #[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment supplies child processes and the running word; temper-box's table will pass it"
+    clippy::too_many_arguments,
+    reason = "box startup takes the capture beside its retained configuration and listeners"
 )]
 pub(crate) fn run_configuration(
     directories: &super::Directories,
@@ -70,6 +75,7 @@ pub(crate) fn run_configuration(
     echo: Echo,
     no_tui: bool,
     opening: Opening,
+    environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let mut owned = held.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let opened = (|| {
@@ -78,11 +84,12 @@ pub(crate) fn run_configuration(
         let held = held_listeners(held)?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
-        let environment: Box<[Box<[u8]>]> = std::env::vars_os()
+        let child_environment: Box<[Box<[u8]>]> = environment
+            .iter()
             .map(|(name, value)| {
-                let mut entry = name.as_bytes().to_vec();
+                let mut entry = name.to_vec();
                 entry.push(b'=');
-                entry.extend_from_slice(value.as_bytes());
+                entry.extend_from_slice(value);
                 entry.into_boxed_slice()
             })
             .collect();
@@ -109,15 +116,15 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
-            word: crate::printed::running_word(&skein_shell::environment()),
-            link_form: link_form(&std::io::stdout(), &environment),
+            word: crate::printed::running_word(environment),
+            link_form: link_form(&std::io::stdout(), environment),
             first_link,
             front,
             after_block: opening.after_block,
             log_lines: opening.log_lines,
             parent: cfg!(target_os = "linux").then(super::forge_exec::id),
             program: program.as_os_str().as_bytes().into(),
-            environment,
+            environment: child_environment,
             listeners: listeners.into_boxed_slice(),
             serve: b"serve".as_slice().into(),
             root,
@@ -345,7 +352,10 @@ fn owned_notices(steps: &mut temper_forge_setup::Steps, owned: &temper_forge_set
 
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
 /// Prepare a first configuration, keeping init's listeners, or read the existing one.
-pub fn configuration(directories: &super::Directories) -> Result<Configuration, String> {
+pub fn configuration(
+    directories: &super::Directories,
+    environment: &[super::EnvironmentEntry],
+) -> Result<Configuration, String> {
     let config = super::path(&directories.config);
     let empty = match std::fs::read_dir(config) {
         Ok(mut entries) => match entries.next() {
@@ -358,7 +368,7 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     };
     let mut held = Vec::new();
     let first_run = if empty {
-        let written = super::init::core(directories)?;
+        let written = super::init::core(directories, environment)?;
         held = written.listeners;
         let mut opening =
             written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));

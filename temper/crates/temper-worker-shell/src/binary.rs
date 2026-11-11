@@ -72,13 +72,19 @@ fn run(arguments: &[Box<[u8]>]) -> Result<u8, String> {
             }
             refuse_document(row, &directories)?;
             Ok(
-                match temper_service_shell::run(WORKER.binary, &directories, false, |bytes, owned, _| {
-                    crate::worker::alone(&directories, bytes, owned).map(|service| temper_service_shell::Prepared {
-                        service,
-                        store: Box::new([]),
-                        line_bytes: 0,
-                    })
-                })? {
+                match temper_service_shell::run(
+                    WORKER.binary,
+                    &directories,
+                    &skein_shell::environment(),
+                    false,
+                    |bytes, owned, _| {
+                        crate::worker::alone(&directories, bytes, owned).map(|service| temper_service_shell::Prepared {
+                            service,
+                            store: Box::new([]),
+                            line_bytes: 0,
+                        })
+                    },
+                )? {
                     Exit::Code(code) => code,
                     Exit::Signal(_) => 1,
                 },

@@ -9,6 +9,7 @@ use std::{
     path::Path,
 };
 use temper_service::{self as service, settings::Files};
+use temper_shell::directories::EnvironmentEntry;
 use temper_shell::{
     directories::{Directories, errno, unread},
     link_file,
@@ -153,25 +154,21 @@ pub struct Secrets {
 pub fn run(
     binary: &str,
     directories: &Directories,
+    environment: &[EnvironmentEntry],
     boxed: bool,
     prepare: impl FnOnce(&[u8], &mut Vec<Fd>, Secrets) -> Result<Prepared, String>,
 ) -> Result<Exit, String> {
-    run_inner(binary, directories, boxed, prepare).map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    run_inner(binary, directories, environment, boxed, prepare)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: XDG_RUNTIME_DIR selects the local link path; the binary's table will pass it"
-)]
 fn run_inner(
     binary: &str,
     directories: &Directories,
+    environment: &[EnvironmentEntry],
     boxed: bool,
     prepare: impl FnOnce(&[u8], &mut Vec<Fd>, Secrets) -> Result<Prepared, String>,
 ) -> Result<Exit, String> {
-    let environment = skein_shell::environment();
-    let runtime =
-        environment.iter().find(|(name, _)| name.as_ref() == b"XDG_RUNTIME_DIR").map(|(_, value)| value.as_ref());
-    let link_file = link_file::path(&directories.data, runtime, cfg!(target_os = "linux"));
+    let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
     let answers = requests + 1;
@@ -220,7 +217,7 @@ fn run_inner(
             return Err(why);
         }
     };
-    let mut host = Host::with_binary(binary, service, directories.clone());
+    let mut host = Host::with_binary(binary, service, directories.clone(), environment);
     host.store = store;
     host.link_file = link_file;
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
@@ -230,5 +227,34 @@ fn run_inner(
     Ok(exit)
 }
 
+fn local_link(directories: &Directories, environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
+    link_file::path(
+        &directories.data,
+        temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
+        cfg!(target_os = "linux"),
+    )
+}
+
 #[cfg(test)]
 mod tests;
+
+/// Opt in to the service's wait-boundary check (cli/README.md, 8).
+pub const WAIT_CHECK: skein_shell::Variable = skein_shell::Variable {
+    name: "TEMPER_INTERNAL_WAIT_CHECK",
+    set: skein_shell::Set::Internal,
+    form: "SWITCH",
+    line: "Check the service wait boundary.",
+    absent: "Check in debug builds only.",
+    notes: "",
+    way: skein_shell::Way::Reads,
+};
+/// Cut a start at its first client listener (cli/README.md, 8).
+pub const CUT_AT_LISTEN: skein_shell::Variable = skein_shell::Variable {
+    name: "TEMPER_INTERNAL_CUT_AT_LISTEN",
+    set: skein_shell::Set::Internal,
+    form: "FILE",
+    line: "Abort once at the client listener, creating this marker.",
+    absent: "Do not cut the start.",
+    notes: "Requires TEMPER_INTERNAL_WAIT_CHECK. An existing marker keeps the next start running.",
+    way: skein_shell::Way::Reads,
+};

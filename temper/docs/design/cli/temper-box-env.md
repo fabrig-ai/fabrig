@@ -70,3 +70,12 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - **Notes:** Only absolute paths are used.
 
 ## Internal
+
+### `TEMPER_INTERNAL_FAKE_BOX_PORTS`
+
+- **Set:** internal
+- **Reads**
+- **Form:** PORTS
+- **Absent:** Reserve available ports.
+- Choose the fake box's nine listener and peer ports.
+- **Notes:** Nine comma-separated nonzero ports; used only for a new sandbox.

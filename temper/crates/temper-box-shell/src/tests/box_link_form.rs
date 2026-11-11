@@ -14,7 +14,13 @@ fn the_box_reads_its_stdout_and_term() {
         (&file, vec!["TERM=xterm-256color"], Bare),
         (&null, vec!["TERM=xterm-256color"], Bare),
     ] {
-        let environment: Vec<Box<[u8]>> = environment.iter().map(|entry| entry.as_bytes().into()).collect();
+        let environment: Vec<_> = environment
+            .iter()
+            .map(|entry| {
+                let (name, value) = entry.split_once('=').expect("environment pair");
+                (Box::from(name.as_bytes()), Box::from(value.as_bytes()))
+            })
+            .collect();
         assert_eq!(link_form(stdout, &environment), expected, "environment={environment:?}");
     }
 }

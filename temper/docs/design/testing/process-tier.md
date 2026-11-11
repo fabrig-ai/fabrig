@@ -354,7 +354,7 @@
   may be on the kernel's port. A port it lets go of and listens on again,
   as a retained deployment's across a stop, is `temper_fixtures::ports`'
   (`support::free_addresses`, `support::own_listener_files`), and a fake
-  box's are the story's too, through `TEMPER_FAKE_BOX_PORTS`
+  box's are the story's too, through `TEMPER_INTERNAL_FAKE_BOX_PORTS`
   (`../protocol/setup/box.md`, 5). Such a port is:
   - **below the kernel's ephemeral range,** as
     `/proc/sys/net/ipv4/ip_local_port_range` reads, so that no outgoing

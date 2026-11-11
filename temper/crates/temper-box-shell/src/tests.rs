@@ -151,11 +151,11 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     let (agent, document) = configuration::documents(&directory, "/fixture/temper");
     write("agent.json", &agent);
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations =
-        super::operations_in(&configuration::directories(&directory), &document).expect("standalone operations");
+    let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
+        .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     let mut owned = Vec::new();
-    let service = super::prepare(&configuration::directories(&directory), &document, &mut owned)
+    let service = super::prepare(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
         .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
     drop(service);
@@ -333,6 +333,7 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
         &configuration::directories(scratch.path()),
         &["run".into(), "1".into(), "forgejo".into()],
         None,
+        &[],
     )
     .expect_err("fake is not owned");
     assert_eq!(refused.line(), "temper forge run: forge 1: it is fake, not owned\n");
@@ -362,6 +363,8 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
     fs::set_permissions(secret, fs::Permissions::from_mode(0o600)).expect("worker-alone fixture");
     let mut owned = Vec::new();
     let (service, store) = super::prepare_with_store(
+        &[],
+        b"/",
         &configuration::directories(&directory),
         &serde_json::to_vec(&input).expect("worker-alone fixture"),
         &mut owned,
