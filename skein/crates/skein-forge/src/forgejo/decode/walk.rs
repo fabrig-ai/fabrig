@@ -268,8 +268,9 @@ impl Walk {
         assert!(
             self.parent() == Some(Kind::Item(Item::Issues))
                 || self.parent() == Some(Kind::Item(Item::Comments))
-                || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Comments)),
-            "cut at an items page or unpaged thread's row boundary"
+                || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Comments))
+                || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Reviews)),
+            "cut at a listing row boundary"
         );
         self.want = Want::Cut;
         tokenizer::Request::Skip

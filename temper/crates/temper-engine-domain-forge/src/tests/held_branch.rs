@@ -261,7 +261,7 @@ fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]
     fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
     fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
     fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }))
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
 #[test]
