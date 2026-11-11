@@ -530,7 +530,8 @@ changes live at once, never every change made.
   panel's CI, its settling, its start conflicts, its wakes and its
   deadline, its pending steps and goal-file reads (a late answer to one
   then finds nothing and is dropped), its goal files, and its `landed`
-  commits, each erased where it is stored. Its landing log entries stay
+  commits, each erased where it is stored; and the queue repairs it
+  made leave its landing branch's count of them. Its landing log entries stay
   (`../../after-landing.md`, 10), so its project's landed history and
   status, which read the log, keep it.
 - **A dropped change reads as an unknown task:** its panel is Gone
