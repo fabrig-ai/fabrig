@@ -651,7 +651,7 @@ fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Pa
     panel
 }
 
-fn post_approval_read(world: &mut World, change: u64, user: u64) {
+pub(super) fn post_approval_read(world: &mut World, change: u64, user: u64) {
     fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
     let pull = light_rules::change_row(world, change).pull.expect("opened pull");
     assert!(matches!(
@@ -862,7 +862,7 @@ fn watch_approvals(world: &mut World, watcher: Token) {
     watch_approvals_at(world, watcher, 1);
 }
 
-pub(super) fn watch_approvals_at(world: &mut World, watcher: Token, connector: u16) {
+fn watch_approvals_at(world: &mut World, watcher: Token, connector: u16) {
     world.send(engine::Event::Party(engine::PartyInput::Watch {
         watcher,
         sign_in: world.signed_in.expect("approval watcher session"),

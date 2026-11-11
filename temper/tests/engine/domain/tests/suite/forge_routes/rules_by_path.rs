@@ -1,6 +1,6 @@
 //! Rules cover a change's own diff at its judged head, and a sign-off waits outside the queue
 //! (temper/docs/design/domain/forge/change/gates.md, 2; queues.md; change/questions.md, 2).
-use super::approval_identity::{approvals_of, forge_with_only_temper, post_approval, settle, watch_approvals_at};
+use super::approval_identity::{approvals_of, forge_with_only_temper, post_approval, post_approval_read, settle};
 use super::light_rules::change_row;
 use super::update_first::{finish, status};
 use super::*;
@@ -88,8 +88,9 @@ fn publish(world: &mut World, producer: &engine::Assignment, path: Option<&[u8]>
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, b"added", 2)
             .expect("producer pushed")
     } else {
-        let head = fake::commit_tree(&mut world.fake, &world.fake_env.limits, base, None, Box::new([]), b"Empty change")
-            .expect("empty commit on the empty main tree");
+        let head =
+            fake::commit_tree(&mut world.fake, &world.fake_env.limits, base, None, Box::new([]), b"Empty change")
+                .expect("empty commit on the empty main tree");
         assert_eq!(
             world.external(2, raw::Op::Git(raw::Git::Push { branch, commit: head, expected: None })),
             raw::Answer::Pushed(raw::Pushed::Pushed)
@@ -97,10 +98,21 @@ fn publish(world: &mut World, producer: &engine::Assignment, path: Option<&[u8]>
         head
     };
     if pending {
+        // Let the fake's automatic build finish before replacing its verdict with pending.
+        settle(world);
         status(world, head, raw::Check::Pending);
     }
     finish(world, producer);
-    settle(world);
+    if pending {
+        for _ in 0..200 {
+            world.tick();
+            if matches!(change_row(world, change).change.state, State::Checking { .. }) {
+                break;
+            }
+        }
+    } else {
+        settle(world);
+    }
     head
 }
 
@@ -108,7 +120,22 @@ fn approvals(world: &mut World) -> engine::Approvals {
     // The world's short sessions expire while a sign-off waits; each read authenticates afresh.
     world.sign_in();
     world.approvals.clear();
-    watch_approvals_at(world, WATCHER, 0);
+    world.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher: WATCHER,
+        sign_in: world.signed_in.expect("approval watcher session"),
+        subject: jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Own,
+            connector: 0,
+            subject: Token::new(engine::APPROVALS_SUBJECT),
+        },
+        window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
+    }));
+    for _ in 0..200 {
+        if !world.approvals.is_empty() {
+            break;
+        }
+        world.tick();
+    }
     let document = approvals_of(world, WATCHER);
     world.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: WATCHER }));
     document
@@ -123,16 +150,34 @@ fn assert_wait(world: &mut World, change: u64, head: u64) {
     assert_eq!(document.rows.len(), 1, "{document:?}");
     let approval = &document.rows[0];
     assert_eq!(approval.task, change);
-    assert_eq!((approval.required, approval.counted, approval.yours, approval.whole), (1, 0, engine::YourReview::Counts, true));
+    assert_eq!(
+        (approval.required, approval.counted, approval.yours, approval.whole),
+        (1, 0, engine::YourReview::Counts, true)
+    );
     assert_eq!(approval.sets.len(), 1);
     assert_eq!(approval.sets[0].number, 1);
     assert_eq!(approval.sets[0].name.as_ref(), SET_NAME);
+    assert!(pull_of(world, change).merged.is_none(), "the fake forge has not merged the waiting change");
 }
 
-fn assert_landed(world: &World, change: u64) {
+fn pull_of(world: &mut World, change: u64) -> raw::Pull {
+    let number = change_row(world, change).pull.expect("opened pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else {
+        panic!("fake forge pull")
+    };
+    pull
+}
+
+fn assert_landed(world: &mut World, change: u64) {
     assert!(matches!(change_row(world, change).change.state, State::Landed { .. }), "{:?}", change_row(world, change));
     let pull = change_row(world, change).pull.expect("opened pull");
-    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { number, .. } if *number == pull)));
+    assert!(
+        world
+            .writes
+            .iter()
+            .any(|write| matches!(write, skein_forge::api::Write::Merge { number, .. } if *number == pull))
+    );
+    assert!(pull_of(world, change).merged.is_some(), "the fake forge merged it");
 }
 
 #[test]
@@ -149,13 +194,14 @@ fn a_protocol_signoff_waits_outside_the_queue_while_docs_land_without_approval()
     let docs = change_of(&world, &docs_producer);
     assert_eq!(change_row(&world, docs).base, change_row(&world, protocol).base);
     publish(&mut world, &docs_producer, Some(b"docs/a.md"), false);
-    assert_landed(&world, docs);
+    assert_landed(&mut world, docs);
+    assert!(pull_of(&mut world, docs).reviews.is_empty(), "the docs-only change landed without a forge review");
     assert_eq!(world.merges, 1, "a docs-only change needs no approval and never waits behind the protocol edit");
     assert_wait(&mut world, protocol, head);
     assert_eq!(change_row(&world, protocol).change.ready_since, since);
 
     post_approval(&mut world, protocol, 7);
-    assert_landed(&world, protocol);
+    assert_landed(&mut world, protocol);
     assert_eq!(world.merges, 2);
     assert!(approvals(&mut world).rows.is_empty());
     world.close();
@@ -166,7 +212,11 @@ fn a_new_head_touching_the_header_waits_for_approval() {
     let (mut world, producer) = story();
     let change = change_of(&world, &producer);
     let earlier = publish(&mut world, &producer, Some(b"docs/a.md"), true);
-    assert!(matches!(change_row(&world, change).change.state, State::Checking { .. }));
+    assert!(
+        matches!(change_row(&world, change).change.state, State::Checking { .. }),
+        "{:?}",
+        change_row(&world, change)
+    );
     assert!(approvals(&mut world).rows.is_empty());
     assert_eq!(world.merges, 0, "CI, not the path rule, keeps the docs head");
 
@@ -177,13 +227,36 @@ fn a_new_head_touching_the_header_waits_for_approval() {
     status(&mut world, head, raw::Check::Passed);
     let pull = change_row(&world, change).pull.expect("opened pull");
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
-        hint: skein_forge::api::Hint { repository: forge_world::REPO, change: skein_forge::api::Change::Item(pull), key: None },
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Item(pull),
+            key: None,
+        },
     })));
+    settle(&mut world);
+    assert!(matches!(
+        change_row(&world, change).change.state,
+        State::Held { why: temper_engine_domain_forge_change::Hold::BranchMoved, .. }
+    ));
+    // A person's push is drift until the owner accepts that new head.
+    world.sign_in();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(97)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [97; 16],
+        ask: people::Ask::Release {
+            project: 1,
+            task: change,
+            revision: live_task(&world, change).revisions.hold,
+            again: None,
+        },
+    }));
     settle(&mut world);
     assert_wait(&mut world, change, head);
     assert_eq!(world.merges, 0);
     post_approval(&mut world, change, 7);
-    assert_landed(&world, change);
+    assert_landed(&mut world, change);
     assert_eq!(world.merges, 1);
     assert!(approvals(&mut world).rows.is_empty());
     world.close();
@@ -198,25 +271,34 @@ fn taking_mains_protocol_edit_in_an_update_touches_nothing() {
     let empty_producer = next_change(&mut world);
     let empty = change_of(&world, &empty_producer);
     let head = publish(&mut world, &empty_producer, None, true);
-    assert!(matches!(change_row(&world, empty).change.state, State::Checking { .. }));
+    assert!(
+        matches!(change_row(&world, empty).change.state, State::Checking { .. }),
+        "{:?}",
+        change_row(&world, empty)
+    );
 
-    post_approval(&mut world, protocol, 7);
-    assert_landed(&world, protocol);
+    post_approval_read(&mut world, protocol, 7);
+    settle(&mut world);
+    assert_landed(&mut world, protocol);
     assert_eq!(world.merges, 1);
+    let main = world.fake.branch(b"org/repo", b"main").expect("protocol landing");
     status(&mut world, head, raw::Check::Passed);
     settle(&mut world);
-    assert_landed(&world, empty);
+    assert_landed(&mut world, empty);
     assert_eq!(world.merges, 2, "an update brings main's edit, not a new approval requirement");
     let row = change_row(&world, empty);
     assert_eq!(row.change.updates, 1);
-    let updated = world.fake.branch(b"org/repo", &row.branch).expect("updated head");
+    let updated = fake::commit_count(&row.change.last_head.expect("updated head")).expect("fake commit");
     assert_ne!(updated, head);
-    let raw::Answer::Comparison { files, .. } = world.external(1, raw::Op::Read(raw::Read::Compare {
-        base: protocol_head,
-        head: updated,
-        page: 1,
-        limit: 10,
-    })) else { panic!("updated diff") };
+    assert_eq!(
+        world.fake.object(updated).expect("updated tree").tree.get(b"src/protocol.c".as_slice()).map(AsRef::as_ref),
+        Some(b"added".as_slice())
+    );
+    let raw::Answer::Comparison { files, .. } =
+        world.external(1, raw::Op::Read(raw::Read::Compare { base: main, head: updated, page: 1, limit: 10 }))
+    else {
+        panic!("updated diff")
+    };
     assert!(files.is_empty(), "only main's protocol edit was brought in");
     assert!(approvals(&mut world).rows.is_empty());
     world.close();
@@ -231,7 +313,7 @@ fn unread_comparisons_make_an_untouching_change_wait_for_approval() {
     assert_wait(&mut world, change, head);
     assert_eq!(world.merges, 0, "an unread diff conservatively touches every set");
     post_approval(&mut world, change, 7);
-    assert_landed(&world, change);
+    assert_landed(&mut world, change);
     assert_eq!(world.merges, 1);
     assert!(approvals(&mut world).rows.is_empty());
     world.close();
