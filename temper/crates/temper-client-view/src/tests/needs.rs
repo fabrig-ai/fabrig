@@ -432,9 +432,9 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::NEEDS_BAR,
             look::ASK_META,
             look::FLOW_Q,
-            look::WHY,
             look::ASK_CONTEXT,
             look::ASK_SAW,
+            look::WHY,
             look::ASK_CHOICES,
             look::NEED_TELL,
         ];
@@ -490,7 +490,6 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
 #[test]
 fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_rec() {
     use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
-    stop_parts();
     for (words, primary, rec) in [
         ("Where?\nChoice: First\nChoice: Second", b"First".as_slice(), false),
         ("Where?\nChoice: First\nChoice: Second (recommended)", b"Second".as_slice(), true),
@@ -564,6 +563,19 @@ fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_re
         deliver_asked(&mut root, watch, Some(reach));
         let view = f::browser_page_view(&root);
         assert_eq!(styled(&view, look::WHY).name.as_deref(), Some(expected.as_bytes()), "{reach:?}");
+        let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+        let offered = pages::stop_asking::offered(&root, needs::Need::Card(card), f::NOW).is_some();
+        assert_eq!(f::find(view.tree(), Role::Button, b"Keep asking").is_some(), offered, "{reach:?}");
+        if offered {
+            let rule = if reach.reason == Reason::Set(1) {
+                "Stop asking: let agents decide some changes to the protocol core"
+            } else if reach.under == 1 {
+                "Stop asking: let agents decide implementation choices under “small repairs”"
+            } else {
+                continue;
+            };
+            assert!(f::find(view.tree(), Role::Button, rule.as_bytes()).is_some());
+        }
     }
 }
 #[test]
@@ -755,12 +767,13 @@ fn opened_card_and_later_order() {
     assert!(!has(&view, b"The last one"));
     assert!(has(&view, b"later"));
     assert!(has(&view, "Decided for you · 1".as_bytes()));
-    assert!(has(&view, b"for 24 hours, then in each task's history"));
+    assert!(!has(&view, b"for 24 hours, then in each task's history"));
+    assert!(f::find(view.tree(), Role::Button, b"Limits").is_some());
     let nodes = main(&view);
     let answered = nodes.iter().position(|node| node.styles.as_slice().contains(&look::ANSWERED_SECTION)).unwrap();
     let decided = nodes
         .iter()
-        .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
+        .position(|node| node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes()))
         .unwrap();
     assert!(answered < decided);
 }
@@ -966,7 +979,6 @@ pub(super) fn decided_fixture(filter: d::address::Filter, count: u32, open: bool
     root
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
 fn done_with_and_without_lines_and_home_project() {
     for (answered, decided_rows) in [(false, false), (true, false), (false, true), (true, true)] {
         let (mut root, _, decided) =
@@ -988,7 +1000,9 @@ fn done_with_and_without_lines_and_home_project() {
             let nodes = main(&view);
             let region = nodes
                 .iter()
-                .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
+                .position(|node| {
+                    node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes())
+                })
                 .unwrap();
             let home =
                 nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();
@@ -1001,6 +1015,10 @@ fn done_with_and_without_lines_and_home_project() {
             Some(d::Action::Pages(pages::Act::Go { address: Address::AllHome }))
         );
     }
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
+fn decided_head_and_rows_follow_the_project_filter() {
     for (open, count, project, showing) in [
         (false, 0, None, 0),
         (true, 0, None, 0),
@@ -1014,7 +1032,8 @@ fn done_with_and_without_lines_and_home_project() {
         for (mut view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
             let nodes = main(&view);
             assert_eq!(nodes.iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), showing);
-            assert_eq!(f::find(view.tree(), Role::Region, b"Decided for you").is_some(), showing > 0);
+            let heading = format!("Decided for you · {showing}");
+            assert_eq!(f::find(view.tree(), Role::Region, heading.as_bytes()).is_some(), showing > 0);
             if showing == 0 {
                 assert!(!has(&view, b"were decided for you"));
                 continue;
@@ -1023,16 +1042,19 @@ fn done_with_and_without_lines_and_home_project() {
                 f::find(view.tree(), Role::Heading { level: 2 }, format!("Decided for you · {showing}").as_bytes())
                     .is_some()
             );
-            assert!(has(&view, b"for 24 hours, then in each task's history"));
+            assert_eq!(has(&view, b"for 24 hours, then in each task's history"), project.is_none());
+            assert_eq!(f::find(view.tree(), Role::Button, b"Limits").is_some(), project.is_some());
             assert!(has(&view, b"Which approach?"));
             assert!(has(&view, b"Fixed the harness."));
             assert!(has(&view, b"Allowed: test-only changes are decided and listed."));
             assert!(has(&view, b"Tests are its area."));
             let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
-            assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
             if project.is_some() {
-                let other = if project == Some(f::PROJECT) { "Second ·".as_bytes() } else { "Shop ·".as_bytes() };
-                assert!(!has(&view, other));
+                assert!(has(&view, "Decided task · 01:05".as_bytes()));
+                assert!(!has(&view, "Shop ·".as_bytes()));
+                assert!(!has(&view, "Second ·".as_bytes()));
+            } else {
+                assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
             }
             if open && browser {
                 let sentence = match showing {
@@ -1047,10 +1069,22 @@ fn done_with_and_without_lines_and_home_project() {
             }
             let region = nodes
                 .iter()
-                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Decided for you"))
+                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(heading.as_bytes()))
                 .unwrap();
             let done_or_list = nodes.iter().position(|n| n.role == Role::Heading { level: 1 }).unwrap();
             assert!(region > done_or_list);
+            if let Some(project) = project {
+                let limits = f::find(view.tree(), Role::Button, b"Limits").unwrap();
+                let (node, action) = if browser {
+                    (limits, Act::Press)
+                } else {
+                    f::terminal_command(view.tree(), &view.limits().tree, limits, b"Limits", heading.as_bytes())
+                };
+                assert_eq!(
+                    crate::act(&mut view, node, action),
+                    Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Limits { project })))
+                );
+            }
             let over = f::find(view.tree(), Role::Button, b"Overturn").unwrap();
             assert_eq!(
                 crate::act(&mut view, over, Act::Press),
@@ -2192,18 +2226,18 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
 }
 
 pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
-    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
-    let classes = Classes {
-        items: Box::new([Item {
-            subject: if set { Subject::Set(1) } else { Subject::Kind(Kind::Implementation) },
-            words: Box::default(),
-            class: Class::AskAway,
-        }]),
-        sets: Box::new([PathSet {
-            number: 1,
-            name: b"the protocol core".as_slice().into(),
-            patterns: Box::new([b"src/**".as_slice().into(), b"wire/**".as_slice().into()]),
-        }]),
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject, Way};
+    let classes = if set {
+        Classes {
+            items: Box::new([Item { subject: Subject::Set(1), words: Box::default(), class: Class::Ask }]),
+            sets: Box::new([PathSet {
+                number: 1,
+                name: b"protocol core".as_slice().into(),
+                patterns: Box::new([b"src/**".as_slice().into(), b"wire/**".as_slice().into()]),
+            }]),
+        }
+    } else {
+        Classes::stock(Way::AgentsReview)
     };
     let (mut root, _, watch) = fixture_classes_role(
         QUESTION,
@@ -2221,7 +2255,7 @@ pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
         watch,
         Some(Reach {
             kind: Kind::Implementation,
-            class: Class::AskAway,
+            class: Class::Ask,
             reason: if set { Reason::Set(1) } else { Reason::Kind },
             under: 0,
             sets: u8::from(set),
@@ -2231,29 +2265,83 @@ pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
     );
     root
 }
-fn stop_parts() {
+fn rule_in_terminal(root: &d::Domain, rule: &[u8]) {
+    use crate::frame::Bindings;
+    use crate::pages::needs::{WhyForm, why_line};
+    let tree_limits = f::tree_limits();
+    let mut visible = skein_ui::View::new(&tree_limits);
+    let mut b = visible.builder();
+    let mut bindings = Bindings::new(128);
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    b.open(Role::Main);
+    why_line(&mut b, root, &f::words(), &mut bindings, needs::Need::Card(card), WhyForm::Rule);
+    b.close();
+    visible.finish(b, 1, &mut Queue::uncapped());
+    let tree = visible.tree();
+    for (name, action) in [
+        (b"Keep asking".as_slice(), pages::stop_asking::Act::Keep { object: card.object }),
+        (rule, pages::stop_asking::Act::Open { object: card.object }),
+    ] {
+        let control = f::find(tree, Role::Button, name).unwrap();
+        let (node, first) = f::terminal_command(tree, &tree_limits, control, name, b"Reached you because");
+        assert_eq!(
+            bindings.decode(tree.bound(node).unwrap().token, first),
+            Some(d::Action::Pages(pages::Act::StopAsking(action)))
+        );
+    }
+    assert!(f::find(tree, Role::Button, b"Stop asking").is_none());
+}
+#[test]
+fn reason_line_rules_and_open_offers_belong_to_the_card() {
     use d::pages::stop_asking::Act as Stop;
     use temper_protocol_reaches::{Kind, Offer, Subject};
     for owner in [true, false] {
         for set in [false, true] {
             let mut root = stop_root(owner, set);
             let mut view = f::browser_page_view(&root);
+            let rule = if set {
+                b"Stop asking: let agents decide some changes to protocol core".as_slice()
+            } else {
+                b"Stop asking: let agents decide implementation choices".as_slice()
+            };
+            rule_in_terminal(&root, rule);
+            let mut kept = stop_root(owner, set);
+            page_act(&mut kept, pages::Act::StopAsking(Stop::Keep { object: object(1) }), &mut Queue::uncapped());
+            let kept_view = f::browser_page_view(&kept);
+            assert!(f::find(kept_view.tree(), Role::Button, b"Keep asking").is_none());
+            assert!(f::find(kept_view.tree(), Role::Button, rule).is_none());
+            assert!(has(&kept_view, b"Reached you because"));
+            assert!(f::find(view.tree(), Role::Button, b"Stop asking").is_none());
+            let line = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY));
+            let buttons: Vec<_> =
+                line.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref().unwrap()).collect();
+            assert_eq!(buttons, [b"Keep asking".as_slice(), rule]);
+            assert!(line.iter().any(|n| n.text.iter().any(|run| run.text.as_ref() == " · ".as_bytes())));
+            let nodes = main(&view);
+            let position = |style| nodes.iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
+            assert!(position(look::ASK_CONTEXT) < position(look::WHY));
+            assert!(position(look::ASK_SAW) < position(look::WHY));
+            assert!(position(look::WHY) < position(look::ASK_CHOICES));
             assert_eq!(
-                press(&mut view, b"Stop asking"),
+                press(&mut view, b"Keep asking"),
+                d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) }))
+            );
+            assert_eq!(
+                press(&mut view, rule),
                 d::Action::Pages(pages::Act::StopAsking(Stop::Open { object: object(1) }))
             );
             page_act(&mut root, pages::Act::StopAsking(Stop::Open { object: object(1) }), &mut Queue::uncapped());
             let mut view = f::browser_page_view(&root);
-            let link = f::find(view.tree(), Role::Button, b"Stop asking").unwrap();
-            assert!(view.tree().find(link).unwrap().states.as_slice().contains(&skein_ui::State::Expanded));
+            let toggle = f::find(view.tree(), Role::Button, rule).unwrap();
+            assert!(view.tree().find(toggle).unwrap().states.as_slice().contains(&skein_ui::State::Expanded));
             let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
             let controls: Vec<_> = offers.iter().filter(|n| n.role == Role::Button).map(|n| n.id).collect();
             let expected = if set {
                 Vec::from([
-                    (Offer::Words(1), "Let agents decide changes to the protocol core that are:", true),
+                    (Offer::Words(1), "Let agents decide changes to protocol core that are:", true),
                     (
                         Offer::Split(1),
-                        "Let agents decide changes to src/**, apart from the rest of the protocol core.",
+                        "Let agents decide changes to src/**, apart from the rest of protocol core.",
                         false,
                     ),
                 ])
@@ -2264,7 +2352,8 @@ fn stop_parts() {
                     false,
                 )])
             };
-            assert_eq!(controls.len(), expected.len().checked_add(1).unwrap());
+            assert_eq!(controls.len(), expected.len());
+            assert!(!offers.iter().any(|n| n.name.as_deref() == Some(b"Keep asking".as_slice())));
             for (id, (offer, words, disabled)) in controls.iter().zip(expected) {
                 assert!(has(&view, words.as_bytes()));
                 let node = view.tree().find(*id).unwrap();
@@ -2281,9 +2370,22 @@ fn stop_parts() {
                     );
                 }
             }
-            assert_eq!(press(&mut view, b"Keep asking"), d::Action::Pages(pages::Act::StopAsking(Stop::Keep)));
+            assert_eq!(
+                press(&mut view, b"Keep asking"),
+                d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) }))
+            );
             if set {
                 let field = f::find(view.tree(), Role::TextField, b"Which changes").unwrap();
+                let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
+                let sentence = offers
+                    .iter()
+                    .position(|n| {
+                        n.name.as_deref() == Some(b"Let agents decide changes to protocol core that are:".as_slice())
+                    })
+                    .unwrap();
+                let field_at = offers.iter().position(|n| n.id == field).unwrap();
+                let act_at = offers.iter().position(|n| n.role == Role::Button).unwrap();
+                assert!(sentence < field_at && field_at < act_at);
                 assert_eq!(
                     view.tree().find(field).unwrap().placeholder.as_deref(),
                     Some(b"fixes that keep the wire format".as_slice())
@@ -2324,7 +2426,10 @@ fn stop_parts() {
             );
             let view = f::browser_page_view(&root);
             let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
-            for control in offers.iter().filter(|n| n.role == Role::Button || n.role == Role::TextField) {
+            let line = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY));
+            for control in
+                line.iter().chain(offers.iter()).filter(|n| n.role == Role::Button || n.role == Role::TextField)
+            {
                 assert!(control.states.as_slice().contains(&skein_ui::State::Disabled));
             }
         }

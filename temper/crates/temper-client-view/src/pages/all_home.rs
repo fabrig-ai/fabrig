@@ -1,4 +1,4 @@
-//! Home on All projects (temper/docs/design/client/pages/README.md, Home on All projects).
+//! Home on All projects (temper/docs/design/client/pages/home.md, 1, Home on All projects).
 use super::{ask, home};
 use crate::{
     frame::Bindings,
@@ -106,13 +106,7 @@ fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times
     }
     let landed = landed(w, &intro.landed, times);
     let needs = home::needs_sentence(w, intro.needs, b"");
-    let headline = if landed.is_empty() {
-        needs
-    } else if needs.is_empty() {
-        landed
-    } else {
-        skein_lib::bytes::concat(&[&landed, b" ", &needs])
-    };
+    let headline = headline_words(&landed, &needs);
     let brief = if brief { intro.brief.as_ref() } else { None };
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
@@ -130,7 +124,7 @@ fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times
         }
         b.close();
     } else {
-        form_text(b, &kicker, look::HOME_KICKER, Some(look::HOME_WIDE));
+        form_text(b, Role::Paragraph, &kicker, look::HOME_KICKER, Some(look::HOME_WIDE));
         let phone = match intro.last_looked {
             Some(at) if times.now.as_nanos().saturating_sub(at.as_nanos()) > 60_000_000_000 => {
                 let span = times.say(w, TimeForm::Span, at);
@@ -138,23 +132,38 @@ fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times
             }
             Some(_) | None => base,
         };
-        form_text(b, &phone, look::HOME_KICKER, Some(look::HOME_PHONE));
-        ask::text(b, Role::Heading { level: 1 }, &headline, look::HOME_HEAD);
+        form_text(b, Role::Paragraph, &phone, look::HOME_KICKER, Some(look::HOME_PHONE));
+        form_text(b, Role::Heading { level: 1 }, &headline, look::HOME_HEAD, Some(look::HOME_WIDE));
+        let phone_landed = match &intro.landed {
+            all_home::Landed::In { count: 1, .. } | all_home::Landed::Across { count: 1, .. } => {
+                w.say(Word::AllHomePhoneOne, &[])
+            }
+            all_home::Landed::In { count, .. } | all_home::Landed::Across { count, .. } => {
+                w.say(Word::AllHomePhoneLanded, &[Hole::Number(*count)])
+            }
+            all_home::Landed::Last { .. } | all_home::Landed::Nothing => landed,
+        };
+        let phone_headline = headline_words(&phone_landed, &needs);
+        form_text(b, Role::Heading { level: 1 }, &phone_headline, look::HOME_HEAD, Some(look::HOME_PHONE));
         if let Some(brief) = brief {
             lede(b, brief, Role::Paragraph);
         }
     }
-    if let Some(brief) = brief {
+    if let Some(brief) = brief
+        && let Some(newest) = brief.lines.first()
+    {
         let at = times.say(w, TimeForm::Clock, brief.at);
         form_text(
             b,
-            &w.say(Word::HomeByline, &[Hole::Name(at.clone())]),
+            Role::Paragraph,
+            &w.say(Word::AllHomeByline, &[Hole::Name(newest.name.clone()), Hole::Name(at.clone())]),
             look::HOME_BYLINE,
             if w.shell == Shell::Browser { Some(look::HOME_WIDE) } else { None },
         );
         if w.shell == Shell::Browser {
             form_text(
                 b,
+                Role::Paragraph,
                 &w.say(Word::AllHomePhoneByline, &[Hole::Name(at)]),
                 look::HOME_BYLINE,
                 Some(look::HOME_PHONE),
@@ -176,6 +185,15 @@ fn lede(b: &mut Builder, brief: &all_home::Brief, role: Role) {
     b.close();
 }
 
+fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
+    if landed.is_empty() {
+        needs.into()
+    } else if needs.is_empty() {
+        landed.into()
+    } else {
+        skein_lib::bytes::concat(&[landed, b" ", needs])
+    }
+}
 fn landed(w: &Words, landed: &all_home::Landed, times: &mut Times) -> Box<[u8]> {
     match landed {
         all_home::Landed::Nothing => Box::default(),
@@ -316,8 +334,8 @@ fn projects(b: &mut Builder, facts: &all_home::Facts, w: &Words, bindings: &mut 
     b.close();
 }
 
-fn form_text(b: &mut Builder, words: &[u8], style: skein_ui::Style, form: Option<skein_ui::Style>) {
-    b.open(Role::Paragraph);
+fn form_text(b: &mut Builder, role: Role, words: &[u8], style: skein_ui::Style, form: Option<skein_ui::Style>) {
+    b.open(role);
     b.style(style);
     if let Some(form) = form {
         b.style(form);

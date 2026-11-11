@@ -136,14 +136,7 @@ fn only_you_follows_the_answered_inbox_and_links_its_sources_to_accounts() {
                 main.iter().position(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Home")).unwrap() < before
             );
         }
-        assert!(
-            region
-                < tree
-                    .nodes()
-                    .iter()
-                    .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Decided for you"))
-                    .unwrap()
-        );
+        assert!(region < tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::DECIDED_HEAD)).unwrap());
         let links: Vec<_> = nodes.iter().filter(|n| n.role == Role::Link).map(|n| n.id).collect();
         assert_eq!(links.len(), questions.len());
         for link in links {

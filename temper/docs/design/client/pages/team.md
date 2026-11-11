@@ -23,14 +23,25 @@
     once. A service is no one's teammate: Deployment's Members lists it,
     Team doesn't. A box holds the person's name, "You" for the person
     reading, else the member's name, or its login where the name is
-    empty; under it, muted, their role in the project: "Owner of
-    PROJECT", "Maintainer", "Member", "Observer", or "Role N" for a role
-    the project's policy adds; then their line.
+    empty; under it, muted, their role in the project: "Owner",
+    "Maintainer", "Member", "Observer", or "Role N" for a role the
+    project's policy adds; then their line.
+  - *People's head* holds, at its right and muted, the role the people
+    share, while two people or more are listed, the project's document
+    isn't cut, and every one listed holds the same role of the four
+    named: "owners of PROJECT", "maintainers of PROJECT", "members of
+    PROJECT" or "observers of PROJECT". Where their roles differ, where
+    the one they share is a role the project's policy adds, where one
+    person is listed or where the document is cut, the head holds its
+    title alone, and each box says its own role. A count of them is the
+    lede's, never the head's.
   - *A person's line* is what waits on them in the project, never a Now,
-    which a person doesn't write: "Nothing waits on you.", "2 questions
-    wait on you.", "1 review waits on Sam.", and where kinds mix their
-    sum, "3 things wait on you."; a count from a cut list is a floor,
-    "2+ questions wait on Sam.". Its kinds are Needs you's: questions;
+    which a person doesn't write: "Nothing waits on you.", "Two questions
+    wait on you.", "One review waits on Sam.", and where kinds mix their
+    sum, "Three things wait on you."; the count is a word from one to
+    nine, as the line's first word, then digits, "12 questions wait on
+    you."; a count from a cut list is a floor, in digits, as the lede's
+    is, "2+ questions wait on Sam.". Its kinds are Needs you's: questions;
     reviews, a change waiting for the person's review on the forge;
     proposals; held tasks, an escalation that reached them; and person
     tasks.
@@ -55,7 +66,9 @@
   - *Its parts* (`../../draft/surfaces.md`, section 12): one pure function,
     `pages::team::parts(&team::Facts) -> team::Parts`, which both shells
     draw from, over plain facts that `team::gather` makes from the reads:
-    People while a person is listed; a person's line while what waits on
+    People while a person is listed; People's head's shared role while
+    *People's head* says, as `Parts::shared`, an `Option<HeldRole>` that
+    is never `Policy`; a person's line while what waits on
     them is read; the triager's line while a triager is read. No part is
     drawn empty, and each person is drawn once.
   - *Its reads:* `me`, for the party and the project's name; jig's
