@@ -462,6 +462,23 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 }
                 Some(held)
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Follow(follow), .. }) => {
+                let mut held = bytes(&follow.source.branch)
+                    .checked_add(bytes(&follow.target.branch))?
+                    .checked_add(bytes(&follow.check.workflow))?
+                    .checked_add(bytes(&follow.check.artifact))?
+                    .checked_add(
+                        skein_lib::len_u64(follow.source.paths.len())
+                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                for path in &follow.source.paths {
+                    held = held.checked_add(bytes(path))?;
+                }
+                if let Some(producer) = &follow.producer {
+                    held = held.checked_add(bytes(producer))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
                 Some(bytes(line))
             }

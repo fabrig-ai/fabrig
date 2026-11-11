@@ -391,7 +391,7 @@ use temper_client_domain::{self as d, Action, Event, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const SETTINGS_KEY: c::ProposalKey = fixtures::chat::PROPOSAL;
 const SETTINGS_REASON: &[u8] = b"I work alone\nKeep drafts beside the code";
-const SETTINGS_KINDS: [(c::Setting, &[u8]); 15] = [
+const SETTINGS_KINDS: [(c::Setting, &[u8]); 16] = [
     (c::Setting::Charter(c::SettingNumber { number: 2 }), b"charter 2"),
     (c::Setting::Template(c::SettingNumber { number: 40 }), b"template 40"),
     (c::Setting::Policy(c::SettingNumber { number: 1 }), b"policy 1"),
@@ -400,6 +400,7 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 15] = [
     (c::Setting::Application { kind: 2, scope: fixtures::PROJECT, number: 1 }, b"landing rule 1"),
     (c::Setting::Application { kind: 3, scope: 0, number: 1 }, b"forge charter 1"),
     (c::Setting::Application { kind: 11, scope: 0, number: 4 }, b"template-goal 4"),
+    (c::Setting::Application { kind: 12, scope: 2, number: 1 }, b"follow 1"),
     (c::Setting::ProjectPolicy { project: 2 }, b"project policy 2"),
     (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, b"project-questions 1"),
     (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, b"project-ways 1"),

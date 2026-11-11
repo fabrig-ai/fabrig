@@ -118,6 +118,12 @@ The forge charter whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 
+## settings follow N
+
+A follow of this project, whole, at the newest revision; no stock default.
+
+Next: settings · revisions · help settings-fields
+
 ## settings template-goal N
 
 Template work: whether its coordinator designs first and makes a close-out; with none stored, stock planning and no close-out, marked so.

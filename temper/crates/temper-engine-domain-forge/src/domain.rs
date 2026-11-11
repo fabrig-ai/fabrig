@@ -1151,6 +1151,13 @@ impl Domain {
         }
     }
 
+    /// The project's role on a repository (temper/docs/design/domain/forge/adoption.md, 1).
+    #[must_use]
+    pub fn repository_role(&self, project: u32, repository: skein_forge::api::Repository) -> Option<Role> {
+        let row = self.repository(repository)?;
+        if row.project == project { Some(row.role) } else { None }
+    }
+
     /// Resolve a deployment-wide saved repository tag within its project.
     #[must_use]
     pub fn repository_tag(&self, project: u32, tag: u64) -> Option<Repository> {

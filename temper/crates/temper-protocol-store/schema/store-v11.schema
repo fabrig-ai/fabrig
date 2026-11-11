@@ -337,7 +337,19 @@ record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
 record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
 record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses }
+
+# A project's follows (temper/docs/design/domain/forge/follows.md, 2).
+record FollowRepository { forge: u16 repository: u32 }
+record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
+record FollowTarget { repository: FollowRepository branch: bytes 4096 }
+record FollowPerson { person: u64 }
+enum FollowOwner { person: FollowPerson }
+enum FollowStart { owner, code }
+enum FollowFormat { junit, lines }
+record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
+record Follow { source: FollowSource target: FollowTarget owner: FollowOwner start: FollowStart producer: option bytes 8192 verification: FollowCheck }
+
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 enum SettingSlot { default, change, proposal: Number, replaced: Number }

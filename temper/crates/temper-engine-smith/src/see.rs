@@ -127,6 +127,7 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
                     9 => "settings charter-words N",
                     10 => "settings project-words",
                     11 => "settings template-goal N",
+                    12 => "settings follow N",
                     _ => unreachable!("each application setting read has an address"),
                 },
             },
