@@ -84,7 +84,7 @@ byte for byte, its sha256 and length pinned by a focused test.
 Charter 5's file matches the supplied first edition, with shared
 instructions and four ordered parts; it runs fresh with zero waiting.
 Template 4 names its own goal branch and uses the deployment's result
-bound. The rules and policy 1 hold asking, tools 3,975, and fifteen
+bound. The rules and policy 1 hold asking, tools 4,007, and fifteen
 executor kinds, including charters 5 and 12, role 0 and merge job 3; the
 reference's widening (`reference.md`) takes charter 12 out, so that its delegation
 fills the box's sixteen places. The stock
