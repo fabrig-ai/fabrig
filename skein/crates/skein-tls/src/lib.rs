@@ -29,6 +29,7 @@ pub mod client;
 mod config;
 mod held;
 mod rs256;
+mod push;
 mod session;
 #[cfg(test)]
 mod tests;
@@ -37,6 +38,8 @@ pub use rs256::{
     RS256_KEY_BYTES, RS256_PKCS8_KEY_BYTES, Rs256Public, rs256_public, rs256_public_pkcs1, sign_rs256,
     sign_rs256_pkcs8, verify_rs256,
 };
+
+pub use push::{ES256_KEY_BYTES, sign_es256, es256_public, verify_es256, seal_aes128gcm, seal_aes128gcm_from};
 
 pub use config::{ALPN, Config, Name, Parsed, Refusal, Server};
 /// What [`Config::new`] takes: the roots a service trusts, which its shell

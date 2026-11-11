@@ -27,6 +27,8 @@ members = [
     "skein/crates/skein-fake-machine",
     "skein/crates/skein-fake-oauth",
     "skein/crates/skein-fake-peers",
+    "skein/crates/skein-fake-push",
+    "skein/crates/skein-push",
     "skein/crates/skein-forge",
     "skein/crates/skein-forge-client",
     "skein/crates/skein-forge-connection",
@@ -420,6 +422,8 @@ skein-fake-forge-http = { path = "skein/crates/skein-fake-forge-http" }
 skein-fake-llm-domain = { path = "skein/crates/skein-fake-llm-domain" }
 skein-fake-llm-protocol = { path = "skein/crates/skein-fake-llm-protocol" }
 skein-fake-peers = { path = "skein/crates/skein-fake-peers" }
+skein-fake-push = { path = "skein/crates/skein-fake-push" }
+skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
 skein-shell = { path = "skein/crates/skein-shell" }
