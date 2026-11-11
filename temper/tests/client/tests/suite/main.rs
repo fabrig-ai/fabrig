@@ -21,6 +21,7 @@ mod clearing;
 mod composer;
 mod connect_forge;
 mod connect_model;
+mod delete_project;
 mod dismissed;
 mod forges;
 mod hold_commands;
