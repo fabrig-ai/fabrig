@@ -23,6 +23,8 @@ jig-domain-fleet.workspace = true
 jig-domain-link.workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
+skein-scratch.workspace = true
 skein-oauth.workspace = true
 jig-test-patches-smith.workspace = true
 jig-test-patches.workspace = true
