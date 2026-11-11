@@ -246,7 +246,10 @@ temper's workspace items beside it:
   - a landing branch, the branch its change lands on, for each writable
     repository of a change's producer, whatever its start, and of a goal's
     later run; no other item names one. Prepare pins its tip as
-    `refs/temper/landing` for the project's checks (section 5). For an
+    `refs/temper/landing` for the project's checks (section 5); a writable
+    item that names none (a repair, a resolution, a merge job, a chat's
+    run) has the head its delivery replaces pinned there instead
+    (section 5, *The replaced head's pin*). For an
     inherited producer that starts on its push branch it is also the
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
@@ -630,6 +633,23 @@ runs as contained processes and whose output it parses.
   from an earlier hold is overwritten, never read. The pin changes neither
   the checkout start nor ownership, drift admission or the saved-work
   baseline.
+- **The replaced head's pin.** A writable repository whose item names no
+  landing branch has the head its push branch has at prepare fetched once
+  per hold, on the same remote, into the same `refs/temper/landing`: the
+  head its delivery will replace. For a repair, that is the change's head it
+  repairs, whatever its start (its branch, or saved work); for a resolution
+  or a merge job, the branch's head the base is merged into. Where the push
+  branch does not exist yet (a chat's first run), its start's commit is
+  pinned. So a repair's checks select what its own edits changed against the
+  head it repairs, never against the branch the change lands on: a repair of
+  a goal's landing into main checks its own edits, not the goal's
+  (`tools/pre-pr/design.md`, section 2), and no pin a cached checkout kept
+  from an earlier hold is read. The pin is frozen for the hold as a landing
+  branch's is. A read-only repository delivers nothing and runs no check, and
+  its reference is left as it is. The item still names no landing branch,
+  so nothing else of it changes: it is never taken for a goal's design
+  delivery (`agent/README.md`, section 5), and its start, push and expected
+  head are as before.
 - **An existing producer branch** compares with the pinned tip: it is the
   frozen comparison for existing work below, only for an inherited
   producer that starts on its push branch.
