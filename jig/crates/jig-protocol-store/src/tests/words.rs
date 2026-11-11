@@ -6,7 +6,6 @@
 )]
 use crate::{Check, Generations, Older, OpenRefusal};
 
-#[expect(clippy::disallowed_macros, reason = "the task pins refusal words to the design itself")]
 const DESIGN: &str = concat!(
     include_str!("../../../../docs/design/protocol/store/README.md"),
     "\n",
