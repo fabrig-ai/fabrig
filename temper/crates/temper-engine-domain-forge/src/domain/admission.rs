@@ -484,6 +484,7 @@ pub(super) fn read_failed(
             },
         ),
         StepStage::Ci
+        | StepStage::Run(_)
         | StepStage::BaseCi
         | StepStage::Compare
         | StepStage::ContainsHead

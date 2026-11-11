@@ -78,6 +78,7 @@ fn pending(task: u64) -> PendingStep {
         pull: Some(fixtures::open_pull()),
         pull_ci: true,
         ci: change::Status::Passed,
+        failed: crate::change_ci::Failed::new(Box::new([])),
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Failed,

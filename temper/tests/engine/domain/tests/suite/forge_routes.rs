@@ -896,6 +896,11 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
     let words = ci_words(&repair);
     assert!(
+        contains(words, b"the runner's: no step failed; run again 1 time at this head, failed again"),
+        "{}",
+        String::from_utf8_lossy(words)
+    );
+    assert!(
         contains(words, b"No step failed. End of the job's log:\n[log bytes cut]\n"),
         "{}",
         String::from_utf8_lossy(words)

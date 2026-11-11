@@ -270,6 +270,7 @@ const FORGE: forge::Limits = forge::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Repair attempts, from the engine forge world fixture.
         repairs: 3,
         // Resolution attempts, from the engine forge world fixture.
@@ -313,6 +314,7 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
         ..CLIENT
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Questions per change or task, 15 seen.
         questions: 80,
         // Tasks across a change's runs and retries, 14 runs seen.

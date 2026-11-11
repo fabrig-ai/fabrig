@@ -116,6 +116,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.facts`: count, 16. Bounds forge client facts awaiting drain.
 - `forge.change_policy.repairs`: count, 3. Bounds repair attempts in a change.
 - `forge.change_policy.resolutions`: count, 3. Bounds conflict resolution attempts in a change.
+- `forge.change_policy.reruns`: count, 1. Bounds re-runs of a runner-failed job at one head.
 - `forge.change_policy.updates`: count, 3. Bounds update attempts in a change.
 - `forge.change_policy.questions`: count, 4. Bounds questions raised in a change.
 - `forge.change_policy.tasks`: count, 6. Bounds the producer, reviews and repairs a change may create.

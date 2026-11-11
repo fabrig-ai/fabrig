@@ -1130,6 +1130,143 @@ fn a_failed_ci_head_is_repaired_then_checked_again() {
     assert_eq!(world.writes(), before + 1); // only the merge is a connector write
 }
 
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table follows runner and workflow faults through retries, repair and landing"
+)]
+fn runner_faults_run_again_before_repair_and_keep_their_gates() {
+    use skein_fake_forge_domain::api::{self as raw, Failing};
+    use skein_forge::api;
+    for (fault, passes, repairs, lost) in [
+        (Failing::Setup, 500, false, false),
+        (Failing::NoStep, 0, true, false),
+        (Failing::Workflow, 0, true, false),
+        (Failing::Setup, 500, false, true),
+    ] {
+        let mut world = World::runner_failure(42, passes, fault);
+        world.adopt();
+        world.produce(b"temper/51");
+        world.run_for(1);
+        let pull = world.open_pull(b"temper/51", b"main");
+        let head = translate::commit(world.branch(b"temper/51"));
+        let mut row = change_row();
+        row.pull = Some(pull);
+        row.change.last_head = Some(head);
+        row.change.state = change::State::Gating { head, asked: Box::new([9, 10]) };
+        row.change.owns_turn = false;
+        let verdict = change::GateReport { number: 9, head, status: change::Status::Passed };
+        if !repairs {
+            row.change.gates = Box::new([
+                change::Gate {
+                    number: 9,
+                    kind: change::GateKind::Agent,
+                    blocking: true,
+                    freshness: change::Freshness::Exact,
+                    eager: true,
+                },
+                change::Gate {
+                    number: 10,
+                    kind: change::GateKind::Check,
+                    blocking: true,
+                    freshness: change::Freshness::Exact,
+                    eager: true,
+                },
+            ]);
+            row.verdicts = Box::new([verdict]);
+            row.delegate = Some((52, change::Delegate::Gate { number: 10, head }));
+            row.delegate_status = change::Status::Unknown;
+        }
+        world.event(top::Event::Change { row });
+        if lost {
+            world.lose_rerun_answer();
+        }
+        let first = change_step(&mut world, 1, change::Status::Pending, Box::new([]));
+        let reruns = u32::from(fault != Failing::Workflow);
+        if reruns > 0 {
+            assert_eq!(
+                first,
+                change::Decision::Effect(change::Effect::Rerun { head }),
+                "{fault:?}, lost {lost}: {:?}",
+                world.inspect(&raw::Read::Checks { commit: world.branch(b"temper/51") })
+            );
+            assert_eq!(world.change(51).change.repairs, 0);
+            assert!(!world.change(51).change.owns_turn);
+            assert_eq!(world.change(51).change.last_head, Some(head));
+            if !repairs {
+                assert_eq!(world.change(51).verdicts.as_ref(), &[verdict]);
+                assert_eq!(world.change(51).delegate, Some((52, change::Delegate::Gate { number: 10, head })));
+            }
+            world.run_for(5);
+            if lost {
+                assert!(world.seen().iter().any(|request| matches!(request,
+                    top::Request::Outcome { outcome: skein_forge_client::Outcome::Made { found: true, .. }, account: Some(words), .. }
+                    if words.starts_with(b"ran job "))), "lost re-run found by its later attempt");
+            }
+        } else {
+            assert_eq!(first, change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)));
+        }
+        assert_eq!(world.writes(), reruns);
+        if repairs {
+            if reruns > 0 {
+                assert_eq!(
+                    change_step(&mut world, 2, change::Status::Passed, Box::new([])),
+                    change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
+                );
+            }
+            let brief = world.ci_brief(51, head);
+            if reruns > 0 {
+                assert!(
+                    String::from_utf8_lossy(&brief)
+                        .contains("the runner's: no step failed; run again 1 time at this head, failed again")
+                );
+            } else {
+                assert!(!String::from_utf8_lossy(&brief).contains("the runner's:"));
+            }
+            world.push(b"temper/51", b"repaired");
+            world.run_for(1);
+            world.status(b"temper/51", raw::Check::Passed);
+        } else {
+            world.event(top::Event::DelegateResult {
+                task: 51,
+                child: 52,
+                status: change::Status::Passed,
+                failed: false,
+                cancelled: false,
+                no_change: false,
+                words: Box::new([]),
+            });
+        }
+        world.status(b"main", raw::Check::Passed);
+        let gates: Box<[change::GateReport]> = if repairs {
+            Box::new([])
+        } else {
+            Box::new([verdict, change::GateReport { number: 10, head, status: change::Status::Passed }])
+        };
+        let mut landed = false;
+        for entry in 3..20 {
+            let decision = change_step(&mut world, entry, change::Status::Passed, gates.clone());
+            assert!(!matches!(decision, change::Decision::Delegate(_)), "{fault:?}: {decision:?}");
+            if matches!(decision, change::Decision::Finish { .. }) {
+                landed = true;
+                break;
+            }
+        }
+        assert!(
+            landed,
+            "{fault:?}, lost {lost}: {:?}; {:?}",
+            world.change(51).change.state,
+            world.inspect(&raw::Read::Checks { commit: world.branch(b"temper/51") })
+        );
+        assert_eq!(world.change(51).change.repairs, u32::from(repairs));
+        let calls = world.take_calls();
+        assert_eq!(
+            calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Rerun { .. }))).count(),
+            usize::try_from(reruns).unwrap()
+        );
+    }
+}
+
 fn failed_ci_repair_world() -> World {
     let mut world = World::new(196);
     world.adopt();
