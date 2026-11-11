@@ -1,0 +1,24 @@
+[package]
+name = "temper-git-transcripts"
+description = "Real git transcripts against the throwaway Forgejo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "temper-git-transcripts"
+path = "main.rs"
+test = false
+
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
+[dependencies]
+temper-git-transcripts-tool.workspace = true
+skein-fail-stop.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true

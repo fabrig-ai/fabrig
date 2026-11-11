@@ -24,7 +24,6 @@ struct Exception {
 
 const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },
-    Exception { what: "git-transcripts git-transcripts", until: "cli C8" },
     Exception { what: "github-conformance github-conformance", until: "skein's round" },
     Exception { what: "hearth hearth", until: "hearth's round" },
     Exception { what: "jig-test jig-test", until: "jig's round" },

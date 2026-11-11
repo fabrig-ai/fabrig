@@ -1,5 +1,7 @@
 //! Real git's arguments and output, recorded without credentials (protocol/git.md, 9).
 mod cases;
+mod cli;
+pub use cli::{TABLE, main};
 mod invocation;
 pub mod mask;
 use skein_throwaway_forgejo::{Forgejo, Settings};
@@ -69,13 +71,11 @@ impl Capture {
 }
 /// # Errors
 /// Refuses an old or relative git, a provisioning failure or an output containing credentials.
-#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_FORGEJO for the transcript tool's pinned forge")]
-pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
+pub fn run(git: &Path, scratch: &Path, out: &Path, forgejo: &Path) -> Result<()> {
     if !git.is_absolute() {
         return Err("--git must be an absolute path".into());
     }
-    let binary = std::env::var_os("TEMPER_FORGEJO").ok_or("TEMPER_FORGEJO must name the pinned Forgejo")?;
-    let forgejo = Forgejo::from_path(Path::new(&binary)).map_err(|e| format!("{e:?}"))?;
+    let forgejo = Forgejo::from_path(forgejo).map_err(|e| format!("{e:?}"))?;
     let mut settings = Settings::small();
     settings.actions = false;
     settings.git = git.into();
