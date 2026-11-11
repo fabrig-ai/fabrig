@@ -380,5 +380,15 @@ record ClosingLine { line: option bytes 256 }
 enum ClosingSelectionProgress { pull, checks, jobs: ClosingJobs, done: ClosingLine }
 record ClosingSelection { pull: u64 head: option Commit progress: ClosingSelectionProgress }
 record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer }
+record FollowCommit { id: fixed 32 message: bytes 8192 }
+record FollowReason { reason: bytes 8192 }
+enum FollowState { not_made, waits_word, held_by_owner: FollowReason, waits_for: Number, producing, held: FollowReason, ended: FollowReason }
+record FollowFiles { files: bytes 2097152 pieces AnswerName }
+record FollowEntry { before: fixed 32 after: fixed 32 pull: option u64 commits: list 64 FollowCommit more_commits: u32 files: option FollowFiles more_files: u32 change: option u64 state: FollowState }
+record FollowSkip { after: fixed 32 reason: bytes 8192 }
+record FollowFailing { count: u32 }
+enum FollowVerdict { passed, failing: FollowFailing, many }
+record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
+record FollowRow { project: u32 follow: u32 source: Repository branch: bytes 1024 heard: option fixed 32 task: option u64 stopped: option bytes 8192 queue: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, follow: boxed FollowRow }
 versioned record Row { value: Value }

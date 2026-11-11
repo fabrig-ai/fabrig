@@ -229,6 +229,10 @@ pub struct Domain {
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
+    pub(crate) follow_retry: Map<(u32, u32), skein_lib::Time>,
+    pub(crate) follow_queue: u32,
+    pub(crate) follow_rows: Map<(u32, u32), crate::FollowRow>,
+    pub(crate) follow_reads: Map<Token, crate::follows::Pending>,
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
     pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
@@ -768,6 +772,10 @@ impl Domain {
             identities: credentials,
             stopping: false,
             landing: crate::landing::State::new(l),
+            follow_retry: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
+            follow_queue: l.follow_queue,
+            follow_rows: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
+            follow_reads: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             setting_rows: Map::with_capacity(
@@ -852,6 +860,7 @@ impl Domain {
         .chain(if self.stopping { None } else { ci_news::deadline(self) })
         .chain(self.watch_due)
         .chain(self.playground_due)
+        .chain(if self.stopping { None } else { crate::follows::deadline(self) })
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
         .chain(if self.stopping { None } else { outage::deadline(self) })
@@ -885,7 +894,9 @@ impl Domain {
         if self.stopping {
             return self.client.is_ready();
         }
-        self.next_handoff().is_some()
+        self.tier_ops.dirty
+            || crate::follows::waiting(self)
+            || self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
             || self.client.is_ready()
             || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self))
@@ -1836,6 +1847,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         crate::tiers::watch(d, env, out);
         return;
     }
+    crate::follows::resume(d, env, out);
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let before = out.len();
@@ -1876,6 +1888,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
+    crate::follows::fire(d, env.now);
     goal_branch::fire(d, env.now);
     ci_news::fire(d, env, out);
     admission::fire(d, env, out);
@@ -2054,6 +2067,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     crate::closer::selection_answered(d, owner, result, out);
                 } else if d.closing.reads.contains_key(&owner) {
                     crate::closer::answered(d, env, owner, result, out);
+                } else if d.follow_reads.contains_key(&owner) {
+                    crate::follows::answered(d, env, owner, result, out);
                 } else if d.tier_ops.reads.contains_key(&owner) {
                     crate::tiers::answered(d, env, owner, result, out);
                 } else if d.landing.pending.contains_key(&owner) {
@@ -6531,6 +6546,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.forge_number = d.forge_number.max(last);
         }
         Stored::Playground(row) => d.playground = Some(row),
+        Stored::Follow(row) => {
+            d.follow_rows.insert((row.project, row.follow), row).expect("restored follow within limits");
+        }
         Stored::Tier(row) => {
             d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
         }
@@ -7258,6 +7276,18 @@ impl Domain {
                         }) {
                             return Key::Landing(*key);
                         }
+                    }
+                }
+            }
+            RecordKind::Follow => {
+                for ((project, follow), row) in &self.follow_rows {
+                    if need.repository(row.source)
+                        || match row.task {
+                            Some(task) => need.task(task, Some(row.source.forge)),
+                            None => false,
+                        }
+                    {
+                        return Key::Follow { project: *project, follow: *follow };
                     }
                 }
             }

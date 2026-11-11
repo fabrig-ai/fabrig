@@ -153,6 +153,7 @@ pub fn valid(l: &Limits) -> bool {
         || l.changes_landed > 32
         || l.landings == 0
         || l.landing_rules == 0
+        || crate::follows::capacity(l).is_none()
         || l.follows == 0
         || l.follow_paths == 0
         || l.follow_paths > 256

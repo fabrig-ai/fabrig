@@ -89,13 +89,18 @@ fn path_parts(bytes: &[u8]) -> Box<[Box<[u8]>]> {
     }
     parts.into_boxed()
 }
-fn name(repository: Repository, branch: &[u8]) -> Name {
+pub(crate) fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
     let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
-    let mut names =
-        List::with_capacity(capacity.checked_add(d.subscriptions.capacity()).expect("subscription watches"));
+    let mut names = List::with_capacity(
+        capacity
+            .checked_add(d.subscriptions.capacity())
+            .expect("subscription watches")
+            .checked_add(d.follow_rows.capacity())
+            .expect("follow watches"),
+    );
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
@@ -122,6 +127,7 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
             Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
+    crate::follows::watches(d, &mut names);
     names
 }
 pub(crate) fn add_watches(
@@ -484,6 +490,7 @@ pub(crate) fn observed(
     after: Commit,
     out: &mut Queue<Request>,
 ) {
+    crate::follows::observed(d, repository, branch, after, out);
     goals::observed(d, repository, branch, before, after, out);
     let mut names = List::with_capacity(env.limits.tiers.tiers);
     for tier in configured_all(d, repository) {
