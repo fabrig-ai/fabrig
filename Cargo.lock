@@ -5227,7 +5227,6 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-records",
- "jig-protocol-accounts",
  "serde_json",
  "skein-http",
  "skein-io",
