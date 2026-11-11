@@ -183,13 +183,7 @@ pub(crate) fn main(
         }
         Step::Model { .. } => {
             super::welcome_model::step(b, root, w, accounts, text_per_node);
-            if let Some(row) = crate::forge::connect::personal(root) {
-                b.open(Role::Complementary);
-                b.style(look::WELCOME_STATUS);
-                b.name(&w.say(Word::WelcomeForgeStep, &[]));
-                crate::forge::connect::welcome_line(b, root, w, row);
-                b.close();
-            }
+            pane(b, root, w, bindings, accounts, sign_in, text_per_node, PaneStep::Model);
         }
         Step::Ready => {
             ready(b, root, w, bindings, accounts, forge, sign_in, text_per_node);
@@ -212,8 +206,22 @@ pub(crate) fn main(
     b.close();
 }
 
-/// A line with nothing yet keeps its label and inline connect link (client/pages/README.md, Ready).
-fn none_yet(b: &mut Builder, w: &Words, bindings: &mut Bindings, label: Word, none: Word, link: Word, step: Step) {
+#[derive(Clone, Copy)]
+enum PaneStep {
+    Model,
+    Ready,
+}
+
+/// A line with nothing yet keeps its label and, off its own step, its inline connect link.
+fn none_yet(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut Bindings,
+    label: Word,
+    none: Word,
+    link: Word,
+    step: Option<Step>,
+) {
     let name = crate::accounts::words::join(&[&w.say(label, &[]), b" ", &w.say(none, &[])]);
     b.open(Role::Slot);
     b.style(look::ACCOUNT_LINE);
@@ -222,9 +230,13 @@ fn none_yet(b: &mut Builder, w: &Words, bindings: &mut Bindings, label: Word, no
     b.run(Run::Strong, &w.say(label, &[]));
     b.run(Run::Plain, b" ");
     b.run(Run::Plain, &w.say(none, &[]));
-    b.run(Run::Plain, " · ".as_bytes());
+    if step.is_some() {
+        b.run(Run::Plain, " · ".as_bytes());
+    }
     b.close();
-    go(b, w, bindings, link, step);
+    if let Some(step) = step {
+        go(b, w, bindings, link, step);
+    }
     b.close();
 }
 fn model_line(
@@ -234,7 +246,12 @@ fn model_line(
     bindings: &mut Bindings,
     accounts: &mut crate::accounts::Bindings,
     text_per_node: u32,
+    step: PaneStep,
 ) {
+    let ready = match step {
+        PaneStep::Model => false,
+        PaneStep::Ready => true,
+    };
     if let Some(trial) = super::model_check::trial(root, w) {
         super::model_check::line(b, root, w, accounts, &trial, super::model_check::Place::Welcome);
     } else if temper_client_domain::pages::welcome::model_usable(root).is_some() {
@@ -257,15 +274,21 @@ fn model_line(
                 Word::WelcomeModelStep,
                 Word::WelcomeNoModel,
                 Word::WelcomeModelTitle,
-                Step::Model { way: None },
+                match step {
+                    PaneStep::Model => None,
+                    PaneStep::Ready => Some(Step::Model { way: None }),
+                },
             );
-            b.open(Role::Slot);
-            b.style(look::WELCOME_END);
-            super::connect_model::welcome_end(b, root, w, accounts);
-            b.close();
+            if ready {
+                b.open(Role::Slot);
+                b.style(look::WELCOME_END);
+                super::connect_model::welcome_end(b, root, w, accounts);
+                b.close();
+            }
         }
     }
-    if let Some(page) = root.pages().connect_model()
+    if ready
+        && let Some(page) = root.pages().connect_model()
         && let Some(pending) = &page.request.pending
         && let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
             ..
@@ -318,10 +341,24 @@ fn ready(
     {
         paragraph(b, w, Word::WelcomeForgeStillSettingUp, look::FLOW_FACTS);
     }
+    pane(b, root, w, bindings, accounts, sign_in, text_per_node, PaneStep::Ready);
+}
+#[expect(clippy::too_many_arguments, reason = "both welcome steps share the pane and its rendering context")]
+fn pane(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
+    sign_in: &crate::forge_sign_in::Forges,
+    text_per_node: u32,
+    step: PaneStep,
+) {
+    use crate::forge::connect;
     b.open(Role::Complementary);
     b.style(look::WELCOME_STATUS);
     b.name(&w.say(Word::WelcomeForgeAndModel, &[]));
-    if let Some(row) = row {
+    if let Some(row) = connect::personal(root) {
         connect::welcome_line(b, root, w, row);
         crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
     } else {
@@ -332,10 +369,10 @@ fn ready(
             Word::WelcomeForgeStep,
             Word::WelcomeNoForge,
             Word::WelcomeForgeTitle,
-            Step::Forge { forge: None },
+            Some(Step::Forge { forge: None }),
         );
     }
-    model_line(b, root, w, bindings, accounts, text_per_node);
+    model_line(b, root, w, bindings, accounts, text_per_node, step);
     b.close();
 }
 fn ready_lead(b: &mut Builder, root: &Domain, w: &Words) {

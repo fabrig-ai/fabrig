@@ -135,14 +135,19 @@
        and land work. temper proposes how it will run that, and nothing
        changes until you accept.", with "Start", filled, the act of
        *The first chat* (`ask-temper.md`, 1). Done once an Ask temper chat runs or ran
-       in the project, or a line of the `settings` document follows a
-       change; done, its title alone. An Ask temper chat is a row of the
+       in the project, or a setting of the project's own follows a change:
+       a line of the `settings` document whose setting is an application's
+       of the project's scope (jig's `client/domain/contract/documents.md`,
+       1), following a change, which a proposal is not until it is
+       accepted. Another project's setting or the deployment's marks
+       nothing, since it says nothing of how this project works. Done,
+       its title alone. An Ask temper chat is a row of the
        project's chats, as `Chats` reads them, whose chip's executor is
        the charter of template 5 as `me` lists it
        (`../../protocol/configuration/stock.md`): a row names its label,
        which is a chat's, and no template. With no template 5 in `me`
-       the page it opens cannot start a chat, and only a setting's change marks
-       the step done. A person who cannot read that document sees no
+       the page it opens cannot start a chat, and only a change of the
+       project's own setting marks the step done. A person who cannot read that document sees no
        change.
   - *The rail and the tab bar,* while the card shows: on Home and on Ask
     temper's page, "Home" and "Ask temper", with "Deployment" at the rail's

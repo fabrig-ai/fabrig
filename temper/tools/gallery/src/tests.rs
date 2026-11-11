@@ -2744,7 +2744,12 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Setting up: preparing" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph, name: "Forgejo on this machine · work/hello · Setting up: preparing"
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -2753,7 +2758,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Setting up: fetching Forgejo · 42%",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "42%" },
             Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 42%" },
@@ -2764,7 +2775,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Setting up: fetching Forgejo · 41 MB",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "41 MB" },
             Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 41 MB" },
@@ -2775,7 +2792,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::NoRole { role: Role::Progress },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -2784,7 +2807,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::NoRole { role: Role::Progress },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Set up failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
         ],
     },

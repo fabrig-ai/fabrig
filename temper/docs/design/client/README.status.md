@@ -864,8 +864,7 @@ landing; its later failures are `web/testing.status.md`'s, 3 and 6.
   but the first trial request, and account rows share one running task's
   wait and last wait, so a stopped row can say another trial's reason or
   lose its earlier reason (`../domain/trial.status.md`, 6). No reason for
-  these limits is recorded. The draft's missing "one short message" spend
-  notice remains a design gap (`../draft/model-check.status.md`, 2).
+  these limits is recorded.
 - **Design departs:** `pages/README.md`, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads

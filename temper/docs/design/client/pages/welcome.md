@@ -302,9 +302,15 @@
     *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (`accounts.md`, 2, A sign-in). After
-    the choices and before the foot, once a forge is acted on, a region
-    named "Forge" holds the forge's line and its steps, so that Model
-    says what Forge did: while it sets up or connects, "FORGE ·
+    the choices and before the foot, the pane, the region named "Forge
+    and model", holds two lines, always, Forge's then Model's, as Ready's
+    does (*Ready,* below), so that Model says what Forge did and how its
+    own try goes. Model's line is Ready's, but that with no model yet it
+    is "Model none yet" alone, with no link to the step it is on and no
+    sign-in's ending under it, which the step draws in its own place.
+    Forge's line is Ready's too: "Forge none yet · Connect a forge" where
+    Ready has it, and otherwise the forge's line and its steps: while it
+    sets up or connects, "FORGE ·
     ORG/NAME · CONNECTION", ORG/NAME its first repository, and a disclosure, "Each
     step", holding `ConnectForge`'s Setting up steps; once connected,
     as *The store's state* says, ticked, "✓ FORGE · connected as LOGIN
@@ -332,9 +338,9 @@
     tick once connected. From 1280 px the region is a 272 px pane to
     the right of the 680 px column, its top at the heading's, with a
     hairline at its left; narrower it stays after the choices, with a
-    hairline above it. The terminal prints "Forge:" and the line's
-    words indented under it, joined with dots and a leading "✓ " once
-    connected. The line's name is its words without the tick. The line
+    hairline above it. The terminal prints "Forge and model:" and each
+    line's words indented under it, Forge's joined with dots and a leading
+    "✓ " once connected. The line's name is its words without the tick. The line
     names no project, since Ready's act is what puts its first
     repository in one; a set up or a first repository that failed keeps all
     five steps, with its failed step marked ✕, preceding steps done
@@ -346,7 +352,7 @@
     set up's request until the row names it), and every line but the
     ticked one keeps "Each step". *The seam:* the Model step's
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
-    lead, ways' pages, notes, set up line and foot the welcome's.
+    lead, ways' pages, notes, pane and foot the welcome's.
     *The try,* an account tried once it becomes usable on the welcome's Model
     step or Ready, or on `ConnectModel`, runs in the background and nothing
     waits for it. Its task, model selection, payer and end are
@@ -356,7 +362,7 @@
     for a chat: included usage on a plan, or the key's price. Its first
     committed turn answers it; a run ending otherwise or a minute ends it
     failed, cancelling the task so that no second turn is spent. It is
-    Model's line in Ready's pane (*Ready,* below), the same parts as Forge's
+    Model's line in the pane, on the Model step and on Ready (*Ready,* below), the same parts as Forge's
     line, drawn by one function. Its steps are the list Forge's has, "Each step" its name, each with its state in
     words: for a Claude subscription "Signed in to your subscription",
     "Claude Code starts on this machine", "Claude answers"; for a plan's
@@ -365,7 +371,10 @@
     "ChatGPT answers". ACCOUNT below is "Claude subscription", "ChatGPT plan",
     "OpenAI API key", in Ready's Model line's words; WHO the PLAN.
     - *Running:* the quiet ring, ACCOUNT, strong, the muted "Trying: STEP", STEP
-      the step under way; the moving bar Forge's has, named by those words;
+      the step under way; for a key, then the muted "one short message", what
+      the try spends at the key's price, a plan's or a subscription's spending
+      its included usage (`../../draft/model-check.md`, 2, *Who pays*); the
+      moving bar Forge's has, named by those words;
       then the list, folded under "Each step", the step under way marked.
     - *Answered:* ticked, ACCOUNT, strong, the muted who it is, as Ready's
       Model line has it, the muted "answered in N s", and no "Each step". The
@@ -397,6 +406,7 @@
     the account the run took, or, until then, the account that started it
     (`../../domain/trial.md`, 6.2). The terminal says the same lines as text,
     indented under the pane's name, with no bar: "ACCOUNT · Trying: STEP",
+    for a key "ACCOUNT · Trying: STEP · one short message",
     "✓ ACCOUNT · WHO IT IS · answered in N s", "ACCOUNT · WHO didn’t answer".
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
