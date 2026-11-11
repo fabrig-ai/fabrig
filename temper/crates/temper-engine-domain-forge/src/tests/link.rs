@@ -103,6 +103,17 @@ fn a_link_follows_the_sole_owner_and_what_the_forge_says() {
             ..MAKE
         },
         Row { name: "without box", under_box: false, after: None, saved: false, ..MAKE },
+        Row {
+            name: "restored without box",
+            before: SEVEN,
+            under_box: false,
+            owner: Owner::Handed(Some(P)),
+            answer: None,
+            after: None,
+            saved: true,
+            notes: &[LinkNote::Cleared],
+            ..MAKE
+        },
         Row { name: "owner not handed", owner: Owner::NotHanded, after: None, saved: false, ..MAKE },
         Row { name: "no sole owner", owner: Owner::Handed(None), after: None, saved: false, ..MAKE },
         Row { name: "managed Forgejo", mode: Mode::Managed, after: None, saved: false, ..MAKE },
@@ -173,4 +184,21 @@ fn a_link_follows_the_sole_owner_and_what_the_forge_says() {
         }
         assert!(sent.is_empty(), "{}: unexpected saves or notes: {sent:?}", row.name);
     }
+}
+
+#[test]
+fn a_closed_box_pipe_keeps_the_restored_link_when_the_owner_is_handed_again() {
+    const P: u64 = 31;
+    const SEVEN: Option<Link> = Some(Link { user: 7, person: P });
+    let mut d = setup_domain(&[], true);
+    let mut record = records::record(1);
+    record.mode = Mode::Owned;
+    record.person = SEVEN;
+    assert!(outputs(&mut d, Event::Restore { record: Stored::Forge(record) }).is_empty());
+    assert!(outputs(&mut d, Event::Owner { party: Some(P) }).is_empty());
+    assert_eq!(d.link(1), SEVEN);
+
+    assert_eq!(outputs(&mut d, Event::BoxClosed).as_ref(), &[Request::MarkedForges]);
+    assert!(outputs(&mut d, Event::Owner { party: Some(P) }).is_empty());
+    assert_eq!(d.link(1), SEVEN);
 }
