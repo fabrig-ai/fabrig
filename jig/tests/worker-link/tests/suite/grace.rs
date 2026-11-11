@@ -179,6 +179,52 @@ fn failed_dials_wait_at_most_a_quarter_grace_only_while_it_runs() {
     }
 }
 #[test]
+fn the_last_dial_leaves_time_for_admission_and_a_failure_still_backs_off() {
+    let limits = jig_protocol_worker_link::Limits {
+        backoff: Duration::from_secs(4),
+        ceiling: Duration::from_secs(40),
+        ..fixtures::limits()
+    };
+    let last = Time::from_nanos(limits.grace.as_nanos().saturating_sub(limits.handshake.as_nanos()));
+    for admit in [false, true] {
+        let mut world = World::new(&limits, fixtures::SEED_ONE);
+        world.engine(fixtures::engine_accepting());
+        world.run();
+        world.script_root();
+        world.down(Event::Hello { hello: fixtures::hello() });
+        world.lose_channel();
+        while world.next_deadline().expect("redial before grace") < last {
+            let at = world.next_deadline().expect("redial");
+            world.advance(at.saturating_since(world.now()));
+            assert!(world.dial_pending());
+            world.down(Event::Unreachable);
+        }
+        assert_eq!(world.next_deadline(), Some(last), "backoff must not skip the last handshake window");
+        world.advance(last.saturating_since(world.now()));
+        assert_eq!(world.dials().last(), Some(&last));
+        assert_eq!(count(&world, true), 0);
+        if admit {
+            world.engine(fixtures::engine_accepting());
+            world.connect_pending();
+            world.play(sources());
+            world.advance(limits.handshake);
+            assert!(world.has_channel());
+            assert_eq!(count(&world, true), 0, "admission stopped the original clock");
+        } else {
+            // A dial ending after the last-handshake point keeps its ordinary backoff.
+            world.advance(Duration::from_millis(1));
+            let dials = world.dials().len();
+            world.down(Event::Unreachable);
+            world.advance(Duration::from_millis(998));
+            assert_eq!(world.dials().len(), dials, "no loop of last dials");
+            assert_eq!(count(&world, true), 0);
+            world.advance(Duration::from_millis(1));
+            assert_eq!(count(&world, true), 1);
+        }
+    }
+}
+
+#[test]
 fn a_stop_never_redials() {
     let mut world = world();
     world.down(Event::Stop);
