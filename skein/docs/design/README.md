@@ -100,8 +100,8 @@ skein-fake-forge-forgejo lib, http, json, forge, fake-forge-domain, fake-forge-h
 skein-fake-forge-github lib, http, tls, json, forge, fake-forge-domain, fake-forge-http
 skein-fake-llm-domain lib
 skein-fake-llm-protocol lib, http, json, llm, fake-llm-domain
-skein-push     lib, json, tls
-skein-fake-push lib, json, tls
+skein-push     lib, tls
+skein-fake-push lib, json, tls, http
 skein-fake-peers lib, io, http, llm, oauth, shell, fake-llm-*, fake-oauth, fake-forge-*, fake-push; rustls
 skein-fake-checkout nothing
 skein-throwaway-forgejo lib, io, http, json, shell, forge, fail-stop, world
