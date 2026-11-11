@@ -191,8 +191,13 @@ merge, kind 4, on a pattern of landing branches (jig's
   lands, and until a merge refused or failed is judged again its panel
   says reviews not read yet. Both procedure and
   landing merge waits supply its head, whether the read is complete,
-  the verified reviewers and the reviews from unmapped forge accounts.
-  No row, event or restore carries it. The panel selects requirements
+  the verified reviewers and the reviews from unmapped forge accounts,
+  and the pull request's size at that head: the forge's own counts of
+  its files, additions and deletions (skein's `forge/README.md`, 3.6),
+  from the read of the pull request the same step made, none where that
+  read gave none or answered another head. A pull request's answer the
+  store keeps carries no size, as it carries no queue facts, so a step
+  answered from it keeps none. No row, event or restore carries it. The panel selects requirements
   from the live enforcing rules, as the merge judgement does, and shares
   its reviewer count: role, freshness, distinct people and conflicting
   verdicts have one meaning. Each requirement shows its scope and rule,

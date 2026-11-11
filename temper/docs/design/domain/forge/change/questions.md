@@ -269,8 +269,10 @@ which is what a person's approval asks of it.
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
   how many changes wait behind it in its landing branch's order (`../queues.md`),
-  counted as its panel counts those ahead (`README.md`, 5); and its short approvals, each
-  its scope, rule, role, required count and the people counted. Reviews read
+  counted as its panel counts those ahead (`README.md`, 5); its short approvals, each
+  its scope, rule, role, required count and the people counted; and its
+  pull request's size at that head, as its approval evidence keeps it
+  (`gates.md`, 2), none where it keeps none. Reviews read
   in part make a row as a whole read does. A change with no facts at its last
   head has none: one not yet judged at its merge, one that left the queue or
   was held, and every change after a restart until its next step judges its
@@ -292,7 +294,11 @@ which is what a person's approval asks of it.
   - otherwise *counts*.
 
   It names, too, the goal the change was made under, the outermost goal
-  above its task, if any, for that goal's page to show it.
+  above its task, if any, for that goal's page to show it; and the size
+  the forge's part gives, each count kept in 32 bits as the row's other
+  counts are, one past 4294967295 kept at it and the size marked cut, so
+  that the card says so (`../../../client/forge/records.md`, the subject
+  `approvals`).
 - **Its rows,** oldest first by when their facts were first kept, then by
   task: at most 32, and as many as one whole delivery holds at the largest
   row, as the trials' are bounded (`../../trial.md`, section 6); `more` counts the
