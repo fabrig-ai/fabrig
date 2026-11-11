@@ -24,7 +24,7 @@ use directories::Directories;
 pub mod box_command;
 pub mod claude_code;
 pub mod table;
-pub use table::{TABLE, TREE};
+pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;

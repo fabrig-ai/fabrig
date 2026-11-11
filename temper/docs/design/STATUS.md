@@ -1096,17 +1096,15 @@ for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/ctl/areas.md` and `client/ctl/testing.md`, 2 and `client/ctl/README.md`, 11;
 `client/pages/accounts.md`, 2, and `client/README.md`, 5).
 
-The deployment's client, `temper-client`, is built (M1 of
-`draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
-and `ctl`, run by the box's code from the shells both binaries link, its
-help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
-prints its table from. Its ctl story signs in to a `temper-engine` and runs
-after landing. Its closure is held by the boundary test's row, with its five
-shared vocabulary crates as named exceptions; its
-`--version` reads a build script of its own, not `temper-version`
-(`protocol/binaries.status.md`; `client/README.status.md`, 2). The compiled
-`commands` page names each command's binary but the client's, whose table
-joins it with `draft/cli.execution.md`'s C3 (`protocol/documentation.status.md`).
+The deployment's client is `temper`, at `bin/temper`, with its capture,
+`skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
+are `[ADDRESS]` and `help`; `ctl` is internal. It runs the TUI and ctl from
+shared shells, and `--version` reads `temper-version`. Its ctl story signs
+in to a `temper-engine` and runs after landing. Its closure is held by the
+boundary test's row, with five shared vocabulary crates as named
+exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
+The compiled `commands` page renders the client's table first
+(`protocol/documentation.status.md`).
 
 The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
 `serve` of an engine alone's document with the web client, the owned

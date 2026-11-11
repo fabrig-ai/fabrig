@@ -56,7 +56,7 @@ section 8.
   `temper-box forge` and `temper box` set a forge up and run it
   (`protocol/setup/README.md`). A deployment runs four binaries, each
   holding its process's code alone: `temper-engine`, `temper-worker`,
-  `temper-agent` and the client, `temper-client`; the box links them all
+  `temper-agent` and the client, `temper`; the box links them all
   (`protocol/binaries.md`, 1 and 4).
 - **Tested at every tier** (`testing/README.md`): domains and fakes in worlds,
   then through bytes, then the standalone service, hosted agents and
@@ -280,12 +280,12 @@ temper's side before the layer:
 - the playground's, of no side: its composition, `temper-playground`,
   and the fake git program it hosts, `temper-fake-git-hosted`
   (`playground.md`, 3);
-- the client's, under `temper-client` (`client/README.md`, section 2);
+- the client's, under `temper-client-` (`client/README.md`, section 2);
 - the services, `temper-service`; the box's binary, `temper-box`, and
   the engine's, `temper-engine`, packages under `bin/` whose crates are
   `temper-box-shell` and `temper-engine-shell`, with the shell they
   share, `temper-shell`, and `temper-version` (`cli/README.md`, 2); the
-  deployment's client, `temper-client`, and its agent, `temper-agent`
+  deployment's client, `temper`, with its `temper-client-shell` crate, and its agent, `temper-agent`
   (`protocol/binaries.md`).
 
 `protocol/components.md` says what each holds and depends on. Test
