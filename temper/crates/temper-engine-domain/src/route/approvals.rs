@@ -39,12 +39,22 @@ pub struct ApprovalRow {
     pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: YourReview,
+    pub signed: Box<[ApprovalPerson]>,
+    pub can_sign: Box<[ApprovalPerson]>,
+    pub can_sign_more: u32,
 }
 
 /// A touched path set of this row's approval (domain/forge/change/questions.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ApprovalSet {
     pub number: u8,
+    pub name: Box<[u8]>,
+}
+
+/// A signer at the head or a person who can still sign (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalPerson {
+    pub person: u64,
     pub name: Box<[u8]>,
 }
 
@@ -67,6 +77,12 @@ impl Approvals {
                 .saturating_add(row.name.len())
                 .saturating_add(row.title.len())
                 .saturating_add(size_of_val(row.sets.as_ref()));
+            for people in [&row.signed, &row.can_sign] {
+                bytes = bytes.saturating_add(size_of_val(people.as_ref()));
+                for person in people {
+                    bytes = bytes.saturating_add(person.name.len());
+                }
+            }
             for set in &row.sets {
                 bytes = bytes.saturating_add(set.name.len());
             }
@@ -121,7 +137,37 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
             return None;
         }
     }
-    let yours = if super::kinds::eligible_people(domain, wait.project, wait.forge, approval.role) < approval.required {
+    let eligible = super::kinds::eligible_members(domain, wait.project, wait.forge, approval.role);
+    let mut signed = List::with_capacity(8);
+    for review in approval.counted.iter().take(8) {
+        signed.push(person(domain, review.person)).expect("eight signed people");
+    }
+    let mut can_sign = List::with_capacity(8);
+    let mut can_sign_more = 0_u32;
+    if eligible.as_slice().contains(&party) {
+        can_sign.push(person(domain, party)).expect("watcher first");
+    }
+    for &member in &eligible {
+        if member == party {
+            continue;
+        }
+        let mut counted = false;
+        for review in &approval.counted {
+            if review.person == member {
+                counted = true;
+                break;
+            }
+        }
+        if counted {
+            continue;
+        }
+        if can_sign.len() < 8 {
+            can_sign.push(person(domain, member)).expect("eight eligible people");
+        } else {
+            can_sign_more = can_sign_more.saturating_add(1);
+        }
+    }
+    let yours = if eligible.len() < approval.required {
         YourReview::TooFew
     } else if !super::forge_route::forge_human(domain, wait.project, wait.forge, party) {
         YourReview::NoAccount
@@ -164,7 +210,21 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         sets: sets.into_boxed(),
         whole: wait.whole,
         yours,
+        signed: signed.into_boxed(),
+        can_sign: can_sign.into_boxed(),
+        can_sign_more,
     })
+}
+
+fn person(domain: &Domain, person: u64) -> ApprovalPerson {
+    let name = match domain.core.people.identity(person) {
+        Some(identity) => {
+            let name = if identity.name.is_empty() { &identity.login } else { &identity.name };
+            Box::from(skein_lib::bytes::utf8_prefix(name, 64))
+        }
+        None => Box::default(),
+    };
+    ApprovalPerson { person, name }
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository
@@ -195,4 +255,4 @@ pub(super) fn owned_approval(domain: &Domain, items: &[(settings::SettingKey, se
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

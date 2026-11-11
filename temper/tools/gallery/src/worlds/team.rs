@@ -190,6 +190,9 @@ fn approvals(alone: bool) -> w::Approvals {
                     sets: List::with_capacity(0),
                     whole: true,
                     yours: w::ApprovalYours::Counts,
+                    signed: List::with_capacity(0),
+                    can_sign: List::with_capacity(0),
+                    can_sign_more: 0,
                 },
             )
             .expect("review"),

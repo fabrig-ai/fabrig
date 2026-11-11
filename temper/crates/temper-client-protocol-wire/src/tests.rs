@@ -2015,6 +2015,9 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
                     .expect("set at its name bound")])),
                     whole: true,
                     yours,
+                    signed: approval_people(1),
+                    can_sign: approval_people(9),
+                    can_sign_more: 3,
                 },
             )
             .expect("approval row at its byte bounds"),
@@ -2027,7 +2030,27 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     assert_eq!(crate::decode_approvals(&fixtures::trailing(&bytes), &limits), None, "trailing byte refused");
     let fewer_rows = v1::Limits { approvals_rows: 3, ..limits };
     assert_eq!(crate::decode_approvals(&bytes, &fewer_rows), None, "rows past the limit refused");
+    for reduced in [
+        v1::Limits { approval_person_name: 63, ..limits },
+        v1::Limits { approval_row_signed: 7, ..limits },
+        v1::Limits { approval_row_can_sign: 7, ..limits },
+    ] {
+        assert_eq!(crate::decode_approvals(&bytes, &reduced), None, "people respect receiving bounds");
+    }
     let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Approvals }).expect("watch");
     let bytes = crate::watching(&watch);
     assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+}
+
+fn approval_people(first: u64) -> List<v1::ApprovalPerson> {
+    let mut people = List::with_capacity(8);
+    for person in first..first.saturating_add(8) {
+        people
+            .push(
+                v1::ApprovalPerson::new(&v1::CEILINGS, v1::ApprovalPersonParts { person, name: Box::new([b'p'; 64]) })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    people
 }

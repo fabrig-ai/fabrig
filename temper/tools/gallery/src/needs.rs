@@ -31,6 +31,9 @@ fn first_object(name: &str) -> c::ObjectKey {
 fn list(name: &str) -> bool {
     matches!(name, "needs-list" | "needs-list-second" | "needs-tell" | "needs-approval-first")
 }
+fn is_approval(name: &str) -> bool {
+    name.starts_with("needs-approval") || name == "needs-sign-off-part"
+}
 fn entries(name: &str) -> List<c::InboxEntry> {
     if name == "needs-only-you-done" {
         return List::with_capacity(0);
@@ -44,7 +47,7 @@ fn entries(name: &str) -> List<c::InboxEntry> {
             documents::entry(c::ObjectKey::Escalation(2), 2, 2, Wall::EPOCH, None),
         ]));
     }
-    if name.starts_with("needs-approval") {
+    if is_approval(name) {
         return List::with_capacity(0);
     }
     let mut entries = List::with_capacity(3);
@@ -69,8 +72,12 @@ pub fn domain(name: &str) -> Domain {
     let source = worlds::world(World::Solo, Address::Inbox { filter: Filter::ALL }, Then::Shown).0;
     let mut me = source.pages().me(source.client()).expect("fixture me").clone();
     me.projects.get_mut(0).expect("project").name = text("fabrig");
-    me.projects.get_mut(0).expect("project").role =
-        if name == "needs-stop-asking-set" { c::HeldRole::Member } else { c::HeldRole::Owner };
+    me.projects.get_mut(0).expect("project").role = if name == "needs-stop-asking-set" || name == "needs-sign-off-part"
+    {
+        c::HeldRole::Member
+    } else {
+        c::HeldRole::Owner
+    };
     if list(name) {
         let mut second = me.projects.get(0).expect("first project").clone();
         second.project = 2;
@@ -83,7 +90,7 @@ pub fn domain(name: &str) -> Domain {
         0
     } else if list(name) {
         2
-    } else if name.starts_with("needs-approval") {
+    } else if is_approval(name) {
         0
     } else {
         3
@@ -93,7 +100,7 @@ pub fn domain(name: &str) -> Domain {
             me.needs_total
         } else if list(name) {
             1
-        } else if name.starts_with("needs-approval") {
+        } else if is_approval(name) {
             0
         } else if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" {
             2
@@ -118,7 +125,7 @@ pub fn domain(name: &str) -> Domain {
         &mut root,
         Event::Start {
             address: Address::Inbox {
-                filter: if list(name) || name.starts_with("needs-approval") || name.starts_with("needs-only-you") {
+                filter: if list(name) || is_approval(name) || name.starts_with("needs-only-you") {
                     Filter::ALL
                 } else {
                     Filter { project: Some(1), ..Filter::ALL }
@@ -175,14 +182,14 @@ pub fn domain(name: &str) -> Domain {
                 );
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
-                if (list(name) || name.starts_with("needs-approval"))
+                if (list(name) || is_approval(name))
                     && temper_client_protocol_wire::decode_watching(
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
                     .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
-                let document = approval(name);
+                let document = approval(name, me.party.number);
                 driver::step(
                     &mut root,
                     Event::Client {
@@ -283,7 +290,7 @@ pub fn domain(name: &str) -> Domain {
                             me.needs_total
                         } else if list(name) {
                             2
-                        } else if name.starts_with("needs-approval") {
+                        } else if is_approval(name) {
                             0
                         } else {
                             3
@@ -296,14 +303,14 @@ pub fn domain(name: &str) -> Domain {
                 );
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
-                if (list(name) || name.starts_with("needs-approval"))
+                if (list(name) || is_approval(name))
                     && temper_client_protocol_wire::decode_watching(
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
                     .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
-                let document = approval(name);
+                let document = approval(name, me.party.number);
                 driver::step(
                     &mut root,
                     Event::Client {
@@ -541,9 +548,10 @@ fn escalation(name: &str) -> c::Escalation {
     c::Escalation { task: Box::new(task), acts }
 }
 
-fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
+fn approval(name: &str, me: u64) -> temper_client_protocol_wire::v1::Approvals {
     use temper_client_protocol_wire::v1 as w;
     let no_account = name == "needs-approval-no-account";
+    let part = name == "needs-sign-off-part";
     let row = w::ApprovalRow::new(
         &w::CEILINGS,
         w::ApprovalRowParts {
@@ -564,13 +572,20 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
             since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
             scope: u32::from(!no_account),
             rule: if no_account { 2 } else { 1 },
-            role: u32::from(no_account),
-            required: if no_account { 2 } else { 1 },
-            counted: u32::from(no_account),
-            sets: if name == "needs-approval-path" {
+            role: if part { 2 } else { u32::from(no_account) },
+            required: if no_account || part { 2 } else { 1 },
+            counted: u32::from(no_account || part),
+            sets: if name == "needs-approval-path" || part {
                 List::from_boxed(Box::new([w::ApprovalSet::new(
                     &w::CEILINGS,
-                    w::ApprovalSetParts { number: 1, name: b"vsr's protocol core".as_slice().into() },
+                    w::ApprovalSetParts {
+                        number: 1,
+                        name: if part {
+                            b"payments".as_slice().into()
+                        } else {
+                            b"vsr's protocol core".as_slice().into()
+                        },
+                    },
                 )
                 .expect("path set")]))
             } else {
@@ -578,6 +593,9 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
             },
             whole: true,
             yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+            signed: if part { approval_people(&[(2, b"Sam")]) } else { List::with_capacity(0) },
+            can_sign: if part { approval_people(&[(me, b"Ann"), (3, b"Kit")]) } else { List::with_capacity(0) },
+            can_sign_more: 0,
         },
     )
     .expect("approval fixture");
@@ -617,4 +635,18 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
         },
         out,
     );
+}
+
+fn approval_people(people: &[(u64, &[u8])]) -> List<temper_client_protocol_wire::v1::ApprovalPerson> {
+    use temper_client_protocol_wire::v1 as w;
+    let mut values = List::with_capacity(8);
+    for &(person, name) in people {
+        values
+            .push(
+                w::ApprovalPerson::new(&w::CEILINGS, w::ApprovalPersonParts { person, name: name.into() })
+                    .expect("person"),
+            )
+            .expect("eight people");
+    }
+    values
 }

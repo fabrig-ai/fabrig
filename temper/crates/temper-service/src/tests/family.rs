@@ -4171,6 +4171,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one mapping test checks each row field and address bound")]
 fn approvals_encode_each_row_with_its_kind_and_files_address() {
     let forgejo = fixtures::forges().first().unwrap().clone();
     let mut github = forgejo.clone();
@@ -4220,6 +4221,9 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
+            signed: Box::new([root::ApprovalPerson { person: 2, name: b"Sam".as_slice().into() }]),
+            can_sign: Box::new([root::ApprovalPerson { person: 1, name: b"Ann".as_slice().into() }]),
+            can_sign_more: 3,
         })
         .unwrap();
     }
@@ -4248,6 +4252,11 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
+        assert_eq!(actual.signed().as_slice()[0].person(), 2);
+        assert_eq!(actual.signed().as_slice()[0].name(), b"Sam");
+        assert_eq!(actual.can_sign().as_slice()[0].person(), 1);
+        assert_eq!(actual.can_sign().as_slice()[0].name(), b"Ann");
+        assert_eq!(actual.can_sign_more(), 3);
     }
     for limits in [w::Limits { approvals_rows: 3, ..w::CEILINGS }, w::Limits { approval_row_title: 0, ..w::CEILINGS }] {
         assert!(family::approvals(document.clone(), &forges, &limits).is_none());

@@ -1,6 +1,6 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
-pub use crate::route::approvals::{ApprovalRow, ApprovalSet, Approvals, YourReview};
+pub use crate::route::approvals::{ApprovalPerson, ApprovalRow, ApprovalSet, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
 use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
 use alloc::boxed::Box;
