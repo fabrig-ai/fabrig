@@ -312,14 +312,14 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   areas as they are (8):
   - *their scope and numbers:* each project's, number 1; decided by that
     project's owners;
-  - *an owner,* `Owner` in temper's codec, `task` (u64), `party` (u64),
+  - *an owner,* `AreaOwner` in temper's codec, `task` (u64), `party` (u64),
     `role` (u32) or `charter` (u32) (`../../domain/areas.md`, section 3);
   - *kind 12's value,* a `ProjectAreas` record: `areas`, at most 16, each
-    `Area { name, words, owner }`, its name 1 to 32 bytes of lowercase
+    `Area { name, words, owner }`, its owner an `AreaOwner`, its name 1 to 32 bytes of lowercase
     ASCII letters, digits and `-`, starting with a letter, unique in the
     record, its words 1 to 480 bytes of UTF-8 holding no control
     character; *kind 13's,* a `ProjectTriager` record, `owner`, an
-    `Owner`. Each kind's bound is its record's encoding at them;
+    `AreaOwner`. Each kind's bound is its record's encoding at them;
   - *with none,* no areas, and the project's owners triage
     (`../../domain/areas.md`, section 4);
   - *judged by the forge,* as the table's kinds are: a value that does

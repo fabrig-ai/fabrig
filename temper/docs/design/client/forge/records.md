@@ -514,7 +514,7 @@
   newest first, each `FindingRow { number, kind, severity, area, state,
   title, holder, at, why }`, `holder` a `Holder`, `at` when it was
   filed, `why` the last hand-off's, option; `areas`, at most 16, each
-  `AreaRow { name, words, owner, holder }`, `owner` an `Owner` and
+  `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
   `holder` an option of `Holder`, none where its owner does not stand;
   `triager`, its owner, option, and its holder; and `cut`, whether rows
   were left out. Marked at each committed decision that writes one of
