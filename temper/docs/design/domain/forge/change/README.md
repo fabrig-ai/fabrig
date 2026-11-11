@@ -500,8 +500,13 @@ changes live at once, never every change made.
 - **Settled:** a change is over for good once its task has ended (its
   ending recorded and its release finished, so no release row of its
   task is left) and its state is `Ended`, `Cleared` or `NoChange`. A
-  live change never goes, nor a landed one still verifying: `Landed`,
-  `Red` or `Uncleared`.
+  live change never goes, nor a landed one whose task lives.
+- **Dropped last:** an `Uncleared` change, or a `Landed` or `Red` one,
+  whose task has ended (its ending recorded, its release finished) is
+  never stepped again (`../../after-landing.md`, 6). It goes only when
+  no settled change can, oldest first, pinned as any settled change is,
+  so a tier runner down for long refuses no new change while such a
+  change can go (the user, 2026-11-11).
 - **Pinned while read:** a settled change still stays while
   - **its goal lives:** the tracked goal it served (its row's `goal`),
     or else the tracked ancestor its goal's closer finds for it, is a
@@ -521,11 +526,13 @@ changes live at once, never every change made.
   the table has room nothing is dropped, so a quiet deployment keeps as
   many panels as the table holds.
 - **The root chooses:** only the root knows which goals live, so it
-  picks the change to drop, as `start_change` makes the registration,
+  picks the change to drop, a settled one first and one dropped last
+  only when no settled one can go, as `start_change` makes the registration,
   and asks the forge to drop it first (`forge::Event::DropChange { task
   }`, then `forge::Event::Change`). The forge drops it only if its
-  table is full and the change is still settled and no landing names
-  it; otherwise it drops nothing.
+  table is full and the change is still settled, or dropped last with
+  no settled one left to go, and no landing names it; otherwise it
+  drops nothing.
 - **What goes with it:** every account the forge keeps by its task: its
   panel's CI, its settling, its start conflicts, its wakes and its
   deadline, its pending steps and goal-file reads (a late answer to one
@@ -555,12 +562,6 @@ changes live at once, never every change made.
 
 ## 8. Open questions
 
-- **A landed change that ended uncleared:** an `Uncleared` change, or a
-  `Landed` or `Red` one whose task has ended, is never stepped again
-  (`../../after-landing.md`, 6), yet stays for good; a tier runner down
-  for long enough fills the table with them. Whether such a change
-  goes last, once no `Ended`, `Cleared` or `NoChange` one can, is the
-  user's.
 - **Ten busy goals:** pinning each live goal's changes keeps every
   record its closer reads, but a deployment whose live goals hold more
   than `forge.changes` changes between them refuses the next, naming

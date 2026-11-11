@@ -106,8 +106,8 @@
   live at once, never every change made. Each tier row of the store
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
   and a finding's blamed ones), within the store schema's ceiling for
-  them, 257 (`../store.md`, 4), so `forge.changes` is at most 128, which
-  the start checks (below).
+  them, 2049 (`../store.md`, 4), so `forge.changes` is at most 1024,
+  which the start checks (below).
 - **A limit's refusal names it:** every refusal a configured limit
   causes, at the start or in a step, names the limit by its dotted name,
   its value and what was needed. A step's refusal holds its task with
@@ -244,12 +244,12 @@
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
     tier row's pending landings, a run's landings and a finding's blamed
-    ones (`../store.md`, 4), 128 at their 257, checked before the store's
+    ones (`../store.md`, 4), 1024 at their 2049, checked before the store's
     sizing, which would otherwise refuse it as past its codec's bounds,
     naming no limit:
-    `application.limits.overrides.forge.changes: 256, past its bound of
-    128, the most the store's tier rows hold (2 * forge.changes + 1
-    within 257)`. Within it, a store bound the larger rows outgrow
+    `application.limits.overrides.forge.changes: 1025, past its bound of
+    1024, the most the store's tier rows hold (2 * forge.changes + 1
+    within 2049)`. Within it, a store bound the larger rows outgrow
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;
