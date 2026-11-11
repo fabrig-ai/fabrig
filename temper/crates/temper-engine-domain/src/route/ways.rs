@@ -332,6 +332,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
         | forge::Key::Away { .. }
+        | forge::Key::Follow { .. }
         | forge::Key::Decided { .. } => {}
     }
 }

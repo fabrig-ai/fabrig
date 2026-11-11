@@ -71,6 +71,11 @@ impl Domain {
             self.drop_proposal_settings(proposal, out);
         }
         self.rebuild_settings();
+        for item in items {
+            if item.kind == 12 {
+                crate::follows::keep(self, item.scope, item.number, out);
+            }
+        }
         let mut wake = List::with_capacity(self.changes.capacity());
         for (task, row) in &self.changes {
             if row.terminal() {

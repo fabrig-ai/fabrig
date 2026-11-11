@@ -10,6 +10,7 @@ mod away;
 mod change;
 mod client;
 mod closer;
+mod follows;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
@@ -30,6 +31,7 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
@@ -109,6 +111,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
@@ -289,6 +292,15 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_row_entries: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,
+        follow_row_branch: forge.name_bytes,
+        follow_row_stopped_some: forge.follow_reason_bytes,
+        follow_row_queue: forge.follow_queue,
+        follow_row_skips: forge.follow_skips,
+        follow_entry_commits: forge.follow_commits,
+        follow_files_files: forge.client.answer_bytes.checked_add(forge.follow_files.checked_mul(4)?)?,
+        follow_commit_message: forge.follow_message_bytes,
+        follow_skip_reason: forge.follow_reason_bytes,
+        follow_reason_reason: forge.follow_reason_bytes,
         tier_row_observations: 8_192,
         tier_row_tier: 32,
         tier_row_goals: forge.holds,
