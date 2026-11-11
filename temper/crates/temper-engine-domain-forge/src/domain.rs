@@ -2617,7 +2617,7 @@ fn answered(
     }
 }
 
-/// A producer's last push, including an unchecked save, pins its next brief
+/// A delegate's last push, including an unchecked save, pins its next brief
 /// without completing its delegation (temper/docs/design/domain/agent/README.md, 5).
 fn record_delegate_head(
     d: &mut Domain,
@@ -2868,6 +2868,7 @@ fn lost_read(
         }
         wake_head_dependents(d, &pending.name, previous, commit);
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+        record_delegate_head(d, pending.task, &pending.name, commit, out);
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
     let taken = branch_written(d, &pending.name, None);

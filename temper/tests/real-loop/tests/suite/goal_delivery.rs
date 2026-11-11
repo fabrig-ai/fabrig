@@ -24,6 +24,13 @@ thread_local! {
 
 fn configure(document: &mut Value, agent: &mut Value, address: SocketAddr) {
     landing::configure(document, agent, address);
+    // Delivery and the ended watch must complete on events, before any forge
+    // poll, hinted read, reconciliation fallback or issue-body throttle expires.
+    let limits = &mut document["application"]["limits"]["overrides"];
+    for name in ["poll_ms", "poll_max_ms", "slow_ms", "hinted_ms", "fallback_ms"] {
+        limits[format!("forge.client.{name}")] = 60_000.into();
+    }
+    limits["forge.issue_policy.interval_ms"] = 60_000.into();
     let tools = jig_domain_core::ToolFamilies::JIG.delegate.0 | jig_domain_core::ToolFamilies::JIG.control.0;
     for project in document["world_settings"]["policies"].as_array_mut().expect("project policies") {
         project["policy"]["ceiling"]["tools"] = tools.into();

@@ -96,6 +96,7 @@ fn config(seed: u64) -> engine::Config {
             .insert(
                 1,
                 engine::ProjectLanding {
+                    check_timeout: None,
                     by: engine::Way::Queue,
                     close_job: command,
                     merge_job: None,

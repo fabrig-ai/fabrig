@@ -654,6 +654,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
                                 after: engine::AfterLandingCheck {
@@ -1245,6 +1246,43 @@ impl World {
         self
     }
 
+    /// Configure the project's delivery checks' bound before startup.
+    #[must_use]
+    pub fn with_check_timeout(mut self, bound: Option<Duration>) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "check bound precedes startup");
+        self.set_check_timeout(bound);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid check bound configuration");
+        self
+    }
+
+    fn set_check_timeout(&mut self, bound: Option<Duration>) {
+        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
+            landing.check_timeout = bound;
+        } else {
+            self.restart_config
+                .landings
+                .insert(
+                    1,
+                    engine::ProjectLanding {
+                        check_timeout: bound,
+                        by: engine::Way::Queue,
+                        merge_job: None,
+                        close_job: None,
+                        repositories: Box::new([]),
+                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                    },
+                )
+                .expect("one project's landing");
+        }
+    }
+
+    /// Restart from durable rows with a changed project bound.
+    pub fn restart_with_check_timeout(&mut self, bound: Option<Duration>) {
+        self.set_check_timeout(bound);
+        self.restart_same();
+    }
+
     /// Configure the project's merge command before the first input.
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {
@@ -1257,6 +1295,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        check_timeout: None,
                         close_job: None,
                         merge_job: Some(command.into()),
                         by: engine::Way::Queue,
@@ -1303,6 +1342,7 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            check_timeout: None,
             by: engine::Way::Queue,
             merge_job: None,
             close_job: None,
