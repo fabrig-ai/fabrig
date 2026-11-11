@@ -4903,6 +4903,7 @@ dependencies = [
  "temper-agent-shell",
  "temper-fetch",
  "temper-shell",
+ "temper-version",
 ]
 
 [[package]]
@@ -4914,7 +4915,6 @@ dependencies = [
  "smith-agent-shell",
  "temper-launcher",
  "temper-shell",
- "temper-version",
 ]
 
 [[package]]
@@ -4988,6 +4988,7 @@ dependencies = [
  "temper-real-loop-world",
  "temper-service",
  "temper-shell",
+ "temper-version",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -5078,7 +5079,6 @@ dependencies = [
  "temper-service-shell",
  "temper-settings-form",
  "temper-shell",
- "temper-version",
  "temper-worker-domain",
  "temper-worker-shell",
 ]
@@ -5500,6 +5500,7 @@ dependencies = [
  "temper-engine-shell",
  "temper-protocol-store",
  "temper-shell",
+ "temper-version",
 ]
 
 [[package]]
@@ -5757,7 +5758,6 @@ dependencies = [
  "temper-service",
  "temper-service-shell",
  "temper-shell",
- "temper-version",
 ]
 
 [[package]]
@@ -6500,9 +6500,6 @@ dependencies = [
 [[package]]
 name = "temper-version"
 version = "0.0.0"
-dependencies = [
- "skein-shell",
-]
 
 [[package]]
 name = "temper-worker"
@@ -6511,6 +6508,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-shell",
+ "temper-version",
  "temper-worker-shell",
 ]
 
@@ -6621,7 +6619,6 @@ dependencies = [
  "temper-service",
  "temper-service-shell",
  "temper-shell",
- "temper-version",
  "temper-worker-domain",
 ]
 

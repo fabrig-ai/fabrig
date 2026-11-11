@@ -501,6 +501,8 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         &[],
         b"/",
         b"temper-box",
+        "0.0.0",
+        "0123456789ab",
     )
     .expect_err("box refused")
 }
@@ -590,7 +592,9 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             },
             &[],
             b"/",
-            b"temper-box"
+            b"temper-box",
+            "0.0.0",
+            "0123456789ab",
         ),
         Err(format!(
             "temper-box: configuration {}: absent; temper init writes one\n",
@@ -1031,6 +1035,8 @@ fn every_command_checks_setup_before_reading_files() {
                 &[],
                 b"/",
                 b"temper-box",
+                "0.0.0",
+                "0123456789ab",
             )
             .expect_err("box refused"),
         ),

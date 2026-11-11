@@ -7,8 +7,9 @@ use temper_shell::{environment, table::HELP};
 pub const TABLE: Table = Table {
     binary: "temper-box",
     line: "temper on this machine, as one box.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &COMMANDS,
     settings: &[],
     variables: &[
@@ -16,7 +17,7 @@ pub const TABLE: Table = Table {
         &temper_service_shell::CUT_AT_LISTEN,
         &temper_engine_shell::forge_sign_in::NO_REGISTRATION,
         &super::fake_backends::FAKE_BOX_PORTS,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_client_bundle::INTERNAL_BUNDLE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,

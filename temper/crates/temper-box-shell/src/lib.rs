@@ -274,7 +274,14 @@ fn configure_row(
     }
 }
 
-pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], run_as: &[u8]) -> Result<u8, String> {
+pub fn run(
+    command: Command,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    run_as: &[u8],
+    version: &'static str,
+    commit: &'static str,
+) -> Result<u8, String> {
     let exit = match command {
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -285,7 +292,7 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             return Ok(0);
         }
         Command::Version => {
-            print!("{}", TABLE.version_line());
+            print!("{}", skein_shell::Table { version, commit, ..TABLE }.version_line());
             return Ok(0);
         }
         Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments, environment)),
