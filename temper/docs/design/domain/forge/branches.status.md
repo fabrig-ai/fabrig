@@ -236,3 +236,8 @@ a change's merge job from the engine through its worker to the fake forge
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+
+- **Not yet:** 3: a goal with a confirmed goal branch and a modifying charter delivers to
+  its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
+  again. The design has its runs push Markdown straight to g as its design
+  writers, recorded as g's own, and drops the `"run"` change [in flight: changes 94, 98].

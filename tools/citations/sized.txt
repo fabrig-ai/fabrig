@@ -4,3 +4,4 @@ hearth
 smith
 jig
 skein
+temper
