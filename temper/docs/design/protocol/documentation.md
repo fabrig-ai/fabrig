@@ -294,7 +294,7 @@ in section 2.3's voice.
 
 | Page | Its table | A row |
 |---|---|---|
-| `commands` | a binary's table: `temper-box`'s, as the page is compiled, and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
+| `commands` | the binaries' tables, as the page is compiled (8.1; `temper_shell::table::commands_reference`), and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, under each binary that runs it, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
@@ -336,6 +336,35 @@ in section 2.3's voice.
   member's line points to it. Its words sit beside the page's renderer,
   which reads the bounds and the `PATH` it names from the limits that hold
   them, so the section cannot drift from them.
+
+### 8.1 The page `commands`
+
+The compiled page names each command's binary
+(`../draft/deployment-binaries.md`, section 9, item 6): it is rendered
+from the deployment's tables and the box's, in this order, the
+client's, `temper-engine`'s, `temper-worker`'s, `temper-agent`'s and
+`temper-box`'s (`../cli/README.md`, 6 and 7).
+`temper-box-shell`'s step test holds the checked-in page equal to that
+rendering, since the box's crate links every table.
+
+- **Its head:** the title `temper's commands`, `Kind: reference`, and
+  one line: `Every command of temper's binaries, a section each: its
+  usage, what it does, its arguments and its notes. A command two
+  binaries share is written under the first and named under the
+  others.`
+- **A section per binary,** `## BINARY`, then the table's line, then
+  each of its commands as a section of its own, `### BINARY WORDS` (`###
+  BINARY` for the bare form, `### run as PROGRAM` for one run as
+  another name), its public commands first, then its internal ones, in
+  the table's order, as `commands_page` renders one.
+- **A command an earlier table holds,** the same `skein_shell::Command`
+  value, is named, not written again: its heading and its usage lines
+  under this binary's name, then `As BINARY WORDS, above.`, naming the
+  first binary's section. So `temper-box forge fetch` points to
+  `temper-engine forge fetch`, and `temper-box program-login` to
+  `temper-worker program-login`.
+- **Bounded as every reference page** (32,768 bytes); each binary's
+  `help commands` still prints its own table alone, by `commands_page`.
 
 ## 9. Errors
 
