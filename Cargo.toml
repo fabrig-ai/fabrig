@@ -269,6 +269,7 @@ members = [
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
     "temper/testing/temper-fixtures",
+    "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
     "temper/crates/temper-client",
@@ -568,6 +569,7 @@ jig-protocol-charter = { path = "jig/crates/jig-protocol-charter" }
 settings-form = { package = "temper-settings-form", path = "temper/crates/temper-settings-form" }
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
+temper-test-env = { path = "temper/testing/temper-test-env" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }

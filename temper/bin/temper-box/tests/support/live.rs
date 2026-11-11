@@ -15,7 +15,6 @@ use std::{
 use temper_box_shell::directories::jig_directories;
 
 #[must_use]
-#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -25,7 +24,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let agent_path = directory.join("agent.json");
     let mut agent: Value = serde_json::from_slice(super::owned::SHIPPED[0].1).expect("owned agent JSON");
     if let Some(program) = agent["programs"].get_mut("claude_code") {
-        let claude = std::env::var_os("PATH").and_then(|path| {
+        let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
             std::env::split_paths(&path).map(|directory| directory.join("claude")).find(|program| program.is_file())
         });
         if let Some(claude) = claude {
@@ -530,10 +529,9 @@ pub fn redact(text: &str) -> String {
     output
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_NOTICE, through temper's test table once it exists")]
 fn append_notice(text: &str) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
-    let Some(path) = std::env::var_os("TEMPER_LIVE_NOTICE") else { return };
+    let Some(path) = temper_test_env::value(&temper_test_env::LIVE_NOTICE) else { return };
     // The launcher creates this private file before its first build.
     match fs::OpenOptions::new().append(true).mode(0o600).open(path) {
         Ok(mut file) => {

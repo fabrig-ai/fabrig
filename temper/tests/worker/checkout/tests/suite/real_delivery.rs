@@ -216,9 +216,8 @@ impl World {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "the real-git world locates the pinned throwaway Forgejo")]
 fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
-    let binary = std::env::var_os("TEMPER_FORGEJO").expect("pinned Forgejo");
+    let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
     let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "design-delivery");
     let mut settings = Settings::small();
