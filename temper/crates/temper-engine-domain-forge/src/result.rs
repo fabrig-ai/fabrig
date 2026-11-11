@@ -112,6 +112,14 @@ impl ChangeResult {
                 },
                 bound,
             );
+            if check.check != Check::Pending
+                && let Some(job) = check.job
+                && job.head == head
+                && job.attempt > 1
+            {
+                checks_text.add(b" at attempt ", bound);
+                checks_text.add(Decimal::of(u64::from(job.attempt)).as_bytes(), bound);
+            }
             if check.check == Check::Failed {
                 if !failed.bytes.is_empty() || failed.cut != 0 {
                     failed.add(b", ", bound);

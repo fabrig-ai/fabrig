@@ -253,20 +253,22 @@ fn files_outside_the_secrets_store(ran: &Ran) -> Vec<std::path::PathBuf> {
     files
 }
 
-// Each fixture clone starts with one object, and fake commit ids increase.
-// The least local id is its base; HEAD advances when the coder delivers.
+// Fetched objects live in the store. Numeric objects in a checkout are the
+// commits its coder made locally, not the metadata in objects/info.
 fn coders_new_commits(files: &[std::path::PathBuf]) -> Vec<u64> {
     let mut created = Vec::new();
     for path in files.iter().filter(|path| path.ends_with(".git/temper-head")) {
         let objects = path.parent().expect("git directory").join("objects");
         let mut local = Vec::new();
         for object in std::fs::read_dir(objects).expect("local objects") {
-            let name = object.expect("local object").file_name();
-            let commit: u64 = name.to_str().expect("object name").parse().expect("counted object");
-            local.push(commit);
+            let object = object.expect("local object");
+            if object.file_type().expect("object kind").is_file() {
+                let name = object.file_name();
+                let commit: u64 = name.to_str().expect("object name").parse().expect("counted object");
+                local.push(commit);
+            }
         }
-        let base = *local.iter().min().expect("a clone has its base object");
-        created.extend(local.into_iter().filter(|commit| *commit != base));
+        created.extend(local);
     }
     created
 }

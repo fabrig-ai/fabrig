@@ -21,7 +21,7 @@ impl WorkerStand {
     pub fn turn(&mut self) -> bool {
         self.worker.iterate(self.worker.env.now, self.worker.env.wall);
         self.drain();
-        self.input()
+        self.input() || self.worker.work_pending(self.worker.env.now)
     }
     pub fn drain(&mut self) {
         for _ in 0..self.worker.io().len() {

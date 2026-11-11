@@ -24,6 +24,7 @@ pub(in crate::codec) fn wire_ended_by(value: &c::EndedBy, limits: &w::Limits) ->
     Ok::<_, w::Problem>(match value {
         c::EndedBy::Result => w::EndedBy::Result,
         c::EndedBy::Requester => w::EndedBy::Requester,
+        c::EndedBy::Standing => w::EndedBy::Standing,
         c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
             limits,
             w::CloserParts { connector: closer.connector, code: closer.code },

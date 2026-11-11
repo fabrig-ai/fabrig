@@ -14,10 +14,7 @@
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
     A path set's why names the set, not its paths. Its
-    **Only you** draws an item's from line in the mono, its question at
-    19 px and the card's gap at 12, where `needs.html` has `.from` in the
-    sans, `.q` at 16.5 px and `.card`'s gap at 10; and its question names
-    the source as Accounts does, "Your Claude Code login NAME is
+    **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).
@@ -65,8 +62,8 @@
     left off and Needs you are the project's, where 11.1 has them across
     the person's projects: 3.5, *Home on All projects*, reads every
     project and joins their briefs in `pages::all_home::brief`, which the
-    launchpad doesn't read (3). 6.14, *A design session*, holds 11.2 and
-    11.1's and 11.4's `/draft` (the plan `tui-design-session`), where it
+    launchpad doesn't read (3). `../client/tui/pages.md`, *A design session*, holds 11.2 and
+    11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
     `tui-design-session.status.md` records. No design holds 11.3's
     talking with a role.

@@ -5,7 +5,7 @@ use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
 const ASK_CHARTER: u32 = 11;
-const SETTINGS_CHARTER: u32 = 13;
+const SETTINGS_CHARTER: u32 = 14;
 
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
@@ -231,7 +231,11 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     }
 }
 
-fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> World {
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the table varies the link, box and forge identities independently"
+)]
+fn approval_identity_world(link: bool, under_box: bool, second_forge: bool, fake_forge: bool) -> World {
     let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
     let mut world = world_with_owner(identity);
     let person = world
@@ -288,6 +292,7 @@ fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> 
         });
     }
     world.store.seed(records.into_boxed_slice(), Box::new([]));
+    world = world.with_restart_under_box(under_box);
     world.restart_same();
     settle(&mut world);
     world
@@ -297,29 +302,32 @@ fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> 
 fn approval_rules_count_known_forge_people_with_the_required_role() {
     const ONE_SHORT: &str =
         "project 1 role 0 on forge forge.example requires 2 distinct known forge people; currently 1 eligible.";
+    const NO_LINK: &str =
+        "project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible.";
     const WRONG_ROLE: &str =
         "project 1 role 1 on forge forge.example requires 1 distinct known forge people; currently 0 eligible.";
     const OTHER_FORGE: &str =
         "project 1 role 0 on forge other.example requires 1 distinct known forge people; currently 0 eligible.";
     const FAKE: &str = "project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.";
-    for (kind, scope, role, required, link, second_forge, fake_forge, host, refusal) in [
-        (1, 0, 0, 1, false, false, false, None, None),
-        (2, 1, 0, 1, false, false, false, None, None),
-        (1, 0, 0, 2, false, false, false, None, Some(ONE_SHORT)),
-        (2, 1, 0, 2, false, false, false, None, Some(ONE_SHORT)),
-        (1, 0, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
-        (2, 1, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
-        (1, 0, 0, 1, true, false, false, None, None),
-        (2, 1, 0, 1, true, false, false, None, None),
-        (1, 0, 0, 2, true, false, false, None, Some(ONE_SHORT)),
-        (2, 1, 0, 2, true, false, false, None, Some(ONE_SHORT)),
-        (1, 0, 0, 1, false, true, false, None, Some(OTHER_FORGE)),
-        (2, 1, 0, 1, false, true, false, Some(b"other.example".as_slice()), Some(OTHER_FORGE)),
-        (2, 1, 0, 1, false, true, false, Some(b"forge.example".as_slice()), None),
-        (1, 0, 0, 1, false, false, true, None, Some(FAKE)),
-        (2, 1, 0, 2, false, false, true, None, Some(FAKE)),
+    for (kind, scope, role, required, link, under_box, second_forge, fake_forge, host, refusal) in [
+        (1, 0, 0, 1, false, false, false, false, None, None),
+        (2, 1, 0, 1, false, false, false, false, None, None),
+        (1, 0, 0, 2, false, false, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, false, false, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 1, 1, false, false, false, false, None, Some(WRONG_ROLE)),
+        (2, 1, 1, 1, false, false, false, false, None, Some(WRONG_ROLE)),
+        (1, 0, 0, 1, true, true, false, false, None, None),
+        (2, 1, 0, 1, true, true, false, false, None, None),
+        (1, 0, 0, 2, true, true, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, true, true, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 0, 1, true, false, false, false, None, Some(NO_LINK)),
+        (1, 0, 0, 1, false, false, true, false, None, Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, false, true, false, Some(b"other.example".as_slice()), Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, false, true, false, Some(b"forge.example".as_slice()), None),
+        (1, 0, 0, 1, false, false, false, true, None, Some(FAKE)),
+        (2, 1, 0, 2, false, false, false, true, None, Some(FAKE)),
     ] {
-        let mut world = approval_identity_world(link, second_forge, fake_forge);
+        let mut world = approval_identity_world(link, under_box, second_forge, fake_forge);
         let mut rule = approval_rule(role, required);
         if let Some(host) = host {
             let settings::Value::Rule(rule) = &mut rule else { panic!("approval rule") };
@@ -336,7 +344,7 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
         assert_eq!(
             kinds::revision(&world.store.rows),
             before + u32::from(refusal.is_none()),
-            "kind {kind} requiring {required} people, link {link}, second forge {second_forge}, fake {fake_forge}: {:?}",
+            "kind {kind} requiring {required} people, link {link}, box {under_box}, second forge {second_forge}, fake {fake_forge}: {:?}",
             world.web_replies
         );
         if let Some(expected) = refusal {

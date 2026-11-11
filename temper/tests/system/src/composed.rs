@@ -710,6 +710,7 @@ impl World {
         batch[0].flags.ended_by = match self.chat_ending {
             tasks::EndedBy::Result => people::EndedBy::Result,
             tasks::EndedBy::Requester => people::EndedBy::Requester,
+            tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
@@ -1122,6 +1123,7 @@ impl World {
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
@@ -1589,11 +1591,14 @@ fn signed_in_party() -> parties::Party {
 fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::Op {
     use worker::checkout::git::Op;
     let remote = match &mut op {
-        Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
-            remote
-        }
+        Op::Store { remote, .. }
+        | Op::Clone { remote, .. }
+        | Op::Fetch { remote, .. }
+        | Op::Create { remote, .. }
+        | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
-        Op::Make { .. }
+        Op::Point { .. }
+        | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }

@@ -43,17 +43,13 @@ pub fn temper() -> PathBuf {
     binary
 }
 #[must_use]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_TEST_CHROMIUM and PATH, through temper's test table once it exists"
-)]
 pub fn chromium() -> PathBuf {
-    if let Some(path) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
+    if let Some(path) = temper_test_env::value(&temper_test_env::SKEIN_TEST_CHROMIUM) {
         let path = PathBuf::from(path);
         assert!(path.is_file(), "SKEIN_TEST_CHROMIUM must name a file");
         return path.canonicalize().expect("configured Chromium");
     }
-    for directory in std::env::split_paths(&std::env::var_os("PATH").expect("PATH")) {
+    for directory in std::env::split_paths(&temper_test_env::value(&temper_shell::environment::PATH).expect("PATH")) {
         let path = directory.join("chromium");
         if path.is_file() {
             return path.canonicalize().expect("Chromium on PATH");
@@ -63,10 +59,9 @@ pub fn chromium() -> PathBuf {
 }
 /// The bundle scripts/browser.sh builds, named by `TEMPER_TEST_BUNDLE`.
 #[must_use]
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_TEST_BUNDLE, through temper's test table once it exists")]
 pub fn bundle() -> PathBuf {
     let path = PathBuf::from(
-        std::env::var_os("TEMPER_TEST_BUNDLE")
+        temper_test_env::value(&temper_test_env::BUNDLE)
             .expect("run scripts/browser.sh to build the bundle and set TEMPER_TEST_BUNDLE"),
     );
     let path = if path.is_absolute() { path } else { skein_scratch::paths::tree().join(path) };
@@ -510,7 +505,7 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
         let bound = &agent["endpoints"][0]["limits"];
-        assert_eq!(defaults.charters.len(), 9);
+        assert_eq!(defaults.charters.len(), 10);
         for charter in &defaults.charters {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)

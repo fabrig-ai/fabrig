@@ -1,13 +1,11 @@
 # tui-design-session: status
 
-2026-11-09. Where the design lags or departs from [tui-design-session.md](tui-design-session.md).
+2026-11-11. Where the design lags or departs from [tui-design-session.md](tui-design-session.md).
 
 - **Design lags:** none: `../client/tui/pages.md`, *A design
   session*, and skein's `ui/screen.md`, 5.2, *A side region*, hold it,
-  the code lagging as `../client/README.status.md` and skein's
-  `ui/screen.status.md` say; the journey `design-session` is
-  `../client/tui/journeys.md`, section 9, not yet recorded
-  (`../client/tui/journeys.status.md`).
+  and the journey `design-session` is `../client/tui/journeys.md`,
+  section 9.
 - **Design departs:**
   - *What it builds*, the side pane: the terminal had no way to lay two
     columns, so skein's full-screen shell gains a side region beside the
@@ -37,6 +35,6 @@
     link's state shows while it is not Live. The cut's call, 2026-11-09.
   - *What it builds*, `/goal`: a goal made returns to the chat, since
     the TUI has no goal's page; the prompt offers the ways and "Cancel",
-    and the sheet's name and asking keep their defaults. The cut's
-    call, 2026-11-09.
+    and the sheet's name and asking keep their defaults. The cut's call,
+    2026-11-09.
 - **Open:** none.

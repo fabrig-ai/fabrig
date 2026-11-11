@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-09. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-11. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
@@ -16,10 +16,6 @@
   redaction across a wrapped link waits with it. Temper/tui owns this
   `tui-box-front` deferral: the journey is recorded once `again` can start
   the box in the pseudo-terminal.
-- **Not yet:** 9's `design-session`: not recorded; the TUI's design
-  session it walks is not built (`../README.status.md`), and the fake
-  model's script holds no reply ending in choices. The plan
-  `tui-design-session` records it.
 
 Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
 shipped-host replay, proof, shared redaction and scan, themed prints and

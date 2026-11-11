@@ -1,6 +1,7 @@
-//! Work places each item by its own facts (temper/docs/design/client/pages/README.md).
+//! Work places each item by its own facts (temper/docs/design/client/pages/work.md, 1).
 
-use skein_lib::{Duration, List, Set, Wall};
+use core::cmp::Reverse;
+use skein_lib::{Duration, List, Map, Set, Wall};
 
 /// The goals, changes and person's chats read for the project.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -8,6 +9,7 @@ pub struct Facts {
     pub goals: List<Goal>,
     pub changes: List<Change>,
     pub chats: List<Chat>,
+    pub landed_default: List<Landing>,
 }
 
 /// A goal, live or ended, with its last activity.
@@ -30,7 +32,7 @@ pub struct Change {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Where {
     Queued { place: u32, since: Wall },
-    Landed { at: Wall },
+    Landed { at: Wall, default_branch: bool },
 }
 
 /// The goal or chat a change belongs to, else nothing.
@@ -65,12 +67,31 @@ pub struct Card {
     pub changes: List<u64>,
 }
 
+/// A default-branch landing and its task's provenance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Landing {
+    pub task: u64,
+    pub commit: [u8; 32],
+    pub at: Wall,
+    pub belongs: Belongs,
+}
+
+/// A week's goal or independent change at its newest default-branch landing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Landed {
+    pub item: Item,
+    pub change: u64,
+    pub commit: [u8; 32],
+    pub at: Wall,
+}
+
 /// Work's In flight, Drafts and Landed this week sections and its filters' counts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Work {
     pub in_flight: List<Card>,
     pub drafts: List<Card>,
-    pub landed: List<u64>,
+    pub landed: List<Landed>,
+    pub goal_branches: u32,
     pub filters: Filters,
 }
 
@@ -85,7 +106,12 @@ pub struct Filters {
 
 impl Default for Facts {
     fn default() -> Self {
-        Self { goals: List::uncapped(), changes: List::uncapped(), chats: List::uncapped() }
+        Self {
+            goals: List::uncapped(),
+            changes: List::uncapped(),
+            chats: List::uncapped(),
+            landed_default: List::uncapped(),
+        }
     }
 }
 
@@ -95,6 +121,7 @@ impl Default for Work {
             in_flight: List::uncapped(),
             drafts: List::uncapped(),
             landed: List::uncapped(),
+            goal_branches: 0,
             filters: Filters::default(),
         }
     }
@@ -169,13 +196,11 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
                     insert_card(&mut in_flight, ActiveCard { activity: since, task: change.task, card });
                 }
             }
-            Where::Landed { at } => {
-                if at >= week_start && at <= wall {
-                    work.landed.push(change.task).expect("no more landed rows than changes");
-                }
-            }
+            Where::Landed { at: _, default_branch: _ } => {}
         }
     }
+    work.goal_branches = goal_branches(&facts.changes, week_start, wall);
+    work.landed = landed_this_week(&facts.landed_default, week_start, wall);
     work.filters.drafts = drafts.len();
     for active in in_flight.into_boxed() {
         work.in_flight.push(active.card).expect("one card per live item");
@@ -184,6 +209,52 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         work.drafts.push(active.card).expect("one card per draft");
     }
     work
+}
+
+fn goal_branches(changes: &List<Change>, start: Wall, wall: Wall) -> u32 {
+    let mut tasks = Set::with_capacity(changes.len());
+    for change in changes {
+        match change.at {
+            Where::Landed { at, default_branch: false } if at >= start && at <= wall => match change.belongs {
+                Belongs::Goal(_) => {
+                    tasks.insert(change.task).expect("one key per goal-branch task");
+                }
+                Belongs::Chat(_) | Belongs::Nothing => {}
+            },
+            Where::Landed { .. } | Where::Queued { .. } => {}
+        }
+    }
+    tasks.len()
+}
+
+fn landed_this_week(rows: &List<Landing>, start: Wall, wall: Wall) -> List<Landed> {
+    let mut recent = Map::with_capacity(rows.len());
+    for row in rows {
+        if row.at >= start && row.at <= wall {
+            recent.insert((Reverse(row.at), row.task), *row).expect("one key per landing");
+        }
+    }
+    let mut tasks = Set::with_capacity(rows.len());
+    let mut goals = Set::with_capacity(rows.len());
+    let mut landed = List::with_capacity(rows.len());
+    for (_, row) in &recent {
+        if !tasks.insert(row.task).expect("one key per landing task") {
+            continue;
+        }
+        let item = match row.belongs {
+            Belongs::Goal(goal) => {
+                if !goals.insert(goal).expect("no more goals than landings") {
+                    continue;
+                }
+                Item::Goal(goal)
+            }
+            Belongs::Chat(_) | Belongs::Nothing => Item::Change(row.task),
+        };
+        landed
+            .push(Landed { item, change: row.task, commit: row.commit, at: row.at })
+            .expect("no more rows than landings");
+    }
+    landed
 }
 
 fn newer(left: Wall, left_task: u64, right: Wall, right_task: u64) -> bool {
@@ -223,11 +294,11 @@ fn change_before(left: &Change, right: &Change) -> bool {
             Where::Queued { place: right_place, since: _ } => {
                 left_place < right_place || (left_place == right_place && left.task < right.task)
             }
-            Where::Landed { at: _ } => true,
+            Where::Landed { at: _, default_branch: _ } => true,
         },
-        Where::Landed { at: left_at } => match right.at {
+        Where::Landed { at: left_at, default_branch: _ } => match right.at {
             Where::Queued { place: _, since: _ } => false,
-            Where::Landed { at: right_at } => newer(left_at, left.task, right_at, right.task),
+            Where::Landed { at: right_at, default_branch: _ } => newer(left_at, left.task, right_at, right.task),
         },
     }
 }
@@ -247,7 +318,7 @@ fn has_queued(changes: &List<Change>, owner: Belongs) -> bool {
         if change.belongs == owner {
             match change.at {
                 Where::Queued { place: _, since: _ } => return true,
-                Where::Landed { at: _ } => {}
+                Where::Landed { at: _, default_branch: _ } => {}
             }
         }
     }
@@ -354,10 +425,21 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
                 .changes
                 .push(Change {
                     task: row.task(),
-                    at: Where::Landed { at: Wall::from_nanos(row.at()) },
+                    at: Where::Landed { at: Wall::from_nanos(row.at()), default_branch: row.default_branch() },
                     belongs: belongs(root, row.task()),
                 })
                 .expect("one fact per change row");
+        }
+        for row in panel.landed_default() {
+            facts
+                .landed_default
+                .push(Landing {
+                    task: row.task(),
+                    commit: *row.commit(),
+                    at: Wall::from_nanos(row.at()),
+                    belongs: belongs(root, row.task()),
+                })
+                .expect("one fact per default-branch landing");
         }
     }
     for line in &chats.live(root.client())?.rows {

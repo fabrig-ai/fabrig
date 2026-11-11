@@ -30,7 +30,7 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
 
 /// testing/live-tier.md: init's shipped chat chooses change on real Responses.
 #[test]
-#[ignore = "live: a held ChatGPT account, TEMPER_LIVE_ACCOUNT; the after-landing tier, or scripts/proof-live.sh forge-land"]
+#[ignore = "live: a held ChatGPT account, TEMPER_TEST_LIVE_ACCOUNT; the after-landing tier, or scripts/proof-live.sh forge-land"]
 fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
     let account = support::forge_land::live_account();
     owned_forge_landing(support::forge_land::LiveModel::ChatGpt { account: account.as_deref() });
@@ -45,10 +45,11 @@ fn rung_b0_a_person_agrees_a_plan_before_the_change_lands() {
 
 /// testing/live-tier.md and protocol/credentials.md, 3: a held login used in place.
 #[test]
-#[ignore = "live: a held Claude Code login, TEMPER_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_CLAUDE, through temper's test table once it exists")]
+#[ignore = "live: a held Claude Code login, TEMPER_TEST_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
 fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {
-    let login = std::path::PathBuf::from(std::env::var_os("TEMPER_LIVE_CLAUDE").expect("held Claude Code login"));
+    let login = std::path::PathBuf::from(
+        temper_test_env::value(&temper_test_env::LIVE_CLAUDE).expect("held Claude Code login"),
+    );
     owned_forge_landing(support::forge_land::LiveModel::ClaudeCode { login: &login });
 }
 

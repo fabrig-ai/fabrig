@@ -24,6 +24,9 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **A standing role** (`standing.md`) is jig's task that stands under a
+  charter of temper's: an agent that owns some of a project's work for
+  the project's life, its Now its memory, its requester its person.
 - **The worker is smith's host** (section 5; ../worker.md): it prepares the
   workspace from the forge, supervises the agent's process with smith's
   host domain, delivers a change by pushing it, and relays the rest to

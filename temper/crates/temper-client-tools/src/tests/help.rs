@@ -6,6 +6,9 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::ROLE_START_AT), "help_role_start"),
+    (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
+    (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -46,13 +49,9 @@ fn the_help_is_the_page_ctl_then_the_tools() {
     fixtures::check_golden("help", tools);
 }
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_help_prints_as_its_golden_files() {
     for (tool, name) in GOLDENS {
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+        if temper_test_env::rewrite() {
             std::fs::write(
                 std::path::Path::new("src/tests/golden").join(name).with_extension("txt"),
                 fixtures::help(*tool),
@@ -295,6 +294,9 @@ const USAGES: &[&[u8]] = &[
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
     b"project remove PROJECT --key KEY\n",
+    b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
+    b"role list --project PROJECT [--after CURSOR]\n",
+    b"role show TASK\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -473,10 +475,6 @@ fn each_row_says_what_it_does_and_prints() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_project_reference_is_what_the_table_renders() {
     let mut project = None;
     for group in table::GROUPS {
@@ -492,10 +490,7 @@ fn the_project_reference_is_what_the_table_renders() {
     crate::help::reference(group, &mut out).expect("project reference measured");
     let rendered = out.finish();
     let path = std::path::Path::new("../../docs/help/reference/ctl-project.md");
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         std::fs::write(path, &rendered).expect("write project reference");
     }
@@ -526,10 +521,6 @@ fn the_forge_reference_is_what_the_table_renders() {
 fn the_playground_reference_is_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
     for candidate in table::GROUPS {
@@ -545,10 +536,7 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     crate::help::reference(group, &mut out).expect("reference measured");
     let rendered = out.finish();
     let page = temper_docs::find(page_name).expect("reference page");
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new("../../docs/help/reference").join(page.name).with_extension("md");
         std::fs::write(path, &rendered).expect("write group reference");
@@ -569,6 +557,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"role", b"ctl-role");
 }
 
 #[test]

@@ -622,6 +622,147 @@ fn copy_again_opens_its_forge_and_fills_the_address() {
     assert!(button(sheet, side.form().unwrap(), &side.forges).1, "a failed making does not occupy its retry name");
 }
 #[test]
+fn copy_again_reuses_the_failed_copys_listed_name() {
+    let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Other);
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
+    let mut rows = List::with_capacity(1);
+    rows.push(reached(11, b"again", false)).unwrap();
+    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    let sheet = side.sheet().unwrap();
+    assert_eq!(
+        lines(sheet, &side.forges).as_slice(),
+        &[forge::making::Line::To {
+            address: b"https://source.example/acme/again".as_slice().into(),
+            org: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]
+    );
+    assert!(button(sheet, side.form().unwrap(), &side.forges).1);
+}
+#[test]
+fn copy_again_does_not_free_a_taken_name() {
+    let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Taken);
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
+    let mut rows = List::with_capacity(1);
+    rows.push(reached(11, b"again", false)).unwrap();
+    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    let sheet = side.sheet().unwrap();
+    assert_eq!(
+        lines(sheet, &side.forges).as_slice(),
+        &[forge::making::Line::Taken {
+            raw: b"https://source.example/acme/again".as_slice().into(),
+            org: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]
+    );
+    assert!(!button(sheet, side.form().unwrap(), &side.forges).1);
+}
+#[test]
+fn copy_again_does_not_free_another_sources_name() {
+    let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Other);
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
+    let mut rows = List::with_capacity(1);
+    rows.push(reached(11, b"again", false)).unwrap();
+    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    act(&mut side, Act::Addresses(b"https://other.example/acme/again".as_slice().into()));
+    let sheet = side.sheet().unwrap();
+    assert_eq!(
+        lines(sheet, &side.forges).as_slice(),
+        &[forge::making::Line::Taken {
+            raw: b"https://other.example/acme/again".as_slice().into(),
+            org: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]
+    );
+    assert!(!button(sheet, side.form().unwrap(), &side.forges).1);
+}
+#[test]
+fn copy_again_compares_normalised_sources() {
+    let mut side = with_failed(Some(b"source.example/acme/again.git"), w::MakeFailure::Other);
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
+    let mut rows = List::with_capacity(1);
+    rows.push(reached(11, b"again", false)).unwrap();
+    answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
+    act(&mut side, Act::Addresses(b"https://source.example/acme/again".as_slice().into()));
+    let sheet = side.sheet().unwrap();
+    assert_eq!(
+        lines(sheet, &side.forges).as_slice(),
+        &[forge::making::Line::To {
+            address: b"https://source.example/acme/again".as_slice().into(),
+            org: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]
+    );
+    assert!(button(sheet, side.form().unwrap(), &side.forges).1);
+}
+#[test]
+fn copy_again_does_not_free_an_adopted_name() {
+    let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Other);
+    if let State::Rows(rows) = &mut side.forges {
+        rows[0].repositories = Box::new([Adoption {
+            project: PROJECT,
+            owner: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]);
+    }
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
+    let sheet = side.sheet().unwrap();
+    assert_eq!(
+        lines(sheet, &side.forges).as_slice(),
+        &[forge::making::Line::Taken {
+            raw: b"https://source.example/acme/again".as_slice().into(),
+            org: b"acme".as_slice().into(),
+            name: b"again".as_slice().into(),
+        }]
+    );
+    assert!(!button(sheet, side.form().unwrap(), &side.forges).1);
+}
+#[test]
+fn copy_again_does_not_free_an_in_flight_name() {
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 11, branch: b"main".as_slice().into() }).unwrap();
+    for state in [
+        w::MakingState::Waiting,
+        w::MakingState::Making,
+        w::MakingState::Made(made.clone()),
+        w::MakingState::Adopting(made),
+    ] {
+        let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Other);
+        reopen(
+            &mut side,
+            Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+        );
+        if let State::Rows(rows) = &mut side.forges {
+            rows[0].makings[0].state = state;
+        }
+        let sheet = side.sheet().unwrap();
+        assert_eq!(
+            lines(sheet, &side.forges).as_slice(),
+            &[forge::making::Line::Taken {
+                raw: b"https://source.example/acme/again".as_slice().into(),
+                org: b"acme".as_slice().into(),
+                name: b"again".as_slice().into(),
+            }]
+        );
+        assert!(!button(sheet, side.form().unwrap(), &side.forges).1);
+    }
+}
+#[test]
 fn make_again_opens_its_forge_and_fills_both_names() {
     let mut side = with_failed(None, w::MakeFailure::Other);
     reopen(

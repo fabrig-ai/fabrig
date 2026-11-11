@@ -398,6 +398,28 @@ fn requester_template_overrides_refuse_invalid_ending_authority_without_changing
 }
 
 #[test]
+fn a_standing_template_admits_a_chosen_agent_charter() {
+    for executor in [people::TemplateExecutor::Charter(PROJECT), people::TemplateExecutor::Chosen] {
+        let mut config = config(41);
+        let mut value = template();
+        value.executor = executor;
+        value.flags.ended_by = tasks::EndedBy::Standing;
+        value.flags.conversation = false;
+        value.tracked = None;
+        assert!(templates::valid_executor(&value, executor, &config.defaults.charters, &config.settings.models));
+        config.defaults.templates = Box::new([value.clone()]);
+        let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
+        assert!(templates::valid_current_executor(&current, &config.settings, &value, executor));
+        assert_eq!(crate::settings::check(&current, &config.settings, &config.connectors, &limits()), Ok(()));
+        value.flags.conversation = true;
+        assert!(!templates::valid_current_executor(&current, &config.settings, &value, executor));
+        value.flags.conversation = false;
+        value.tracked = Some(1);
+        assert!(!templates::valid_current_executor(&current, &config.settings, &value, executor));
+    }
+}
+
+#[test]
 fn startup_refuses_requester_templates_without_conversation_or_a_named_executor() {
     for (conversation, executor) in
         [(false, people::TemplateExecutor::Charter(PROJECT)), (true, people::TemplateExecutor::Chosen)]

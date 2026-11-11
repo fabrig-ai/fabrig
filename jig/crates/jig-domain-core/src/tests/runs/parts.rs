@@ -15,6 +15,7 @@ fn part(on: Reasons, instructions: &[u8]) -> CharterPart {
 #[test]
 fn run_parts_follow_reasons_in_order_and_own_instructions_replace_them() {
     let mut charter = config(1).defaults.charters[0].clone();
+    charter.policy.resume = false;
     charter.policy.instructions = b"S".as_slice().into();
     let parts = Box::new([part(Reasons::FIRST, b"F"), part(Reasons::QUESTION, b"Q")]);
     let none: Box<[CharterPart]> = Box::new([]);
@@ -51,8 +52,8 @@ fn run_parts_follow_reasons_in_order_and_own_instructions_replace_them() {
         ("empty own", parts, Some(b"".as_slice()), Reasons::FIRST, b"", Reasons::ALL),
     ] {
         charter.parts = parts;
-        assert_eq!(run_instructions(&charter, own, reasons).as_ref(), instructions, "{name}: instructions");
-        assert_eq!(offered_kinds(&charter, own.is_some(), reasons), offered, "{name}: offered");
+        assert_eq!(run_instructions(&charter, own, reasons, false).as_ref(), instructions, "{name}: instructions");
+        assert_eq!(offered_kinds(&charter, own.is_some(), reasons, false), offered, "{name}: offered");
     }
 }
 
@@ -177,6 +178,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             reply_to: ReplyTo::new(Token::new(2)),
             task: 2,
             attempt: 1,

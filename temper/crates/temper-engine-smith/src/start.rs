@@ -14,6 +14,10 @@ use temper_engine_domain as engine;
 pub fn section(section: &engine::BriefSection) -> run::Section {
     let title: &[u8] = match &section.kind {
         engine::BriefKind::Core(brief::Core::Task) => b"Task",
+        engine::BriefKind::Core(brief::Core::Now) => {
+            let text = section_text(&section.body);
+            return run::Section { title: jig_protocol_charter::now_title(&text), text };
+        }
         engine::BriefKind::Core(brief::Core::Lineage) => b"Lineage",
         engine::BriefKind::Core(brief::Core::Results) => b"Dependencies",
         engine::BriefKind::Core(brief::Core::Plan) => b"Plan",

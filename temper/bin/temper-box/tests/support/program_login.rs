@@ -79,7 +79,7 @@ pub fn run(directory: &Path) -> super::Ended {
             environment: vec![
                 ("HOME".into(), directory.into()),
                 ("PATH".into(), "/bin".into()),
-                ("TEMPER_BENIGN".into(), "kept".into()),
+                ("BENIGN_SETTING".into(), "kept".into()),
                 ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
                 ("ANTHROPIC_API_KEY".into(), "removed".into()),
                 ("CLAUDE_CODE_OAUTH_TOKEN".into(), "removed".into()),

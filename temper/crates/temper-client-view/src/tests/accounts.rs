@@ -159,7 +159,7 @@ fn a_row_holds_its_trials_line() {
             c::AccountKind::Key,
             v::TrialStep::Answers,
             v::TrialState::Running,
-            "OpenAI API key · trying: ChatGPT answers",
+            "OpenAI API key · trying: ChatGPT answers · one short message",
             None,
             true,
         ),
@@ -1882,10 +1882,6 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn english_phrase_declarations_match_the_vocabulary() {
     let path = skein_scratch::paths::package().join("src/words.rs");
     let source = std::fs::read_to_string(&path).unwrap();
@@ -1900,7 +1896,7 @@ fn english_phrase_declarations_match_the_vocabulary() {
     all.push_str("];");
     let start = source.find("const ALL: [Word;").unwrap();
     let end = start + source[start..].find("\n];").unwrap() + 3;
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let updated = format!("{}{}{}", &source[..start], all, &source[end..]);
         std::fs::write(&path, updated).unwrap();
     } else {

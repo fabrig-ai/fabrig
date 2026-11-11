@@ -1,7 +1,13 @@
 # Status
 
 2026-11-11. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The TUI's
+its design from its drafts, from the status files below. A standing
+role is the stock's charter 13 and template 7, jig's task that stands,
+started with `temper ctl role start` and read with `role list` and
+`role show`, its person its requester, moved to an owner when that
+person leaves the project (`domain/agent/standing.status.md`); its
+areas, routing, talk and reports are the standing-roles draft's later
+milestones (`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
@@ -83,10 +89,13 @@ and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
 (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
-design session, T2, is designed and not yet built: `/draft`, the draft
-in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
-design session*; `client/README.status.md`). The
+design session, T2, is built by goal 172: `/draft`, the draft in a side
+pane that skein's full-screen shell lays beside the body, folded, at
+half or at all by Ctrl-P, the sections the last turn wrote marked new,
+a reply's choices as a prompt, `/goal` with its prompt of ways, and the
+quiet line's pane and goal parts, with goldens and the journey
+`design-session` (`client/tui/pages.md`, *A design session*;
+`client/tui/journeys.md`, 9; `draft/tui-design-session.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
@@ -222,7 +231,11 @@ its delivery replaces (`domain/worker.status.md`), run changed-package lints and
 tests with direct dependents, one process per test binary, and identify inherited failures. A project
 may give its changes' checks a bound of its own, and a check that only ran
 out of time runs once more at twice its time
-(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`). The
+(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`).
+A worker's checkouts borrow one git store per repository per worker, which
+every fetch from the forge fills, so a checkout made again transfers only
+what the worker lacks, and a prepare fetches each branch once
+(`domain/worker.status.md`, 5; `protocol/git.status.md`, 4). The
 reference's coder and coordinator still ask for manual checks
 (`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
@@ -340,8 +353,8 @@ you, counted in no card's count, its link to Accounts, which offers an
 expiring source its renewal, with the joint world's story through
 temper's engine, the density fuzz's part and four gallery states. What
 waits on a login, a forge's token and a person task asking an act wait
-for reads, the terminal's inbox lists none, and its item's look lags
-`needs.html`; its render check and walk follow landing
+for reads, the terminal's inbox lists none, and its item's question names
+its source where `needs.html` names who uses it; its render check and walk follow landing
 (`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
 2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
 4). Ask temper's
@@ -358,9 +371,8 @@ lines in jig's party scope, each Ask temper brief carries them whole,
 a turn's read shows them and `remember`'s calls to the person alone, and
 the page "What temper remembers about you" reads, changes and deletes
 them (`domain/agent/ask-temper.md`, 4; `client/pages/remembered.md`). A fresh
-start's transcript tail shows `remember`'s calls to every reader, every
-task a person starts reads the list in its brief, not Ask temper's
-alone, and the page empties while it reads again
+start's transcript tail shows `remember`'s calls to every reader, and
+the page empties while it reads again
 (`domain/agent/README.status.md`; `draft/ask-temper.status.md`;
 `client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
@@ -386,8 +398,8 @@ where `me` lists template 6, and opened again in Split (`domain/agent/charter.md
 ). A project made before it keeps a policy whose delegation names no
 charter 12 (`protocol/configuration/README.status.md`), `chat-draft`'s recording
 predates it (`client/web/journeys.status.md`), no walk on record has run a
-real model on its words, and the terminal's `/draft` is the milestone T2's
-(`draft/surfaces.status.md`, 11; `draft/whole-story.execution.md`).
+real model on its words, and the terminal's design session is the milestone T2's
+(`client/tui/pages.md`, *A design session*; `draft/whole-story.execution.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -569,8 +581,8 @@ link is stored on the forge, eligibility counts per repository's forge,
 and approval waits merge into Needs you, Home and goal bands, with the
 files-page review link and Later. Proposals and help state the accepted
 owned-Forgejo limit: agents and CI run as the person, so the rule stops
-mistakes, not a deliberate bypass. A retained link is not cleared on a
-start outside the box with the same sole owner; that scope gap remains
+mistakes, not a deliberate bypass. A start outside the box, or with
+another sole owner or none, clears a restored link
 (`domain/forge/adoption.md`, 6; `draft/forge-identity.md`, section 9).
 The scripted composed story covers owned Forgejo; GitHub's full box
 story, real human reviews and rendered comparison remain unproved.
@@ -724,9 +736,12 @@ whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not
 connected pauses a repair with no bound, by that plan's cut (`domain/forge/README.md`).
-No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag, and
-the queue's first can lose its turn to a change stepped during it
+No test runs real git on a dirty workspace (`protocol/git.md`). The queue's first
+keeps its turn through its update, CI and merge, a change's own update and its
+goal's merges into its branch are its own heads, a stall's hold names its step,
+and a change's CI the runner failed runs again before any repair, each shown on
+the fake forge alone (`domain/forge/README.md`; `draft/queue-smooth.md`). Much of a change's own
+bounds and gates, the forge's merge queue and a goal's issue lag
 (`domain/forge/README.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
@@ -773,8 +788,7 @@ check, the closed-chat wait's split and a head's stall-deadline story remain
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
 parsed blocks and timing away-reader scans remain open (`client/README.md`,
 `draft/chat-reading.md`). The bundle travels gzipped and a
-placeholder paints first, but its fade takes 160 ms where the design has 200, and a
-stall before the module's answer draws no words (`client/web/README.md`). On a phone a chat's page hides the accounts'
+placeholder paints first, but its fade takes 160 ms where the design has 200 (`client/web/README.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/web/README.md`).
 Forges kept in the store, a forge's removal and the
@@ -897,8 +911,7 @@ account and a model it serves, with fake-provider stories for both orders and
 a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
 account's stopped sample and Ready's trial states (`client/web/README.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
-reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
-notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+reason (`domain/trial.md`). No outcome of the required
 real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
@@ -1033,16 +1046,17 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and Ask temper's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
+read's `owned`, and `draft/to-begin.md`'s five, a dismissal erased
 with its project alone, a step's chats the person's own, the first
 repository's "Adopt" sending its adoption and an adoption under way the
-session's alone, beside a lag, any project's change of settings marking
-its first step; `draft/repository-copies.md`'s holds two the
+session's alone, and its first step marked by a change of the project's
+own settings alone; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
-Home’s own sheet and the two unmocked entry paths remain distinct
-(`draft/repository-copies.md`). Settings’ connection pages share the
+Home keeps its own sheet, as the user asked, and the gallery draws the
+two entry paths into “Add repositories” (`draft/repository-copies.md`;
+`client/forge/family.md`). Settings’ connection pages share the
 welcome’s cards and panels and finish on Accounts or Forges. Failed
 making rows can be dismissed through their project's keyed request;
 absent rows are kept and running rows refused. The browser stories keep
@@ -1129,7 +1143,7 @@ box integration, closure rows and help are built by their own plans; M6's
 release job and figures remain, and the parent's Later section is
 unchanged (`draft/deployment-binaries.status.md`).
 
-temper's command lines, `draft/cli.execution.md`'s C2 and C6: the box's
+temper's command lines, `draft/cli.execution.md`'s C2, C4 and C6: the box's
 binary is `temper-box`, a package under `bin/` whose crate is
 `temper-box-shell`, and the engine's, the worker's and the agent's,
 `temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
@@ -1138,12 +1152,15 @@ each holds a table on skein's, reached by `Table::reach`, with its help,
 `--version`, exit 2 for refused arguments, its pre-table modes as rows,
 and its reference documents generated beside `cli/README.md`. The
 internal variables are renamed `TEMPER_INTERNAL_*` and the twins
-dropped; the client's table is C3's (`cli/README.status.md`;
-`draft/cli.status.md`). Each binary's package, the client's included,
-links `temper-version` and hands its build identity to its crate; no
-library links it, a row of the boundary test's direction rule holds it,
-and a new commit relinks the binaries and rebuilds no library or world
-below them (`release.status.md`; `draft/version-rebuilds.status.md`).
+dropped. The test set is `temper-test-env`'s table, its variables
+`TEMPER_TEST_*`, through which temper's tests read the environment, with
+its `test-env` generated beside the others. The client's table is
+C3's (`cli/README.status.md`; `draft/cli.status.md`). Each binary's
+package, the client's included, links `temper-version` and hands its
+build identity to its crate; no library links it, a row of the boundary
+test's direction rule holds it, and a new commit relinks the binaries
+and rebuilds no library or world below them (`release.status.md`;
+`draft/version-rebuilds.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -1189,6 +1206,7 @@ Drafts:
 - [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)

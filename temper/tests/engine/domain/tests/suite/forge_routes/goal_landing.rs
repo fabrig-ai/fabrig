@@ -659,6 +659,96 @@ fn finish_goal(world: &mut World, goal: &engine::Assignment) {
 }
 
 #[test]
+fn a_closers_landing_checks_its_updates_head_and_lands_with_or_without_a_close_out() {
+    use temper_engine_domain_forge_change::State;
+    for close_out in [false, true] {
+        let (mut world, goal, branch, closer, landing) = super::goal_closer::updating_landing(close_out);
+        let State::Updating { from, .. } = row(&world, landing).change.state else { panic!("updating") };
+        world.forge_reads = Some(Vec::new());
+        for _ in 0..STEPS {
+            world.tick();
+            assert_not_held(&world, landing);
+            if matches!(row(&world, landing).change.state, State::Checking { .. }) {
+                break;
+            }
+        }
+        let head = branch_tip(&mut world, &branch);
+        assert_ne!(translate::commit(head), from);
+        assert_eq!(row(&world, landing).change.state, State::Checking { head: translate::commit(head) });
+        assert_eq!(row(&world, landing).change.clean.as_ref(), &[from]);
+        assert_eq!(row(&world, landing).change.updates, 1);
+        assert_goal_holds(&world, goal.task, &branch);
+        let mut read_ci = false;
+        for _ in 0..STEPS {
+            world.tick();
+            assert_not_held(&world, landing);
+            read_ci = world.forge_reads.as_ref().expect("reads recorded").iter().any(|(_, read)| {
+                matches!(read, skein_forge::api::Read::Checks { commit } if *commit == translate::commit(head))
+                || matches!(read, skein_forge::api::Read::Pull { number, ci: true } if row(&world, landing).pull == Some(*number))
+            });
+            if read_ci {
+                break;
+            }
+        }
+        assert!(read_ci, "the updated head is checked afresh");
+        assert_landing_at(&mut world, landing, head);
+        super::goal_closer::wait_ended(&mut world, closer);
+        world.close();
+    }
+}
+
+#[test]
+fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let (mut world, goal, branch, _, landing) = super::goal_closer::updating_landing(false);
+    let expected = row(&world, landing).change.last_head.expect("own head");
+    world.hold_write_answers = Some(HoldWrite::All);
+    let head =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"another identity", 2)
+            .expect("outside push");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::BranchMoved {
+                branch: branch.clone(),
+                head: translate::commit(head),
+                actor: 2,
+            },
+            key: None,
+        },
+    })));
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. }));
+    let tasks::Phase::Held { source: Some(source), why: tasks::Hold::Drift, .. } = &live_task(&world, landing).phase
+    else {
+        panic!("drift's task account: {:?}", live_task(&world, landing).phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("drift account") };
+    let before = forge_top::commit_text(&expected);
+    let after = forge_top::commit_text(&translate::commit(head));
+    assert_eq!(
+        words.as_ref(),
+        format!(
+            "its branch moved: expected {}, found {}",
+            core::str::from_utf8(&before[..12]).unwrap(),
+            core::str::from_utf8(&after[..12]).unwrap()
+        )
+        .as_bytes()
+    );
+    world.hold_write_answers = None;
+    world.events.extend(world.held_write_answers.drain(..));
+    world.signed_in = None;
+    world.sign_in();
+    cancel_task(&mut world, goal.task);
+    world.close();
+}
+
+#[test]
 fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() {
     let (mut world, goal, branch, landing, old) = checking_landing();
     let head = land_into_goal(&mut world, &goal, &branch, LANDING_CALL + 2, b"implementation");

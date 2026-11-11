@@ -46,7 +46,9 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     if invocation::arguments(&command) != spawn.args {
         return Err(Refusal::Usage);
     }
-    if let Some(remote) = remote(&command) {
+    if let Some(remote) = remote(&command)
+        .or_else(|| if let Command::Remote { remote } = &command { Some(remote.as_ref()) } else { None })
+    {
         check_remote(remote)?;
     }
     let mut env = BTreeMap::new();
@@ -89,6 +91,10 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
+            | Command::Remote { .. }
+            | Command::Store { .. }
+            | Command::Format
+            | Command::UpdateRef { .. }
             | Command::SnapshotFetch { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
@@ -124,6 +130,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     }
     if author.is_none()
         && credential.is_none()
+        && !matches!(command, Command::UpdateRef { .. })
         && (committer.0.as_ref() != b"temper" || committer.1.as_ref() != b"temper@temper.invalid")
     {
         return Err(Refusal::Broken("placeholder committer"));
@@ -194,8 +201,8 @@ fn check_remote(url: &[u8]) -> Result<(), Refusal> {
 }
 pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
     match command {
-        Command::SnapshotFetch { remote, .. }
-        | Command::Clone { remote, .. }
+        Command::Store { remote, .. }
+        | Command::SnapshotFetch { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
@@ -204,6 +211,10 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Version
+        | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::Format
+        | Command::UpdateRef { .. }
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
@@ -243,9 +254,27 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
             Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
         }
-        [b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", url, dir] => {
-            Command::Clone { remote: (*url).into(), directory: (*dir).into() }
+        [b"rev-parse", b"--show-object-format"] => Command::Format,
+        [b"init", b"--quiet", format, b"--", dir] => Command::Clone {
+            directory: (*dir).into(),
+            format: match format.strip_prefix(b"--object-format=")? {
+                b"sha1" => invocation::Format::Sha1,
+                b"sha256" => invocation::Format::Sha256,
+                _ => return None,
+            },
+        },
+        [b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory] => {
+            Command::Store { remote: (*remote).into(), directory: (*directory).into() }
         }
+        [b"remote", b"add", b"origin", b"--", remote] => Command::Remote { remote: (*remote).into() },
+        [b"update-ref", reference, commit] => Command::UpdateRef {
+            into: match *reference {
+                b"refs/temper/fetched" => git::Into::Fetched,
+                b"refs/temper/landing" => git::Into::Landing,
+                _ => return None,
+            },
+            commit: invocation::object(commit)?,
+        },
         [
             b"fetch",
             b"--porcelain",
@@ -258,10 +287,15 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             spec,
         ] => {
             let spec = spec.strip_prefix(b"+")?;
-            let (from, into) = if let Some(from) = spec.strip_suffix(b":refs/temper/fetched") {
-                (from, git::Into::Fetched)
-            } else {
-                (spec.strip_suffix(b":refs/temper/landing")?, git::Into::Landing)
+            let split = spec.windows(b":refs/temper/".len()).position(|part| part == b":refs/temper/")?;
+            let from = &spec[..split];
+            let destination = &spec[split + b":refs/temper/".len()..];
+            let slash = destination.iter().position(|byte| *byte == b'/')?;
+            let workspace = skein_lib::Token::new(std::str::from_utf8(&destination[..slash]).ok()?.parse().ok()?);
+            let into = match &destination[slash + 1..] {
+                b"fetched" => git::Into::Fetched,
+                b"landing" => git::Into::Landing,
+                _ => return None,
             };
             let source = if from == b"HEAD" {
                 Source::Default
@@ -270,7 +304,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             } else {
                 Source::Commit(invocation::object(from)?)
             };
-            Command::Fetch { remote: (*url).into(), source, into }
+            Command::Fetch { remote: (*url).into(), source, into, workspace }
         }
         [b"checkout", b"--force", b"--detach", commit] => Command::CheckOut { commit: invocation::object(commit)? },
         [b"clean", b"-ffdxq"] => Command::Clean,

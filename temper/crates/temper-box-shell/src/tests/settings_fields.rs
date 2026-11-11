@@ -7,15 +7,11 @@ use settings_form::{
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");
         std::fs::write(path, rendered).expect("write settings fields reference");
         return;
@@ -41,6 +37,7 @@ fn llm() -> jig_protocol_config::Llm {
             endpoint: 1,
             program: None,
             name: Box::from(b"x".as_slice()),
+            cache_life_ms: 0,
             window: 8192,
             output: 1024,
             input_price: 1,
@@ -220,8 +217,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // The fixture has one model, nine charters, five templates, one policy and the rules.
-    const STOCK_VALUES: usize = 17;
+    // The fixture has one model, ten charters, six templates, one policy and the rules.
+    const STOCK_VALUES: usize = 19;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::with_models(

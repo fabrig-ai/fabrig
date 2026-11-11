@@ -484,6 +484,8 @@ pub enum Word {
     SettingsNoneTag,
     SettingsNoneBody,
     SettingsSignedIn,
+    WorkGoalBranchOne,
+    WorkGoalBranchMany,
     WorkOne,
     WorkKicker,
     WorkNothing,
@@ -1562,6 +1564,7 @@ pub enum Word {
     WelcomeForgeAndModel,
     WelcomeTryStep,
     WelcomeTryLine,
+    WelcomeTrySpend,
     WelcomeTryAnswered,
     WelcomeTryNoAnswer,
     WelcomeTrySubscription,
@@ -1777,7 +1780,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2330;
+const PHRASES: u32 = 2333;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1804,10 +1807,10 @@ const PHRASES: u32 = 2330;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4189;
+const SEGMENTS: u32 = 4194;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56529;
-const ALL: [Word; 1646] = [
+const ENGLISH_BYTES: u32 = 56628;
+const ALL: [Word; 1649] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2272,6 +2275,8 @@ const ALL: [Word; 1646] = [
     Word::SettingsNoneTag,
     Word::SettingsNoneBody,
     Word::SettingsSignedIn,
+    Word::WorkGoalBranchOne,
+    Word::WorkGoalBranchMany,
     Word::WorkOne,
     Word::WorkKicker,
     Word::WorkNothing,
@@ -3314,6 +3319,7 @@ const ALL: [Word; 1646] = [
     Word::WelcomeForgeAndModel,
     Word::WelcomeTryStep,
     Word::WelcomeTryLine,
+    Word::WelcomeTrySpend,
     Word::WelcomeTryAnswered,
     Word::WelcomeTryNoAnswer,
     Word::WelcomeTrySubscription,
@@ -3956,6 +3962,8 @@ impl Word {
             Self::StartGoalAlways => 3593,
             Self::StartGoalAlwaysDetail => 3594,
             Self::GoalFollowsAway => 3595,
+            Self::WorkGoalBranchOne => 5672,
+            Self::WorkGoalBranchMany => 5673,
             Self::WorkOne => 4679,
             Self::WorkKicker => 4650,
             Self::WorkNothing => 4651,
@@ -5037,6 +5045,7 @@ impl Word {
             Self::WelcomeForgeAndModel => 3867,
             Self::WelcomeTryStep => 3868,
             Self::WelcomeTryLine => 3869,
+            Self::WelcomeTrySpend => 3886,
             Self::WelcomeTryAnswered => 3728,
             Self::WelcomeTryNoAnswer => 3729,
             Self::WelcomeTrySubscription => 3730,
@@ -5792,6 +5801,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsMoreMany => (&[b"More than ", b" goals, ", b" under way."], &[Number, Number]),
         Word::GoalsLede => (&[b"A goal turns a draft into landed work."], &[]),
         Word::GoalsWays => (&[b"A goal turns a draft into landed work, its own way: "], &[]),
+        Word::WorkGoalBranchOne => (&[b"Also one change landed into a goal branch."], &[]),
+        Word::WorkGoalBranchMany => (&[b"Also ", b" changes landed into goal branches."], &[Name]),
         Word::WorkOne => (&[b"One"], &[]),
         Word::WorkKicker => (&[b"", b" \xc2\xb7 Work"], &[Name]),
         Word::WorkNothing => (&[b"Nothing in flight yet."], &[]),
@@ -5922,6 +5933,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgeAndModel => (&[b"Forge and model"], &[]),
         Word::WelcomeTryStep => (&[b"Trying: ", b""], &[Name]),
         Word::WelcomeTryLine => (&[b"", b" \xc2\xb7 trying: ", b""], &[Name, Name]),
+        Word::WelcomeTrySpend => (&[b"one short message"], &[]),
         Word::WelcomeTryAnswered => (&[b"answered in ", b" s"], &[Number]),
         Word::WelcomeTryNoAnswer => (&[b"", b" didn\xe2\x80\x99t answer"], &[Name]),
         Word::WelcomeTrySubscription => (&[b"Signed in to your subscription"], &[]),

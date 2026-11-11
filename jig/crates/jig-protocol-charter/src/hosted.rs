@@ -22,7 +22,10 @@ pub fn hosted(assignment: &core::Assignment, parts: RootParts<'_>) -> Option<hos
     let mut sections = List::with_capacity(u32::try_from(assignment.brief.len()).ok()?);
     for placed in &assignment.brief {
         let section = match placed {
-            brief::GatherPlaced::Core { kind, text } => Section { title: title(*kind).into(), text: text.clone() },
+            brief::GatherPlaced::Core { kind, text } => Section {
+                title: if *kind == brief::Core::Now { now_title(text) } else { title(*kind).into() },
+                text: text.clone(),
+            },
             brief::GatherPlaced::CoreMissing { kind, .. } => {
                 Section { title: title(*kind).into(), text: b"[missing]".as_slice().into() }
             }
@@ -89,9 +92,19 @@ fn start_message(word: &tasks::Word) -> host::StartMessage {
         words: jig_protocol_tools::words(word),
     }
 }
+/// Title a Now with its rendered note identity, revision and write time
+/// (`jig/docs/design/domain/tasks/standing.md`, section 6).
+#[must_use]
+pub fn now_title(text: &[u8]) -> Box<[u8]> {
+    let end = skein_lib::bytes::find(text, b"\n").unwrap_or(text.len());
+    let heading = text.get(..end).expect("first line within text");
+    skein_lib::bytes::concat(&[b"Now: ", heading])
+}
+
 const fn title(kind: brief::Core) -> &'static [u8] {
     match kind {
         brief::Core::Task => b"Task",
+        brief::Core::Now => b"Now",
         brief::Core::Lineage => b"Requesters",
         brief::Core::Results => b"Results",
         brief::Core::Plan => b"Plan",

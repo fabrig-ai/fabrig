@@ -8,11 +8,13 @@ use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
 use skein_lib::{List, Queue, Token, Wall, bytes::copy_of};
 use skein_ui::phrases::Hole;
 use skein_ui::{Act, Binding, Builder, EntryKind, NodeId, Patch, Role, Run, State, Style, Tree};
-use temper_client_domain::{Address, Domain, asked};
+use temper_client_domain::{Address, Domain, asked, pages::chat::document::Mode};
 use temper_client_view::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
 pub(crate) mod foot;
+pub(crate) mod pane;
+pub use pane::HALVES;
 pub(crate) mod front;
 pub(crate) mod launchpad;
 pub(crate) mod printed;
@@ -61,6 +63,7 @@ pub struct View {
     page: Option<Box<[u8]>>,
     focus: Option<Box<[u8]>>,
     walkable: bool,
+    pane: Option<(Mode, Mode)>,
     selected: Option<u64>,
     box_empty: bool,
     left_off_arrows: bool,
@@ -83,6 +86,7 @@ impl View {
             page: None,
             focus: None,
             walkable: false,
+            pane: None,
             selected: None,
             box_empty: false,
             left_off_arrows: false,
@@ -95,6 +99,12 @@ impl View {
     #[must_use]
     pub fn tick(&self) -> Option<Wall> {
         self.tick
+    }
+    /// The pane state in the tree last built, absent when it cannot show.
+    #[must_use]
+    pub fn pane_mode(&self) -> Option<Mode> {
+        let (mode, _next) = self.pane?;
+        Some(mode)
     }
     #[must_use]
     pub fn tree(&self) -> &Tree {
@@ -289,6 +299,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
+        view.pane = None;
         view.left_off.clear();
         view.selected = None;
         view.box_empty = false;
@@ -346,11 +357,19 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.built = Some((root_shown, revision));
 }
 /// The signed-in tree from data alone (client/tui/pages.md).
+#[expect(clippy::manual_map, reason = "step code reads optional pane facts with an explicit match")]
 pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
     view.tick = match &signed.body {
         Body::Launchpad(part) => part.tick,
         Body::Chat(_) | Body::Welcome(_) => None,
+    };
+    view.pane = match &signed.body {
+        Body::Chat(part) => match &part.pane {
+            Some(pane) => Some((pane.mode, pane.next)),
+            None => None,
+        },
+        Body::Welcome(_) | Body::Launchpad(_) => None,
     };
     view.left_off.clear();
     view.selected = None;
@@ -500,13 +519,31 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Help | Command::Exit => true,
-            Command::Goal | Command::Font | Command::Theme => false,
+            Command::Goal => goal_offered(root),
+            Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
         }
     }
     commands.into_boxed()
+}
+
+/// Whether /goal is offered on this chat (client/tui/pages.md, Offered).
+#[must_use]
+pub fn goal_offered(root: &Domain) -> bool {
+    use temper_client_domain::pages::{chat::document, terminal::Command};
+    let Some(chat) = root.pages().chat() else { return false };
+    if !temper_client_view::shared::offered(root, chat.task(root.client()), Command::Goal) {
+        return false;
+    }
+    let Some(draft) = &chat.draft else { return false };
+    for section in document::sections(&draft.body) {
+        if !section.heading.is_empty() {
+            return true;
+        }
+    }
+    false
 }
 
 /// The launchpad's selection keys (temper/docs/design/client/tui/pages.md).
@@ -541,7 +578,10 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
         return None;
     }
     let page = if let Some(chat) = root.pages().chat() {
-        Address::Chat { task: chat.task }
+        match chat.goal_from(root) {
+            Some((goal, _)) => Address::Task { task: goal },
+            None => Address::Chat { task: chat.task },
+        }
     } else {
         Address::Home { project: root.pages().project()? }
     };
@@ -608,4 +648,11 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
     }
     commands.push(Own::Theme).expect("theme counted");
     commands.into_boxed()
+}
+
+/// Ctrl-P, decoded against the tree last built.
+#[must_use]
+pub fn pane_key(view: &View) -> Option<Event> {
+    let (_shown, mode) = view.pane?;
+    Some(Event::Act { act: temper_client_domain::pages::Act::Mode { mode } })
 }

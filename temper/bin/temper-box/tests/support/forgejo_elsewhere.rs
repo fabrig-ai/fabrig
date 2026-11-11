@@ -27,30 +27,25 @@ use std::{
 };
 
 const STORY: &str = "a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart";
-const CHILD: &str = "TEMPER_E4_LIFE";
 const EDIT: &[u8] = b"Changed by the elsewhere chat.\n";
 
 #[expect(
     clippy::too_many_lines,
     reason = "one process story keeps adoption, deleted hooks and restart observations together"
 )]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_E4_LIFE, TEMPER_E4_RESTART and TEMPER_E4_CAPTURE, through temper's test table once it exists"
-)]
 pub fn restart() {
-    if let Some(root) = std::env::var_os(CHILD) {
-        life(Path::new(&root), std::env::var_os("TEMPER_E4_RESTART").is_some());
+    if let Some(root) = temper_test_env::value(&temper_test_env::E4_LIFE) {
+        life(Path::new(&root), temper_test_env::value(&temper_test_env::E4_RESTART).is_some());
         return;
     }
-    let Some(capture) = std::env::var_os("TEMPER_E4_CAPTURE") else {
+    let Some(capture) = temper_test_env::value(&temper_test_env::E4_CAPTURE) else {
         let scratch = Scratch::new("forgejo_elsewhere_capture");
         let name = format!("temper-e4-{}", std::process::id());
         let address = SocketAddr::from_abstract_name(name.as_bytes()).expect("short capture address");
         let listener = UnixListener::bind_addr(&address).expect("capture socket");
         let child = std::process::Command::new(std::env::current_exe().expect("process test binary"))
             .args(["--exact", STORY, "--nocapture"])
-            .env("TEMPER_E4_CAPTURE", &name)
+            .env(temper_test_env::E4_CAPTURE.name, &name)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
@@ -165,9 +160,9 @@ fn assert_hook(forge: &Throwaway, owner: &str, name: &str, url: &str) {
 
 fn child(root: &Path, restarted: bool, token: &[u8]) {
     let mut command = std::process::Command::new(std::env::current_exe().expect("process test binary"));
-    command.args(["--exact", STORY, "--nocapture"]).env(CHILD, root);
+    command.args(["--exact", STORY, "--nocapture"]).env(temper_test_env::E4_LIFE.name, root);
     if restarted {
-        command.env("TEMPER_E4_RESTART", "1");
+        command.env(temper_test_env::E4_RESTART.name, "1");
     }
     let output = command.output().expect("captured story life");
     no_token(&output.stdout, token);

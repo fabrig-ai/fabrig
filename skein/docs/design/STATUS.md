@@ -20,10 +20,10 @@ routes, `Artifact` and `Commits` among them (`forge/README.md`,
 `forge/github.md`); seven of its artifact facts are unchecked at the
 pinned Forgejo (`forge/README.md`); the App account's `GET /app` fact still has
 no live observation (`forge/github.md`, `forge/setup/README.md`). A copy's facts
-remain unchecked at the pinned Forgejo, one of them not
+remain unchecked at the pinned Forgejo, three of them not
 recorded at all, and no fact records a site admin's read of a repository
-by its path (`forge/setup/README.md`), nor a comparison's `removed` (`forge/README.md`); the fake Forgejo leaves no repository
-at a refused copy, asks a delete the wrong scope and answers a read by
+by its path (`forge/setup/README.md`), nor a comparison's `removed` (`forge/README.md`); the fake Forgejo
+answers a read by
 path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`testing/fakes/forge.md`).
 The forge kit's targeted reads are designed and not built: `Range` for
@@ -103,8 +103,7 @@ kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
 later review (`forge/README.md`); single departures stand in
 `net/channel.md`, `testing/fakes/forge.md`, `forge/README.md`, `forge/connection.md`, `runtime/io/README.md`,
 `data/json.md`, `data/kv.md`, `runtime/lib.md`, `net/link.md`, `llm/README.md`, `oauth/README.md`, `runtime/shell.md`,
-`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's loader draws no words for a
-stall before its module's answer, its compressor's crates build optimized in
+`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's compressor's crates build optimized in
 development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui/web/README.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
