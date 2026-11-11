@@ -18,6 +18,11 @@ impl std::ops::Deref for Cluster {
     }
 }
 impl Cluster {
+    /// Engine starts refused before a service could listen.
+    #[must_use]
+    pub fn failed_starts(&self) -> &[String] {
+        self.ran.service().failed_starts()
+    }
     /// The engine's peak tries per class, retained before a successful park clears them.
     #[must_use]
     pub fn tries(&self, number: u64) -> jig_domain_tasks::Tries {

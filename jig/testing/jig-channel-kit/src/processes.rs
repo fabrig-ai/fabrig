@@ -38,6 +38,7 @@ pub(crate) struct ServiceHost {
     pub(crate) relay: Relay,
     pub(crate) revision: (u64, u64),
     pub(crate) order_probe: Option<crate::worker_orders::probe::Probe>,
+    pub(crate) failed_starts: crate::failed_starts::Starts,
 }
 impl ServiceHost {
     fn new(service: Service, worker: bool) -> Self {
@@ -59,6 +60,7 @@ impl ServiceHost {
             relay: Relay::new(1024),
             revision: (NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed), 0),
             order_probe: None,
+            failed_starts: crate::failed_starts::Starts::default(),
         }
     }
 }
@@ -73,6 +75,7 @@ impl Host for ServiceHost {
         if let Some(probe) = &mut self.order_probe {
             probe.receive(now, self.service.completions(), &self.wire);
         }
+        self.failed_starts.receive(self.service.completions());
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
             self.files.complete(complete);
@@ -84,6 +87,7 @@ impl Host for ServiceHost {
         if let Some(probe) = &mut self.order_probe {
             probe.stepped(now, self.service.root_steps().saturating_sub(steps), after_waits.saturating_sub(waits));
         }
+        self.failed_starts.stepped(&mut self.service);
         self.revision.1 += 1;
         for _ in 0..self.service.submissions().len() {
             let mut submit = self.service.submissions().pop().expect("service submissions");
@@ -95,6 +99,14 @@ impl Host for ServiceHost {
                         continue;
                     }
                 }
+            }
+            if self.failed_starts.cut_record(&submit) {
+                self.service.completions().push(kernel::Complete {
+                    op: submit.op,
+                    kind: submit.kind,
+                    result: Err(kernel::Error::Reset),
+                });
+                continue;
             }
             if self.corrupt_transcript {
                 self.files.corrupt_transcript(&mut submit.kind, &self.codec);
@@ -161,6 +173,13 @@ impl Delegate for Proc {
 }
 pub(crate) fn engine(inherited: &Inherited) -> Proc {
     engine_configured(inherited, false)
+}
+pub(crate) fn engine_failed_starts(inherited: &Inherited) -> Proc {
+    let mut proc = engine(inherited);
+    let Proc::Engine(host) = &mut proc else { unreachable!("engine factory") };
+    host.failed_starts.roots =
+        inherited.roots.iter().filter(|(name, _)| name.starts_with(b"failed-")).map(|(_, fd)| *fd).collect();
+    proc
 }
 pub(crate) fn engine_providers(inherited: &Inherited) -> Proc {
     engine_document(inherited, &fixtures::providers_document())

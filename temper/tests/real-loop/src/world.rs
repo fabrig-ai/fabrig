@@ -832,9 +832,9 @@ impl Referee<Proc> for Judge {
             }
             caller.engine_ready.set(service.settled());
         }
-        if caller.starting_engine() {
+        if let Some(failures) = caller.starting_engine() {
             if service.stopping() {
-                service.restart();
+                service.restart_after_failures(failures);
             }
             caller.engine_ready.set(service.links() > 1 && story_ready(service, workers));
         }
@@ -1006,7 +1006,8 @@ impl Referee<Proc> for Judge {
             });
         let engine_action = caller.stopping_engine()
             && (!service.stopping() || service.settled() && !caller.engine_ready.get())
-            || caller.starting_engine() && (service.stopping() || service.links() > 1 && !caller.engine_ready.get())
+            || caller.starting_engine().is_some()
+                && (service.stopping() || service.links() > 1 && !caller.engine_ready.get())
             || caller
                 .cancelled_worker()
                 .and_then(named_worker)

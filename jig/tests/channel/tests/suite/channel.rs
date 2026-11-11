@@ -102,6 +102,20 @@ fn a_restarted_engine_adopts_the_worker_s_run_at_its_hello() {
 }
 
 #[test]
+fn two_failed_engine_starts_leave_the_native_run_for_the_third_to_adopt() {
+    let before = jig_channel_world::stories::before_provider_query(fixtures::calm(fixtures::SEED));
+    let outcome = run(Story::FailedStarts { before });
+    assert_eq!(outcome.failed_starts, 2);
+    assert_eq!(outcome.admitted_hellos, 1, "only the third start admits the worker");
+    assert!(outcome.adopting_hellos > 0);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.agent_starts, 1, "the hosted attempt never restarts");
+    assert!(!outcome.contact_cancelled);
+    assert_eq!(outcome.turns_committed, 2);
+    assert_eq!(outcome.answers_acknowledged, 1);
+}
+
+#[test]
 fn a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once() {
     let outcome = run(Story::MidFrame);
     assert_eq!(outcome.verdict, Verdict::Passed);
