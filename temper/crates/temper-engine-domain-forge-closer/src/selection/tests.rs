@@ -74,7 +74,7 @@ fn failed_checks_or_log_reads_settle_unknown_and_continue_with_the_next_pull() {
 fn a_pull_without_a_landed_head_reads_its_head_before_its_checks() {
     let mut closer = Closer::new();
     closer.selections = Box::new([PullSelection::new(4, None)]);
-    assert_eq!(selection_read(&closer), Some(Read::Pull { number: 4 }));
+    assert_eq!(selection_read(&closer), Some(Read::Pull { number: 4, ci: false }));
     selection_answer(&mut closer, Err(Error::Refused));
     assert_eq!(selection_read(&closer), None);
 }

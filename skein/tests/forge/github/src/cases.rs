@@ -126,7 +126,7 @@ fn merge_repeat_idempotent(r: &mut Runner<'_>, number: u64, sha: &str) -> Result
     r.next("merge-repeat-idempotent")?;
     let first = merge(r, 0, number, sha)?;
     let second = merge(r, 0, number, sha)?;
-    match r.plan(0, api::Op::Read(api::Read::Pull { number }))? {
+    match r.plan(0, api::Op::Read(api::Read::Pull { number, ci: false }))? {
         Ok(api::Answer::Pull(pull)) => {
             let landed = pull.merged.and_then(|commit| github::id::write_commit(&commit));
             r.fact(
@@ -833,8 +833,13 @@ fn queue_merged(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Res
     for attempt in 0..=300 / CI_POLL_SECONDS {
         let response = pull_doc(r, index, number)?;
         if response.json()?.root().get("merged").bool() == Some(true) {
-            let Some(merged) =
-                queue_plan(r, index, api::Op::Read(api::Read::Pull { number }), false, "merged pull read failed")?
+            let Some(merged) = queue_plan(
+                r,
+                index,
+                api::Op::Read(api::Read::Pull { number, ci: false }),
+                false,
+                "merged pull read failed",
+            )?
             else {
                 return Ok(());
             };

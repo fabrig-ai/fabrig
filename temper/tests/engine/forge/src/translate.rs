@@ -121,9 +121,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
         client::Read::Item { number, after, since } => {
             forge::Read::Item { number: *number, after: *after, since: Some(*since) }
         }
-        client::Read::Pull { number } | client::Read::Reviews { number, .. } | client::Read::Remarks { number, .. } => {
-            forge::Read::Pull { number: *number }
-        }
+        client::Read::Pull { number, .. }
+        | client::Read::Reviews { number, .. }
+        | client::Read::Remarks { number, .. } => forge::Read::Pull { number: *number },
         client::Read::PullFor { head, base } => forge::Read::PullFor { head: head.clone(), base: base.clone() },
         client::Read::Statuses { commit, .. } => forge::Read::Statuses { commit: number(*commit) },
         client::Read::Branch { branch } => forge::Read::Branch { branch: branch.clone() },
@@ -317,7 +317,9 @@ pub fn answer_as(
         forge::Answer::Commit(id) => client::Answer::Commit(commit(id)),
         forge::Answer::Cloned { branches, .. } => branches_answer(asked, branches),
         forge::Answer::PullFiles { head, files, more } => {
-            client::Answer::PullFiles { head: commit(head), files: files_in(files), more }
+            let client::Op::Read(client::Read::PullFiles { skip, .. }) = asked else { panic!("pull files read") };
+            let files = files.into_iter().skip(usize::try_from(*skip).expect("skip fits")).collect();
+            client::Answer::PullFiles { head: commit(head), files: files_in(files), more, cut: false }
         }
         forge::Answer::Comparison { base, head, ahead, behind, files, .. } => {
             let changed = skein_lib::len_u64(files.len());
@@ -482,12 +484,17 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                 merged: pull.merged.map(commit),
                 reviewers: pull.reviewers,
                 mergeable: pull.mergeable,
-                ci: combined(&pull.statuses),
+                ci: if let client::Read::Pull { ci: true, .. } = read {
+                    combined(&pull.statuses)
+                } else {
+                    client::Ci::None
+                },
                 queued: None,
                 dequeued: None,
             }),
-            client::Read::Reviews { page, .. } => {
-                let range = page_range(pull.reviews.len(), *page, l.rows);
+            client::Read::Reviews { page, skip, .. } => {
+                let mut range = page_range(pull.reviews.len(), *page, l.rows);
+                range.0 = range.0.saturating_add(usize::try_from(*skip).expect("skip fits")).min(range.1);
                 let mut rows = List::with_capacity(l.rows);
                 for review in pull.reviews.get(range.0..range.1).expect("page range") {
                     rows.push(client::Review {
@@ -505,9 +512,9 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                     })
                     .expect("page capacity");
                 }
-                client::Answer::Reviews { reviews: rows.into_boxed(), more: range.1 < pull.reviews.len() }
+                client::Answer::Reviews { reviews: rows.into_boxed(), more: range.1 < pull.reviews.len(), cut: false }
             }
-            client::Read::Remarks { .. } => client::Answer::Remarks { remarks: Box::new([]), more: false },
+            client::Read::Remarks { .. } => client::Answer::Remarks { remarks: Box::new([]), more: false, cut: false },
             client::Read::Items { .. }
             | client::Read::Item { .. }
             | client::Read::Statuses { .. }

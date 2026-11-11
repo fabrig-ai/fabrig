@@ -7,6 +7,47 @@ use skein_forge_machine_world::{
 use skein_lib::Duration;
 const SECOND: Duration = Duration::from_secs(1);
 #[test]
+fn a_raw_file_read_reuses_the_forgejo_fakes_bodyless_304() {
+    use skein_forge_machine_world::joint::{Joint, REPO};
+    let mut world = Joint::new(7);
+    world.run_for(SECOND);
+    let content = b"raw file bytes";
+    let head = world.push(b"feature", content);
+    let head = skein_fake_forge_forgejo::routes::object(head).bytes;
+    let read = Read::File { head, path: Box::from(b"file".as_slice()), max_bytes: 64 };
+    world.call(1, REPO, Op::Read(read.clone()));
+    world.run_for(SECOND);
+    let first = world.answered(1).expect("first read").clone();
+    assert_eq!(
+        first.result,
+        Ok(ResultAnswer::File {
+            head,
+            path: Box::from(b"file".as_slice()),
+            bytes: Box::from(content.as_slice()),
+            truncated: false
+        })
+    );
+    world.call(2, REPO, Op::Read(read));
+    world.run_for(SECOND);
+    let second = world.answered(2).expect("conditional read");
+    assert_eq!((&second.result, second.cost, second.free), (&first.result, 1, 1));
+    let reads: Vec<_> = world
+        .request_heads
+        .iter()
+        .filter(|call| call.target.windows(b"/raw/file?".len()).any(|part| part == b"/raw/file?"))
+        .collect();
+    assert_eq!(reads.len(), 2);
+    let [first, second] = reads.as_slice() else { panic!("two raw entrances") };
+    assert_eq!(first.header(b"If-None-Match"), None);
+    let tag = second.header(b"If-None-Match").expect("second request carries ETag");
+    assert!(tag.starts_with(b"\"") && tag.ends_with(b"\""));
+    assert_eq!(first.target, second.target, "same path, ref and query");
+    assert_eq!(first.header(b"Range"), second.header(b"Range"), "same representation");
+    world.action(skein_forge_connection::Request::Close);
+    world.run_for(SECOND);
+    assert!(world.closed);
+}
+#[test]
 fn the_start_reaches_ready_from_the_recorded_answers() {
     let mut world = Machine::ready(7, vec![]);
     world.run_for(SECOND);

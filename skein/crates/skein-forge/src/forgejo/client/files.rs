@@ -167,7 +167,7 @@ fn target(request: &Request, out: &mut Target) {
         }
         Request::WorkflowRuns { at, workflow, head_sha, page } => {
             out.repo(at);
-            out.put(b"/actions/runs?workflow=");
+            out.put(b"/actions/runs?workflow_id=");
             out.segment(workflow);
             out.put(b"&head_sha=");
             out.put(&id::write(head_sha));

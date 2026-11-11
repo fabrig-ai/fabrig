@@ -71,7 +71,7 @@ fn prepare_inbox(row: &mut Live, phase: Phase, priority: Priority, out: &mut Que
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchAncestry { .. } => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => {}
     }
 }
 fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
@@ -86,11 +86,11 @@ fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
             What::Repository | What::Branch(_) => unreachable!("item stage"),
         },
         Phase::Pull => match key.what {
-            What::Pull(number) => Read::Pull { number },
+            What::Pull(number) => Read::Pull { number, ci: true },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("pull stage"),
         },
-        Phase::Reviews(page) => match key.what {
-            What::Pull(number) => Read::Reviews { number, page },
+        Phase::Reviews(page, skip) => match key.what {
+            What::Pull(number) => Read::Reviews { number, page, skip },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("reviews stage"),
         },
         Phase::Branch => match &key.what {
@@ -150,6 +150,7 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         d.fact(Fact::Refused);
         return;
     }
+    calls::pushed(&mut d.calls, key);
     if let Some(row) = d.keep.live.get_mut(key)
         && row.active
     {
@@ -164,6 +165,10 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         row.record.pushed = Some(commit);
         row.record.cached.tip = Some(commit);
         out.push(Request::Save { record: Stored::Live(row.record.clone()) });
+        match row.state {
+            State::Idle => schedule_resource(&mut d.alarms, env, key, row),
+            State::Due(_, _) | State::Busy(_, _) | State::Waiting(_, _) => {}
+        }
     }
 }
 pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
@@ -186,6 +191,7 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         // still cause a read so the returned row can establish provenance.
         Some(_) | None => {}
     }
+    calls::hinted(&mut d.calls, &d.keep, &hint);
     if let Some(row) = d.keep.repos.get_mut(&hint.repository)
         && row.active
     {
@@ -225,6 +231,24 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
     }
     crate::outbox::queue::hinted(d, env, &hint);
 }
+/// A fresh reader may have no kept row relating a pull to its branches or
+/// commits. Without that knowledge those hints fence it conservatively.
+pub(crate) fn affects_fresh(keep: &super::Keep, key: &Resource, change: &Change) -> bool {
+    if let Some(row) = keep.live.get(key) {
+        return affected(row, key, change);
+    }
+    match (&key.what, change) {
+        (What::Branch(branch), Change::Branch(name) | Change::BranchMoved { branch: name, .. }) => branch == name,
+        (What::Pull(number) | What::Issue(number), Change::Item(item)) => number == item,
+        (What::Branch(_), Change::Commit(_))
+        | (What::Pull(_), Change::Branch(_) | Change::BranchMoved { .. } | Change::Commit(_))
+        | (What::Repository, Change::Branch(_) | Change::BranchMoved { .. } | Change::Item(_) | Change::Commit(_)) => {
+            true
+        }
+        (What::Branch(_), Change::Item(_))
+        | (What::Issue(_), Change::Branch(_) | Change::BranchMoved { .. } | Change::Commit(_)) => false,
+    }
+}
 fn affected(row: &Live, key: &Resource, change: &Change) -> bool {
     match change {
         Change::Item(number) => match key.what {
@@ -242,13 +266,9 @@ fn affected(row: &Live, key: &Resource, change: &Change) -> bool {
             What::Issue(_) => false,
         },
         Change::Commit(commit) => match key.what {
-            What::Pull(_) => match &row.record.cached.pull {
-                Some(pull) => pull.commit == *commit || pull.base_commit == Some(*commit),
-                None => true,
-            },
             What::Branch(_) => row.record.cached.tip == Some(*commit),
             What::Repository => true,
-            What::Issue(_) => false,
+            What::Pull(_) | What::Issue(_) => false,
         },
     }
 }
@@ -259,6 +279,9 @@ pub(super) fn nudge_resource(
     row: &mut Live,
 ) {
     row.refused = super::Refusals::new();
+    schedule_resource(alarms, env, key, row);
+}
+fn schedule_resource(alarms: &mut skein_lib::Deadlines<Alarm>, env: &Env<Limits>, key: &Resource, row: &mut Live) {
     row.interval = env.limits.poll;
     match row.state {
         State::Idle => {

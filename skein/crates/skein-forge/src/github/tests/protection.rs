@@ -55,6 +55,7 @@ fn run_bypasses(
             name: bytes(b"widgets"),
             owner_id: 1,
             organization: true,
+            settings: api::Settings { default_branch: Box::from(*b"main"), merge: true, squash: true, rebase: true },
             merge: None,
             html_url: bytes(b"https://example.invalid/acme/widgets"),
         },

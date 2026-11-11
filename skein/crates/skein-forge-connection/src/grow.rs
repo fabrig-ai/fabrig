@@ -53,7 +53,6 @@ impl Grow {
     }
 }
 impl Grow {
-    #[cfg(test)]
     pub(crate) fn capacity(&self) -> u32 {
         self.bytes.capacity()
     }

@@ -20,6 +20,8 @@ pub(crate) struct Call {
     state: State,
     window: Time,
     failures: u32,
+    joinable: bool,
+    askers: Queue<Id<Call>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Owner {
@@ -34,6 +36,7 @@ enum State {
     Out,
     Waiting,
     Closed,
+    Joined,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Calls {
@@ -94,9 +97,135 @@ impl Calls {
 }
 /// Caller has checked operation size and admission before entering.
 pub(crate) fn queue(c: &mut Calls, owner: Owner, repository: Repository, op: Op, priority: Priority) {
-    let call = Call { owner, repository, op, priority, state: State::Queued, window: Time::ZERO, failures: 0 };
+    let call = Call {
+        owner,
+        repository,
+        op,
+        priority,
+        state: State::Queued,
+        window: Time::ZERO,
+        failures: 0,
+        joinable: false,
+        askers: Queue::uncapped(),
+    };
     let id = c.slab.insert(call).expect("one admitted call fits");
     queued(c, id, priority);
+}
+fn shared_resource(op: &Op) -> Option<crate::What> {
+    use api::Read;
+    let read = match op {
+        Op::Read(read) => read,
+        Op::Write(_) => return None,
+    };
+    match read {
+        Read::Branch { branch } => Some(crate::What::Branch(branch.clone())),
+        Read::Pull { number, .. } => Some(crate::What::Pull(*number)),
+        Read::Item { number, .. } => Some(crate::What::Issue(*number)),
+        Read::Locate { .. }
+        | Read::Items { .. }
+        | Read::PullFor { .. }
+        | Read::Reviews { .. }
+        | Read::Statuses { .. }
+        | Read::Remarks { .. }
+        | Read::Branches { .. }
+        | Read::PullFiles { .. }
+        | Read::Compare { .. }
+        | Read::Checks { .. }
+        | Read::Job { .. }
+        | Read::File { .. }
+        | Read::Protection { .. }
+        | Read::Settings
+        | Read::Collaborators { .. }
+        | Read::Permission { .. }
+        | Read::Runs { .. }
+        | Read::Run { .. }
+        | Read::Tree { .. }
+        | Read::Artifact { .. }
+        | Read::Commits { .. } => None,
+    }
+}
+/// Each admitted asker occupies a slot, even when its request is shared (client.md, 5).
+pub(crate) fn fresh(c: &mut Calls, owner: Token, repository: Repository, read: api::Read) {
+    let op = Op::Read(read);
+    let shareable = shared_resource(&op).is_some();
+    let mut shared = None;
+    if shareable {
+        for (id, call) in &c.slab {
+            if call.repository != repository || call.op != op || call.priority != Priority::Fresh {
+                continue;
+            }
+            if let Owner::Read(_) = call.owner {
+                match call.state {
+                    State::Queued => shared = Some(id),
+                    State::Out if call.joinable => shared = Some(id),
+                    State::Out | State::Waiting | State::Closed | State::Joined => {}
+                }
+                if shared.is_some() {
+                    break;
+                }
+            }
+        }
+    }
+    if let Some(id) = shared {
+        let asker = c
+            .slab
+            .insert(Call {
+                owner: Owner::Read(owner),
+                repository,
+                op,
+                priority: Priority::Fresh,
+                state: State::Joined,
+                window: Time::ZERO,
+                failures: 0,
+                joinable: false,
+                askers: Queue::uncapped(),
+            })
+            .expect("admitted asker fits");
+        c.slab.get_mut(id).expect("shared call remains").askers.push(asker);
+    } else {
+        queue(c, Owner::Read(owner), repository, op, Priority::Fresh);
+    }
+}
+/// Only outstanding calls need a freshness fence. Queued calls will be sent
+/// after the event; retries establish a new fence at their next send.
+fn invalidate_repository(c: &mut Calls, repository: Repository) {
+    for (_, id) in &c.flights {
+        let call = c.slab.get_mut(*id).expect("flight remains");
+        if call.repository == repository {
+            call.joinable = false;
+        }
+    }
+}
+pub(crate) fn pushed(c: &mut Calls, resource: &crate::Resource) {
+    for (_, id) in &c.flights {
+        let call = c.slab.get_mut(*id).expect("flight remains");
+        if call.repository == resource.repository
+            && let Op::Read(api::Read::Branch { branch }) = &call.op
+            && let crate::What::Branch(name) = &resource.what
+            && branch == name
+        {
+            call.joinable = false;
+        }
+    }
+}
+pub(crate) fn hinted(c: &mut Calls, keep: &crate::keep::Keep, hint: &api::Hint) {
+    for (_, id) in &c.flights {
+        let call = c.slab.get_mut(*id).expect("flight remains");
+        if call.repository != hint.repository {
+            continue;
+        }
+        let affected = match shared_resource(&call.op) {
+            Some(what) => crate::keep::poll::affects_fresh(
+                keep,
+                &crate::Resource { repository: call.repository, what },
+                &hint.change,
+            ),
+            None => false,
+        };
+        if affected {
+            call.joinable = false;
+        }
+    }
 }
 fn queued(c: &mut Calls, id: Id<Call>, priority: Priority) {
     let queue = match priority {
@@ -133,7 +262,7 @@ fn cancel(c: &mut Calls, owner: &Owner) -> bool {
             if call.owner == *owner {
                 match call.state {
                     State::Queued => call.state = State::Closed,
-                    State::Out | State::Waiting | State::Closed => {
+                    State::Out | State::Waiting | State::Closed | State::Joined => {
                         unreachable!("only queued calls sit in a class queue")
                     }
                 }
@@ -156,8 +285,9 @@ pub(crate) fn send(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     let call = d.calls.slab.get_mut(id).expect("a queued call stays alive");
     match call.state {
         State::Queued => call.state = State::Out,
-        State::Out | State::Waiting | State::Closed => unreachable!("a call is queued exactly once"),
+        State::Out | State::Waiting | State::Closed | State::Joined => unreachable!("a call is queued exactly once"),
     }
+    call.joinable = true;
     let priority = call.priority;
     let owner = call.owner.clone();
     match owner {
@@ -361,11 +491,17 @@ pub(crate) fn answered(
     let call = d.calls.slab.get_mut(id).expect("an in-flight call remains");
     match call.state {
         State::Out => call.state = State::Closed,
-        State::Queued | State::Waiting | State::Closed => unreachable!("terminal belongs to an outstanding call"),
+        State::Queued | State::Waiting | State::Closed | State::Joined => {
+            unreachable!("terminal belongs to an outstanding call")
+        }
     }
     let owner = call.owner.clone();
     let priority = call.priority;
     let window = call.window;
+    let repository = call.repository;
+    if let Op::Write(_) = call.op {
+        invalidate_repository(&mut d.calls, repository);
+    }
     settle(d, env, priority, window, cost.saturating_sub(free));
     if let Some(rate) = rate {
         forge_window(d, env, rate);
@@ -435,7 +571,7 @@ pub(crate) fn answered(
     }
     d.calls.slab.retire(id);
     match owner {
-        Owner::Read(owner) => out.push(Request::Read { owner, result }),
+        Owner::Read(owner) => finish_read(&mut d.calls, id, owner, result, out),
         Owner::Entry(number) => {
             let result = if crate::outbox::stop::active(&d.outbox) {
                 match result {
@@ -450,6 +586,16 @@ pub(crate) fn answered(
         Owner::Resource(resource) => crate::keep::answer::answered_resource(d, env, &resource, result, out),
         Owner::Repository(repository) => crate::keep::answer::answered_repository(d, env, repository, result, out),
     }
+}
+fn finish_read(c: &mut Calls, id: Id<Call>, mut owner: Token, result: Result<Answer, Error>, out: &mut Queue<Request>) {
+    while let Some(asker) = c.slab.get_mut(id).expect("terminal call remains until reclaim").askers.pop() {
+        out.push(Request::Read { owner, result: result.clone() });
+        let call = c.slab.get(asker).expect("joined asker remains");
+        let Owner::Read(next) = call.owner else { unreachable!("only fresh askers join") };
+        owner = next;
+        c.slab.retire(asker);
+    }
+    out.push(Request::Read { owner, result });
 }
 fn wait_read(d: &mut Domain, env: &Env<Limits>, id: Id<Call>) -> bool {
     let call = d.calls.slab.get_mut(id).expect("failed call remains");
@@ -482,7 +628,7 @@ pub(crate) fn retry(d: &mut Domain, id: Id<Call>) {
     let call = d.calls.slab.get_mut(id).expect("retry owns a pending call");
     match call.state {
         State::Waiting => call.state = State::Queued,
-        State::Queued | State::Out | State::Closed => unreachable!("retry fires only while waiting"),
+        State::Queued | State::Out | State::Closed | State::Joined => unreachable!("retry fires only while waiting"),
     }
     let priority = call.priority;
     queued(&mut d.calls, id, priority);

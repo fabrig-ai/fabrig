@@ -159,6 +159,7 @@ pub struct Protocol {
     serial: u64,
     /// Each decided call's typed answer, by its opaque call name, in render order.
     pub answers: Vec<(Box<[u8]>, engine::CallAnswer)>,
+    pub read_pages: BTreeMap<Box<[u8]>, (u32, u32)>,
     pub read_jobs: BTreeMap<Box<[u8]>, skein_forge::api::JobAttempt>,
     /// Let a story cut between the durable decision and its rendered answer.
     pub defer_render: bool,
@@ -324,9 +325,12 @@ impl Protocol {
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
-                    engine::HostDelivery::Render { to, name, answer, job, .. } => {
+                    engine::HostDelivery::Render { to, name, answer, job, page, .. } => {
                         if let Some(job) = job {
                             self.read_jobs.insert(name.clone(), job);
+                        }
+                        if let Some(page) = page {
+                            self.read_pages.insert(name.clone(), page);
                         }
                         self.answers.push((name.clone(), answer));
                         if self.defer_render {
