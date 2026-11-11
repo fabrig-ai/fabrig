@@ -25,8 +25,8 @@ One setting, and what becomes of it: `setting`, then exactly one of `set` and `e
 Which setting: its kind and number, or project for project settings.
 
 - `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
-- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.
-- `project`: integer, 0 to 4,294,967,295. Required for follow, project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
+- `number`: integer, 0 to 4,294,967,295. Setting number, from 1; omit for rules, project-policy, project-ways, project-questions, project-classes and project-words.
+- `project`: integer, 0 to 4,294,967,295. Project number: required for follow, project-ways, project-questions, project-classes, project-words and project-policy; absent for charter-words. Landing rule: from 1, or deployment-wide if absent.
 
 ## charter
 
@@ -34,30 +34,30 @@ An agent run's instructions, models, tools, hosts and budget. Runs use the chart
 
 - `rest`: true or false. Whether the other catalogue models follow the named first choices; false when absent.
 - `number`: integer, 0 to 4,294,967,295. The charter's number, the same as `setting.number`.
-- `instructions`: text, at most 1,048,576 bytes. What the run's agent reads first, before its task's brief.
-- `waiting`: nanoseconds. How long a run with nothing to do waits for words or news before it parks.
-- `resume`: true or false. Whether a run resumes its task's transcript, when there is one, rather than start afresh.
-- `turns`: integer, 0 to 4,294,967,295. The most model turns a run takes; more than `reserve_turns`, else refused as `budget`.
-- `time`: nanoseconds. The longest a run lasts before it is cancelled; more than `reserve_time`, else refused as `budget`.
-- `reserve_turns`: integer, 0 to 4,294,967,295. Of `turns`, those kept for the run to finish its work and report.
-- `reserve_time`: nanoseconds. Of `time`, the part kept for finishing and reporting. With `modify` true, at least the worker's check timeout (`check_timeout` in milliseconds). A worker refuses admission if any applicable current or held charter version has less reserve. See settings help for recovery through held revisions.
-- `model`: `model`. The default model: a task that names none takes the first of `model` and `alternatives` whose provider has an account that can pay.
-- `alternatives`: list of at most 32, each `model`. The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.
-- `inspect`: true or false. Whether the run's agent may read, list and search its workspace.
-- `modify`: true or false. Whether the run's agent may write, edit and remove files in its workspace.
-- `shell`: true or false. Whether the run's agent may run commands in its workspace.
-- `agents`: true or false. Whether the run's agent may open sub-agents, each with no more tools than its own.
-- `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.
-- `tools`: integer. Host families offered where both charter and task allow them. Asking (2048) alone or with settings (1024) declares only see, document and, with settings, propose_settings; other charters get settings tools by 1024. Default 1023: every family but settings and asking.
+- `instructions`: text, at most 1,048,576 bytes. Agent's first read, before the task's brief.
+- `waiting`: nanoseconds. Idle run's wait for words or news before parking.
+- `resume`: true or false. Resume the task's transcript if any, rather than start afresh.
+- `turns`: integer, 0 to 4,294,967,295. Most model turns; more than `reserve_turns`, else `budget` refusal.
+- `time`: nanoseconds. Run cancellation time; more than `reserve_time`, else `budget` refusal.
+- `reserve_turns`: integer, 0 to 4,294,967,295. Of `turns`, reserve to finish and report.
+- `reserve_time`: nanoseconds. Of `time`, reserve to finish and report. With `modify`, at least the worker's check timeout (`check_timeout`, milliseconds). Less reserve in any applicable current or held charter version refuses worker admission. Settings help covers recovery through held revisions.
+- `model`: `model`. Default: tasks naming no model take the first of `model` and `alternatives` with a provider account that can pay.
+- `alternatives`: list of at most 32, each `model`. Other offered models, ordered after `model`, each named once; sub-agents may use them too.
+- `inspect`: true or false. May the agent read, list and search its workspace?
+- `modify`: true or false. May the agent write, edit and remove workspace files?
+- `shell`: true or false. May the agent run workspace commands?
+- `agents`: true or false. May the agent open sub-agents with no more tools than its own?
+- `call_timeout`: nanoseconds. Longest call to temper's tools.
+- `tools`: integer. Host families require charter and task leave. Asking (2048), alone or with settings (1024): only see, document and, with settings, propose_settings. Other charters get settings tools by 1024. Default 1023: all but settings and asking.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
-- `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
-- `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
-- `documents`: list of at most 8, each `document`. The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`.
+- `spend`: integer. Charter spend: at least (`reserve_turns` + 1) costliest default-model completions, else `budget` refusal. Runs get remaining task funds, at most `rules.maximum_run_spend`.
+- `wake`: `wake`, or null. Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
+- `documents`: list of at most 8, each `document`. Documents each run reads as separate brief sections; at most `tasks.charter_documents`, else `shape` refusal.
 - `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. A charter that resumes takes no parts.
 
 ## charter-part
 
-Instructions a run reads after the charter's shared text when its reasons meet this part's on.
+Instructions after the charter's shared text, read when run reasons meet this part's on.
 
 - `on`: list of at most 14, each `"first"`, `"question"`, `"question_answered"`, `"question_ended"`, `"question_owed"`, `"escalation"`, `"proposal"`, `"person_stalled"`, `"result"`, `"notice"`, `"nothing_awaited"`, `"news"`, `"timer"` or `"words"`. Nonempty, each name once. Names offered to every run choose no part and are refused.
 - `instructions`: text, at most 1,048,576 bytes. Text appended after the shared instructions when this part is chosen.
@@ -66,17 +66,17 @@ Instructions a run reads after the charter's shared text when its reasons meet t
 
 A file in each charter run's brief, read at the branch head during preparation; landed rules reach the next run.
 
-- `forge`: text, at most 32,768 bytes. The canonical `host` in Ask temper's `see settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address.
-- `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
-- `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
+- `forge`: text, at most 32,768 bytes. Canonical `host` beside OWNER/NAME in Ask temper's `see settings`, under `project repositories`; also in `temper ctl DIR forge list` (or `forge list --json`). Copy unchanged, including port: the repository resource host, not forge number or web address.
+- `repository`: text, at most 65,537 bytes. OWNER/NAME; if no project adopts it, the section says so.
+- `branch`: text, at most 131,075 bytes. Branch head to read; segments joined by `/`.
 - `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.
-- `heading`: text, at most 80 bytes, or null. A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file.
+- `heading`: text, at most 80 bytes, or null. Markdown heading text: read from there to the next heading at its level or above; null reads the whole file.
 
 ## catalogue
 
 A whole numbered model setting: its runtime model, display facts, availability and origin.
 
-- `number`: integer, 0 to 4,294,967,295. Its permanent number, from 1 to 64, matching setting.number.
+- `number`: integer, 0 to 4,294,967,295. Permanent number, 1 to 64, matching setting.number.
 - `model`: `model`. The runtime model, whole.
 - `shown`: text, at most 4,096 bytes, or null. Its name for showing, or null.
 - `description`: text, at most 512 bytes, or null. Its description, or null.
@@ -87,29 +87,29 @@ A whole numbered model setting: its runtime model, display facts, availability a
 
 ## model
 
-A runtime model. In a charter, every member but `effort` must match its configured row, else refused as `reference`; a model setting supplies the row whole.
+Runtime model. Charter members except `effort` must match the configured row, else `reference` refusal; a model setting supplies it whole.
 
 - `provider`: integer, 0 to 4,294,967,295. The configured LLM provider that serves it; 1 when absent.
-- `dialect`: integer, 0 to 4,294,967,295. The protocol the model is spoken to in, as configured.
-- `endpoint`: integer, 0 to 4,294,967,295. The number of the configured endpoint that serves it.
-- `program`: text, at most 32 bytes, or null. The program that runs it, as configured, or null for none.
-- `name`: text, at most 4,096 bytes. The model's name, as its provider knows it.
+- `dialect`: integer, 0 to 4,294,967,295. Configured model protocol.
+- `endpoint`: integer, 0 to 4,294,967,295. Configured serving endpoint's number.
+- `program`: text, at most 32 bytes, or null. Configured program running it, or null for none.
+- `name`: text, at most 4,096 bytes. Provider's model name.
 - `window`: integer, 0 to 4,294,967,295. The most tokens of input it reads.
-- `output`: integer, 0 to 4,294,967,295. The most tokens it writes in one completion, thinking included.
-- `input_price`: integer. What fresh input costs, in spend units per `price_unit` tokens.
-- `cached_price`: integer. What cached input costs, in spend units per `price_unit` tokens.
-- `cache_write_price`: integer, or null. What writing its cache costs, in spend units per `price_unit` tokens, or null to price it as fresh input.
-- `output_price`: integer. What output costs, in spend units per `price_unit` tokens.
+- `output`: integer, 0 to 4,294,967,295. Most tokens per completion, thinking included.
+- `input_price`: integer. Fresh input cost: spend units per `price_unit` tokens.
+- `cached_price`: integer. Cached input cost: spend units per `price_unit` tokens.
+- `cache_write_price`: integer, or null. Cache write cost: spend units per `price_unit` tokens; null uses fresh-input price.
+- `output_price`: integer. Output cost: spend units per `price_unit` tokens.
 - `price_unit`: integer, 0 to 4,294,967,295. The number of tokens each price is for.
-- `efforts`: list of at most 16, each text, at most 32 bytes. The efforts it takes, in order, as configured.
-- `effort`: text, at most 32 bytes, or null. The effort a run asks of it, one of `efforts`, or null for its default.
+- `efforts`: list of at most 16, each text, at most 32 bytes. Configured efforts, in order.
+- `effort`: text, at most 32 bytes, or null. Requested effort, one of `efforts`; null uses its default.
 
 ## wake
 
-What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it.
+Waking by message kind; proposals, escalations and cancels always wake the task.
 
-- `words`: `wake_rule`. Words from tasks and from the deployment; a person's words always wake it at once.
-- `notices`: `wake_rule`. Notices: a task it references done or held, a proposal passing through, a hold it waits for.
+- `words`: `wake_rule`. Task and deployment words; a person's always wake it at once.
+- `notices`: `wake_rule`. Notices: referenced task done/held, proposal passing through, awaited hold.
 - `news`: `wake_rule`. News its connectors class as waking for it.
 - `results`: `"never"`, `"each"` or `"last_or_failure"`. Its delegates' results. `"never"`: None wakes it. `"each"`: Each delegate's result wakes it. `"last_or_failure"`: The last delegate's result, or any failure.
 - `questions`: true or false. Whether a delegate's question wakes it.
@@ -118,36 +118,36 @@ What wakes a task, kind of message by kind; a proposal, an escalation and a canc
 
 ## wake_rule
 
-How a kind of message wakes a task: a word, or an object with one member.
+Wake by message kind: a word or one-member object.
 
 - `"never"`: It waits for the task's next run.
 - `"immediate"`: It wakes the task at once.
-- `batch`: `wake_batch`. Once enough have arrived, or the oldest has waited long enough.
-- `paced`: nanoseconds. At most once in this span from the task's last run's start; the first after a quiet span wakes it at once. Above zero, else refused as `shape`.
+- `batch`: `wake_batch`. Once enough arrive or the oldest waits long enough.
+- `paced`: nanoseconds. At most once per span from the last run's start; first after a quiet span wakes at once. Above zero, else `shape` refusal.
 
 ## wake_batch
 
 A batch of messages that wakes a task once.
 
-- `count`: integer, 0 to 4,294,967,295. Wake once this many have arrived; above zero, else refused as `shape`.
-- `age`: nanoseconds. Or once the oldest has waited this long; above zero, else refused as `shape`.
+- `count`: integer, 0 to 4,294,967,295. Wake at this count; above zero, else `shape` refusal.
+- `age`: nanoseconds. Or at this age of the oldest; above zero, else `shape` refusal.
 
 ## template
 
 New tasks of one shape: executor, result, budget, deadline and flags. Creation values stay; changes affect later tasks.
 
 - `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.
-- `number`: integer, 0 to 4,294,967,295. The template's number, the same as `setting.number`; a chat is filled from template 1 and a goal from template 2.
+- `number`: integer, 0 to 4,294,967,295. Template number, matching `setting.number`; chats use template 1, goals template 2.
 - `name`: `text`. Its name, as clients show it.
 - `executor`: `executor`. Who runs the task.
 - `contract`: `contract`. The result the task must give.
-- `shallower`: integer, 0 to 4,294,967,295. How many levels of delegation the task has below its creator's role: 1 is one level; 0 leaves the template unusable.
+- `shallower`: integer, 0 to 4,294,967,295. Delegation levels below the creator's role: 1 is one level; 0 makes the template unusable.
 - `budget`: `budget`. What the task may spend.
 - `deadline`: `deadline`. By when the task must end.
 - `tracked`: integer, 0 to 4,294,967,295, or null. Its default priority as tracked work, lower first, or null for untracked.
 - `flags`: `flags`. How the task behaves and is kept.
-- `label`: integer, 0 to 4,294,967,295. A number that groups the task in the lists of ended tasks; temper reads nothing else from it.
-- `grace`: nanoseconds, or null. How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`.
+- `label`: integer, 0 to 4,294,967,295. Number grouping ended tasks in lists; temper reads nothing else from it.
+- `grace`: nanoseconds, or null. Chat closing time before cancelling unfinished runs, or null; past deployment limit: `grace` refusal.
 - `llm`: `llm`, or null. The models the task asks for, or null for its charter's default.
 
 ## symbol
@@ -166,14 +166,14 @@ A text, whole.
 
 ## executor
 
-Who runs a task: a word, or an object with one member.
+Who runs a task: a word or one-member object.
 
 - `"chosen"`: The creator chooses a charter or procedure their role may create with.
-- `charter`: integer, 0 to 4,294,967,295. An agent under this charter, which must be offered, else refused as `reference`.
+- `charter`: integer, 0 to 4,294,967,295. Agent under this charter; must be offered, else `reference` refusal.
 
 ## contract
 
-The result a task must give: an object with one of these members.
+Required task result: an object with one of these members.
 
 - `approval`: `approval`. A person's approval of an exact state; an agent given one can only fail.
 - `report`: `report`. A report.
@@ -184,7 +184,7 @@ The result a task must give: an object with one of these members.
 
 An approval of an exact state.
 
-- `state`: hex, at most 32,768 bytes. The state approved, which the approval must give back byte for byte.
+- `state`: hex, at most 32,768 bytes. Approved state; approval must return it byte for byte.
 - `part`: `part`. What a client shows the approval with.
 
 ## part
@@ -199,7 +199,7 @@ A thing a connector owns, which a client shows.
 
 Which thing: an object with one of these members.
 
-- `path`: list of at most 9, each hex, at most 32,768 bytes. A resource's name, its segments as hex: `forge`, the host, the owner and the repository, then `branch` and the branch's segments.
+- `path`: list of at most 9, each hex, at most 32,768 bytes. Resource name, hex segments: `forge`, host, owner, repository, then `branch` and branch segments.
 - `number`: integer. A number the connector knows it by.
 
 ## report
@@ -236,12 +236,12 @@ A field a verdict fills.
 A connector's result: for the forge, a change.
 
 - `connector`: integer, 0 to 65,535. The connector that gives the result: 1 is the forge.
-- `kind`: integer, 0 to 65,535. The kind of result: the forge's 1 is a landed change, its 2 a change made but not landed.
-- `words`: integer, 0 to 4,294,967,295. The most bytes of the result's report, each of the change's title and body.
+- `kind`: integer, 0 to 65,535. Result kind: forge 1 landed change, 2 change made but not landed.
+- `words`: integer, 0 to 4,294,967,295. Most report bytes, per change title and body.
 
 ## budget
 
-What a task may spend: a word, or an object with one member.
+Task spend: a word or one-member object.
 
 - `"given"`: The creator gives it, within their allotment.
 - `amount`: integer. This much.
@@ -255,7 +255,7 @@ As much as fits.
 
 ## deadline
 
-By when a task must end: a word, or an object with one member.
+Task end time: a word or one-member object.
 
 - `"none"`: No deadline.
 - `"given"`: The creator gives one, or none.
@@ -265,8 +265,8 @@ By when a task must end: a word, or an object with one member.
 
 How a task behaves and is kept.
 
-- `conversation`: true or false. Whether the task is a conversation: its requester's words are its turns, and it moves to the newest revision at its next run.
-- `listed`: true or false. Whether it is listed, by project and label, once it has ended.
+- `conversation`: true or false. Conversation: requester words are turns; next run moves to the newest revision.
+- `listed`: true or false. List by project and label once ended?
 - `retention`: `"kept"` or `"forgotten_once_read"`. How long it is kept. `"kept"`: Until the deployment's retention horizon. `"forgotten_once_read"`: Until its requester has read it and no live task names it.
 - `ended_by`: `ended_by`. What ends it.
 
@@ -300,7 +300,7 @@ The models a task asks for.
 The choice every run after the task's first activation takes.
 
 - `main`: `model_effort`. The later main model and its effort.
-- `subagents`: list of at most 64, each `model_effort`. Optional, left out []: the models later runs' sub-agents may use, each named once.
+- `subagents`: list of at most 64, each `model_effort`. Absent: []. Models for later runs' sub-agents, each named once.
 
 ## model_effort
 
@@ -313,28 +313,28 @@ A model, by name, and its effort.
 
 A project's initial policy, copied and kept. Changes affect later projects, never an existing project's policy.
 
-- `escalation_role`: integer, 0 to 4,294,967,295, or null. The role an escalation reaches last, or null; that role must accept proposals and decide escalations.
-- `ceiling`: `authority`. The most any task in the project may have; within the rules, else refused as `rules`.
-- `projections`: list of at most 32, each `grant`. The grants under which temper writes goals' projections into the project's homes; each within `ceiling`.
+- `escalation_role`: integer, 0 to 4,294,967,295, or null. Last role reached by escalations, or null; must accept proposals and decide escalations.
+- `ceiling`: `authority`. Project task ceiling; within rules, else `rules` refusal.
+- `projections`: list of at most 32, each `grant`. Grants for writing goal projections into project homes; each within `ceiling`.
 - `period_spend`: integer. What the project may spend in a period; within `rules.period_spend`.
 - `roles`: list of at most 32, each `role`. The project's roles: what a party in each may do.
 - `requirements`: list of at most 32, each `requirement`. What an effect in the project needs, beside the rules' requirements.
-- `permissions`: list of at most 32, each `permission`. The project role each forge collaborator's permission gives, at adoption.
+- `permissions`: list of at most 32, each `permission`. Project role given by forge collaborator permission at adoption.
 - `templates`: list of at most 16, each `template_override`. The project's overrides of templates.
 
 ## role
 
 A role in a project.
 
-- `number`: integer, 0 to 4,294,967,295. Its number: 0 is owner, 1 maintainer, 2 member, 3 observer; others are the policy's own. Role 0 must be able to create tasks, else refused as `owner`.
+- `number`: integer, 0 to 4,294,967,295. Role: 0 owner, 1 maintainer, 2 member, 3 observer; others policy-defined. Role 0 must allow task creation, else `owner` refusal.
 - `authority`: `authority`. The most a party in it may give a task; within the policy's `ceiling`.
 - `period_spend`: integer. What a party in it may allot in a period; within the policy's `period_spend`.
-- `requests`: integer, 0 to 65,535. What a party in it may ask, a bit each: 1 create, 2 allot, 4 accept, 8 amend, 16 cancel, 32 release, 64 move, 128 watch, 256 change the policy.
-- `decides`: integer, 0 to 255. The proposals a party in it may decide, a bit each: 1 a batch of tasks, 2 an effect, 4 a widening, 8 an amendment, 16 an escalation.
+- `requests`: integer, 0 to 65,535. Allowed party requests, bits: 1 create, 2 allot, 4 accept, 8 amend, 16 cancel, 32 release, 64 move, 128 watch, 256 change policy.
+- `decides`: integer, 0 to 255. Proposals a party may decide, bits: 1 task batch, 2 effect, 4 widening, 8 amendment, 16 escalation.
 
 ## template_override
 
-A project's override of a template; a member left null keeps the template's own.
+Project template override; null keeps the template's member.
 
 - `template`: integer, 0 to 4,294,967,295. The template's number; offered, and once in the policy.
 - `executor`: `executor`, or null. Its executor, or null.
@@ -344,7 +344,7 @@ A project's override of a template; a member left null keeps the template's own.
 
 ## permission
 
-A forge collaborator's permission, and the project role it gives at adoption.
+Forge collaborator permission and its project role at adoption.
 
 - `connector`: integer, 0 to 65,535. The connector: 1 is the forge.
 - `permission`: integer, 0 to 65,535. The permission: 0 none, 1 read, 2 write, 3 admin.
@@ -357,7 +357,7 @@ Deployment ceilings bound every project's policy, read afresh for each decision.
 - `ceiling`: `authority`. The most any project may have.
 - `period_spend`: integer. The most a project's period spend may be.
 - `minimum_run_spend`: integer. A run starts only with more than this to spend.
-- `maximum_run_spend`: integer. The most a run is given of its task's funds; more than `minimum_run_spend`, and within `ceiling`'s spend.
+- `maximum_run_spend`: integer. Most task funds given per run; above `minimum_run_spend`, within `ceiling` spend.
 - `implies`: list of at most 32, each `implication`. Kinds of a connector's whose grant grants other kinds too.
 - `requirements`: list of at most 32, each `requirement`. What an effect needs, in every project.
 
@@ -371,20 +371,20 @@ One kind whose grant grants another.
 
 ## authority
 
-What a task, a role or a ceiling may do: its tools, models, grants, delegation, spend and deadline.
+Task, role or ceiling authority: tools, models, grants, delegation, spend and deadline.
 
 - `models`: `models`. The models its runs may use.
-- `tools`: integer. The engine's tool families its runs may call, a bit each: 1 delegate, 2 message, 4 amend, cancel and release, 8 decide and withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 the forge's reads, 1024 settings, 2048 asking.
+- `tools`: integer. Allowed engine tool families, bits: 1 delegate, 2 message, 4 amend/cancel/release, 8 decide/withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 forge reads, 1024 settings, 2048 asking.
 - `grants`: list of at most 1,048,576, each `grant`. The effects and reads it may make, each a connector's kind on some resources.
 - `delegation`: `delegation`. The delegates it may make.
 - `spend`: integer. The most its tree may spend.
 - `deadline`: nanoseconds since 1970 UTC, or null. The latest it may end, or null for no deadline.
-- `notes`: integer, 0 to 255. The scopes it may write notes in, a bit each: 1 its goal, 2 its project, 4 the deployment.
+- `notes`: integer, 0 to 255. Note scope bits: 1 its goal, 2 its project, 4 deployment.
 - `note_resources`: list of at most 1,048,576, each `resource`. The resources it may write notes on.
 
 ## models
 
-Which models: a word, or an object with one member.
+Models: a word or one-member object.
 
 - `"all"`: Every configured model, those configured later included.
 - `named`: list of at most 64, each hex, at most 4,096 bytes. These models alone, each name as hex; an empty list allows none.
@@ -394,12 +394,12 @@ Which models: a word, or an object with one member.
 Leave to make one kind of a connector's effect or read, on some resources.
 
 - `connector`: integer, 0 to 65,535. The connector: 1 is the forge.
-- `kind`: integer, 0 to 65,535. The kind; the forge's are 1 read, 2 push, 3 open a pull request, 4 merge, 5 review, 6 set a status, 7 comment, 8 open an issue, 9 make a branch, 10 edit a pull request, 11 update it from its base, 12 close or reopen it, 13 edit an issue, 14 set reviewers, 15 delete a branch.
+- `kind`: integer, 0 to 65,535. Forge kinds: 1 read, 2 push, 3 open pull request, 4 merge, 5 review, 6 set status, 7 comment, 8 open issue, 9 make branch, 10 edit pull request, 11 update it from base, 12 close/reopen it, 13 edit issue, 14 set reviewers, 15 delete branch.
 - `pattern`: `pattern`. The resources it covers.
 
 ## pattern
 
-Resources by name: the exact `segments`, then `last`. A forge's repository is `forge`, the host, the owner and the repository; a branch adds `branch` and its segments.
+Resource names: exact `segments`, then `last`. Repository: `forge`, host, owner, repository; a branch adds `branch` and its segments.
 
 - `segments`: list of at most 9, each hex, at most 32,768 bytes. The first segments, each as hex, each matched exactly.
 - `last`: `last`. The segment after them.
@@ -416,7 +416,7 @@ The last segment: an object with one of these members.
 The delegates a task may make.
 
 - `kinds`: list of at most 18, each `delegate`. Who its delegates may be.
-- `tasks`: integer, 0 to 4,294,967,295. How many tasks its tree may make over its life, not at once.
+- `tasks`: integer, 0 to 4,294,967,295. Tree's lifetime task count, not concurrent.
 - `depth`: integer, 0 to 4,294,967,295. How far below it its tree may go; 0 allows no delegate.
 
 ## delegate
@@ -444,19 +444,19 @@ What one kind of a connector's effect needs on some resources, whatever any auth
 - `pattern`: `pattern`. The resources it applies to.
 - `judge`: `judge`. Who judges it.
 - `guard`: `guard`. When it is judged.
-- `must_be_guarded`: true or false. Whether the system that makes the effect must check it as it does; an effect that system cannot guard is refused.
+- `must_be_guarded`: true or false. Must the effect's system check it as it acts? Effects it cannot guard are refused.
 
 ## judge
 
 The connector that judges a requirement, and its criterion.
 
 - `connector`: integer, 0 to 65,535. The judging connector: 1 is the forge.
-- `requirement`: integer, 0 to 65,535. Its criterion; the forge's are 1 CI passed at the head, 2 the head up to date with its base, 3 a gate, 4 approvals.
+- `requirement`: integer, 0 to 65,535. Forge criteria: 1 CI passed at head, 2 head up to date with base, 3 gate, 4 approvals.
 - `parameters`: integer, 0 to 4,294,967,295. A number the judging connector reads the criterion's terms by.
 
 ## guard
 
-When a requirement is judged: a word, or an object with one member.
+When to judge: a word or one-member object.
 
 - `"guarded"`: As the effect is made, by the system that makes it.
 - `observed`: `observed`. Before the effect is made, from facts read recently enough.
@@ -471,12 +471,12 @@ A requirement judged from facts read before the effect.
 
 A landing rule for the deployment or one project. Its criteria apply to every landing it covers.
 
-- `pattern`: `landing-pattern`. `forge`, the forge's host, repository owner and name, then `branch` and its segments; or, for a project's rule, `branch` and its segments alone, covering that branch in each of the project's repositories.
-- `enforce`: true or false. True makes each criterion a requirement every landing it covers must meet; false leaves them to the change procedure alone.
+- `pattern`: `landing-pattern`. `forge`, host, repository owner and name, then `branch` and its segments; project rules may use `branch` and its segments alone for that branch in every project repository.
+- `enforce`: true or false. True: criteria required for every covered landing. False: change procedure alone checks them.
 - `ci`: true or false. CI must have passed at the change's head.
 - `up_to_date`: true or false. The change's head must contain its base's tip.
 - `gates`: list of at most 64, each `landing-gate`. The gates every change it covers asks for.
-- `approvals`: list of at most 64, each `landing-approval`. The distinct people holding each role who must approve the change by a forge review.
+- `approvals`: list of at most 64, each `landing-approval`. Distinct people per role required to approve by forge review.
 
 ## landing-gate
 
@@ -484,7 +484,7 @@ A gate every change covered by the rule asks for: an agent's review, or a reposi
 
 - `number`: integer, 0 to 4,294,967,295. The agent review's or repository check's gate number.
 - `blocking`: true or false. Whether this gate must pass before the change lands.
-- `freshness`: `"exact"` or `"clean"`. At which later heads a verdict still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+- `freshness`: `"exact"` or `"clean"`. At which later heads a verdict still counts. `"exact"`: Verdict counts at its given head. `"clean"`: Verdict also counts at later heads from cleanly merged updates.
 
 ## landing-approval
 
@@ -492,11 +492,11 @@ Distinct people holding a project role approve the change, each by a review on t
 
 - `role`: integer, 0 to 4,294,967,295. A role in the project's policy whose people approve the change.
 - `people`: integer, 0 to 4,294,967,295. How many distinct people holding the role must approve the change.
-- `freshness`: `"exact"` or `"clean"`. At which later heads an approval still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+- `freshness`: `"exact"` or `"clean"`. At which later heads an approval still counts. `"exact"`: Verdict counts at its given head. `"clean"`: Verdict also counts at later heads from cleanly merged updates.
 
 ## landing-pattern
 
-The exact base segments, then an exact last segment or an open prefix and all below it. A project's rule may begin at `branch`, covering that branch in each of its repositories.
+Exact base segments, then an exact last segment or open prefix and all below. A project rule may start at `branch` for that branch in all its repositories.
 
 - `segments`: list of at most 9, each hex, at most 4,096 bytes. The exact base segments of the resources the rule covers.
 - `last`: `landing-last`. One more segment, equal to an exact value or beginning with an open value, with all below it.
@@ -510,65 +510,65 @@ The final resource segment, in the same hex form as a pattern's last segment.
 
 ## forge-charter
 
-An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.
+Charter number: integer 0 to 4,294,967,295. Setting 1 selects the change's charter; setting 2 its reviews'.
 
 ## follow
 
-A project's follow from a context repository into an owned, writable repository. Selector: project and number, from 1 to forge.follows; no stock default.
+Project follow: context to owned, writable repository. Selector: project and number, 1 to forge.follows; no stock default.
 
-- `source`: `follow-source`. The context source; its repository and branch are fixed after acceptance.
-- `target`: `follow-target`. The owned target; its repository and branch are fixed after acceptance.
-- `owner`: `follow-owner`. The owner of follow changes; required.
-- `start`: `"owner"` or `"code"`. When each change starts; owner if absent or empty. `"owner"`: Wait for the owner; the default. `"code"`: Start after the previous change lands.
-- `producer`: text, at most 8,192 bytes. Change parameter 11, C;P;R. Absent or empty uses the change charter and its defaults.
+- `source`: `follow-source`. Context source; repository and branch fixed once accepted.
+- `target`: `follow-target`. Owned target; repository and branch fixed once accepted.
+- `owner`: `follow-owner`. Follow changes' owner; required.
+- `start`: `"owner"` or `"code"`. When changes start; absent/empty: owner. `"owner"`: Wait for the owner; the default. `"code"`: Start after the previous change lands.
+- `producer`: text, at most 8,192 bytes. Change parameter 11, C;P;R. Absent/empty: change charter and its defaults.
 - `check`: `follow-check`. The follow check; required.
 
 ## follow-source
 
-A repository this project adopts as context. An absent or empty branch uses its adopted default branch; absent or empty paths cover every path.
+Repository adopted by this project as context. Absent/empty branch: adopted default; absent/empty paths: every path.
 
 - `forge`: integer, 0 to 65,535. The forge number.
 - `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
-- `branch`: text, at most 4,096 bytes. The source branch, or its adopted default branch if absent or empty.
-- `paths`: list of at most 256, each text, at most 256 bytes. Whole-segment prefixes, at most forge.follow_paths; no leading, trailing or doubled slash and no empty path.
+- `branch`: text, at most 4,096 bytes. Source branch; absent/empty: adopted default.
+- `paths`: list of at most 256, each text, at most 256 bytes. Whole-segment prefixes, at most forge.follow_paths; none empty, no leading/trailing/doubled slash.
 
 ## follow-target
 
-An owned, writable repository. An absent or empty branch uses its landing branch.
+Owned, writable repository. Absent/empty branch: landing branch.
 
 - `forge`: integer, 0 to 65,535. The forge number.
 - `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
-- `branch`: text, at most 4,096 bytes. The target branch, or its landing branch if absent or empty.
+- `branch`: text, at most 4,096 bytes. Target branch; absent/empty: landing branch.
 
 ## follow-owner
 
-A person with any role in this project.
+A person in any role of this project.
 
-- `person`: integer. A person of this project, by number.
+- `person`: integer. Project person's number.
 
 ## follow-check
 
-The target workflow and its report artifact; both required, nonempty, at most 256 bytes each.
+Target workflow and report artifact: each required, 1 to 256 bytes.
 
-- `workflow`: text, at most 256 bytes. A workflow file of the target, required and nonempty.
-- `artifact`: text, at most 256 bytes. The uploaded artifact name, required and nonempty.
+- `workflow`: text, at most 256 bytes. Target workflow file; required, nonempty.
+- `artifact`: text, at most 256 bytes. Uploaded artifact name; required, nonempty.
 - `format`: `"junit"` or `"lines"`. The report format; required. `"junit"`: JUnit XML. `"lines"`: Line-format report.
 
 ## template-goal
 
-A goal template's work: whether its coordinator designs first and makes a close-out. With none kept, it plans and makes no close-out.
+Goal template work: whether its coordinator designs first and makes a close-out. Absent: plans, no close-out.
 
-- `design`: true or false. Whether the coordinator delivers a design before planning its changes; required.
-- `close_out`: true or false. Whether the coordinator makes a close-out after the goal lands; required.
+- `design`: true or false. Coordinator delivers design before planning changes? Required.
+- `close_out`: true or false. Coordinator makes close-out after goal lands? Required.
 
 ## project-ways
 
-What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0.
+Project display and how goals start. Absent: drafts true, other switches false, way 0.
 
 - `drafts`: true or false. Whether chats can write drafts.
 - `goals`: true or false. Whether the rail shows Goals.
 - `changes`: true or false. Whether the rail shows Changes.
-- `way`: integer, 0 to 4,294,967,295. The template a goal starts by: one the project offers with tracked set, or 0 for the first.
+- `way`: integer, 0 to 4,294,967,295. Goal's starting template: project-offered, tracked set; 0 for the first.
 
 ## project-questions
 
@@ -580,14 +580,14 @@ The route a project's change takes when its maker names none.
 
 ## project-classes
 
-What agents decide for a person and what asks them, by kind and by path set. With none stored, Agents review's table applies.
+What agents decide or ask a person, by kind and path set. Absent: Agents review's table.
 
 - `items`: list of at most 20, each `class-item`. The table's class items.
 - `sets`: list of at most 6, each `path-set`. The path sets its items may name.
 
 ## class-item
 
-Exactly one of kind or set, optional words and a class. Only one item without words per subject. Money, irreversible, rules and other always wait and have no item.
+One of kind/set, optional words, and a class. One wordless item per subject. Money, irreversible, rules and other always wait, with no item.
 
 - `kind`: `"wording"`, `"retry"`, `"implementation"`, `"tests"`, `"dependency"` or `"departure"`. Exactly one of kind or set is required.
 - `set`: integer, 0 to 255. A set in this table, from 1 to 6; exactly one of kind or set.
