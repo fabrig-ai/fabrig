@@ -93,8 +93,8 @@ fn standard_rows() {
         (&push,Command::IsAncestor { expected:fixtures::EXPECTED,commit:fixtures::COMMIT },1,b"",Next::End(git::Done::Rejected)),
         (&merge,Command::Merge { theirs:fixtures::COMMIT },0,b"",Next::End(git::Done::Merged)),
         (&merge,Command::Merge { theirs:fixtures::COMMIT },1,b"",Next::Run(Command::Unmerged)),
-        (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]) })),
-        (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]) })),
+        (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]), cut: false })),
+        (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true })),
         (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
@@ -197,5 +197,30 @@ fn changed_paths_keep_the_first_code_path_without_a_conflict_count_limit() {
             }),
             "an incomplete or empty path cannot hide a code path"
         );
+    }
+}
+
+#[test]
+fn brings_lists_merge_bases_then_commits_missing_from_the_base_and_refuses_other_answers() {
+    let op = git::Op::Brings { at: fixtures::at(), head: fixtures::COMMIT, base: fixtures::PARENT, upstream: fixtures::EXPECTED };
+    let command = Command::MergeBases { head: fixtures::COMMIT, upstream: fixtures::EXPECTED };
+    assert_eq!(sequence::first(&op), Next::Run(command.clone()));
+    let ids = crate::invocation::joined(&[&crate::invocation::hex(fixtures::COMMIT), b"\n", &crate::invocation::hex(fixtures::EXPECTED), b"\n"]);
+    let list = Command::BringsList { bases: Box::new([fixtures::COMMIT, fixtures::EXPECTED]), base: fixtures::PARENT };
+    assert_eq!(sequence::after(&op, &command, 0, &ids, b"", 0, &fixtures::checkout()), Next::Run(list.clone()));
+    for (command, code, stdout, expected) in [
+        (&command, 1, b"".as_slice(), Some(false)),
+        (&command, 0, b"", None),
+        (&command, 1, ids.as_ref(), None),
+        (&command, 128, b"", None),
+        (&command, 0, b"not an id\n", None),
+        (&list, 0, b"", Some(false)),
+        (&list, 0, b"abababababababababababababababababababab\n", Some(true)),
+        (&list, 1, b"", None),
+        (&list, 0, b"invalid\n", None),
+        (&list, 0, ids.as_ref(), None),
+    ] {
+        let expected = match expected { None => sequence::failed(git::Fault::Broken, b"diagnostic", 0), Some(brings) => Next::End(git::Done::Brings { brings }) };
+        assert_eq!(sequence::after(&op, command, code, stdout, b"diagnostic", 0, &fixtures::checkout()), expected, "{command:?}: {code}");
     }
 }

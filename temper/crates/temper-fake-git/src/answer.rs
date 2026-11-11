@@ -229,6 +229,28 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             checkout.write(&object(at, commit), b"");
             Answer::success([id(commit).as_slice(), b"\n"].concat())
         }
+        Command::MergeBases { head, upstream } => {
+            if !git::object_present(checkout, at, count(*head)) || !git::object_present(checkout, at, count(*upstream)) {
+                return Answer::local_failure();
+            }
+            let ours = ancestors(transport, count(*head));
+            let theirs = ancestors(transport, count(*upstream));
+            let shared: Vec<_> = ours.intersection(&theirs).copied().collect();
+            let bases: Vec<_> = shared.iter().filter(|candidate| !shared.iter().any(|other| candidate != &other && transport.is_ancestor(**candidate, *other))).copied().collect();
+            let mut bytes = Vec::new();
+            for base in bases { bytes.extend(id(base)); bytes.push(b'\n'); }
+            Answer { exit: u8::from(bytes.is_empty()), stdout: bytes, stderr: Vec::new() }
+        }
+        Command::BringsList { bases, base } => {
+            if !git::object_present(checkout, at, count(*base)) || bases.iter().any(|id| !git::object_present(checkout, at, count(*id))) { return Answer::local_failure(); }
+            let excluded = ancestors(transport, count(*base));
+            for tip in bases {
+                for commit in ancestors(transport, count(*tip)) {
+                    if !excluded.contains(&commit) { return Answer::success([id(commit).as_slice(), b"\n"].concat()); }
+                }
+            }
+            Answer::success(Vec::new())
+        }
         Command::IsAncestor { expected, commit } => {
             let mut out = Answer::success(Vec::new());
             out.exit = u8::from(!transport.is_ancestor(count(*expected), count(*commit)));
@@ -473,4 +495,15 @@ fn push(
         }
         Err(fault) => failed(remote, fault),
     }
+}
+
+fn ancestors(transport: &mut impl Transport, tip: u64) -> std::collections::BTreeSet<u64> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut pending = vec![tip];
+    while let Some(commit) = pending.pop() {
+        if !seen.insert(commit) { continue; }
+        pending.extend(transport.parent(commit));
+        pending.extend(transport.merge_parent(commit));
+    }
+    seen
 }

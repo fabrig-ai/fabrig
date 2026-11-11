@@ -52,6 +52,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
+        | Op::Brings { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -74,6 +75,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. } => None,
     }
@@ -93,6 +95,7 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. } => None,
     }
@@ -246,7 +249,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                     match git::commit_merging(forge, disk, &path(&at), fake(parent), fake(second), &message) {
                         Ok(committed) => Done::Committed { commit: commit(committed) },
                         Err(git::CommitFailure::Unresolved { files }) => {
-                            Done::Conflicted { files: files.into_iter().map(Vec::into_boxed_slice).collect() }
+                            Done::Conflicted { files: files.into_iter().map(Vec::into_boxed_slice).collect(), cut: false }
                         }
                         Err(git::CommitFailure::NotFetched) => panic!("both merge parents are locally fetched"),
                     }
@@ -268,6 +271,13 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                     .collect(),
             }
         }
+        Op::Brings { at, head, base, upstream } => {
+            assert_cloned(disk, &at);
+            let shared = ancestors(forge, fake(head));
+            let upstream = ancestors(forge, fake(upstream));
+            let base = ancestors(forge, fake(base));
+            Done::Brings { brings: shared.intersection(&upstream).any(|commit| !base.contains(commit)) }
+        }
         Op::IsAncestor { at, ancestor, commit } => {
             assert_cloned(disk, &at);
             Done::IsAncestor { contains: contains(forge, fake(ancestor), fake(commit)) }
@@ -279,7 +289,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             if merged.conflicts.is_empty() {
                 Done::Merged
             } else {
-                Done::Conflicted { files: merged.conflicts.into_iter().map(Vec::into_boxed_slice).collect() }
+                Done::Conflicted { files: merged.conflicts.into_iter().map(Vec::into_boxed_slice).collect(), cut: false }
             }
         }
         Op::Push { at, remote, commit, branch, expected, identity: _, account: _ } => {
@@ -308,8 +318,10 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
 pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conflicts: u32) -> Done {
     let merge = matches!(op, Op::Merge { .. });
     match perform(forge, disk, op) {
-        Done::Conflicted { files } if merge => Done::Conflicted {
-            files: files.into_iter().take(usize::try_from(conflicts).expect("conflicts fits usize")).collect(),
+        Done::Conflicted { files, cut } if merge => {
+            let most = usize::try_from(conflicts).expect("conflicts fits usize");
+            let cut = cut || files.len() > most;
+            Done::Conflicted { files: files.into_iter().take(most).collect(), cut }
         },
         done => done,
     }
@@ -356,4 +368,16 @@ fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
 #[must_use]
 pub fn store_path(store: Token) -> Vec<u8> {
     format!("stores/{}", store.raw()).into_bytes()
+}
+
+fn ancestors(forge: &mut impl Remote, head: u64) -> std::collections::BTreeSet<u64> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut pending = vec![head];
+    while let Some(commit) = pending.pop() {
+        if seen.insert(commit) {
+            pending.extend(forge.parent(commit));
+            pending.extend(forge.merge_parent(commit));
+        }
+    }
+    seen
 }

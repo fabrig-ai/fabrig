@@ -192,7 +192,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             scenario(
                 git::Op::Merge { at: at(), theirs: TWO },
                 &["merge-conflict", "merge-conflict-2"],
-                Expected::done(git::Done::Conflicted { files: Box::new([Box::from(&b"conflict.txt"[..])]) }),
+                Expected::done(git::Done::Conflicted { files: Box::new([Box::from(&b"conflict.txt"[..])]), cut: false }),
             ),
         ),
         ("commit", commit(false)),

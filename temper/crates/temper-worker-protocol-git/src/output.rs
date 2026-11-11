@@ -226,6 +226,7 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
         | git::Kind::Clone
         | git::Kind::Look
         | git::Kind::DiffPaths
+        | git::Kind::Brings
         | git::Kind::IsAncestor
         | git::Kind::Make
         | git::Kind::CheckOut

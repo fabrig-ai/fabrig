@@ -103,6 +103,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                     if stale { Done::Rejected } else { Done::Succeeded }
                 }
                 Op::DiffPaths { .. } => panic!("this job scripts no design delivery"),
+                Op::Brings { .. } => Done::Brings { brings: false },
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Point { .. }
                 | Op::Store { .. }

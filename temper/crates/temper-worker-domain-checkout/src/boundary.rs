@@ -142,6 +142,8 @@ pub enum Start {
     /// Fetch the branch and base, check out the branch and leave their merge
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
+    /// A one-member landing, combined during preparation (worker.md, 4.4).
+    Prepare { base: Commit, head: Commit, upstream: Option<Commit>, squash: bool, message: Message, squash_message: Message },
     /// The tip of a base branch with each head merged into it in order, each
     /// merge committed (domain/worker.md, section 5).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
@@ -160,6 +162,8 @@ pub enum Prepared {
     /// The workspace is ready, in the directory io names `workspace`: each
     /// repository at its starting point.
     Ready { workspace: Token, conflicts: Box<[Conflicts]> },
+    /// The one-member candidate, or its conflict, prepared without a process.
+    Candidate { workspace: Token, outcome: Candidate },
     /// Refused at the entrance: nothing is held.
     Refused { refusal: Refusal },
     /// It failed: the hold stays, for the client to release.
@@ -269,7 +273,15 @@ impl Start {
             | Self::Branch { .. }
             | Self::Commit { .. }
             | Self::Merge { .. }
+            | Self::Prepare { .. }
             | Self::Merged { .. } => false,
         }
     }
+}
+
+/// How temper's one-member merge train combined its member (worker.md, 4.4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Candidate {
+    Combined { squash: bool },
+    Conflict { files: Box<[Box<[u8]>]>, cut: bool },
 }

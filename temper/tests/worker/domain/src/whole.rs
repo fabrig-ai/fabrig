@@ -21,6 +21,7 @@ use crate::protocol;
 pub mod close;
 pub mod jobs;
 pub mod merge;
+pub mod prepare;
 pub mod orders;
 
 const RUN: Token = Token::new(81);

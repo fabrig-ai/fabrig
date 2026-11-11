@@ -48,7 +48,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         },
         Op::Merge { theirs, .. } => {
             assert_eq!(theirs, Commit::new(MERGE_BASE));
-            Done::Conflicted { files: Box::new([b"CHANGES.txt".as_slice().into()]) }
+            Done::Conflicted { files: Box::new([b"CHANGES.txt".as_slice().into()]), cut: false }
         }
         Op::Commit { parent, merging, .. } => {
             assert_eq!(parent, Commit::new(MERGE_HEAD));
@@ -61,6 +61,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
             Done::Succeeded
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
+        Op::Brings { .. } => Done::Brings { brings: false },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Point { .. }
         | Op::Store { .. }

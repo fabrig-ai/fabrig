@@ -69,6 +69,7 @@ fn git_ids_and_counts_share_the_forge_codec() {
 }
 fn spawn(command: &Command) -> k::Spawn {
     let kind = match command {
+        Command::MergeBases { .. } | Command::BringsList { .. } => Some(temper_worker_domain_checkout::git::Kind::Brings),
         Command::Format | Command::Remote { .. } | Command::UpdateRef { .. } | Command::Clone { .. } => {
             Some(temper_worker_domain_checkout::git::Kind::Clone)
         }
@@ -612,4 +613,18 @@ fn a_lost_push_answer_does_not_send_the_write_again() {
         output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Push),
         temper_worker_domain_checkout::git::Fault::Unreachable
     );
+}
+
+#[test]
+fn brings_commands_read_the_shared_graph_and_list_only_commits_outside_the_base() {
+    for (command, script, expected) in [
+        (Command::MergeBases { head: commit(TOPIC), upstream: commit(BASE) }, vec![(object_call(TOPIC), objects(TOPIC))], [crate::id::id(BASE).as_slice(), b"\n"].concat()),
+        (Command::BringsList { bases: Box::new([commit(TOPIC)]), base: commit(BASE) }, vec![(object_call(BASE), objects(BASE)), (object_call(TOPIC), objects(TOPIC))], [crate::id::id(TOPIC).as_slice(), b"\n"].concat()),
+        (Command::BringsList { bases: Box::new([commit(TOPIC)]), base: commit(TOPIC) }, vec![(object_call(TOPIC), objects(TOPIC))], Vec::new()),
+    ] {
+        let (answer, _, _net) = run(&command, script);
+        assert_eq!(answer.exit, 0, "{command:?}: {answer:?}");
+        assert_eq!(answer.stdout, expected, "{command:?}");
+        assert!(answer.stderr.is_empty());
+    }
 }

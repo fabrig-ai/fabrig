@@ -34,6 +34,8 @@ pub enum Event {
         deadline: Duration,
         directory: Box<[u8]>,
     },
+    /// The root completed temper's own prepare without a process (worker.md, 4.4).
+    Prepared { owner: Token, result: Box<[u8]>, code: u8 },
     Stop {
         owner: Token,
     },

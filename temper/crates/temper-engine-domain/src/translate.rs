@@ -46,6 +46,7 @@ pub struct Config {
 #[derive(Hash, Debug)]
 pub(crate) struct RootConfig {
     pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
+    pub(crate) prepare_kind: Option<JobBound>,
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) close_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,

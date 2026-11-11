@@ -46,6 +46,7 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
 mod merge;
+pub(crate) mod prepare;
 
 #[cfg(test)]
 mod tests;
@@ -2044,6 +2045,7 @@ pub(crate) fn workspace_repository(
     save: Box<[u8]>,
 ) -> Option<ForgeRepository> {
     let start = match item.start {
+        forge::items::Start::Commit(commit) => ForgeStart::Commit(commit),
         forge::items::Start::Base(branch) => ForgeStart::Base(branch),
         forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
         forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),

@@ -714,6 +714,7 @@ impl World {
         }
         assert!(client.operation.is_none(), "a client acts between its operations");
         let ready = match client.prepared {
+            Some(Prepared::Candidate { .. }) => unreachable!("branch-only clients"),
             Some(Prepared::Ready { .. }) => true,
             Some(Prepared::Failed { .. } | Prepared::Aborted) => false,
             Some(Prepared::Refused { .. }) | None => unreachable!("a client acts once it holds a workspace"),
@@ -860,6 +861,7 @@ impl World {
         client.prepared = Some(prepared.clone());
         let stats = &mut self.stats;
         match prepared {
+            Prepared::Candidate { .. } => unreachable!("branch-only clients"),
             Prepared::Ready { workspace, .. } => {
                 stats.ready += 1;
                 client.workspace = Some(*workspace);
@@ -1105,6 +1107,7 @@ impl World {
             | Op::CheckOut { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
@@ -1166,6 +1169,7 @@ impl World {
                 | Done::FailedWithOutput { .. }
                 | Done::Paths { .. }
                 | Done::Looked { .. }
+                | Done::Brings { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
                 | Done::Conflicted { .. } => Verified::Failed,
@@ -1221,6 +1225,7 @@ impl World {
             | Op::Push { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
@@ -1288,6 +1293,7 @@ impl World {
             | Done::FailedWithOutput { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {}
@@ -1337,6 +1343,7 @@ impl World {
                     | Kind::Push
                     | Kind::Look
                     | Kind::DiffPaths
+                    | Kind::Brings
                     | Kind::IsAncestor
                     | Kind::Merge => {}
                 }

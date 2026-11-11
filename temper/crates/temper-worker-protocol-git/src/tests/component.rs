@@ -219,8 +219,7 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
                     Box::from(b"two".as_slice()),
                     Box::from(b"three".as_slice()),
                     Box::from(b"four".as_slice()),
-                ]),
-            }
+                ]), cut: false }
         };
         assert_eq!(component.done(), Some((fixtures::OWNER, done)), "merging commit: {merging}");
     }
@@ -385,7 +384,7 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
             component.end(pipes[1]);
             component.exited(child, 0);
             component.closed(child, &pipes);
-            git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]) }
+            git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]), cut: false }
         };
         assert_eq!(component.done(), Some((fixtures::OWNER, expected)));
     }

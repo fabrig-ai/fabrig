@@ -153,6 +153,7 @@ impl Workspace {
     fn prepare(&mut self, world: &mut World, run: &engine::Assignment) -> Token {
         let repository = &run.workspace.repositories[0];
         let start = match &repository.start {
+            engine::ForgeStart::Commit(commit) => checkout::Start::Commit { commit: checkout::git::Commit::new(*commit) },
             engine::ForgeStart::Base(branch) => checkout::Start::Base { branch: branch.clone() },
             engine::ForgeStart::Branch(branch) => checkout::Start::Branch { branch: branch.clone() },
             engine::ForgeStart::Saved(branch) => checkout::Start::Saved { branch: branch.clone() },

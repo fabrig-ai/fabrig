@@ -147,6 +147,7 @@ impl Component {
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. } => false,
         };
@@ -366,6 +367,7 @@ impl Component {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }
                     | git::Op::Push { .. } => unreachable!("scan sequence"),

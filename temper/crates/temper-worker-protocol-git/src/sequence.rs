@@ -42,6 +42,7 @@ pub fn first(op: &git::Op) -> Next {
         }
         git::Op::Point { into, commit, .. } => Command::UpdateRef { into: *into, commit: *commit },
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
+        git::Op::Brings { head, upstream, .. } => Command::MergeBases { head: *head, upstream: *upstream },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
         git::Op::DiffPaths { before, after, .. } => Command::DiffPaths { before: *before, after: *after },
         git::Op::Merge { theirs, .. } => Command::Merge { theirs: *theirs },
@@ -80,6 +81,13 @@ pub fn after(
         return next;
     }
     match ran {
+        Command::MergeBases { .. } => return merge_bases(op, code, stdout, tail, cut),
+        Command::BringsList { .. } => {
+            if code == 0 && (stdout.is_empty() || id(stdout).is_some()) {
+                return Next::End(git::Done::Brings { brings: !stdout.is_empty() });
+            }
+            return failed(git::Fault::Broken, tail, cut);
+        }
         Command::Origin { .. } => match op {
             git::Op::Look { remote, .. } => match code {
                 0 => {
@@ -96,6 +104,7 @@ pub fn after(
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Commit { .. }
@@ -183,6 +192,7 @@ pub fn after(
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Push { .. } => {}
@@ -231,7 +241,8 @@ pub fn after(
                 }
                 _ => {}
             },
-            git::Op::DiffPaths { .. }
+            git::Op::Brings { .. }
+            | git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
             | git::Op::Store { .. }
             | git::Op::Make { .. }
@@ -297,7 +308,10 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
     match op {
         git::Op::Merge { .. } => {
             let files = output::conflict_paths(stdout, checkout)?;
-            if files.is_empty() { None } else { Some(Next::End(git::Done::Conflicted { files })) }
+            if files.is_empty() { return None; }
+            let mut kept = 0_usize;
+            for file in &files { kept = kept.checked_add(file.len())?.checked_add(1)?; }
+            Some(Next::End(git::Done::Conflicted { cut: kept != stdout.len(), files }))
         }
         git::Op::Commit { .. } => {
             let files = output::paths(stdout, checkout)?;
@@ -312,6 +326,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Push { .. } => None,
     }
@@ -331,6 +346,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
@@ -349,6 +365,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Create { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Commit { .. }
@@ -379,6 +396,24 @@ fn remote(command: &Command) -> bool {
         | Command::DiffPaths { .. }
         | Command::WriteTree
         | Command::CommitTree { .. }
+        | Command::MergeBases { .. }
+        | Command::BringsList { .. }
         | Command::IsAncestor { .. } => false,
     }
+}
+
+fn merge_bases(op: &git::Op, code: u8, stdout: &[u8], tail: &[u8], cut: u64) -> Next {
+    let git::Op::Brings { base, .. } = op else { unreachable!("merge bases belong to Brings") };
+    if code == 1 && stdout.is_empty() {
+        return Next::End(git::Done::Brings { brings: false });
+    }
+    if code == 0 && !stdout.is_empty() {
+        let mut bases = skein_lib::List::uncapped();
+        for line in stdout.split_inclusive(|byte| *byte == b'\n') {
+            let Some(commit) = id(line) else { return failed(git::Fault::Broken, tail, cut) };
+            bases.push(commit).expect("bounded stdout");
+        }
+        return Next::Run(Command::BringsList { bases: bases.into_boxed(), base: *base });
+    }
+    failed(git::Fault::Broken, tail, cut)
 }

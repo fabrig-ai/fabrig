@@ -92,6 +92,8 @@ pub enum BriefBody {
 /// A checkout's authoritative forge start, prepared afresh by the worker.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeStart {
+    /// The frozen base of a prepare round (worker.md, 4.4).
+    Commit(skein_forge::api::Commit),
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
     Saved(Box<[u8]>),
