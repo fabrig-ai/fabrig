@@ -12,6 +12,7 @@ and outcomes on scripted output. The checkout world's `suite::delivery`
 checks the resulting fake object graph, preserved ids and messages, and
 refusal of an unpushed second parent. No deployment replay is on record.
 
+- **Not yet:** 4.1 and 5, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages [in flight: change 68].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
 
 Unchecked saves use the same snapshot. The checkout world's delivery rows

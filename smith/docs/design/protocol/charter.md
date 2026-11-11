@@ -76,6 +76,13 @@ A versioned record (skein's `data/codec/README.md`, section 3):
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
   without them, smith's defaults apply (domain/run.md, 8.1);
+- **the checks' bound,** optional, a duration from 1 second to 1 day:
+  the wall bound each delivery check is given in place of the agent's
+  `check_timeout`, cut at the run's end as every check is
+  (domain/run.md, 8.1). Without it, `check_timeout`. A bound outside
+  that range is a malformed charter, refused at the entrance. Admission
+  reads `check_timeout` alone for the reserve (../domain/budget.md, 1);
+  the field is the charter's last;
 - **the budget** (../domain/budget.md):
   - turns, a generous loop guard;
   - spend, in the host's unit;
@@ -194,7 +201,8 @@ version at a time, and any change a reader would notice is a new one.
   decoder of their own.
 - **Before v0.1.0 a format changes in place.** The `save` grant (section
   2) was added to version 4 as it is, with no new version (the owner,
-  2026-11-09): a writer and its agents of different builds are of one
+  2026-11-09), and so was the charter's last field, the checks' bound
+  (2026-11-11): a writer and its agents of different builds are of one
   release only once v0.1.0 is cut, and until then they are built
   together.
 

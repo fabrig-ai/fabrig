@@ -2,12 +2,13 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
-Section 5 has no known gap in recording a save's pushed head: the engine
-accepts it under the attempt's writer claim and records it in the change
-without completing its delegate. The engine domain world's
-`a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head`
-holds a resolution's unchecked push, question and answered next attempt,
-whose pull section reads the saved head and content with no failed try.
+- **Not yet:** 5: a save's head found by the read that frees the attempt's
+  writer, its answer reporting no push, is saved as the branch's head but not
+  recorded in the change (`temper-engine-domain-forge/src/domain.rs`,
+  `lost_read`), so a repair's or a resolution's next brief, a goal's
+  landing's among them, fails `the change's head moved`; only a head the
+  answer reports is recorded (`answered`, `record_delegate_head`)
+  [in flight: change 67].
 
 `tools.md`'s `decided`, `agents.md`, 1, and `ask-temper.md`, 1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone

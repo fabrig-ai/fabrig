@@ -96,6 +96,47 @@ fn a_second_fake_shares_names_replies_and_time() {
 }
 
 #[test]
+fn a_shared_hook_wakes_an_idle_peer_without_a_timer() {
+    use skein_fake_forge_domain::{Request, api};
+    use skein_lib::ReplyTo;
+
+    let mut world = World::new();
+    world.bind_receiver(false);
+    while world.peer.work_pending(world.sim.now()) {
+        world.pass();
+    }
+    assert_eq!(world.peer.next_policy_deadline(), None);
+    assert_eq!(world.peer.next_mechanism_deadline(), None);
+
+    // Another fake owns this reply; it must not keep the peer running.
+    let token = world.forge.borrow_mut().next_reply();
+    world
+        .forge
+        .borrow_mut()
+        .pending
+        .push(Request::Reply { to: ReplyTo::new(token), result: Ok(api::Answer::Pushed(api::Pushed::Pushed)) });
+    assert!(!world.peer.work_pending(world.sim.now()));
+
+    // The other fake leaves a hook, as a synchronous git push does.
+    world.queue_hooks(fixtures::ONE_POST);
+    assert!(world.peer.work_pending(world.sim.now()), "a routable hook wakes its peer");
+    assert_eq!(world.peer.next_policy_deadline(), None);
+    assert_eq!(world.peer.next_mechanism_deadline(), None);
+    world.pass();
+    let mut forge = world.forge.borrow_mut();
+    assert_eq!(forge.pending.len(), 1);
+    let Some(Request::Reply { to, result }) = forge.pending.pop() else { panic!("the other fake's reply stays") };
+    assert_eq!(to.into_token(), token);
+    assert_eq!(result, Ok(api::Answer::Pushed(api::Pushed::Pushed)));
+    drop(forge);
+
+    world.settle_hooks();
+    assert_eq!(world.delivery_outcomes(), [&forge::Delivery::Written]);
+    assert_eq!(world.received_posts(), fixtures::ONE_POST);
+    assert_eq!(world.connects, fixtures::ONE_POST);
+}
+
+#[test]
 fn shutdown_keeps_a_mid_request_client_until_its_terminal() {
     let mut world = World::new();
     let fd = world.open();
