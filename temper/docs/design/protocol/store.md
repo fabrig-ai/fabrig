@@ -335,6 +335,8 @@ joins family 2's record in place, in store v11 with no migration
 
 A named call's comparison answer is names and counts (skein's `forge/README.md`, 3.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`, replaced in place in store v11 with no version bump, no migration and no arm kept for older rows: before the first release a stored format changes in place, and a store written before it is made afresh (A deployment made again, above) (2026-11-10).
 
+A listing's page of items says whether it was cut at the answer's bytes (skein's `forge/forgejo.md`, 1.3): `ItemsAnswer` holds `items`, `more`, `now` and `cut`, in store v11 in place by the same rule, so a stored answer read after a restart pages on from its last kept row as an answered one does (skein's `forge/client.md`, 4, "Paging") (2026-11-11).
+
 ## 5. The restart
 
 - **One step, one interval.** The core's restart script asks for the
