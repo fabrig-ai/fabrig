@@ -4,8 +4,6 @@
 
 - **Not yet:** 2.3: `Branches`' names are checked against `rows`
   (`skein-forge/src/measure.rs`, `answer_rows`).
-- **Not yet:** 4: an item's read sends no `since` (`keep/poll.rs`).
- 
 - **Not yet:** 4: drift's `Fresh` read is a `Compare`. 7.4: an update is
   proved by a `Compare`'s empty commits (`outbox.rs`, `outbox/answer.rs`),
   not a `Range`.

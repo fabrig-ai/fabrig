@@ -176,6 +176,7 @@ The client holds the resources the owner names, and nothing else.
     the listing began, it is instead the time of the first full page of
     one time, when there was one. The next listing replays what may have
     moved, and the stamps drop repeats.
+  - **Never past the forge's time.** A page's advance and a completed listing's mark each stay at or below the `now` of the answer that moves them, and a restored mark at or below its row's restored `clock`, the latest `now` the forge answered: an item stamped later than the forge's own clock moves neither, and the listing that follows reads from the forge's time. Only the first listing's probe (`u64::MAX`: `forgejo.md`, 1.1) asks past it, and its mark is its answer's `now`.
   - **A listing that fails** keeps its place and goes again after a
     wait that grows (4.2). It reports nothing.
 - **Per resource.** An item a listing reports changed, and a resource a

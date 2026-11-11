@@ -101,6 +101,7 @@ mod reviews;
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
 
+mod completed_change;
 mod saved_close;
 #[path = "forge_routes/saved_retry.rs"]
 mod saved_retry;

@@ -332,10 +332,7 @@ change takes its base if its head lacks the base's tip and its rules ask
 up to date (`gates.md`, 2), so a repair starts from current code. Beyond that and step 3's
 head already behind, it never updates only because its base moved.
 
-A completed change waits for its live delegates to end before offering
-its result to the core. A landing observed while a resumed repair's
-terminal is still on its way leaves the procedure waiting; the
-delegate's terminal wakes it to offer the landed result.
+A completed change (landed, or ended without landing) cancels its live delegates, its producer, a repair, a resolution or a gate, whose work no longer counts, each with the reason `its change landed` or `its change ended`, in the step that completes it; it offers its result to the core once their terminals are heard, so no run whose change has completed parks in `wait`, and what waits on the change goes on. A delegate's successful result heard before the cancel is kept as any result is (its repair's words in the landed result). A landing observed while a resumed repair's terminal is still on its way leaves the procedure waiting; the delegate's terminal wakes it to offer the landed result.
 
 ## 3. Drift
 
