@@ -35,6 +35,8 @@ const ROWS: &[Row] = &[
                     "temper-client-tools",
                     "temper-client-tui",
                     "temper-client-view",
+                    "temper-fetch",
+                    "temper-fetch-shell",
                     "temper-shell",
                     "temper-docs",
                     "temper-version",

@@ -4932,6 +4932,7 @@ dependencies = [
 name = "temper-box"
 version = "0.0.0"
 dependencies = [
+ "flate2",
  "jig-channel-kit",
  "jig-client",
  "jig-client-kit",
@@ -5225,10 +5226,14 @@ dependencies = [
 name = "temper-client-shell"
 version = "0.0.0"
 dependencies = [
+ "skein-io",
+ "skein-lib",
  "skein-scratch",
  "skein-shell",
  "temper-client-shell-cli",
  "temper-client-shell-tui",
+ "temper-fetch",
+ "temper-fetch-shell",
  "temper-shell",
  "temper-test-env",
  "temper-version",
