@@ -27,6 +27,12 @@ key enter
 see "How should it run?"
 mark
 key enter
-see "goal Farewell line"
+key paste "/goal"
+see "pane: half"
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
 mark
 end
