@@ -197,6 +197,7 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        change_follows_commits: forge.follow_merge,
         follow_source_paths: forge.follow_paths,
         follow_source_branch: forge.name_bytes,
         follow_target_branch: forge.name_bytes,

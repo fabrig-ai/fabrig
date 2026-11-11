@@ -640,6 +640,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows,
         catch_up,
         close,
         merge_result,
@@ -702,6 +703,16 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             repairs: *repairs,
+            follows: match follows {
+                Some(value) => Some(
+                    w::ChangeFollows::new(
+                        &w::CEILINGS,
+                        w::ChangeFollowsParts { follow: value.follow, commits: encode_commits(&value.commits) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
@@ -757,6 +768,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows,
         catch_up,
         close,
         merge_result,
@@ -815,6 +827,13 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows: match follows {
+            Some(value) => {
+                let w::ChangeFollowsParts { follow, commits } = value.into_parts();
+                Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
+            }
+            None => None,
+        },
         catch_up,
         close,
         merge_result,
