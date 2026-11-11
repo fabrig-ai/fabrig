@@ -187,7 +187,7 @@ default; the document is `temper.json` in the configuration directory
   Their rows, and run as `claude`'s, are `temper-agent-shell`'s
   constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line
-  each: every owner's patch level (none before the first release), its
+  each: every owner's patch level (0 at the baseline, `baseline.md`), its
   families' and the store's versions, and its wires, as jig's store
   keeps them (jig's `protocol/store/records.md`, 3). It reads no
   configuration and no store. Its row and its lines are
@@ -374,7 +374,8 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
     binary's patch level of each (jig's `protocol/store/opening.md`, 5,
-    `levels`), `none` before the owner's first patch;
+    `levels`), from the sets it hands its store (`baseline.md`, 4): 0 at
+    the baseline, then its owner's count of landed patches;
   - `store VERSION`, jig's store's component version, then `family
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
