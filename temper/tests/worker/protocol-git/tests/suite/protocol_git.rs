@@ -24,6 +24,18 @@ fn each_operation_ends_once_with_its_transcript_s_outcome() {
 }
 
 #[test]
+fn a_point_failure_is_broken_without_forge_classification() {
+    let mut scenario = fixtures::point();
+    let invocation = scenario.script.invocations.front_mut().expect("update-ref");
+    invocation.transcript.exit = 128;
+    invocation.transcript.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
+    scenario.expected = Expected::fault(git::Fault::Broken);
+    let outcome = world::run(&scenario, fixtures::SEED);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.spawns, 1);
+}
+
+#[test]
 fn a_deadline_at_each_invocation_ends_timed_out_and_starts_no_more() {
     for (name, mut scenario) in fixtures::operations() {
         for invocation in 1..=u32::try_from(scenario.script.invocations.len()).expect("sequence") {
@@ -105,4 +117,31 @@ fn memory_stays_within_its_heap_ceiling_at_its_limits() {
     let peak = fixtures::memory_peak();
     assert!(peak > 0, "the allocator observed the component");
     assert!(peak <= GIT_OPERATIONS_HEAP_CEILING);
+}
+
+#[test]
+fn a_store_made_first_is_kept_and_its_competitors_whole_clone_is_discarded() {
+    for aside in [None, Some(skein_lib::Token::new(8))] {
+        let mut scenario =
+            fixtures::operations().into_iter().find(|(name, _)| *name == "store").expect("store sequence").1;
+        let git::Op::Store { aside: target, .. } = &mut scenario.op else { panic!("Store fixture") };
+        *target = aside;
+        scenario.files.insert(b"stores/9".to_vec(), Node::Directory);
+        scenario.files.insert(b"stores/9/kept".to_vec(), Node::File(b"first clone".as_slice().into()));
+        if aside.is_some() {
+            scenario.files.insert(b"stores/8".to_vec(), Node::Directory);
+            scenario.files.insert(b"stores/8/old".to_vec(), Node::File(b"unborrowed".as_slice().into()));
+        }
+        let outcome = world::run(&scenario, fixtures::SEED);
+        let Some(Node::File(kept)) = outcome.tree.get(b"stores/9/kept".as_slice()) else {
+            panic!("first clone remains")
+        };
+        assert_eq!(kept.as_ref(), b"first clone");
+        let discarded = if aside.is_some() { b"trash/1004".as_slice() } else { b"trash/1003" };
+        assert!(matches!(outcome.tree.get(discarded), Some(Node::Directory)));
+        assert!(!outcome.tree.keys().any(|path| path.starts_with(b"stores/new-")));
+        if aside.is_some() {
+            assert!(outcome.tree.contains_key(b"trash/1003/old".as_slice()));
+        }
+    }
 }

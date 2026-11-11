@@ -31,6 +31,7 @@ struct Fixture {
     stranger: Account,
     workspace: PathBuf,
     repo: PathBuf,
+    store: PathBuf,
     base: String,
     topic: String,
 }
@@ -69,7 +70,9 @@ impl Fixture {
         let workspace = instance.scratch().join("worker/workspaces/1");
         fs::create_dir_all(&workspace)?;
         let repo = workspace.join("specimen");
-        Ok(Self { instance, writer, stranger, workspace, repo, base, topic })
+        let store = instance.scratch().join("worker/stores/1");
+        fs::create_dir_all(store.parent().ok_or("store parent")?)?;
+        Ok(Self { instance, writer, stranger, workspace, repo, store, base, topic })
     }
     fn remote(&self, repo: &str) -> String {
         format!("{}/fixture/{repo}.git", self.instance.base())
@@ -84,23 +87,6 @@ fn success(output: &Output) -> Result<()> {
     } else {
         Err(format!("git fixture failed: {}", String::from_utf8_lossy(&output.stderr)).into())
     }
-}
-fn clone(
-    c: &mut Capture,
-    f: &Fixture,
-    case: Option<&str>,
-    url: &str,
-    dir: &str,
-    identity: Option<(&str, &str)>,
-) -> Result<Output> {
-    c.execute(
-        case,
-        &f.workspace,
-        &["clone", "--no-checkout", "--no-tags", "--origin", "origin", "--", url, dir],
-        identity,
-        false,
-        b"",
-    )
 }
 fn fetch(
     c: &mut Capture,
@@ -122,7 +108,7 @@ fn fetch(
             "--no-recurse-submodules",
             "--",
             url,
-            &format!("+{source}:refs/temper/fetched"),
+            &format!("+{source}:refs/temper/1/fetched"),
         ],
         identity,
         false,
@@ -180,7 +166,7 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     pushes(&f, c, &commit)?;
     looks(&f, c)?;
     api(&f.instance, "PATCH", "/api/v1/repos/fixture/specimen", &json!({"name":"renamed"}))?;
-    fetch(c, Some("fetch-renamed"), &f.repo, &url, "refs/heads/main", identity)?;
+    fetch(c, Some("fetch-renamed"), &f.store, &url, "refs/heads/main", identity)?;
     let exit = fs::read(c.out.join("transcripts/fetch-renamed/exit"))?;
     let stderr = fs::read(c.out.join("transcripts/fetch-renamed/stderr"))?;
     let redirected = followed(&exit, &stderr);
@@ -210,29 +196,67 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     fs::write(c.out.join("facts.txt"), facts)?;
     f.instance.stop().map_err(|e| format!("{e:?}").into())
 }
+fn store_clone(
+    c: &mut Capture,
+    f: &Fixture,
+    case: Option<&str>,
+    url: &str,
+    directory: &str,
+    identity: Option<(&str, &str)>,
+) -> Result<Output> {
+    let stores = f.store.parent().ok_or("store parent")?;
+    fs::create_dir_all(stores.join(directory))?;
+    c.execute(
+        case,
+        stores,
+        &["clone", "--bare", "--single-branch", "--no-tags", "--quiet", "--", url, directory],
+        identity,
+        false,
+        b"",
+    )
+}
 fn clones(f: &Fixture, c: &mut Capture) -> Result<()> {
-    success(&clone(c, f, Some("clone"), &f.remote("specimen"), "specimen", Some(f.identity()))?)?;
-    success(&clone(c, f, Some("clone-empty"), &f.remote("empty"), "empty", Some(f.identity()))?)?;
-    clone(c, f, Some("clone-missing-repository"), &f.remote("missing"), "missing", Some(f.identity()))?;
-    clone(c, f, Some("clone-wrong-token"), &f.remote("specimen"), "wrong", Some(("writer", "wrong-token")))?;
-    clone(
+    success(&store_clone(c, f, Some("clone"), &f.remote("specimen"), "new-1", Some(f.identity()))?)?;
+    fs::rename(f.store.with_file_name("new-1"), &f.store)?;
+    success(&store_clone(c, f, Some("clone-empty"), &f.remote("empty"), "new-2", Some(f.identity()))?)?;
+    success(&c.execute(Some("object-format"), &f.store, &["rev-parse", "--show-object-format"], None, false, b"")?)?;
+    success(&c.execute(
+        Some("init"),
+        &f.workspace,
+        &["init", "--quiet", "--object-format=sha1", "--", "specimen"],
+        None,
+        false,
+        b"",
+    )?)?;
+    fs::write(f.repo.join(".git/objects/info/alternates"), b"../../../../../stores/1/objects\n")?;
+    success(&c.execute(
+        Some("remote-add"),
+        &f.repo,
+        &["remote", "add", "origin", "--", &f.remote("specimen")],
+        None,
+        false,
+        b"",
+    )?)?;
+    store_clone(c, f, Some("clone-missing-repository"), &f.remote("missing"), "new-3", Some(f.identity()))?;
+    store_clone(c, f, Some("clone-wrong-token"), &f.remote("specimen"), "new-4", Some(("writer", "wrong-token")))?;
+    store_clone(
         c,
         f,
         Some("clone-stranger-private"),
         &f.remote("private"),
-        "private",
+        "new-5",
         Some((&f.stranger.login, f.stranger.token.value())),
     )?;
-    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
     let port = listener.local_addr()?.port();
-    drop(listener);
     c.mask.port(port);
-    clone(
+    drop(listener);
+    store_clone(
         c,
         f,
         Some("clone-refused-connection"),
         &format!("http://127.0.0.1:{port}/fixture/specimen.git"),
-        "refused",
+        "new-6",
         Some(f.identity()),
     )?;
     Ok(())
@@ -247,18 +271,37 @@ fn fetches(f: &Fixture, c: &mut Capture) -> Result<()> {
         ("fetch-missing-branch", "refs/heads/missing"),
         ("fetch-missing-commit", "ffffffffffffffffffffffffffffffffffffffff"),
     ] {
-        fetch(c, Some(name), &f.repo, &url, source, Some(f.identity()))?;
+        fetch(c, Some(name), &f.store, &url, source, Some(f.identity()))?;
     }
-    fetch(c, Some("fetch-wrong-token"), &f.repo, &url, "HEAD", Some(("writer", "wrong-token")))?;
-    success(&clone(c, f, None, &f.remote("hashed"), "hashed", Some(f.identity()))?)?;
-    fetch(
-        c,
-        Some("fetch-sha256-branch"),
-        &f.workspace.join("hashed"),
-        &f.remote("hashed"),
-        "refs/heads/main",
-        Some(f.identity()),
-    )?;
+    fetch(c, Some("fetch-wrong-token"), &f.store, &url, "HEAD", Some(("writer", "wrong-token")))?;
+    success(&c.execute(
+        Some("update-ref"),
+        &f.repo,
+        &["update-ref", "refs/temper/fetched", &f.base],
+        None,
+        false,
+        b"",
+    )?)?;
+    let hashed = f.store.with_file_name("hashed");
+    success(&store_clone(c, f, Some("clone-sha256"), &f.remote("hashed"), "new-7", Some(f.identity()))?)?;
+    fs::rename(f.store.with_file_name("new-7"), &hashed)?;
+    success(&c.execute(
+        Some("object-format-sha256"),
+        &hashed,
+        &["rev-parse", "--show-object-format"],
+        None,
+        false,
+        b"",
+    )?)?;
+    success(&c.execute(
+        Some("init-sha256"),
+        &f.workspace,
+        &["init", "--quiet", "--object-format=sha256", "--", "hashed"],
+        None,
+        false,
+        b"",
+    )?)?;
+    fetch(c, Some("fetch-sha256-branch"), &hashed, &f.remote("hashed"), "refs/heads/main", Some(f.identity()))?;
     Ok(())
 }
 fn local(c: &mut Capture, f: &Fixture, case: Option<&str>, args: &[&str]) -> Result<Output> {
@@ -327,7 +370,7 @@ fn pushes(f: &Fixture, c: &mut Capture, commit: &str) -> Result<()> {
     let later = String::from_utf8(later.stdout)?.trim().to_owned();
     push(c, f, "push-lease-stale", &url, &later, "main", Some(&f.base))?;
     let guarded = f.remote("guarded");
-    let head = fetch(c, None, &f.repo, &guarded, "refs/heads/main", identity)?;
+    let head = fetch(c, None, &f.store, &guarded, "refs/heads/main", identity)?;
     success(&head)?;
     let head = api(&f.instance, "GET", "/api/v1/repos/fixture/guarded/branches/main", &Value::Null)?;
     let head = head["commit"]["id"].as_str().ok_or("guarded head missing")?;

@@ -282,6 +282,7 @@ fn run(
     let head = super::tips(holding, delivery.repository).head;
     let op = match step {
         Step::Fetch => Op::Fetch {
+            store: super::borrowed(holding, delivery.repository).store.token(),
             at,
             remote: spec.remote.clone(),
             want: Want::Branch { branch: super::branch_of(spec, &push.to) },
