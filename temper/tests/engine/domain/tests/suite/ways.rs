@@ -913,7 +913,10 @@ fn ways_current_is_the_first_equal_path_and_see_ways_marks_yours() {
         }));
         driver.settle();
         let text = see_ways(&mut driver, 1);
-        assert!(text.contains("Agents review · now\n"), "{text}");
+        assert!(
+            text.contains("Agents review · now\nAgents review every change, and code lands it\nAn agent makes each change, another reviews it, and code lands it.\n"),
+            "{text}"
+        );
         assert_eq!(text.starts_with("Agents review · now\n"), equal_paths, "{text}");
         assert_eq!(text.matches(" · now").count(), 1, "only the first equal way: {text}");
         ack(&mut driver);
