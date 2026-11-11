@@ -68,7 +68,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** FILE
 - **Absent:** Use the machine's certificate trust.
 - Certificate trust file for HTTPS connections.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-agent
 
 ### `XDG_RUNTIME_DIR`
 
@@ -157,7 +157,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** The build script supplies unknown when git identity is unavailable.
 - The build's commit and tracked-file dirty mark.
 - **Notes:** Read at compile time from temper-version's build script alone; not a runtime override.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper-agent
 
 ### `TEMPER_INTERNAL_BUNDLE`
 
@@ -168,3 +168,13 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Select whether the build embeds the browser's bundle.
 - **Notes:** Read by temper-client-bundle's build script; none skips the nested browser build. Not a runtime override.
 - **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_DUMP_LLM`
+
+- **Set:** internal
+- **Reads**
+- **Form:** DIR
+- **Absent:** Do not dump model requests.
+- Directory for agents' model request dumps.
+- **Notes:** The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.
+- **Read by:** temper-box, temper-agent

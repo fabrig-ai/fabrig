@@ -80,15 +80,6 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - Choose the fake box's nine listener and peer ports.
 - **Notes:** Nine comma-separated nonzero ports; used only for a new sandbox.
 
-### `TEMPER_INTERNAL_DUMP_LLM`
-
-- **Set:** internal
-- **Reads**
-- **Form:** DIR
-- **Absent:** Do not dump model requests.
-- Directory for agents' model request dumps.
-- **Notes:** The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.
-
 ### `TEMPER_INTERNAL_WORKSPACE_REUSE`
 
 - **Set:** internal

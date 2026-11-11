@@ -2,7 +2,11 @@
 #![forbid(unsafe_code)]
 
 use skein_shell::{Argument, Command as Row, Reach, Reached, Set, Table};
-use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::{Path, PathBuf}};
+use std::{
+    ffi::OsStr,
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+};
 use temper_shell::{directories::EnvironmentEntry, table};
 
 mod entry;
@@ -117,7 +121,11 @@ fn configure(reached: Reached<'_>) -> Result<Command, (u8, String)> {
     }
 }
 
-fn run(configuration: &Path, environment: &[EnvironmentEntry], working: &Result<PathBuf, String>) -> Result<u8, String> {
+fn run(
+    configuration: &Path,
+    environment: &[EnvironmentEntry],
+    working: &Result<PathBuf, String>,
+) -> Result<u8, String> {
     decoded(configuration)
         .inspect_err(|why| {
             use std::io::Write;
@@ -175,7 +183,10 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
 }
 
-fn dump_directory(environment: &[EnvironmentEntry], working: &Result<PathBuf, String>) -> Result<Option<PathBuf>, String> {
+fn dump_directory(
+    environment: &[EnvironmentEntry],
+    working: &Result<PathBuf, String>,
+) -> Result<Option<PathBuf>, String> {
     let Some(value) = temper_shell::environment::INTERNAL_DUMP_LLM.value(environment) else {
         return Ok(None);
     };

@@ -12,9 +12,13 @@ use std::{
 use temper_agent_shell::AGENT;
 
 fn command_help(words: &'static [&'static str]) -> Vec<u8> {
-    let command = AGENT.commands.iter().find(|command| command.reach == skein_shell::Reach::Words(words)).expect("command");
+    let command =
+        AGENT.commands.iter().find(|command| command.reach == skein_shell::Reach::Words(words)).expect("command");
     let page = AGENT.command_help(command);
-    assert_eq!(page.split("\n\n").next().expect("notice").split_whitespace().collect::<Vec<_>>().join(" "), "internal: not part of temper-agent's public command line; it may change without notice.");
+    assert_eq!(
+        page.split("\n\n").next().expect("notice").split_whitespace().collect::<Vec<_>>().join(" "),
+        "internal: not part of temper-agent's public command line; it may change without notice."
+    );
     page.into_bytes()
 }
 
@@ -69,9 +73,22 @@ fn launcher(directory: &Path, right_size: bool) -> PathBuf {
 fn the_binary_runs_every_mode_as_temper_does() {
     let page = AGENT.help();
     let sections: Vec<_> = page.split("\n\n").collect();
-    assert_eq!(AGENT.commands.iter().filter(|command| command.set == skein_shell::Set::Public).map(|command| command.reach).collect::<Vec<_>>(), [skein_shell::Reach::Words(&["help"])]);
+    assert_eq!(
+        AGENT
+            .commands
+            .iter()
+            .filter(|command| command.set == skein_shell::Set::Public)
+            .map(|command| command.reach)
+            .collect::<Vec<_>>(),
+        [skein_shell::Reach::Words(&["help"])]
+    );
     assert!(AGENT.settings.is_empty());
-    assert_eq!(sections.iter().find(|section| section.starts_with("flags:")), Some(&"flags:\n  -h, --help                         Print this.\n  --version                          Print the name, version and commit."));
+    assert_eq!(
+        sections.iter().find(|section| section.starts_with("flags:")),
+        Some(
+            &"flags:\n  -h, --help                         Print this.\n  --version                          Print the name, version and commit."
+        )
+    );
     let scratch = skein_scratch::Scratch::new("agent-modes");
     let missing = scratch.path().join("missing.json");
     let document = scratch.path().join("agent.json");
