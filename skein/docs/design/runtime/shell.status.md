@@ -26,8 +26,9 @@ and version line (`table/help.rs`) and its reference documents
 (`table/reference.rs`), each held by its unit tests on `table/demo.rs`'s
 tables, and `tests/boundary/tests/cli_names.rs`'s
 `rendered_documents_read_back` reads the environment documents as check 5
-does. No binary has a table yet: temper's are the milestones C2 to C8 of
-`temper/docs/design/draft/cli.execution.md`.
+does. temper's six tools and fixtures hold the first tables
+(`temper/docs/design/testing/tools.md`); temper's products' are the
+milestones C2, C3 and C6 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
@@ -41,6 +42,7 @@ does. No binary has a table yet: temper's are the milestones C2 to C8 of
   (`temper/docs/design/testing/README.md`, 2.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
+  14.4: `Table::front`, `Front` and `Table::refusal`.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
   through the shell's re-export too. temper's own two readers
