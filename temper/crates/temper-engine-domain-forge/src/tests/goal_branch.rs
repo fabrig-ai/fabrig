@@ -247,6 +247,119 @@ fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
 }
 
 #[test]
+fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
+    for (case, count, number, access, branch, reason) in [
+        ("full", LIMITS.entries, TAKING, Some(Role::Owned), true, None),
+        ("not adopted", LIMITS.entries, TAKING, None, true, Some(b"the repository is not adopted".as_slice())),
+        ("read only", LIMITS.entries, TAKING, Some(Role::Context), true,
+            Some(b"the repository is adopted to be read, not written".as_slice())),
+        ("no branch writes", LIMITS.entries, TAKING, Some(Role::Owned), false,
+            Some(b"the repository's adoption takes no branch writes".as_slice())),
+        ("entry in use", LIMITS.entries, 1, Some(Role::Owned), true,
+            Some(b"its outbox entry 1 is already in use".as_slice())),
+    ] {
+        let mut d = fresh();
+        outputs(&mut d, Event::Hold { entry: number, task: GOAL, resource: name(GOAL_BRANCH), from: None });
+        fixtures::answer_next(&mut d, Err(Error::Missing));
+        let (call, _) = fixtures::next_call(&mut d);
+        for n in 1..=u64::from(count) {
+            outputs(&mut d, Event::Enqueue { entry: status(n, OTHER) });
+        }
+        match access {
+            Some(role) => {
+                let repository = d.repositories.get_mut(&REPO).unwrap();
+                repository.role = role;
+                repository.kinds.branch = branch;
+            }
+            None => { d.repositories.remove(&REPO); }
+        }
+        let requests = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+        match reason {
+            Some(reason) => assert_eq!(requests.as_ref(), &[Request::MakeFailed {
+                task: GOAL, resource: name(GOAL_BRANCH), reason: reason.into(),
+            }], "{case}"),
+            None => {
+                assert_no_making(&requests);
+                assert!(!d.is_ready(), "{case}: no busy loop");
+                assert_eq!(d.next_deadline(), None, "{case}: no polling timer");
+                assert_no_making(&ready(&mut d));
+                assert_eq!(outputs(&mut d, Event::Claim {
+                    designs: Box::new([]), task: OTHER, attempt: 1,
+                    writes: Box::new([name(GOAL_BRANCH)]), holders: Box::new([GOAL]),
+                }).as_ref(), &[Request::Taken { task: OTHER, resource: name(GOAL_BRANCH), by: GOAL }]);
+            }
+        }
+        assert_eq!(d.entries.len(), count, "{case}: no entry replaced or added");
+        for (n, row) in &d.entries {
+            assert_eq!(row.entry, status(*n, OTHER), "{case}");
+        }
+        assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None, "{case}");
+        for request in requests {
+            if let Request::Call { .. } = request { panic!("{case}: no call: {request:?}"); }
+        }
+    }
+}
+
+#[test]
+fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
+    for cause in ["made", "withdrawn", "not made"] {
+        let mut environment = env();
+        environment.limits.entries = 1;
+        let mut d = domain_with_limits(&environment.limits);
+        at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
+        if cause == "not made" {
+            at_step(&mut d, &environment, Event::Restore { record: Stored::Entry {
+                entry: status(1, OTHER), held: true,
+            } });
+        }
+        at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        at_step(&mut d, &environment, Event::ReadAfresh);
+        at_step(&mut d, &environment, Event::SettleOutbox);
+        if cause != "not made" {
+            at_step(&mut d, &environment, Event::Enqueue { entry: status(1, OTHER) });
+        }
+        let completing = if cause == "made" {
+            at_step(&mut d, &environment, Event::Committed { entry: 1 });
+            at_answer(&mut d, &environment, Ok(Answer::Items {
+                cut: false, items: Box::new([]), more: false, now: environment.now,
+            }));
+            let (call, op) = at_call(&mut d, &environment);
+            assert_eq!(op, Op::Write(status(1, OTHER).effect.write));
+            Some(call)
+        } else { None };
+        at_step(&mut d, &environment, Event::Hold {
+            entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None,
+        });
+        at_answer(&mut d, &environment, Err(Error::Missing));
+        assert_no_making(&at_answer(&mut d, &environment, Ok(Answer::Commit(TIP))));
+        let freed = if let Some(call) = completing {
+            at_step(&mut d, &environment, Event::Client(skein_forge_client::Event::Answered {
+                free: 0, rate: None, call, cost: 1, result: Ok(Answer::Done),
+            }))
+        } else if cause == "withdrawn" {
+            at_step(&mut d, &environment, Event::Withdraw { entry: 1 })
+        } else {
+            at_step(&mut d, &environment, Event::Resolve { entry: 1, again: false })
+        };
+        assert!(freed.contains(&Request::Erase { key: Key::Entry(1) }), "{cause}: {freed:?}");
+        let mut resumed = Queue::uncapped();
+        resume(&mut d, &environment, &mut resumed);
+        let mut saved = freed.into_vec();
+        while let Some(request) = resumed.pop() { saved.push(request); }
+        assert_kept_making(&saved);
+        assert_eq!(d.entries.get(&TAKING).unwrap().entry, entry(), "{cause}: entry and tip kept");
+        at_step(&mut d, &environment, Event::Committed { entry: TAKING });
+        if cause != "made" {
+            at_answer(&mut d, &environment, Ok(Answer::Items {
+                cut: false, items: Box::new([]), more: false, now: environment.now,
+            }));
+        }
+        let (_, op) = at_call(&mut d, &environment);
+        assert_eq!(op, Op::Write(entry().effect.write), "{cause}");
+    }
+}
+
+#[test]
 fn taking_an_existing_goal_branch_makes_nothing() {
     let mut d = fresh();
     take(&mut d);
