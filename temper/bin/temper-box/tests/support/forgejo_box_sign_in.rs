@@ -70,6 +70,7 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
     } else {
         None
     };
+    let local = temper;
     let temper = front.as_ref().map_or(temper, |(_, public)| *public);
     // A runner is unrelated to the provider's integration with a real Forgejo.
     document["application"]["machine"]["owned"]["runner"] = Value::Null;
@@ -119,7 +120,11 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         } else {
             None
         };
-        // ctl is the client's setup act, with its ordinary session stored privately.
+        // The setup client's live stream goes straight to the engine, not through
+        // the finite-response discovery front. Its ordinary session stays private.
+        let setup_link = String::from_utf8(link.clone())
+            .expect("printed link")
+            .replacen(&format!("http://{temper}/"), &format!("http://{local}/"), 1);
         let signed = super::story_command::output(
             Command::new(skein_scratch::paths::binary("temper-box"))
                 .arg("ctl")
@@ -128,7 +133,7 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
                 .current_dir(root),
             "the setup client's sign-in",
             super::WITHIN,
-            Some(&link),
+            Some(setup_link.as_bytes()),
         );
         success(&signed);
         if *round == "first" {
@@ -224,25 +229,32 @@ fn delayed_forgejo(root: &Path, path: &Path, document: &Value) -> io::Result<()>
     fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
     document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper").into();
     document["application"]["limits"]["overrides"]["setup.deadline_ms"] = 200.into();
+    document["application"]["limits"]["overrides"]["setup.backoff_max_ms"] = 100.into();
     super::write_private(path, &serde_json::to_vec(&document).expect("delayed-engine configuration"));
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
 fn start_without_engine(root: &Path, parent: u32) -> io::Result<(u32, skein_io::kernel::Fd)> {
-    // Inspect this box's own children only, never another process's environment.
-    let children = fs::read_to_string(format!("/proc/{parent}/task/{parent}/children"))?;
-    let engine = children
-        .split_whitespace()
-        .find(|pid| {
+    let deadline = skein_world::Deadline::arm("the prepared Forgejo waiting at its start gate", super::WITHIN);
+    // The box prints its link before spawning its engine. Inspect only this
+    // box's own children, never another process's environment.
+    let engine = loop {
+        let children = fs::read_to_string(format!("/proc/{parent}/task/{parent}/children"))?;
+        if let Some(engine) = children.split_whitespace().find(|pid| {
             fs::read(format!("/proc/{pid}/cmdline"))
                 .is_ok_and(|args| args.windows(b"internal\0serve\0".len()).any(|part| part == b"internal\0serve\0"))
-        })
-        .expect("this box's engine");
-    let signal = |signal: &str| {
-        assert!(Command::new("/bin/kill").args([signal, engine]).status().expect("signal own engine").success());
+        }) {
+            break engine.to_owned();
+        }
+        if deadline.passed() {
+            return Err(wait_expired(&deadline));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
     };
-    let deadline = skein_world::Deadline::arm("the prepared Forgejo waiting at its start gate", super::WITHIN);
+    let signal = |signal: &str| {
+        assert!(Command::new("/bin/kill").args([signal, &engine]).status().expect("signal own engine").success());
+    };
     while !root.join("delayed-forge.pid").exists() {
         if deadline.passed() {
             return Err(wait_expired(&deadline));
@@ -339,7 +351,7 @@ server.serve_forever()
         .spawn()?;
     let mut proxy = super::parent::Guard::new(child);
     let pipe = proxy.child.as_mut().expect("proxy child").stdout.as_ref().expect("proxy stdout");
-    assert_eq!(super::read_line(skein_io::kernel::Fd::new(pipe.as_raw_fd()), super::WITHIN), b"ready\n");
+    assert_eq!(super::read_line(skein_io::kernel::Fd::new(pipe.as_raw_fd()), super::WITHIN), b"ready");
     Ok((proxy, public))
 }
 
