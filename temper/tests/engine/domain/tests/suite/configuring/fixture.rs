@@ -8,20 +8,20 @@ use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking
 pub(super) const CHAT: u32 = 1;
 pub(super) const ASK_CHARTER: u32 = 11;
 pub(super) const ASK_TEMPLATE: u32 = 5;
-pub(super) const SETTINGS_CHARTER: u32 = 13;
+pub(super) const SETTINGS_CHARTER: u32 = 14;
 pub(super) const SETTINGS_TEMPLATE: u32 = 12;
-pub(super) const REMOVED: u32 = 7;
+pub(super) const REMOVED: u32 = 8;
 pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has nine charters, fourteen grants and seventeen executor kinds. The
+// Stock has ten charters, fourteen grants and eighteen executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 12; // Kind 9's stock lines run up to charter 12.
+const CHARTERS: u32 = 13; // Kind 9's stock lines run up to charter 13.
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 18; // Seventeen stock kinds, including closer and close job, plus the removable charter.
+const EXECUTORS: u32 = 19; // Eighteen stock kinds plus the story's extra charter.
 // Charter 11's resolved stock run policy needs 16,574 bytes.
 const RUN_BYTES: u32 = 20_480;
 const TRANSCRIPT_BYTES: u32 = 32_768;
@@ -297,6 +297,8 @@ fn offer_settings(authority: &mut jig_domain_authority::Authority) {
         return;
     }
     let mut kinds = authority.delegation.kinds.clone().into_vec();
+    // This fixture's settings agent takes the standing role's unused authority place.
+    kinds.retain(|kind| *kind != jig_domain_authority::Executor::Charter(13));
     kinds.push(jig_domain_authority::Executor::Charter(SETTINGS_CHARTER));
     authority.delegation.kinds = kinds.into_boxed_slice();
 }
@@ -345,6 +347,8 @@ fn offer_removable(authority: &mut jig_domain_authority::Authority) {
         return;
     }
     let mut kinds = authority.delegation.kinds.clone().into_vec();
+    // This fixture's removable agent takes the standing role's unused authority place.
+    kinds.retain(|kind| *kind != jig_domain_authority::Executor::Charter(13));
     kinds.push(jig_domain_authority::Executor::Charter(REMOVED));
     authority.delegation.kinds = kinds.into_boxed_slice();
 }

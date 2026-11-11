@@ -68,6 +68,7 @@ pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<
                             ended_by: match member.flags.ended_by {
                                 domain::EndedBy::Result => wire::EndedBy::Result,
                                 domain::EndedBy::Requester => wire::EndedBy::Requester,
+                                domain::EndedBy::Standing => wire::EndedBy::Standing,
                                 domain::EndedBy::Closer(closer) => wire::EndedBy::Closer(wire::Closer::new(
                                     limits,
                                     wire::CloserParts { connector: closer.connector, code: closer.code },
@@ -144,6 +145,7 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
                     ended_by: match ended_by {
                         wire::EndedBy::Result => domain::EndedBy::Result,
                         wire::EndedBy::Requester => domain::EndedBy::Requester,
+                        wire::EndedBy::Standing => domain::EndedBy::Standing,
                         wire::EndedBy::Closer(closer) => domain::EndedBy::Closer(domain::Closer {
                             connector: closer.connector(),
                             code: closer.code(),

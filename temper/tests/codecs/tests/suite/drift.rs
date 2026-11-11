@@ -3,10 +3,6 @@ use skein_codegen::{generate, parse};
 use std::fs;
 mod drafts;
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =
@@ -22,7 +18,7 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
         "public" => root.join("golden/public"),
         _ => root.join("golden"),
     };
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    let write = temper_test_env::rewrite();
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
     if write {
         fs::write(&code, &output.rust).expect("write generated code");

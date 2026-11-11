@@ -5,7 +5,7 @@ a person new to temper, on "Configure temper", would learn that temper
 runs work at scale, as fabrig builds temper with temper, and that this
 is "just fabrig/temper's own 'way of doing'", whose parts "can be
 tweaked to a good extent". The way itself is the reference
-(`reference-code-production.md` and `reference-landing.md`); this
+(`reference-code-production.md` and `archive/reference-landing.md`); this
 draft is how a person meets it. The look request
 `configure-temper-own-way` draws it (`../client/web/journeys.md`, 7).
 Nothing here is adopted, and no plan takes it up until the user does.
@@ -50,7 +50,7 @@ Nothing here is adopted, and no plan takes it up until the user does.
   `reference-code-production.md`, sections 5 and 7); in parallel, kept
   together (a change into the goal's branch, catching up with main,
   questions: `reference-code-production.md`, sections 6, 11 and 8);
-  landing many (`reference-landing.md`;
+  landing many (`archive/reference-landing.md`;
   QA after landing, `../domain/findings.md`, section 8); temper itself,
   and yours (section 4).
 - **Read, never run:** opening it starts nothing; a question about it

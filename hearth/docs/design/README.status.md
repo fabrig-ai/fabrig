@@ -1,6 +1,6 @@
 # hearth's design: status
 
-2026-11-05. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.1: the activator, steward and their link and jobs; the
   delegated cgroup subtrees; bootstrap. The binary hosts the builder
@@ -16,11 +16,7 @@
   `hearth-protocol-keygen`, `hearth-protocol-grub`, `hearth-protocol-wire`,
   `hearth-protocol-probe`, `hearth-protocol-http`, `hearth-protocol-steward`,
   `hearth-protocol-activator` and `hearth-protocol-helper`.
-- **Not yet:** 4.2: `hearth-client-domain-dev`, `hearth-client-protocol-incus`,
-  `hearth-service-steward`, `hearth-service-activator`, `hearth-service-tree`,
-  `hearth-fake-engine`, `hearth-client-fake-incus`, `hearth-system-world`,
-  `hearth-client-world` and `hearth-client-dev-world`. The builder and tree
-  helper have separate worlds, but no system world joins their domains.
+- **Not yet:** 4.2: the client crates and worlds remain `client/README.status.md`, 2; `hearth-service-steward`, `hearth-service-activator`, `hearth-service-tree`, `hearth-fake-engine` and `hearth-system-world` remain unbuilt. The builder and tree helper have separate worlds, but no system world joins their domains.
 - **Departs:** 6: the 32 printed errors in
   `hearth/crates/hearth-client-protocol-records/src/errors/reserved.rs` and
   `hearth/crates/hearth-client-protocol-records/src/errors/repository.rs`,

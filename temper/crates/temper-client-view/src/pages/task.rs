@@ -959,7 +959,9 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
         c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
-        c::Activity::Kept { .. } => words.text(b, Word::DependencyParked, &[]),
+        c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+            words.text(b, Word::DependencyParked, &[]);
+        }
         c::Activity::Milestone { position } => words.text(b, Word::Milestone, &[Hole::Number(*position)]),
     }
 }

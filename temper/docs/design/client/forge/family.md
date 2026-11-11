@@ -74,8 +74,14 @@ Repositories (4). Settings’ button and links to adoption open it; Cancel
 or Escape returns to Repositories. A project with no repository retains
 its Chats band’s entry, which reaches this same address. Home’s second
 step can adopt the offered first repository directly, open its own
-empty-or-copy sheet, or link to adoption (`../pages/README.md`). Those entry points are
-unmocked by `connect-flows`; the request changes the Settings destination.
+empty-or-copy sheet, or link to adoption (`../pages/home.md`, 1). Home’s
+own sheet stays Home’s, beside this one (the user, 2026-11-11; the draft
+status's departure, `../../draft/repository-copies.status.md`). The
+two entry paths into this dialog that `connect-flows` left undrawn are the
+gallery's (`../web/gallery.md`, 2): `sheet-from-home`, To begin's
+repository step's "Adopt another…" pressed, and `sheet-from-chats`, the
+Chats band's "Adopt a repository" pressed, each the dialog as that link
+opens it for a project with no repository.
 
 ## 4. The sheet "Add repositories" and its adoption form
 
@@ -107,9 +113,11 @@ that said "Adopt a repository", go to it; its Cancel and its Escape go to
   Read as typed, a line at a time, each with its own words: "Not an address:
   LINE. Write it as github.com/owner/name."; "HOST isn’t a host. Did you mean
   github.com/OWNER/NAME?", with "Use it"; and, for a name the target forge
-  has already, among the rows read of it and its makings, "OWNER/NAME is
-  already on this forge.", with "Adopt it", which moves to "Adopt" with its
-  row picked. Then "Copied into FORGE from GitHub or another git host. Each
+  has already, among the rows read of it and its makings, but for one that a
+  failed copy of the same address left there—an empty repository that copying
+  again replaces—"OWNER/NAME is already on this forge.", with "Adopt it", which
+  moves to "Adopt" with its row picked. Then "Copied into FORGE from GitHub or
+  another git host. Each
   keeps its owner and name, and nothing is sent back.". The button says "Copy
   OWNER/NAME", "Copy N repositories" or "Copy", and is disabled while a line
   has words.
@@ -354,12 +362,6 @@ client removes no account and closes no chat of its own.
 
 ## 8. Open questions
 
-- **One repository sheet from Home** (`../pages/README.md`, `family.md`, 3, 4): the
-  repository-copies follow-up, owned by temper/ui, unifies Home's own
-  empty-or-copy sheet with Add repositories and draws the entry from a
-  project with no repository and To begin's repository step. Default: keep
-  the current entries and Settings destination; `connect-flows` leaves
-  those paths unmocked (`../../draft/repository-copies.md`, 9 and 11).
 
 - **A repository being made, on a page** (4; `../../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
@@ -367,9 +369,8 @@ client removes no account and closes no chat of its own.
   begin shows (`../pages/home.md`, 1), and Settings' Repositories says each of the
   project's, with a failed one's "Copy again" and "Dismiss" (`../pages/settings.md`, 1).
   Default: with To begin skipped, on any other page, no line says a row.
-- **A repository's role, health and landing rules on the Repositories
-  tab** (`../pages/README.md`; `repositories.md`, 2 and 3). Default: not drawn, as the user's
-  request of 2026-11-05 settled: a line says its name and its forge.
+- A repository's role, health and landing rules on the Repositories
+  tab: `repositories.md`, section 5.
 - **The form's place:** among a project's settings (`repositories.md`, 3),
   which `Settings` (`../pages/README.md`) links and does not hold. Default: a page of its
   own, from `Settings` and Home.
@@ -403,9 +404,7 @@ client removes no account and closes no chat of its own.
   is listed, and adopting one the project holds is refused by the
   engine as any adoption; the request naming the project, the engine
   leaving those out, is the candidate (`README.md`, section 8).
-- **A connect's end told:** the forges' page reads how a connect ended
-  on the deployment's part. Default: that read, watched while the page
-  is open; no notice in the inbox.
+- A connect's end told: `deployment.md`, section 1.
 - **The pull request's link on the card** ("OWNER/NAME#N on
   Playground forge"): the forge's part, which the forge's
   side does not read yet (2). Default: the link to the task's page.

@@ -40,7 +40,7 @@ section 8.
 - **The agents are smith's** (`domain/agent/README.md`). temper writes their
   charters and serves their tools; it builds no agent. Its worker hosts
   smith's agent processes, each run in a checkout of the repositories its
-  task names (`domain/worker.md`).
+  task names (`domain/worker/README.md`).
 - **The root is temper's, the rails are jig's.** temper's root composes
   jig's core with the forge connector, speaks jig's hub's link to its
   workers, and routes and translates between them; it decides nothing
@@ -113,7 +113,7 @@ live text, the forge's panels in full, GitHub, several people.
 person    temper-box open: temper's terminal, its pages around jig's client (client/README.md)
 engine    temper-box serve: temper's root around jig's core and the forge connector (domain/root.md)
 store     jig's store in the engine's process: jig's records and temper's, committed together (protocol/store.md)
-worker    standalone, in the engine's process: temper's worker root on jig's hub, the checkout (domain/worker.md)
+worker    standalone, in the engine's process: temper's worker root on jig's hub, the checkout (domain/worker/README.md)
 agents    smith's, one `temper-box internal agent` process per run, on the worker (domain/agent.md)
 forge     Forgejo and its runner: polled, hinted by its webhooks (domain/forge.md; protocol/forge.md)
 ```
@@ -174,6 +174,9 @@ forge, temper adds:
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
+  - `domain/worker/README.md`: the worker's root, assignments, runs and world.
+  - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
+  - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
   the binary, the configuration, the credentials, temper's parts on the
   workers' channel, its families in the store, the host tools and LLM
@@ -188,17 +191,23 @@ forge, temper adds:
   `client/web/look-requests.md` the look requests' round trip,
   `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
-  from a command line), and `mockups/` the pages' design: their look,
+  from a command line), and `client/web/mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+  - `client/tui/pages/README.md`: the TUI's state, shared words, foot and commands.
+  - `client/tui/pages/sign-in.md`: signing in and renewing from the engine's link.
+  - `client/tui/pages/launchpad.md`: the launchpad and its needs walk.
+  - `client/tui/pages/chat.md`: a chat's conversation and question.
+  - `client/tui/pages/design-session.md`: the draft pane, reply choices and starting a goal.
 - **`cli/`:** temper's command lines: each binary's package, crate,
-  table, help, exits and environment (`cli/README.md`), and the
-  reference documents generated from the tables beside it, each
-  binary's `<binary>-args.md` and `<binary>-env.md` and the tree's
-  common environment document.
+  table, help, exits and environment, and the test set its tests read
+  (`cli/README.md`), and the reference documents generated from the
+  tables beside it, each binary's `<binary>-args.md` and
+  `<binary>-env.md`, the tree's common environment document and the
+  test set's `test-env`.
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.
@@ -259,7 +268,7 @@ temper's side before the layer:
   `skein-forge-client`, and its calendar, `temper-engine-domain-calendar`;
   `temper-worker-domain` (the worker's root),
   `temper-worker-domain-checkout` and its job capability,
-  `temper-worker-domain-tooling` (`domain/worker.md`, 4.4);
+  `temper-worker-domain-tooling` (`domain/worker/jobs.md`);
 - the protocol layer's: `temper-worker-protocol-git`,
   `temper-protocol-store`, `temper-protocol-records` (the forges'
   records), `temper-protocol-worker-wire`, `temper-protocol-brief` (the

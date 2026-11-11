@@ -536,10 +536,17 @@
     across the queues, which fill in order; the changes queued are the
     rows listed and `more`;
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
-    across the project's repositories, each a `ChangesLanded`: `task`,
-    `title` and `at`, the landing log's (`../../domain/after-landing.md`,
-    section 10);
-  - `landed_more`, what `landed` cut.
+    across the project's repositories, a row for each change of each
+    landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
+    log's (`../../domain/after-landing.md`, section 10); `commit`, the
+    landing's, 32 bytes; and `default_branch`, whether the branch the
+    landing moved is its repository's default branch;
+  - `landed_more`, what `landed` cut;
+  - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
+    set, at most `forge.changes_landed`, newest first, so that landings
+    into goal branches never push them out (`../pages/work.md`, 1, *Work*);
+    a landing with no change, a push from outside temper, gives no row;
+  - `landed_default_more`, what `landed_default` cut.
 
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each

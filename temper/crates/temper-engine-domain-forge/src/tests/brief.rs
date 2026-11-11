@@ -37,6 +37,10 @@ fn red_checks() -> Box<[Status]> {
 }
 
 fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
+    gather_run(checks, log, budget, None)
+}
+
+fn gather_run(checks: Box<[Status]>, log: &[u8], budget: u32, run: Option<skein_forge::api::Run>) -> Domain {
     let job_bound = (budget / 5)
         .min(
             budget
@@ -84,7 +88,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     let owner = *owner;
     let mut out = Queue::uncapped();
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), LIMITS.client.rows, &mut out));
-    for _ in 0..LIMITS.client.rows.saturating_add(1) {
+    for _ in 0..LIMITS.client.rows.saturating_mul(2).saturating_add(1) {
         let Some(request) = out.pop() else { break };
         if let Request::BriefClient {
             event: skein_forge_client::Event::Read { read: Read::Job { attempt, max_bytes, .. }, .. },
@@ -97,13 +101,24 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
                 owner,
                 Ok(Answer::Job {
                     attempt,
-                    step: Some(Step { number: 2, name: STEP.into() }),
+                    step: match &run {
+                        Some(run) => run.jobs.first().expect("job").step.clone(),
+                        None => Some(Step { number: 2, name: STEP.into() }),
+                    },
                     log: log[tail..].into(),
                     truncated: tail > 0,
                 }),
                 LIMITS.client.rows,
                 &mut out
             ));
+        } else if let Request::BriefClient { event: skein_forge_client::Event::Read { read: Read::Run { .. }, .. } } =
+            request
+        {
+            let answer = match &run {
+                Some(run) => Ok(Answer::Run(run.clone())),
+                None => Err(skein_forge::api::Error::Missing),
+            };
+            assert!(brief::brief_answer(&mut d, owner, answer, LIMITS.client.rows, &mut out));
         } else if let Request::BriefSized { section: SECTION, size: Ok(size) } = request {
             assert!(size <= budget);
         } else {
@@ -118,7 +133,7 @@ fn take(d: &mut Domain) -> Box<[u8]> {
 }
 
 #[test]
-fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
+fn a_workflow_failure_reaches_the_repair_at_shipped_limits() {
     assert_eq!(RUNNER_LOG.len(), 553, "the runner's recorded bytes");
     let bytes = take(&mut gather(red_checks(), RUNNER_LOG, SHIPPED_CI));
     let words = text(&bytes);
@@ -940,6 +955,12 @@ fn pending_job() -> (Domain, Token, Read) {
         panic!("one pinned job read: {out:?}")
     };
     assert!(out.is_empty());
+    let Read::Run { .. } = read else { panic!("classify the failed job's run first") };
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Missing), LIMITS.client.rows, &mut out));
+    let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
+        panic!("one pinned job read after classification: {out:?}")
+    };
+    assert!(out.is_empty());
     (d, owner, read)
 }
 
@@ -1238,4 +1259,39 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
             })
         })
     );
+}
+
+#[test]
+fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
+    let first = JobAttempt { head: HEAD, run: 4, job: 6, attempt: 1 };
+    let mut failed = change_ci::Failed::new(Box::new([Status {
+        at: Time::ZERO,
+        context: b"ci/test".as_slice().into(),
+        check: Check::Failed,
+        description: Box::new([]),
+        url: Box::new([]),
+        job: Some(first),
+    }]));
+    assert_eq!(failed.next(HEAD), Some(Read::Run { run: 4 }));
+    failed.read(4, Ok(Answer::Run(fixtures::failed_run(first, Some(0)))));
+    assert_eq!(failed.fault(HEAD), change::Fault::Runner { reruns: 0 });
+    assert_eq!(LIMITS.change_policy.reruns, 1);
+    let second = JobAttempt { attempt: 2, ..first };
+    let checks = Box::new([Status {
+        at: Time::ZERO,
+        context: b"ci/test".as_slice().into(),
+        check: Check::Failed,
+        description: Box::new([]),
+        url: Box::new([]),
+        job: Some(second),
+    }]);
+    let bytes = take(&mut gather_run(
+        checks,
+        b"could not prepare job",
+        SHIPPED_CI,
+        Some(fixtures::failed_run(second, Some(0))),
+    ));
+    let words = text(&bytes);
+    assert!(words.contains("the runner's: set-up failed; run again 1 time at this head, failed again"), "{words}");
+    assert!(words.contains("could not prepare job"));
 }

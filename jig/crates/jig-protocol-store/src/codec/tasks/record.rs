@@ -285,6 +285,18 @@ pub fn task_record(
     wire::TaskRecord::new(
         limits,
         wire::TaskRecordParts {
+            activation_open: source.activation_open,
+            session: match source.session {
+                Some(session) => Some(wire::Session::new(
+                    limits,
+                    wire::SessionParts {
+                        first: session.first,
+                        reasons: session.reasons.0,
+                        last: session.last.as_nanos(),
+                    },
+                )?),
+                None => None,
+            },
             closer: source.closer,
             asked_requester: source.asked_requester,
             history: task_history(source, limits)?,
@@ -437,8 +449,18 @@ fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
 /// Read every retained task field.
 #[expect(clippy::too_many_lines, reason = "one translation carries every retained task field")]
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let wire::TaskRecordParts { closer, history, run, definition, started_from, interests, outcome, asked_requester } =
-        source.into_parts();
+    let wire::TaskRecordParts {
+        activation_open,
+        session,
+        closer,
+        history,
+        run,
+        definition,
+        started_from,
+        interests,
+        outcome,
+        asked_requester,
+    } = source.into_parts();
     let history = history.into_parts();
     let run = run.into_parts();
     let reasons = domain::Reasons(run.reasons);
@@ -454,6 +476,18 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        activation_open,
+        session: match session {
+            Some(session) => {
+                let wire::SessionParts { first, reasons, last } = session.into_parts();
+                let reasons = domain::Reasons(reasons);
+                if !reasons.is_known() {
+                    return Err(problem(wire::Path::SessionReasons));
+                }
+                Some(domain::Session { first, reasons, last: Wall::from_nanos(last) })
+            }
+            None => None,
+        },
         closer,
         offered,
         reasons,

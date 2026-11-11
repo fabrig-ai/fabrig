@@ -1547,7 +1547,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
         },
-        tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+        tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
     }
     let mut previous = domain.forge.topic_subscriber(goal, &topic).cloned();
     for work in &domain.work {
@@ -2110,8 +2110,9 @@ fn configured_gates(
     env: &Env<Limits>,
     repository: &forge::Repository,
     base: &[u8],
+    touched: forge::Touched,
 ) -> Option<Box<[forge_change::Gate]>> {
-    domain.forge.held_gates(&env.limits.forge, repository, base)
+    domain.forge.held_gates(&env.limits.forge, repository, base, touched)
 }
 
 fn refused_review_request(
@@ -2192,6 +2193,7 @@ fn describe_change_effect(
         forge_change::Effect::Open => {
             (3, branch_what(&row.branch, env.limits.forge.name_bytes), evidence.head.unwrap_or([0; 32]))
         }
+        forge_change::Effect::Rerun { head } => (17, branch_what(&row.branch, env.limits.forge.name_bytes), head),
         forge_change::Effect::CreateBranch { head } => (9, branch_what(&row.branch, env.limits.forge.name_bytes), head),
         forge_change::Effect::Reopen => (12, pull_what, evidence.head.unwrap_or([0; 32])),
         forge_change::Effect::Retarget => (10, pull_what, evidence.head.unwrap_or([0; 32])),
@@ -2633,7 +2635,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         return false;
     }
     let Some(base_parts) = branch_parts(&base, env.limits.forge.name_bytes) else { return false };
-    let Some(gates) = configured_gates(domain, env, adopted, &base) else { return false };
+    let Some(gates) = configured_gates(domain, env, adopted, &base, domain.forge.change_touched(task)) else {
+        return false;
+    };
     if domain.forge.change(task).is_none() {
         let room = drop_settled_change(domain, env);
         domain.work.push(Work::Forge(forge::Event::Change {
@@ -3497,7 +3501,8 @@ fn chat_change(
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
         kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
     }
-    let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
+    let gates =
+        configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -4427,7 +4432,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
     } else {
-        None
+        holds::change_account(domain, env, task, why)
     };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
@@ -5393,6 +5398,12 @@ pub(crate) fn outputs(
                     landing_decision(domain, env, task, choice);
                 }
             }
+            forge::Request::Reviewed { task, evidence } => {
+                retain_review_wait(domain, env, task, &evidence);
+                if let Some(head) = refused_review_request(domain, env, task, &evidence) {
+                    domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
+                }
+            }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
                     if let Some(entry) = entry
@@ -5414,6 +5425,7 @@ pub(crate) fn outputs(
                                         task,
                                         entry,
                                         prior: evidence.prior,
+                                        leaves_queue: task_leaves_queue(domain, env, task),
                                     }));
                                     change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
                                     continue;
@@ -5460,6 +5472,7 @@ pub(crate) fn outputs(
                                     task,
                                     entry,
                                     prior: evidence.prior,
+                                    leaves_queue: true,
                                 }));
                                 change_decision(
                                     domain,
@@ -5833,7 +5846,16 @@ pub(crate) fn effect_ask(
                     } else {
                         None
                     };
-                    domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
+                    // A review request ends its turn through ReviewRequested, retaining First
+                    // until that request has taken its base and started its repair.
+                    let leaves_queue = request.is_none()
+                        && (answer != authority::Answer::Wait || task_leaves_queue(domain, env, task));
+                    domain.work.push(Work::Forge(forge::Event::VetoChange {
+                        task,
+                        entry,
+                        prior: evidence.prior,
+                        leaves_queue,
+                    }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
                     } else if let Some(head) = request {
@@ -5975,10 +5997,24 @@ fn drop_landing(
     }
 }
 
+fn task_leaves_queue(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
+    if landing_route::kept(domain, env, task) {
+        return true;
+    }
+    match domain.core.tasks.task(task) {
+        Some(row) => match row.phase {
+            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) => false,
+        },
+        None => true,
+    }
+}
+
 fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidence: &forge::ChangeEvidence) {
     let Some(row) = domain.forge.change(task) else { return };
     let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
     if domain.forge.keep_review_facts(env.wall, task, facts) {
+        domain.work.push(Work::Forge(forge::Event::ReviewsChanged { task }));
         let mut subjects = List::with_capacity(2);
         subjects.push(Token::new(task)).expect("one changed panel");
         subjects.push(Token::new(crate::APPROVALS_SUBJECT)).expect("approvals beside the panel");

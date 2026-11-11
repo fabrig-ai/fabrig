@@ -47,7 +47,7 @@ const STOCK_RUN_BYTES: u32 = 11_000;
 
 /// The settings family's tools run on a world's charter (temper/docs/design/testing/checks.md, 4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
-    const SETTINGS_CHARTER: u32 = 13;
+    const SETTINGS_CHARTER: u32 = 14;
     const SETTINGS_TEMPLATE: u32 = 12;
     let mut charter = defaults.charters[0].clone();
     charter.number = SETTINGS_CHARTER;
@@ -70,6 +70,8 @@ pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) 
     {
         if authority.delegation.tasks != 0 {
             let mut kinds = authority.delegation.kinds.clone().into_vec();
+            // The settings agent takes the standing role's unused authority place in this world.
+            kinds.retain(|kind| *kind != authority::Executor::Charter(13));
             kinds.push(authority::Executor::Charter(SETTINGS_CHARTER));
             authority.delegation.kinds = kinds.into_boxed_slice();
         }
@@ -107,6 +109,7 @@ pub struct World {
     pub fake_env: Env<fake::Config>,
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
+    run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
@@ -129,6 +132,7 @@ pub struct World {
     period: Option<u64>,
     period_budget: u64,
     pub fail_job_reads: bool,
+    comparisons_too_large: bool,
     /// Refuse the named section reads while a CI repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
@@ -430,7 +434,7 @@ impl World {
                 foreman.number = 6;
                 foreman.policy.shell = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
-                limits.tasks.authority_grants = 10;
+                limits.tasks.authority_grants = 11;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
@@ -439,7 +443,7 @@ impl World {
                 limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(1024);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
-                limits.authority.grants = 10;
+                limits.authority.grants = 11;
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
                 limits.authority.writes = 2;
@@ -512,6 +516,7 @@ impl World {
                         authority::Grant { kind: 10, ..grant.clone() },
                         authority::Grant { kind: 11, ..grant.clone() },
                         authority::Grant { kind: 12, ..grant.clone() },
+                        authority::Grant { kind: 17, ..grant.clone() },
                     ])
                 } else {
                     Box::new([grant.clone(), effect_grant.clone()])
@@ -525,6 +530,7 @@ impl World {
                 rules.ceiling.grants = ceiling_grants.into_boxed();
                 if approval.is_some() || agent_gate || owner_gate {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,
@@ -609,7 +615,7 @@ impl World {
                     for grant in &rules.ceiling.grants {
                         grants.push(grant.clone()).expect("ceiling grants");
                     }
-                    for kind in [6, 9, 16, 17] {
+                    for kind in [6, 9, 16] {
                         grants.push(authority::Grant { kind, ..grant.clone() }).expect("landing grants");
                     }
                     rules.ceiling.grants = grants.into_boxed();
@@ -626,6 +632,7 @@ impl World {
                     ]);
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,
@@ -1007,6 +1014,8 @@ impl World {
             store_limits.authority.executors = limits.authority.executors;
             store_limits.tasks.result_bytes = limits.tasks.result_bytes;
         }
+        store_limits.tasks.authority_grants = store_limits.tasks.authority_grants.max(limits.tasks.authority_grants);
+        store_limits.authority.grants = store_limits.authority.grants.max(limits.authority.grants);
         store_limits.people.words = limits.people.words;
         store_limits.tasks.message_bytes = limits.tasks.message_bytes;
         store_limits.tasks.spec_bytes = limits.tasks.spec_bytes;
@@ -1058,6 +1067,7 @@ impl World {
             fake_env,
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
+            run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
             adopted: Vec::new(),
@@ -1077,6 +1087,7 @@ impl World {
             period: None,
             period_budget,
             fail_job_reads: false,
+            comparisons_too_large: false,
             fail_brief_reads: None,
             slow_brief_reads: false,
             slow_branch: None,
@@ -1551,6 +1562,11 @@ impl World {
         }
     }
 
+    /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
+    pub fn reject_comparisons(&mut self) {
+        self.comparisons_too_large = true;
+    }
+
     pub fn external(&mut self, user: u64, op: raw::Op) -> raw::Answer {
         self.external_at(b"org/repo", user, op)
     }
@@ -1711,6 +1727,20 @@ impl World {
                         ))));
                         continue;
                     }
+                    if self.comparisons_too_large
+                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.fail_job_reads
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }))
                     {
@@ -1749,6 +1779,9 @@ impl World {
                             (skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }), Some(slow))
                                 if branch == slow);
                     let raw = translate::op(&op, &self.env.limits.forge.client);
+                    if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Run { .. })) {
+                        self.run_repositories.insert(call, name.into());
+                    }
                     self.pending.insert(call, op);
                     let mut limits = self.fake_env.limits;
                     if slow {
@@ -2162,11 +2195,26 @@ impl World {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let result = match result {
-                        Ok(answer) => Ok(translate::answer(&op, answer, &self.env.limits.forge.client)),
+                        Ok(answer) => {
+                            let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
+                            if let skein_forge::api::Answer::Run(run) = &mut answer {
+                                let repository = self.run_repositories.get(&call).expect("run's repository");
+                                let raw::Answer::Jobs(jobs) = self
+                                    .fake
+                                    .inspect(&self.fake_env.limits, repository, &raw::Read::Jobs { run: run.id })
+                                    .expect("run jobs")
+                                else {
+                                    panic!("run jobs answer")
+                                };
+                                run.jobs = translate::run_jobs(jobs);
+                            }
+                            Ok(answer)
+                        }
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
                     };
+                    self.run_repositories.remove(&call);
                     let event = engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
                         skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
                     )));
@@ -2444,22 +2492,24 @@ pub fn change_world_funded(
                     // Reserve 32 bytes for landing identity beside its live result label.
                     contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
                     authority: child_authority,
-                    symbolic_grants: Box::new([tasks::Grant {
-                        connector: 0,
-                        kind: 2,
-                        pattern: tasks::Pattern {
-                            segments: Box::new([
-                                Box::from(&b"forge"[..]),
-                                Box::from(&b"forge.example"[..]),
-                                Box::from(&b"org"[..]),
-                                Box::from(&b"repo"[..]),
-                                Box::from(&b"branch"[..]),
-                                Box::from(&b"temper"[..]),
-                                root.to_string().into_bytes().into_boxed_slice(),
-                            ]),
-                            last: tasks::Last::Open(Box::from(&b"c"[..])),
-                        },
-                    }]),
+                    symbolic_grants: [2, 17]
+                        .map(|kind| tasks::Grant {
+                            connector: 0,
+                            kind,
+                            pattern: tasks::Pattern {
+                                segments: Box::new([
+                                    Box::from(&b"forge"[..]),
+                                    Box::from(&b"forge.example"[..]),
+                                    Box::from(&b"org"[..]),
+                                    Box::from(&b"repo"[..]),
+                                    Box::from(&b"branch"[..]),
+                                    Box::from(&b"temper"[..]),
+                                    root.to_string().into_bytes().into_boxed_slice(),
+                                ]),
+                                last: tasks::Last::Open(Box::from(&b"c"[..])),
+                            },
+                        })
+                        .into(),
                     dependencies: Box::new([]),
                     wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))

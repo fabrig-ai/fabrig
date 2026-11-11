@@ -120,8 +120,8 @@ GitHub forge on the fake's GitHub layer, it checks the forge connector's
 connected state, the picker and GitHub's merge queue as the branch's
 landing queue (`../domain/forge/README.md`).
 
-A change's merge job has its story there (`../domain/forge/change/repairs.md`; `../domain/worker.md`,
-4.4), one table, `suite::merge_job`: a project naming a `merge_job`
+A change's merge job has its story there (`../domain/forge/change/repairs.md`; `../domain/worker/jobs.md`
+), one table, `suite::merge_job`: a project naming a `merge_job`
 makes the job, the worker that declared the kind takes it, prepares the
 head with the base merged in on the fake disk, runs the command, and
 delivers or not, and the engine goes on from its branch. The command is
@@ -367,8 +367,8 @@ tests nothing (`../release.md`, 5.1).
   `process-temper`, and a run that selects nothing is red.
 - **Its binaries come through `temper-box forge fetch`** (`../protocol/setup/owned.md`,
   6), into a cache of the workflow's own that starts empty, so each
-  run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
-  `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
+  run shows that the pinned addresses still answer; `TEMPER_TEST_FORGEJO` and
+  `TEMPER_TEST_FORGEJO_RUNNER` then name what it fetched, and the box's own
   fetch finds them in place and holds them to the pins' binary digests.
   The workflow prints each one's version first, so that a binary that
   does not run shows apart from the story.
@@ -892,7 +892,7 @@ scripts/proof-live.sh               the live tier
   part.
 - **A managed sitting by a member who isn't an owner.**
   `scripts/proof-live-github-managed.sh live` takes
-  `TEMPER_MANAGED_PERSON`, the login that makes the App under its own
+  `TEMPER_TEST_MANAGED_PERSON`, the login that makes the App under its own
   account (`../protocol/setup/github.md`, 2), while the repository and the
   installation stay `fabrig-ai`'s. That login is an owner of `fabrig-ai`:
   a member's request waits on an owner's approval

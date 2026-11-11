@@ -1,6 +1,6 @@
 # Testing hearth: status
 
-2026-11-07. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
@@ -28,9 +28,6 @@
 - **Departs:** 4.1: no global wall timeout holds hearth's suites alone,
   because the root has one `default` and one `fuzzy` profile, whose 150 s
   and 600 s wall backstops cover all trees together.
-- **Not yet:**  the M2 store, build and system worlds on the complete fake
-  machine.  the build sandbox, sealed-layer and crash checks against
-  that machine, including a cut between walk and record and
-  `systemd-container`'s nested subvolume. 4.3: build, fetch and layer costs
+- **Not yet:**  the complete-machine worlds remain `worlds.status.md`, 1.  The sandbox, sealed-layer and crash checks remain `worlds.status.md`, 3 and 5. 4.3: build, fetch and layer costs
   checked against that machine's counts and the real tier. 5: these M2
   additions; the builder's domain tests use scripted layer operations.

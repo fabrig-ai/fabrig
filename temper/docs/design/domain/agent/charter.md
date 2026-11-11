@@ -39,11 +39,11 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
 
 The connectors name the repositories, where each starts, which may be
 written and the branch a change goes to (jig's `domain/engine/executors.md`, 1;
-../worker.md, 4.1); the worker prepares them and gives smith the workspace:
+../worker/README.md, 4.1); the worker prepares them and gives smith the workspace:
 each repository's directory and name, whether it may be written, and for
-a merge in progress the files in conflict (../worker.md, section 5). Every
+a merge in progress the files in conflict (../worker/checkouts.md). Every
 temper workspace is git repositories. A run with no repository, such as
-a chat that names none, runs with no workspace (../worker.md, 4.1). A run
+a chat that names none, runs with no workspace (../worker/README.md, 4.1). A run
 whose charter is an asking one (`tools.md`) is given no repository, whatever
 its project's home and context repositories (`../root.md`, 6.1; `ask-temper.md`), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
@@ -109,7 +109,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   A `save` runs none, and is marked unchecked (`tools.md`; `README.md`, section 5).
   The worker pins the landing branch's tip in each change producer's
   checkout as `refs/temper/landing`, and the head a repair's or a
-  resolution's delivery replaces in theirs (../worker.md, section 5), so a
+  resolution's delivery replaces in theirs (../worker/checkouts.md), so a
   check can take what the delivery changed against it; fabrig's checks the changed
   packages' lints and the focused tests of those packages and their direct
   dependents, a failure the base has too reported as inherited
@@ -188,3 +188,13 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   Cancellation after the grace keeps its existing meaning; only the
   person's Close, or a cancel, ends the chat. Goals and every delegate
   run Finite and end by their results.
+
+## 6. Open questions
+
+- **A direct change result's rendering room** (`charter.md`, 3): the landing procedure
+  reserves 59 bytes for its result's label and sender before fitting its
+  report. A task made directly by `delegate` with a Change contract has
+  no such reserve, so its result at the contract's bound can be refused
+  by a live requester's receiving bound. Default: keep the durable result
+  whole and read it through `read_task`; the rendering allowance remains
+  jig's `domain/hosts/README.md`, section 10's question.

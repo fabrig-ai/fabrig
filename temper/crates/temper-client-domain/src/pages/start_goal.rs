@@ -14,7 +14,7 @@ pub struct StartGoal {
     pub project: u32,
     pub given: Option<Box<[u8]>>,
     pub chat: Option<u64>,
-    pub landed: Option<super::work::Landed>,
+    pub landed: Option<super::work::LandedDraft>,
     pub draft: Box<[u8]>,
     pub name: Box<[u8]>,
     pub way: Option<u32>,
@@ -211,7 +211,7 @@ pub(super) fn open_landed(
     pages: &mut Pages,
     env: &Env<Limits>,
     client: &Client,
-    draft: super::work::Landed,
+    draft: super::work::LandedDraft,
     run: bool,
     out: &mut Queue<Request>,
 ) {
@@ -433,7 +433,7 @@ pub(super) fn told(
 
 fn mark_started(
     project: u32,
-    draft: &super::work::Landed,
+    draft: &super::work::LandedDraft,
     goal: u64,
     env: &Env<Limits>,
     serial: &mut u64,

@@ -51,7 +51,7 @@ there. It draws what the engine holds, with no placeholder.
   marker of `temper.css`. At 760 px and under, a row's acts go under its
   line, each at least 44 pixels tall to a press (`../web/look.md`, *What a
   phone presses*).
-- **The terminal** has no such page: the TUI's pages are `../tui/pages.md`'s, and
+- **The terminal** has no such page: the TUI's pages are `../tui/pages/README.md`'s, and
   `Remembered` falls back to its launchpad, as Deployment's tabs do.
 - **Its tests:** the domain's read and acts, each request as sent and each
   answer's page, as rows of `temper-client-domain`'s page tests; the view's

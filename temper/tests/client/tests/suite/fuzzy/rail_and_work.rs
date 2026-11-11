@@ -1,12 +1,16 @@
 //! Density and settings moves (temper/docs/design/draft/surfaces.md, 12 and 14;
 //! temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 3).
 use skein_lib::{List, Rng, Wall};
-use std::{cmp::Reverse, collections::BTreeMap, panic::catch_unwind};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, BTreeSet},
+    panic::catch_unwind,
+};
 use temper_client_domain::{
     forge::ways::Ways,
     pages::{rail, work},
 };
-use work::{Belongs, Card, Change, Chat, Goal, Item, Landed, Where};
+use work::{Belongs, Card, Change, Chat, Goal, Item, LandedDraft, Where};
 
 // The sibling public-address sweep uses 2,000 independently replayable seeds.
 const SEEDS: u64 = 2_000;
@@ -122,7 +126,7 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         let at = if rng.chance(500) {
             Where::Queued { place: u32::try_from(rng.between(1, 3)).expect("queue place"), since: activity(rng, now) }
         } else {
-            Where::Landed { at: activity(rng, now) }
+            Where::Landed { at: activity(rng, now), default_branch: true }
         };
         let belongs = match rng.below(3) {
             0 => Belongs::Goal(rng.between(1, OWNERS)),
@@ -134,7 +138,7 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
     for _ in 0..rng.between(0, ROWS) {
         let ready = rng.chance(500);
         let goal = rng.chance(500).then(|| rng.between(1, TASKS));
-        let draft = Landed {
+        let draft = LandedDraft {
             forge: u16::try_from(rng.below(3)).expect("forge"),
             owner: format!("owner{}", rng.below(2)).into_bytes().into(),
             name: format!("repo{}", rng.below(2)).into_bytes().into(),
@@ -145,11 +149,23 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         };
         facts.landed.push(draft).expect("uncapped landed drafts");
     }
+    let mut seen = BTreeSet::new();
+    for change in &facts.changes {
+        if !seen.insert(change.task) {
+            continue;
+        }
+        if let Where::Landed { at, .. } = change.at {
+            facts
+                .landed_default
+                .push(work::Landing { task: change.task, at, belongs: change.belongs, commit: [0xab; 32] })
+                .expect("uncapped default landings");
+        }
+    }
     facts
 }
 type DraftKey = (u16, Vec<u8>, Vec<u8>, Vec<u8>);
 type Activity = (Reverse<Wall>, u8, u64, DraftKey);
-fn draft_key(row: &Landed) -> DraftKey {
+fn draft_key(row: &LandedDraft) -> DraftKey {
     (row.forge, row.owner.to_vec(), row.name.to_vec(), row.path.to_vec())
 }
 
@@ -159,7 +175,7 @@ struct Oracle {
     goals: BTreeMap<u64, Goal>,
     changes: BTreeMap<u64, Change>,
     chats: BTreeMap<u64, Chat>,
-    landed: BTreeMap<DraftKey, (u32, Landed)>,
+    landed: BTreeMap<DraftKey, (u32, LandedDraft)>,
 }
 
 impl Oracle {
@@ -195,7 +211,7 @@ impl Oracle {
         for row in self.changes.values().filter(|row| row.belongs == owner) {
             match row.at {
                 Where::Queued { place, .. } => queued.push((place, row.task)),
-                Where::Landed { at } => landed.push((Reverse(at), row.task)),
+                Where::Landed { at, .. } => landed.push((Reverse(at), row.task)),
             }
         }
         queued.sort_unstable();
@@ -260,22 +276,28 @@ impl Oracle {
                 "seed {seed}: {name} newest first, ties by task then landed identity: {order:?}"
             );
         }
-        let mut landed: Vec<_> = self
-            .changes
-            .values()
-            .filter_map(|row| match row.at {
-                Where::Landed { at } if at <= now && now.as_nanos() - at.as_nanos() <= WEEK => {
-                    Some((Reverse(at), row.task))
-                }
-                Where::Queued { .. } | Where::Landed { .. } => None,
-            })
-            .collect();
+        let mut by_item = BTreeMap::new();
+        for row in self.changes.values() {
+            if let Where::Landed { at, .. } = row.at
+                && at <= now
+                && now.as_nanos() - at.as_nanos() <= WEEK
+            {
+                let item = match row.belongs {
+                    Belongs::Goal(goal) => Item::Goal(goal),
+                    Belongs::Chat(_) | Belongs::Nothing => Item::Change(row.task),
+                };
+                let candidate = (Reverse(at), row.task, item_key(item));
+                by_item.entry(item_key(item)).and_modify(|held| *held = candidate.min(*held)).or_insert(candidate);
+            }
+        }
+        let mut landed: Vec<_> = by_item.into_values().collect();
         landed.sort_unstable();
         assert_eq!(
-            placed.landed.iter().copied().collect::<Vec<_>>(),
-            landed.into_iter().map(|(_, task)| task).collect::<Vec<_>>(),
-            "seed {seed}: Landed is exactly the inclusive week, newest first, ties by task"
+            placed.landed.iter().map(|row| (Reverse(row.at), row.change, item_key(row.item))).collect::<Vec<_>>(),
+            landed,
+            "seed {seed}: Landed groups goals in the inclusive week, newest first, ties by change task"
         );
+        assert_eq!(placed.goal_branches, 0, "this world lands its changes into default branches");
         let chats = self
             .chats
             .keys()

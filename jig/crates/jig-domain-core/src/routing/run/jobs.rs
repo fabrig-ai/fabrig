@@ -122,8 +122,9 @@ pub(crate) fn prepared(
         assert!(core.replaced.insert(task, previous) == Ok(None), "one pending replacement per task");
     }
     drop(core.contexts.remove(&task));
-    assert!(core.claiming.insert(task, (attempt, tasks::Reasons::ALL)) == Ok(None), "one pending claim per task");
+    assert!(core.claiming.insert(task, (attempt, tasks::Reasons::ALL, None)) == Ok(None), "one pending claim per task");
     work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
+        session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         reply_to: ReplyTo::new(Token::new(task)),

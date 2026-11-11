@@ -497,8 +497,8 @@ fn no_funds_blocks_unless_the_way_has_an_amount() {
     }
 }
 
-fn landed() -> pages::work::Landed {
-    pages::work::Landed {
+fn landed() -> pages::work::LandedDraft {
+    pages::work::LandedDraft {
         forge: 3,
         owner: b"author".as_slice().into(),
         name: b"project".as_slice().into(),

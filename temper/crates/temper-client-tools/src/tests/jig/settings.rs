@@ -2,7 +2,7 @@
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects settings goldens; the test table will pass it; ordinary Rust fixtures and golden comparisons"
+    reason = "ordinary Rust fixtures and golden comparisons"
 )]
 use crate::{
     jig::{
@@ -645,7 +645,7 @@ fn head(by: c::RevisionDecider) -> c::RevisionHead {
 }
 fn golden(name: &str, bytes: &[u8]) {
     let path = std::path::Path::new("src/tests/golden").join(name).with_extension("txt");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+    if temper_test_env::rewrite() {
         std::fs::write(&path, bytes).expect("write settings golden");
     }
     assert_eq!(bytes, std::fs::read(path).expect("settings golden"));

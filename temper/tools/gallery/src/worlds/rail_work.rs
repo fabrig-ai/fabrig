@@ -462,6 +462,8 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    commit: [0xab; 32],
+                    default_branch: true,
                     task: *task,
                     title: title.as_bytes().into(),
                     at: at(if matches!(work, Work::Whole) {
@@ -485,6 +487,8 @@ fn changes(work: Work) -> w::ChangesPanel {
     w::ChangesPanel::new(
         &w::CEILINGS,
         w::ChangesPanelParts {
+            landed_default: rows.clone(),
+            landed_default_more: 0,
             project: 1,
             landing: b"main".as_slice().into(),
             queues,

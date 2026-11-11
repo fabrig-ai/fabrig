@@ -160,8 +160,8 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.journal.result_bytes = 512;
     // Stock charter 11's instructions and framed run policy need 10,766 bytes.
     engine_limits.journal.run_bytes = 12_288;
-    // A stored stock charter 11 has 9,470 payload bytes on settings reads.
-    engine_limits.loads.transcript_bytes = 9_470;
+    // A stored stock charter 11 has 9,542 payload bytes, including model cache lifetimes.
+    engine_limits.loads.transcript_bytes = 9_542;
     engine_limits.documents.text_bytes = 4096;
     limits_for_chats(&mut engine_limits, chats);
     engine_limits
@@ -1227,6 +1227,7 @@ impl Joint {
             let mut landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                 connector,
                 kind: 4,
+                sets: Box::new([]),
                 enforce: true,
                 pattern: a::Pattern {
                     segments: [b"forge".as_slice(), fixtures::FORGE_HOST, b"acme", b"shop", b"branch"]
@@ -1313,6 +1314,8 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
+            // The deep task row includes its 32-byte optional session.
+            limits.journal.transcript_bytes = 8224;
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1346,8 +1349,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The task's closer adds 32 bytes; the settings row now needs 8,200 bytes.
-                limits.journal.transcript_bytes = 8200;
+                // The task's closer and optional session each occupy 32 bytes in the deep row.
+                limits.journal.transcript_bytes = 8232;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();

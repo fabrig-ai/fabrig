@@ -1713,18 +1713,8 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
             )
             .ok()?;
     }
-    let mut landed = List::with_capacity(limits.changes_panel_landed);
-    for row in value.landed {
-        landed
-            .push(
-                w::ChangesLanded::new(
-                    limits,
-                    w::ChangesLandedParts { task: row.task, title: row.title, at: row.at.as_nanos() },
-                )
-                .ok()?,
-            )
-            .ok()?;
-    }
+    let landed = changes_landed(value.landed, limits.changes_panel_landed, limits)?;
+    let landed_default = changes_landed(value.landed_default, limits.changes_panel_landed_default, limits)?;
     let panel = w::ChangesPanel::new(
         limits,
         w::ChangesPanelParts {
@@ -1734,10 +1724,38 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
             more: value.more,
             landed,
             landed_more: value.landed_more,
+            landed_default,
+            landed_default_more: value.landed_default_more,
         },
     )
     .ok()?;
     Some(wire::changes_panel(&panel))
+}
+
+fn changes_landed(
+    rows: Box<[forge::ChangesLanded]>,
+    capacity: u32,
+    limits: &w::Limits,
+) -> Option<List<w::ChangesLanded>> {
+    let mut landed = List::with_capacity(capacity);
+    for row in rows {
+        landed
+            .push(
+                w::ChangesLanded::new(
+                    limits,
+                    w::ChangesLandedParts {
+                        task: row.task,
+                        title: row.title,
+                        at: row.at.as_nanos(),
+                        commit: row.commit,
+                        default_branch: row.default_branch,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(landed)
 }
 
 fn landing_member(
@@ -2098,6 +2116,11 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
             address.put(b"/files").expect("measured files suffix");
             address.finish()
         };
+        let mut sets = List::with_capacity(6);
+        for set in row.sets {
+            sets.push(w::ApprovalSet::new(limits, w::ApprovalSetParts { number: set.number, name: set.name }).ok()?)
+                .ok()?;
+        }
         rows.push(
             w::ApprovalRow::new(
                 limits,
@@ -2118,7 +2141,7 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
                     role: row.role,
                     required: row.required,
                     counted: row.counted,
-                    behind: row.behind,
+                    sets,
                     whole: row.whole,
                     yours: match row.yours {
                         root::YourReview::Counts => w::ApprovalYours::Counts,

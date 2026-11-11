@@ -565,3 +565,18 @@ fn a_malformed_closer_is_refused() {
         assert_closer_form(&closer_template(ended_by, false));
     }
 }
+
+#[test]
+fn standing_templates_require_untracked_agents_without_conversations() {
+    let bytes = closer_template(br#""standing""#, false);
+    let engine = fixtures::engine(&bytes).expect("untracked standing agent template");
+    assert_eq!(engine.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Standing);
+    assert_eq!(engine.templates[0].tracked, None);
+    for (from, to) in [
+        (br#""conversation": false"#.as_slice(), br#""conversation": true"#.as_slice()),
+        (br#""executor": {"charter": 1}"#, br#""executor": "chosen""#),
+        (br#""tracked": null"#, br#""tracked": {"priority": 1}"#),
+    ] {
+        assert_closer_form(&fixtures::with(&bytes, from, to));
+    }
+}

@@ -338,6 +338,7 @@ fn proof_key(proof: policy::Proof) -> Option<[u8; 32]> {
 impl Document {
     /// Owned storage retained by the root's asking decision (domain/routing.md, 1).
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "the document inventory counts owned bytes for every panel variant")]
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
@@ -356,7 +357,8 @@ impl Document {
                 size = size
                     .saturating_add(view.landing.len())
                     .saturating_add(size_of_val(view.queues.as_ref()))
-                    .saturating_add(size_of_val(view.landed.as_ref()));
+                    .saturating_add(size_of_val(view.landed.as_ref()))
+                    .saturating_add(size_of_val(view.landed_default.as_ref()));
                 for queue in &view.queues {
                     size = size
                         .saturating_add(queue.repository.len())
@@ -367,6 +369,9 @@ impl Document {
                     }
                 }
                 for change in &view.landed {
+                    size = size.saturating_add(change.title.len());
+                }
+                for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
                 }
             }

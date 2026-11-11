@@ -156,7 +156,7 @@ pub enum Act {
         chat: Option<u64>,
     },
     OpenLanded {
-        draft: work::Landed,
+        draft: work::LandedDraft,
         start: bool,
     },
     StartDraft {

@@ -57,6 +57,9 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
 }
 /// One argv per table row and form; the help derivation shares these examples.
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
+    &["role", "list", "--project", "shop"],
+    &["role", "show", "41"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -447,15 +450,8 @@ pub(crate) fn golden(name: &str) -> Box<[u8]> {
     std::fs::read(path).expect("checked golden").into_boxed_slice()
 }
 /// Task-rendering fixtures regenerate only through their owning tests.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 pub(crate) fn check_golden(name: &str, bytes: &[u8]) {
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new("src/tests/golden").join(name).with_extension("txt");
         std::fs::write(path, bytes).expect("write golden");
@@ -675,6 +671,8 @@ impl Harness {
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
+                | crate::jig::rows::ROLE_LIST_AT
+                | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {

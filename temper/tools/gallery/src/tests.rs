@@ -20,6 +20,20 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn sheet_entry_links_reach_the_adoption_address() {
+    for (name, link) in [("home-add-repository", "Adopt another…"), ("chats-no-repository", "Adopt a repository")] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("sheet entry sample");
+        let mut view = view(&sample);
+        let node = find(view.tree(), Role::Link, link, name);
+        assert_eq!(
+            temper_client_view::href(&mut view, node).as_deref(),
+            Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project: 1 }).as_ref()),
+            "{name}: sheet destination"
+        );
+    }
+}
+
+#[test]
 fn a_later_settings_card_replaces_a_withdrawn_one_without_call_objects() {
     let sample = samples::samples().into_iter().find(|sample| sample.name == "ask-chat-replaced").unwrap();
     let view = view(&sample);
@@ -142,6 +156,7 @@ enum Part {
     After { first: skein_ui::Style, then: skein_ui::Style },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
+    Selected { name: &'static str },
     NotPressed { name: &'static str },
     Pressed { name: &'static str },
     Text { text: &'static str },
@@ -420,7 +435,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
@@ -441,7 +456,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Start a goal: Draft first" },
             Part::Named { role: Role::Button, name: "Another way" },
             Part::Text { text: "vsr’s way" },
-            Part::Named { role: Role::Region, name: "Landed this week · 4" },
+            Part::Named { role: Role::Region, name: "Landed this week · 3" },
             Part::CardChanges {
                 title: "membership-handoff",
                 changes: &[
@@ -491,7 +506,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "work-drafts",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "Drafts · 2",
@@ -504,7 +519,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Another way" },
             Part::Text { text: "vsr’s way" },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
-            Part::Absent { role: Role::Region, name: "Landed this week · 4" },
+            Part::Absent { role: Role::Region, name: "Landed this week · 3" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
@@ -514,7 +529,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Goals { rows: &["membership-handoff", "fuzz-corpus"] },
@@ -527,7 +542,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Named { role: Role::Link, name: "Witness rejoin test" },
@@ -596,7 +611,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "night-work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
@@ -1936,10 +1951,19 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on Forgejo" },
             Part::Text { text: "This project's landing rule 1 asks for one approval by an owner." },
-            Part::Text { text: "2 more changes wait behind this one." },
             Part::Named { role: Role::Link, name: "Review on Forgejo ↗" },
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "needs-approval-path",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on Forgejo" },
+            Part::Text { text: "Signs off changes to vsr's protocol core." },
+            Part::Named { role: Role::Link, name: "Sign off on Forgejo ↗" },
+            Part::Named { role: Role::Button, name: "Open" },
         ],
     },
     Holds {
@@ -2223,7 +2247,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "A task ran out of turns on the coupon rules." },
             Part::Text { text: "Split it in two." },
             Part::Absent { role: Role::Link, name: "Sign off on Forgejo ↗" },
-            // Sign-offs by path and who can still sign have no client read.
+            // These approvals name no set; who can still sign has no client read.
         ],
     },
     Holds {
@@ -4027,6 +4051,26 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "sheet-from-home",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add repositories to Hello" },
+            Part::Selected { name: "Adopt" },
+            Part::Named { role: Role::Choice, name: "Make empty" },
+            Part::Named { role: Role::Choice, name: "Copy public" },
+        ],
+    },
+    Holds {
+        name: "sheet-from-chats",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add repositories to Hello" },
+            Part::Value { role: Role::TextField, name: "Owner", value: "" },
+            Part::Value { role: Role::TextField, name: "Name", value: "" },
+            Part::Named { role: Role::Button, name: "Adopt" },
+        ],
+    },
+    Holds {
         name: "chats-reference",
         heading: "Talk to an agent",
         parts: &[
@@ -4903,6 +4947,14 @@ fn each_state_holds_what_its_name_says() {
                     "{}: absent style",
                     sample.name
                 ),
+                Part::Selected { name } => {
+                    let id = find(tree, Role::Choice, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("source choice").states.as_slice().contains(&skein_ui::State::Selected),
+                        "{}: {name} selected",
+                        sample.name
+                    );
+                }
                 Part::NotPressed { name } => {
                     let id = find(tree, Role::Button, name, sample.name);
                     assert!(

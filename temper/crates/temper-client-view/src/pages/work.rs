@@ -13,7 +13,7 @@ use temper_client_domain::{
     pages::{
         Act,
         changes::State,
-        work::{self, Item, Work},
+        work::{self, Item, Landed, Work},
     },
 };
 use temper_client_protocol_wire::v1 as w;
@@ -57,10 +57,24 @@ pub(crate) fn main(
             b.close();
             b.open(Role::List);
             b.style(look::WORK_ROWS);
-            for task in &placed.landed {
-                landed(b, root, words, bindings, times, *task);
+            for row in &placed.landed {
+                landed(b, root, words, bindings, times, row);
             }
             b.close();
+            if placed.goal_branches > 0 {
+                let line = if placed.goal_branches == 1 {
+                    words.say(Word::WorkGoalBranchOne, &[])
+                } else {
+                    words.say(
+                        Word::WorkGoalBranchMany,
+                        &[Hole::Name(super::goals::lowercase(&super::changes::count_named(
+                            u64::from(placed.goal_branches),
+                            words,
+                        )))],
+                    )
+                };
+                text(b, Role::Paragraph, look::WORK_BYLINE, &line);
+            }
             b.close();
         }
     }
@@ -437,7 +451,7 @@ fn landed_draft(
             recommended = Some(way);
         }
     }
-    let draft = work::Landed::row(row);
+    let draft = work::LandedDraft::row(row);
     b.open(Role::Slot);
     b.style(look::WORK_CHOICES);
     match recommended {
@@ -464,7 +478,7 @@ fn draft_choice(
     bindings: &mut Bindings,
     label: &[u8],
     small: Option<&[u8]>,
-    draft: work::Landed,
+    draft: work::LandedDraft,
     start: bool,
     recommended: bool,
 ) {
@@ -544,26 +558,48 @@ fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bind
         }
     }
 }
-fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, task: u64) {
+fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, row: &Landed) {
     let Some(panel) = panel(root) else { return };
-    for change in panel.landed() {
-        if change.task() != task {
+    for change in panel.landed_default() {
+        if change.task() != row.change {
             continue;
         }
-        let when = times.say(words, TimeForm::Clock, Wall::from_nanos(change.at()));
+        let when = times.say(words, TimeForm::Clock, row.at);
         let origin = match root.pages().changes() {
-            Some(page) => page.from(root.client(), task),
+            Some(page) => page.from(root.client(), row.change),
             None => None,
         };
-        let from = match origin {
-            Some(temper_client_domain::pages::changes::From::Goal(title)) => title.into(),
-            Some(temper_client_domain::pages::changes::From::Chat(_)) => words.say(Word::WorkAChatWithYou, &[]),
-            None => Box::default(),
+        let (task, title) = match row.item {
+            Item::Goal(goal) => {
+                let title = match origin {
+                    Some(temper_client_domain::pages::changes::From::Goal(title)) => title,
+                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title(),
+                };
+                (goal, title)
+            }
+            Item::Change(task) => (task, change.title()),
+            Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => unreachable!("landed rows are goals or changes"),
         };
-        work_row(b, words, bindings, task, &when, change.title(), &from);
+        let commit = crate::public::short(&row.commit);
+        let status = match origin {
+            Some(temper_client_domain::pages::changes::From::Chat(_)) if row.item == Item::Change(row.change) => {
+                crate::accounts::words::join(&[
+                    &words.say(Word::WorkAChatWithYou, &[]),
+                    &words.say(Word::ToolSeparator, &[]),
+                    &commit,
+                ])
+            }
+            Some(
+                temper_client_domain::pages::changes::From::Chat(_)
+                | temper_client_domain::pages::changes::From::Goal(_),
+            )
+            | None => commit.as_slice().into(),
+        };
+        work_row(b, words, bindings, task, &when, title, &status);
         return;
     }
 }
+
 fn work_row(
     b: &mut Builder,
     words: &Words,

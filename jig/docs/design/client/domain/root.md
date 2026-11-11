@@ -388,6 +388,12 @@ what the engine made durable.
 
 ## 14. Open questions
 
+- **A root's two modes:** an application root chooses its mode at run
+  time, so it holds both modes' requests under one type (client/README.md, 4.4), and a
+  host that only ever runs a linked root still matches the unlinked
+  variant, as a cell it never reaches. Whether each root splits by mode,
+  so that such a host is never handed that variant, is a change to every
+  application root and its hosts.
 - **Generating the boilerplate:** whether the client root's routing and
   wrapping, which have one shape, are best copied, as they are, or
   generated from a short description, as for the engine's root

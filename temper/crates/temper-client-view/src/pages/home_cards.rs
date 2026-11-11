@@ -80,14 +80,7 @@ pub(crate) fn cards(
                 if row.yours == temper_client_domain::forge::approvals::Yours::Counts
                     && skein_ui::markdown::safe_url(&row.address)
                 {
-                    let forge = w.say(
-                        match row.kind {
-                            temper_client_domain::forge::forges::Kind::GitHub => Word::ApprovalGitHub,
-                            temper_client_domain::forge::forges::Kind::Forgejo => Word::ApprovalForgejo,
-                        },
-                        &[],
-                    );
-                    let label = w.say(Word::ApprovalReview, &[Hole::Name(forge)]);
+                    let label = super::approval::review_words(row, w);
                     b.open(Role::Link);
                     b.style(look::RECOMMENDED);
                     b.name(&label);

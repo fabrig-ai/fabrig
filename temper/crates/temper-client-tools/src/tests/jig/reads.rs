@@ -197,15 +197,11 @@ fn a_refused_act_says_why_without_a_call() {
     fixtures::check_golden("task_refused", &root.answer(call).expect("read answered").stdout);
 }
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn me_prints_the_live_frame() {
     for (argv, golden) in [(fixtures::ME_CALL, "me"), (fixtures::ME_JSON_CALL, "me_json")] {
         let (mut root, call) = fixtures::read_call(argv);
         let answer = root.answer(call).expect("live frame answered");
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+        if temper_test_env::rewrite() {
             std::fs::write(std::path::Path::new("src/tests/golden").join(golden).with_extension("txt"), &answer.stdout)
                 .expect("write me golden");
         }

@@ -241,6 +241,7 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 const DIRECT_CALLS: &[&[&str]] = &[
     &["project", "make", "Second", "--key", "second-project"],
     super::goal_template::START,
+    super::role::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
     &["draft", "ready", "--project", "1", "draft.md", "--key", "draft-ready"],
@@ -276,7 +277,11 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "connect", "github", "--key", "new-github"],
 ];
 fn direct_me(argv: &[&str]) -> c::Me {
-    if argv.first() == Some(&"goal") { super::goal_template::goal_me() } else { f::chat_me(f::CHAT_BUDGET) }
+    match argv.first() {
+        Some(&"goal") => super::goal_template::goal_me(),
+        Some(&"role") => super::role::me(),
+        _ => f::chat_me(f::CHAT_BUDGET),
+    }
 }
 fn direct(argv: &[&str]) {
     for json in [false, true] {

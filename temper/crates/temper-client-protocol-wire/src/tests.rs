@@ -2009,7 +2009,11 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
                     role: 2,
                     required: 3,
                     counted: 1,
-                    behind: u32::MAX,
+                    sets: List::from_boxed(Box::new([v1::ApprovalSet::new(
+                        &limits,
+                        v1::ApprovalSetParts { number: 1, name: Box::new([b's'; 40]) },
+                    )
+                    .expect("set at its name bound")])),
                     whole: true,
                     yours,
                 },

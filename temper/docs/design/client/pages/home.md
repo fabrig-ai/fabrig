@@ -130,7 +130,9 @@
        }`, the first of several the home, under keys of its own; the step's
        lines above say the rest, with no toast. It is for this state alone:
        `../../draft/repository-copies.md`, 9's "Add repositories" stays
-       Settings'.
+       Settings' (the user, 2026-11-11), and the step's "Adopt another…" and
+       "Adopt" reach it there, as the gallery's `sheet-from-home` draws
+       (`../forge/family.md`, 3).
     2. "Tell temper how you work", "In your own words: how you plan, review
        and land work. temper proposes how it will run that, and nothing
        changes until you accept.", with "Start", filled, the act of
@@ -301,7 +303,7 @@
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
 
-  **In the TUI** (`../tui/pages.md`, *The launchpad*), Home is the root's page under
+  **In the TUI** (`../tui/pages/launchpad.md`, 1), Home is the root's page under
   the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's

@@ -34,6 +34,8 @@ pub enum EndedBy {
     Requester,
     /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
+    /// A standing agent task ends only by cancel (jig/docs/design/domain/tasks/standing.md, 2).
+    Standing,
 }
 
 /// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
@@ -59,7 +61,7 @@ pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
     match flags.ended_by {
         EndedBy::Result => true,
         EndedBy::Requester => flags.conversation && agent,
-        EndedBy::Closer(_) => !flags.conversation && agent,
+        EndedBy::Closer(_) | EndedBy::Standing => !flags.conversation && agent,
     }
 }
 
@@ -70,7 +72,7 @@ pub(crate) fn valid(flags: Flags, executor: crate::Executor, requester: crate::P
     }
     match flags.ended_by {
         EndedBy::Result | EndedBy::Closer(_) => return true,
-        EndedBy::Requester => {}
+        EndedBy::Requester | EndedBy::Standing => {}
     }
     match requester {
         crate::Party::Person(number) => number != 0,

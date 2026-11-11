@@ -196,6 +196,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Link { .. }
         | root::Delivery::ProjectMade { .. }
         | root::Delivery::ProjectReleased { .. }
+        | root::Delivery::MoveStanding { .. }
         | root::Delivery::ForgeCommitted { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }

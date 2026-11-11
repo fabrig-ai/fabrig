@@ -26,7 +26,11 @@
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
-  step failed. The log is read at the job attempt that failed on this
+  step failed. Where its job's failure is the runner's, the brief says so
+  and why, with how many times the job was run again at this head
+  (`README.md`, 2, step 3: `the runner's: set-up failed; run again 1 time
+  at this head, failed again`). A failure the runner caused within
+  `reruns` is run again, never repaired. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
   read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
   On GitHub the pin comes from the failed check's resolved Actions job,
@@ -109,7 +113,7 @@
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
-  kind 3 (`../../worker.md`, 4.4), delegated by the change, which holds the
+  kind 3 (`../../worker/jobs.md`), delegated by the change, which holds the
   branch it writes. Its workspace is a resolution's, the base merged
   into the branch's head;
   the project's merge command settles the conflicts it knows
@@ -122,10 +126,10 @@
   resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
   try that will be spent again included, is a line on the worker that met
-  it and on the engine, naming the job, its kind and why (`../../worker.md`,
-  4.4); the job's own hold, out of tries, names its failures' class,
+  it and on the engine, naming the job, its kind and why (`../../worker/jobs.md`
+  ); the job's own hold, out of tries, names its failures' class,
   and its way out points at the engine's log, where each is named. Without a `merge_job`,
-  without the kind declared (`../../worker.md`, 4.4) or in its authority, or
+  without the kind declared (`../../worker/jobs.md`) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's
   resolutions, and the resolution after it as none, so the bound counts
@@ -134,7 +138,7 @@
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`../../worker.md`, section 5).
+  parents, and pushes it (`../../worker/checkouts.md`).
   **It waits for its producer.** A resolution, and a merge job before it,
   starts only once every task the change gave its branch to push, its
   producer and each repair, has ended: its terminal heard, a successful
@@ -325,9 +329,13 @@
   commands so a bounded task summary retains a way out. They advertise
   only commands the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
-  mergeability never known, a forge's merge queue that neither lands
-  nor ejects it, a gate's task stuck) is bounded by a stall counted from
-  the head's push or the last release; past it, the change is held. The
+  mergeability never known, an update or a merge whose answer or head
+  never shows, a forge's merge queue that neither lands nor ejects it, a
+  gate's task stuck) is bounded by a stall, the deployment's
+  `forge.change_policy.stall_ms` (`../../../protocol/configuration/limits.md`),
+  counted from the head's push, the write it waits on or the last
+  release; past it, the change is held. No step of a change's way waits
+  past it with no hold. The
   default, 30 minutes, outlasts an ordinary CI run so a healthy change
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
@@ -345,6 +353,21 @@
   the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
   in conflict goes to its merge job and then a resolution, however many
   commits behind it is.
+- **A stall's hold says where.** Its words name the step the change was
+  held at and what it waits on, commits at the forge's short length, in
+  one shape: `no progress at STEP for N minutes: waiting for WHAT`, N
+  the stall in whole minutes. For instance:
+
+  | Held at | WHAT |
+  |---|---|
+  | opening | `its pull request to open` |
+  | checking | `CI at 0123456789ab` |
+  | gating | `its gates at 0123456789ab` |
+  | first | `the forge to settle whether 0123456789ab merges` |
+  | updating | `its update of 0123456789ab with main at 89abcdef0123` |
+  | landing | `its merge of 0123456789ab` |
+
+  A step not listed says its own wait in the same shape.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the
@@ -416,3 +439,57 @@ differs from a conflict after production, whose merge job spends one and
 whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
+
+## 1. Open questions
+
+- **A gate's live run past the stall** (`repairs.md`): a review's task stays a wait
+  the stall bounds, though a review working 30 minutes is as normal as a
+  producer. Its verdict is kept if it arrives on the hold, and a release goes
+  on from it. Default: as it stands, its wait being named by `repairs.md`; the request
+  `parallel-faults` of 2026-11-06 met no such hold.
+
+- **A green head no wake reaches** (`repairs.md`, `../keeping-up.md`, 2): a held change reads on a wake,
+  and a poll wakes it only when what it read of the pull request moved. Under
+  a rule's required contexts, a check they do not name can keep the pull
+  request's CI as it was while theirs pass, so the hold waits for a hint or a
+  person's release, which makes no fresh repair. Default: so; it costs time,
+  not a repair.
+
+- **A retry before the read** (`repairs.md`): a run ending into a retry wakes no change,
+  so a backoff shorter than `poll_ms` can start another run at a green head,
+  left to finish as any run is. Whether jig tells a procedure of its delegate's
+  retry, so that none starts. Default: as it stands.
+
+- **A hold at gating at a green head** (`repairs.md`): past the bound or short of
+  authority there, a hold can be a gate's or CI's, and its state does not say
+  which. Saying so changes what a hold stores. Default: it waits for a person's
+  release, which decides afresh.
+
+- **A repair held for its brief** (`repairs.md`): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+
+- **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
+
+- **A failing check's repair brief:** a check gate that says no is
+  repaired as a review that says no is, and its repair's brief carries
+  the pull request's reviews section (`repairs.md`). A check's verdict is not a
+  review on the forge: whether the brief should carry the check's own
+  output instead is open.
+
+- **What failed on a queue's group** (`repairs.md`, `../queues.md`, 1): an ejection's repair
+  brief carries the forge's reason alone, the pull request's `dequeued`,
+  since skein's `Pull` names no commit of the group. The alternative
+  reads the group's CI and gives the repair its failing output.
+  Default: the reason alone.
+
+- **A clean update's other words** (`repairs.md` and `../README.md`, section 6): the result still says
+  `the base broke it`, and the client panel calls its repair a semantic
+  conflict, although the path proves only that CI failed after an update.
+  Aligning those words needs the client's owner too. Default: the task's
+  instructions and brief name the failed check; the result and panel keep
+  their words until that follow-up.
