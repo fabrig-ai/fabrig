@@ -136,8 +136,10 @@ pub enum Word {
     DraftStart,
     KindSession,
     Drafter,
+    GoalHead,
+    ProposedNotice,
 }
-pub(crate) const ALL: [Word; 126] = [
+pub(crate) const ALL: [Word; 128] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -264,6 +266,8 @@ pub(crate) const ALL: [Word; 126] = [
     Word::DraftStart,
     Word::KindSession,
     Word::Drafter,
+    Word::GoalHead,
+    Word::ProposedNotice,
 ];
 
 #[derive(Clone, Copy)]
@@ -447,6 +451,8 @@ impl Word {
             Self::DraftStart => 126,
             Self::KindSession => 127,
             Self::Drafter => 128,
+            Self::GoalHead => 129,
+            Self::ProposedNotice => 130,
         }
     }
     const fn id(self) -> PhraseId {
@@ -459,6 +465,8 @@ impl Word {
             Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
             Self::KindSession => (&[b", a design session"], &[]),
             Self::Drafter => (&[b"drafter"], &[]),
+            Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
+            Self::ProposedNotice => (&[b"Proposed: the goal starts once it is accepted."], &[]),
             Self::KindChat => (&[b", a chat"], &[]),
             Self::KindGoal => (&[b", a goal"], &[]),
             Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
@@ -696,6 +704,7 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Proposed => self.say(Word::ProposedNotice, &[]),
             crate::Notice::Theme { choice, terminal } => {
                 let word = match choice {
                     crate::theme::ThemeChoice::Auto => match terminal {

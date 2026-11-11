@@ -537,6 +537,7 @@ fn the_foot_says_each_state() {
     assert!(failures.is_empty(), "foot read rows: {failures:?}");
     read_states();
     quiet_states();
+    goal_states();
     notice_states();
     rule_states();
     question_states();
@@ -640,6 +641,65 @@ fn read_states() {
         assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
     }
 }
+fn goal_states() {
+    let words = f::words();
+    for (name, ways, chosen, funds, reserved, send, expected, refusal) in [
+        ("preferred first", true, None, 100, 0, false, &[4, 2, 8][..], None),
+        ("chosen first", true, Some(8), 100, 0, false, &[8, 2, 4][..], None),
+        ("nothing to fund it", true, None, 0, 0, false, &[4, 2, 8][..],
+            Some(b"Nothing is left in your pool to fund a goal.".as_slice())),
+        ("held by chats", true, None, 0, 100, false, &[4, 2, 8][..],
+            Some("Nothing is left in your pool to fund a goal: your open chats hold it. Close one you’ve finished with, and you can start this.".as_bytes())),
+        ("refused", true, None, 100, 0, true, &[4, 2, 8][..], Some(b"Limit reached".as_slice())),
+        ("no ways", false, None, 100, 0, false, &[][..], None),
+    ] {
+        let mut root = f::GoalCase { ways, funds, reserved, ..f::GoalCase::READY }.root();
+        open_goal(&mut root);
+        if let Some(template) = chosen { act(&mut root, d::pages::Act::StartWay { template }); }
+        if send { act(&mut root, d::pages::Act::StartGoal); }
+        let part = foot::read(&root, &Tui::new(f::ADDRESS), &words, f::NOW);
+        let list = part.list.as_ref().unwrap();
+        let head = b"Start a goal from plan.md. How should it run?";
+        assert_eq!(list.head.as_deref(), Some(head.as_slice()), "{name}");
+        assert_eq!(list.items.len(), expected.len().checked_add(1).unwrap(), "{name}");
+        for (index, (item, template)) in list.items.iter().zip(expected).enumerate() {
+            let (way, description) = match template {
+                2 => ("Task by task", "The same plan; each task lands on its own once checked."),
+                4 => ("Plan, tasks, land whole", "A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."),
+                8 => ("Custom", ""),
+                _ => unreachable!(),
+            };
+            let number = skein_lib::Decimal::of(u64::try_from(index).unwrap().checked_add(1).unwrap());
+            assert_eq!(item.name, skein_lib::bytes::concat(&[number.as_bytes(), b". ", way.as_bytes()]), "{name}");
+            assert_eq!(item.words.as_ref(), description.as_bytes(), "{name}");
+            assert_eq!(item.selected, index == 0, "{name}");
+            assert_eq!(item.event, TuiEvent::Way { template: *template }, "{name}");
+        }
+        let cancel = list.items.last().unwrap();
+        assert_eq!(cancel.name.as_ref(), b"Cancel");
+        assert_eq!(cancel.event, TuiEvent::Act { act: d::pages::Act::StartCancel });
+        assert_eq!(list.escape, cancel.event);
+        assert_eq!(part.composer.as_ref().unwrap().refusal.as_deref(), refusal, "{name}");
+        assert!(root.pages().start().is_some(), "{name}: the sheet stays");
+        let view = draw(part);
+        assert!(has(view.tree(), look::LIST_HEAD, head));
+        assert_eq!(crate::escape(&view), Some(cancel_goal()));
+        for item in view.tree().nodes() {
+            if item.role == Role::MenuItem {
+                assert_eq!(item.styles.as_slice(), &[look::OPTION]);
+            }
+        }
+        if let Some(refusal) = refusal { assert!(has(view.tree(), look::REFUSED, refusal), "{name}"); }
+    }
+}
+fn cancel_goal() -> TuiEvent {
+    TuiEvent::Act { act: d::pages::Act::StartCancel }
+}
+pub(super) fn open_goal(root: &mut Domain) {
+    act(root, d::pages::Act::OpenStart { draft: Some(b"docs/design/draft/plan.md".as_slice().into()), chat: Some(9) });
+    assert!(root.pages().start().is_some());
+}
+
 #[expect(clippy::disallowed_methods, reason = "notice rows inspect the quiet line's two children")]
 fn notice_states() {
     let words = f::words();
@@ -711,6 +771,12 @@ fn notice_states() {
     assert!(has(draw(part).tree(), look::SIGNAL, b"Still signing in"));
     let part = foot::read(&f::signed_out(), &tui, &words, f::NOW);
     assert!(!has(draw(part).tree(), look::SIGNAL, b"Still signing in"));
+    tui.step(Told::Notice { notice: Some(crate::Notice::Proposed) });
+    let part = foot::read(&root, &tui, &words, f::NOW);
+    let proposed = b"Proposed: the goal starts once it is accepted.";
+    assert_eq!(part.notice.as_deref(), Some(proposed.as_slice()));
+    assert!(foot::read_notes(&root, &tui, &words).lines.is_empty());
+    assert!(has(draw(part).tree(), look::SIGNAL, proposed));
 }
 #[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "quiet rows inspect their rendered parts")]
 #[expect(clippy::too_many_lines, reason = "one table checks quiet-line parts and width boundaries")]
@@ -1230,6 +1296,14 @@ fn the_foots_are_their_goldens() {
             3,
             include_bytes!("golden/foot-walk-110x32-dark.txt").as_slice(),
         ),
+        ("foot-goal-80x24-dark", Scheme::Dark, full, 7, include_bytes!("golden/foot-goal-80x24-dark.txt").as_slice()),
+        (
+            "foot-goal-80x24-light",
+            Scheme::Light,
+            full,
+            7,
+            include_bytes!("golden/foot-goal-80x24-light.txt").as_slice(),
+        ),
         ("foot-theme-80x24-dark", Scheme::Dark, full, 4, include_bytes!("golden/foot-theme-80x24-dark.txt").as_slice()),
         (
             "foot-theme-answered-80x24-dark",
@@ -1239,14 +1313,20 @@ fn the_foots_are_their_goldens() {
             include_bytes!("golden/foot-theme-answered-80x24-dark.txt").as_slice(),
         ),
     ];
-    let mut views = List::with_capacity(10);
+    let mut views = List::with_capacity(12);
     let words = f::words();
     for (_, _, size, kind, _) in &rows {
         if *kind == 3 {
             views.push(walk_golden(*size)).unwrap();
             continue;
         }
-        let mut root = root(true, true, *kind == 2, false, false);
+        let mut root = if *kind == 7 {
+            let mut root = f::GoalCase::READY.root();
+            open_goal(&mut root);
+            root
+        } else {
+            root(true, true, *kind == 2, false, false)
+        };
         if *kind == 1 {
             act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
         }
@@ -1269,6 +1349,14 @@ fn the_foots_are_their_goldens() {
         }
         part.needs = d::pages::needs::Count { count: 1, cut: false };
         part.columns = size.columns;
+        if *kind == 7 {
+            part.rule = Some(foot::Rule {
+                project: b"Demo".as_slice().into(),
+                title: b"Plan".as_slice().into(),
+                task: 9,
+                place: b"box".as_slice().into(),
+            });
+        }
         if *kind == 2 {
             part.rule = Some(foot::Rule {
                 project: b"Hello".as_slice().into(),
@@ -1280,7 +1368,7 @@ fn the_foots_are_their_goldens() {
         }
         views.push(draw(part)).unwrap();
     }
-    let mut checks = List::with_capacity(10);
+    let mut checks = List::with_capacity(12);
     for ((name, scheme, size, kind, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {

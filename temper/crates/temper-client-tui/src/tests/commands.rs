@@ -268,9 +268,43 @@ fn the_tui_offers_its_commands() {
             failures.push((name, found)).unwrap();
         }
     }
+    goal_commands(&words);
     own_commands(&words);
     front_commands(&words);
     assert!(failures.is_empty(), "command rows: {failures:?}");
+}
+
+fn goal_commands(words: &crate::words::Words) {
+    for (name, case, offered) in [
+        ("headed document", f::GoalCase::READY, true),
+        ("no heading", f::GoalCase { body: Some(b"Words\n"), ..f::GoalCase::READY }, false),
+        ("fenced heading", f::GoalCase { body: Some(b"```\n# Plan\n```\n"), ..f::GoalCase::READY }, false),
+        ("blank", f::GoalCase { body: Some(b" \n"), ..f::GoalCase::READY }, false),
+        ("no document", f::GoalCase { body: None, ..f::GoalCase::READY }, false),
+        ("linked goal", f::GoalCase { linked: true, ..f::GoalCase::READY }, false),
+        ("no repository", f::GoalCase { repository: false, ..f::GoalCase::READY }, false),
+        ("no drafts", f::GoalCase { drafts: false, ..f::GoalCase::READY }, false),
+        ("Ask temper", f::GoalCase { asking: true, ..f::GoalCase::READY }, false),
+    ] {
+        let root = case.root();
+        let commands = crate::offered(&root, words);
+        assert_eq!(commands.contains(&Command::Goal), offered, "{name}");
+        assert_eq!(crate::goal_offered(&root), offered, "{name}: one callable gate");
+        if offered {
+            assert_eq!(
+                commands.as_ref(),
+                &[
+                    Command::Draft,
+                    Command::Close,
+                    Command::Goal,
+                    Command::New,
+                    Command::Chats,
+                    Command::Help,
+                    Command::Exit
+                ]
+            );
+        }
+    }
 }
 
 fn front_commands(words: &crate::words::Words) {

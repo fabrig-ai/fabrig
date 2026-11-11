@@ -238,6 +238,12 @@ impl Host {
         self.route(&mut duties);
         self.launchpad(project);
         self.route(&mut duties);
+        if self.state().start_chat().is_some() && self.root.pages().start().is_none() {
+            if matches!(self.root.pages().needs().toast(), Some(needs::Toasted::Proposed { .. })) {
+                self.notice(tui::Notice::Proposed);
+            }
+            self.tell(Told::Starting { chat: None });
+        }
         if let Some(aside) = self.state().aside()
             && !self.aside_stands(aside)
         {
@@ -521,6 +527,25 @@ impl Host {
                 }
                 self.tell(Told::Cleared);
             }
+            tui::Event::Command { command: TuiCommand::Goal } => {
+                if tui::goal_offered(&self.root)
+                    && let Some(chat) = self.root.pages().chat()
+                    && let Some(document) = &chat.draft
+                {
+                    let task = chat.task;
+                    let path = root::pages::chat::sheet::path(&root::pages::chat::document::slug(&document.title));
+                    self.act(Act::OpenStart { draft: Some(path), chat: Some(task) });
+                    if self.root.pages().start().is_some() {
+                        self.tell(Told::Starting { chat: Some(task) });
+                    }
+                }
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            tui::Event::Way { template } => {
+                self.act(Act::StartWay { template });
+                self.act(Act::StartGoal);
+            }
             tui::Event::Command { command } => {
                 self.act(Act::Terminal(terminal::Act::Run { command }));
                 self.tell(Told::Cleared);
@@ -594,6 +619,9 @@ impl Host {
     }
 
     fn act(&mut self, act: Act) {
+        if act == Act::StartCancel {
+            self.tell(Told::Starting { chat: None });
+        }
         self.step(Event::Act { action: root::Action::Pages(act) });
     }
 
@@ -765,6 +793,13 @@ impl Host {
     }
 
     fn show(&mut self, address: Address) {
+        if matches!(&address, Address::Task { .. })
+            && let Some(task) = self.state().start_chat()
+        {
+            self.tell(Told::Starting { chat: None });
+            self.act(Act::Go { address: Address::Chat { task } });
+            return;
+        }
         let project = match &address {
             Address::AllHome | Address::Home { .. } | Address::Chat { .. } => {
                 self.went(address);
