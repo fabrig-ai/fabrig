@@ -22,9 +22,9 @@ pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
-pub(crate) mod follow_route;
 mod change_llm;
 mod closer_route;
+pub(crate) mod follow_route;
 pub(crate) use closer_route::{made as closer_made, refused as closer_refused, start_closer_step};
 mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
@@ -2548,10 +2548,17 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
         }
     }
-    if domain.forge.change(task).is_none() && let Some(follows) = &follows
+    if domain.forge.change(task).is_none()
+        && let Some(follows) = &follows
         && let Err(words) = follow_route::check(domain, context.project, context.requester, follows, Some(task), &[])
-    { holds::hold(domain, task, &words); return true; }
-    let waits_word = match &follows { Some(follows) => follow_route::owner_wait(domain, task, context.project, follows), None => false };
+    {
+        holds::hold(domain, task, &words);
+        return true;
+    }
+    let waits_word = match &follows {
+        Some(follows) => follow_route::owner_wait(domain, task, context.project, follows),
+        None => false,
+    };
     let mut route =
         route.unwrap_or(if follows.is_some() { forge_change::Route::Up } else { forge_change::Route::None });
     match context.requester {
@@ -2712,7 +2719,14 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     landing_route::join_landing(domain, env, task);
     if waits_word {
         let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
-        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision: ProcedureStep::new(StepEnd::Wait) })); return true;
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+            task,
+            step,
+            connector,
+            code,
+            decision: ProcedureStep::new(StepEnd::Wait),
+        }));
+        return true;
     }
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
     let released_questions = match (domain.forge.change(task), domain.core.tasks.task(task)) {
@@ -4375,10 +4389,17 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
         },
         None => None,
     };
-    let account = if why == forge_change::Hold::Repairs && let Some(row) = domain.forge.change(task) && row.follows.is_some() {
+    let account = if why == forge_change::Hold::Repairs
+        && let Some(row) = domain.forge.change(task)
+        && row.follows.is_some()
+    {
         let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-        append(&mut words, b"its repairs are spent: "); append(&mut words, &decimal(u64::from(row.change.repairs)));
-        append(&mut words, b" of "); append(&mut words, &decimal(u64::from(env.limits.forge.change_policy.repairs))); append(&mut words, b" taken"); Some(words.into_boxed())
+        append(&mut words, b"its repairs are spent: ");
+        append(&mut words, &decimal(u64::from(row.change.repairs)));
+        append(&mut words, b" of ");
+        append(&mut words, &decimal(u64::from(env.limits.forge.change_policy.repairs)));
+        append(&mut words, b" taken");
+        Some(words.into_boxed())
     } else if why == forge_change::Hold::Failed && check_hold.is_some() {
         check_hold
     } else if why == forge_change::Hold::Questions {
@@ -5313,7 +5334,16 @@ pub(crate) fn outputs(
             forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
             forge::Request::CancelFollow { project, task } => {
-                domain.work.push(Work::Tasks(tasks::Event::Cancel { reply_to: ReplyTo::new(Token::new(task)), by: tasks::Party::Deployment { project }, operation: tasks::Cancel { task, reason: b"the follow was removed".as_slice().into(), grace: None, message: None } }));
+                domain.work.push(Work::Tasks(tasks::Event::Cancel {
+                    reply_to: ReplyTo::new(Token::new(task)),
+                    by: tasks::Party::Deployment { project },
+                    operation: tasks::Cancel {
+                        task,
+                        reason: b"the follow was removed".as_slice().into(),
+                        grace: None,
+                        message: None,
+                    },
+                }));
             }
             forge::Request::TierRun { repository, tier, number, tip } => {
                 start_tier_run(domain, env, repository, tier, number, tip);

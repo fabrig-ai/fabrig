@@ -1,11 +1,16 @@
 //! Context adoption across projects, through the root and durable store.
 use super::*;
 
-fn adopt_source_and_target(world: &mut World) { adopt_pair(world, b"source", b"target"); }
-pub(super) fn adopt_pair(world: &mut World, source: &[u8], target: &[u8]) { adopt_pair_passing(world, source, target, 1000); }
+fn adopt_source_and_target(world: &mut World) {
+    adopt_pair(world, b"source", b"target");
+}
+pub(super) fn adopt_pair(world: &mut World, source: &[u8], target: &[u8]) {
+    adopt_pair_passing(world, source, target, 1000);
+}
 pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8], passes: u32) {
     for (id, name) in [(3, source), (4, target)] {
-        let full = [b"org/".as_slice(), name].concat(); let name = full.as_slice();
+        let full = [b"org/".as_slice(), name].concat();
+        let name = full.as_slice();
         fake::repository(
             &mut world.fake,
             &world.fake_env.limits,
@@ -16,10 +21,21 @@ pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8]
                 tree: Box::new([]),
                 labels: Box::new([]),
                 workflows: Box::new([raw::Workflow {
-                    file: b"test.yml".as_slice().into(), jobs: Box::new([b"test".as_slice().into()]),
-                    latency_min: Duration::ZERO, latency_max: Duration::ZERO, silent: 0, passes: 1000,
-                    fails: Box::new([]), flaky: Box::new([]), select: None, cue: None,
-                    report: Some(raw::Report { artifact: b"results".as_slice().into(), format: raw::ReportFormat::Lines, deflate: false }),
+                    file: b"test.yml".as_slice().into(),
+                    jobs: Box::new([b"test".as_slice().into()]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    fails: Box::new([]),
+                    flaky: Box::new([]),
+                    select: None,
+                    cue: None,
+                    report: Some(raw::Report {
+                        artifact: b"results".as_slice().into(),
+                        format: raw::ReportFormat::Lines,
+                        deflate: false,
+                    }),
                 }]),
                 protection: None,
                 hooked: true,

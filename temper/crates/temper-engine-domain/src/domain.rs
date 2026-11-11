@@ -568,7 +568,9 @@ impl Domain {
                 limits.call_records.checked_add(limits.tasks.tasks).expect("effect handoff capacity"),
             ),
             next_effect_owner: 1,
-            follow_steps: Map::with_capacity(limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity")),
+            follow_steps: Map::with_capacity(
+                limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
+            ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(

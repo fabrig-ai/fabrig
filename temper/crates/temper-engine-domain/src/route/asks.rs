@@ -41,10 +41,14 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
                 return;
             }
-            if connector == domain.config.forge_connector && forge_route::follow_route::refused(domain, task, step, &why) {
+            if connector == domain.config.forge_connector
+                && forge_route::follow_route::refused(domain, task, step, &why)
+            {
                 if let core::StepRefusal::Refused(problem) = &why
                     && domain.facts.try_push(crate::Fact::StepRefused { task, step, problem: problem.clone() }).is_err()
-                { domain.facts_lost = domain.facts_lost.saturating_add(1); }
+                {
+                    domain.facts_lost = domain.facts_lost.saturating_add(1);
+                }
                 return;
             }
             let pending = domain.forge_delegating.remove(&(task, step));

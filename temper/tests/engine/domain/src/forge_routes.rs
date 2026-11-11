@@ -1115,7 +1115,9 @@ impl World {
     /// The configured pages base, before a multi-project fixture rebuilds startup.
     #[must_use]
     pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
-        assert_eq!(self.env.now, Time::ZERO); self.restart_config.forges[0].web = Some(pages.into()); self
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.forges[0].web = Some(pages.into());
+        self
     }
 
     /// A second project with the same owner and policy, before startup.

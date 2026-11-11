@@ -213,7 +213,8 @@ fn follows_restore_with_per_project_and_queue_bounds() {
         more_files: 0,
         change: None,
         state: FollowState::NotMade,
-        word: false, remake: false,
+        word: false,
+        remake: false,
     };
     full.queue = vec![entry.clone(); usize::try_from(LIMITS.follow_queue).expect("queue bound")].into_boxed_slice();
     restore(&mut d, Stored::Follow(full.clone()));

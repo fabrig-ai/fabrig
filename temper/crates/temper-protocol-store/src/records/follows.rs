@@ -61,14 +61,26 @@ fn encode_entry(entry: &d::FollowEntry) -> w::FollowEntry {
             more_files: entry.more_files,
             change: entry.change,
             state: encode_state(&entry.state),
-            word: entry.word, remake: entry.remake,
+            word: entry.word,
+            remake: entry.remake,
         },
     )
     .expect(FITS)
 }
 fn decode_entry(entry: w::FollowEntry, bounds: &Bounds) -> Result<d::FollowEntry, Undecodable> {
-    let w::FollowEntryParts { before, after, pull, commits, more_commits, files, more_files, change, state, word, remake } =
-        entry.into_parts();
+    let w::FollowEntryParts {
+        before,
+        after,
+        pull,
+        commits,
+        more_commits,
+        files,
+        more_files,
+        change,
+        state,
+        word,
+        remake,
+    } = entry.into_parts();
     let mut decoded = List::with_capacity(commits.len());
     for commit in commits.into_boxed() {
         let w::FollowCommitParts { id, message } = commit.into_parts();
@@ -87,7 +99,8 @@ fn decode_entry(entry: w::FollowEntry, bounds: &Bounds) -> Result<d::FollowEntry
         more_files,
         change,
         state: decode_state(state),
-        word, remake,
+        word,
+        remake,
     })
 }
 fn encode_parity(parity: Option<&d::FollowParity>) -> Option<w::FollowParity> {
@@ -136,9 +149,21 @@ pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
     }
     let mut questions = List::with_capacity(u32::try_from(row.questions.len()).expect(FITS));
     for question in &row.questions {
-        questions.push(w::FollowQuestion::new(&w::CEILINGS, w::FollowQuestionParts {
-            change: question.change, number: question.number, words: question.words.clone(), person: question.person, answer: question.answer.clone(),
-        }).expect(FITS)).expect(FITS);
+        questions
+            .push(
+                w::FollowQuestion::new(
+                    &w::CEILINGS,
+                    w::FollowQuestionParts {
+                        change: question.change,
+                        number: question.number,
+                        words: question.words.clone(),
+                        person: question.person,
+                        answer: question.answer.clone(),
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
     }
     w::FollowRow::new(
         &w::CEILINGS,

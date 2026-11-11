@@ -601,8 +601,18 @@ pub(crate) fn delegate_call(
     stubs: Box<[tasks::Stub]>,
 ) {
     if let Some(context) = domain.core.tasks.delegation(key.task)
-        && let Err(body) = forge_route::follow_route::check_batch(domain, env, context.project, tasks::Party::Task(key.task), &batch, &[])
-    { host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body }); return; }
+        && let Err(body) = forge_route::follow_route::check_batch(
+            domain,
+            env,
+            context.project,
+            tasks::Party::Task(key.task),
+            &batch,
+            &[],
+        )
+    {
+        host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body });
+        return;
+    }
     if let Err(part) = domain.core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part }));
         return;

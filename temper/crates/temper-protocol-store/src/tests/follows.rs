@@ -13,7 +13,8 @@ fn entry(state: d::FollowState) -> d::FollowEntry {
         more_files: 2,
         change: Some(51),
         state,
-        word: false, remake: false,
+        word: false,
+        remake: false,
     }
 }
 fn row() -> d::FollowRow {

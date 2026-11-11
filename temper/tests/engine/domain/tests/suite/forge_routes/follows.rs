@@ -28,7 +28,9 @@ fn make(world: &mut World, requester: &engine::Assignment, template: u64, follow
     delegate.authority.delegation.depth = 1;
     let answers = world.answers.len();
     questions::call(world, requester, 110, engine::Tool::Delegate { batch: Box::new([delegate]) });
-    if world.answers.len() == answers { return None; }
+    if world.answers.len() == answers {
+        return None;
+    }
     let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("delegate answered") };
     Some(made[0].task)
 }
@@ -47,7 +49,9 @@ fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     panic!("producer assigned for {change}: {:?}", questions::row(world, change));
 }
 
-fn ended(world: &World, task: u64) -> bool { world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)))) }
+fn ended(world: &World, task: u64) -> bool {
+    world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+}
 fn finish(world: &mut World, producer: &engine::Assignment) {
     let event = world.protocol.answer(
         CHANNEL,
@@ -69,25 +73,32 @@ fn finish(world: &mut World, producer: &engine::Assignment) {
     world.send(event);
 }
 
-
 #[test]
 fn ordinary_changes_still_start_early_without_a_follow_parameter() {
     let (mut world, requester, branch, base) = early_start::goal_world();
     let first = early_start::make(&mut world, &requester, b"Add prerequisite", &[]);
-    let upstream = next_producer(&mut world, first); let second = make(&mut world, &requester, first, false).unwrap();
-    let head = early_start::push(&mut world, &upstream, base, b"prerequisite"); early_start::observe_push(&mut world, &upstream);
-    let producer = next_producer(&mut world, second); assert!(!ended(&world, first));
+    let upstream = next_producer(&mut world, first);
+    let second = make(&mut world, &requester, first, false).unwrap();
+    let head = early_start::push(&mut world, &upstream, base, b"prerequisite");
+    early_start::observe_push(&mut world, &upstream);
+    let producer = next_producer(&mut world, second);
+    assert!(!ended(&world, first));
     assert_eq!(live_task(&world, second).started_from.as_ref(), &[first]);
-    assert_eq!(producer.workspace.repositories[0].start, engine::ForgeStart::Merged { branch, heads: Box::new([translate::commit(head)]) });
+    assert_eq!(
+        producer.workspace.repositories[0].start,
+        engine::ForgeStart::Merged { branch, heads: Box::new([translate::commit(head)]) }
+    );
     early_start::stop(&mut world, &requester);
 }
 #[test]
 fn a_model_cannot_delegate_a_follow_change_for_an_absent_follow_queue() {
     let (mut world, requester) = questions::plan_world(None);
-    let first = questions::make_change(&mut world, &requester, 109, engine::ChangeQuestions::None); next_producer(&mut world, first);
+    let first = questions::make_change(&mut world, &requester, 109, engine::ChangeQuestions::None);
+    next_producer(&mut world, first);
     assert_eq!(make(&mut world, &requester, first, true), None);
     let error = &world.call_errors.last().expect("follow refused").text;
-    assert!(error.starts_with(b"follows: aaaaaaaaaaaa") && error.ends_with(b"the follow has no queue")); world.close();
+    assert!(error.starts_with(b"follows: aaaaaaaaaaaa") && error.ends_with(b"the follow has no queue"));
+    world.close();
 }
 #[test]
 #[expect(
@@ -193,10 +204,15 @@ fn a_procedure_batchs_follow_change_dispatches_its_own_gate_before_queue_or_turn
             world.tick();
             if world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Follow(row) if row.heard.is_some()))) { break; }
         }
-        fake::advance(&mut world.fake, &world.fake_env, b"org/source", b"main", b"src/a", b"source landing", 1).expect("source push fits");
-        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint { hint: skein_forge::api::Hint {
-            repository: skein_forge::api::Repository { forge: 1, repository: 3 }, change: skein_forge::api::Change::Branch(b"main".as_slice().into()), key: None,
-        } })));
+        fake::advance(&mut world.fake, &world.fake_env, b"org/source", b"main", b"src/a", b"source landing", 1)
+            .expect("source push fits");
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: skein_forge::api::Repository { forge: 1, repository: 3 },
+                change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+                key: None,
+            },
+        })));
         let mut change = None;
         for _ in 0..TICKS {
             world.tick();
