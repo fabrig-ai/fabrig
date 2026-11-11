@@ -1546,6 +1546,51 @@ impl Joint {
         self.send(event);
         self.drain();
     }
+    /// Send a family's ask through the same component as a page, retaining its answer for the story.
+    /// The synchronous caller owns the reserved attempt, outside the page's request table.
+    pub fn family_request(
+        &mut self,
+        who: ClientId,
+        key: skein_lib::RequestKey,
+        request: jig_client::Ask,
+    ) -> jig_client::Family {
+        let attempt = Token::new(u64::MAX);
+        self.request(
+            who,
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { attempt, key, request, value: None },
+                },
+            },
+        );
+        self.drain();
+        let position = self
+            .callbacks
+            .iter()
+            .position(|(client, event)| {
+                *client == who
+                    && matches!(event, Event::Root(RootEvent::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt: answered, .. } },
+                }) if *answered == attempt)
+            })
+            .expect("family request answered");
+        let (_, event) = self.callbacks.remove(position);
+        let Event::Root(RootEvent::Client {
+            event:
+                jig_client::Event::Up {
+                    up:
+                        jig_client::Up::Answer {
+                            envelope: RequestEnvelope::Final,
+                            answer: Some(jig_client::Answered::Family(record)),
+                            ..
+                        },
+                },
+        }) = event
+        else {
+            panic!("family request: {event:?}")
+        };
+        record
+    }
     pub fn next_client_limits(&mut self, limits: client::Limits) {
         self.next_limits = Some(limits);
     }
