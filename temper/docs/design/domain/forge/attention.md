@@ -239,8 +239,8 @@ no brief or wake (`../../draft/what-reaches-you.md`, sections 4 and 6).
   person, a goal, a chat or any task a person made, that person; of a
   task whose requester is a task, the person of the chat serving it
   (jig's `served_chat`) where that chat's requester is a person. A
-  standing role's person is not yet designed (`../../draft/standing-roles.md`,
-  section 2). Any other caller is answered ask by the root, with nothing
+  standing role's requester is its person, so it is that person
+  (`../agent/standing.md`, section 3). Any other caller is answered ask by the root, with nothing
   asked of the connector: its questions go to its requester, a task,
   which asks in turn. The root hands over too whether the caller's words
   hold a line `Asks: always`, as `always`.

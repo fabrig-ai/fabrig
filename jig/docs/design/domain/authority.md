@@ -454,8 +454,9 @@ would. Project 0 names no project and has no policy (people/README.md, section
   source knows (a deployment configured with a monthly period does).
   The core keeps that with the period's record, and a project's
   document shows it (`../client/domain/contract/documents.md`, 1).
-- **Standing work renews by period.** A standing task, recurring or a
-  standing procedure (connectors.md, 6.6), has its tasks and its spend
+- **Standing work renews by period.** A standing task, recurring, a
+  standing procedure (connectors.md, 6.6) or an agent task made standing
+  (tasks/standing.md, section 4), has its tasks and its spend
   carved again from the project's spend each period, so a watch that
   runs for months never exhausts its allotment of tasks. Its delegates
   keep their reservations in the period that funded them, and return to

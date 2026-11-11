@@ -1,7 +1,12 @@
 # Status
 
-2026-11-10. Where jig's code lags or departs from its design, from the
-status files below. A task's `ended_by` may name a closer, a procedure
+2026-11-11. Where jig's code lags or departs from its design, from the
+status files below. A task's `ended_by` may be `standing`: an agent task
+a person requests, never told that nothing is awaited, its finish parked
+and only a cancel ending it, its budget carved again each period, its
+runs in sessions that resume while its model's prompt cache is warm and
+start fresh across them, its Now, the note described `now` in its own
+scope, whole in every brief (`domain/tasks/standing.status.md`). A task's `ended_by` may name a closer, a procedure
 jig makes as the task's own delegate where it would have numbered the
 `NothingAwaited` notice, whose success ends the task with no run, whose
 failure escalates to it, and which waits for work the task makes while
@@ -200,7 +205,8 @@ own. Its drafts: `draft/account-facts.md`'s remaining design work is
 plan, workspace, renewal, end and usage-window reports, whose sources the user
 is still deciding; `draft/notes-memory.md` keeps the idea of
 notes as agents' memory, a chat's document and a person's preferences
-alone taken up (`domain/engine/briefs.md`, section 2 and 2.1), the rest not to
+alone taken up (`domain/engine/briefs.md`, section 2 and 2.1), and a
+standing task's Now (`domain/tasks/standing.md`, section 6), the rest not to
 be planned until the user says.
 
 The asking tool family, a run's settings-proposal read and a run's read

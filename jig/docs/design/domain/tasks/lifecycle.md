@@ -82,7 +82,8 @@ contact or for the host's own shutdown (../hosts/hub.md, 6), whose answer
 ends its attempt interrupted in the same way, with the saved work it
 names kept for the next attempt. A kept
 task is never due, and a run of it that finishes done parks instead
-(8).
+(8). A standing task's run that finishes parks too (`standing.md`,
+section 2).
 
 **Nothing left to await.** After the ordinary unread-message wake rules,
 a result-ended agent task that parks still idle is due again if it is not
@@ -94,7 +95,7 @@ will come: your delegates have ended and no question waits. Finish with
 your result." It always wakes and merges in the dependency-met notice
 slot: an unread dependency-met notice already wakes it before this rule
 is reached. Each such park consumes a run try, retained across these
-wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (9). A task ended by its closer is
+wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
 
@@ -192,6 +193,8 @@ them (8).
   preparing or its newest word changed: the newest of its inbox and of the
   proposals and escalations waiting on it, which never enter that inbox.
   Every attempt, a failed one included, takes a new attempt number.
+  A standing task's tries start again as each of its sessions begins
+  (`standing.md`, 5.1).
 - **A configured bound holds at once.** `End::Exceeded(Exceeded)` becomes
   `Hold::Exceeded(Exceeded)`, with prior lifecycle `Active(Due)` and no
   source. The tasks child's own `Exceeded { bound: Bound, value: u64 }`
@@ -385,7 +388,8 @@ batch per asker; the core numbers each notice once.
 
 ## 9. Ended by its requester
 
-A task is ended by its result, by its requester or by its closer (11):
+A task is ended by its result, by its requester or by its closer (11),
+or it stands, ended only by a cancel (`standing.md`, section 2):
 its `ended_by`, fixed at its making. A result ends it by default. Its requester may end it
 only if it is an agent's conversation with a person, its requester;
 making it refuses any other shape, and a restart takes what was made

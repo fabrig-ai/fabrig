@@ -226,13 +226,18 @@ those parts are for.
   its charter's instructions, then each part whose `on` meets its reasons,
   in the charter's order, each part once (../engine/executors.md, 1); a run no part is
   for reads the charter's instructions alone. A charter holds at most
-  `tasks.charter_parts` parts (`../../protocol/limits.md`),
-  and one whose runs resume holds none: a resumed run keeps the
+  `tasks.charter_parts` parts (`../../protocol/limits.md`).
+  One whose runs resume may hold parts, which a standing task reads at
+  each session's start and keeps through the session (`standing.md`,
+  5.4); any other task under it reads its charter's instructions alone,
+  every run, and is offered every message: a resumed run keeps the
   instructions its conversation began with, which changing would lose its
   cache and leave its earlier turns read under other words.
 - **What a run is offered:** under a charter with parts, the always-offered
-  and every kind named in the `on` of a part it reads; under a charter with
-  none, or for a task with instructions of its own (`changes.md`), every
+  and every kind named in the `on` of a part it reads, for a standing task
+  the parts its session's reasons chose (`standing.md`, 5.4); under a
+  charter with none, for a task that does not stand under a charter whose
+  runs resume, or for a task with instructions of its own (`changes.md`), every
   message, as a charter with no parts gave every run before. The parts are
   those its preparation chose (../engine/executors.md, 1, step 2).
 - **A live run hears its results.** Beside what its parts offer, a

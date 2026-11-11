@@ -8,7 +8,9 @@ and escalations travel the tree. It is the first primitive of ../model.md
 (../engine/README.md, section 3).
 Authority, which every action here is checked against, is ../authority.md;
 what an agent's run is, ../engine/executors.md; a connector's procedures,
-../connectors.md, section 6; what a party asks, ../people/acts.md. What
+../connectors.md, section 6; what a party asks, ../people/acts.md; a task
+that stands, its budget per period, its sessions and its Now,
+`standing.md`. What
 is still open is listed in `README.md`, section 8.
 
 ## 1. In one page
@@ -256,6 +258,8 @@ it is live:
   its claim, the kinds its attempt is offered. They are kept on the task
   across its attempts, so a retry and a continuation run for what the
   attempt before them ran for.
+- **Its session,** for a standing task: the record of its open session,
+  or none (`standing.md`, 5.1).
 - **Its result,** once it has one.
 
 What the store keeps beside it, and the engine loads only when wanted:
@@ -381,7 +385,9 @@ several tasks is a dependency; anything that needs a condition over
 results is a coordinator's judgement. A standing task that makes tasks
 from news is a connector's procedure (../connectors.md, 6.6). Both kinds of
 standing task have their allotment of tasks and spend renewed each
-period (../authority.md, section 7).
+period (../authority.md, section 7), and so does an agent task made
+standing (`standing.md`, section 4), which also ends only when it is
+cancelled.
 
 ## 6. Limits
 
@@ -420,7 +426,8 @@ worst case (../engine/README.md, section 7):
   task;
 - tries per class of failure, and their backoff;
 - the stall of a person task, of a pending proposal or escalation, and
-  of an agent task idle with delegates still live;
+  of an agent task idle with delegates still live, but a standing one
+  (`standing.md`, section 2);
 - a grace's span: the longest grace a cancel may give;
 - placed holds per project and per party, live at once, and the
   exemptions one holds (`lifecycle.md`, 10), which a start refuses past the live
@@ -534,6 +541,8 @@ refused for a charter the newest drops or an LLM choice it no longer
 allows, the task staying; live and ended records restored with their
 revisions and claims; the count of live tasks per revision reaching
 zero as the last one ends.
+
+Its stories of a task that stands are `standing.md`, section 8's.
 
 Its referee: a task starts only after its dependencies are done and its
 holds taken; batches are made whole or not at all, and compound requests

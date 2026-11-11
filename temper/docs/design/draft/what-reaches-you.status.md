@@ -15,9 +15,7 @@ milestone N3a, but for lag 8. Where the code lags them is their status
 files'.
 
 - **Design lags:**
-  - 4: no design gives a standing role's person
-    (`standing-roles.status.md`), so a standing role's case waits for R1
-    of `whole-story.execution.md`. `../domain/forge/attention.md`, 6 judges the
+  - 4: `../domain/forge/attention.md`, 6 judges the
     paths a call names alone, not those its asker's change touches at its
     head: the forge reads a change's paths with rules by path, `what-reaches-you.md`, section 7,
     N2 of `whole-story.execution.md`.

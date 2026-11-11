@@ -489,6 +489,10 @@ call writes over a change its run was not shown.
   that finishes with a failure parks the same way (../tasks/lifecycle.md, 8). The tasks child decides it, as it
   decides every reason a task may not go on, so the run and its host
   know nothing of it.
+- **Finished while it stands, it parks.** A run of a standing task
+  that finishes, with any result, is committed as parked, its result
+  discarded and its words a line in its activity
+  (`../tasks/standing.md`, section 2).
 - **Finished while its delegates are live, it parks.** A run that
   finishes, its finish not asking to cancel them, while its task has live
   delegates (../tasks/lifecycle.md, 7), is committed as parked, as a kept one is: its
@@ -510,7 +514,9 @@ call writes over a change its run was not shown.
   first, and it ends. A coordinator's threshold is zero: it parks as soon
   as it waits.
 - **Woken again,** a parked task is due. Its charter says whether the
-  next run resumes the transcript or starts fresh from a brief; by
+  next run resumes the transcript or starts fresh from a brief, and a
+  standing task's resumes only within its session (`../tasks/standing.md`,
+  section 5); by
   default a charter for conversations resumes and a coordinator's starts
   fresh, its brief
   carrying its goal, its plan's state and its notes, and its start the
