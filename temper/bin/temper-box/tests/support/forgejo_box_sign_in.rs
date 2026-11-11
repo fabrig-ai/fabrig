@@ -230,8 +230,6 @@ fn delayed_forgejo(root: &Path, path: &Path, document: &Value) -> io::Result<()>
     )?;
     fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
     document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper").into();
-    document["application"]["limits"]["overrides"]["setup.deadline_ms"] = 200.into();
-    document["application"]["limits"]["overrides"]["setup.backoff_max_ms"] = 100.into();
     super::write_private(path, &serde_json::to_vec(&document).expect("delayed-engine configuration"));
     Ok(())
 }
