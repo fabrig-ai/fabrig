@@ -781,9 +781,13 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
         let mut d = first_change(Protection::Absent, Ci::Passed, true, false);
         let row = d.change(fixtures::CHANGE).expect("first change").clone();
         let requested = outputs(&mut d, Event::ReviewRequested { task: fixtures::CHANGE, head: fixtures::BASE });
-        assert!(requested.iter().any(|request| matches!(request,
-            Request::Save { record: Stored::Change(row), .. } if !row.change.owns_turn
-        )), "the request ends the turn without storing its review facts");
+        let mut ended_turn = false;
+        for request in &requested {
+            if let Request::Save { record: Stored::Change(row), .. } = request {
+                ended_turn |= !row.change.owns_turn;
+            }
+        }
+        assert!(ended_turn, "the request ends the turn without storing its review facts");
         assert!(d.procedure_wakes.contains_key(&fixtures::CHANGE));
         if restart {
             // The same durable change starts without the volatile request.

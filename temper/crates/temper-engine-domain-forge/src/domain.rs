@@ -3646,7 +3646,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     {
         row.change.owns_turn = false;
         let saved = row.clone();
-        wake_queue(d, &saved);
+        wake_after_turn(d, &saved, true);
         save_change(d, out, saved);
     }
     heard.start_conflict = d.start_conflict(task);
@@ -7574,7 +7574,8 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
     if let Some(landing) = row.change.landing {
         tasks.push(landing).expect("member landing subject");
     }
-    if (row.change.owns_turn || row.base_repair)
+    // A retained ready time keeps the queue and status panels fresh after the turn ends.
+    if (row.change.owns_turn || row.change.ready_since.is_some() || row.base_repair)
         && let Some(subject) = crate::views::changes_mark(d, row.repository)
     {
         for subject in subject {

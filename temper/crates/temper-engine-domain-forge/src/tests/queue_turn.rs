@@ -155,7 +155,7 @@ enum Leave {
     AddedGate,
 }
 
-fn leave(d: &mut Domain, how: Leave) {
+fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
     let mut p = pending(OWNER);
     let mut out = Queue::uncapped();
     match how {
@@ -178,15 +178,15 @@ fn leave(d: &mut Domain, how: Leave) {
                 }
             };
             step(d, &env(), event, &mut out);
-            return;
+            return out;
         }
         Leave::Ended => {
             end_change(d, &env(), OWNER, &mut out);
-            return;
+            return out;
         }
         Leave::TaskEnding => {
             step(d, &env(), Event::ChangeEnding { task: OWNER, ending: crate::Ending::Cancelled }, &mut out);
-            return;
+            return out;
         }
         Leave::LandedOutcome => {
             outcome_facts(
@@ -197,7 +197,7 @@ fn leave(d: &mut Domain, how: Leave) {
                 skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(BASE), found: false },
                 &mut out,
             );
-            return;
+            return out;
         }
         Leave::Veto | Leave::ReviewVeto => {
             let prior = d.changes.get(&OWNER).unwrap().change.clone();
@@ -206,7 +206,7 @@ fn leave(d: &mut Domain, how: Leave) {
             if matches!(how, Leave::ReviewVeto) {
                 step(d, &env(), Event::ReviewRequested { task: OWNER, head: HEAD }, &mut out);
             }
-            return;
+            return out;
         }
         Leave::PolicyHold => d.changes.get_mut(&OWNER).unwrap().drift = Some(change::Hold::BranchMoved),
         Leave::CiCancelsGates => {
@@ -251,6 +251,7 @@ fn leave(d: &mut Domain, how: Leave) {
         }
     }
     decide_step(d, &env(), &p, &mut out);
+    out
 }
 
 #[test]
@@ -283,11 +284,39 @@ fn leaving_the_queue_ends_the_turn_and_wakes_the_next() {
         (gating(), Leave::AddedGate),
     ] {
         let mut d = changes_setup(state.clone(), SINCE);
-        leave(&mut d, how);
+        let out = leave(&mut d, how);
+        assert_queue_marks(&out, how);
         let owner = d.changes.get(&OWNER).unwrap();
         assert!(!owner.change.owns_turn, "{state:?} / {how:?}: {:?}", owner.change.state);
         assert!(follower_facts(&d).first, "{state:?} / {how:?}: the next is elected");
         assert!(d.procedure_wakes.contains_key(&SECOND), "{state:?} / {how:?}: same-step wake");
+    }
+}
+
+#[test]
+fn a_settled_turn_marks_the_project_queue_and_status() {
+    for how in [Leave::LandedRead, Leave::LandedOutcome, Leave::Ended] {
+        let mut d = changes_setup(change::State::Landing { head: HEAD }, SINCE);
+        let out = leave(&mut d, how);
+        assert_queue_marks(&out, how);
+        // Verification and later saves still affect the project's status after ownership is cleared.
+        let row = d.changes.get(&OWNER).unwrap().clone();
+        let mut saved = Queue::uncapped();
+        save_change(&mut d, &mut saved, row);
+        assert_queue_marks(&saved, how);
+    }
+}
+
+fn assert_queue_marks(out: &Queue<Request>, how: Leave) {
+    let subjects = [crate::changes_subject(5), crate::status_subject(5), crate::APPROVALS_SUBJECT];
+    for subject in subjects {
+        let mut marked = false;
+        for request in out {
+            if let Request::Marked { tasks } = request {
+                marked |= tasks.contains(&subject);
+            }
+        }
+        assert!(marked, "{how:?}: turn settlement invalidates {subject}");
     }
 }
 
