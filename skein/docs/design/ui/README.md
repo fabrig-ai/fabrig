@@ -907,13 +907,9 @@ Each waits for what is named, and adds without changing what `README.md`, sectio
 - **Right-to-left text:** what it asks of the tree beyond the phrasebook,
   such as a direction on a node or a run, and how names copied in are
   isolated from the words around them.
-- **The text shell's own words** in a language other than English: its
-  markers are symbols, but its states, its entry kinds' words and its
-  refusals are English words (text.md, section 9).
+- **The text shell's own words:** text.md, section 9's question.
 - **A markup macro,** if plain calls prove unreadable for whole pages:
   one `macro_rules!` expanding to the same builder calls, the one place a
   macro might live.
-- **A server keeping the previous bundle's digest directory,** for pages
-  loaded before a deploy: such a page asks for its pictures and files
-  under its own digest, which a server keeping one bundle answers not
-  found, an image showing its name (web/bundle.md, 4, and web/README.md, 13).
+- **A server keeping the previous bundle's digest directory:**
+  web/README.md, section 13's question.
