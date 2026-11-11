@@ -292,3 +292,74 @@ fn across_means_all_home_or_inbox_without_a_project_filter() {
         assert_eq!(rail::across(&root), expected, "{address:?}");
     }
 }
+
+#[test]
+fn a_live_standing_role_alone_puts_team_in_the_rail() {
+    let mut root = project_domain(Some(c::PartyKind::Service));
+    let out = event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: OTHER }) });
+    let mut role_watch = None;
+    for request in &out {
+        match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, window }) },
+                    },
+            } if query.label == Some(3) => {
+                assert_eq!(query.project, Some(OTHER));
+                assert_eq!(query.order, c::QueryOrder::Number);
+                assert_eq!(*window, 16);
+                role_watch = Some(*watch);
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: Readable::Jig(c::Read::Project { .. }) },
+                    },
+            } => {
+                let mut project = super::team::project(
+                    Box::new([super::team::member(1, c::PartyKind::Person, b"Owner", c::HeldRole::Owner)]),
+                    false,
+                );
+                project.number = OTHER;
+                up(
+                    &mut root,
+                    Up::ReadDone {
+                        read: *read,
+                        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(project)))),
+                    },
+                );
+            }
+            Request::Screen { .. }
+            | Request::KeepLook { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
+            | Request::Copy { .. }
+            | Request::Client { .. }
+            | Request::Unlinked { .. }
+            | Request::Show { .. }
+            | Request::Leave { .. }
+            | Request::SignOut
+            | Request::Dropped { .. }
+            | Request::Fact { .. } => {}
+        }
+    }
+    let watch = role_watch.expect("standing roles watch on every project page");
+    let mut role = super::chats::chat_line();
+    role.label = 3;
+    role.project = OTHER;
+    role.ended_at = None;
+    deliver(
+        &mut root,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([role])), more: false })),
+    );
+    let facts = rail::facts(&root, OTHER, f::env(&f::limits()).wall);
+    assert_eq!(facts.members, Some(1));
+    assert_eq!(facts.standing_roles, Some(1));
+    assert!(rail::parts(&facts).team, "one person and a live role show Team");
+    deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false })));
+    assert!(!rail::parts(&rail::facts(&root, OTHER, f::env(&f::limits()).wall)).team);
+    up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+    assert_eq!(rail::facts(&root, OTHER, f::env(&f::limits()).wall).standing_roles, None);
+}

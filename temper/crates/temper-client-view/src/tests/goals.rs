@@ -307,9 +307,13 @@ impl Page {
                 request:
                     jig_client::UnlinkedRequest::Down {
                         down:
-                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                            jig_client::Down::Open {
+                                watch,
+                                subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                            },
                     },
             } = request
+                && query.tracked == Some(true)
             {
                 page.watch = *watch;
             }

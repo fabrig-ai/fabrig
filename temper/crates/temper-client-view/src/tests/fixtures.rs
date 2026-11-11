@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
-                handles: 14,
-                watches: 14,
+                // Page, session, trial and standing-role watches across two project openings.
+                handles: 16,
+                watches: 16,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

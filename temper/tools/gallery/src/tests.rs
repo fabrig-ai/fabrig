@@ -397,6 +397,32 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Text, name: "Sam" },
         ],
     },
+    Holds {
+        name: "team-role",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Team" },
+            Part::Named { role: Role::Paragraph, name: "Just you." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Standing roles" },
+            Part::Named { role: Role::Link, name: "Prover" },
+            Part::Named { role: Role::Text, name: "21 of 40" },
+            Part::Named { role: Role::Paragraph, name: "A standing role · since 2 November · started by you" },
+            Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Named { role: Role::Item, name: "Next: the fuzz tier's next run, then my weekly report on Monday." },
+            Part::Absent { role: Role::Paragraph, name: "Its rules · change by proposal" },
+        ],
+    },
+    Holds {
+        name: "night-team-role",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Text, name: "21 of 40" },
+            Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
     Holds { name: "night-team", heading: "Who owns what on shop", parts: &[Part::Pressed { name: "Night mode" }] },
     Holds {
         name: "rail-new-change",
