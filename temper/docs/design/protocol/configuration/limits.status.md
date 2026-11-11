@@ -6,6 +6,8 @@
 
 - **Not yet:** `forge.changes` bounds every change ever made, not the changes kept at once: the forge's change table never drops one (`../../domain/forge/change/README.md`, 7) [in flight: change 391].
 
+- **Not yet:** `forge.changes`, the landed commits: the forge's `landed` table is never pruned but by a dropped change, and a merge finding it full moves no branch head (`../../domain/forge/change/README.md`, 7) [in flight: change 476].
+
 - **Not yet:** "A limit's refusal names it", a change's registration: past `forge.changes` or `forge.name_bytes` it is refused with the bare `Refused`, held as "forge resource request refused; check resource access and configured bounds", naming no limit [in flight: change 391].
 
 - **Not yet:** "A limit's refusal names it", every other step of the forge's: past its holds, entries, subscriptions, paths, names, gates, steps, watches or landing keys it refuses with the bare `Refused`, naming no limit [in flight: change 392].

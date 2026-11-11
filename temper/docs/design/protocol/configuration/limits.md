@@ -107,7 +107,11 @@
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
   and a finding's blamed ones), within the store schema's ceiling for
   them, 2049 (`../store.md`, 4), so `forge.changes` is at most 1024,
-  which the start checks (below).
+  which the start checks (below). The forge's landed commits, the
+  merges temper made, number `max(forge.landings, forge.changes)` at
+  most; a merge finding them full erases one, those of no kept change
+  first, and never waits on it to move its branch's head
+  (`../../domain/forge/change/README.md`, 7).
 - **A limit's refusal names it:** every refusal a configured limit
   causes, at the start or in a step, names the limit by its dotted name,
   its value and what was needed. A step's refusal holds its task with

@@ -541,6 +541,21 @@ changes live at once, never every change made.
   made leave its landing branch's count of them. Its landing log entries stay
   (`../../after-landing.md`, 10), so its project's landed history and
   status, which read the log, keep it.
+- **Its landed commits are bounded alike:** the forge's `landed` table,
+  each merge temper made and its task (the store's `Landed` row,
+  `Key::Landed`), holds `max(forge.landings, forge.changes)` entries
+  at most. A merge finding it full makes room in the same decision,
+  erasing one entry where it is stored: one whose task has no change
+  record first (a dropped change's, or a record a deployment removed by
+  hand), else one whose change is settled, else the oldest; lowest task
+  number first, the merging change's own last. Every reader of the table
+  asks about a change it keeps (its release, its tier's ownership of a
+  landing, a subscription's own landing), so an entry without a record
+  is read by no one. The merge's own effects never wait on that room:
+  its landing branch's head moves to the merge, is saved and pushed
+  (`Pushed`), and its tiers observe it, whether or not its entry is kept
+  (the operator, 2026-11-11: a full table held goals on their own merges
+  into g).
 - **A dropped change reads as an unknown task:** its panel is Gone
   (section 5); a subscription naming it reads it as over, as it read
   its ended record, and wakes no one; a public merge one of whose
