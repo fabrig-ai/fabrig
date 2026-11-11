@@ -134,7 +134,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
 - `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.
-- `checkout.conflicts`: count, 4. Bounds conflicted paths per repository; zero disables merge starts.
+- `checkout.conflicts`: count, 512. Bounds conflicted paths per repository; zero disables merge starts.
 - `checkout.path_bytes`: bytes, 255. Bounds one full relative conflicted path.
 - `checkout.remote_timeout_ms`: milliseconds, 60,000. Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.
 - `checkout.local_timeout_ms`: milliseconds, 10,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
@@ -143,7 +143,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## git_component
 
 - `git_component.operations`: count, 3. Bounds simultaneous git component operations; at least the workspaces.
-- `git_component.stdout_bytes`: bytes, 1,024. Bounds standard output retained from a git operation.
+- `git_component.stdout_bytes`: bytes, 131,072. Bounds standard output retained from a git operation.
 - `git_component.stderr_bytes`: bytes, 512. Bounds standard error retained from a git operation.
 - `git_component.read_bytes`: bytes, 4,096. Bounds one read from a git operation's output.
 - `git_component.sweep_entries`: count, 16. Bounds entries in one page of the checkout trash sweep's listing.

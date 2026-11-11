@@ -54,7 +54,7 @@ enum Invalid { charter, transcript, grants, messages, start: InvalidStart }
 record InvalidValue { value: Invalid }
 enum Refusal { busy, invalid: InvalidValue }
 record RefusalValue { value: Refusal }
-record Work { left: option bytes 65536 saved: option bytes 65536 }
+record Work { left: option bytes 65536 saved: option bytes 16777216 }
 record Ended { outcome: bytes 67108864 work: Work }
 record Parked { work: Work }
 record Resource { resource: option bytes 1024 }

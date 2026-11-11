@@ -64,6 +64,8 @@ fn the_largest_grant_body_holds_a_four_kib_credential() {
 
 #[test]
 fn sizes_past_a_ceiling_give_no_codec_limits() {
+    assert!(limits(&Sizes { saved: 16_777_216, ..SIZES_ONE_SLOT }).is_some());
+    assert_eq!(crate::CEILINGS.work_left_some, 65_536);
     for (field, sizes) in [
         ("program sources", Sizes { program_sources: 65_537, ..SIZES_ONE_SLOT }),
         ("charter", Sizes { charter: 67_108_865, ..SIZES_ONE_SLOT }),
@@ -83,7 +85,7 @@ fn sizes_past_a_ceiling_give_no_codec_limits() {
         ("secret", Sizes { secret: 1025, ..SIZES_ONE_SLOT }),
         ("items", Sizes { items: 1_048_577, ..SIZES_ONE_SLOT }),
         ("left", Sizes { left: 65_537, ..SIZES_ONE_SLOT }),
-        ("saved", Sizes { saved: 65_537, ..SIZES_ONE_SLOT }),
+        ("saved", Sizes { saved: 16_777_217, ..SIZES_ONE_SLOT }),
         ("evidence", Sizes { evidence: 1_048_577, ..SIZES_ONE_SLOT }),
         ("resource", Sizes { resource: 1025, ..SIZES_ONE_SLOT }),
         ("slots", Sizes { slots: 65_537, ..SIZES_ONE_SLOT }),

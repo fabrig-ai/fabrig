@@ -23,6 +23,19 @@ pub enum What {
     Against {
         other: &'static [u8],
     },
+    /// Every carrier short of the checkout's conflicted paths, reported together.
+    Checkout {
+        conflicts: u32,
+        path_bytes: u32,
+        repositories: u32,
+        stdout: Option<(u32, u32)>,
+        stdout_of: &'static [u8],
+        agent_conflicts: Option<(u32, u32)>,
+        agent_paths: Option<(u32, u32)>,
+        saved: Option<(u32, u32)>,
+        engine: Option<(u32, u32)>,
+        worker: Option<(u32, u32)>,
+    },
     Past {
         bytes: u64,
         bound: u64,
@@ -154,6 +167,7 @@ fn words(what: What) -> &'static [u8] {
         What::Against { .. } => b"must agree with ",
         What::Room(_)
         | What::Stock(_)
+        | What::Checkout { .. }
         | What::Past { .. }
         | What::Within { .. }
         | What::Short { .. }
@@ -424,10 +438,99 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     put(writer, length, measuring, unit);
     put(writer, length, measuring, b"; raise it in engine.limits.overrides");
 }
+/// A capacity's first line is not an override path: all its carriers follow it.
+fn checkout(what: What, writer: &mut Writer, length: &mut usize, measuring: bool) -> bool {
+    match what {
+        What::Checkout {
+            conflicts,
+            path_bytes,
+            repositories,
+            stdout,
+            stdout_of,
+            agent_conflicts,
+            agent_paths,
+            saved,
+            engine,
+            worker,
+        } => {
+            for (name, value) in [
+                (b"checkout.conflicts ".as_slice(), conflicts),
+                (b", checkout.path_bytes ", path_bytes),
+                (b", checkout.repositories ", repositories),
+            ] {
+                put(writer, length, measuring, name);
+                put(writer, length, measuring, Decimal::of(u64::from(value)).as_bytes());
+            }
+            put(writer, length, measuring, b": raise these with them\n");
+            for (name, of, unit, short) in [
+                (b"git_component.stdout_bytes".as_slice(), stdout_of, b" bytes".as_slice(), stdout),
+                (b"workers[0].agent.conflicts", b"checkout.conflicts", b" paths", agent_conflicts),
+                (b"workers[0].agent.path_bytes", b"checkout.path_bytes", b" bytes", agent_paths),
+                (b"jig's Work.saved", b"Saved's encoded bound", b" bytes", saved),
+                (b"engine.limits.io.output", b"the largest answer a run's saved work makes", b" bytes", engine),
+                (b"workers[0].limits.io.output", b"the largest answer a run's saved work makes", b" bytes", worker),
+            ] {
+                if let Some((has, needs)) = short {
+                    put(writer, length, measuring, name);
+                    put(writer, length, measuring, b": ");
+                    put(writer, length, measuring, Decimal::of(u64::from(has)).as_bytes());
+                    put(writer, length, measuring, unit);
+                    put(writer, length, measuring, b", short of ");
+                    put(writer, length, measuring, of);
+                    put(writer, length, measuring, b", ");
+                    put(writer, length, measuring, Decimal::of(u64::from(needs)).as_bytes());
+                    put(writer, length, measuring, unit);
+                    put(writer, length, measuring, b"\n");
+                }
+            }
+            true
+        }
+        What::Room(_)
+        | What::Stock(_)
+        | What::Jig(_)
+        | What::Standalone
+        | What::EngineAlone
+        | What::UnbuiltWorker
+        | What::WorkerAlone
+        | What::Loopback
+        | What::Connectors
+        | What::Absolute
+        | What::OldAgentCommand
+        | What::NoWebhooks
+        | What::Profile
+        | What::Override(_)
+        | What::Against { .. }
+        | What::Past { .. }
+        | What::Short { .. }
+        | What::Within { .. }
+        | What::StorePage { .. }
+        | What::StoreMap(_)
+        | What::StoreTask { .. }
+        | What::CallInput { .. }
+        | What::Agent
+        | What::Admission { .. }
+        | What::Adapter
+        | What::Redirect(_)
+        | What::NoHub
+        | What::Credentials
+        | What::Escalation
+        | What::Provider
+        | What::BoxSignIn
+        | What::Handover
+        | What::MissingNull
+        | What::InlineSeedPolicy
+        | What::LandingStored
+        | What::ProjectLandingStored
+        | What::CharterStored => false,
+    }
+}
 #[expect(clippy::too_many_lines, reason = "one exhaustive diagnostic vocabulary shared by both rendering passes")]
 fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
     let mut length = 0_usize;
     for problem in &problems.problems {
+        if checkout(problem.what, writer, &mut length, measuring) {
+            continue;
+        }
         render_path(&problem.path, writer, &mut length, measuring);
         put(writer, &mut length, measuring, b": ");
         if let Some(file) = &problem.file {
@@ -436,6 +539,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
         }
         put(writer, &mut length, measuring, words(problem.what));
         match problem.what {
+            What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
             What::Room(short) => put(writer, &mut length, measuring, &short.words()),
             What::Stock(floor) => stock(floor, writer, &mut length, measuring),
             What::Jig(

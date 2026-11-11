@@ -10,7 +10,7 @@ record Directory {
     path: text 4096
     writable: bool
     git: bool
-    conflicts: list 64 text 4096
+    conflicts: list 1024 text 4096
 }
 record Workspace { directories: list 64 Directory }
 enum Scheme { bearer, key }

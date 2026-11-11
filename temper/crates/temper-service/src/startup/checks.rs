@@ -430,7 +430,7 @@ pub fn channel(
                 for (name, bytes, bound) in [
                     (b"workspace_items".as_slice(), largest.items, ceilings.workspace_items),
                     (b"work_left_some", largest.left, ceilings.work_left_some),
-                    (b"work_saved_some", largest.saved, ceilings.work_saved_some),
+                    // Saved's ceiling is checked with the checkout's other carriers.
                     (b"resource_resource_some", largest.resource, ceilings.resource_resource_some),
                     (b"application_value_secret", largest.grant, ceilings.application_value_secret),
                 ] {
