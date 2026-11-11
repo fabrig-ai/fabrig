@@ -1,6 +1,10 @@
 //! Web Push's signature and seal (net/tls.md, 4; RFC 8291, 3).
 use alloc::boxed::Box;
-use ring::{aead, agreement, hkdf, rand::{SecureRandom, SystemRandom}, signature::{self, KeyPair}};
+use ring::{
+    aead, agreement, hkdf,
+    rand::{SecureRandom, SystemRandom},
+    signature::{self, KeyPair},
+};
 use skein_lib::Writer;
 
 pub const ES256_KEY_BYTES: usize = 256;
@@ -47,12 +51,20 @@ pub fn seal_aes128gcm(p256dh: &[u8; 65], auth: &[u8; 16], payload: &[u8]) -> Opt
     // ring's agreement consumes the private key, and lends the secret only here.
     agreement::agree_ephemeral(private, &public, |secret| {
         seal_aes128gcm_from(secret.try_into().ok()?, &sender, &salt, p256dh, auth, payload)
-    }).ok()?
+    })
+    .ok()?
 }
 
 /// RFC 8291's deterministic part: one record, no padding beyond its delimiter.
 #[must_use]
-pub fn seal_aes128gcm_from(secret: &[u8; 32], sender: &[u8; 65], salt: &[u8; 16], p256dh: &[u8; 65], auth: &[u8; 16], payload: &[u8]) -> Option<Box<[u8]>> {
+pub fn seal_aes128gcm_from(
+    secret: &[u8; 32],
+    sender: &[u8; 65],
+    salt: &[u8; 16],
+    p256dh: &[u8; 65],
+    auth: &[u8; 16],
+    payload: &[u8],
+) -> Option<Box<[u8]>> {
     if cfg!(all(target_arch = "wasm32", target_os = "unknown")) || !(1..=3993).contains(&payload.len()) {
         return None;
     }

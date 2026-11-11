@@ -9,8 +9,8 @@
 mod config;
 mod held;
 mod machine;
-mod rs256;
 mod push;
+mod rs256;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;

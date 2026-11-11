@@ -28,8 +28,8 @@ extern crate alloc;
 pub mod client;
 mod config;
 mod held;
-mod rs256;
 mod push;
+mod rs256;
 mod session;
 #[cfg(test)]
 mod tests;
@@ -39,7 +39,7 @@ pub use rs256::{
     sign_rs256_pkcs8, verify_rs256,
 };
 
-pub use push::{ES256_KEY_BYTES, sign_es256, es256_public, verify_es256, seal_aes128gcm, seal_aes128gcm_from};
+pub use push::{ES256_KEY_BYTES, es256_public, seal_aes128gcm, seal_aes128gcm_from, sign_es256, verify_es256};
 
 pub use config::{ALPN, Config, Name, Parsed, Refusal, Server};
 /// What [`Config::new`] takes: the roots a service trusts, which its shell
