@@ -1,62 +1,65 @@
+//! The journeys binary's capture and dispatch (temper/docs/design/testing/tools.md, 3–4).
 use std::{
-    env,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fs, io,
     os::unix::ffi::OsStrExt,
     os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
-    process::{self, Command},
+    process::{self, Command, ExitCode},
 };
-use temper_client_journeys::again::{self, Paths};
-use temper_client_journeys::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
+use crate::again::{self, Paths};
+use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use temper_client_shell_web::journey;
+use skein_shell::Front;
+use crate::{EnvironmentEntry, TABLE, table::{ADD, AGAIN, REPRINT, CAUTION, CHROMIUM, TARGET}};
 
+/// Run the journeys binary (temper/docs/design/testing/tools.md, 4.2–4.3).
+#[must_use]
 #[expect(
     clippy::disallowed_methods,
-    reason = "cli C8: the journey tool's arguments, until it is a binary of temper/bin/"
+    reason = "the binary's capture: temper-client-journeys' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
-fn main() {
-    skein_fail_stop::install();
-    let mut args = env::args_os();
-    let _program = args.next();
-    let arguments: Vec<_> = args.collect();
-    let result = match arguments.as_slice() {
-        [] => reprint_all(),
-        [command] if command == "--help" => {
-            println!("{USAGE}\n{HELP}\n{CAUTION}\n{FILE_CAUTION}");
-            Ok(false)
+pub fn main() -> ExitCode {
+    let arguments = skein_shell::arguments();
+    let environment = skein_shell::environment();
+    let result = match TABLE.front(&arguments) {
+        Front::Print(text) => {
+            print!("{text}");
+            return ExitCode::SUCCESS;
         }
-        [command, rest @ ..] if command == "add" => add_arguments(rest),
-        [command, name] if command == "again" => {
-            let Some(name) = name.to_str() else {
-                fail(&format!("invalid journey name {}", name.display()));
-            };
-            record_again(name).map(|()| false)
+        Front::Refuse(text) => {
+            eprint!("{text}");
+            return ExitCode::from(2);
         }
-        _ => usage(),
+        Front::Run { command, rest } => {
+            if *command == ADD {
+                let rest: Vec<_> = rest.iter().map(|word| OsStr::from_bytes(word).to_os_string()).collect();
+                add_arguments(&rest)
+            } else if *command == AGAIN {
+                let [name] = rest else {
+                    usage(&AGAIN, if rest.is_empty() { "NAME is not given" } else { "expected NAME alone" });
+                };
+                let Ok(name) = std::str::from_utf8(name) else {
+                    fail(&format!("invalid journey name {}", OsStr::from_bytes(name).display()));
+                };
+                record_again(name, &environment).map(|()| false)
+            } else {
+                if !rest.is_empty() {
+                    usage(&REPRINT, "unexpected arguments");
+                }
+                reprint_all()
+            }
+        }
     };
     match result {
-        Ok(false) => {}
-        Ok(true) => process::exit(1),
+        Ok(false) => ExitCode::SUCCESS,
+        Ok(true) => ExitCode::FAILURE,
         Err(why) => fail(&why),
     }
 }
 
-const USAGE: &str = "usage: temper-client-journeys [add [--redact TEXT]... NAME FILE | again NAME | --help]";
-const CAUTION: &str = "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.";
-const FILE_CAUTION: &str = "FILE keeps every original: keep it out of the repository and remove it once added.";
-const HELP: &str = concat!(
-    "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
-    "It refuses surviving originals and shapes of a key, JWT, bearer, code or refresh token in records, drawn pages or printed pages. ",
-    "It proves the redacted replay before writing.\n",
-    "A secret split across run deliveries or writing-call input is refused; --redact cannot replace it, so walk it again. ",
-    "Text split across other records is seen only where a page draws it whole. Partial secrets and other encodings may remain unseen. ",
-    "Values the client reshapes can stale the replay. Reload a settled page: stored requests in flight refuse. ",
-    "--redact TEXT remains in shell history."
-);
-
-fn usage() -> ! {
-    eprintln!("{USAGE}");
+fn usage(command: &skein_shell::Command, why: &str) -> ! {
+    eprint!("{}", TABLE.refusal(command, why));
     process::exit(2);
 }
 
@@ -66,19 +69,19 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
     let mut args = arguments.iter();
     while let Some(argument) = args.next() {
         if argument == "--redact" {
-            let Some(text) = args.next() else { usage() };
+            let Some(text) = args.next() else { usage(&ADD, "--redact TEXT is not given") };
             let bytes = text.as_bytes();
             if bytes.is_empty() || bytes.starts_with(b"--") {
-                usage();
+                usage(&ADD, "--redact TEXT is empty or starts with --");
             }
             given.push(bytes.into());
         } else if argument.as_bytes().starts_with(b"--") {
-            usage();
+            usage(&ADD, "unknown flag");
         } else {
             positional.push(argument);
         }
     }
-    let [name, file] = positional.as_slice() else { usage() };
+    let [name, file] = positional.as_slice() else { usage(&ADD, "expected NAME and FILE") };
     let Some(name) = name.to_str() else {
         return Err("invalid journey name; expected [a-z][a-z0-9-]*; nothing was written".into());
     };
@@ -110,8 +113,7 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
     Ok(false)
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C8: SKEIN_TEST_CHROMIUM for the journey tool's browser")]
-fn record_again(name: &str) -> Result<(), String> {
+fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), String> {
     if !named(name) {
         return Err(refusal(Refusal::Name(name.to_owned())));
     }
@@ -124,17 +126,17 @@ fn record_again(name: &str) -> Result<(), String> {
         let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
         None
     };
-    let chromium = env::var_os("SKEIN_TEST_CHROMIUM")
+    let chromium = CHROMIUM.value(environment).map(OsStr::from_bytes)
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
     let chromium = fs::canonicalize(&chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
-    let result = build(&root, &scratch, chromium, is_tui).and_then(|paths| {
+    let result = build(&root, &scratch, chromium, is_tui, environment).and_then(|paths| {
         if let Some(steps) = tui_steps {
-            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths).map_err(refusal)
+            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths, environment).map_err(refusal)
         } else {
-            again::again(Path::new(JOURNEYS), name, &paths).map_err(refusal)
+            again::again(Path::new(JOURNEYS), name, &paths, environment).map_err(refusal)
         }
     });
     match result {
@@ -157,8 +159,7 @@ fn scratch() -> io::Result<PathBuf> {
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C8: CARGO_TARGET_DIR for the journey tool's built binaries")]
-fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
+fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool, environment: &[EnvironmentEntry]) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
     cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);
     if is_tui {
@@ -178,7 +179,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
-    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("../target"), |target| root.join(target));
+    let target = TARGET.value(environment).map(OsStr::from_bytes).map_or_else(|| root.join("../target"), |target| root.join(target));
     for name in ["temper", "fake-claude"] {
         fs::copy(target.join("debug").join(name), scratch.join(name))
             .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
