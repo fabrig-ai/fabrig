@@ -5045,7 +5045,6 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-browser",
- "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",
@@ -6065,6 +6064,24 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "temper-playground-serve"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-playground-serve-tool",
+]
+
+[[package]]
+name = "temper-playground-serve-tool"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-shell",
+ "temper-version",
 ]
 
 [[package]]
