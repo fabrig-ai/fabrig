@@ -590,11 +590,10 @@ pub fn check(golden: &Golden, profile: &SettingsFile, evidence: &Evidence) -> Re
 /// # Errors
 /// Returns a usage error or the golden/evidence file that cannot be read.
 pub fn run(args: &[String]) -> Result<bool, String> {
-    let (dir, as_json) = match args {
-        [dir] if !dir.starts_with('-') => (dir, false),
-        [dir, flag] if !dir.starts_with('-') && flag == "--json" => (dir, true),
-        _ => return Err("usage: temper-stage-one check EVIDENCE [--json]".into()),
-    };
+    let (dir, as_json) = crate::cli::evidence_arguments(args, &crate::cli::CHECK)?;
+    run_evidence(dir, as_json)
+}
+fn run_evidence(dir: &str, as_json: bool) -> Result<bool, String> {
     let golden = golden::reference().map_err(|e| e.to_string())?;
     let profile = golden::profile().map_err(|e| e.to_string())?;
     let evidence = evidence::read(Path::new(dir)).map_err(|e| e.to_string())?;
@@ -608,7 +607,11 @@ pub fn run(args: &[String]) -> Result<bool, String> {
 }
 #[must_use]
 pub fn main(args: &[String]) -> ExitCode {
-    match run(args) {
+    let (dir, as_json) = match crate::cli::evidence_arguments(args, &crate::cli::CHECK) {
+        Ok(arguments) => arguments,
+        Err(error) => return crate::cli::refuse(&error),
+    };
+    match run_evidence(dir, as_json) {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(error) => {

@@ -61,7 +61,7 @@ fn rule_mut(value: &mut Value) -> &mut Value {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "cli C8: SKEIN_CODEGEN_WRITE for the stage-one tool's brief golden")]
+#[expect(clippy::disallowed_methods, reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists")]
 fn the_brief_for_the_profile_matches_its_golden() {
     let (golden, evidence, report) = setup();
     let brief = judge::brief(&golden, &evidence, &report).expect("brief");

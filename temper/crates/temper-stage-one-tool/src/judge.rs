@@ -305,19 +305,7 @@ pub fn brief(golden: &Golden, evidence: &Evidence, report: &Report) -> Result<St
     Ok(out)
 }
 
-fn run(args: &[String], verdict: bool) -> Result<bool, String> {
-    let (dir, as_json) = match args {
-        [dir] if !dir.starts_with('-') => (dir, false),
-        [dir, flag] if verdict && !dir.starts_with('-') && flag == "--json" => (dir, true),
-        _ => {
-            return Err(if verdict {
-                "usage: temper-stage-one verdict EVIDENCE [--json]"
-            } else {
-                "usage: temper-stage-one judge EVIDENCE"
-            }
-            .into());
-        }
-    };
+fn run(dir: &str, as_json: bool, verdict: bool) -> Result<bool, String> {
     let golden = golden::reference().map_err(|e| e.to_string())?;
     let profile = golden::profile().map_err(|e| e.to_string())?;
     let evidence = evidence::read(Path::new(dir)).map_err(|e| e.to_string())?;
@@ -341,7 +329,12 @@ fn run(args: &[String], verdict: bool) -> Result<bool, String> {
     Ok(stage.passed)
 }
 fn command(args: &[String], verdict: bool) -> ExitCode {
-    match run(args, verdict) {
+    let command = if verdict { &crate::cli::VERDICT } else { &crate::cli::JUDGE };
+    let (dir, as_json) = match crate::cli::evidence_arguments(args, command) {
+        Ok(arguments) => arguments,
+        Err(error) => return crate::cli::refuse(&error),
+    };
+    match run(dir, as_json, verdict) {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(error) => {
