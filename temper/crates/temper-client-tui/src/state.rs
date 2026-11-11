@@ -1,5 +1,5 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
-use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
+use crate::{BoxEnd, BoxLine, BoxStage, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
 use skein_lib::{List, Queue, Secret, bytes::copy_of};
@@ -33,6 +33,8 @@ pub struct Tui {
     left_off: Option<u64>,
     boxed: bool,
     front: bool,
+    box_stage: BoxStage,
+    stop_asked: bool,
     printed: Option<Secret>,
     box_log: Queue<Box<[u8]>>,
     restarting: Option<Box<[u8]>>,
@@ -51,6 +53,8 @@ pub struct Tui {
 pub enum BoxState<'a> {
     Running,
     Restarting { step: &'a [u8] },
+    Stopping,
+    Stopped { end: BoxEnd },
     GaveUp { step: &'a [u8] },
 }
 /// The sign-in from the engine's link (temper/docs/design/client/tui/pages.md).
@@ -148,6 +152,9 @@ pub enum Told {
         written: bool,
     },
     Front,
+    Stage {
+        stage: BoxStage,
+    },
     BoxLine {
         line: BoxLine,
     },
@@ -187,6 +194,8 @@ impl Tui {
             focus: 1,
             box_written: 0,
             front: false,
+            box_stage: BoxStage::Finding,
+            stop_asked: false,
             printed: None,
             box_log: Queue::with_capacity(limits::BOX_LOG),
             restarting: None,
@@ -293,14 +302,61 @@ impl Tui {
         self.box_log.iter().map(Box::as_ref)
     }
     #[must_use]
+    pub const fn box_stage(&self) -> &BoxStage {
+        &self.box_stage
+    }
+    pub(crate) const fn stop_asked(&self) -> bool {
+        self.stop_asked
+    }
+    #[must_use]
     pub fn box_state(&self) -> BoxState<'_> {
         if let Some(step) = &self.gave_up {
-            BoxState::GaveUp { step }
-        } else if let Some(step) = &self.restarting {
-            BoxState::Restarting { step }
-        } else {
-            BoxState::Running
+            return BoxState::GaveUp { step };
         }
+        match self.box_stage {
+            BoxStage::Ended { end } => BoxState::Stopped { end },
+            BoxStage::Stopping => BoxState::Stopping,
+            BoxStage::Finding
+            | BoxStage::Fetching { .. }
+            | BoxStage::Starting
+            | BoxStage::Running
+            | BoxStage::Failed { .. } => match &self.restarting {
+                Some(step) => BoxState::Restarting { step },
+                None => BoxState::Running,
+            },
+        }
+    }
+    fn stage(&mut self, stage: BoxStage) -> bool {
+        match &self.box_stage {
+            BoxStage::Ended { .. } => return false,
+            BoxStage::Failed { .. } => {
+                let BoxStage::Ended { .. } = &stage else { return false };
+            }
+            BoxStage::Finding
+            | BoxStage::Fetching { .. }
+            | BoxStage::Starting
+            | BoxStage::Running
+            | BoxStage::Stopping => {}
+        }
+        let stage = match stage {
+            BoxStage::Failed { why } => {
+                let first = skein_lib::bytes::find(&why, b"\n").unwrap_or(why.len());
+                let end = first.min(usize::try_from(limits::LOG_LINE).expect("log bound fits memory"));
+                BoxStage::Failed { why: copy_of(why.get(..end).expect("bounded first line")) }
+            }
+            BoxStage::Finding
+            | BoxStage::Fetching { .. }
+            | BoxStage::Starting
+            | BoxStage::Running
+            | BoxStage::Stopping
+            | BoxStage::Ended { .. } => stage,
+        };
+        let changed = self.box_stage != stage;
+        if stage == BoxStage::Stopping {
+            self.stop_asked = true;
+        }
+        self.box_stage = stage;
+        changed
     }
     #[must_use]
     pub const fn quitting(&self) -> bool {
@@ -488,6 +544,7 @@ impl Tui {
                 self.front = true;
                 changed
             }
+            Told::Stage { stage } => self.stage(stage),
             Told::BoxLine { line } => self.box_line(line),
             Told::Quitting => {
                 let changed = !self.quitting;

@@ -12,7 +12,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_CONFIG_HOME/temper
 - **Twin of:** `--config`
 - Configuration, including temper.json.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `TEMPER_DATA`
 
@@ -22,7 +22,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_DATA_HOME/temper
 - **Twin of:** `--data`
 - The deployment's data and secrets.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `TEMPER_CACHE`
 
@@ -32,7 +32,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** default $XDG_CACHE_HOME/temper
 - **Twin of:** `--cache`
 - Binaries that can be fetched again.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `PATH`
 
@@ -41,7 +41,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** DIRS
 - **Absent:** Optional executables are not discovered.
 - Search path for optional executables and child programs.
-- **Read by:** temper-box, temper-engine
+- **Read by:** temper-box, temper-engine, temper
 
 ### `TERM`
 
@@ -77,7 +77,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** DIR
 - **Absent:** Use the deployment data directory's link file.
 - Runtime directory for the engine link file.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `XDG_CONFIG_HOME`
 
@@ -87,7 +87,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.config when HOME is absolute.
 - Base for a setting's configuration directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `HOME`
 
@@ -97,7 +97,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** A directory setting needs an absolute XDG base or an explicit value.
 - Base for a setting's directory when its XDG base is unusable.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `XDG_DATA_HOME`
 
@@ -107,7 +107,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.local/share when HOME is absolute.
 - Base for a setting's data directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `XDG_CACHE_HOME`
 
@@ -117,7 +117,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Use $HOME/.cache when HOME is absolute.
 - Base for a setting's cache directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ## Internal
 
@@ -157,7 +157,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** The build script supplies unknown when git identity is unavailable.
 - The build's commit and tracked-file dirty mark.
 - **Notes:** Read at compile time from temper-version's build script alone; not a runtime override.
-- **Read by:** temper-box, temper-engine, temper-worker, temper-agent
+- **Read by:** temper-box, temper-engine, temper-worker, temper-agent, temper
 
 ### `TEMPER_INTERNAL_BUNDLE`
 

@@ -10,7 +10,7 @@ fn forbidden(source: &str) -> bool {
 }
 fn forbidden_at(path: &Path, source: &str) -> bool {
     let source = if path.ends_with("temper-box-shell/src/binary.rs")
-        || path.ends_with("temper-client/src/main.rs")
+        || path.ends_with("temper-client-shell/src/lib.rs")
         || path.ends_with("temper-engine/main.rs")
         || path.ends_with("temper-engine-shell/src/binary.rs")
         || path.ends_with("temper-agent/main.rs")
@@ -30,6 +30,10 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // Claude Code's missing build is fetched under an exclusive file lock
         // (protocol/setup/owned.md, 6); process operations stay in process.rs.
         source.replace(".lock()", ".fetch_lock()")
+    } else if path.ends_with("temper-fetch-shell/src/box_binary.rs") {
+        // Finding this build runs bounded --version candidates and holds the cache lock
+        // (client/box-binary.md, 2); other process operations stay guarded.
+        source.replace("std::process::{Command, Stdio}", "CandidateProcess").replace(".lock()", ".box_lock()")
     } else if path.ends_with("temper-launcher/src/lib.rs") {
         // The launcher execs the pinned build and links the running executable;
         // its process id names concurrent link replacements (protocol/setup/owned.md, 6).
@@ -92,7 +96,7 @@ fn calls_through_the_process_boundary_do_not_exempt_direct_operations() {
 fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
     for path in [
         "temper-box-shell/src/binary.rs",
-        "temper-client/src/main.rs",
+        "temper-client-shell/src/lib.rs",
         "temper-engine/main.rs",
         "temper-engine-shell/src/binary.rs",
         "temper-agent/main.rs",
@@ -146,6 +150,12 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper-fetch-shell/src/fetch.rs", "file.lock()", false),
         ("temper-fetch-shell/src/fetch.rs", "try_lock", true),
         ("temper-fetch-shell/src/fetch.rs", "std::process::Command", true),
+        ("temper-fetch-shell/src/box_binary.rs", "use std::process::{Command, Stdio};", false),
+        ("temper-fetch-shell/src/box_binary.rs", "file.lock()", false),
+        ("temper-fetch-shell/src/box_binary.rs", "std::process::exit(1)", true),
+        ("temper-fetch-shell/src/box_binary.rs", "use std::{process::Child};", true),
+        ("temper-fetch-shell/src/box_binary.rs", "CommandExt", true),
+        ("temper-fetch-shell/src/box_binary.rs", "try_lock", true),
         ("temper-launcher/src/lib.rs", "std::process::Command", false),
         ("temper-launcher/src/lib.rs", "use std::os::unix::process::CommandExt;", false),
         ("temper-launcher/src/lib.rs", "std::process::current_exe()", false),

@@ -4893,6 +4893,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-client-shell",
+ "temper-shell",
+]
+
+[[package]]
 name = "temper-agent"
 version = "0.0.0"
 dependencies = [
@@ -5054,6 +5064,7 @@ dependencies = [
  "temper-agent-shell",
  "temper-box-machine",
  "temper-client-bundle",
+ "temper-client-shell",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-shell-web",
@@ -5079,19 +5090,6 @@ dependencies = [
  "temper-version",
  "temper-worker-domain",
  "temper-worker-shell",
-]
-
-[[package]]
-name = "temper-client"
-version = "0.0.0"
-dependencies = [
- "skein-fail-stop",
- "skein-scratch",
- "skein-shell",
- "temper-client-shell-cli",
- "temper-client-shell-tui",
- "temper-shell",
- "temper-version",
 ]
 
 [[package]]
@@ -5216,6 +5214,19 @@ dependencies = [
  "skein-codegen",
  "skein-lib",
  "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-shell"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-shell",
+ "temper-client-shell-cli",
+ "temper-client-shell-tui",
+ "temper-shell",
+ "temper-test-env",
+ "temper-version",
 ]
 
 [[package]]
@@ -5360,6 +5371,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5901,6 +5913,7 @@ dependencies = [
 name = "temper-fetch-shell"
 version = "0.0.0"
 dependencies = [
+ "flate2",
  "skein-http",
  "skein-io",
  "skein-lib",

@@ -1,12 +1,12 @@
 //! The playground, quitting, the box's state and /log (temper/docs/design/client/tui/box.md).
 use super::foot::{OptionItem, Options};
 use crate::{
-    BoxState, Event, Tui, limits, look,
+    BoxEnd, BoxStage, BoxState, Event, Tui, limits, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
 use skein_lib::{
-    List,
+    Decimal, List,
     bytes::{concat, copy_of, utf8_prefix},
 };
 use skein_ui::{Style, phrases::Hole};
@@ -19,6 +19,63 @@ pub(crate) struct LogNote {
     pub end: u64,
 }
 
+#[derive(Debug)]
+pub(crate) struct StoppingNote {
+    pub log: LogNote,
+    pub hint: Box<[u8]>,
+    pub end: Option<Box<[u8]>>,
+}
+
+pub(crate) fn stage(tui: &Tui, words: &Words) -> Option<(Box<[u8]>, Style)> {
+    let line = match tui.box_stage() {
+        BoxStage::Finding => words.say(Word::FindingBox, &[]),
+        BoxStage::Fetching { done, total } => match total {
+            Some(total) => {
+                words.say(Word::DownloadingBoxTotal, &[Hole::Name(megabytes(*done)), Hole::Name(megabytes(*total))])
+            }
+            None => words.say(Word::DownloadingBox, &[Hole::Name(megabytes(*done))]),
+        },
+        BoxStage::Starting => words.say(Word::StartingBox, &[]),
+        BoxStage::Failed { why } => {
+            return Some((words.say(Word::FailedBox, &[Hole::Name(lossy(why))]), look::REFUSED));
+        }
+        BoxStage::Running | BoxStage::Stopping | BoxStage::Ended { .. } => return None,
+    };
+    Some((line, look::HINT))
+}
+fn megabytes(bytes: u64) -> Box<[u8]> {
+    concat(&[
+        Decimal::of(bytes.checked_div(1_000_000).expect("nonzero divisor")).as_bytes(),
+        b".",
+        Decimal::of(bytes.checked_div(100_000).expect("nonzero divisor").checked_rem(10).expect("nonzero divisor"))
+            .as_bytes(),
+    ])
+}
+fn end_words(end: BoxEnd, words: &Words) -> Box<[u8]> {
+    match end {
+        BoxEnd::Exited { code } => words.say(Word::BoxExited, &[Hole::Number(u64::from(code))]),
+        BoxEnd::Killed { signal } => words.say(Word::BoxKilled, &[Hole::Number(u64::from(signal))]),
+    }
+}
+pub(crate) fn stopping_note(tui: &Tui, words: &Words) -> Option<StoppingNote> {
+    if !tui.front() || !tui.stop_asked() {
+        return None;
+    }
+    let end = match tui.box_stage() {
+        BoxStage::Stopping => None,
+        BoxStage::Ended { end } => Some(end_words(*end, words)),
+        BoxStage::Finding
+        | BoxStage::Fetching { .. }
+        | BoxStage::Starting
+        | BoxStage::Running
+        | BoxStage::Failed { .. } => return None,
+    };
+    Some(StoppingNote {
+        log: LogNote { head: words.say(Word::StoppingBox, &[]), lines: log_lines(tui, words), end: tui.revision() },
+        hint: words.say(Word::StoppingBoxHint, &[]),
+        end,
+    })
+}
 pub(crate) fn playground(root: &Domain, project: Option<u32>) -> bool {
     if !root.forge().playground_running() {
         return false;
@@ -34,6 +91,8 @@ fn step(bytes: &[u8]) -> Box<[u8]> {
 pub(crate) fn box_state(tui: &Tui, words: &Words) -> Option<(Box<[u8]>, Style)> {
     match tui.box_state() {
         BoxState::Running => None,
+        BoxState::Stopping => Some((words.say(Word::Stopping, &[]), look::SIGNAL)),
+        BoxState::Stopped { .. } => Some((words.say(Word::BoxStopped, &[]), look::DOWN)),
         BoxState::Restarting { step: bytes } => {
             Some((words.say(Word::Restarting, &[Hole::Name(step(bytes))]), look::SIGNAL))
         }
@@ -75,6 +134,9 @@ pub(crate) fn log_note(tui: &Tui, words: &Words) -> Option<LogNote> {
     if !tui.log_shown() || !tui.front() {
         return None;
     }
+    Some(LogNote { head: words.say(Word::LogHead, &[]), lines: log_lines(tui, words), end: tui.revision() })
+}
+fn log_lines(tui: &Tui, words: &Words) -> Box<[Box<[u8]>]> {
     let mut lines = List::with_capacity(limits::BOX_LOG);
     for line in tui.box_log() {
         lines
@@ -84,11 +146,18 @@ pub(crate) fn log_note(tui: &Tui, words: &Words) -> Option<LogNote> {
     if lines.is_empty() {
         lines.push(words.say(Word::LogEmpty, &[])).expect("room for the empty log's line");
     }
-    Some(LogNote { head: words.say(Word::LogHead, &[]), lines: lines.into_boxed(), end: tui.revision() })
+    lines.into_boxed()
 }
 pub(crate) fn gave_up_note(tui: &Tui, words: &Words) -> Option<Box<[u8]>> {
     match tui.box_state() {
-        BoxState::Running | BoxState::Restarting { .. } => None,
+        BoxState::Running | BoxState::Restarting { .. } | BoxState::Stopping => None,
+        BoxState::Stopped { end } => {
+            if tui.stop_asked() {
+                None
+            } else {
+                Some(words.say(Word::BoxEndNote, &[Hole::Name(end_words(end, words))]))
+            }
+        }
         BoxState::GaveUp { step: bytes } => Some(words.say(Word::GaveUpNote, &[Hole::Name(step(bytes))])),
     }
 }

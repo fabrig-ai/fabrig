@@ -1,4 +1,4 @@
-//! The box's table and the tree's tables (temper/docs/design/cli/README.md, 6 and 9).
+//! The box's table (temper/docs/design/cli/README.md, 6).
 use crate::{box_command, directories, fake};
 use skein_shell::{Argument, Command, Reach, Set, Switch, Table};
 use temper_engine_shell::commands::{FETCH, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
@@ -23,9 +23,6 @@ pub const TABLE: Table = Table {
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
-pub const TREE: [&Table; 4] =
-    [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER, &temper_agent_shell::AGENT];
-
 const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =

@@ -1,4 +1,12 @@
-use crate::{Command, TABLE, TREE, configure_with, fake};
+use crate::{Command, TABLE, configure_with, fake};
+
+const TREE: [&skein_shell::Table; 5] = [
+    &TABLE,
+    &temper_engine_shell::ENGINE,
+    &temper_worker_shell::WORKER,
+    &temper_agent_shell::AGENT,
+    &temper_client_shell::CLIENT,
+];
 use skein_shell::{Reach, Set};
 
 fn bytes(words: &[&str]) -> Vec<Box<[u8]>> {
@@ -218,6 +226,7 @@ fn rows_are_within_bounds() {
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = temper_shell::table::commands_reference(&[
+        &temper_client_shell::CLIENT,
         &temper_engine_shell::ENGINE,
         &temper_worker_shell::WORKER,
         &temper_agent_shell::AGENT,
@@ -341,6 +350,7 @@ fn arguments_and_environment_documents_are_the_tables() {
         ("temper-worker-env.md", temper_worker_shell::WORKER.environment_document(&TREE)),
         ("temper-agent-args.md", temper_agent_shell::AGENT.arguments_document()),
         ("temper-agent-env.md", temper_agent_shell::AGENT.environment_document(&TREE)),
+        ("temper-env.md", temper_client_shell::CLIENT.environment_document(&TREE)),
         ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
     ];
     let write = temper_test_env::rewrite();

@@ -18,9 +18,10 @@ the look, 11 what is open.
   host each report and carries out the duties it asks back; the
   recorder keeps what crosses that seam, and the replay gives it back to
   the same host, natively.
-- **Recorded in a build of its own:** `temper-box-shell` built with its `record`
-  feature records every TUI it runs, from its start, into the TUI's
-  directory; the shipped `temper-box` holds none of it (section 2).
+- **Recorded in a build of its own:** `temper` built with
+  `temper-client-shell-tui`'s `record` feature records every TUI it
+  runs, from its start, into the TUI's directory; the shipped `temper`
+  holds none of it (section 2).
 - **The browser's file, the TUI's records:** the same text, one record
   per line, the same shared records (the start's seed and clocks, a
   turn, a deadline, a mark, the small store's records), and records of
@@ -55,12 +56,12 @@ the look, 11 what is open.
   the walk's logic. With `record` the crate depends on
   `temper-client-shell-web`, natively, for the shared redaction and scan
   (section 5). It is ordinary Rust, as the browser's `journey` module is.
-- **The recording build:** `temper-box-shell`'s feature `record`, which no other
-  package enables, turns on the crate's and has the binary give the run
-  a recording (`run::Settings.record`). A build of the workspace that
-  compiles the journey module for `temper-client-journeys` gives the run
-  the code but never a recording, so a `temper-box` built without its own
-  `record` records nothing.
+- **The recording build:** `temper`, the one binary that runs the TUI,
+  built with `temper-client-shell-tui`'s feature `record` on, as a build
+  of the workspace with `temper-client-journeys` has it, gives the run a
+  recording (`run::Settings.record`); `temper` built alone, as the
+  release job builds it, records nothing. The box runs no TUI and
+  records none (`../../protocol/setup/box.md`, 6).
 - **Nothing else changes in the TUI:** the recorder adds no node, no
   paint, no request and no file but its own (3.1).
 
@@ -497,19 +498,18 @@ ordinary Rust over skein's harness:
 
 ### 8.3 A box with the TUI in front
 
-What `again` does to record a journey of `temper-box` with the TUI in
-front of it (`box.md`; `../../protocol/setup/box.md`, 6),
+What `again` does to record a journey of `temper box`, the TUI in
+front of the box (`box.md`; `../../protocol/setup/box.md`, 6),
 where 8.2 says otherwise:
 
-- **The box in the pseudo-terminal:** `temper-box --fake-backends` from
-  the scratch copy is itself started in the pseudo-terminal of 80 by 24,
-  in a session of its own, with the TUI's environment of 8.2 but
-  `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
-  the front opens that terminal and takes its foreground. The front is
-  the same `temper-box`, built with `record`, and records into the TUI's
-  directory as bare `temper` does (3.1). No `temper` is started apart,
-  and no approval is walked: the front signs in by the link the box
-  hands it.
+- **`temper box` in the pseudo-terminal:** `temper box --fake-backends`,
+  the recording build's `temper` with the scratch copy's `temper-box`
+  beside it, is started in the pseudo-terminal of 80 by 24, in a session
+  of its own, with the TUI's environment of 8.2 and the box's
+  directories, so that the TUI runs there and the box behind it, as its
+  child. It records into the TUI's directory as bare `temper` does
+  (3.1). No box is started apart, and no approval is walked: the TUI
+  signs in by the link the box hands it.
 - **The printed link,** which the box writes to no stream `again` reads,
   is read from the latest save's last `box-line` record holding a `link`
   line, and opened in the browser, which it signs in; the walk's record
@@ -528,8 +528,8 @@ where 8.2 says otherwise:
   the wrap.
 - **Why not yet:** 8.2's `again` drives `temper` in the pseudo-terminal
   and the box apart, on pipes, reading the box's printed link from its
-  stdout; a box whose TUI is in front needs the terminal itself and
-  prints no link on a stream. Until 8.3 is built, a recording made by
+  stdout; `temper box` starts the box itself, whose printed link reaches
+  no stream `again` reads. Until 8.3 is built, a recording made by
   hand whose marks draw the welcome's link wrapped fails its first
   replay's proof, as a link typed key by key does (section 5), and
   nothing is written.

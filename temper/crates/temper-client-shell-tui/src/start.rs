@@ -32,14 +32,18 @@ pub enum Refused {
 impl Refused {
     #[must_use]
     pub fn line(&self, name: &str) -> String {
-        let why = match self {
+        format!("{name}: {}\n", self.reason(name))
+    }
+
+    #[must_use]
+    pub fn reason(&self, name: &str) -> String {
+        match self {
             Self::NotATerminal => "the TUI needs a terminal on stdin and stdout".into(),
             Self::NotAnAddress(argument) => format!("not an address: {}", String::from_utf8_lossy(argument)),
             Self::Link => format!("a sign-in link is never an argument: run {name} http://HOST:PORT and paste it"),
             Self::NotLoopback => "the engine's address must be on loopback".into(),
             Self::Directory(why) => why.clone(),
-        };
-        format!("{name}: {why}\n")
+        }
     }
 }
 
@@ -163,12 +167,12 @@ pub fn terminal_refusal(name: &str, given: bool) -> String {
 }
 
 #[must_use]
-pub fn run(name: &str, argument: Option<&[u8]>, clock: &Clock) -> u8 {
+pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry], working: &[u8], clock: &Clock) -> u8 {
     if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
         eprint!("{}", terminal_refusal(name, argument.is_some()));
         return 1;
     }
-    match start(argument, clock) {
+    match start(argument, environment, working, clock) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line(name));
@@ -177,21 +181,20 @@ pub fn run(name: &str, argument: Option<&[u8]>, clock: &Clock) -> u8 {
     }
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C3: the client's environment selects directories, links and terminal settings; temper's table will pass it"
-)]
-fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
+fn start(
+    argument: Option<&[u8]>,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    clock: &Clock,
+) -> Result<u8, Refused> {
     let given = argument.map(address).transpose()?;
-    let environment = skein_shell::environment();
-    let directory = directory(&environment)?;
+    let directory = directory(environment)?;
     let user = skein_shell::effective_user();
     directories::make_private(&directory, user).map_err(Refused::Directory)?;
     let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
         .ok()
         .and_then(|bytes| kept(bytes.expose()));
-    let link_file =
-        std::env::current_dir().ok().and_then(|working| link_path(&environment, working.as_os_str().as_bytes()));
+    let link_file = link_path(environment, working);
     let (engine, boxed) = {
         let link = link_file.as_deref().and_then(|path| link_file::read(path, user));
         let bytes = link.as_ref().map(skein_lib::Secret::expose);
@@ -199,8 +202,8 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
         (engine, on_box(bytes, engine))
     };
     let note = read_note(&directory, engine, user);
-    let scheme = scheme(&environment);
-    let depth = depth(&environment);
+    let scheme = scheme(environment);
+    let depth = depth(environment);
     let Ok(Input::Terminal { kept, size }) = skein_shell::raw_input(Fd::new(0), Keys::Pass) else {
         return Err(Refused::NotATerminal);
     };
@@ -240,7 +243,7 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             depth,
             size: skein_ui_screen::Size { rows: size.rows, columns: size.columns },
             limits: limits::tui(),
-            opener: opener(&environment, cfg!(target_os = "linux"), &|path| {
+            opener: opener(environment, cfg!(target_os = "linux"), &|path| {
                 std::fs::metadata(path)
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),

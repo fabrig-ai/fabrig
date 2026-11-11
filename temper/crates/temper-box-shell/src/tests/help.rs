@@ -26,7 +26,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     }
     let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
     assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
-    let commands = temper_shell::rows::TUI.notes;
+    let commands = temper_client_shell::CLIENT.commands.first().expect("bare form").notes;
     assert!(commands.contains("`/exit` or Ctrl+C closes it without signing out"));
     assert!(commands.contains("`q` types a character on every screen"));
 }
