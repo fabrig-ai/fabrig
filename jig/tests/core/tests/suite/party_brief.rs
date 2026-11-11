@@ -31,8 +31,9 @@ fn two_people() -> Vec<Kept> {
     ]
 }
 
-fn start(kept: &[Kept]) -> (World, [u64; 2]) {
+fn start(kept: &[Kept], charter_tools: jig_domain_tasks::Tools) -> (World, [u64; 2]) {
     let (mut config, limits) = support::run_configuration();
+    config.core.defaults.charters.first_mut().expect("profile charter").policy.tools = charter_tools;
     let mut owners = config.core.owners.to_vec();
     let mut other = owners.first().expect("configured owner").clone();
     other.identity.subject = b"owner-b".as_slice().into();
@@ -94,11 +95,13 @@ fn start(kept: &[Kept]) -> (World, [u64; 2]) {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table keeps the preference gates and whole-section cases together")]
 fn an_asking_run_reads_its_persons_preferences_whole() {
     struct Row {
         label: &'static str,
         person: usize,
         asking: bool,
+        charter_tools: jig_domain_tasks::Tools,
         kept: Vec<Kept>,
         section: Section,
         expected: Option<Vec<u8>>,
@@ -113,6 +116,7 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "P, name order",
             person: 0,
             asking: true,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
             kept: two_people(),
             section: Section::Preferences,
             expected: Some(b"1. First preference\n2. Second preference\n".to_vec()),
@@ -121,6 +125,7 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "P, none",
             person: 0,
             asking: true,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
             kept: vec![],
             section: Section::Preferences,
             expected: Some(b"None kept.\n".to_vec()),
@@ -129,6 +134,7 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "P, full",
             person: 0,
             asking: true,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
             kept: (1..=PARTY_ENTRIES)
                 .rev()
                 .map(|name| (P, u64::try_from(name).expect("bounded entries"), long_line.clone()))
@@ -140,6 +146,7 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "Q, own lines",
             person: 1,
             asking: true,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
             kept: two_people(),
             section: Section::Preferences,
             expected: Some(b"1. Q's preference\n".to_vec()),
@@ -148,6 +155,16 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "P, no asking family",
             person: 0,
             asking: false,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
+            kept: two_people(),
+            section: Section::Preferences,
+            expected: None,
+        },
+        Row {
+            label: "P, charter without asking family",
+            person: 0,
+            asking: true,
+            charter_tools: jig_domain_tasks::Tools(2047),
             kept: two_people(),
             section: Section::Preferences,
             expected: None,
@@ -156,13 +173,14 @@ fn an_asking_run_reads_its_persons_preferences_whole() {
             label: "P, separate notes index",
             person: 0,
             asking: true,
+            charter_tools: core::RunPolicy::EVERY_FAMILY,
             kept: two_people(),
             section: Section::NotesIndex,
             expected: Some(b"No notes\n".to_vec()),
         },
     ];
     for row in rows {
-        let (mut world, signed) = start(&row.kept);
+        let (mut world, signed) = start(&row.kept, row.charter_tools);
         let mut goal = fixtures::chat(&world, 1, b"Explain the work".as_slice().into());
         let people::Ask::Create { batch, .. } = &mut goal else { panic!("goal creation") };
         let member = batch.first_mut().expect("one task");
