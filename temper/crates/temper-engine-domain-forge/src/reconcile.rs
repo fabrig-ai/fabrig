@@ -167,13 +167,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            Stored::Tier(row) => {
-                self.repository(RecordKind::Tier, row.repository)?;
-                if let Some(task) = row.task {
-                    self.task(RecordKind::Tier, task, Some(row.repository.forge))?;
-                }
-                Ok(())
-            }
+            Stored::Tier(row) => self.repository(RecordKind::Tier, row.repository),
             Stored::Verification(row) => self.repository(RecordKind::Verification, row.repository),
             Stored::LandingLog(row) => self.repository(RecordKind::LandingLog, row.repository),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),

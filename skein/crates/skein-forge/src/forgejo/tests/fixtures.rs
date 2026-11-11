@@ -145,6 +145,12 @@ pub fn specimen() -> crate::forgejo::plans::tables::Repository {
         owner: Box::from(&b"fixture"[..]),
         name: Box::from(&b"specimen"[..]),
         object_format: crate::forgejo::id::ObjectFormat::Sha1,
+        settings: crate::api::Settings {
+            default_branch: Box::from(*b"main"),
+            merge: true,
+            squash: false,
+            rebase: false,
+        },
         merge_style: crate::forgejo::document::MergeStyle::Squash,
         html_url: Box::from(&b"http://127.0.0.1:3000/fixture/specimen"[..]),
     }

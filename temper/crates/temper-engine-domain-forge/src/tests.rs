@@ -34,6 +34,7 @@ mod projection;
 mod purpose;
 mod reconcile;
 mod records;
+mod refusals;
 mod release;
 mod removal;
 mod requires;
@@ -44,6 +45,7 @@ mod settings;
 mod standing;
 mod stopping;
 mod tiers;
+mod unpushed;
 mod views;
 mod workflows;
 use alloc::boxed::Box;
@@ -141,6 +143,7 @@ const LIMITS: Limits = Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -203,7 +206,7 @@ fn the_roots_read_range_is_its_own() {
 #[test]
 fn the_connectors_own_reads_are_outside_the_roots_range() {
     use temper_engine_domain_forge_landing as policy;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -314,7 +317,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
     }
     values.into_boxed()
 }
-fn adopted() -> Repository {
+pub(crate) fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
         workflows: Box::default(),
@@ -1722,6 +1725,79 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
             refused
         );
         assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer.is_some(), refused);
+    }
+}
+
+#[test]
+fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
+    for (writer, drifted, records, comparing) in [
+        (Writer::Run { task: 9, attempt: 2 }, false, true, false),
+        (Writer::Run { task: 9, attempt: 2 }, false, true, true),
+        (Writer::Run { task: 9, attempt: 2 }, true, false, false),
+        (Writer::Run { task: 9, attempt: 1 }, false, false, false),
+        (Writer::Run { task: 8, attempt: 2 }, false, false, false),
+    ] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let name = run_branch(b"51");
+        let mut row = fixtures::opening_row();
+        row.change.last_head = Some([1; 32]);
+        row.delegate = Some((9, temper_engine_domain_forge_change::Delegate::Resolve { base: fixtures::BASE }));
+        outputs(&mut d, Event::Change { row });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: name.clone(),
+                    task: fixtures::CHANGE,
+                    writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
+        if comparing {
+            outputs(
+                &mut d,
+                Event::Restore {
+                    record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }),
+                },
+            );
+        }
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
+        let (mut call, _) = fixtures::next_call(&mut d);
+        if comparing {
+            fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commit([99; 32])));
+            (call, _) = fixtures::next_call(&mut d);
+        }
+        let hold = d.holds.get_mut(&name).expect("hold");
+        hold.writer = Some(writer);
+        hold.drift = drifted.then_some(Drift {
+            at: env().wall,
+            change: DriftChange::Branch { expected: [1; 32], observed: Some([88; 32]) },
+        });
+        let result = if comparing {
+            skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }
+        } else {
+            skein_forge::api::Answer::Commit([99; 32])
+        };
+        let answered = fixtures::answer(&mut d, call, Ok(result));
+        assert_eq!(
+            d.change(fixtures::CHANGE).expect("change").change.last_head,
+            Some(if records { [99; 32] } else { [1; 32] }),
+            "{writer:?}, drifted={drifted}"
+        );
+        assert_eq!(d.hold(&name).expect("hold").writer, Some(writer));
+        assert_eq!(d.hold(&name).expect("hold").drift.is_some(), drifted);
+        for request in &answered {
+            assert!(
+                !matches!(request, Request::Save { record: Stored::Hold(_), .. }),
+                "the later slot is neither freed nor rewritten"
+            );
+        }
     }
 }
 
@@ -3272,7 +3348,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
 
 #[test]
 fn an_open_write_with_an_empty_title_uses_the_default() {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.title = Box::new([]);

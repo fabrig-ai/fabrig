@@ -180,7 +180,18 @@
 - **What waits on it.** The connector steps no change on a forge not
   connected, and a stall does not count that wait (`change/repairs.md`); an effect whose
   entry failed `NotConnected` is committed again once the forge
-  connects, since it reached no forge. The client shows why on the
+  connects, since it reached no forge. A change's step on such a forge
+  (a restart's, a wake's, a release's) sends no read, and a read of a
+  step answered `NotConnected` (its branch's, its base's, its pull's or
+  any later one, a connecting forge's past its deadline among them) ends
+  that step with nothing decided, its partial reads dropped: either way
+  the change waits for its forge, holding nothing (no
+  `ResourceUnavailable` or `ResourceRefused` hold) and polling nothing.
+  The forge's `Connected` steps each change waiting on it afresh, from
+  its branch read, and takes the time it waited off its stall as an
+  outage's unanswered time is (`keeping-up.md`, 5), so what the stall had
+  counted before the wait stays counted. Lost writers' reads and a goal
+  branch's reads wait for it the same way (`branches.md`, 1). The client shows why on the
   forge's row (`../../client/forge/README.md`, the deployment's page).
 - **The offer to set a forge up,** decided here alone. The connector
   keeps each forge's record, its number, kind, mode and setup start
@@ -584,7 +595,13 @@ bound and no restore of its own, and it goes with the forge if that's removed.
   person isn't that party is cleared and logged, and while the root has
   handed none, no link is made.
 - **Only under a box** (`../../protocol/setup/box.md`, 1): a forge connector built
-  without `--box` makes no link, whatever it's told.
+  without `--box` makes no link, whatever it's told, and keeps none: in the
+  owner's decision above, every link it restored is cleared and logged,
+  whoever the owner is, so a box's data started by plain `temper serve` keeps
+  no link and its lookups fall back to seeds (`../../draft/forge-identity.md`,
+  section 9). It is the `--box` the connector was built with that decides,
+  not the box's pipe: `BoxClosed` (section 1) stops new links for the rest of
+  the run but clears none, and the next start judges them again.
 - **From an owned Forgejo's `Reconcile`** (`../../protocol/setup/reconcile.md`, 2): given
   the owned forge's person's login, it answers that account's id or none for
   an account gone. An id links that user to the person; the same link again

@@ -418,6 +418,27 @@ fn repository_checks(
         tiers: tiers.into_boxed(),
     })
 }
+fn optional_check_timeout(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<skein_lib::Duration> {
+    let at = object.member(document, b"check_timeout_ms")?;
+    let value = match config::read::integer(document, at, 86_400_000) {
+        Ok(value) if value >= 1_000 => value,
+        Ok(_) => {
+            problems.push(path.member(b"check_timeout_ms"), What::Jig(config::What::Bound));
+            return None;
+        }
+        Err(what) => {
+            problems.push(path.member(b"check_timeout_ms"), What::Jig(what));
+            return None;
+        }
+    };
+    Some(skein_lib::Duration::from_millis(value))
+}
+
 fn project_landing(
     object: &mut crate::startup::members::Object,
     document: &Document,
@@ -425,6 +446,7 @@ fn project_landing(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
+    let check_timeout = optional_check_timeout(object, document, path, problems);
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
@@ -453,6 +475,7 @@ fn project_landing(
         }
     }
     Some(engine::ProjectLanding {
+        check_timeout,
         by,
         close_job,
         merge_job,

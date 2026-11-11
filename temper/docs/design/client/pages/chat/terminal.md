@@ -168,7 +168,7 @@
   `chat-terminal`, `chat-terminal-font`, `chat-terminal-draft` and
   `chat-terminal-esc` with the shipped view at 1440, 1000 and 420 px,
   with menus and disclosures open and every state their messages name
-  (`../../../draft/look-requests.md`, sections 4 and 5). Include both themes
+  (`../../web/look-requests.md`, sections 4 and 5). Include both themes
   and fonts, the draft and its figure, questions, compact cards and
   closed chats. Check that pressing `>_` draws the terminal before any
   further input, including when full screen is refused, and that Exit

@@ -246,7 +246,10 @@ temper's workspace items beside it:
   - a landing branch, the branch its change lands on, for each writable
     repository of a change's producer, whatever its start, and of a goal's
     later run; no other item names one. Prepare pins its tip as
-    `refs/temper/landing` for the project's checks (section 5). For an
+    `refs/temper/landing` for the project's checks (section 5); a writable
+    item that names none (a repair, a resolution, a merge job, a chat's
+    run) has the head its delivery replaces pinned there instead
+    (section 5, *The replaced head's pin*). For an
     inherited producer that starts on its push branch it is also the
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
@@ -588,7 +591,8 @@ too (2026-11-09):
 The checkout child domain is the worker's workspace capability (jig's
 `domain/hosts/README.md`, section 6): it owns the workspaces on the worker's
 disk. Its vocabulary is typed git and file operations (make a workspace,
-clone, fetch, check out, merge, commit, push), which the protocol layer
+make a store, clone, fetch, point a reference, check out, merge, commit,
+push), which the protocol layer
 runs as contained processes and whose output it parses.
 
 - **A cache, keyed by workstream.** The runs of one piece of work (a
@@ -602,6 +606,31 @@ runs as contained processes and whose output it parses.
   rebuilt from an empty directory, as a new one is. The cache holds a
   fixed number of checkouts; once they are all made, a new workstream
   takes the least recently used one that no run holds.
+- **One object store per repository.** A checkout keeps no history of its
+  own. Each repository the worker's prepares name, by its remote, has one
+  bare store on the worker's disk, outside every workspace, whose objects
+  every checkout of it borrows through an alternates file
+  (`../protocol/git.md`, 4.2 and 4.11). Every fetch from the forge goes
+  into the store, and then points the checkout's reference at what it
+  fetched (`../protocol/git.md`, 4.3); a clone asks the forge for nothing.
+  So a checkout made from an empty directory (a workstream's first on the
+  worker, an evicted one, a saved start, a damaged one) transfers only
+  what no earlier fetch on the worker brought, and never a branch the
+  assignment does not name, but for the store's making. A prepare makes
+  each store its repositories need that the cache has not made yet, before
+  its workspace, as a bare clone of the forge's default branch alone, the
+  one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
+  refuses a remote of another format, and a checkout borrowing a store
+  takes the store's); two prepares making one store at once leave one. The cache keeps at most
+  `checkout.workspaces` times `checkout.repositories` stores
+  (`../protocol/configuration/limits.md`), the most its checkouts can
+  borrow at once; a remote that finds them all taken gets the slot of
+  one no workspace borrows, made again under a new token. A store is never
+  made again for a fault: git writes each object whole, under its name, so
+  a git killed in a store leaves at most the references it was writing,
+  which are its workspace's alone and set aside when that workspace is
+  made again. A checkout's own `.git`, which its run may write, is still
+  never another workstream's, and no fetch runs in it.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
@@ -612,7 +641,10 @@ runs as contained processes and whose output it parses.
   data, one for the forge and one for the disk; the checkout arms no
   timers.
 - **Prepare** fetches what the assignment names and checks out exactly its
-  starting point. A branch or base that does not exist is a preparation
+  starting point. It fetches each branch of a repository at most once: a
+  pin or a baseline naming a branch this prepare has fetched, or a commit
+  it has fetched, takes that fetch's commit, and a pin is pointed at it
+  locally (`../protocol/git.md`, 4.12). A branch or base that does not exist is a preparation
   failure, permanent until something changes on the forge: the worker
   creates no branch but by pushing a run's change, and branches temper
   needs before then are made by the engine, as effects (forge/branches.md
@@ -620,7 +652,8 @@ runs as contained processes and whose output it parses.
 - **The landing pin.** A repository whose item names a landing branch
   (4.1) has it fetched once per hold, during prepare, after its start is
   fetched, on the same remote, into
-  `refs/temper/landing` (`../protocol/git.md`, 4.3): every start of a
+  `refs/temper/landing` (`../protocol/git.md`, 4.3), or, where it is the
+  branch the start fetched, pointed at that fetch's commit: every start of a
   change's producer, a saved or resumed one's included, and a goal's later
   run. That tip is frozen for the hold: no later operation of the hold
   moves the reference, so the project's checks take the same base at every
@@ -630,6 +663,24 @@ runs as contained processes and whose output it parses.
   from an earlier hold is overwritten, never read. The pin changes neither
   the checkout start nor ownership, drift admission or the saved-work
   baseline.
+- **The replaced head's pin.** A writable repository whose item names no
+  landing branch has the head its push branch has at prepare fetched once
+  per hold, on the same remote, and the same `refs/temper/landing` pointed
+  at it: the head its delivery will replace, the one fetch serving its
+  baseline, its pin and, where it is the start's branch, its start. For a repair, that is the change's head it
+  repairs, whatever its start (its branch, or saved work); for a resolution
+  or a merge job, the branch's head the base is merged into. Where the push
+  branch does not exist yet (a chat's first run), its start's commit is
+  pinned. So a repair's checks select what its own edits changed against the
+  head it repairs, never against the branch the change lands on: a repair of
+  a goal's landing into main checks its own edits, not the goal's
+  (`tools/pre-pr/design.md`, section 2), and no pin a cached checkout kept
+  from an earlier hold is read. The pin is frozen for the hold as a landing
+  branch's is. A read-only repository delivers nothing and runs no check, and
+  its reference is left as it is. The item still names no landing branch,
+  so nothing else of it changes: it is never taken for a goal's design
+  delivery (`agent/README.md`, section 5), and its start, push and expected
+  head are as before.
 - **An existing producer branch** compares with the pinned tip: it is the
   frozen comparison for existing work below, only for an inherited
   producer that starts on its push branch.
@@ -800,7 +851,7 @@ process has exited and its tree is empty. temper's choices:
   when the engine and the worker share a process
   (`../protocol/README.md`, section 6); `smith-inline-agent` is not used
   (`../protocol/llm.md`, section 7).
-- **temper's binary is the agent:** the box's `temper internal agent`,
+- **temper's binary is the agent:** the box's `temper-box internal agent`,
   or a deployment's `temper-agent` (`../protocol/binaries.md`, 3, and `../protocol/README.md`, 5
   ), smith's agent shell. temper builds no code into it.
 - **No credentials in its environment.** The tokens its LLM calls use
@@ -905,7 +956,9 @@ table and the git component.
 - **Files:** workspace directories under the worker's `root`
   (`../protocol/configuration/README.md`, section 3). Making one empties it
   first, so what the cache evicted, or a worker left behind before a
-  restart, cannot fail a prepare.
+  restart, cannot fail a prepare. The stores sit beside them, one bare
+  repository each, set aside at every start as the workspaces are
+  (`../protocol/git.md`, section 2): the worker keeps nothing durable.
 
 ## 10. The world
 
@@ -921,7 +974,9 @@ among temper's tiers and keeps their fakes.
   refused; a spec naming what the forge lacks failing for good; an
   unreachable forge failing for now and a refusing one for good; a
   branch another party advanced making the push moved, nothing forced;
-  saved work where a later run resumes; an abort ending a prepare under
+  saved work where a later run resumes; a new workstream, an evicted one
+  and a saved start fetching from the forge only the commits the worker's
+  store lacks, with every fetch's imports counted; an abort ending a prepare under
   way; a producer's clean merge committed before it is ready; merges that
   conflict, keep their markers until resolved and
   commit both parents, a stale expected head refused, and a push that
@@ -1002,9 +1057,24 @@ for; and that nothing is live once it settles.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
+- **A store's upkeep.** Each fetch leaves what it received in the store as
+  git wrote it, a pack or loose objects, and nothing repacks or prunes
+  them, so a store grows for the worker's life and goes at its next start.
+  Default: none; a repack that keeps every object a checkout may borrow,
+  reachable or not, if a deployment shows a store's size or lookups.
+- **A store damaged past its references.** A corrupt pack would break
+  every prepare of its repository until the worker's next start: nothing
+  seen suggests one, and making a store again on any broken operation would
+  cost a whole fetch each time. Default: a store is never made again for a
+  fault (section 5).
+- **The delivery's second-parent fetch** (`../protocol/git.md`, 4.7) still
+  asks the forge for every branch and tag, into the checkout: with the store
+  borrowed, git sends only those branches' commits neither holds. Default:
+  kept, since its rule is reachability from any branch or tag.
 - **A workspace kept past its workstream.** The cache is keyed by workstream,
   so a new one starts from an empty directory and every file is new to a
-  build. Keyed by repository, it could keep a clone across workstreams and a
+  build, though its history is the store's. Keyed by repository, it could
+  keep a working tree across workstreams and a
   restart once contained trees keep a run out of the git directory
   (`../protocol/git.md`, section 10), perhaps with no switch. With that goes
   which workspace a workstream takes: the departure in `worker.status.md`

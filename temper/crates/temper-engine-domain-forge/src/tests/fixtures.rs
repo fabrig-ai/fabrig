@@ -1,5 +1,16 @@
 //! Shared adoption and change fixtures.
 use super::*;
+
+/// Change reads start after routing has reported access.
+pub fn connected_domain() -> Domain {
+    let mut d = domain();
+    connect(&mut d);
+    d
+}
+
+pub fn connect(d: &mut Domain) {
+    outputs(d, Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } });
+}
 pub fn adoption() -> Adoption {
     Adoption {
         project: 5,
@@ -137,7 +148,7 @@ pub fn opening_row() -> ChangeRow {
 }
 
 pub fn opening() -> (Domain, Token) {
-    let mut d = domain();
+    let mut d = connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -229,6 +240,36 @@ pub fn ancestry_cases()
     ]
 }
 
+/// A kept repository's delivery establishes hearing without a resource read.
+pub fn repository_heard(d: &mut Domain, clock: &Env<Limits>, repository: skein_forge::api::Repository) {
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Keep {
+            owner: Token::new(777),
+            watches: Box::new([skein_forge_client::Watch {
+                resource: skein_forge_client::Resource { repository, what: skein_forge_client::What::Repository },
+                participating: false,
+            }]),
+        }),
+        &mut out,
+    );
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository,
+                change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+                key: None,
+            },
+        }),
+        &mut out,
+    );
+    d.reclaim();
+}
+
 /// One terminal read, without the client's transient retries, for reader tables.
 pub fn answer_once(
     d: &mut Domain,
@@ -284,31 +325,32 @@ pub fn answer_next(
 }
 
 pub fn step_change(d: &mut Domain) {
+    outputs(d, change_step());
+}
+
+pub fn change_step() -> Event {
     use temper_engine_domain_forge_change as change;
-    outputs(
-        d,
-        Event::StepChange {
-            merge_job: false,
-            task: CHANGE,
-            entry: OPEN + 1,
-            heard: change::Heard {
-                delegate_running: false,
-                delegate_live: false,
-                review_request: None,
-                start_conflict: None,
-                lacking: None,
-                spend: None,
-                delegate: change::Status::Passed,
-                effect: change::EffectResult::None,
-                released: false,
-                cancelled: false,
-            },
-            gates: Box::new([]),
-            queue_repair_active: false,
-            pending: Box::new([]),
-            kept: false,
+    Event::StepChange {
+        merge_job: false,
+        task: CHANGE,
+        entry: OPEN + 1,
+        heard: change::Heard {
+            delegate_running: false,
+            delegate_live: false,
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
         },
-    );
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([]),
+        kept: false,
+    }
 }
 
 pub fn missing_pull(d: &mut Domain) {
@@ -349,11 +391,19 @@ pub fn checks(check: skein_forge::api::Check) -> skein_forge::api::Answer {
     }]))
 }
 
-/// Read the head contexts for the result, then the base and ancestry range.
+/// Finish the CI reads this gather asks for, then its ancestry range.
 pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+    use skein_forge::api::{Answer, Op, Read};
+    for _ in 0_u32..3 {
+        let (call, op) = next_call(d);
+        if let Op::Read(Read::Checks { .. }) = op {
+            answer(d, call, Ok(checks(skein_forge::api::Check::Passed)));
+        } else {
+            let Op::Read(Read::Commits { .. }) = op else { panic!("CI or ancestry: {op:?}") };
+            return answer(d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+    }
+    panic!("at most two commits' CI before ancestry")
 }
 
 /// Fresh change chains start with an observed landing branch, apart from their subject.
@@ -378,5 +428,34 @@ pub fn workflows_absent(d: &mut Domain) {
         let (call, op) = next_call(d);
         assert_eq!(op, Op::Read(Read::File { head: BASE, path: path.into(), max_bytes: LIMITS.client.answer_bytes }));
         answer(d, call, Err(Error::Missing));
+    }
+}
+
+/// A job's first failed step, including the runner's set-up and completion.
+pub fn failed_run(attempt: skein_forge::api::JobAttempt, step: Option<u32>) -> skein_forge::api::Run {
+    use skein_forge::api::{Conclusion, Run, RunJob, RunState, Step};
+    Run {
+        id: attempt.run,
+        number: attempt.run,
+        workflow: b"ci".as_slice().into(),
+        commit: attempt.head,
+        event: skein_forge::api::Event::Other,
+        actor: 7,
+        state: RunState::Completed,
+        conclusion: Some(Conclusion::Failure),
+        url: Box::new([]),
+        created: Time::ZERO,
+        jobs: Box::new([RunJob {
+            id: attempt.job,
+            name: b"test".as_slice().into(),
+            attempt: attempt.attempt,
+            state: RunState::Completed,
+            conclusion: Some(Conclusion::Failure),
+            steps: 4,
+            step: match step {
+                Some(number) => Some(Step { number, name: b"step".as_slice().into() }),
+                None => None,
+            },
+        }]),
     }
 }

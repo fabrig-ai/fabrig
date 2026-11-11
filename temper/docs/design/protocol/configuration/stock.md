@@ -1,7 +1,7 @@
 # temper's stock defaults
 
 The binary holds them, and gives them to jig's builder as `Config`'s
-defaults at each start (jig's `domain/engine/settings.md`, 1); `temper
+defaults at each start (jig's `domain/engine/settings.md`, 1); `temper-box
 init`'s document carries none of them (`../setup/init.md`, 3).
 
 | Setting | Its value |
@@ -20,6 +20,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (`reference.md`) |
 | charter 12, the drafter's | the instructions in the `stock` module's `drafter.txt`, every byte as written (`../../draft/surfaces.md`, 11.2): a design session with its person, the draft written as the chat's document (`../../domain/agent/agents.md`, 3), one question at a time as numbered choices, its open points under `## Open questions`, a session taken up again from its draft and first open point, and nothing started or built; charter 1's models, hosts, waiting, resume, run, reserve, spend and call timeout; agents, so that its model's sub-agents survey where it has them, but no inspect, modify or shell, so that its runs are given no repository (`../../domain/agent/charter.md`, 2) and read the project's code through the forge's reads alone; its `tools` every family but delegate, settings and asking, 1,022, so that its runs are declared no `goal`, `change` or `delegate` (`../../domain/agent/tools.md`; 8.5). Numbered past Ask temper's |
 | template 6, a design session | a chat named `design session`, flagged conversation, kept and labelled as jig's chat is, its contract, budget and grace template 1's, run by charter 12, so that a session is listed among the project's chats and, opened again, resumes from its draft (`../../domain/agent/agents.md`, 4; `../../client/pages/README.md`). Numbered past Ask temper's template 5 |
+| charter 13, a standing role's | the `stock` module's instructions for a standing role, kept as charter 5's are, its `## shared` section the instructions and each `## part, on: …` section one part, as charter 5's (jig's `domain/tasks/messages.md`, 6): a standing role owns the work its spec's words name for its project's life, writes its Now, the note described `now` in its own scope, before every park, starts goals and changes for its work, answers its own work's questions, calls `decided` before asking its person, proposes changes to its own rules as a proposal of settings and never accepts one, and parks rather than finishes; a part on `first` alone, to read its spec, subscribe to what concerns its work and set its timers, and a part on every other kind that chooses parts, its work's (`../../domain/agent/standing.md`, section 2); models: the stock's order; hosts `workers`; its runs resuming, in sessions (jig's `domain/tasks/standing.md`, section 5), and waiting 0, parking as soon as it waits; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; no workspace, so no inspect, modify, shell or agents: it reads with the forge's reads; no documents; its wake policy below |
+| template 7, a standing role | named `standing role`, run by the charter its creator names, charter 13 from `role start` unless another is named (`../../client/ctl/tools.md`, 3); `ended_by` `standing` (jig's `protocol/configuration.md`, 3.2), not a conversation, listed, kept, untracked; labelled 3; its report template 1's; the creator's budget, a period's amount, and no deadline; no LLM choice, so that its runs take its charter's models |
 | policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../../domain/agent/agents.md`, 3), a goal's `change` names its plan's members (`../../domain/agent/tools.md`, 1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine/settings.md`, 6; `../../domain/agent/agents.md`, 1 and `../../domain/agent/ask-temper.md`); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine/briefs.md`, section 2; `../../domain/agent/agents.md`, 3); a goal has its own scope for its report, while an advisor and a change have none (`../../domain/agent/tools.md`, 2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
 | the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 6, 9, 11 and 12, the change procedure, the goal's closer (procedure 6), role 0, the merge job (job 3) and the close job (job 4), so that a goal for a draft runs and closes on any project (`../../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and `settings.md`, 3's two requirements |
 | kind 1 | no rule: the rules a deployment's owners add, which every project's merges meet beside its own (`settings.md`, 3) |
@@ -80,20 +82,21 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
   name the read family alone, as
   its row says; charter 9, the status agent’s, and charter 10, a trial’s, name none; charter 12, the drafter's,
-  names every family a chat's does but delegate, so that it starts nothing; charter 11, Ask temper's, names asking and settings, and is
+  names every family a chat's does but delegate, so that it starts nothing; charter 13, a standing role's, names every family a chat's does and settings, so that it proposes changes to its own rules, and is declared the settings family's tools as a deployment's own charter naming it is; charter 11, Ask temper's, names asking and settings, and is
   declared its own tools alone (`../../domain/agent/tools.md`), so that no stock
   charter is declared the settings family's `settings` and the configuring
   form of `propose_settings`, which a charter of a deployment's own naming
   that family is. As numbers, jig's
   `ToolFamilies` bits: charters 1 and 5 1,023, every family but settings and asking;
   charter 2 514; charters 4 and 6 512; charters 9 and 10 0;
-  charter 11 3,072, asking 2,048 and settings 1,024; charter 12 1,022,
+  charter 11 3,072, asking 2,048 and settings 1,024; charter 13 2,047,
+  charter 1's and settings'; charter 12 1,022,
   charter 1's less delegate's 1. A charter that does not name the delegate
   family is declared none of its tools (`../../domain/agent/tools.md`), so
   charters 2, 4, 6, 9, 10 and 12 are declared no `goal`, `change` or
   `delegate`.
   smith's host part counts a run's brief beside its tools, so a brief
-  is rendered within the room its charter leaves. At `temper init`'s
+  is rendered within the room its charter leaves. At `temper-box init`'s
   models the host part's bound is that of their smallest window, which
   init's scripted model sets at `gpt-6-luna`'s (`../setup/init.md`, 3): it
   holds the largest stock charter's non-brief host part, charter 5
@@ -118,7 +121,12 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   `domain/tasks/messages.md`, 6). Every other stock charter uses jig's
   default: words, notices and news at once, the last delegate's result
   or a failure, questions, answers and timers. A deployment sets another
-  on the charter as any of its members.
+  on the charter as any of its members. Charter 13, a standing role's,
+  wakes at once on words and notices, on questions, answers and timers,
+  and on each delegate's result (`each`), and on news paced to 30
+  minutes; its part on its work offers each of those kinds, so that a
+  session begun by any of them is offered the rest
+  (`../../domain/agent/standing.md`, section 2).
 - **Ask temper is a setting** like any other: template 5 starts it, from
   `chat start --template 5` (`../../client/ctl/tools.md`, 3) and from the
   client's Ask temper, in the rail and the tab bar, which To begin's
@@ -152,7 +160,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   for a run's admission (its window and output at its costliest
   prices), since a person may pick any of them and a charter's order
   falls to any of them: sized by the first alone, K would admit no run on
-  Astra 6 where Opus 5.5 comes first. At `temper init`'s models that is
+  Astra 6 where Opus 5.5 comes first. At `temper-box init`'s models that is
   Fable 5.1's and Astra 6's, 10,896, so K is 43,584 and a chat's 24K
   1,046,016. A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
@@ -177,7 +185,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   a person may spend is the same as without it. A deployment whose models change
   between starts gets new defaults, a release's revision (`settings.md`, 5, step 1).
 - **A fine unit.** smith charges each completion at least one whole
-  unit, so `temper init` states its models' prices in thousandths of a
+  unit, so `temper-box init` states its models' prices in thousandths of a
   dollar per 1,000,000 tokens, that floor costing a run nothing it
   needs; C, and so every budget above, scales with it.
 - **The stock's models,** the binary's, as read from the providers' pages on
@@ -190,7 +198,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   one scale, where Terra and Luna also take OpenAI's `none`; and is
   priced for cached input as for input, so that a budget stops early
   rather than late, its provider's page giving no figure on the stock's
-  terms:
+  terms; and each but the scripted model declares a prompt cache's life
+  of five minutes, `cache_life_ms` 300,000, its provider's default, so
+  that a standing role's sessions resume within it, the scripted model
+  declaring none (jig's `domain/tasks/standing.md`, 5.3):
 
   | `name` | `shown` | Provider | `effort` | Input, output |
   |---|---|---|---|---|
@@ -201,7 +212,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 |
   | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 |
   | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 |
-- **The box's limits for that work.** `temper init`'s document, and
+- **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
   sized for a project of fabrig's scale: its own development,
@@ -227,7 +238,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | sub-agents at once in one run | 5 | the agent's `conversations` 26, a run and 25 |
   | a task's spec, a message | 19 kB (5.9 kB) | `tasks.spec_bytes` 131,072; `tasks.message_bytes` 262,144 in the profile, since a result is a message in its parent's inbox; the box's, what its agent takes (below) |
   | a report (a result) | 46 kB (4.9 kB) | `tasks.result_bytes` 262,144 in the profile; the box's, its message bound; templates 1 and 2's report, the deployment's result bound |
-  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper init`'s models (`../../domain/agent/tools.md`) |
+  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper-box init`'s models (`../../domain/agent/tools.md`) |
   | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
   | conflicted paths in one merge | past 4, the bound then, on a goal's merge (2026-11-11) | `checkout.conflicts` 512 and `git_component.stdout_bytes` 131,072 in both profiles, for a merge of a few hundred conflicted paths (`limits.md`, the checkout's capacity) |

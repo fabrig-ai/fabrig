@@ -23,7 +23,7 @@ fn rows(ends: usize, pending: bool) -> Box<[Status]> {
     rows.into_boxed()
 }
 fn world(head: Commit) -> (Domain, Env<Limits>) {
-    let mut d = crate::tests::domain();
+    let mut d = fixtures::connected_domain();
     let mut e = crate::tests::env();
     e.limits.client.hinted = Duration::from_secs(1);
     e.limits.client.poll = Duration::from_secs(5);
@@ -167,6 +167,92 @@ fn a_head_or_base_verdict_wakes_only_its_changes_and_their_decision_reads_afresh
             fixtures::step_change(&mut d);
             let (_, op) = fixtures::next_call(&mut d);
             assert_eq!(op, Op::Read(Read::Branch { branch: Box::from(b"temper/51".as_slice()) }));
+        }
+    }
+}
+
+#[test]
+fn a_pull_watch_does_not_repeat_ci_news_or_restart_a_ci_free_gather() {
+    for (name, numbered_ci, commit_news, mergeable, wakes, required) in [
+        ("CI-free gather differs only by omitted CI", false, false, true, false, false),
+        ("commit news already read this verdict", true, true, true, false, false),
+        ("mergeability is new regardless of CI", false, false, false, true, false),
+        ("required verdict is read from checks", false, false, true, false, true),
+    ] {
+        let (mut d, e) = world(fixtures::HEAD);
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().pull = Some(1);
+        if required {
+            let mut repository = crate::tests::adopted();
+            repository.protection = crate::Protection::Rule(skein_forge::api::Protection {
+                queue: false,
+                signatures: false,
+                linear: false,
+                code_owners: false,
+                bypass: skein_forge::api::Bypass::Never,
+                branch: Box::from(b"main".as_slice()),
+                contexts: Box::new([Box::from(b"build".as_slice())]),
+                approvals: 0,
+                dismiss_stale: false,
+            });
+            d.repositories.insert(REPO, Box::new(repository)).unwrap();
+        }
+        fixtures::step_change(&mut d);
+        let mut owner = None;
+        for (key, pending) in &d.steps {
+            if pending.task == fixtures::CHANGE {
+                owner = Some(*key);
+            }
+        }
+        let owner = owner.expect("gather in flight");
+        let mut gathered = fixtures::open_pull();
+        gathered.ci = if numbered_ci { Ci::Pending } else { Ci::None };
+        let pending = d.steps.get_mut(&owner).unwrap();
+        pending.pull = Some(gathered);
+        pending.pull_ci = numbered_ci;
+        d.procedure_wakes.remove(&fixtures::CHANGE);
+        let pull_name = crate::Name { forge: REPO.forge, repository: REPO.repository, what: crate::What::Pull(1) };
+        d.pulls
+            .insert(
+                pull_name.clone(),
+                crate::PullState {
+                    name: pull_name.clone(),
+                    head: fixtures::HEAD,
+                    ci: Ci::Pending,
+                    state: skein_forge::api::State::Open,
+                },
+            )
+            .unwrap();
+        d.pull_mergeable.insert(pull_name, true).unwrap();
+        if commit_news {
+            d.ci_news.get_mut(&(fixtures::CHANGE, fixtures::HEAD)).unwrap().reading = true;
+            read(&mut d, &e, REPO, fixtures::HEAD, Some(&rows(1, false)), Ci::Passed);
+            d.procedure_wakes.remove(&fixtures::CHANGE);
+            d.steps.get_mut(&owner).unwrap().woken = false;
+        } else {
+            observe_verdict(
+                &mut d,
+                &e,
+                fixtures::CHANGE,
+                fixtures::HEAD,
+                if required { Ci::Pending } else { Ci::Passed },
+            );
+        }
+        let mut pull = fixtures::open_pull();
+        pull.ci = Ci::Passed;
+        pull.mergeable = mergeable;
+        let mut out = Queue::uncapped();
+        super::super::pull_changed(
+            &mut d,
+            &e,
+            skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Pull(1) },
+            pull,
+            &mut out,
+        );
+        assert_eq!(d.steps.get(&owner).unwrap().woken, wakes, "{name:?}: gather");
+        assert_eq!(d.procedure_wakes.contains_key(&fixtures::CHANGE), wakes, "{name:?}: procedure");
+        if required {
+            read(&mut d, &e, REPO, fixtures::HEAD, Some(&rows(1, false)), Ci::Passed);
+            assert!(d.procedure_wakes.contains_key(&fixtures::CHANGE), "required checks have new CI");
         }
     }
 }

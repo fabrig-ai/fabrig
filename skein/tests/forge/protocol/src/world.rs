@@ -199,7 +199,9 @@ impl World {
     pub fn write(&mut self, write: skein_forge::api::Write) -> Outcome {
         let condition = match &write {
             Write::Update { number, .. } | Write::Merge { number, .. } => {
-                let Answer::Pull(pull) = self.read(Read::Pull { number: *number }).expect("write precondition") else {
+                let Answer::Pull(pull) =
+                    self.read(Read::Pull { number: *number, ci: false }).expect("write precondition")
+                else {
                     panic!("pull precondition")
                 };
                 if let Write::Update { .. } = write {

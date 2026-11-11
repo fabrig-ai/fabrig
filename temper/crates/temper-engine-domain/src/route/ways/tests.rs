@@ -332,23 +332,91 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             );
         }
     }
-    // Stock ways differ in the agents they run, even without any usable account.
-    for (goal, review, duplicate, missing, foreman, names) in [
-        (false, false, false, false, false, &["Chat", "Ask temper", "Coding agent", "Status agent"][..]),
-        (false, true, false, false, false, &["Chat", "Ask temper", "Coding agent", "Reviewer", "Status agent"][..]),
+    // Each row varies a role source or the words the forge holds for it.
+    for (goal, review, duplicate, missing, foreman, drafting, words, names) in [
         (
+            false,
+            false,
+            false,
+            false,
+            false,
+            Some(TemplateExecutor::Charter(12)),
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Drafter", "Coding agent", "Status agent"][..],
+        ),
+        (
+            false,
             true,
             false,
             false,
             false,
-            false,
-            &["Chat", "Ask temper", "Coordinator", "Coding agent", "Foreman", "Status agent"][..],
+            None,
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Coding agent", "Reviewer", "Status agent"][..],
         ),
-        (false, true, true, false, false, &["Chat", "Ask temper", "Coding agent", "Status agent"][..]),
-        (false, false, false, true, false, &["Chat", "Coding agent"][..]),
-        (false, false, false, false, true, &["Chat", "Ask temper", "Coding agent", "Foreman", "Status agent"][..]),
+        (
+            true,
+            true,
+            false,
+            false,
+            false,
+            Some(TemplateExecutor::Charter(12)),
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Drafter", "Coordinator", "Coding agent", "Reviewer", "Foreman", "Status agent"][..],
+        ),
+        (
+            false,
+            true,
+            true,
+            false,
+            false,
+            None,
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
+        ),
+        (false, false, false, true, false, None, RoleWords::Stock, &["Chat", "Coding agent"][..]),
+        (
+            false,
+            false,
+            false,
+            false,
+            true,
+            Some(TemplateExecutor::Chosen),
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Coding agent", "Foreman", "Status agent"][..],
+        ),
+        (
+            false,
+            false,
+            false,
+            false,
+            false,
+            Some(TemplateExecutor::Charter(1)),
+            RoleWords::Stock,
+            &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
+        ),
+        (
+            false,
+            false,
+            false,
+            false,
+            false,
+            None,
+            RoleWords::Changed,
+            &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
+        ),
+        (
+            false,
+            false,
+            false,
+            false,
+            false,
+            None,
+            RoleWords::Removed,
+            &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
+        ),
     ] {
-        let (mut domain, env) = roles_fixture(goal, review, duplicate, missing, foreman);
+        let (mut domain, env) = roles_fixture(goal, review, duplicate, missing, foreman, drafting, words);
         let mut expected = None;
         for address in [b"roles".as_slice(), b"ROLES", b"roles @revision 3", b"roles extra"] {
             let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -383,13 +451,30 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                 let who = match card.name.as_ref() {
                     b"Chat" => "For each chat",
                     b"Ask temper" => "When you ask",
+                    b"Drafter" => "When you start a draft",
                     b"Coordinator" => "For each goal",
                     b"Coding agent" | b"Reviewer" => "For each change",
                     b"Foreman" => "When a coding agent asks",
                     b"Status agent" => "When you look at Home after landings",
                     _ => panic!("unexpected role"),
                 };
-                assert_eq!(card.who.as_ref(), who.as_bytes());
+                let does = match *number {
+                    1 => match words {
+                        RoleWords::Stock => "talks with you and asks for the changes",
+                        RoleWords::Changed => "talks about your project",
+                        RoleWords::Removed => "Complete the task within its authority.",
+                    },
+                    3 => "Read only what the change needs.",
+                    4 => "",
+                    12 => "writes a draft with you, one question at a time, and starts nothing",
+                    _ => "Complete the task within its authority.",
+                };
+                let expected_who = if does.is_empty() {
+                    Box::from(who.as_bytes())
+                } else {
+                    skein_lib::bytes::concat(&[who.as_bytes(), b": ", does.as_bytes()])
+                };
+                assert_eq!(card.who.as_ref(), expected_who.as_ref(), "charter {number}");
                 let can = match card.name.as_ref() {
                     b"Ask temper" => "read temper's records and the forge; propose settings; never change anything",
                     b"Status agent" => "read the facts in its task; never merge",
@@ -403,6 +488,12 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                 }
                 assert_eq!(card.facts[1].value.as_ref(), can.as_bytes(), "charter {number}");
                 assert!(skein_lib::bytes::find(&card.facts[0].value, b"no account runs it now").is_some());
+                let asked = match *number {
+                    3 => "“Read only what the change needs.”",
+                    4 => "“”",
+                    _ => "“Complete the task within its authority.”",
+                };
+                assert_eq!(card.facts[2].value.as_ref(), asked.as_bytes(), "charter {number}");
             }
             if let Some(expected) = &expected {
                 assert_eq!(view.as_ref(), expected);
@@ -511,9 +602,17 @@ fn an_agent_uses_the_first_held_model_or_its_first_fallback() {
     }
 }
 
+#[derive(Clone, Copy)]
+enum RoleWords {
+    Stock,
+    Changed,
+    Removed,
+}
+
 #[expect(
     clippy::fn_params_excessive_bools,
-    reason = "the view table varies independent role sources in one shared fixture"
+    clippy::too_many_lines,
+    reason = "the view table keeps its independent role sources, instructions and held words in one fixture"
 )]
 fn roles_fixture(
     goal: bool,
@@ -521,18 +620,25 @@ fn roles_fixture(
     duplicate: bool,
     missing: bool,
     foreman: bool,
+    drafting: Option<TemplateExecutor>,
+    words: RoleWords,
 ) -> (Domain, Env<crate::Limits>) {
     let mut config = resume_fixture::config(7);
     let mut limits = resume_fixture::limits();
-    limits.tasks.charters = 10;
+    limits.tasks.charters = 12;
     limits.templates = 6;
     let mut charters = List::uncapped();
-    for number in 1..=10 {
+    for number in 1..=12 {
         if missing && (number == 8 || number == 9) {
             continue;
         }
         let mut charter = config.core.defaults.charters[0].clone();
         charter.number = number;
+        if number == 3 {
+            charter.policy.instructions = b"Read only what the change needs. Then make the change.".as_slice().into();
+        } else if number == 4 {
+            charter.policy.instructions = b"  \n ".as_slice().into();
+        }
         if number == 8 || number == 9 {
             charter.policy.inspect = false;
             charter.policy.modify = false;
@@ -549,6 +655,11 @@ fn roles_fixture(
         template.number = number;
         template.executor = TemplateExecutor::Charter(charter);
         templates.push(template.clone()).unwrap();
+    }
+    if let Some(executor) = drafting {
+        template.number = 6;
+        template.executor = executor;
+        templates.push(template).unwrap();
     }
     config.core.defaults.templates = templates.into_boxed();
     let (mut domain, env) = resume_fixture::root_with_records(config, &limits, &[]);
@@ -603,7 +714,37 @@ fn roles_fixture(
             })
             .unwrap();
     }
+    for (number, line) in [
+        (1, b"talks with you and asks for the changes".as_slice()),
+        (12, b"writes a draft with you, one question at a time, and starts nothing"),
+    ] {
+        defaults
+            .push(settings::Stock {
+                kind: 9,
+                scope: 0,
+                number,
+                value: settings::SizedValue { size: 128, value: settings::Value::CharterWords(line.into()) },
+            })
+            .unwrap();
+    }
     domain.forge.give_settings_defaults(defaults.into_boxed());
+    let edit = match words {
+        RoleWords::Stock => None,
+        RoleWords::Changed => Some(settings::Edit::Set(settings::SizedValue {
+            size: 128,
+            value: settings::Value::CharterWords(b"talks about your project".as_slice().into()),
+        })),
+        RoleWords::Removed => Some(settings::Edit::Remove),
+    };
+    if let Some(edit) = edit {
+        domain.forge.keep_settings(
+            &env.with(env.limits.forge),
+            1,
+            None,
+            &[settings::Asked { kind: 9, scope: 0, number: 1, edit }],
+            &mut Queue::uncapped(),
+        );
+    }
     people::step(
         &mut domain.core.people,
         &env.with(env.limits.people),

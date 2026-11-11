@@ -3,13 +3,13 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
-# TEMPER_WRAPPER, when set and not empty, names one command that runs each build
+# TEMPER_TEST_WRAPPER, when set and not empty, names one command that runs each build
 # command below; unset, cargo runs plainly.
 if [ "${1-}" = rung-b0-offline ]; then
     [ "$#" -eq 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh rung-b0-offline' >&2; exit 2; }
     export NEXTEST_DOUBLE_SPAWN=0
     # No live account is admitted by the offline proofs (testing/process-tier.md).
-    exec ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --test proof_live --profile process-temper --no-fail-fast
+    exec ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --test proof_live --profile process-temper --no-fail-fast
 fi
 case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;
@@ -23,18 +23,18 @@ esac
 # Only its metadata and entry names are inspected; no entry is opened.
 claude_identity=
 if [ "${1-}" = forge-land-claude ]; then
-    [ -n "${TEMPER_LIVE_CLAUDE-}" ] || { printf '%s\n' 'TEMPER_LIVE_CLAUDE is required for forge-land-claude' >&2; exit 2; }
-    [ -z "${TEMPER_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_LIVE_ACCOUNT is for forge-land' >&2; exit 2; }
-    while [ "${TEMPER_LIVE_CLAUDE%/}" != "$TEMPER_LIVE_CLAUDE" ]; do
-        TEMPER_LIVE_CLAUDE=${TEMPER_LIVE_CLAUDE%/}
+    [ -n "${TEMPER_TEST_LIVE_CLAUDE-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_CLAUDE is required for forge-land-claude' >&2; exit 2; }
+    [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is for forge-land' >&2; exit 2; }
+    while [ "${TEMPER_TEST_LIVE_CLAUDE%/}" != "$TEMPER_TEST_LIVE_CLAUDE" ]; do
+        TEMPER_TEST_LIVE_CLAUDE=${TEMPER_TEST_LIVE_CLAUDE%/}
     done
-    claude_identity=$(python3 -I - "$TEMPER_LIVE_CLAUDE" <<'PYTHON'
+    claude_identity=$(python3 -I - "$TEMPER_TEST_LIVE_CLAUDE" <<'PYTHON'
 import os
 import stat
 import sys
 
 def refuse(message):
-    print("TEMPER_LIVE_CLAUDE " + message, file=sys.stderr)
+    print("TEMPER_TEST_LIVE_CLAUDE " + message, file=sys.stderr)
     sys.exit(2)
 
 path = sys.argv[1].rstrip("/")
@@ -66,10 +66,10 @@ except OSError:
 print(f"{held.st_dev}:{held.st_ino}:{stat.S_IMODE(held.st_mode):o}:{held.st_uid}:directory")
 PYTHON
     ) || exit 2
-    TEMPER_LIVE_CLAUDE=$(readlink -f -- "$(dirname -- "$TEMPER_LIVE_CLAUDE")")/$(basename -- "$TEMPER_LIVE_CLAUDE")
-    export TEMPER_LIVE_CLAUDE
-elif [ -n "${TEMPER_LIVE_CLAUDE-}" ]; then
-    printf '%s\n' 'TEMPER_LIVE_CLAUDE is for forge-land-claude' >&2
+    TEMPER_TEST_LIVE_CLAUDE=$(readlink -f -- "$(dirname -- "$TEMPER_TEST_LIVE_CLAUDE")")/$(basename -- "$TEMPER_TEST_LIVE_CLAUDE")
+    export TEMPER_TEST_LIVE_CLAUDE
+elif [ -n "${TEMPER_TEST_LIVE_CLAUDE-}" ]; then
+    printf '%s\n' 'TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude' >&2
     exit 2
 fi
 store=
@@ -79,17 +79,17 @@ rerun=false
 if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = rung-b0 ]; then
     if [ "${1-}" = rung-b0 ]; then
         rung=true
-        [ -n "${TEMPER_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_LIVE_ACCOUNT is required for rung-b0' >&2; exit 2; }
-        store=${TEMPER_LIVE_STORE:-$PWD/../rung-b0-$(date -u +%Y%m%dT%H%M%SZ)-$$}
+        [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is required for rung-b0' >&2; exit 2; }
+        store=${TEMPER_TEST_LIVE_STORE:-$PWD/../rung-b0-$(date -u +%Y%m%dT%H%M%SZ)-$$}
         # Rung boxes and their retained evidence belong to this task directory.
         export TMPDIR=${TMPDIR:-$PWD/..}
-        export TEMPER_LIVE_KEEP=${TEMPER_LIVE_KEEP:-$PWD/../live-evidence}
+        export TEMPER_TEST_LIVE_KEEP=${TEMPER_TEST_LIVE_KEEP:-$PWD/../live-evidence}
     else
-        stores=${TEMPER_LIVE_STORE:-$HOME/src/rust/tmp/live-store}
+        stores=${TEMPER_TEST_LIVE_STORE:-$HOME/src/rust/tmp/live-store}
         mkdir -p -- "$stores"
         stores=$(readlink -f -- "$stores")
         store=$stores/$1
-        export TEMPER_LIVE_STORE="$stores"
+        export TEMPER_TEST_LIVE_STORE="$stores"
     fi
     if [ -e "$store" ] || [ -L "$store" ]; then
         if [ ! -d "$store" ] || [ -n "$(ls -A -- "$store")" ]; then
@@ -100,27 +100,27 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = ru
     store_parent=$(dirname -- "$store")
     mkdir -p -- "$store_parent"
     store=$(readlink -f -- "$store")
-    if [ "$rung" = true ]; then export TEMPER_LIVE_STORE="$store"; fi
-    if [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
+    if [ "$rung" = true ]; then export TEMPER_TEST_LIVE_STORE="$store"; fi
+    if [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ]; then
         # A held record moved in by ctl account import (client/ctl/areas.md), which removes it.
         [ "$rerun" = false ] || { printf '%s\n' 'a held account moves into a fresh store only' >&2; exit 2; }
         # Its path goes to ctl account import alone, never into this script's words.
-        if [ -L "$TEMPER_LIVE_ACCOUNT" ] || [ ! -f "$TEMPER_LIVE_ACCOUNT" ]; then
-            printf '%s\n' 'TEMPER_LIVE_ACCOUNT names no regular file' >&2
+        if [ -L "$TEMPER_TEST_LIVE_ACCOUNT" ] || [ ! -f "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
+            printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT names no regular file' >&2
             exit 2
         fi
-        [ "$(stat -c %a -- "$TEMPER_LIVE_ACCOUNT")" = 600 ] || { printf '%s\n' 'TEMPER_LIVE_ACCOUNT is not 0600' >&2; exit 2; }
-        TEMPER_LIVE_ACCOUNT=$(readlink -f -- "$TEMPER_LIVE_ACCOUNT")
-        export TEMPER_LIVE_ACCOUNT
+        [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT")" = 600 ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is not 0600' >&2; exit 2; }
+        TEMPER_TEST_LIVE_ACCOUNT=$(readlink -f -- "$TEMPER_TEST_LIVE_ACCOUNT")
+        export TEMPER_TEST_LIVE_ACCOUNT
         if [ "${1-}" = forge-land ]; then held_landing=true; fi
         printf '%s\n' 'moving the held ChatGPT account in; needs no person'
     fi
-elif [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
-    printf '%s\n' 'TEMPER_LIVE_ACCOUNT is for forge-land or rung-b0' >&2
+elif [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ]; then
+    printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is for forge-land or rung-b0' >&2
     exit 2
 fi
 export NEXTEST_DOUBLE_SPAWN=0
-export TEMPER_BUNDLE=${TEMPER_BUNDLE:-none}
+export TEMPER_INTERNAL_BUNDLE=${TEMPER_INTERNAL_BUNDLE:-none}
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")")
 # Snapshot process working directories in one process, without opening their files.
 processes_in() {
@@ -183,7 +183,7 @@ stop_owned() {
 notice=$scratch/notice
 : > "$notice"
 chmod 600 "$notice"
-export TEMPER_LIVE_NOTICE="$notice"
+export TEMPER_TEST_LIVE_NOTICE="$notice"
 launched=false
 runner=
 follower=
@@ -204,13 +204,13 @@ finish() {
     fi
     # This also covers a failed build or a signal before import/hook creation.
     if [ "$rung" = true ]; then
-        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
-           [ "$(stat -c %a -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
-           ! [ "$(stat -c %s -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
+        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
+           [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
+           ! [ "$(stat -c %s -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
             printf '%s\n' 'LOGIN NOT BACK: final stat failed; box retained for recovery' >&2
             exit 1
         fi
-        stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_LIVE_ACCOUNT" >> "$notice"
+        stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_TEST_LIVE_ACCOUNT" >> "$notice"
     fi
     if [ -n "$runner" ]; then
         kill -TERM "$runner" 2>/dev/null
@@ -223,17 +223,17 @@ finish() {
     stopped=true
     stop_owned || { stopped=false; status=1; }
     if [ "$held_landing" = true ]; then
-        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
-           [ "$(stat -c %a -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
-           ! [ "$(stat -c %s -- "$TEMPER_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
+        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
+           [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
+           ! [ "$(stat -c %s -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
             printf '%s\n' 'LOGIN NOT BACK: final stat failed; store retained for recovery' >&2
             status=1
         else
-            stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_LIVE_ACCOUNT" >> "$notice"
+            stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_TEST_LIVE_ACCOUNT" >> "$notice"
         fi
     fi
     if [ -n "$claude_identity" ]; then
-        returned=$(LC_ALL=C stat -c '%d:%i:%a:%u:%F' -- "$TEMPER_LIVE_CLAUDE" 2>/dev/null)
+        returned=$(LC_ALL=C stat -c '%d:%i:%a:%u:%F' -- "$TEMPER_TEST_LIVE_CLAUDE" 2>/dev/null)
         if [ "$stopped" = true ] && [ "$returned" = "$claude_identity" ]; then
             printf '%s\n' 'CLAUDE LOGIN BACK: box stopped; same private directory, inode and owner; used in place' >> "$notice"
         else
@@ -243,7 +243,7 @@ finish() {
     fi
     printf '%s\n' 'Last live notices:'
     tail -n 30 "$notice"
-    keep=${TEMPER_LIVE_KEEP:-$HOME/src/rust/tmp/live-evidence}
+    keep=${TEMPER_TEST_LIVE_KEEP:-$HOME/src/rust/tmp/live-evidence}
     tag=$(sed -n 's/^TAG \([^; ]*\).*$/\1/p' "$notice" | head -n 1 | tr -cd 'A-Za-z0-9_.:-')
     [ -n "$tag" ] || tag=$(date -u +%Y-%m-%dT%H:%M:%SZ)-$$
     if mkdir -p -- "$keep" && chmod 700 "$keep"; then
@@ -275,8 +275,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 # A build failure or a signal also returns through finish, after stopping the box.
-${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --no-run
-if [ "$rerun" = false ] && [ -z "${TEMPER_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ]; then
+${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
+if [ "$rerun" = false ] && [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \
         'For a remote browser: ssh -L 1455:127.0.0.1:1455 -L <client port>:127.0.0.1:<client port> HOST'
 fi
@@ -285,7 +285,7 @@ if [ -n "$store" ] && [ -d "$store" ]; then
     store_before=$(processes_in "" "$store")
 fi
 launched=true
-TMPDIR=$scratch ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --ignore-default-filter \
+TMPDIR=$scratch ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter \
     --run-ignored only --no-capture -E "binary(=live) & test(=$test_name)" &
 runner=$!
 tail -n +1 -f --sleep-interval=0.2 --pid="$runner" "$notice" &

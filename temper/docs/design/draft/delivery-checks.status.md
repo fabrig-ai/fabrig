@@ -1,6 +1,6 @@
 # delivery-checks: status
 
-2026-11-10. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
+2026-11-11. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
 
 - **Design lags:**
   - The draft's third ranked item: the coding charter's words still say
@@ -8,7 +8,20 @@
     charters' words are generated elsewhere, not in this plan.
   - The draft's third ranked item: an early start may merge a dependency's save, unchecked
     (`../domain/forge/change/questions.status.md`, 1).
-- **Design departs:** none.
+- **Design departs:** the draft's first ranked item: the focused tests'
+  `cargo nextest run`, default profile, is the front end alone, selecting
+  and building; the tests run through `tools/tiers/one-process default`,
+  each test binary's selected tests in one process, one at a time, and
+  binaries in parallel (`tools/pre-pr/design.md`, 4;
+  `skein/docs/foundation/testing-strategy.md`, 8). The user, 2026-11-11:
+  every caller runs the focused and fuzzy suites so.
+- **Design departs:** the draft's second ranked item: nothing is built or
+  tested at the base. A lint or test failure is inherited only when the
+  checked tree's `.temper/known-reds.md` lists it, and a build failure is
+  always the delivery's; exceeded counts, citations and design sizes are
+  still compared with the base (`tools/pre-pr/design.md`, 5). Base runs
+  were what pushed a failing delivery past its check bound; the user,
+  2026-11-11.
 - **Decided:** 3, by the owner, 2026-11-09: work in progress before a
   question is saved without a delivery, by a new tool, `save`, which pushes
   the tree to the change's own branch with no checks, marked unchecked in

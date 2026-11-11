@@ -27,7 +27,7 @@ temper ctl is the command line through which an agent works in a deployment for 
 
 ## How it changes
 
-**Signed out, then signed in.** `temper box` and `temper serve` print
+**Signed out, then signed in.** `temper box` and `temper-box serve` print
 a sign-in link. Pass it on stdin; `DIR` then holds the token every
 later call uses:
 
@@ -175,7 +175,7 @@ both do. `--until changed` returns at the subject's next change.
   Naming no tool prints usage: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.
   An unknown group or tool says which, and where help lists them.
 - A `DIR` holds one party's sign-in; several parties take several
-  directories. Give `temper open` a directory of its own.
+  directories. Give `temper-box open` a directory of its own.
 - Calls that send take `DIR` in turns: a second waits up to 60
   seconds, then exits 1. Reads and waits never wait for `DIR`.
 - A kept request is answered only within its retention; past it, its

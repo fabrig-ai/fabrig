@@ -341,16 +341,20 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     the view `roles` (`chat/conversation.md`, 3; `../../domain/forge/change/branch-path.md`, *The project's
     roles*), in its order: a disclosure (`confirm.rs`' and the frame's
     kind) whose summary is the role's `name`, its `who` in small muted
-    words, and at its right its "Model" fact's value; opened, its "Can"
+    words, when it runs and what it does as the view says them ("For
+    each chat: talks with you and asks for the changes"), and at its
+    right its "Model" fact's value; opened, its "Can"
     and "Asked to" facts as terms, then "Read its instructions ›", a link
     to the role's page, `Role { project, charter }` (`README.md`). Every row
     closed as the page opens. The page reads the view as the role's page
     reads `charter N`: once as How work runs opens, again when the
     session's `settings` watch names a newer revision; until it answers,
     or where it is refused or `not_drawn`, the section isn't drawn. What
-    a role does, past when it runs, its charter's words
-    (`../../protocol/configuration/settings.md`, 2, kind 9), is `../README.md`, section 5's
-    (*How work runs' later parts*).
+    a role does is its charter's words
+    (`../../protocol/configuration/settings.md`, 2, kind 9), or its
+    instructions' first sentence where none are kept, which the root
+    puts in `who`: the page draws `who` as it comes and composes
+    nothing.
   - *Budgets,* while one is set (`../../draft/surfaces.md`, section 12): what
     a goal is given when it starts, while kind 7 has Goals shown and its
     goal's template, the one `way` names or else the first tracked one in
@@ -670,7 +674,7 @@ the document gives them; the client hides nothing of its own.
 
 - **Settings, Models after landing** (`README.md`): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
-  including the named states and screenshots (`../../draft/look-requests.md`,
+  including the named states and screenshots (`../web/look-requests.md`,
   section 4). Default: the client world's switches and adding across
   reloads, reads, failures, retries, retained names and unchanged reads;
   view tables and gallery states for the read ages and expiring new tags;
@@ -709,16 +713,12 @@ the document gives them; the client hides nothing of its own.
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking
   you", once a rule by path can be one (P3c);
-  what a role does on Roles, its charter's words after when it runs, "For
-  each chat: talks with you and asks for the changes", or its instructions'
-  first sentence where none is kept, once the view `roles` carries them
-  (P3e; `../../domain/forge/README.md`, section 11, *A role's words on its card*);
   "History · N changes" beside "Ask temper to change this", once a page lists
   the settings' revisions (*Later: the fuller page*); the next step suggested
   when the facts earn it; and the project's repositories at the page's foot
   rather than its frame's second tab. Default: none of them is drawn until it
-  is built, the heading is the way's headline or the project's words, a
-  role's row says when it runs alone, and Repositories stays the second tab.
+  is built, the heading is the way's headline or the project's words,
+  and Repositories stays the second tab.
 - **How many goals take a way** (2): " Used by N." and " Used by none yet."
   need a goal's template, and jig's `TaskLine`, what a client is given of a goal,
   records none. Default: the sentence is left out.

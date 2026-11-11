@@ -47,7 +47,7 @@ const STOCK_RUN_BYTES: u32 = 11_000;
 
 /// The settings family's tools run on a world's charter (temper/docs/design/testing/checks.md, 4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
-    const SETTINGS_CHARTER: u32 = 13;
+    const SETTINGS_CHARTER: u32 = 14;
     const SETTINGS_TEMPLATE: u32 = 12;
     let mut charter = defaults.charters[0].clone();
     charter.number = SETTINGS_CHARTER;
@@ -70,6 +70,8 @@ pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) 
     {
         if authority.delegation.tasks != 0 {
             let mut kinds = authority.delegation.kinds.clone().into_vec();
+            // The settings agent takes the standing role's unused authority place in this world.
+            kinds.retain(|kind| *kind != authority::Executor::Charter(13));
             kinds.push(authority::Executor::Charter(SETTINGS_CHARTER));
             authority.delegation.kinds = kinds.into_boxed_slice();
         }
@@ -109,6 +111,7 @@ pub struct World {
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pending_repositories: BTreeMap<Token, Box<[u8]>>,
     located_names: BTreeMap<u32, Box<[u8]>>,
+    run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
@@ -442,7 +445,7 @@ impl World {
                 foreman.number = 6;
                 foreman.policy.shell = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
-                limits.tasks.authority_grants = 10;
+                limits.tasks.authority_grants = 11;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
@@ -451,7 +454,7 @@ impl World {
                 limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(1024);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
-                limits.authority.grants = 10;
+                limits.authority.grants = 11;
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
                 limits.authority.writes = 2;
@@ -524,6 +527,7 @@ impl World {
                         authority::Grant { kind: 10, ..grant.clone() },
                         authority::Grant { kind: 11, ..grant.clone() },
                         authority::Grant { kind: 12, ..grant.clone() },
+                        authority::Grant { kind: 17, ..grant.clone() },
                     ])
                 } else {
                     Box::new([grant.clone(), effect_grant.clone()])
@@ -621,7 +625,7 @@ impl World {
                     for grant in &rules.ceiling.grants {
                         grants.push(grant.clone()).expect("ceiling grants");
                     }
-                    for kind in [6, 9, 16, 17] {
+                    for kind in [6, 9, 16] {
                         grants.push(authority::Grant { kind, ..grant.clone() }).expect("landing grants");
                     }
                     rules.ceiling.grants = grants.into_boxed();
@@ -666,6 +670,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
                                 after: engine::AfterLandingCheck {
@@ -1032,6 +1037,8 @@ impl World {
             store_limits.authority.executors = limits.authority.executors;
             store_limits.tasks.result_bytes = limits.tasks.result_bytes;
         }
+        store_limits.tasks.authority_grants = store_limits.tasks.authority_grants.max(limits.tasks.authority_grants);
+        store_limits.authority.grants = store_limits.authority.grants.max(limits.authority.grants);
         store_limits.people.words = limits.people.words;
         store_limits.tasks.message_bytes = limits.tasks.message_bytes;
         store_limits.tasks.spec_bytes = limits.tasks.spec_bytes;
@@ -1085,6 +1092,7 @@ impl World {
             pending: BTreeMap::new(),
             pending_repositories: BTreeMap::new(),
             located_names: BTreeMap::new(),
+            run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
             adopted: Vec::new(),
@@ -1326,6 +1334,43 @@ impl World {
         self
     }
 
+    /// Configure the project's delivery checks' bound before startup.
+    #[must_use]
+    pub fn with_check_timeout(mut self, bound: Option<Duration>) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "check bound precedes startup");
+        self.set_check_timeout(bound);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid check bound configuration");
+        self
+    }
+
+    fn set_check_timeout(&mut self, bound: Option<Duration>) {
+        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
+            landing.check_timeout = bound;
+        } else {
+            self.restart_config
+                .landings
+                .insert(
+                    1,
+                    engine::ProjectLanding {
+                        check_timeout: bound,
+                        by: engine::Way::Queue,
+                        merge_job: None,
+                        close_job: None,
+                        repositories: Box::new([]),
+                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                    },
+                )
+                .expect("one project's landing");
+        }
+    }
+
+    /// Restart from durable rows with a changed project bound.
+    pub fn restart_with_check_timeout(&mut self, bound: Option<Duration>) {
+        self.set_check_timeout(bound);
+        self.restart_same();
+    }
+
     /// Configure the project's merge command before the first input.
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {
@@ -1338,6 +1383,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        check_timeout: None,
                         close_job: None,
                         merge_job: Some(command.into()),
                         by: engine::Way::Queue,
@@ -1384,6 +1430,7 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            check_timeout: None,
             by: engine::Way::Queue,
             merge_job: None,
             close_job: None,
@@ -1503,8 +1550,15 @@ impl World {
     /// protocol layer answered at once, as the root's door gives them.
     pub fn flush(&mut self) {
         while let Some(event) = self.immediate.pop_front() {
+            let restart = matches!(&event, engine::Event::Restart { .. });
             if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
                 self.events.push_back(event);
+            } else if restart {
+                for configured in &self.restart_config.forges {
+                    if let Some(event) = crate::fixtures::connection(&self.restart_config, configured.number) {
+                        self.events.push_back(event);
+                    }
+                }
             }
             engine::release(&mut self.root, &self.env, &mut self.out);
             self.collect();
@@ -1540,6 +1594,13 @@ impl World {
             &[],
         );
         self.restart_domain(config, with_change);
+    }
+
+    /// Choose whether the next restart constructs the connector under a box.
+    #[must_use]
+    pub fn with_restart_under_box(mut self, under_box: bool) -> Self {
+        self.restart_config.under_box = under_box;
+        self
     }
 
     /// Restart with the same tier and project configuration, retaining only durable rows.
@@ -1797,6 +1858,9 @@ impl World {
                             (skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }), Some(slow))
                                 if branch == slow);
                     let raw = translate::op(&op, &self.env.limits.forge.client);
+                    if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Run { .. })) {
+                        self.run_repositories.insert(call, name.into());
+                    }
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits;
@@ -2164,6 +2228,10 @@ impl World {
         self.tick_with_reply_cut(Some(target))
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one tick preserves reply cuts, located sources and runner job answers together"
+    )]
     fn tick_with_reply_cut(&mut self, target: Option<u64>) -> bool {
         let mut lost = false;
         if self.oracle_running {
@@ -2236,6 +2304,7 @@ impl World {
                     {
                         self.located_names.insert(*repository, name);
                     }
+                    self.run_repositories.remove(&call);
                     let event = engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
                         skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
                     )));
@@ -2513,22 +2582,24 @@ pub fn change_world_funded(
                     // Reserve 32 bytes for landing identity beside its live result label.
                     contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
                     authority: child_authority,
-                    symbolic_grants: Box::new([tasks::Grant {
-                        connector: 0,
-                        kind: 2,
-                        pattern: tasks::Pattern {
-                            segments: Box::new([
-                                Box::from(&b"forge"[..]),
-                                Box::from(&b"forge.example"[..]),
-                                Box::from(&b"org"[..]),
-                                Box::from(&b"repo"[..]),
-                                Box::from(&b"branch"[..]),
-                                Box::from(&b"temper"[..]),
-                                root.to_string().into_bytes().into_boxed_slice(),
-                            ]),
-                            last: tasks::Last::Open(Box::from(&b"c"[..])),
-                        },
-                    }]),
+                    symbolic_grants: [2, 17]
+                        .map(|kind| tasks::Grant {
+                            connector: 0,
+                            kind,
+                            pattern: tasks::Pattern {
+                                segments: Box::new([
+                                    Box::from(&b"forge"[..]),
+                                    Box::from(&b"forge.example"[..]),
+                                    Box::from(&b"org"[..]),
+                                    Box::from(&b"repo"[..]),
+                                    Box::from(&b"branch"[..]),
+                                    Box::from(&b"temper"[..]),
+                                    root.to_string().into_bytes().into_boxed_slice(),
+                                ]),
+                                last: tasks::Last::Open(Box::from(&b"c"[..])),
+                            },
+                        })
+                        .into(),
                     dependencies: Box::new([]),
                     wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
@@ -2632,11 +2703,21 @@ pub struct Change {
 /// stories observe `WakeProcedure` before offering each fresh-read step.
 #[must_use]
 pub fn hint_world() -> forge_world::World {
+    hint_world_for_goal(false)
+}
+
+#[must_use]
+pub fn shared_goal_hint_world() -> forge_world::World {
+    hint_world_for_goal(true)
+}
+
+fn hint_world_for_goal(shared_goal: bool) -> forge_world::World {
     use temper_engine_domain_forge_change as change;
     let mut world = forge_world::World::new(71);
     world.adopt();
     world.produce(b"release");
-    for (task, branch, base) in [(51, b"temper/a".as_slice(), b"main".as_slice()), (52, b"temper/b", b"release")] {
+    let first_base = if shared_goal { b"release".as_slice() } else { b"main".as_slice() };
+    for (task, branch, base) in [(51, b"temper/a".as_slice(), first_base), (52, b"temper/b", b"release")] {
         world.produce_on(branch, base);
         let pull = world.open_pull(branch, base);
         let head = translate::commit(world.branch(branch));
@@ -2645,6 +2726,7 @@ pub fn hint_world() -> forge_world::World {
         row.change.task = task;
         row.branch = branch.into();
         row.base = base.into();
+        row.goal = if shared_goal { Some(70) } else { None };
         row.pull = Some(pull);
         row.change.last_head = Some(head);
         row.change.since = world.wall();

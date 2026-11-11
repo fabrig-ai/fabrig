@@ -5,6 +5,7 @@ use crate::{Base, Settings};
 #[cfg(test)]
 mod demo;
 mod help;
+mod reach;
 mod reference;
 
 /// Who an entry is for (skein/docs/foundation/cli.md, 4).
@@ -42,6 +43,21 @@ pub enum Reach {
     Words(&'static [&'static str]),
     /// The name the binary runs as, for a delegated grammar.
     RunAs(&'static str),
+}
+
+/// What a binary's arguments reach (runtime/shell.md, 14.4).
+#[derive(PartialEq, Eq, Debug)]
+pub enum Reached<'a> {
+    /// `-h`, `--help` or `help`, alone: the binary's page.
+    Help,
+    /// `--version`, alone: the version line.
+    Version,
+    /// A command's words, then `-h` or `--help` alone: its page.
+    CommandHelp(&'static Command),
+    /// A command and the arguments after its words.
+    Command(&'static Command, &'a [Box<[u8]>]),
+    /// No command: the refusal's line, newline included.
+    Unknown(String),
 }
 
 /// A command's forms, settings and documentation (runtime/shell.md, 14.1).

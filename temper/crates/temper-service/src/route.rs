@@ -364,6 +364,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Result { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::ProjectReleased { .. }
+            | root::Delivery::MoveStanding { .. }
             | root::Delivery::ForgeCommitted { .. }
             | root::Delivery::ForgeCall { .. }
             | root::Delivery::Bound { .. }
@@ -463,8 +464,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
-        root::HostDelivery::Render { to, answer, tool, key, job, .. } => {
-            render_host(engine, to, &answer, &tool, key, job);
+        root::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
+            render_host(engine, to, &answer, &tool, key, job, page);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -488,10 +489,11 @@ fn render_host(
     tool: &[u8],
     key: jig_domain_core::CallKey,
     job: Option<skein_forge::api::JobAttempt>,
+    page: Option<(u32, u32)>,
 ) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render_for_task(
+    engine.events.push(crate::tools::render_for_task_page(
         to,
         answer,
         tool,
@@ -503,6 +505,7 @@ fn render_host(
             answer_bytes: engine.env.limits.forge.client.answer_bytes,
         },
         job,
+        page,
     ));
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {

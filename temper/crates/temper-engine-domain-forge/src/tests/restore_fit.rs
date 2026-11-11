@@ -844,8 +844,7 @@ fn unknown_tier_events_keep_state_and_hold_the_step() {
     ] {
         assert!(outputs(&mut d, event).is_empty());
     }
-    let out =
-        outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, cancelled: true } });
+    let out = outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true } });
     let [Request::TierDecision { task, decision, entry, projection: _ }] = out.as_ref() else {
         panic!("one tier decision")
     };
@@ -883,13 +882,9 @@ fn tier_families_retain_rows_and_report_their_missing_repository() {
     let mut d = domain();
     let Stored::Tier(mut tier) = row(RecordKind::Tier, 2) else { unreachable!("tier fixture") };
     tier.task = Some(51);
-    let key = Key::Tier { repository: tier.repository, tier: tier.tier.clone() };
     restore(&mut d, Stored::Repository(adopted()));
     restore(&mut d, Stored::Tier(tier));
-    assert_eq!(
-        d.missing_link(&reconcile::empty_tasks()),
-        Some(MissingLink { kind: RecordKind::Tier, key, need: Need::Task { task: 51, retired: Some(1) } })
-    );
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
 }
 
 #[test]

@@ -137,6 +137,7 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
         run::Mode::Open => None,
     };
     Some(run::Charter {
+        check_timeout: None,
         mode: charter.mode,
         resume: charter.resumes,
         waiting: charter.waiting,

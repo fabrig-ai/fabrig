@@ -93,6 +93,19 @@ fn github_requests_carry_their_method_target_pin_and_bearer() {
         h.github_answer(&fixtures::response(401, ERROR_BODY));
         assert_eq!(h.sent.as_ref(), expected, "{label}: whole request and sole Authorization");
     }
+    let mut h = ConnectionHarness::github();
+    h.connection.identity = Some(INSTALLATION);
+    start(&mut h, raw_request(), Some(INSTALLATION_TOKEN));
+    let first = h.github_answer(&crate::fixtures::response_with_fields(200, b"first installation", b"ETag: \"a\"\r\n"));
+    h.connection.identity = Some(INSTALLATION + 1);
+    start(&mut h, raw_request(), Some(INSTALLATION_TOKEN));
+    h.github_answer(&fixtures::response(200, b"second installation"));
+    assert!(skein_lib::bytes::find(&h.sent, b"If-None-Match:").is_none(), "another installation reads whole");
+    h.connection.identity = Some(INSTALLATION);
+    start(&mut h, raw_request(), Some(INSTALLATION_TOKEN));
+    let replayed = h.github_answer(&fixtures::response(304, b""));
+    assert_eq!(fixtures::header(&h.sent, b"If-None-Match: "), b"\"a\"");
+    assert_eq!(replayed, first, "the first installation's answer remains its own");
 }
 
 #[test]
@@ -127,12 +140,36 @@ fn github_successes_use_the_requests_decoder() {
             Body::Raw { bytes: Box::from(b"raw bytes".as_slice()), more: false }),
     ];
     for (label, request, status, body, expected) in rows {
-        let mut h = begun(request);
-        let heard = h.github_answer(&fixtures::response(status, body));
+        let conditional = status == 200
+            && skein_forge::github::request::encode(&request, &crate::limits::documents(&fixtures::limits()))
+                .expect("fixture request")
+                .method
+                == skein_forge::github::request::Method::Get;
+        let mut h = begun(request.clone());
+        let heard = h.github_answer(&crate::fixtures::response_with_fields(status, body, b"ETag: \"a\"\r\n"));
         assert_eq!(heard.len(), HEAD_AND_DONE, "{label}: head then body");
-        assert_eq!(heard.get(0), Some(&expected_head(status)), "{label}: head");
+        let mut fields = header::Head::new();
+        fields.date = Some(DATE);
+        fields.etag = header::Etag::new(b"\"a\"");
+        assert_eq!(heard.get(0), Some(&Heard::Head { status, head: fields }), "{label}: head");
         assert_eq!(heard.get(1), Some(&Heard::Done(expected)), "{label}: selected decoder");
         assert_eq!(h.connection.phase(), Phase::Idle, "{label}: reusable");
+        start(&mut h, request, Some(INSTALLATION_TOKEN));
+        let replayed = if conditional {
+            h.github_answer(&fixtures::response(304, b""))
+        } else {
+            h.github_answer(&fixtures::response(status, body))
+        };
+        assert_eq!(
+            skein_lib::bytes::find(&h.sent, b"If-None-Match:").is_some(),
+            conditional,
+            "{label}: only GET is conditional"
+        );
+        if conditional {
+            assert_eq!(fixtures::header(&h.sent, b"If-None-Match: "), b"\"a\"", "{label}: stored request header");
+            assert_eq!(replayed, heard, "{label}: 304 uses the request's decoder");
+            assert_eq!(h.connection.take_free(), 1, "{label}: free read");
+        }
     }
     let mut h = begun(Request::Installations { page: PAGE });
     let pieces: [&[u8]; 5] = [b"[", INSTALLATION_BODY, b",", INSTALLATION_BODY, b"]"];
@@ -144,7 +181,8 @@ fn github_successes_use_the_requests_decoder() {
     for piece in pieces {
         body.put(piece).expect("measured listing");
     }
-    let heard = h.github_answer(&fixtures::ok(&body.finish()));
+    let body = body.finish();
+    let heard = h.github_answer(&fixtures::ok(&body));
     assert_eq!(heard.len(), HEAD_ROWS_DONE, "streamed rows between head and done");
     assert_eq!(
         heard.as_slice(),
@@ -157,6 +195,11 @@ fn github_successes_use_the_requests_decoder() {
         "row demand retained through the next row and document end"
     );
     assert_eq!(h.connection.phase(), Phase::Idle, "streamed document ended");
+    start(&mut h, Request::Installations { page: PAGE }, Some(INSTALLATION_TOKEN));
+    let first = h.github_answer(&crate::fixtures::response_with_fields(200, &body, b"ETag: \"a\"\r\n"));
+    start(&mut h, Request::Installations { page: PAGE }, Some(INSTALLATION_TOKEN));
+    let replayed = h.github_answer(&fixtures::response(304, b""));
+    assert_eq!(replayed, first, "streamed rows replay through the same tokenizer");
 }
 
 #[test]
@@ -178,7 +221,9 @@ fn github_error_statuses_use_the_error_decoder() {
         ("rate limited", 429),
         ("server failure", 500),
     ] {
-        let mut h = begun(Request::Viewer);
+        let mut h = begun(Request::Installation { id: INSTALLATION });
+        let first = h.github_answer(&crate::fixtures::response_with_fields(200, INSTALLATION_BODY, b"ETag: \"a\"\r\n"));
+        start(&mut h, Request::Installation { id: INSTALLATION }, Some(INSTALLATION_TOKEN));
         let heard = h.github_answer(&fixtures::response(status, ERROR_BODY));
         assert_eq!(
             heard.as_slice(),
@@ -191,6 +236,9 @@ fn github_error_statuses_use_the_error_decoder() {
             ],
             "{label}: head before refusal document"
         );
+        start(&mut h, Request::Installation { id: INSTALLATION }, Some(INSTALLATION_TOKEN));
+        let replayed = h.github_answer(&fixtures::response(304, b""));
+        assert_eq!(replayed, first, "{label}: error leaves the previous answer intact");
     }
 }
 

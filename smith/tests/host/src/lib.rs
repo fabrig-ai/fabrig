@@ -391,6 +391,7 @@ impl World {
 pub fn charter_value(bytes: u64) -> host::Charter {
     use smith_domain::run;
     let value = run::Charter {
+        check_timeout: None,
         mode: run::Mode::Finite,
         reserve: run::charter::Reserve { turns: 0, time: skein_lib::Duration::ZERO },
         resume: false,

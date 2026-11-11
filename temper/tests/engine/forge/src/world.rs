@@ -92,6 +92,7 @@ pub const LIMITS: top::Limits = top::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -141,6 +142,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
@@ -249,6 +251,55 @@ impl World {
         )
     }
 
+    /// Gather the repair's pinned CI section through the forge client.
+    pub fn ci_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
+        let row = self.top.change(task).expect("change");
+        let section = Token::new(900);
+        self.event(top::Event::PlanBrief {
+            section,
+            partner: None,
+            source: top::BriefSource::Ci {
+                item: top::BriefItem { repository: row.repository.repository, number: row.pull.expect("pull") },
+                head: top::BriefCommit(head),
+            },
+        });
+        self.event(top::Event::GatherPlanned {
+            task,
+            section,
+            parts: 2,
+            bytes: 2048,
+            ci_budget: 2048,
+            deadline: self.env.now.saturating_add(Duration::from_secs(30)),
+        });
+        self.run_for(1);
+        self.top.take_brief(section).expect("gathered CI brief")
+    }
+
+    /// Script the runner's failure independently from its check's outcome.
+    #[must_use]
+    pub fn runner_failure(seed: u64, passes: u32, fault: raw::Failing) -> World {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            false,
+            None,
+            fake_config(),
+            Some(passes),
+        );
+        forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
+        world
+    }
+
+    /// The forge makes the next re-run but its transport loses the answer.
+    pub fn lose_rerun_answer(&mut self) {
+        self.lose_rerun_answer = true;
+    }
+
     /// Branch rules from the independent fake, with signatures supplied by the layer.
     #[must_use]
     pub fn with_protection(seed: u64, protection: raw::Protection, signatures: bool) -> World {
@@ -297,6 +348,7 @@ impl World {
             false,
             None,
             config,
+            None,
         )
     }
 
@@ -376,6 +428,7 @@ impl World {
             turn,
             tier,
             fake_config(),
+            None,
         )
     }
     #[expect(
@@ -393,6 +446,7 @@ impl World {
         turn: bool,
         tier: Option<raw::Workflow>,
         mut config: forge::Config,
+        passes: Option<u32>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -435,7 +489,7 @@ impl World {
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,
-                    passes: 1000,
+                    passes: passes.unwrap_or(1000),
                     reruns: 0,
                     cue: None,
                 },
@@ -474,6 +528,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
             call_ops: Vec::new(),
@@ -486,7 +541,19 @@ impl World {
         };
         world.top.restore_begin(world.env.wall);
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        world.connected();
         world
+    }
+
+    /// The fake routing reports access again after each start
+    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    fn connected(&mut self) {
+        if let Some(writer) = self.writer {
+            self.event(top::Event::Connection {
+                forge: writer.forge,
+                state: top::Connection::Connected { id: writer.author, login: b"bot".as_slice().into() },
+            });
+        }
     }
 
     /// Construct and restart without any configured writer.
@@ -616,6 +683,7 @@ impl World {
             true,
             Some(workflow.clone()),
             repository_config(2),
+            None,
         );
         forge::repository(
             &mut world.forge,
@@ -806,6 +874,10 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    pub fn fallback(&mut self, interval: Duration) {
+        self.env.limits.client.fallback = interval;
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.forge_env.limits.latency_min = delay;
         self.forge_env.limits.latency_max = delay;
@@ -887,6 +959,7 @@ impl World {
             self.event(top::Event::Restore { record });
         }
         self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        self.connected();
     }
 
     /// Script a worker's pushed branch through the independent fake git.
@@ -983,7 +1056,7 @@ impl World {
     /// Merge at the forge, retaining its preceding pull snapshot for the
     /// connector's next fresh-read chain, whose base read sees the merge.
     pub fn merge_before_pull_read(&mut self, number: u64) -> skein_forge::api::Commit {
-        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number });
+        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: false });
         let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
         let skein_forge::api::Answer::Pull(snapshot) =
             translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)
@@ -1373,6 +1446,14 @@ impl World {
                         Err(error) => {
                             Err(translate::error(error, forge::time(&self.forge_env.limits, self.forge_env.now)))
                         }
+                    };
+                    let result = if self.lose_rerun_answer
+                        && matches!(&pending.op, skein_forge::api::Op::Write(skein_forge::api::Write::Rerun { .. }))
+                    {
+                        self.lose_rerun_answer = false;
+                        Err(skein_forge::api::Error::Timeout)
+                    } else {
+                        result
                     };
                     let event = (
                         pending.generation,

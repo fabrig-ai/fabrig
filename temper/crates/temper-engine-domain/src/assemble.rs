@@ -38,6 +38,7 @@ pub(crate) fn brief_outputs(
                     continue;
                 }
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
+                    task: connector.task,
                     section,
                     parts: env.limits.brief.parts,
                     bytes: budget,
@@ -652,6 +653,7 @@ mod tests {
             plan: 1,
             notes: 1,
             preferences: 1,
+            now: 1,
         };
         assert_eq!(forge_brief_budget(&ForgeBriefKind::Home, &budgets), forge::HOME_SECTION_BYTES);
     }

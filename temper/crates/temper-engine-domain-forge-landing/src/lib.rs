@@ -22,6 +22,6 @@ pub use boundary::{
     MemberFacts, Phase, Posted, Posting, Project, Proof, Repository, Status, Stepped, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, step};
-pub use key::{Entry, EntryKind, KeyLimits, Keyed, Tree, definition, follow_key, key};
+pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
 pub use turn::{Proved, first};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};

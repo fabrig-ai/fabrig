@@ -146,7 +146,7 @@ fn started(read: api::Read) -> Call {
     call
 }
 fn combined_started() -> Call {
-    let mut call = started(api::Read::Pull { number: 5 });
+    let mut call = started(api::Read::Pull { number: 5, ci: true });
     assert_eq!(call.pull(&fixtures::pull(5)), Some(Step::send(combined_request(1, 1))));
     call
 }
@@ -169,7 +169,7 @@ fn status_answer(step: Option<Step>) -> (api::Ci, Box<[api::Status]>, bool) {
 }
 #[test]
 fn github_pull_reads_three_requests() {
-    let mut call = Call::new(api::Read::Pull { number: 5 }, bounds(), true);
+    let mut call = Call::new(api::Read::Pull { number: 5, ci: true }, bounds(), true);
     assert_eq!(call.begin(), Ok(Step::send(pull_request(5))));
     let pull = fixtures::pull(5);
     assert_eq!(call.pull(&pull), Some(Step::send(combined_request(1, 1))));
@@ -204,7 +204,7 @@ fn github_pull_null_mergeable_reads_as_false() {
         assert!(rows.is_empty());
         let Document::Pull(pull) = decoded.unwrap() else { panic!("pull document") };
         assert_eq!(pull.mergeable, None);
-        let mut call = started(api::Read::Pull { number: 5 });
+        let mut call = started(api::Read::Pull { number: 5, ci: true });
         call.head(false);
         assert_eq!(
             call.heard(Heard::Done(Body::Document(Document::Pull(pull)))),
@@ -216,7 +216,7 @@ fn github_pull_null_mergeable_reads_as_false() {
 }
 #[test]
 fn github_pull_resolves_absent_repository() {
-    for read in [api::Read::Pull { number: 5 }, pull_for(), statuses(3)] {
+    for read in [api::Read::Pull { number: 5, ci: true }, pull_for(), statuses(3)] {
         let mut call = Call::new(read.clone(), bounds(), false);
         assert_eq!(call.begin(), Ok(Step::send(Request::Repository { id: 7 })));
         let mut out = Writer::new(4096);
@@ -301,7 +301,7 @@ fn github_pull_merged_and_closed() {
         pull.closed = closed;
         pull.merged = merged;
         pull.merge_commit = merge_commit;
-        let mut call = started(api::Read::Pull { number: 5 });
+        let mut call = started(api::Read::Pull { number: 5, ci: true });
         assert_eq!(call.pull(&pull), Some(Step::send(combined_request(1, 1))));
         assert_eq!(call.combined(api::Check::Pending, 0, &[], false), Some(Step::send(runs_request(1, 8))));
         let answer = call.runs(&[], false);
@@ -316,14 +316,17 @@ fn github_pull_merged_and_closed() {
 }
 #[test]
 fn github_pull_wrong_number() {
-    assert_eq!(started(api::Read::Pull { number: 5 }).pull(&fixtures::pull(6)), failed(api::Error::InvalidAnswer));
+    assert_eq!(
+        started(api::Read::Pull { number: 5, ci: true }).pull(&fixtures::pull(6)),
+        failed(api::Error::InvalidAnswer)
+    );
 }
 #[test]
 fn github_pull_failures() {
     for status in [404, 410, 301, 307] {
         for stage in 0u8..3 {
             let mut call = match stage {
-                0 => started(api::Read::Pull { number: 5 }),
+                0 => started(api::Read::Pull { number: 5, ci: true }),
                 1 => combined_started(),
                 2 => runs_started(),
                 _ => unreachable!(),
@@ -336,7 +339,7 @@ fn github_pull_failures() {
     for (failure, error) in [(Failure::Unseen, api::Error::Unavailable), (Failure::Seen, api::Error::Timeout)] {
         for stage in 0u8..3 {
             let mut call = match stage {
-                0 => started(api::Read::Pull { number: 5 }),
+                0 => started(api::Read::Pull { number: 5, ci: true }),
                 1 => combined_started(),
                 2 => runs_started(),
                 _ => unreachable!(),
@@ -359,7 +362,7 @@ fn github_pull_failures() {
         (Malformed::Value { field: b"state" }, api::Error::InvalidAnswer),
         (Malformed::Bound { field: b"requested_reviewers" }, api::Error::TooLarge(Excess::unnamed())),
     ] {
-        let mut call = started(api::Read::Pull { number: 5 });
+        let mut call = started(api::Read::Pull { number: 5, ci: true });
         call.head(false);
         assert_eq!(call.heard(Heard::Done(Body::Malformed(malformed))), failed(error));
     }
@@ -368,7 +371,7 @@ fn github_pull_failures() {
         Row::Pull(fixtures::pull(5)),
         Row::Context(fixtures::context(api::Check::Passed)),
     ] {
-        let mut call = started(api::Read::Pull { number: 5 });
+        let mut call = started(api::Read::Pull { number: 5, ci: true });
         call.head(false);
         assert_eq!(call.heard(Heard::Row(row)), failed(api::Error::InvalidAnswer));
     }
@@ -386,12 +389,10 @@ fn github_pull_for_prefers_open() {
     listed.head = Box::from(*b"ignored");
     listed.merged = true;
     assert_eq!(call.listing(&[listed]), Some(Step::send(pull_request(5))));
-    assert_eq!(call.pull(&fixtures::pull(5)), Some(Step::send(combined_request(1, 1))));
-    assert_eq!(call.combined(api::Check::Passed, 1, &[], false), Some(Step::send(runs_request(1, 8))));
-    let pull = pull_answer(call.runs(&[], false));
+    let pull = pull_answer(call.pull(&fixtures::pull(5)));
     assert_eq!(
         (pull.number, pull.head.as_ref(), pull.base.as_ref(), pull.ci),
-        (5, b"feature".as_slice(), b"main".as_slice(), api::Ci::Passed)
+        (5, b"feature".as_slice(), b"main".as_slice(), api::Ci::None)
     );
     let mut call = started(pull_for());
     assert_eq!(call.listing(&[fixtures::pull(5)]), Some(Step::send(pull_request(5))));
@@ -404,9 +405,7 @@ fn github_pull_for_falls_back_to_oldest() {
     let mut call = started(pull_for());
     assert_eq!(call.listing(&[]), Some(Step::send(listing_request(false))));
     assert_eq!(call.listing(&[fixtures::pull(3)]), Some(Step::send(pull_request(3))));
-    assert_eq!(call.pull(&fixtures::pull(3)), Some(Step::send(combined_request(1, 1))));
-    assert_eq!(call.combined(api::Check::Pending, 0, &[], false), Some(Step::send(runs_request(1, 8))));
-    assert_eq!(pull_answer(call.runs(&[], false)).number, 3);
+    assert_eq!(pull_answer(call.pull(&fixtures::pull(3))).number, 3);
     let mut call = started(pull_for());
     assert_eq!(call.listing(&[]), Some(Step::send(listing_request(false))));
     assert_eq!(call.listing(&[]), failed(api::Error::Missing));
@@ -424,7 +423,17 @@ fn github_pull_for_falls_back_to_oldest() {
             assert_eq!(call.listing(&[]), Some(Step::send(listing_request(false))));
         }
         assert_eq!(call.heard(Heard::Head { status: 404, head: Head::new() }), failed(api::Error::Missing));
-        assert_eq!(call.tables.repository(KEY), None);
+        assert!(call.tables.repository(KEY).is_some());
+        let mut next = Plan::new(KEY, api::Op::Read(api::Read::Settings));
+        assert_eq!(
+            next.begin(bounds(), WORD, &mut call.tables),
+            Ok(Step::Done(Ok(api::Answer::Settings(api::Settings {
+                default_branch: Box::from(*b"main"),
+                merge: true,
+                squash: true,
+                rebase: true,
+            }))))
+        );
     }
 }
 #[test]
@@ -526,7 +535,7 @@ fn github_statuses_bounds() {
             2 => small.answer_bytes = 159,
             _ => unreachable!(),
         }
-        for read in [statuses(1), api::Read::Pull { number: 5 }, pull_for()] {
+        for read in [statuses(1), api::Read::Pull { number: 5, ci: true }, pull_for()] {
             let Err(api::Error::TooLarge(_)) = Call::new(read, small, true).begin() else {
                 panic!("expected a typed size refusal");
             };
@@ -546,7 +555,7 @@ fn github_statuses_bounds() {
     assert_eq!(status_answer(call.combined(api::Check::Pending, 0, &[], false)), (api::Ci::None, Box::from([]), false));
     let mut small = bounds();
     small.answer_bytes = 160;
-    let mut call = Call::new(api::Read::Pull { number: 5 }, small, true);
+    let mut call = Call::new(api::Read::Pull { number: 5, ci: true }, small, true);
     call.begin().unwrap();
     let mut pull = fixtures::pull(5);
     pull.head = Box::from(&[b'x'; 100][..]);
@@ -618,14 +627,18 @@ fn graphql_started(read: api::Read, organization: bool, merged: bool, bounds: Bo
     }
     let mut pull = fixtures::pull(5);
     pull.merged = merged;
-    assert_eq!(call.pull(&pull), Some(Step::send(combined_request(1, 1))));
-    assert_eq!(call.combined(api::Check::Passed, 1, &[], false), Some(Step::send(runs_request(1, 8))));
-    assert_eq!(call.runs(&[], false), Some(Step::send(graphql_request())));
+    if let api::Read::Pull { ci: true, .. } = read {
+        assert_eq!(call.pull(&pull), Some(Step::send(combined_request(1, 1))));
+        assert_eq!(call.combined(api::Check::Passed, 1, &[], false), Some(Step::send(runs_request(1, 8))));
+        assert_eq!(call.runs(&[], false), Some(Step::send(graphql_request())));
+    } else {
+        assert_eq!(call.pull(&pull), Some(Step::send(graphql_request())));
+    }
     call
 }
 #[test]
 fn github_pull_queue_graphql() {
-    for read in [api::Read::Pull { number: 5 }, pull_for()] {
+    for read in [api::Read::Pull { number: 5, ci: true }, pull_for()] {
         for cached in [false, true] {
             for queued in [Some(2), None] {
                 let mut call = graphql_started(read.clone(), true, false, bounds(), cached);
@@ -634,7 +647,8 @@ fn github_pull_queue_graphql() {
                 assert_eq!(pull.queued, queued);
                 assert_eq!(pull.dequeued, row.dequeued);
                 assert_eq!(pull.merged, None);
-                assert_eq!(pull.ci, api::Ci::Passed);
+                let expected_ci = if read == pull_for() { api::Ci::None } else { api::Ci::Passed };
+                assert_eq!(pull.ci, expected_ci);
                 assert_eq!(pull.state, api::State::Open);
             }
         }
@@ -643,7 +657,7 @@ fn github_pull_queue_graphql() {
 #[test]
 fn github_pull_merged_absent_graphql_fallback() {
     for organization in [false, true] {
-        for read in [api::Read::Pull { number: 5 }, pull_for()] {
+        for read in [api::Read::Pull { number: 5, ci: true }, pull_for()] {
             let row = document::PullGraphql { queued: None, dequeued: None, ..graphql_row() };
             let mut call = graphql_started(read.clone(), organization, true, bounds(), true);
             let pull = pull_answer(call.graphql(&row));
@@ -657,11 +671,11 @@ fn github_pull_merged_absent_graphql_fallback() {
 }
 #[test]
 fn github_pull_graphql_answer_bounds() {
-    let mut call = graphql_started(api::Read::Pull { number: 5 }, true, false, bounds(), true);
+    let mut call = graphql_started(api::Read::Pull { number: 5, ci: true }, true, false, bounds(), true);
     let answer = api::Answer::Pull(pull_answer(call.graphql(&graphql_row())));
     let bytes = u32::try_from(crate::measure::answer(&answer).unwrap()).unwrap();
     for (answer_bytes, fits) in [(bytes, true), (bytes - 1, false)] {
-        let mut call = graphql_started(api::Read::Pull { number: 5 }, true, false, bounds(), true);
+        let mut call = graphql_started(api::Read::Pull { number: 5, ci: true }, true, false, bounds(), true);
         call.bounds.answer_bytes = answer_bytes;
         if fits {
             assert_eq!(call.graphql(&graphql_row()), Some(Step::Done(Ok(answer.clone()))));
@@ -675,7 +689,7 @@ fn github_pull_graphql_answer_bounds() {
 #[test]
 fn github_pull_graphql_plan_failures() {
     for (status, expected) in [(401, api::Error::Forbidden), (404, api::Error::Missing), (500, api::Error::Timeout)] {
-        let mut call = graphql_started(api::Read::Pull { number: 5 }, true, false, bounds(), true);
+        let mut call = graphql_started(api::Read::Pull { number: 5, ci: true }, true, false, bounds(), true);
         assert_eq!(call.heard(Heard::Head { status, head: Head::new() }), failed(expected));
     }
     for body in [
@@ -687,24 +701,24 @@ fn github_pull_graphql_plan_failures() {
         Body::Malformed(Malformed::Missing { field: b"id" }),
         Body::Empty,
     ] {
-        let mut call = graphql_started(api::Read::Pull { number: 5 }, true, false, bounds(), true);
+        let mut call = graphql_started(api::Read::Pull { number: 5, ci: true }, true, false, bounds(), true);
         call.head(false);
         assert_eq!(call.heard(Heard::Done(body)), failed(api::Error::InvalidAnswer));
     }
-    let mut call = started(api::Read::Pull { number: 5 });
+    let mut call = started(api::Read::Pull { number: 5, ci: true });
     call.head(false);
     assert_eq!(
         call.heard(Heard::Done(Body::Document(Document::PullGraphql(graphql_row())))),
         failed(api::Error::InvalidAnswer)
     );
-    let mut call = graphql_started(api::Read::Pull { number: 5 }, true, false, bounds(), true);
+    let mut call = graphql_started(api::Read::Pull { number: 5, ci: true }, true, false, bounds(), true);
     assert_eq!(call.heard(Heard::Failed(Failure::Unseen)), failed(api::Error::Unavailable));
 }
 
 #[test]
 fn github_pull_closed_organization_uses_graphql_only_when_merged() {
     for merged in [false, true] {
-        let mut call = Call::new(api::Read::Pull { number: 5 }, bounds(), false);
+        let mut call = Call::new(api::Read::Pull { number: 5, ci: true }, bounds(), false);
         let mut repository = repository();
         repository.organization = true;
         call.tables.keep_repository(KEY, tables::repository(&repository));
@@ -727,4 +741,18 @@ fn github_pull_closed_organization_uses_graphql_only_when_merged() {
         assert_eq!(answer.queued, None);
         assert_eq!(answer.dequeued, None);
     }
+}
+
+#[test]
+fn github_pull_without_ci_reads_no_status_or_check_runs() {
+    skein_rows::check([("direct", api::Read::Pull { number: 5, ci: false }), ("by branches", pull_for())], |read| {
+        let mut call = started(read.clone());
+        if read == pull_for() {
+            assert_eq!(call.listing(&[fixtures::pull(5)]), Some(Step::send(pull_request(5))));
+        }
+        let pull = pull_answer(call.pull(&fixtures::pull(5)));
+        assert_eq!(pull.ci, api::Ci::None);
+        let mut call = graphql_started(read, true, false, bounds(), true);
+        assert_eq!(pull_answer(call.graphql(&graphql_row())).ci, api::Ci::None);
+    });
 }

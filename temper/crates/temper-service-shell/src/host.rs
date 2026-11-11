@@ -6,6 +6,7 @@ use std::io::{self, Write};
 use temper_service::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_service::{End, Service, Stop};
 use temper_shell::directories::Directories;
+use temper_shell::directories::EnvironmentEntry;
 
 pub struct Host {
     pub service: Service,
@@ -16,6 +17,7 @@ pub struct Host {
     output: Box<dyn Write>,
     output_failed: bool,
     wait_check: bool,
+    cut_at_listen: Option<std::path::PathBuf>,
     now: Time,
     watch: Watch,
     clock: skein_shell::Clock,
@@ -23,14 +25,15 @@ pub struct Host {
 impl Host {
     #[must_use]
     pub fn new(service: Service, directories: Directories) -> Self {
-        Self::with_binary("temper", service, directories)
+        Self::with_binary("temper", service, directories, &[])
     }
     #[must_use]
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C2: TEMPER_R8_WAIT_CHECK enables the service wait check; the binary's table will pass it"
-    )]
-    pub fn with_binary(binary: &str, service: Service, directories: Directories) -> Self {
+    pub fn with_binary(
+        binary: &str,
+        service: Service,
+        directories: Directories,
+        environment: &[EnvironmentEntry],
+    ) -> Self {
         let store = directories.data.clone();
         Self {
             service,
@@ -42,7 +45,8 @@ impl Host {
             output_failed: false,
             // QA launches sanitized child environments. Test/debug programs
             // always check; release programs can opt in with the same flag.
-            wait_check: cfg!(debug_assertions) || std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
+            wait_check: wait_check(environment, cfg!(debug_assertions)),
+            cut_at_listen: super::restart_fault::marker(environment),
             now: Time::ZERO,
             watch: Watch::new(),
             clock: skein_shell::Clock::new(),
@@ -56,6 +60,11 @@ impl Host {
         }
     }
 }
+
+pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool {
+    debug || crate::WAIT_CHECK.value(environment).is_some()
+}
+
 impl skein_shell::Host for Host {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
@@ -126,7 +135,7 @@ impl skein_shell::Host for Host {
             let lines = note_line(&self.binary, note);
             eprint!("{lines}");
             if self.wait_check && clients {
-                super::restart_fault::cut_at_listen();
+                super::restart_fault::cut_at_listen(self.cut_at_listen.as_deref());
             }
         }
         while let Some(note) = self.service.notes().pop() {
@@ -416,17 +425,26 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
                 String::from_utf8_lossy(&tool)
             )
         }
-        temper_service::Note::BriefReadRefused { task, section, stage, error } => {
-            let error = match error {
-                Some(skein_forge::api::Error::TooLarge(excess)) => format!(
-                    "TooLarge: past {}",
-                    String::from_utf8_lossy(&temper_engine_domain_forge::bound_words(excess))
+        temper_service::Note::BriefReadRefused { task, section, stage, reason, heads, error } => {
+            let (bound, error) = match error {
+                Some(skein_forge::api::Error::TooLarge(excess)) => {
+                    let bound = temper_engine_domain_forge::bound_words(excess);
+                    let bound = String::from_utf8_lossy(&bound);
+                    (format!(" {bound}"), format!(" error=TooLarge: past {bound}"))
+                }
+                Some(error) => (String::new(), format!(" error={error:?}")),
+                None => (String::new(), String::new()),
+            };
+            let heads = match heads {
+                Some((pinned, head)) => format!(
+                    " pinned={} head={}",
+                    String::from_utf8_lossy(&temper_engine_domain_forge::commit_text(&pinned)),
+                    String::from_utf8_lossy(&temper_engine_domain_forge::commit_text(&head)),
                 ),
-                Some(error) => format!("{error:?}"),
-                None => "None".into(),
+                None => String::new(),
             };
             format!(
-                "{binary} serve: brief read refused task={task} section={} stage={stage} error={error}\n",
+                "{binary} serve: brief read refused task={task} section={} stage={stage} reason={reason}{bound}{heads}{error}\n",
                 String::from_utf8_lossy(section)
             )
         }
@@ -1702,25 +1720,38 @@ fn read_job_refusal_line_names_the_asked_attempt() {
 
 #[test]
 fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
-    assert_eq!(
-        note_line(
-            "temper",
-            temper_service::Note::BriefReadRefused {
-                task: 7,
-                section: b"pull",
-                stage: "item",
-                error: Some(skein_forge::api::Error::InvalidAnswer),
-            }
+    use skein_forge::api::{Bound, Error, Excess};
+    for (stage, reason, heads, error, expected) in [
+        (
+            "item",
+            "the forge's answer did not match its read",
+            None,
+            Some(Error::InvalidAnswer),
+            "temper serve: brief read refused task=7 section=pull stage=item reason=the forge's answer did not match its read error=InvalidAnswer\n",
         ),
-        "temper serve: brief read refused task=7 section=pull stage=item error=InvalidAnswer\n"
-    );
-    assert_eq!(
-        note_line(
-            "temper",
-            temper_service::Note::BriefReadRefused { task: 7, section: b"ci", stage: "checks", error: None }
+        (
+            "pull",
+            "the change's head moved",
+            Some(([1; 32], [99; 32])),
+            None,
+            "temper serve: brief read refused task=7 section=pull stage=pull reason=the change's head moved pinned=0101010101010101010101010101010101010101010101010101010101010101 head=6363636363636363636363636363636363636363636363636363636363636363\n",
         ),
-        "temper serve: brief read refused task=7 section=ci stage=checks error=None\n"
-    );
+        (
+            "files",
+            "the answer is past",
+            None,
+            Some(Error::TooLarge(Excess::exact(Bound::Rows, 8, 22))),
+            "temper serve: brief read refused task=7 section=pull stage=files reason=the answer is past forge.client.rows (8): 22 rows error=TooLarge: past forge.client.rows (8): 22 rows\n",
+        ),
+    ] {
+        assert_eq!(
+            note_line(
+                "temper",
+                temper_service::Note::BriefReadRefused { task: 7, section: b"pull", stage, reason, heads, error }
+            ),
+            expected
+        );
+    }
 }
 
 #[test]

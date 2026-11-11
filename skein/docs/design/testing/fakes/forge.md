@@ -411,6 +411,14 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists
   those not yet.
+- **Conditional reads, as Forgejo 17.0.1 answers them** (`../../forge/connection.md`,
+  4.6): a raw file's read (`GET R/raw/<path>?ref=<ref>`) answers an `ETag`
+  derived from the bytes it serves, the same for the same bytes, and a
+  read of it whose `If-None-Match` names that `ETag` answers `304` with
+  no body, after the read's own authorization and resource checks, a
+  `Range` read included. Every other route sends no validator and
+  ignores `If-None-Match` and `If-Modified-Since`, as Forgejo's branch
+  JSON does. The tally counts a `304` as the request it is.
 - **Forgejo's narrowing filters are honoured:** the open pull requests'
   listing keeps only rows whose head and base branches are its `head` and
   `base`, when given; an issue's comments keep only those updated at or
@@ -573,7 +581,13 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
     branch and a new id, `409` for a name taken. A source the catalogue
     has not, or a private one, is refused with Forgejo's status and
     message, and leaves the empty repository Forgejo leaves
-    (../../forge/setup/forgejo.md, section 2).
+    (../../forge/setup/forgejo.md, section 2): its row reserved and the
+    domain's repository made as a copy's is at its arrival (2.6), private,
+    owned by the org, with no branch and `main` as its default branch, as
+    the conformance's `setup-migrate-missing-source-read` reads. Nothing
+    fills it; a `DeleteRepository` frees its name. The checks before the
+    source's (an admin, the org, the name, a name taken, the store's
+    room) come first, so a refusal of theirs leaves nothing.
   - `DeleteRepository` drops the repository's row, its collaborators
     and hooks and is the domain's `Write::DeleteRepository`, `204`, or
     `404` for a name it has not. An id is never given twice.
@@ -769,6 +783,8 @@ relies on (../../forge/forgejo.md, section 2). It makes its own admin user and t
   Forgejo's default. A loopback source speaks plain `http`, so the mode
   records Forgejo's refusal of it, then writes `[migrations]
   ALLOW_UNENCRYPTED = true` into these two instances' `app.ini` alone. The
+  source holds a private repository beside its public ones, asked with
+  no credentials for a private source's refusal. The
   fact of which workflow directory Actions reads takes `--runner`, and is
   `unchecked` without it. A loopback proxy of the tool's own stands between
   them and stalls a source's bytes on demand, so a migration is cut

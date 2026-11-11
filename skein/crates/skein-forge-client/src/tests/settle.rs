@@ -46,7 +46,7 @@ fn settle_waits_for_a_sent_merge_and_its_proving_read() {
     assert!(h.outcomes.is_empty());
     assert_eq!(h.settled, None);
     let verify = h.one();
-    assert_eq!(verify.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(verify.op, Op::Read(Read::Pull { number: 9, ci: false }));
     let mut current = pull([1; 32]);
     current.merged = Some([4; 32]);
     current.state = api::State::Closed;
@@ -165,6 +165,7 @@ fn settling_keeps_a_reviews_proving_find_and_an_updates_comparison() {
         Ok(Answer::Reviews {
             reviews: Box::new([recovered_review(7, api::Provenance::Original, [1; 32])]),
             more: false,
+            cut: false,
         }),
     );
     assert_eq!(review.settled.as_deref(), Some([].as_slice()));
@@ -223,5 +224,5 @@ fn a_proving_read_uses_the_reserve_while_background_calls_are_held() {
     h.step(Event::Settle);
     h.answer(write, Ok(Answer::Merged([4; 32])));
     let proof = h.one();
-    assert_eq!(proof.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(proof.op, Op::Read(Read::Pull { number: 9, ci: false }));
 }

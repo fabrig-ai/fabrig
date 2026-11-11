@@ -216,6 +216,7 @@ pub(crate) fn limits() -> Limits {
             plan: 128,
             notes: 64,
             preferences: 64,
+            now: 64,
         },
         accounts: accounts::Limits {
             accounts: 1,
@@ -382,6 +383,7 @@ fn scripted_model() -> Model {
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
+        cache_life_ms: 0,
         window: 8192,
         output: 1024,
         input_price: 1,
@@ -571,9 +573,13 @@ fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
 
 pub(crate) fn core() -> (Core, Limits) {
     let limits = limits();
-    let mut core = seeded_core(config(41), &limits).expect("fixture core configuration");
+    (core_with_limits(&limits), limits)
+}
+
+fn core_with_limits(limits: &Limits) -> Core {
+    let mut core = seeded_core(config(41), limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
-    restore_key_account(&mut core, &limits, 0, 1, 1);
+    restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     people::step(
@@ -603,7 +609,7 @@ pub(crate) fn core() -> (Core, Limits) {
         &mut out,
     );
     finish_people(&mut core.people, &env);
-    (core, limits)
+    core
 }
 
 pub(crate) fn make_task(core: &mut Core, limits: &Limits, number: u64) {
@@ -1551,6 +1557,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

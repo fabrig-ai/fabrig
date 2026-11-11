@@ -139,9 +139,16 @@ Forgejo's (README.md, 4.2):
   (section 15).
 - **Paging is explicit:** `per_page=<size>&page=<n>`, the size the
   smallest of the client's `rows`, `PAGE_CAP` (100), and the number of
-  the listing's largest rows `answer_bytes` holds (forgejo.md, 1.1). A
-  listing has more when its `Link` has `rel="next"`; a page that comes
-  full without one has none. The delivery log pages by cursor (9.3).
+  the listing's largest rows `answer_bytes` holds (forgejo.md, 1.1), but
+  for pages sized for real rows: `Items` (one row when `single`), an
+  item's comments, `Reviews`, `Remarks` and `PullFiles` ask the smallest
+  of `rows` and `PAGE_CAP`, and keep each row whole while it fits
+  `answer_bytes`, cut before the first that doesn't, as forgejo.md 1.3
+  says (a file with the sides asked; comments end with `more`). A
+  listing has more when its `Link` has `rel="next"`, or when cut; a page
+  that comes full without one has none. `Reviews`, `Remarks` and `PullFiles` pass
+  their page's first `skip` rows as they stream (`README.md`, 3.2). The
+  delivery log pages by cursor (9.3).
 - **Users by id,** with the login from the users' table, filled by `GET
   /user/{id}` (`user-by-id-reads`), one request in the cost.
 
@@ -158,14 +165,14 @@ the call fails `TooLarge` when a 50th page still has a next.
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all[&since=<since>]&sort=updated&direction=asc&per_page=<size>&page=<page>` | omit `since` at zero: an epoch `since` lists nothing; otherwise send the UTC bound, inclusive. Each row a `Summary`: `number`; a `pull_request` member makes it a pull, and its `merged_at` makes one closed merged; `state`; `user.id`; `labels[].name`; `updated_at`; `title`; `body` (null as empty) and its key. A row of the other kind than the call's is skipped, and counts toward the page. Rows of one second are put in order of number before the page answers. `more` from `Link`; `now` from `Date` |
 | `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?[since=<since>&]per_page=<size>&page=<n>` from page 1, `since` only when not 0, until the answer is full or a page has no next | the issue as a `Summary`; its comments with ids above `after`, oldest first, as forgejo.md 1.2's: `id`, `user.id`, `created_at`, `body` and its key, provenance, revision; `more` when one is left |
-| `Read::Pull { number }` | `GET R/pulls/<number>`; `GET R/commits/<head.sha>/status?per_page=1`; `GET R/commits/<head.sha>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; `GQ pull` when the pull is open and the repository's owner an organization, or merged (`merge_commit_sha` is absent at the pin) | `number`; `state`, `merged` making it merged; `head.ref`, `base.ref`, `head.sha`, `base.sha`; `merged` from `merge_commit_sha`, else `mergeCommit.oid`; `mergeable`, null as false; `requested_reviewers[].id`; `queued` from `mergeQueueEntry.position`; `dequeued` from the last `RemovedFromMergeQueueEvent`'s `reason`; `Ci` from both (4.4) |
-| `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's `draft/github.md`, 18) |
-| `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?per_page=<size>&page=<page>` | as forgejo.md 1.2; `state` mapped `APPROVED` to `Approve`, `CHANGES_REQUESTED` to `RequestChanges`, `COMMENTED` and `DISMISSED` to `Comment`; `PENDING` and a null `submitted_at` skipped, counting toward the page; `commit_id`; `official` when `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` (`github.md`, section 15) |
+| `Read::Pull { number, ci }` | `GET R/pulls/<number>`; when `ci`, `GET R/commits/<head.sha>/status?per_page=1` and `GET R/commits/<head.sha>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; `GQ pull` when the pull is open and the repository's owner an organization, or merged (`merge_commit_sha` is absent at the pin) | `number`; `state`, `merged` making it merged; `head.ref`, `base.ref`, `head.sha`, `base.sha`; `merged` from `merge_commit_sha`, else `mergeCommit.oid`; `mergeable`, null as false; `requested_reviewers[].id`; `queued` from `mergeQueueEntry.position`; `dequeued` from the last `RemovedFromMergeQueueEvent`'s `reason`; `Ci` from both (4.4), `None` without `ci` |
+| `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` without `ci` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's `draft/github.md`, 18) |
+| `Read::Reviews { number, page, skip }` | `GET R/pulls/<number>/reviews?per_page=<size>&page=<page>` | as forgejo.md 1.2; `state` mapped `APPROVED` to `Approve`, `CHANGES_REQUESTED` to `RequestChanges`, `COMMENTED` and `DISMISSED` to `Comment`; `PENDING` and a null `submitted_at` skipped, counting toward the page; `commit_id`; `official` when `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` (`github.md`, section 15) |
 | `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?per_page=<size>&page=<page>` | `Ci` from `state` and `total_count`, 0 being `None`; each `statuses[]` row: `updated_at`, `context`, `state`, `description`, `target_url`; no job; `more` from `Link` |
-| `Read::Remarks { number, review, page }` | `GET R/pulls/<number>/reviews/<review>/comments?per_page=<size>&page=<page>` | `id`, `user.id`, `path`, `line`, else `original_line`, else 0, `body`; `more` from `Link` |
+| `Read::Remarks { number, review, page, skip }` | `GET R/pulls/<number>/reviews/<review>/comments?per_page=<size>&page=<page>` | `id`, `user.id`, `path`, `line`, else `original_line`, else 0, `body`; `more` from `Link` |
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.sha` |
 | `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, with no row bound (README.md, 3.7), past it `TooLarge`; an empty prefix is `Empty` before any GET |
-| `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; for each file, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forgejo.md 1.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
+| `Read::PullFiles { number, head, page, skip, sides }` | `GET R/pulls/<number>`; when `sides`, `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; when `sides`, for each file kept, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forgejo.md 1.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `files[].filename`, kept while they fit `rows` and the answer's bound, and each counted in `changed`; `ahead` from `ahead_by`, `behind` from `behind_by`; no raw read; `TooLarge` when `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
 | `Read::Range { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `total_commits` as `commits`; the one commit and the files it lists skipped as they stream |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
@@ -186,7 +193,7 @@ looks for a branch it dropped (`Read::Branches { prefix }`, 5.3's row).
   commits alone, which Compare keeps none of, so it asks for one commit a
   page and reads no later page. Containment is `behind_by == 0`, for a
   diverged comparison too; a nonzero `ahead_by` alone does not show it.
-  PullFiles asks for only the merge base and keeps `per_page=1`.
+  PullFiles with `sides` asks for only the merge base and keeps `per_page=1`.
 - **The raw read** is `GET R/contents/<path>?ref=<commit>` with `Accept:
   application/vnd.github.raw+json`, the path's slashes kept: a `200`
   that is not JSON is the file's bytes, a `404` an absent side.

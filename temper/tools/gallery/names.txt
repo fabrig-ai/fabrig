@@ -204,6 +204,7 @@ home-at-work
 home-away
 home-away-one
 home-away-overturned
+home-away-quiet
 home-begin-ask-left
 home-begin-both-left
 home-begin-settings-left
@@ -262,6 +263,7 @@ needs-approval
 needs-approval-first
 needs-approval-no-account
 needs-decided
+needs-decided-project
 needs-done
 needs-funds
 needs-held
@@ -331,6 +333,8 @@ sheet-copy-lines
 sheet-empty
 sheet-empty-source
 sheet-few
+sheet-from-chats
+sheet-from-home
 sheet-none
 sheet-searching
 signed-out

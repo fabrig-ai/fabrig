@@ -705,7 +705,7 @@ fn connected_github_with_two_installations() -> skein_forge_kit::joint::Joint {
     let mut world = Joint::github(
         11,
         0,
-        fixtures::limits(),
+        fixtures::protocol_limits(),
         fixtures::github_settings(),
         fixtures::protocol_shared(),
         joint::checks(1000),
@@ -1059,12 +1059,12 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
     let pull = world.open_pull(b"temper/51", b"main");
     let head = translate::commit(world.branch(b"temper/51"));
     assert_eq!(&head[20..], &[0; 12], "the fake Forgejo serves SHA-1 heads");
-    let Answer::Pull(observed) = commit_read(&mut world, Read::Pull { number: pull }) else {
+    let Answer::Pull(observed) = commit_read(&mut world, Read::Pull { number: pull, ci: false }) else {
         panic!("pull through bytes")
     };
     assert_eq!(observed.commit, head);
-    let Answer::PullFiles { head: observed, files, more } =
-        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1 })
+    let Answer::PullFiles { head: observed, files, more, .. } =
+        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0, sides: true })
     else {
         panic!("pull files matched by the client")
     };

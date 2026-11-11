@@ -1,5 +1,5 @@
 //! Team: a project's people and what waits on each
-//! (temper/docs/design/client/pages/README.md, Team).
+//! (temper/docs/design/client/pages/team.md, 1).
 use super::Request;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -65,12 +65,15 @@ pub struct Facts {
     pub standing_roles: Option<u32>,
 }
 
-/// What Team draws (client/pages/README.md, Team, Its parts). A person's line is
-/// drawn while their `waits` is `Some`.
+/// What Team draws (temper/docs/design/client/pages/team.md, 1, Its parts).
+/// The head names a shared built-in role only for two or more people in a whole
+/// document. A person's line is drawn while their `waits` is `Some`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Parts {
     /// People: a person is listed.
     pub people: bool,
+    /// People's head's shared role; never `Policy`.
+    pub shared: Option<c::HeldRole>,
     /// The triager's line: a triager is read.
     pub triager: bool,
 }
@@ -88,7 +91,27 @@ pub enum Shown {
 
 #[must_use]
 pub fn parts(facts: &Facts) -> Parts {
-    Parts { people: !facts.people.is_empty(), triager: facts.triager.is_some() }
+    Parts { people: !facts.people.is_empty(), shared: shared(facts), triager: facts.triager.is_some() }
+}
+
+fn shared(facts: &Facts) -> Option<c::HeldRole> {
+    if facts.cut || facts.people.len() < 2 {
+        return None;
+    }
+    let mut shared = None;
+    for person in &facts.people {
+        match person.role {
+            c::HeldRole::Owner | c::HeldRole::Maintainer | c::HeldRole::Member | c::HeldRole::Observer => {}
+            c::HeldRole::Policy { role: _ } => return None,
+        }
+        if let Some(role) = shared
+            && role != person.role
+        {
+            return None;
+        }
+        shared = Some(person.role);
+    }
+    shared
 }
 
 /// Team's facts from the project's document, the reader's party, what waits on

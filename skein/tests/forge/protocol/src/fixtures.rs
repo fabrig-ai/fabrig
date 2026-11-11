@@ -27,7 +27,11 @@ impl Shape {
         match self {
             Self::Plain => limits(),
             Self::Github { log_poll } => crate::github_fixture::limits(log_poll),
-            Self::Hooked => Limits { repositories: 1, ..fixtures::hook_limits() },
+            Self::Hooked => Limits {
+                kept_bytes: u64::from(LIMITS.calls) * u64::from(LIMITS.answer_bytes),
+                repositories: 1,
+                ..fixtures::hook_limits()
+            },
         }
     }
 
@@ -49,7 +53,11 @@ pub fn hooked(seed: u64) -> World {
 }
 
 pub(crate) fn limits() -> Limits {
-    Limits { repositories: 1, ..fixtures::limits() }
+    Limits {
+        kept_bytes: u64::from(LIMITS.calls) * u64::from(LIMITS.answer_bytes),
+        repositories: 1,
+        ..fixtures::limits()
+    }
 }
 
 pub(crate) fn shared() -> Shared {

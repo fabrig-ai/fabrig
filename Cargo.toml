@@ -260,7 +260,7 @@ members = [
     "temper/crates/temper-protocol-reaches",
     "temper/crates/temper-protocol-records",
     "temper/tests/real-loop",
-    "temper/crates/temper-box",
+    "temper/crates/temper-box-machine",
     "temper/tools/gallery",
     "temper/tools/journeys",
     "temper/tools/stage-one",
@@ -269,9 +269,12 @@ members = [
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
     "temper/testing/temper-fixtures",
-    "temper/crates/temper",
+    "temper/testing/temper-test-env",
+    "temper/crates/temper-box-shell",
+    "temper/bin/temper-box",
     "temper/crates/temper-client",
-    "temper/crates/temper-agent",
+    "temper/bin/temper-agent",
+    "temper/crates/temper-agent-shell",
     "temper/crates/temper-client-bundle",
     "temper/crates/temper-version",
     "temper/tests/engine/protocol-forge",
@@ -310,7 +313,7 @@ members = [
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
-    "temper/crates/temper-engine",
+    "temper/bin/temper-engine",
     "temper/crates/temper-engine-domain-forge-change",
     "temper/crates/temper-engine-domain-forge-closer",
     "temper/crates/temper-engine-domain-forge-landing",
@@ -566,13 +569,14 @@ jig-protocol-charter = { path = "jig/crates/jig-protocol-charter" }
 settings-form = { package = "temper-settings-form", path = "temper/crates/temper-settings-form" }
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
+temper-test-env = { path = "temper/testing/temper-test-env" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
-temper-box = { path = "temper/crates/temper-box" }
+temper-box-machine = { path = "temper/crates/temper-box-machine" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
 temper-fetch-shell = { path = "temper/crates/temper-fetch-shell" }
 temper-launcher = { path = "temper/crates/temper-launcher" }
@@ -592,11 +596,12 @@ jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
 temper-shell = { path = "temper/crates/temper-shell" }
+temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
-temper = { path = "temper/crates/temper" }
+temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }

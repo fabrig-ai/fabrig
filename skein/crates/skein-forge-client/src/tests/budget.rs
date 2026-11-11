@@ -75,7 +75,7 @@ fn a_free_answer_reopens_the_last_reservation() {
     assert!(h.send().is_none());
     terminal(&h.answer_free(&sent, 1, 1, Err(Error::Forbidden)), 1, Error::Forbidden);
     assert_eq!(h.domain.calls.remaining(), (1, 0));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn a_forge_window_below_the_budgets_becomes_the_budgets() {
     assert_eq!(h.domain.calls.remaining(), (3, 1));
     drop(h.answer_rate(&first, 1, h.rate(1, 0), Err(Error::Forbidden)));
     assert_eq!(h.domain.calls.remaining(), (1, 1));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
     assert!(h.facts().contains(&Fact::Spent { until: at(160) }));
     h.read(3);
     assert!(h.send().is_none());
@@ -226,7 +226,7 @@ fn a_forge_window_reported_after_the_budgets_ended_applies_to_the_new_one() {
     drop(h.answer_rate(&sent, 1, h.rate(1, 0), Err(Error::Forbidden)));
     assert_eq!(h.domain.calls.remaining(), (1, 0));
     h.read(2);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn the_last_unit_the_forge_left_holds_every_class_until_its_reset() {
     assert!(h.send().is_none());
     h.env.now = at(130);
     h.fire();
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 3 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 3, ci: false }));
     assert_eq!(h.domain.calls.remaining(), (3, 1));
 }
 
@@ -314,7 +314,7 @@ fn a_forge_reset_does_not_end_a_window_the_client_spent_alone() {
     assert!(h.send().is_none());
     h.env.now = at(160);
     h.fire();
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5, ci: false }));
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn a_cap_whose_reset_has_passed_is_spent_until_the_windows_end() {
     let first = h.one();
     drop(h.answer_rate(&first, 1, h.rate(1, 30), Err(Error::Forbidden)));
     h.env.now = at(131);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
     let facts = h.facts();
     assert!(facts.contains(&Fact::Spent { until: at(160) }));
     for fact in facts {

@@ -148,6 +148,7 @@ fn template(
         None => tasks::EndedBy::Result,
         Some(at) if named(document, at, b"result") => tasks::EndedBy::Result,
         Some(at) if named(document, at, b"requester") => tasks::EndedBy::Requester,
+        Some(at) if named(document, at, b"standing") => tasks::EndedBy::Standing,
         Some(at) => match closer(document, at, &path.member(b"ended_by")) {
             Ok(value) => tasks::EndedBy::Closer(value),
             Err(what) => {
@@ -200,7 +201,8 @@ fn template(
             TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
             TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
         },
-    ) {
+    ) || (template.flags.ended_by == tasks::EndedBy::Standing && template.tracked.is_some())
+    {
         problems.push(path.member(b"ended_by"), What::Form);
     }
     if template.number == 0 {

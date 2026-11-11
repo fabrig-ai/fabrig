@@ -17,6 +17,7 @@ impl World {
             false,
             None,
             config,
+            None,
         );
         world.env.limits.follow_queue = queue;
         world.env.limits.client.calls = 4; // Two pinned comparisons leave room to poll the next source tip.
@@ -87,6 +88,7 @@ impl World {
             false,
             Some(workflow),
             repository_config(2),
+            None,
         );
         world.adopt();
         forge::repository(

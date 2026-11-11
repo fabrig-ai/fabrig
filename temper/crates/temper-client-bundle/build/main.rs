@@ -1,5 +1,5 @@
 //! Builds the browser's bundle and writes the list `src/lib.rs` includes (client/web/README.md, 2.6), unless
-//! `TEMPER_BUNDLE` is `none`.
+//! `TEMPER_INTERNAL_BUNDLE` is `none`.
 use std::{
     env, fs,
     path::PathBuf,
@@ -60,12 +60,12 @@ fn embed(out: &std::path::Path) -> Result<String, String> {
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "build script: TEMPER_BUNDLE selects the bundle and Cargo's OUT_DIR receives its source"
+    reason = "build script: TEMPER_INTERNAL_BUNDLE selects the bundle and Cargo's OUT_DIR receives its source"
 )]
 fn main() -> ExitCode {
-    println!("cargo:rerun-if-env-changed=TEMPER_BUNDLE");
+    println!("cargo:rerun-if-env-changed=TEMPER_INTERNAL_BUNDLE");
     let out = PathBuf::from(env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"));
-    let list = match steps::choice(env::var_os("TEMPER_BUNDLE").as_deref()) {
+    let list = match steps::choice(env::var_os("TEMPER_INTERNAL_BUNDLE").as_deref()) {
         Ok(steps::Choice::None) => Ok(steps::NO_BUNDLE.into()),
         Ok(steps::Choice::Embed) => embed(&out),
         Err(why) => Err(why),

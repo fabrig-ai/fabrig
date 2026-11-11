@@ -113,8 +113,9 @@ fn wait_cancelled(world: &mut World, change: u64, repair: u64) {
 }
 
 fn retry(world: &mut World, repair: &engine::Assignment) {
-    // Its next brief waits for access, keeping the task between runs while CI is observed.
-    world.fail_brief_reads = Some((true, true, skein_forge::api::Error::NotConnected));
+    // Only the brief's Item read waits for access; the change's fresh Checks
+    // still answer while its repair stays between runs.
+    world.fail_brief_reads = Some((true, false, skein_forge::api::Error::NotConnected));
     answer(world, repair, tasks::End::Failed(tasks::Class::Run));
     for _ in 0..STEPS {
         world.tick();

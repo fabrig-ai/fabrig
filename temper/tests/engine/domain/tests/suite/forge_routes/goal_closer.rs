@@ -32,6 +32,25 @@ fn goal_world_with_ci(
     passes: u32,
     commits: Option<u32>,
 ) -> (World, engine::Assignment, Box<[u8]>) {
+    goal_world_with_updates(close, branch, tier, main_ci, silent_ci, passes, commits, false, None)
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    reason = "the update stories reuse the closer fixture with an independent main containment rule"
+)]
+fn goal_world_with_updates(
+    close: bool,
+    branch: bool,
+    tier: Option<temper_engine_domain_world::tier_runs::Tier>,
+    main_ci: bool,
+    silent_ci: bool,
+    passes: u32,
+    commits: Option<u32>,
+    up_to_date: bool,
+    stall: Option<Duration>,
+) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -51,6 +70,7 @@ fn goal_world_with_ci(
             tasks_batch: Some(8),
             result_bytes: Some(4096),
             forge_commits: commits,
+            stall,
             ..StoryLimits::default()
         },
     )
@@ -72,7 +92,7 @@ fn goal_world_with_ci(
                 last: authority::Last::Exact(b"main".as_slice().into()),
             },
             ci: main_ci,
-            up_to_date: false,
+            up_to_date,
             gates: Box::new([]),
             approvals: Box::new([]),
         },
@@ -618,7 +638,63 @@ fn a_closers_landing_held_escalates_to_the_goal() {
     wait_held(&mut world, landing, goal.task);
     assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Repairs, .. }));
     assert!(matches!(live_task(&world, closer).phase, tasks::Phase::Active(_)));
+    let name = forge_top::Name {
+        forge: forge_world::REPO.forge,
+        repository: forge_world::REPO.repository,
+        what: forge_top::What::Pull(row(&world, landing).pull.expect("landing pull")),
+    };
+    let pull = Key::Forge(forge_top::Key::PullState(name));
+    let mut watched = false;
+    for _ in 0..STEPS {
+        if let Some(Record::Forge { row }) = world.store.rows.get(&pull)
+            && let forge_top::Stored::PullState(pull) = row.as_ref()
+        {
+            watched = pull.head == translate::commit(head) && pull.ci == skein_forge::api::Ci::Failed;
+        }
+        if watched {
+            break;
+        }
+        world.tick();
+    }
+    assert!(watched, "the pull watch catches the gathered head before the restart oracle");
     world.close();
+}
+
+pub(super) fn updating_landing(close: bool) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    updating_landing_with_stall(close, None)
+}
+
+pub(super) fn updating_landing_with_stall(
+    close: bool,
+    stall: Option<Duration>,
+) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) = goal_world_with_updates(close, true, None, true, true, STEPS, None, true, stall);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    let main = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"base", b"new main", 1)
+        .expect("main advances");
+    status(&mut world, main, raw::Check::Passed);
+    let closer = make_closer(&mut world, &goal, 94);
+    if close {
+        let job = close_job(&mut world);
+        let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+        finish_close(&mut world, close, &branch, &job);
+        wait_ended(&mut world, close);
+        assert!(matches!(row(&world, close).change.state, change::State::Landed { .. }));
+    }
+    let landing = wait_landing(&mut world, closer);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(row(&world, landing).change.state, change::State::Updating { .. }) {
+            break;
+        }
+    }
+    assert!(
+        matches!(row(&world, landing).change.state, change::State::Updating { .. }),
+        "{:?}",
+        row(&world, landing).change.state
+    );
+    assert_eq!(world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::Update { .. })).count(), 0);
+    (world, goal, branch, closer, landing)
 }
 
 fn pending_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {

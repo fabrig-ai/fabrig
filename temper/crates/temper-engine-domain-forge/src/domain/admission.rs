@@ -9,7 +9,7 @@ use skein_forge::api::Error;
 use skein_forge_client::{Resource, Watch};
 use skein_lib::{Duration, List, Map, Queue, Token};
 
-type Failed = (Option<Name>, RefusalCause);
+pub(super) type Failed = (Option<Name>, RefusalCause);
 
 pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
     let resources = watched_names(d, &resources);
@@ -88,33 +88,153 @@ fn finish(watches: Map<Resource, Watch>, limits: &Limits, resource: Option<Name>
     Ok(list.into_boxed())
 }
 
+pub(super) struct SubscriptionProblem {
+    pub words: &'static [u8],
+    pub failure: Option<Failed>,
+}
+
+fn subscription_bound(
+    words: &'static [u8],
+    member: &'static str,
+    configured: u32,
+    needed: usize,
+    resource: Option<Name>,
+) -> SubscriptionProblem {
+    SubscriptionProblem {
+        words,
+        failure: Some((
+            resource,
+            RefusalCause::Limit { member, configured: u64::from(configured), needed: skein_lib::len_u64(needed) },
+        )),
+    }
+}
+
+pub(super) fn subscription_problem(
+    d: &Domain,
+    limits: &Limits,
+    subscription: &crate::Subscriber,
+) -> Option<SubscriptionProblem> {
+    use crate::Topic;
+    let (repository, resource) = match &subscription.topic {
+        Topic::Landings { repository, branch } => {
+            let resource = Resource { repository: *repository, what: skein_forge_client::What::Branch(branch.clone()) };
+            let name = super::from_client(&resource, limits);
+            (*repository, name)
+        }
+        Topic::Ci { repository, .. } => (
+            *repository,
+            Some(Name { forge: repository.forge, repository: repository.repository, what: What::Repository }),
+        ),
+        Topic::Pull { repository, number } | Topic::Participation { repository, number } => (
+            *repository,
+            Some(Name { forge: repository.forge, repository: repository.repository, what: What::Pull(*number) }),
+        ),
+    };
+    if let Some(tasks) = &subscription.goal_tasks
+        && tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items)
+    {
+        return Some(subscription_bound(
+            b"goal_tasks exceeds issue_policy.plan_items",
+            "forge.issue_policy.plan_items",
+            limits.issue_policy.plan_items,
+            tasks.len(),
+            resource,
+        ));
+    }
+    if subscription.number == 0 {
+        return Some(SubscriptionProblem { words: b"subscription number must be positive", failure: None });
+    }
+    if subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription) {
+        return Some(subscription_bound(
+            b"paths exceeds paths_per_subscription",
+            "forge.paths_per_subscription",
+            limits.paths_per_subscription,
+            subscription.paths.len(),
+            resource,
+        ));
+    }
+    match d.subscriptions.get(&(subscription.task, subscription.topic.clone())) {
+        Some(existing) if existing.number != subscription.number => {
+            return Some(SubscriptionProblem {
+                words: b"duplicate topic; keep the existing subscription or unsubscribe it first",
+                failure: None,
+            });
+        }
+        None if d.subscriptions.len() == limits.subscriptions => {
+            return Some(subscription_bound(
+                b"forge subscription room exhausted: subscriptions",
+                "forge.subscriptions",
+                limits.subscriptions,
+                skein_lib::usize_of(d.subscriptions.len()).saturating_add(1),
+                resource,
+            ));
+        }
+        Some(_) | None => {}
+    }
+    for path in &subscription.paths {
+        if path.len() > skein_lib::usize_of(limits.name_bytes) {
+            return Some(subscription_bound(
+                b"path exceeds name_bytes",
+                "forge.name_bytes",
+                limits.name_bytes,
+                path.len(),
+                resource,
+            ));
+        }
+    }
+    if let Topic::Landings { branch, .. } = &subscription.topic
+        && branch.len() > skein_lib::usize_of(limits.name_bytes)
+    {
+        return Some(subscription_bound(
+            b"branch exceeds name_bytes",
+            "forge.name_bytes",
+            limits.name_bytes,
+            branch.len(),
+            resource,
+        ));
+    }
+    if !d.repositories.contains_key(&repository) {
+        return Some(SubscriptionProblem {
+            words: b"repository is not adopted; select an adopted owner/name",
+            failure: Some((resource, RefusalCause::Unadopted)),
+        });
+    }
+    match &subscription.topic {
+        Topic::Landings { branch, .. } => match landing_subscription_problem(d, limits, repository, branch) {
+            Ok(()) => None,
+            Err(failure) => {
+                let words: &[u8] = match failure.1 {
+                    RefusalCause::InvalidName => b"malformed branch: use nonempty slash-separated branch segments",
+                    RefusalCause::Limit { .. } | RefusalCause::Unadopted | RefusalCause::Backend(_) => {
+                        b"landing branch watch does not fit forge resource limits"
+                    }
+                };
+                Some(SubscriptionProblem { words, failure: Some(failure) })
+            }
+        },
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+    }
+}
+
 /// Admit a landing branch against the same union as task names, before retaining its subscription.
 pub(super) fn landing_subscription_problem(
     d: &Domain,
     limits: &Limits,
     repository: skein_forge::api::Repository,
     branch: &[u8],
-) -> Option<(&'static [u8], Option<u32>)> {
+) -> Result<(), Failed> {
     let resource = Resource { repository, what: skein_forge_client::What::Branch(Box::from(branch)) };
     let Some(name) = super::from_client(&resource, limits) else {
-        return Some((b"malformed branch: use nonempty slash-separated branch segments", None));
+        return Err((None, RefusalCause::InvalidName));
     };
-    let problem: (&[u8], Option<u32>) = (b"landing branch watch does not fit forge resource limits", None);
     let mut watches = Map::uncapped();
     for (_, names) in &d.names {
-        if add(d, limits, names, &mut watches).is_err() {
-            return Some(problem);
-        }
+        add(d, limits, names, &mut watches)?;
     }
-    if add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches).is_err()
-        || add(d, limits, core::slice::from_ref(&name), &mut watches).is_err()
-    {
-        return Some(problem);
-    }
-    match finish(watches, limits, Some(name)) {
-        Ok(_) => None,
-        Err(_) => Some(problem),
-    }
+    add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches)?;
+    add(d, limits, core::slice::from_ref(&name), &mut watches)?;
+    finish(watches, limits, Some(name))?;
+    Ok(())
 }
 
 fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
@@ -133,7 +253,7 @@ fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, 
     Ok(())
 }
 
-fn validate(d: &Domain, limits: &Limits, name: &Name) -> Result<(), Failed> {
+pub(super) fn validate(d: &Domain, limits: &Limits, name: &Name) -> Result<(), Failed> {
     let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     if !d.repositories.contains_key(&repository) {
         return Err((Some(name.clone()), RefusalCause::Unadopted));
@@ -268,6 +388,55 @@ pub(super) fn writers(d: &mut Domain, env: &Env<Limits>) {
     for entry in &entries {
         merge_writer(d, env, entry, true);
     }
+    let mut updates = List::with_capacity(env.limits.entries);
+    for (_, row) in &d.entries {
+        if !row.held
+            && let skein_forge_client::Condition::Update { .. } = row.entry.effect.condition
+        {
+            updates.push(row.entry.clone()).expect("bounded outbox");
+        }
+    }
+    for entry in &updates {
+        update_writer(d, env, entry, true);
+    }
+    let mut recovering = List::with_capacity(env.limits.changes);
+    for (_, row) in &d.changes {
+        if row.pending.is_none()
+            && row.effect == temper_engine_domain_forge_change::EffectResult::None
+            && row.effect_account.is_some()
+            && super::matches_updating(&row.change.state)
+        {
+            recovering.push(row.clone()).expect("bounded changes");
+        }
+    }
+    for row in &recovering {
+        change_writer(d, env, row, true);
+    }
+}
+
+/// An update owns forward moves by temper, not moves by another identity or rewrites.
+pub(super) fn update_writer(d: &mut Domain, env: &Env<Limits>, entry: &skein_forge_client::Entry, taken: bool) {
+    let skein_forge_client::Condition::Update { .. } = entry.effect.condition else { return };
+    let Some(row) = d.changes.get(&entry.task).cloned() else { return };
+    if taken && row.pending != Some(entry.number) {
+        return;
+    }
+    let recovering = row.effect == temper_engine_domain_forge_change::EffectResult::None
+        && super::matches_updating(&row.change.state);
+    change_writer(d, env, &row, taken || recovering);
+}
+
+/// A let-go update keeps deciding whose forward head it read until containment settles.
+pub(super) fn change_writer(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, taken: bool) {
+    let resource = Resource { repository: row.repository, what: skein_forge_client::What::Branch(row.branch.clone()) };
+    let Some(name) = super::from_client(&resource, &env.limits) else { return };
+    let taken = taken || super::branch_written(d, &name, None);
+    skein_forge_client::step(
+        &mut d.client,
+        &child_env(env),
+        skein_forge_client::Event::Writer { resource, taken },
+        &mut d.client_out,
+    );
 }
 
 /// Keep a merge's held base visible as written until its outcome confirms the head.
@@ -310,11 +479,13 @@ pub(super) fn read_failed(
         StepStage::Pull => (
             b"read pull",
             match row.pull {
-                Some(number) => Read::Pull { number },
+                Some(number) => Read::Pull { number, ci: pending.pull_ci },
                 None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
             },
         ),
         StepStage::Ci
+        | StepStage::Run(_)
+        | StepStage::ContainsHead
         | StepStage::BaseCi
         | StepStage::Compare
         | StepStage::CatchUp

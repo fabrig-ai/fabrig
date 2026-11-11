@@ -4,12 +4,12 @@
 
 The TUI (`../../draft/tui.md`) is a person's full-screen terminal client:
 temper's client root, a view of its own and skein's full-screen shell
-(skein's `ui/screen.md`), over the native transport `temper open` uses.
+(skein's `ui/screen.md`), over the native transport `temper-box open` uses.
 Its first pass (`../../draft/tui.md`, section 4) signs in from the local
 engine's link file, with a pasted link or the browser's approval as
 fallback (`../README.md`, 4.1); once signed in it draws, live, a launchpad, the commands
 of the browser's chat terminal and a chat read as that terminal reads
-it (`pages.md`). `temper open` stays the tests' line client
+it (`pages.md`). `temper-box open` stays the tests' line client
 (`../line.md`, 9).
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
@@ -17,13 +17,13 @@ it (`pages.md`). `temper open` stays the tests' line client
   and 1), at the address of the engine's link file its environment
   names, when the binary reads one there (2, *The engine's link, kept
   at rest*), else at the address its directory keeps (2), else at
-  `http://127.0.0.1:8367`, the clients' port `temper init` prefers
+  `http://127.0.0.1:8367`, the clients' port `temper-box init` prefers
   (`../../../help/reference/commands.md`). Otherwise it prints the line it
   printed before the TUI, `temper: no command; temper --help lists
   them`, and exits 1.
 - **`temper ADDRESS`** names the engine's clients' listener,
   `http://HOST:PORT`, with or without a final `/`, HOST an IP address on
-  loopback, read as `temper open` reads an address (`../line.md`, 1). A box whose
+  loopback, read as `temper-box open` reads an address (`../line.md`, 1). A box whose
   port fell back to another is named by its address.
 - **The link is never an argument,** as `temper ctl`'s isn't
   (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
@@ -31,8 +31,8 @@ it (`pages.md`). `temper open` stays the tests' line client
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
-- **Started by a box, too:** `temper box` in a terminal runs the TUI in
-  front of its services, `temper internal tui --box http://HOST:PORT`,
+- **Started by a box, too:** `temper-box` in a terminal runs the TUI in
+  front of its services, `temper-box internal tui --box http://HOST:PORT`,
   signed in by a link the box hands it (`box.md`).
 - **Exit status:** 0 once the TUI closed (4); 1 when it cannot
   start, with one line on stderr:
@@ -56,20 +56,20 @@ it (`pages.md`). `temper open` stays the tests' line client
   temper-client --help lists them`. Its directory, its `address` and its
   `sign-in` note are the same files (2), so either binary finds what
   the other kept, and it reads the engine's link file as the box's
-  `temper` does (`../../protocol/binaries.md`).
+  `temper-box internal tui` does (`../../protocol/binaries.md`).
 
 ## 2. Its directory
 
 - **Where:** `$XDG_STATE_HOME/temper/tui` where `XDG_STATE_HOME` is an
   absolute path, else `$HOME/.local/state/temper/tui` (skein-shell's
   `Base::State` for the tool `temper`, then `tui`); with neither, the
-  start is refused. It is the TUI's alone, never `temper open`'s or
+  start is refused. It is the TUI's alone, never `temper-box open`'s or
   `temper ctl`'s, and no argument names it.
-- **Private,** as `temper open`'s (`../line.md`, 1): the binary makes it and its
+- **Private,** as `temper-box open`'s (`../line.md`, 1): the binary makes it and its
   missing parents `0o700` and refuses it unless it is a directory of
   this user's with no group or other bits (skein's `runtime/io/files.md`, 3), then
   opens its parent as a root and gives `tui` to
-  `jig-client-shell-native`, as `temper open` gives DIRECTORY's last
+  `jig-client-shell-native`, as `temper-box open` gives DIRECTORY's last
   component.
 - **What it holds:**
   - `token`, the bearer credential, and `store`, the small store, both
@@ -100,7 +100,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   there refuses it, and the TUI erases it and asks for that engine's
   link (`pages.md`).
 - **The engine's link, kept at rest.** While the printed link is
-  enabled (`../README.md`, section 4), the running engine, `temper serve` alone or under
+  enabled (`../README.md`, section 4), the running engine, `temper-box serve` alone or under
   `temper box`, keeps its live local link, a one-time secret of its own
   beside the printed link's (jig's `protocol/client/sign-in.md`, *The
   local link*), with the address, in a private file, so that a TUI on
@@ -134,7 +134,7 @@ it (`pages.md`). `temper open` stays the tests' line client
     after a TUI spent the last or a sign-in found it expired. A `Link` is
     printed alone and never written, and `temper box`'s first secret,
     the printed link's (`../../protocol/setup/box.md`, 2), is never written
-    either. A write that fails is one line on stderr, `temper serve: link
+    either. A write that fails is one line on stderr, `temper-box serve: link
     file PATH: WHY`, naming no secret, and serve goes on.
   - *Removed* when serve exits, by any way out it has. An engine killed
     outright leaves it, and its link then grants nothing (below).
@@ -149,7 +149,7 @@ it (`pages.md`). `temper open` stays the tests' line client
     is the TUI's address: the engine there is this machine's temper box,
     and the TUI names its place "box" (`pages.md`, *The rule above the box*).
     The binary keeps the answer alone, `run::Settings.boxed`, and drops
-    the secret. `temper serve` run alone writes the same file and reads
+    the secret. `temper-box serve` run alone writes the same file and reads
     as a box too: the file does not tell them apart. With no file, or a
     link for another address, the TUI is not on a box. The binary opens a separate root for
     the link's parent; the run resolves only its filename beneath that
@@ -180,7 +180,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   recorder and replay (`../../draft/tui.md`, section 5) all call it, and
   nothing else of it.
 - **It holds** temper's client root, `temper-client-domain`'s `Domain`,
-  linked, as `temper open`'s native client holds it (`../line.md`, 2); the TUI's
+  linked, as `temper-box open`'s native client holds it (`../line.md`, 2); the TUI's
   state and view (`pages.md`); the focus; and the frame. It holds no io, no
   file, no clock and no randomness of its own: what it does is a
   function of its reports, its clocks and its seed.
@@ -237,7 +237,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   the browser's opener ended, done or not (`../README.md`, 4.1). Any report
   before `Start` is the host's defect.
 - **The duties** of each report: the root's requests for the native
-  shell, in order, each routed as `temper open` routes them (`../line.md`, 2), and
+  shell, in order, each routed as `temper-box open` routes them (`../line.md`, 2), and
   after them the TUI's `theme` record to save, when the person took a
   theme (`theme.md`, *The theme chosen*); the
   credential to keep, or none to erase it; the note to write, when the
@@ -280,7 +280,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   `ui/screen.md`, section 5). After each report the host has already
   built its view from the root and the TUI's state, so `Host::tree` is
   the tree the next key reads.
-- **Its pages:** the root starts at `Inbox { filter: ALL }`, as `temper
+- **Its pages:** the root starts at `Inbox { filter: ALL }`, as `temper-box
   open`'s does, and the host moves it:
   - *to the launchpad,* `Went(Home { project })`, the first of `me`'s
     projects in `me`'s order, after the report in which the link is live
@@ -301,7 +301,7 @@ it (`pages.md`). `temper open` stays the tests' line client
     names is gone to as at the start.
   Every other duty of the root's but its requests to the native shell,
   `KeepLook` and `Screen` among them, is the browser's and is dropped,
-  as `temper open` drops them.
+  as `temper-box open` drops them.
 - **The look:** right after `Start` the host gives the root `Event::LookKept
   { look: Look { terminal: true, theme, font: Font::DejaVu } }`, `theme`
   the scheme of the theme kept (`theme.md`, *The theme chosen*), and again
@@ -370,7 +370,7 @@ it (`pages.md`). `temper open` stays the tests' line client
 - **One host on skein's loop** (skein-shell's `drive`),
   `temper-client-shell-tui`'s `run::Run`: the host (3);
   `jig-client-shell-native`'s `Shell`, its transport and its files, as
-  `temper open`'s; skein's full-screen terminal on stdin and stdout
+  `temper-box open`'s; skein's full-screen terminal on stdin and stdout
   (skein's `ui/screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
   from skein-shell's `open_signals` with `Watch::TerminationAndWindow`,
   adopted by an io of its own, which in front of a box reads the box's
@@ -409,7 +409,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   host's frame
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
-- **Time and the seed** are skein-shell's, as `temper open`'s (`../line.md`, 2).
+- **Time and the seed** are skein-shell's, as `temper-box open`'s (`../line.md`, 2).
 - **Closing:** `/quit` (or `/exit`, `pages.md`, *`/quit`*), Ctrl+C anywhere,
   the input's
   end, SIGINT or SIGTERM; in front of a box, the end of the box's lines
@@ -419,7 +419,7 @@ it (`pages.md`). `temper open` stays the tests' line client
   finishes the small store's last write, then closes its connections
   and files; the binary sets the terminal's modes back, writes the
   address (2) and exits 0. What is pending stays in the small store,
-  as `temper open`'s does (`../line.md`, 6).
+  as `temper-box open`'s does (`../line.md`, 6).
 - **Its startup** is the binary's (skein's `ui/screen.md`, section 8):
   the input set raw with the interrupt keys passed as bytes
   (`Keys::Pass`), so that Ctrl+C is a key; then the restoration
@@ -464,7 +464,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 - **On a box, told by the box** (2, *On a box*; `pages.md`, *The rule
   above the box*): in front, the box tells the TUI it is one (`box.md`, *The
   place*); bare `temper` reads the engine's link file, which names an
-  engine of this machine, so `temper serve` run alone reads as a box
+  engine of this machine, so `temper-box serve` run alone reads as a box
   too, where the user's request of 2026-11-08 names "box" for a temper
   box. Default: the file, for bare `temper`. Owner: temper/tui.
 - **The TUI's design location:** `README.md`, sections 1 to 3 and `pages.md` and `theme.md` and `README.md`, section 4 and `../README.md`, section 4.1 stay
@@ -496,7 +496,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   refines the look on them
   (`journeys.md`, sections 9 and 10), and the look requests
   `tui-launchpad` and `tui-chat-title-below` are checked against them
-  (`../../draft/look-requests.md`, sections 4 and 5). Simulated closing, client-world
+  (`../web/look-requests.md`, sections 4 and 5). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
 - **The TUI in front of a box after landing** (`box.md`): run `temper box`
@@ -504,7 +504,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   and given back, Ctrl+C with and without work, a restart and a give up
   on the quiet line, `/log`, and the welcome's link copied whole from
   its wrapped rows; the look request `tui-box-front` is checked against
-  its frames, the light theme among them (`../../draft/look-requests.md`,
+  its frames, the light theme among them (`../web/look-requests.md`,
   sections 4 and 5). The user's requests of 2026-11-09 are checked
   there too, in emacs vterm at 150 by 39 on a brand-new box: keys typed
   on the welcome before the sign-in lands drawn at once and kept, Enter

@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `pages/README.md` (*Away*, *Decided for you*, *Home on any project*, and
 *Needs you*'s *Why it reached you*, *Stop asking* and *Keep asking*),
@@ -31,20 +31,6 @@ follow landing (`README.md`, section 5).
   prints it; milestone T1 of
   [whole-story.execution.md](../draft/whole-story.execution.md), landed by
   plan `tui-whole-t1`, drew none, so it stays temper/tui's.
-- **Not yet:** `pages/README.md`, *Decided for you*, *The region*, on *Needs you*: the
-  head's right says "for 24 hours, then in each task's history" where a
-  filtered page has "Limits"; the region is named "Decided for you", not by
-  its heading; and a filtered page's rows say "PROJECT · TITLE · 01:05" as
-  well (`temper-client-view`'s `pages/decided.rs`), which the view's and
-  the gallery's tests hold.
-- **Not yet:** `pages/README.md`, *Decided for you*, *On Home*: the intro takes the
-  spell's form only while a row shows too (`temper-client-domain`'s
-  `pages/home.rs`), so Away on, or ended less than a day ago, with no row
-  showing draws *Home on any project*'s intro.
-- **Not yet:** `pages/README.md`, *Needs you*, *Stop asking*, *Its offers in words*: a
-  path set's words offer draws its "Which changes" field above "Let agents
-  decide changes to NAME that are:", where the sentence stands over it
-  (`temper-client-view`'s `pages/needs.rs`).
 
 `tui/README.md`, section 3 and `tui/pages.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
@@ -367,7 +353,7 @@ terminal has shown any of it: the check, emacs vterm among them, is
   `send`).
 - **Not yet:** `tui/pages.md`, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
-  `../../help/reference/commands.md` and held by `temper`'s
+  `../../help/reference/commands.md` and held by `temper-box-shell`'s
   `tests/help.rs`) say "`/exit` or Ctrl+C closes it", where
   `temper help tui` and the TUI's list name `/quit`.
 
@@ -447,21 +433,6 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
-- **Not yet:** `tui/pages.md`, *A design session*, and the lines of `tui/pages.md` and `tui/theme.md`
-  that name it, milestone T2 of
-  [whole-story.execution.md](../draft/whole-story.execution.md), the
-  plan `tui-design-session`: the root's `/goal` on a chat, which
-  *Offered* still leaves out; `/goal`'s prompt of ways, a goal made from
-  it reopening the chat, and a linked goal in the quiet line and `/open`;
-  the pane in the side region `tui-pane`, its three states, `HALVES`,
-  Ctrl-P, the body's scroll as the state changes, the draft's head and
-  sections, "new" and a flow's fenced text; and the quiet line's right
-  half (*The quiet line*): the pane's state, the next Ctrl-P's words and
-  the goal's part, each built with the pane or `/goal` it names, since a
-  part shown before them would name a key or a command that does nothing
-  (the user, 2026-11-10); the left half, the project, "drafter" and the
-  closed line, stands. Skein's side region comes first (skein's
-  `ui/screen.status.md`).
 
 `pages/README.md` and `forge/records.md` and `pages/goal.md`, section 2 and `pages/settings.md`, section 2 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
@@ -519,7 +490,7 @@ The four request accounts are `2f653fffa3`
 (`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
 (`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
-render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
+render comparison follows landing (`web/look-requests.md`, 4 and 5;
 `README.md`, section 5). The ground, scrollbar and foot repairs are recorded in
 `web/look.status.md`. The ordinary bar's two-row title at 1000 px
 remains intentional: `>_` and the status words leave the path less than
@@ -878,8 +849,7 @@ landing; its later failures are `web/testing.status.md`'s, 3 and 6.
   but the first trial request, and account rows share one running task's
   wait and last wait, so a stopped row can say another trial's reason or
   lose its earlier reason (`../domain/trial.status.md`, 6). No reason for
-  these limits is recorded. The draft's missing "one short message" spend
-  notice remains a design gap (`../draft/model-check.status.md`, 2).
+  these limits is recorded.
 - **Design departs:** `pages/README.md`, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads
@@ -1041,10 +1011,10 @@ presses the switch across projects: the render check and the walk remain
   case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** `forge/records.md`, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
-  to the person for this machine: `temper forge run`'s refusal
-  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
-  directory whole, and the terminal client says `temper open`
-  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
+  to the person for this machine: `temper-box forge run`'s refusal
+  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper-box forge prepare` and each
+  directory whole, and the terminal client says `temper-box open`
+  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper-box` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no
   reason is recorded. Seen by reading.
 - **Design departs:** `pages/README.md`, *The flows' paths* and *Workers*, from the request

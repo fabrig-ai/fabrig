@@ -32,10 +32,10 @@ fn ends(io: &Queue<skein_io::Request>) -> (List<Token>, List<Token>) {
 fn abort_ends_each_call_in_flight_as_its_deadline_would_and_then_says_closed() {
     let mut h = fixtures::known();
     h.run(Duration::from_secs(5));
-    h.call(1, fixtures::REPO, Op::Read(Read::Settings));
+    h.call(1, fixtures::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     h.run(Duration::ZERO);
     h.connected(fixtures::FORGE);
-    h.call(2, fixtures::REPO, Op::Read(Read::Settings));
+    h.call(2, fixtures::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     h.run(Duration::ZERO);
     assert_eq!(h.peers.len(), 2, "one connection per call");
     h.send(Request::Abort);
@@ -120,7 +120,7 @@ fn a_call_after_the_close_is_answered_unavailable() {
 #[test]
 fn close_after_abort_changes_nothing() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Settings));
+    h.call(1, fixtures::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     h.run(Duration::ZERO);
     h.send(Request::Abort);
     let events = h.up.len();

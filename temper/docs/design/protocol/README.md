@@ -41,24 +41,24 @@ its tests, is `cluster.md`.
   over io's processes. temper's records on jig's channel, in jig's store
   and on the client's wire are generated from schemas by skein's
   generator.
-- **Standalone first.** `temper serve` runs the engine and one worker in
+- **Standalone first.** `temper-box serve` runs the engine and one worker in
   one process, on one loop, joined by jig's in-process address; the
-  worker's agents are child processes of temper's own binary (`temper
+  worker's agents are child processes of temper's own binary (`temper-box
   internal agent`); a person's client reaches the engine on loopback;
   the forge is polled, and hinted by its webhooks on loopback when they
   are configured (section 6; forge/README.md, section 4). Hosts apart,
   webhooks from another host, the forge as a sign-in provider and the
   forge's client documents come after (section 11). The browser is a
   person's client on loopback too (`../client/web/README.md`).
-- **The cluster, for tests.** The same `temper serve`, on a
+- **The cluster, for tests.** The same `temper-box serve`, on a
   document of another shape, is an engine alone or a worker alone. One
   engine alone and its workers alone, each a process of its own on one
   machine, joined over loopback in plaintext, with the fakes as
   processes beside them, are the cluster that temper's process tier
   runs from one description (`cluster.md`). It is no
-  deployment's shape: a box keeps its one worker inside `temper serve`.
-- **One binary:** `serve`, `internal agent`, `open`, `program-login`,
-  the forge's setup's `forge prepare`, `forge run` and `box`, and the
+  deployment's shape: a box keeps its one worker inside `temper-box serve`.
+- **The box's binary, `temper-box`:** `serve`, `internal agent`, `open`,
+  `program-login`, the forge's `forge prepare`, `forge run`, the bare form, and the
   agents' `ctl`, which `../client/ctl/README.md` designs (`binaries.md`).
 - **No retries below the domain.** A call goes out once and ends once,
   with the failure the domain's vocabulary defines (`components.md`).
@@ -84,7 +84,7 @@ its tests, is `cluster.md`.
    temper composes, the service parts jig ships for it, and the routing
    temper copies.
 2. **README.md:** this overview.
-3. **configuration/README.md:** what `temper serve` and its other commands are
+3. **configuration/README.md:** what `temper-box serve` and its other commands are
    told at start.
 4. **credentials.md:** the secrets temper's processes hold: LLM accounts
    as jig's, the forges' records in jig's secrets' store, the forges'
@@ -125,11 +125,11 @@ binary (`jig-test`).
 
 | Name | What it is |
 |---|---|
-| standalone | one process on one person's machine: `temper serve` with the engine and one worker joined in process (section 6) |
-| engine alone | `temper serve` on a document with an engine and no worker, its workers' listener on loopback (`cluster.md`, 1) |
-| worker alone | `temper serve` on a document with one worker and no engine, dialling an engine alone on loopback (`cluster.md`, 1) |
+| standalone | one process on one person's machine: `temper-box serve` with the engine and one worker joined in process (section 6) |
+| engine alone | `temper-box serve` on a document with an engine and no worker, its workers' listener on loopback (`cluster.md`, 1) |
+| worker alone | `temper-box serve` on a document with one worker and no engine, dialling an engine alone on loopback (`cluster.md`, 1) |
 | the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier runs it (`cluster.md`) |
-| the cluster's description | `crates/temper/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (`cluster.md`, 5) |
+| the cluster's description | `bin/temper-box/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (`cluster.md`, 5) |
 | the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 4 and 5) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
 | the forge component | skein's `skein-forge-connection` (forge/README.md; skein's `forge/connection.md`) |
@@ -148,7 +148,7 @@ binary (`jig-test`).
 | the bundle | the browser shell's module, glue and stylesheets, skein's bundler's output, which the binary holds and the clients' listener serves (`../client/web/README.md`, 2.2 and 2.6) |
 | the tools | the agents' interface to temper, `temper ctl`: `temper-client-tools` and `temper-client-shell-cli` (`../client/ctl/README.md`, section 4) |
 | the clients' listener | `temper-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/engine.md`) |
-| the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`, 3) |
+| the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper-box fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`, 3) |
 | the throwaway Forgejo | a Forgejo started by a test script on loopback, with SQLite in a scratch directory, removed after (`../testing/process-tier.md`) |
 | locate | the forge connector's read of a repository's id by owner and name (skein's `forge/forgejo.md`, 1.2) |
 | the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge/connection.md`, section 6; forge/README.md, section 4) |
@@ -278,7 +278,7 @@ temper-service, worker module           iterate
     ├── jig-protocol-worker-link        the link to the engine; temper's parts as bytes (channel.md)
     ├── smith-host-protocol             one channel per agent process, over its pipes; LLM grants filled into its start
     ├── jig-protocol-worker-agents      the program sources and the worker route, between smith's host half and the link
-    ├── agent processes                 the agent's program, temper internal agent or temper-agent, each in a process group of its own
+    ├── agent processes                 the agent's program, temper-box internal agent or temper-agent, each in a process group of its own
     ├── the identities' table           git identities' values, from grants (credentials.md, section 4)
     └── temper-worker-protocol-git      the git component: the checkout's io (git.md)
 ```
@@ -288,12 +288,12 @@ No store; starting, ending and smith's payloads are jig's (jig's
 
 - **Agents run as the agent's program:** the worker's `agent` member
   (configuration/README.md, section 4), with the arguments it gives, its
-  environment holding no credential: the box's `temper internal agent
+  environment holding no credential: the box's `temper-box internal agent
   AGENT.json`, or a deployment's `temper-agent AGENT.json` (`binaries.md`, 3).
 - **A model list's launch** (smith's `protocol/agent.md`, 6.1) runs the
   same program, its arguments by the run's form, and smith's host half
   puts `--list` before them: `internal agent AGENT.json` lists as
-  `internal agent-list AGENT.json`, so `temper --list internal
+  `internal agent-list AGENT.json`, so `temper-box --list internal
   agent-list AGENT.json`; `AGENT.json` alone, the `agent` member's
   `configuration`, lists as `AGENT.json`, so `temper-agent --list
   AGENT.json`. Any other form has no list launch, and a list's read
@@ -335,8 +335,8 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   listener and the worker's link (configuration/README.md, section 2). The
   link's opening, authentication, liveness, relays and grants run as
   between hosts, in plaintext, with no TLS.
-- **A client on loopback,** over TCP to the clients' listener: `temper
-  open`, signing in by the link `temper serve` prints at start, or
+- **A client on loopback,** over TCP to the clients' listener: `temper-box
+  open`, signing in by the link `temper-box serve` prints at start, or
   `temper box` before it starts serve (`setup/box.md`, 2).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
@@ -403,7 +403,7 @@ log says when that happened; nothing else about the loop changes.
 - **The line** is one stderr line, which the box keeps in `serve.log`
   (`setup/box.md`, 2), naming the pass, its longest stage and the bound,
   with no payload:
-  `temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound`.
+  `temper-box serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound`.
 - **At most one line in 10 s,** `long_pass::LINE_EVERY`. The first long pass
   writes at once. Those after it within the 10 s are held as the longest
   of them and a count, and the first pass past the 10 s, long or not,
@@ -414,7 +414,7 @@ log says when that happened; nothing else about the loop changes.
   comparisons in a pass, no allocation and no write.
 - **Its tests** hold the bound, the rate and the words on supplied times:
   `temper-service`'s `tests/long_pass.rs`, and the line's words beside
-  `note_line` in `temper`'s `host.rs`.
+  `note_line` in `temper-service-shell`'s `host.rs`.
 
 ### 6.2 When the core does not answer
 
@@ -434,9 +434,9 @@ the client wire (`README.md`, section 11).
 - **The line.** When the gate has kept a party's input from the root for
   1 s or more, answered not ready or held, the service writes one stderr
   line, which the box keeps in `serve.log` (setup/box.md, 2):
-  `temper serve: the core is not answering: REASON`. It writes it again
+  `temper-box serve: the core is not answering: REASON`. It writes it again
   only when the reason changes, and once the gate passes a party's
-  input again after such a line, `temper serve: the core answers
+  input again after such a line, `temper-box serve: the core answers
   again`. The 1 s is 6.1's bound, a thirtieth of `temper ctl`'s
   deadline. The time is the service's clock, judged as each party's
   input arrives, so a deployment no client calls writes nothing, and
@@ -456,12 +456,12 @@ the client wire (`README.md`, section 11).
   A root whose journal has stopped is not among them: it ends the
   engine (below).
 - **A stopped journal ends the engine.** The root's `Stop` with what
-  stopped its journal (`../domain/root.md`, section 4) ends `temper
-  serve` with exit 1 and one line, `temper serve: the engine's journal
+  stopped its journal (`../domain/root.md`, section 4) ends `temper-box
+  serve` with exit 1 and one line, `temper-box serve: the engine's journal
   stopped: WHY`, WHY one of `the store answered commit N, with S sent
   and D durable`, `a decision past the store's E writes`, `the commit
   counter at its end`. A commit the store failed keeps its own line,
-  `temper serve: commit N failed`, and a start's refusal its own lines
+  `temper-box serve: commit N failed`, and a start's refusal its own lines
   (`binaries.md`).
 - **Bounded, and free when the core answers:** at most 240 bytes, no
   request's words and no secret; one reason held, and a comparison as
@@ -469,7 +469,7 @@ the client wire (`README.md`, section 11).
 - **Its tests** hold the 1 s, the change of reason, the line on the gate
   passing again and each reason's words, on a service stepped with
   supplied times, in `temper-service`'s tests; the journal's stop and
-  its line beside `note_line` in `temper`'s `host.rs`.
+  its line beside `note_line` in `temper-service-shell`'s `host.rs`.
 
 ## 7. Versions
 
@@ -485,7 +485,7 @@ section 8 give them. temper's sit beside them:
 |---|---|---|---|
 | `PAYLOAD_VERSION` | `temper-protocol-worker-wire` | temper's parts: the workspace items, the saved-work branch, the work, the preparation; a git identity's value; and a delivery's evidence, smith's record as the smith temper links encodes it | the worker's credential at the link's opening: another is refused as *application* (channel.md, section 3) |
 | `STORE_VERSION` | `temper-protocol-store` | temper's families | at the store's opening: a store written by another refuses to open (store.md, section 4) |
-| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper open`, from the same binary, speaks it (`../client/forge/records.md`) |
+| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`) |
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
@@ -631,7 +631,7 @@ read from are configuration/README.md's (`configuration/README.md`, section 5). 
 - **The forge's setup's secrets:** the engine's setup host holds an
   admin's token or a GitHub App's key only while a plan runs (setup/README.md,
   the setup host in the engine; credentials.md, section 5). The one setup
-  file `temper serve` reads is an owned forge's handover `admin_token`,
+  file `temper-box serve` reads is an owned forge's handover `admin_token`,
   read once and removed after its `TakeOver` is done (forge/engine.md, 6;
   configuration/README.md, section 5).
 
@@ -660,7 +660,7 @@ revisions temper's `Cargo.lock` pins.
   application's (jig's `client/domain/client/README.md`), on skein's UI kit and
   text shell (`../client/view.md` and `../client/line.md`); and, where something
   would be better upstream, as jig's design allows, the fake git
-  program, on skein's fake checkout and fake forge; and `temper program-login`, the
+  program, on skein's fake checkout and fake forge; and `temper-box program-login`, the
   application's command a program source's holder runs on each host
   (jig's `domain/accounts.md`, section 5).
 - **Not used:** `jig-protocol-charter` and `jig-protocol-tools` (llm.md);
@@ -703,7 +703,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 - **The process tier and the live tier:** the real binary end to end,
   outside the two suites: a chat answered, a change landed on an owned
   Forgejo with CI and webhooks, the binary killed and restarted, `temper
-  box`, `temper program-login` over smith's fake `claude`, the cluster
+  box`, `temper-box program-login` over smith's fake `claude`, the cluster
   with a task on each of two workers alone and a worker lost (`cluster.md`, 6);
   then a real model (`../testing/process-tier.md` and `../testing/live-tier.md`; setup/testing.md,
   4).
@@ -737,14 +737,14 @@ Each document keeps its own; these cross them:
 - **Generating the routing** (jig's `protocol/service.md`, section 9).
   Default: copied from jig's reference service and filled.
 - **Supervision** (jig's `protocol/service.md`, section 9): what
-  restarts `temper serve` after a failed commit or a crash. Default:
-  nothing of `temper serve`'s own; a box restarts it (setup/box.md, 2),
+  restarts `temper-box serve` after a failed commit or a crash. Default:
+  nothing of `temper-box serve`'s own; a box restarts it (setup/box.md, 2),
   and otherwise the person or the machine's
   service manager starts it again, and it recovers from the last
   durable commit.
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
-  section 10). Default: agent processes, as `temper internal agent`.
+  section 10). Default: agent processes, as `temper-box internal agent`.
 - **Programs after a forced agent stop** (section 6): killing an agent's
   group leaves a program in its own group running, even in standalone.
   Ending both needs contained trees or a parent-death signal for the
@@ -773,7 +773,7 @@ Each document keeps its own; these cross them:
   restarts whole, its workers stopped before its engine (`cluster.md`, 4);
   generations kept across starts come with hosts apart (credentials.md,
   section 8).
-- **`temper init` for the cluster's shapes.** Default: none; `temper
+- **`temper-box init` for the cluster's shapes.** Default: none; `temper-box
   init` writes standalone, and the cluster's documents are its
   description's templates (`cluster.md`, 5). Hosts apart would want it.
 - **Limits across processes.** Each process checks its own document
@@ -789,19 +789,13 @@ Each document keeps its own; these cross them:
 - **The box's members in the engine's closure** (`binaries.md`, 2): `temper-engine`
   checks a document's `box.` limits and `demo` member as the box's
   binary does, so it links the box's machine and the fakes' crates,
-  `temper-box` and `temper-fake`, with none of their commands (`components.md`
+  `temper-box-machine` and `temper-fake`, with none of their commands (`components.md`
   ). Default: so; a check of those members in a crate of no side would
   cut both from its closure.
-- **The box's `versions` and `upgrade`** (`binaries.md`): the draft gives
-  both to `temper-engine` (`binaries.md`, 2) and has the box keep the commands it
-  has (`../draft/deployment-binaries.md`, sections 3 and 9), and the box
-  has neither yet. Default: the box's table keeps both rows as `binaries.md`
-  designs them, until the draft's M5 settles the box's table
-  (`../draft/deployment-binaries.execution.md`).
-- **The closures' two shapes** (`binaries.md`, 1, 4): `binaries.rs` holds the
-  engine's closure by the crates its row excludes, `closure.rs` the
-  agent's by the temper crates and trees its row allows, where the
-  draft has one test hold every binary's
-  (`../draft/deployment-binaries.md`, sections 4 and 10). Default: both,
-  each with its row, until M5's test of the dependency rule keeps one
-  shape for every binary (`../draft/deployment-binaries.execution.md`).
+- **The box's `upgrade`** (`binaries.md`): the draft gives it to
+  `temper-engine` (`binaries.md`, 2) and has the box keep the commands
+  it has (`../draft/deployment-binaries.md`, sections 3 and 9); the box
+  holds `temper-engine`'s `versions` row and code, and neither binary
+  has `upgrade` yet. Default: the box's table takes `upgrade` as one
+  constant with the engine's, once jig's rehearsal and going back are
+  built.

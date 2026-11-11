@@ -44,7 +44,7 @@ temper box --config CONFIG --data DATA --cache CACHE
 temper ctl DIR sign-in -
 ```
 
-On fake backends, or with `temper serve`, start as temper help box or
+On fake backends, or with `temper-box serve`, start as temper help box or
 temper help server says. Give the link on stdin.
 
 Expect: `party 1 · owner · Owner` on a new deployment.

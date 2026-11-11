@@ -3,14 +3,16 @@
 
 use std::collections::BTreeSet;
 
-use temper_worker_checkout_world::{World, noisy, submit_noisily};
+use skein_lib::{Duration, Time};
+use temper_worker_checkout_world::client::{Interrupt, Plan};
+use temper_worker_checkout_world::{Settings, Span, World, noisy, submit_noisily};
 use temper_worker_domain_checkout::git::Fault;
 use temper_worker_domain_checkout::{Failure, Landing, Prepared};
 
 const ITERATIONS: u32 = 100_000;
 
-/// A thousand worlds with random limits, faults, schedules and clients: each
-/// settles, with every client's every request ended once and nothing left
+/// A thousand noisy worlds and forty calm save races: each settles,
+/// with every client's every request ended once and nothing left
 /// held or in flight (checked by `World::run`), and between them they reach
 /// every way a prepare, a push and a save can end, and every way the cache
 /// can find a workspace.
@@ -19,10 +21,28 @@ fn random_worlds_settle_with_every_client_heard() {
     let mut prepares = BTreeSet::new();
     let mut lands = BTreeSet::new();
     let (mut cached, mut races) = ([0; 4], [0; 9]);
-    for seed in 0..1000 {
-        let settings = noisy(seed);
+    for seed in 0..1040 {
+        let settings = if seed < 1000 {
+            noisy(seed)
+        } else {
+            Settings {
+                local: Span::millis(100, 100),
+                remote: Span::millis(1, 1),
+                think: Span::millis(0, 0),
+                ..Settings::calm(seed)
+            }
+        };
         let mut world = World::new(settings);
-        submit_noisily(&mut world, &settings, seed);
+        if seed < 1000 {
+            submit_noisily(&mut world, &settings, seed);
+        } else {
+            // Sweep preparation and saves without faults or earlier pushes
+            // consuming the interruption window. Store and checkout setup
+            // precede a save; a release during its commit stops it before it
+            // pushes, with the remaining repositories aborted too.
+            let interrupt = Some((Duration::from_millis((seed - 999) * 100), Interrupt::Release));
+            world.submit(Time::ZERO, Plan { pushes: 0, save: true, interrupt, ..Plan::simple(0) });
+        }
         world.run(ITERATIONS);
         let (told, stats) = (world.told().0, world.stats());
         for (count, more) in cached.iter_mut().zip([told.new, told.reused, told.rebuilt, told.evicted]) {

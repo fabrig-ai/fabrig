@@ -57,38 +57,127 @@ fn a_failed_connection_holds_link_work_until_close() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one wire table covers validators, replacement and whole-body decoding")]
 fn a_json_response_is_decoded_through_its_body_end() {
-    let mut h = fixtures::ConnectionHarness::new();
-    h.start_forgejo(request::Request::User, None).expect("valid request");
-    let heard = h.answer(b"HTTP/1.1 200 OK\r\nContent-Length: 25\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n{\"id\":2,\"login\":\"writer\"}");
-    assert_eq!(heard.len(), 2, "head then document");
-    assert_eq!(
-        heard.get(0),
-        Some(&Heard::Head {
-            status: 200,
-            fields: skein_forge::forgejo::plans::Fields {
-                date: Some(Wall::from_nanos(1_577_836_800_000_000_000)),
-                retry_after: None,
-                has_more: None,
-                content_range: None,
-                close: false
+    let long = fixtures::filled(skein_forge::api::VALIDATOR_BYTES + 1, b'a');
+    let at_bound = fixtures::filled(skein_forge::api::VALIDATOR_BYTES, b'a');
+    for (label, etag, modified, sent_etag, sent_modified) in [
+        ("none", b"".as_slice(), b"".as_slice(), None, None),
+        ("ETag", b"\"a\"", b"", Some(b"\"a\"".as_slice()), None),
+        ("modified", b"", b"Wed, 01 Jan 2020 00:00:00 GMT", None, Some(b"Wed, 01 Jan 2020 00:00:00 GMT".as_slice())),
+        ("both", b"\"a\"", b"yesterday", Some(b"\"a\"".as_slice()), Some(b"yesterday".as_slice())),
+        ("bound", at_bound.as_ref(), b"", Some(at_bound.as_ref()), None),
+        ("past bound leaves other validator", long.as_ref(), b"yesterday", None, Some(b"yesterday".as_slice())),
+        ("control", b"a\tbad", b"", None, None),
+        ("non-ASCII", b"a\xff", b"", None, None),
+        ("invalid modified leaves ETag", b"\"a\"", b"a\tbad", Some(b"\"a\"".as_slice()), None),
+    ] {
+        let mut length = 0_usize;
+        for (name, value) in [(b"ETag: ".as_slice(), etag), (b"Last-Modified: ".as_slice(), modified)] {
+            if !value.is_empty() {
+                length = length.saturating_add(name.len()).saturating_add(value.len()).saturating_add(2);
             }
-        }),
-        "response fields"
-    );
-    assert_eq!(
-        heard.get(1),
-        Some(&Heard::Done(skein_forge::forgejo::plans::Body::Document(
-            skein_forge::forgejo::document::Document::User(skein_forge::forgejo::document::User {
-                id: 2,
-                login: Box::from(&b"writer"[..]),
-                is_admin: false,
-                full_name: Box::from([])
-            })
-        ))),
-        "decoded whole"
-    );
-    assert_eq!(h.connection.phase(), Phase::Idle, "reusable");
+        }
+        let mut fields = skein_lib::Writer::new(length);
+        for (name, value) in [(b"ETag: ".as_slice(), etag), (b"Last-Modified: ".as_slice(), modified)] {
+            if !value.is_empty() {
+                fields.put(name).expect("fields fit");
+                fields.put(value).expect("fields fit");
+                fields.put(b"\r\n").expect("fields fit");
+            }
+        }
+        let fields = fields.finish();
+        let mut h = fixtures::ConnectionHarness::new();
+        h.start_forgejo(request::Request::User, None).expect("valid request");
+        let heard = h.answer(&crate::fixtures::response_with_fields(200, br#"{"id":2,"login":"writer"}"#, &fields));
+        assert_eq!(heard.len(), 2, "{label}: head then document");
+        assert_eq!(
+            heard.get(0),
+            Some(&Heard::Head {
+                status: 200,
+                fields: skein_forge::forgejo::plans::Fields {
+                    date: Some(Wall::from_nanos(1_577_836_800_000_000_000)),
+                    retry_after: None,
+                    has_more: None,
+                    content_range: None,
+                    close: false
+                }
+            }),
+            "response fields"
+        );
+        assert_eq!(
+            heard.get(1),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Document(
+                skein_forge::forgejo::document::Document::User(skein_forge::forgejo::document::User {
+                    id: 2,
+                    login: Box::from(&b"writer"[..]),
+                    is_admin: false,
+                    full_name: Box::from([])
+                })
+            ))),
+            "decoded whole"
+        );
+        assert_eq!(h.connection.phase(), Phase::Idle, "reusable");
+        h.start_forgejo(request::Request::User, None).expect("repeat request");
+        let reusable = sent_etag.is_some() || sent_modified.is_some();
+        let next = if reusable {
+            b"HTTP/1.1 304 Not Modified\r\nDate: Thu, 02 Jan 2020 00:00:00 GMT\r\n\r\n".as_slice()
+        } else {
+            b"HTTP/1.1 200 OK\r\nContent-Length: 25\r\n\r\n{\"id\":2,\"login\":\"writer\"}"
+        };
+        let replayed = h.answer(next);
+        for (name, expected) in
+            [(b"If-None-Match: ".as_slice(), sent_etag), (b"If-Modified-Since: ".as_slice(), sent_modified)]
+        {
+            assert_eq!(
+                skein_lib::bytes::find(&h.sent, name).is_some(),
+                expected.is_some(),
+                "{label}: conditional header"
+            );
+            if let Some(expected) = expected {
+                assert_eq!(fixtures::header(&h.sent, name), expected, "{label}");
+            }
+        }
+        assert_eq!(replayed.get(1), heard.get(1), "{label}: decoded through the same body end");
+        assert_eq!(h.connection.take_free(), u32::from(reusable), "{label}: reused 304 counted once");
+        if reusable {
+            let Some(Heard::Head { status: 200, fields }) = replayed.get(0) else { panic!("replayed 200 head") };
+            assert_eq!(fields.date, Some(Wall::from_nanos(1_577_923_200_000_000_000)), "{label}: 304's Date");
+            for (update, conditional) in [(b"ETag: \"b\"\r\n".as_slice(), true), (b"".as_slice(), false)] {
+                let body = br#"{"id":3,"login":"reader"}"#;
+                h.start_forgejo(request::Request::User, None).expect("replace read");
+                let fresh = h.answer(&crate::fixtures::response_with_fields(200, body, update));
+                h.start_forgejo(request::Request::User, None).expect("read replaced answer");
+                let replayed =
+                    if conditional { h.answer(&fixtures::response(304, b"")) } else { h.answer(&fixtures::ok(body)) };
+                assert_eq!(
+                    contains(&h.sent, b"If-None-Match:"),
+                    conditional,
+                    "{label}: 200 replaces or drops validators"
+                );
+                if conditional {
+                    assert_eq!(fixtures::header(&h.sent, b"If-None-Match: "), b"\"b\"");
+                }
+                assert!(!contains(&h.sent, b"If-Modified-Since:"), "{label}: 200 drops the old modified validator");
+                assert_eq!(replayed.get(1), fresh.get(1), "{label}: replacement body, never the old one");
+                assert_eq!(h.connection.take_free(), u32::from(conditional));
+            }
+        }
+    }
+
+    for eof in [false, true] {
+        let mut h = fixtures::ConnectionHarness::new();
+        h.start_forgejo(request::Request::User, None).expect("partial read");
+        let partial = b"HTTP/1.1 200 OK\r\nETag: \"partial\"\r\nContent-Length: 100\r\n\r\n{\"id\":2,\"login\":\"wri";
+        let heard = h.buffered_answer(partial, partial.len(), eof);
+        let Some(Heard::Head { status: 200, .. }) = heard.get(0) else { panic!("validator-bearing head received") };
+        h.connection.close(&h.env, true, &mut h.io);
+        let mut next = fixtures::ConnectionHarness::new();
+        next.kept = h.kept;
+        next.start_forgejo(request::Request::User, None).expect("another connection reads whole");
+        next.answer(&fixtures::user_ok());
+        assert!(!contains(&next.sent, b"If-None-Match:"), "eof{eof}: an incomplete body is never kept");
+    }
 }
 
 #[test]
@@ -127,7 +216,7 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
         let mut h = fixtures::ConnectionHarness::new();
         h.connection.raw_room(room);
         h.start_forgejo(raw_request(), Some(Range::Head(max))).expect("valid raw request");
-        let heard = h.answer(&fixtures::ok(response));
+        let heard = h.answer(&crate::fixtures::response_with_fields(200, response, b"ETag: \"raw\"\r\n"));
         assert_eq!(
             heard.last(),
             Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(expected), more })),
@@ -135,6 +224,23 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
         );
         assert_eq!(h.connection.phase(), phase, "{name}: connection state");
         assert!(contains(&h.sent, range), "{name}: range header");
+        let mut next = fixtures::ConnectionHarness::new();
+        next.kept = h.kept;
+        if phase == Phase::Idle {
+            next.start_forgejo(raw_request(), Some(Range::Tail(max))).expect("different range");
+            next.answer(&fixtures::ok(b"x"));
+            assert!(!contains(&next.sent, b"If-None-Match:"), "{name}: Range is part of the key");
+        }
+        next.start_forgejo(raw_request(), Some(Range::Head(max))).expect("repeat head range");
+        let replayed = if phase == Phase::Idle {
+            next.answer(&fixtures::response(304, b""))
+        } else {
+            next.answer(&fixtures::ok(b""))
+        };
+        assert_eq!(contains(&next.sent, b"If-None-Match:"), phase == Phase::Idle, "{name}: cut bodies keep nothing");
+        if phase == Phase::Idle {
+            assert_eq!(replayed, heard, "{name}: raw retention replays unchanged");
+        }
     }
 }
 #[test]

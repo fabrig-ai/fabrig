@@ -107,7 +107,7 @@ pub struct Kinds {
 pub const READ_KINDS: [u16; 1] = [1];
 
 /// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
-pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
+pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1713,6 +1713,7 @@ pub enum Event {
     /// Gather a planned section with the core's allotted budget.
     GatherPlanned {
         section: Token,
+        task: u64,
         parts: u32,
         bytes: u32,
         ci_budget: u32,
@@ -1829,6 +1830,10 @@ pub enum Event {
     ProjectDesired {
         entry: u64,
         goal: u64,
+    },
+    /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
+    DropChange {
+        task: u64,
     },
     /// Register one activated change task with its held branch.
     Change {
@@ -2001,6 +2006,8 @@ pub enum Event {
         task: u64,
         entry: u64,
         prior: change::Change,
+        /// Holds, refusals and pending dependencies end the turn; an approval wait does not.
+        leaves_queue: bool,
     },
     /// Subscribe a live task to a topic.
     Subscribe {
@@ -2260,6 +2267,8 @@ pub enum Request {
     BriefReadRefused {
         section: Token,
         stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
     /// A held section transferred its rendered bytes to the root.
@@ -2289,7 +2298,7 @@ pub enum Request {
         resource: Name,
         by: u64,
     },
-    /// A request exceeds the connector's configured bounds.
+    /// A request cannot proceed for a cause without its own typed refusal.
     Refused {
         task: u64,
     },
@@ -2452,7 +2461,6 @@ pub enum TierDecision {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
-    pub cancelled: bool,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

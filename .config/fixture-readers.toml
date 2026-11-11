@@ -399,7 +399,7 @@ package = "smith-real-world"
 filter = "all()"
 [[fixture.reader]]
 pair = "default"
-package = "temper"
+package = "temper-box"
 filter = "all()"
 [[fixture.reader]]
 pair = "default"
@@ -507,11 +507,11 @@ package = "jig-test"
 filter = "all()"
 [[fixture.reader]]
 pair = "process-temper"
-package = "temper"
+package = "temper-box"
 filter = "all()"
 [[fixture.reader]]
 pair = "live-temper"
-package = "temper"
+package = "temper-box"
 filter = "all()"
 [[fixture.reader]]
 pair = "browser-temper"
@@ -684,14 +684,14 @@ filter = "kind(lib)"
 # support/cluster.rs: description/read/documents/render_files and settings_file; suite
 # configuration/startup/fake_opening and process cluster/case callers.
 [[fixture]]
-paths = ["temper/crates/temper/tests/fixtures/cluster/*"]
+paths = ["temper/bin/temper-box/tests/fixtures/cluster/*"]
 [[fixture.reader]]
 pair = "default"
-package = "temper"
+package = "temper-box"
 filter = "binary(=suite)"
 [[fixture.reader]]
 pair = "process-temper"
-package = "temper"
+package = "temper-box"
 filter = "binary(=process)"
 
 # fixtures/b2.rs: suite/b2.rs calls the B2 builders.
@@ -732,7 +732,7 @@ paths = ["temper/tests/real-loop/tests/fixtures/b0/*.json"]
 regenerate = ["temper/tests/real-loop/tests/fixtures/b0/regenerate.sh"]
 [[fixture.reader]]
 pair = "default"
-package = "temper"
+package = "temper-box"
 filter = "binary(=suite) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
 [[fixture.reader]]
 pair = "fuzzy"
@@ -740,7 +740,7 @@ package = "temper-real-loop-world"
 filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair::/))"
 [[fixture.reader]]
 pair = "process-temper"
-package = "temper"
+package = "temper-box"
 filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 
 # real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
@@ -751,7 +751,7 @@ paths = ["temper/tests/real-loop/tests/fixtures/b1/*.json"]
 regenerate = ["temper/tests/real-loop/tests/fixtures/b1/regenerate.sh"]
 [[fixture.reader]]
 pair = "default"
-package = "temper"
+package = "temper-box"
 filter = "binary(=suite) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
 [[fixture.reader]]
 pair = "fuzzy"

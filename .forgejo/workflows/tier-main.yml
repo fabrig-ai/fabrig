@@ -1,0 +1,24 @@
+name: Tier main
+on:
+  workflow_dispatch:
+    inputs:
+      temper_commit:
+        required: true
+      temper_key:
+        required: true
+      temper_tests:
+        required: false
+        default: ""
+jobs:
+  tier:
+    runs-on: dogfood
+    steps:
+      - run: '"$CI_TIER" "${{ inputs.temper_commit }}"'
+        env:
+          CI_TIER_TESTS: ${{ inputs.temper_tests }}
+          CI_TIER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: junit
+          path: junit.xml

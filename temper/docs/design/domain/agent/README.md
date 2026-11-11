@@ -14,7 +14,7 @@ still open is listed in `README.md`, section 8.
 ## 1. In one page
 
 - **temper runs smith's stock agent,** on workers, one process per run:
-  temper's own binary run as `temper internal agent`, smith's agent shell
+  temper's own binary run as `temper-box internal agent`, smith's agent shell
   (`../../protocol/binaries.md`). temper builds no code into it. A
   run's charter and its host's answers are all that make it temper's.
 - **The engine writes the charter** (`charter.md`): the task's instructions,
@@ -24,6 +24,9 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **A standing role** (`standing.md`) is jig's task that stands under a
+  charter of temper's: an agent that owns some of a project's work for
+  the project's life, its Now its memory, its requester its person.
 - **The worker is smith's host** (section 5; ../worker.md): it prepares the
   workspace from the forge, supervises the agent's process with smith's
   host domain, delivers a change by pushing it, and relays the rest to
@@ -144,9 +147,14 @@ question`, with no body, and a landed save's receipt reads `saved <head> to
 branch <branch>, unchecked: no check ran; your checkout stays detached, as
 expected`. Its other outcomes are the table's. A save's push moves the
 change's own branch as a delivery's does, so the engine hears of it as of
-any push the run left (../worker.md, 4.2). When it accepts that run's answer
-under the attempt's writer claim, it records the pushed head in the change
-as well as the branch; the next attempt's pull section pins that head
+any push the run left (../worker.md, 4.2). When it accepts the head the
+attempt left under its writer claim, it records that head in the change as
+well as the branch, however the head reached it: reported in the run's
+answer, or found by the read that frees the attempt's writer when no answer
+reported it (jig's `domain/tasks/holds.md`, 3; `../forge/change/README.md`, 1).
+That holds whatever the delegate: a producer, a repair or a resolution, a
+goal's landing's among them, whose branch is the goal's branch held under the
+goal's hold. The next attempt's pull section pins that head
 (`../forge/change/repairs.md`). Recording the head completes no production, repair or
 resolution: the save remains unchecked, and the forge opens no pull request
 on it (`../forge/change/README.md`, 1). In its hold, the next checked delivery, or the
@@ -240,7 +248,7 @@ host:
 
 - **Forge-read fallout with real agents** (`agents.md`): the existing
   ChatGPT and Claude Code owned-forge landing stories check that a real
-  run completes without losing `temper serve`. Refusal-rendering checks
+  run completes without losing `temper-box serve`. Refusal-rendering checks
   alone do not establish either outcome. Default: those live stories
   run after landing, with no change required by the refusal contract;
   `../forge/README.md`, section 11 keeps the routing proof's limits.
@@ -332,14 +340,14 @@ host:
   a user of a repository that run may already read; holding it would be a
   condition in `temper-engine-domain`'s render. Default: every such run.
 - **A person known by a login alone** (`agents.md`, 1), where no link vouches for them:
-  `temper serve` with several members, a managed Forgejo, a pasted App. Often
+  `temper-box serve` with several members, a managed Forgejo, a pasted App. Often
   no collaborator, adoption finds no person for them and the inventory's forge
   person has no forge user id; `read_permission` takes an id, so the agent
   cannot match them, and `propose_settings` refuses at the call, in
   acceptance's words, an approval only they could meet (`../forge/change/gates.md`, 3;
   `ask-temper.md`, 2), saying who to add on the forge before adopting again, in the browser the adoption
   form typed afresh (`../../client/forge/family.md`, 4). A family of links waits for
-  `temper serve`'s members (`../../protocol/sign-in.md`, section 9).
+  `temper-box serve`'s members (`../../protocol/sign-in.md`, section 9).
   Default: adoption's seeds and the refusal above; a configured login alone
   supplies no verified forge identity.
 - **Which host tools a charter offers.** jig's charter carries the host

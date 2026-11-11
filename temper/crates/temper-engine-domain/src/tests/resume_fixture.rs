@@ -196,6 +196,7 @@ pub fn limits() -> engine::Limits {
                 plan: 128,
                 notes: 64,
                 preferences: 64,
+                now: 64,
             },
             brief_bytes: 384,
             gather: Duration::from_secs(1),
@@ -425,6 +426,7 @@ pub fn charter() -> engine::Charter {
                 dialect: 1,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 1024,
                 input_price: 1,
@@ -536,6 +538,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,

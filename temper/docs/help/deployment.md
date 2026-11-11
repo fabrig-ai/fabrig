@@ -7,18 +7,19 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 ## What it is
 
 - **The engine** keeps state and decides acts. A **worker** checks out
-  repositories and runs agents. `temper init` writes one worker in the
+  repositories and runs agents. `temper-box init` writes one worker in the
   engine's process, with 4 slots.
-- **`temper serve`** runs the configured engine, workers or both.
+- **`temper-box serve`** runs any shape: engine, workers or both.
   **`temper box`** runs serve and each managed forge's setup processes
-  on this machine (temper help box). A **server** separates engine and workers (temper help server).
+  on this machine (temper help box). A **server** runs `temper-engine serve` for its engine alone and
+  `temper-worker serve` for each worker alone (temper help server).
 
 **The three directories:** `CONFIG` holds `temper.json` and
 `agent.json`; `DATA` holds the store under `deployment`, workspaces,
 forge state, the worker secret and box logs; `CACHE` holds fetched
 Forgejo and runner binaries at pinned versions.
 
-Each directory comes from its flag (temper help commands), else
+Each directory comes from its flag (`temper-box help commands`), else
 `TEMPER_CONFIG`, `TEMPER_DATA` or `TEMPER_CACHE`, else
 `$XDG_CONFIG_HOME/temper`, `$XDG_DATA_HOME/temper` or
 `$XDG_CACHE_HOME/temper`. Without those variables the defaults are
@@ -61,16 +62,18 @@ temper ctl settings apply`.
 - Refused configuration changes nothing. A refused start names its
   member, file or short limit and the required size. A refused restore
   names the phase, cause and record family and key when available:
-  `temper serve: restore KIND: REASON` or
-  `temper serve: restart refused during PHASE: REASON`. Keep `DATA`
+  `temper-box serve: restore KIND: REASON` or
+  `temper-box serve: restart refused during PHASE: REASON`. Keep `DATA`
   and report that line.
 
 ## Acting on it
 
-- **The binary:** `temper init` writes a deployment; `temper box` runs
-  one on this machine; `temper serve` runs one, or a worker alone;
-  `temper program-login` signs a program in on this host. Each
-  command's arguments are its row: temper help commands.
+- **The binaries:** the box's `temper-box init` writes a deployment;
+  `temper box` runs it; `temper-box serve` runs any shape;
+  `temper-box program-login` signs a program in on this host. A server's
+  `temper-engine serve` runs its engine, `temper-worker serve` each worker,
+  and `temper-worker program-login` signs a program in on each worker's
+  host. Each binary's `help commands` lists its own commands.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
 - **The client:** Deployment, at the rail's foot, holds Accounts, Forges,
@@ -153,4 +156,4 @@ For the configuration members that need a restart, read `temper help configurati
   what ctl reads of one.
 - A box on fake backends keeps a deployment of its own under
   `DATA/box/fake-backends`, and refuses a `CONFIG` changed after
-  `temper init --box`.
+  `temper-box init --box`.

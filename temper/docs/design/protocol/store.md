@@ -311,7 +311,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   prints, with its normal newline:
 
   ```text
-  temper serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes
+  temper-box serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes
   ```
 
   Other commit failures retain their existing diagnostic. Earlier durable
@@ -334,6 +334,20 @@ with no duplicate. Its runtime bound is `forge.holds`; a value above 256
 refuses the start. The ceiling keeps the tier row's worst-case encoding,
 including each goal's failing-test IDs, within the codec's u32 length
 envelope (2026-11-04).
+
+A tier's pending landings, a run's landings and a finding's blamed
+landings each have a ceiling of 759. Their runtime bound is `2 *
+forge.changes + 1`, so `forge.changes` is at most 379, and a value above
+it refuses the start, naming `forge.changes` and that bound before the
+store's sizing runs (`configuration/limits.md`) (2026-11-11). 759 is the
+largest odd ceiling that keeps the tier row's worst-case encoding within
+the codec's u32 length envelope: 4,291,165,782 bytes at 759, past it at
+761 and at the 2049 first chosen, which no codec-safe ceiling reaches
+without a stored format change (change 470, 2026-11-11). The ceilings
+were 257 and are raised in place in store v11 with no version bump, as
+a format changes before the first release: no stored byte or golden
+changes, since a list encodes its count, and a store written under 257
+reads unchanged (the user, 2026-11-11).
 
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the

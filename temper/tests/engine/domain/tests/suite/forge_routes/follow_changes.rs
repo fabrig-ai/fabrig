@@ -359,6 +359,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         world = world.with_project_landing(
             2,
             engine::ProjectLanding {
+                check_timeout: None,
                 close_job: None,
                 merge_job: None,
                 by: engine::Way::Queue,

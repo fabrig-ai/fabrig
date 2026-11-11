@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 64] = [
+pub static PAGES: [Page; 65] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -326,7 +326,7 @@ pub static PAGES: [Page; 64] = [
         name: "commands",
         kind: Kind::Reference,
         title: "temper's commands",
-        summary: "Every command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.",
+        summary: "Every command of temper's binaries, a section each: its usage, what it does, its arguments and its notes. A command two binaries share is written under the first and named under the others.",
         text: include_str!("../../../docs/help/reference/commands.md"),
     },
     Page {
@@ -391,6 +391,13 @@ pub static PAGES: [Page; 64] = [
         title: "temper ctl goal",
         summary: "Goals: start one from a project template.",
         text: include_str!("../../../docs/help/reference/ctl-goal.md"),
+    },
+    Page {
+        name: "ctl-role",
+        kind: Kind::Reference,
+        title: "temper ctl role",
+        summary: "Standing roles: start one, list them, read one and its Now.",
+        text: include_str!("../../../docs/help/reference/ctl-role.md"),
     },
     Page {
         name: "ctl-proposal",
@@ -487,14 +494,14 @@ pub static PAGES: [Page; 64] = [
         name: "configuration",
         kind: Kind::Reference,
         title: "Configuration",
-        summary: "The configuration document's top level and application members, their bounds and what temper init --box writes.",
+        summary: "The configuration document's top level and application members, their bounds and what temper-box init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration.md"),
     },
     Page {
         name: "configuration-engine",
         kind: Kind::Reference,
         title: "Engine configuration",
-        summary: "The engine and worker configuration members, their bounds and what temper init --box writes.",
+        summary: "The engine and worker configuration members, their bounds and what temper-box init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration-engine.md"),
     },
     Page {

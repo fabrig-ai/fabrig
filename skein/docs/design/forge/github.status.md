@@ -1,9 +1,19 @@
 # forge-github: status
 
-2026-11-10. Where skein's code lags or departs from [github.md](github.md).
+2026-11-11. Where skein's code lags or departs from [github.md](github.md).
 
 - **Not yet:** 8.5, by plan `forge-polls-quiet`: the dialect sends a
-  validator on the delivery log's first page alone.
+  validator on the delivery log's first page alone [in flight: change 155].
+- **Not yet:** 4.1: `Pull` without `ci`; `PullFor` reads its pull
+  request's CI [in flight: change 158].
+- **Not yet:** 3, 4.1: `skip` on `Reviews`, `Remarks` and `PullFiles`
+  [in flight: change 161].
+- **Not yet:** 3: `Items`, an item's comments, `Reviews` and `Remarks`
+  sized for their largest row, an item's comments one a page, and a page
+  past `answer_bytes` refused, not cut [in flight: change 435].
+- **Not yet:** 3, 4.1: `PullFiles` sized for its largest row, a file
+  past what is left refused, not cut; and `sides`, every page reading
+  both sides [in flight: change 436].
 - **Not yet:** 4.1: `Item`'s `since`, which the comments' pages do not send.
  
 - **Not yet:** 4.1: `Branches`' names bounded by `rows`

@@ -304,7 +304,8 @@ fn routing_news_and_hints_returned_during_the_drain_are_dropped() {
 }
 #[test]
 fn forge_component_limits_that_disagree_are_problems_naming_both() {
-    let rows: [(skein_forge_connection::Unusable, &[u8]); 3] = [
+    let rows: [(skein_forge_connection::Unusable, &[u8]); 4] = [
+        (skein_forge_connection::Unusable::KeptBytes { kept_bytes: 1, calls: 2, answer_bytes: 65536 }, b"application.limits.overrides.forge_component.kept_bytes: past its bound\napplication.limits.overrides.forge.client.calls: past its bound\napplication.limits.overrides.forge.client.answer_bytes: past its bound\n"),
         (skein_forge_connection::Unusable::Connections { connections: 3, calls: 2 }, b"application.limits.overrides.forge_component.connections: past its bound\napplication.limits.overrides.forge.client.calls: past its bound\n"),
         (skein_forge_connection::Unusable::Deadline { deadline: Duration::from_secs(11), lifetime: Duration::from_secs(10) }, b"application.limits.overrides.forge_component.deadline_ms: past its bound\napplication.limits.overrides.forge.client.lifetime_ms: past its bound\n"),
         (skein_forge_connection::Unusable::BodyBytes { body_bytes: 1, needed: 1045 }, b"application.limits.overrides.forge_component.body_bytes: past its bound\napplication.limits.overrides.forge.client.op_bytes: past its bound\n"),
@@ -322,7 +323,9 @@ fn forge_component_limits_that_disagree_are_problems_naming_both() {
 fn forge_component_overrides_take_dotted_names_and_ms() {
     type Row = (&'static [u8], u64, u64, fn(&limits::Limits) -> u64);
     let mut own = limits::profile(limits::Profile::Small);
-    let rows: [Row; 2] = [
+    let rows: [Row; 4] = [
+        (b"forge.client.calls", 3, 196_608, |limits| limits.forge_component.kept_bytes),
+        (b"forge.client.answer_bytes", 8192, 24_576, |limits| limits.forge_component.kept_bytes),
         (b"forge_component.idle_ms", 7000, 7_000_000_000, |limits| limits.forge_component.idle.as_nanos()),
         (b"forge_component.tls.read", 8192, 8192, |limits| u64::from(limits.forge_component.tls.read)),
     ];
@@ -534,10 +537,10 @@ fn a_head_past_the_request_room_is_a_problem_naming_its_members_and_the_forge() 
     assert_eq!(problem_lines(forge::indexed(refusal, &forges)).as_ref(), HEAD_PROBLEMS);
 }
 
-// The output room is 1,048,576 bytes, less the fixed 192, Host's 18,
-// token bound's 512 and user agent's 12 bytes: exactly 1,047,842 target bytes.
-const FITTING_TARGET_BYTES: u32 = 1_047_842;
-const REFUSED_TARGET_BYTES: u32 = 1_047_843;
+// The output room is 1,048,576 bytes, less fixed framing (192), conditional
+// fields (300), Host (18), token (512) and agent (12): 1,047,542 target bytes.
+const FITTING_TARGET_BYTES: u32 = 1_047_542;
+const REFUSED_TARGET_BYTES: u32 = 1_047_543;
 
 #[test]
 fn the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte() {

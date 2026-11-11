@@ -205,7 +205,7 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
         Read::Compare { before, after } => compared(answer, *before, *after),
         Read::Item { number, after, since: _ } => item_matches(answer, *number, *after),
         Read::Reviews { .. } => reviews_ordered(answer),
-        Read::Pull { number } => match pull_answer(answer) {
+        Read::Pull { number, .. } => match pull_answer(answer) {
             Some(pull) => pull.number == *number,
             None => false,
         },

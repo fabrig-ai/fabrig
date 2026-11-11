@@ -12,6 +12,7 @@ const BASE: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const MERGE: [u8; 32] = [4; 32];
 const LIMITS: Limits = Limits {
+    reruns: 1,
     repairs: 2,
     resolutions: 2,
     updates: 3,
@@ -46,6 +47,7 @@ fn change(state: State) -> Change {
 }
 fn facts() -> Facts {
     Facts {
+        fault: crate::Fault::Change,
         pending: Box::new([]),
         ask: None,
         branch: Some(HEAD),
@@ -56,6 +58,7 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        contains_head: Status::Unknown,
         merge_job: false,
         delegate: None,
         catch_up: None,
@@ -369,6 +372,159 @@ fn a_released_failed_ci_repair_requests_one_replacement_despite_the_stale_failur
     let pending = step(&fresh.change, &f, &heard(), at(5), &limits);
     assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) });
     assert_eq!(pending.change.repairs, 1);
+}
+
+fn failed_resolution(delegate: Delegate) -> (Change, Facts, Heard) {
+    let mut c = change(State::Resolving { requested: true, base: BASE });
+    c.resolutions = LIMITS.resolutions;
+    let f = Facts { delegate: Some(delegate), ..facts() };
+    let h = Heard { delegate: Status::Failed, ..heard() };
+    let failed = step(&c, &f, &h, at(2), &LIMITS);
+    assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(failed.change.last_head, Some(HEAD));
+    (failed.change, f, h)
+}
+
+#[test]
+fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failure() {
+    use crate::Way;
+    for (terminal, delegate) in [
+        ("resolution failed", Delegate::Resolve { base: BASE }),
+        // The connector reports a cancelled delegate as Failed too.
+        ("resolution cancelled", Delegate::Resolve { base: BASE }),
+        ("merge job failed", Delegate::Merge { base: BASE, from: Some(HEAD) }),
+    ] {
+        let (c, f, h) = failed_resolution(delegate);
+        for (mergeable, live, way, state, decision, resolutions, last_head) in [
+            (Status::Passed, false, Way::Queue, State::Checking { head: NEW }, Decision::None, 0, Some(NEW)),
+            (
+                Status::Failed,
+                false,
+                Way::Queue,
+                State::Resolving { requested: true, base: MERGE },
+                Decision::Delegate(Delegate::Resolve { base: MERGE }),
+                1,
+                Some(NEW),
+            ),
+            (
+                Status::Unknown,
+                false,
+                Way::Queue,
+                State::Held { was: Box::new(State::WaitingProducer { base: BASE }), why: Hold::Stalled },
+                Decision::Hold(Hold::Stalled),
+                0,
+                Some(NEW),
+            ),
+            (
+                Status::Pending,
+                false,
+                Way::Queue,
+                State::Held { was: Box::new(State::WaitingProducer { base: BASE }), why: Hold::Stalled },
+                Decision::Hold(Hold::Stalled),
+                0,
+                Some(NEW),
+            ),
+            (
+                Status::Failed,
+                true,
+                Way::Queue,
+                State::WaitingProducer { base: BASE },
+                Decision::Wait { until: None },
+                0,
+                Some(HEAD),
+            ),
+            (
+                Status::Failed,
+                false,
+                Way::Turn,
+                State::Preparing { from: NEW, main: BASE, ready_since: at(3600) },
+                Decision::Effect(Effect::Prepare { head: NEW, main: BASE }),
+                0,
+                Some(NEW),
+            ),
+        ] {
+            let mut held = c.clone();
+            held.way = way;
+            let fresh = Facts {
+                branch: Some(NEW),
+                pull: Pull::Open { head: NEW, base: MERGE },
+                base_tip: MERGE,
+                merge_job: true,
+                mergeable,
+                settling: Some(at(4000)),
+                ..f.clone()
+            };
+            let stale = Heard { delegate_live: live, ..h };
+            let reset = step(&released(&held, at(3)), &fresh, &stale, at(3), &LIMITS);
+            assert_eq!(reset.decision, Decision::None, "{terminal}");
+            assert_eq!(reset.change.state, State::WaitingProducer { base: BASE }, "{terminal}");
+            assert_eq!(reset.change.resolutions, 0, "{terminal}");
+            // A live pushing task must not stall even long after the release.
+            let next = step(&reset.change, &fresh, &stale, at(3600), &LIMITS);
+            assert_eq!(next.decision, decision, "{terminal}, {mergeable:?}, {way:?}, live={live}");
+            assert_eq!(next.change.state, state, "{terminal}");
+            assert_eq!(next.change.resolutions, resolutions, "{terminal}");
+            assert_eq!(next.change.last_head, last_head, "{terminal}");
+        }
+        let fresh = Facts { branch: Some(NEW), base_tip: MERGE, mergeable: Status::Failed, merge_job: true, ..f };
+        let reset = step(&released(&c, at(3)), &fresh, &h, at(3), &LIMITS);
+        let replacement = step(&reset.change, &fresh, &h, at(4), &LIMITS);
+        assert_eq!(replacement.decision, Decision::Delegate(Delegate::Resolve { base: MERGE }), "{terminal}");
+        let pending = step(&replacement.change, &fresh, &heard(), at(5), &LIMITS);
+        assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) }, "{terminal}");
+        assert_eq!(pending.change.resolutions, 1, "{terminal}");
+    }
+}
+
+#[test]
+fn a_released_failed_resolution_obeys_the_reset_allowance_and_current_authority() {
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let cause = AuthorityHold {
+        recovery: AuthorityRecovery { task: 7, spec: 0, hold: 2, tasks: 2 },
+        lack: AuthorityLack::Tasks,
+        had: 0,
+        released: false,
+    };
+    let (c, mut f, h) = failed_resolution(Delegate::Resolve { base: BASE });
+    f.branch = Some(NEW);
+    f.base_tip = MERGE;
+    f.mergeable = Status::Failed;
+    f.merge_job = true;
+    for (allowance, lacking, decision, count) in [
+        (1, None, Decision::Delegate(Delegate::Resolve { base: MERGE }), 1),
+        (0, None, Decision::Hold(Hold::Resolutions), 0),
+        (1, Some(cause), Decision::Hold(Hold::Authority(cause)), 0),
+    ] {
+        let limits = Limits { resolutions: allowance, ..LIMITS };
+        let stale = Heard { lacking, ..h };
+        let reset = step(&released(&c, at(3)), &f, &stale, at(3), &limits);
+        let next = step(&reset.change, &f, &stale, at(4), &limits);
+        assert_eq!(next.decision, decision);
+        assert_eq!(next.change.resolutions, count);
+    }
+}
+
+#[test]
+fn a_resolution_held_for_allowance_or_authority_keeps_its_release_path() {
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let authority = AuthorityHold {
+        recovery: AuthorityRecovery { task: 7, spec: 0, hold: 2, tasks: 2 },
+        lack: AuthorityLack::Tasks,
+        had: 0,
+        released: false,
+    };
+    let state = State::Resolving { requested: false, base: BASE };
+    for why in [Hold::Resolutions, Hold::Authority(authority)] {
+        let mut c = change(State::Held { was: Box::new(state.clone()), why });
+        c.resolutions = LIMITS.resolutions;
+        let f = Facts { delegate: Some(Delegate::Resolve { base: BASE }), merge_job: true, ..facts() };
+        let reset = step(&released(&c, at(3)), &f, &heard(), at(3), &LIMITS);
+        assert_eq!(reset.change.state, state);
+        assert_eq!(reset.change.resolutions, 0);
+        let next = step(&reset.change, &f, &heard(), at(4), &LIMITS);
+        assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+        assert_eq!(next.change.resolutions, 0, "the unrequested resolution was counted before the hold");
+    }
 }
 
 #[test]
@@ -991,13 +1147,13 @@ fn a_requesters_branch_with_drift_or_a_writer_is_not_taken() {
             assert_eq!(next.decision, Decision::Hold(why));
         }
     }
-    for (state, until) in movable_phases() {
+    for (state, _) in movable_phases() {
         let c = change(state);
         let mut f = moved_branch(true);
         f.writer_taken = true;
         let next = decide(&c, &f, &heard());
         assert_eq!(next.change, c);
-        assert_eq!(next.decision, Decision::Wait { until });
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
     }
 }
 
@@ -1124,13 +1280,13 @@ fn generated_queue_order_agrees_with_an_independent_rank_statement() {
 }
 
 #[test]
-fn a_pending_wait_inside_the_settle_window_ends_with_it_and_never_stalls() {
+fn a_settle_window_does_not_extend_the_changes_stall() {
     let mut f = facts();
     f.mergeable = Status::Pending;
     f.settling = Some(at(50));
     let decision =
         step(&change(State::First { head: HEAD, ready_since: at(0) }), &f, &heard(), at(40), &LIMITS).decision;
-    assert_eq!(decision, Decision::Wait { until: Some(at(50)) });
+    assert_eq!(decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]
@@ -1164,7 +1320,7 @@ fn a_failed_review_is_asked_again_at_the_same_head() {
     assert_eq!(next.change.repairs, 0);
     assert_eq!(next.change.state, State::Gating { head: HEAD, asked: Box::new([9]) });
     assert!(
-        decide(&next.change, &facts(), &heard()).decision == Decision::Wait { until: Some(at(32)) },
+        decide(&next.change, &facts(), &heard()).decision == Decision::Wait { until: Some(at(33)) },
         "a repeated snapshot does not request a third review"
     );
 }
@@ -1652,6 +1808,11 @@ fn an_update_let_go_takes_a_moved_head_holding_the_base() {
     let mut c = updating_change();
     let mut f = facts();
     f.branch = Some(NEW);
+    for tip in [BASE, MERGE] {
+        f.base_tip = tip;
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.change.state, State::Checking { head: NEW });
+    }
     let next = decide(&c, &f, &heard());
     assert_eq!(next, decide(&c, &f, &Heard { effect: EffectResult::Made, ..heard() }));
     assert_eq!(next.change.state, State::Checking { head: NEW });
@@ -1705,6 +1866,43 @@ fn a_released_failed_update_decides_again() {
 }
 
 #[test]
+fn every_forge_wait_reaches_its_stall_without_refreshing_since() {
+    let updating = State::Updating { from: HEAD, base: BASE, ready_since: at(0) };
+    let mut unknown = facts();
+    unknown.contains_base = Status::Unknown;
+    let mut writer = facts();
+    writer.writer_taken = true;
+    let mut ci = facts();
+    ci.ci.status = Status::Pending;
+    let mut settling = facts();
+    settling.mergeable = Status::Pending;
+    settling.first = true;
+    settling.settling = Some(at(60));
+    for (state, f, effect) in [
+        (updating.clone(), facts(), EffectResult::Pending),
+        (updating.clone(), facts(), EffectResult::Made),
+        (updating, unknown, EffectResult::None),
+        (State::Checking { head: HEAD }, writer.clone(), EffectResult::None),
+        (State::Ready { head: HEAD, ready_since: at(0) }, writer.clone(), EffectResult::None),
+        (State::WaitingProducer { base: BASE }, writer, EffectResult::None),
+        (State::Landing { head: HEAD }, facts(), EffectResult::Pending),
+        (State::Checking { head: HEAD }, ci, EffectResult::None),
+        (State::First { head: HEAD, ready_since: at(0) }, settling, EffectResult::None),
+    ] {
+        let c = change(state);
+        let h = Heard { effect, ..heard() };
+        let next = step(&c, &f, &h, at(29), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) }, "{:?}", c.state);
+        assert_eq!(next.change.since, at(0));
+        for now in [30, 31, 61] {
+            let next = step(&c, &f, &h, at(now), &LIMITS);
+            assert_eq!(next.decision, Decision::Hold(Hold::Stalled), "{:?} at {now}", c.state);
+            assert_eq!(next.change.state, State::Held { was: Box::new(c.state.clone()), why: Hold::Stalled });
+        }
+    }
+}
+
+#[test]
 fn an_update_outstanding_still_waits() {
     let c = updating_change();
     let f = Facts { contains_base: Status::Failed, ..facts() };
@@ -1714,3 +1912,66 @@ fn an_update_outstanding_still_waits() {
 }
 
 mod close;
+
+#[test]
+fn runner_faults_run_again_within_the_head_bound() {
+    use crate::Fault;
+    for (fault, bound, rerun) in [
+        (Fault::Runner { reruns: 0 }, 1, true),
+        (Fault::Runner { reruns: 1 }, 1, false),
+        (Fault::Runner { reruns: 0 }, 0, false),
+        (Fault::Change, 1, false),
+    ] {
+        for state in [
+            State::Checking { head: HEAD },
+            State::Gating { head: HEAD, asked: Box::new([11]) },
+            State::CancellingGates { head: HEAD },
+        ] {
+            for clean in [false, true] {
+                let mut c = change(state.clone());
+                c.owns_turn = true;
+                if clean {
+                    c.clean = Box::new([BASE]);
+                }
+                let mut f = facts();
+                f.ci.status = Status::Failed;
+                f.fault = fault;
+                f.gates = Box::new([GateReport { number: 11, head: HEAD, status: Status::Passed }]);
+                let pending = step(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() }, at(5), &LIMITS);
+                assert_eq!(pending.change, c);
+                assert_eq!(pending.decision, Decision::Wait { until: Some(at(30)) });
+                let next = step(&c, &f, &heard(), at(5), &Limits { reruns: bound, ..LIMITS });
+                if rerun {
+                    let mut expected = c.clone();
+                    expected.since = at(5);
+                    assert_eq!(next.change, expected);
+                    assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
+                    let mut running = f.clone();
+                    running.ci.status = Status::Pending;
+                    running.fault = Fault::Change;
+                    let waiting =
+                        step(&next.change, &running, &Heard { effect: EffectResult::Made, ..heard() }, at(6), &LIMITS);
+                    assert_eq!(waiting.change, next.change);
+                    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(35)) });
+                } else {
+                    let why = if clean { Repair::Semantic } else { Repair::Ci };
+                    assert_eq!(next.decision, Decision::Delegate(Delegate::Repair(why)));
+                }
+            }
+        }
+        let mut c = change(State::Gating { head: HEAD, asked: Box::new([11]) });
+        c.owns_turn = true;
+        let mut f = facts();
+        f.ci.status = Status::Failed;
+        f.fault = fault;
+        f.live_gate = Some(HEAD);
+        let next = step(&c, &f, &heard(), at(5), &Limits { reruns: bound, ..LIMITS });
+        if rerun {
+            assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
+            assert_eq!(next.change.state, c.state);
+            assert!(next.change.owns_turn);
+        } else {
+            assert_eq!(next.decision, Decision::CancelGates { head: HEAD });
+        }
+    }
+}

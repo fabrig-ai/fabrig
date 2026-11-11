@@ -25,7 +25,7 @@ const LAST_TIP: api::Commit = [7; 32];
 const READ: Token = Token::new(1_u64 << 59);
 const RETRIES: u32 = 2; // The fixture's configured tier_retries.
 const SMALL_RANGE: usize = 3; // 2 * one live change + 1.
-fn restoring(branch: Option<&[u8]>) -> Domain {
+pub(super) fn restoring(branch: Option<&[u8]>) -> Domain {
     restoring_following(match branch {
         Some(branch) => Follows::Branch(branch.into()),
         None => Follows::Landing,
@@ -64,7 +64,7 @@ fn configured(branch: Option<&[u8]>) -> Domain {
     outputs(&mut d, Event::ReadAfresh);
     d
 }
-fn row(d: &Domain) -> &TierRow {
+pub(super) fn row(d: &Domain) -> &TierRow {
     d.tiers.get(&(REPO, TIER.into())).expect("tier row")
 }
 fn main_name() -> Name {
@@ -84,72 +84,88 @@ fn collect(mut out: Queue<Request>) -> Box<[Request]> {
     }
     values.into_boxed_slice()
 }
-fn key_trees(d: &mut Domain) -> Box<[Request]> {
+pub(super) fn key_trees(d: &mut Domain) -> Box<[Request]> {
     let mut all = Vec::new();
-    // A fixture has at most the baseline plus the range's tips to key.
-    for _ in 0..LIMITS.changes * 2 + 2 {
-        let Some((owner, _)) = d.tier_ops.reads.iter().next() else { break };
-        let owner = *owner;
-        let mut out = Queue::uncapped();
-        let tip = row(d)
-            .baseline
-            .into_iter()
-            .chain(row(d).pending.iter().copied())
-            .find(|tip| tip.key.is_none())
-            .expect("unkeyed tip")
-            .commit;
+    // One branch watch, the baseline and at most the range's tips need answers.
+    for _ in 0..LIMITS.changes * 2 + 3 {
+        if d.tier_ops.reads.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(d);
+        let tip = match op {
+            api::Op::Read(api::Read::Tree { object, .. }) => object,
+            api::Op::Read(api::Read::Branch { branch }) => {
+                let name = Name {
+                    forge: REPO.forge,
+                    repository: REPO.repository,
+                    what: What::Branch(branch.split(|byte| *byte == b'/').map(Box::from).collect()),
+                };
+                let tip = d.heads.get(&name).map_or(BASE, |head| head.commit);
+                all.extend(fixtures::answer(d, call, Ok(api::Answer::Commit(tip))));
+                continue;
+            }
+            api::Op::Read(api::Read::Runs { .. }) if !d.tier_ops.follows.contains_key(&(REPO, TIER.into())) => {
+                // A dropped run's listing can precede the new baseline's read.
+                all.extend(fixtures::answer(d, call, Ok(api::Answer::Runs { runs: Box::new([]), more: false })));
+                continue;
+            }
+            _ => panic!("key tree read: {op:?}"),
+        };
         let source = if tip == HEAD { BASE } else { tip };
         let entries = Box::new([
-            api::TreeEntry {
-                name: b"src".as_slice().into(),
-                mode: 0o100_644,
-                kind: api::TreeEntryKind::Blob,
-                object: source,
-            },
             api::TreeEntry {
                 name: b"docs".as_slice().into(),
                 mode: 0o100_644,
                 kind: api::TreeEntryKind::Blob,
                 object: tip,
             },
+            api::TreeEntry {
+                name: b"src".as_slice().into(),
+                mode: 0o100_644,
+                kind: api::TreeEntryKind::Blob,
+                object: source,
+            },
         ]);
-        crate::tiers::answered(d, &env(), owner, Ok(api::Answer::Tree { entries, more: false }), &mut out);
-        all.extend(collect(out));
+        all.extend(fixtures::answer(d, call, Ok(api::Answer::Tree { entries, more: false })));
     }
     all.into_boxed_slice()
 }
+fn baseline_tip(d: &mut Domain, tip: api::Commit) {
+    assert!(requests(&baseline_answer(d, Ok(api::Answer::Commit(tip)))).is_empty());
+}
 fn baseline(d: &mut Domain) -> Box<[Request]> {
     seen(d, None, BASE);
+    baseline_tip(d, BASE);
     key_trees(d)
 }
 fn attach(d: &mut Domain, number: u64, task: u64) {
     outputs(d, Event::TierTask { repository: REPO, tier: TIER.into(), number, task });
 }
 fn tier_step(d: &mut Domain, entry: u64, released: bool) -> Box<[Request]> {
-    outputs(
-        d,
-        Event::StepTier {
-            task: row(d).task.expect("tier task"),
-            entry,
-            heard: TierHeard { released, cancelled: false },
-        },
-    )
+    outputs(d, Event::StepTier { task: row(d).task.expect("tier task"), entry, heard: TierHeard { released } })
 }
 fn made(d: &mut Domain, entry: u64, made: skein_forge_client::Made) {
+    outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false });
+}
+fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome) {
     if let Some(kept) = d.entries.get_mut(&entry) {
         kept.entry.start = Some(skein_forge_client::Position { at: env().now, comment: 0, review: 0, review_page: 1 });
     }
     let mut out = Queue::uncapped();
-    crate::tiers::outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false }, &mut out);
+    crate::tiers::outcome(d, entry, outcome, &mut out);
     d.entries.remove(&entry);
 }
-fn dispatched() -> Domain {
+fn dispatching() -> Domain {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
     tier_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
     tier_step(&mut d, DISPATCH, false);
+    d
+}
+pub(super) fn dispatched() -> Domain {
+    let mut d = dispatching();
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     d
 }
@@ -176,6 +192,7 @@ fn workflow(d: &Domain, conclusion: api::Conclusion, failed_step: Option<u32>) -
                 attempt: 1,
                 state: api::RunState::Completed,
                 conclusion: Some(api::Conclusion::Failure),
+
                 steps: 3,
                 step: Some(api::Step { number, name: b"step".as_slice().into() }),
             }]),
@@ -184,7 +201,7 @@ fn workflow(d: &Domain, conclusion: api::Conclusion, failed_step: Option<u32>) -
     }
 }
 fn answer(d: &mut Domain, answer: api::Answer) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Ok(answer), &mut out);
     collect(out)
@@ -216,12 +233,140 @@ fn requests(out: &[Request]) -> Vec<(u64, api::Commit)> {
         })
         .collect()
 }
+fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
+    parts.concat().into_boxed_slice()
+}
 fn choice(out: &[Request]) -> Option<&TierDecision> {
     out.iter().find_map(|request| match request {
         Request::TierDecision { decision, .. } => Some(decision),
         _ => None,
     })
 }
+fn baseline_answer(d: &mut Domain, result: Result<api::Answer, api::Error>) -> Box<[Request]> {
+    let (owner, read) = d.tier_ops.reads.iter().next().expect("tier-owned fresh baseline read");
+    assert_eq!(read.tier, (REPO, TIER.into()));
+    assert!(read.baseline);
+    let owner = *owner;
+    let expected = match &crate::tiers::configured_all(d, REPO).first().unwrap().follows {
+        Follows::Landing => b"main".as_slice().into(),
+        Follows::Branch(branch) => branch.clone(),
+        Follows::Goals => panic!("goal tiers have no baseline"),
+    };
+    let mut out = Vec::new();
+    // The branch watch can be served before the tier's own fresh read.
+    for _ in 0_u8..2 {
+        let (call, op) = fixtures::next_call(d);
+        assert_eq!(op, api::Op::Read(api::Read::Branch { branch: expected.clone() }));
+        out.extend(fixtures::answer(d, call, result.clone()));
+        if !d.tier_ops.reads.contains_key(&owner) {
+            return out.into_boxed_slice();
+        }
+    }
+    panic!("the tier's baseline read must be answered")
+}
+
+#[test]
+fn baseline_reads_past_a_stale_head_at_start_and_restart() {
+    for restart in [false, true] {
+        let mut d = restoring(None);
+        let name = main_name();
+        outputs(&mut d, Event::Restore { record: Stored::BranchHead(BranchHead { name, commit: BASE, owned: false }) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut out = Queue::uncapped();
+        if restart {
+            crate::tiers::restart(&mut d, &env(), &mut out);
+        } else {
+            crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+        }
+        assert!(requests(&collect(out)).is_empty());
+        assert!(row(&d).baseline.is_none(), "a restored head is not a baseline");
+        assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+        assert_eq!(d.tier_ops.reads.len(), 1);
+        let out = baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+        assert!(requests(&out).is_empty());
+        assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+        assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+    }
+}
+
+#[test]
+fn moves_before_the_baseline_answer_are_not_landings() {
+    let mut d = configured(None);
+    seen(&mut d, None, BASE);
+    let out = seen(&mut d, Some(BASE), HEAD);
+    assert!(requests(&out).is_empty());
+    assert!(row(&d).baseline.is_none(), "a move cannot choose the baseline");
+    assert!(row(&d).pending.is_empty());
+    baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+    attach(&mut d, 1, TIER_TASK);
+    tier_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch(NEXT_TIP));
+    tier_step(&mut d, DISPATCH, false);
+    made(&mut d, DISPATCH, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    assert!(requests(&finish(&mut d)).is_empty());
+    assert!(row(&d).pending.is_empty());
+    assert!(row(&d).record.run.is_none());
+    assert_eq!(row(&d).record.judged.unwrap().tip, NEXT_TIP);
+    seen(&mut d, Some(NEXT_TIP), LAST_TIP);
+    assert_eq!(requests(&key_trees(&mut d)), [(2, LAST_TIP)]);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().landings.len(), 1);
+}
+
+#[test]
+fn a_missing_baseline_branch_waits_for_its_next_move() {
+    let mut d = restoring(None);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let mut out = Queue::uncapped();
+    crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    let out = baseline_answer(&mut d, Err(api::Error::Missing));
+    assert!(requests(&out).is_empty());
+    assert!(row(&d).baseline.is_none());
+    assert!(row(&d).record.run.is_none());
+    assert!(d.tier_ops.reads.is_empty());
+    seen(&mut d, None, BASE);
+    baseline_answer(&mut d, Ok(api::Answer::Commit(BASE)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, BASE)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+}
+
+#[test]
+fn a_baseline_waits_for_another_tier_read() {
+    let mut d = restoring(None);
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    assert_eq!(d.tier_ops.reads.len(), 1, "wait for the occupied read slot");
+    assert!(row(&d).baseline.is_none());
+    let mut out = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(d.tier_ops.reads.len(), 1, "the baseline now owns the read slot");
+    baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+}
+
+#[test]
+fn a_late_baseline_answer_keeps_the_baseline_and_its_later_moves() {
+    let mut d = configured(None);
+    let owner = *d.tier_ops.reads.iter().next().expect("baseline read").0;
+    // A baseline has started by another path while the read was in flight.
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().baseline = Some(TierLanding { commit: BASE, key: None });
+    seen(&mut d, Some(BASE), LAST_TIP);
+    let mut out = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Commit(NEXT_TIP)), &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(row(&d).baseline.unwrap().commit, BASE);
+    assert_eq!(row(&d).pending.len(), 1);
+    assert_eq!(row(&d).pending[0].commit, LAST_TIP);
+    assert_eq!(requests(&key_trees(&mut d)), [(1, BASE)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+}
+
 #[test]
 fn first_tip_starts_a_baseline_with_no_landings() {
     let mut d = configured(None);
@@ -286,10 +431,8 @@ fn ignored_documentation_is_judged_by_receipt_without_dispatch() {
     let out = key_trees(&mut d);
     assert_eq!(requests(&out), [(2, HEAD)]);
     attach(&mut d, 2, NEXT_TASK);
-    let out = outputs(
-        &mut d,
-        Event::StepTier { task: NEXT_TASK, entry: RELEASE + 2, heard: TierHeard { released: false, cancelled: false } },
-    );
+    let out =
+        outputs(&mut d, Event::StepTier { task: NEXT_TASK, entry: RELEASE + 2, heard: TierHeard { released: false } });
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landing".as_slice().into() })
@@ -332,7 +475,7 @@ fn failed_run_without_a_report_is_a_fault() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Failure, Some(1));
     let mut out = Queue::uncapped();
-    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
     let run = row(&d).record.run.as_ref().unwrap();
     assert_eq!((run.faults, &run.part), (1, &p::Part::Whole));
@@ -371,11 +514,101 @@ fn exhausted_faults_hold_until_released_then_run_green() {
     );
 }
 #[test]
+fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
+    let mut d = dispatching();
+    let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
+    for fault in 0..=RETRIES {
+        let entry = DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
+        let out = tier_step(&mut d, entry + 1, false);
+        assert_eq!(row(&d).record.run.as_ref().unwrap().faults, fault + 1);
+        if fault < RETRIES {
+            let api::Write::Dispatch { workflow, .. } = &d.entries.get(&(entry + 1)).unwrap().entry.effect.write else {
+                panic!("a missing workflow dispatches again")
+            };
+            assert_eq!(workflow.as_ref(), b"tier.yml");
+        } else {
+            assert_eq!(
+                choice(&out),
+                Some(&TierDecision::Held {
+                    words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+                })
+            );
+        }
+    }
+    let words = d.tier_execution_words(TIER_TASK).unwrap();
+    let line = join_words(&[
+        b"Runner fault: Judged run: commit 0404040404040404040404040404040404040404040404040404040404040404, branch temper/tier/browser.1; ",
+        kind, b"\n",
+    ]);
+    assert_eq!(skein_lib::bytes::count(&words, &line, 4), 3);
+    tier_step(&mut d, RELEASE + 4, true);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
+    made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    assert_eq!(
+        choice(&finish(&mut d)),
+        Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
+    );
+}
+#[test]
+fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
+    let mut d = dispatching();
+    for fault in 0..RETRIES {
+        let entry = DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        tier_step(&mut d, entry + 1, false);
+    }
+    outcome(&mut d, DISPATCH + u64::from(RETRIES), skein_forge_client::Outcome::Failed(api::Error::Missing));
+    let saved = row(&d).clone();
+    assert_eq!(saved.flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
+    assert_eq!(saved.held, None, "the third refusal is saved before the step holds the task");
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    let out = tier_step(&mut cold, RELEASE + 3, false);
+    let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
+    assert_eq!(
+        choice(&out),
+        Some(&TierDecision::Held {
+            words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+        })
+    );
+    let words = cold.tier_execution_words(TIER_TASK).unwrap();
+    assert!(skein_lib::bytes::find(&words, &join_words(&[b"; ", kind, b"\n"])).is_some());
+}
+#[test]
+fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
+    for rerun in [false, true] {
+        let mut d = if rerun { dispatched() } else { dispatching() };
+        let entry = if rerun {
+            completed(&mut d, api::Conclusion::Failure, Some(0));
+            tier_step(&mut d, DISPATCH + 1, false);
+            let api::Write::Rerun { .. } = d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write else {
+                panic!("retry the failed job")
+            };
+            DISPATCH + 1
+        } else {
+            DISPATCH
+        };
+        let error = if rerun { api::Error::Missing } else { api::Error::Refused };
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(error));
+        assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::Lost));
+        tier_step(&mut d, entry + 1, false);
+        let words = d.tier_execution_words(TIER_TASK).unwrap();
+        assert!(skein_lib::bytes::find(&words, b"; lost\n").is_some());
+        assert!(skein_lib::bytes::find(&words, b"not found at").is_none());
+    }
+}
+#[test]
 fn branch_no_tier_follows_starts_no_run() {
     let mut d = configured(Some(b"release/next"));
     let out = seen(&mut d, None, BASE);
     assert!(requests(&out).is_empty());
-    assert!(d.tiers.is_empty());
+    assert!(row(&d).baseline.is_none());
+    assert!(row(&d).pending.is_empty());
     assert_eq!(
         crate::tiers::watched(&d).as_slice(),
         &[Name {
@@ -464,6 +697,42 @@ fn full_range_compacts_adjacent_outside_landings_preserving_changes() {
 }
 
 #[test]
+fn a_dropped_changes_landing_is_outside_the_tiers_own_range() {
+    for drop in [false, true] {
+        let mut d = dispatched();
+        let mut change = fixtures::opening_row();
+        change.task = CHANGE;
+        change.change.task = CHANGE;
+        change.change.state = temper_engine_domain_forge_change::State::Ended;
+        change.ending = Some(Ending::Cancelled);
+        d.changes.insert(CHANGE, change).unwrap();
+        d.landed.insert(HEAD, CHANGE).unwrap();
+        let mut small = env();
+        small.limits.changes = 1;
+        if drop {
+            step(&mut d, &small, Event::DropChange { task: CHANGE }, &mut Queue::uncapped());
+            assert!(d.change(CHANGE).is_none());
+        }
+        d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending = Box::new([
+            TierLanding { commit: HEAD, key: Some(HEAD) },
+            TierLanding { commit: [10; 32], key: Some([10; 32]) },
+            TierLanding { commit: [11; 32], key: Some([11; 32]) },
+        ]);
+        crate::tiers::observed(&mut d, &small, REPO, b"main", Some(HEAD), NEXT_TIP, &mut Queue::uncapped());
+        let first = if drop { [10; 32] } else { HEAD };
+        assert_eq!(
+            row(&d).pending.as_ref(),
+            &[
+                TierLanding { commit: first, key: Some(first) },
+                TierLanding { commit: [11; 32], key: Some([11; 32]) },
+                TierLanding { commit: NEXT_TIP, key: None },
+            ],
+            "dropped {drop}"
+        );
+    }
+}
+
+#[test]
 fn a_green_whole_run_clears_its_nonempty_range() {
     let mut d = dispatched();
     seen(&mut d, Some(BASE), NEXT_TIP);
@@ -490,6 +759,9 @@ fn observe_branch(d: &mut Domain, expected: &[u8]) {
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, api::Op::Read(api::Read::Branch { branch: expected.into() }));
     fixtures::answer(d, call, Ok(api::Answer::Commit(BASE)));
+    if row(d).baseline.is_none() {
+        baseline_tip(d, BASE);
+    }
 }
 #[test]
 fn first_observation_of_each_followed_branch_starts_its_baseline() {
@@ -543,6 +815,75 @@ fn a_vetoed_dispatch_is_a_fault_on_the_next_step() {
 }
 
 #[test]
+fn tier_flights_and_walks_use_hearing_deadlines() {
+    skein_rows::check(
+        [
+            ("quiet", (false, 60, 0, false, 5)),
+            ("hearing", (true, 60, 0, false, 60)),
+            ("poll is later", (true, 60, 58, false, 5)),
+            ("expired", (true, 60, 60, false, 5)),
+            ("disabled", (true, 0, 0, false, 5)),
+            ("another repository", (true, 60, 0, true, 5)),
+        ],
+        tier_hearing_row,
+    );
+}
+fn tier_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bool, u64)) {
+    for walking in [false, true] {
+        let mut d = if walking { configured(None) } else { dispatched() };
+        let running = if walking {
+            seen(&mut d, None, BASE);
+            baseline_tip(&mut d, BASE);
+            None
+        } else {
+            let mut run = workflow(&d, api::Conclusion::Success, None);
+            run.state = api::RunState::Running;
+            run.conclusion = None;
+            answer(&mut d, api::Answer::Runs { runs: Box::new([run.clone()]), more: false });
+            Some(run)
+        };
+        let mut clock = env();
+        clock.limits.client.fallback = Duration::from_secs(fallback);
+        if hint {
+            fixtures::repository_heard(
+                &mut d,
+                &clock,
+                if other { api::Repository { repository: 3, ..REPO } } else { REPO },
+            );
+        }
+        clock.now = clock.now.saturating_add(Duration::from_secs(elapsed));
+        let owner = if walking {
+            *d.tier_ops.reads.iter().next().unwrap().0
+        } else {
+            d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+            READ
+        };
+        let result = match running {
+            Some(run) => Ok(api::Answer::Run(run)),
+            None => Err(api::Error::Busy),
+        };
+        let mut out = Queue::uncapped();
+        crate::tiers::answered(&mut d, &clock, owner, result, &mut out);
+        let expected = Some(clock.now.saturating_add(Duration::from_secs(delay)));
+        if walking {
+            assert_eq!(crate::tiers::deadline(&d), expected, "walk retry");
+        } else {
+            assert_eq!(row(&d).flight.as_ref().unwrap().next, expected, "flight poll");
+            let mut out = Queue::uncapped();
+            crate::tiers::hinted(
+                &d,
+                &api::Hint { repository: REPO, change: api::Change::Commit(BASE), key: None },
+                &mut out,
+            );
+            assert!(
+                collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }),
+                "job delivery wakes immediately"
+            );
+        }
+    }
+}
+
+#[test]
 fn waiting_tier_task_wakes_at_its_wall_deadline() {
     for until in [Some(Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(2).as_nanos())), None] {
         let mut d = configured(None);
@@ -592,18 +933,173 @@ fn offered_tier_spends_only_its_own_wait() {
     assert!(!collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
 }
 
+fn close_tier(d: &mut Domain, task: u64, ending: ReleaseEnding) -> Box<[Request]> {
+    outputs(d, Event::SettleEffects { task, root: task, ending })
+}
+
+#[test]
+fn closing_a_tier_task_saves_its_drop_in_the_same_decision() {
+    for ending in [ReleaseEnding::Cancelled, ReleaseEnding::Failed, ReleaseEnding::Done] {
+        let mut d = dispatched();
+        d.wait_tier(&env(), TIER_TASK, None);
+        let out = close_tier(&mut d, TIER_TASK, ending);
+        assert!(out.iter().any(|request| matches!(request,
+            Request::Save { record: Stored::Tier(saved), .. }
+                if saved.task.is_none() && saved.record.run.is_none() && saved.record.sequence == 1)));
+        assert_eq!(row(&d).record.sequence, 1);
+        assert!(row(&d).record.run.is_none());
+        assert!(row(&d).task.is_none());
+        assert!(row(&d).flight.is_none());
+        assert!(row(&d).observations.is_empty());
+        assert!(row(&d).held.is_none());
+        assert_eq!(row(&d).branch, TierBranch::Absent);
+        assert!(!d.tier_ops.follows.contains_key(&(REPO, TIER.into())));
+        assert_eq!(d.next_wall_deadline(), None);
+        assert!(choice(&out).is_none());
+        let out = key_trees(&mut d);
+        assert_eq!(requests(&out), [(2, BASE)]);
+    }
+}
+
+#[test]
+fn a_dropped_runs_landings_still_verify_in_the_next_numbered_run() {
+    let mut d = dispatched();
+    seen(&mut d, Some(BASE), NEXT_TIP);
+    seen(&mut d, Some(NEXT_TIP), LAST_TIP);
+    key_trees(&mut d);
+    completed(&mut d, api::Conclusion::Success, None);
+    finish(&mut d);
+    attach(&mut d, 2, NEXT_TASK);
+    let landings = row(&d).record.run.as_ref().unwrap().landings.clone();
+    assert_eq!(landings.len(), 2);
+    for landing in &landings {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Verification(Verification {
+                    repository: REPO,
+                    commit: landing.commit,
+                    changes: Box::new([CHANGE]),
+                    tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+                }),
+            },
+        );
+    }
+    let out = close_tier(&mut d, NEXT_TASK, ReleaseEnding::Cancelled);
+    assert_eq!(row(&d).record.sequence, 2);
+    assert_eq!(requests(&out), [(3, LAST_TIP)]);
+    let run = row(&d).record.run.as_ref().unwrap();
+    assert_eq!(run.landings, landings);
+    assert!(d.verifications.iter().all(|(_, verification)| verification.tiers[0].verdict.is_none()));
+    attach(&mut d, 3, TIER_TASK + 2);
+    tier_step(&mut d, OPEN, false);
+    assert_eq!(
+        d.entries.get(&OPEN).unwrap().entry.effect.write,
+        api::Write::CreateBranch { branch: b"temper/tier/browser.3".as_slice().into(), commit: LAST_TIP }
+    );
+}
+
+#[test]
+fn dropping_a_full_range_compacts_only_adjacent_outside_landings() {
+    let mut d = dispatched();
+    let owned = [12; 32];
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Verification(Verification {
+                repository: REPO,
+                commit: owned,
+                changes: Box::new([CHANGE]),
+                tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+            }),
+        },
+    );
+    let kept = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+    kept.record.judged = Some(p::Judged { tip: BASE, key: BASE });
+    kept.record.run.as_mut().unwrap().landings = Box::new([
+        p::Landing { commit: [10; 32], key: [20; 32] },
+        p::Landing { commit: [11; 32], key: [21; 32] },
+        p::Landing { commit: owned, key: [22; 32] },
+    ]);
+    kept.pending = Box::new([
+        TierLanding { commit: [13; 32], key: Some([23; 32]) },
+        TierLanding { commit: [14; 32], key: Some([24; 32]) },
+        TierLanding { commit: [15; 32], key: Some([25; 32]) },
+    ]);
+    let mut small = env();
+    small.limits.changes = 1;
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &small,
+        Event::SettleEffects { task: TIER_TASK, root: TIER_TASK, ending: ReleaseEnding::Cancelled },
+        &mut out,
+    );
+    let out = collect(out);
+    let expected = [
+        p::Landing { commit: [11; 32], key: [21; 32] },
+        p::Landing { commit: owned, key: [22; 32] },
+        p::Landing { commit: [15; 32], key: [25; 32] },
+    ];
+    assert_eq!(row(&d).record.run.as_ref().unwrap().landings.as_ref(), &expected);
+    assert!(out.iter().all(|request| match request {
+        Request::Save { record: Stored::Tier(row), .. } => row.pending.len() <= SMALL_RANGE,
+        _ => true,
+    }));
+}
+
+#[test]
+fn late_dispatch_and_read_answers_cannot_revive_a_closed_tier_task() {
+    let mut d = dispatched();
+    // Keep one dispatch and its listing read in flight at the close.
+    tier_step(&mut d, DISPATCH + 1, false);
+    let key = (REPO, TIER.into());
+    let owner = *d.tier_ops.reads.iter().next().expect("listing read").0;
+    d.tiers.get_mut(&key).unwrap().flight.as_mut().unwrap().waiting = true;
+    close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(!d.tier_ops.reads.contains_key(&owner), "close forgets the old run's read");
+    key_trees(&mut d);
+    attach(&mut d, 2, NEXT_TASK);
+    let before = row(&d).clone();
+    let mut late = Queue::uncapped();
+    crate::tiers::outcome(
+        &mut d,
+        DISPATCH,
+        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
+        &mut late,
+    );
+    crate::tiers::veto(&mut d, TIER_TASK, DISPATCH, &mut late);
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Runs { runs: Box::new([]), more: false }), &mut late);
+    assert!(collect(late).is_empty());
+    assert_eq!(row(&d), &before);
+}
+
+#[test]
+fn a_late_baseline_read_cannot_revive_a_closed_tier_task() {
+    let mut d = configured(None);
+    let (owner, read) = d.tier_ops.reads.iter().next().expect("tier-owned fresh baseline read");
+    assert_eq!(read.tier, (REPO, TIER.into()));
+    assert!(read.baseline);
+    let owner = *owner;
+    // A run was restored while the fresh baseline read was in flight.
+    outputs(&mut d, Event::Restore { record: Stored::Tier(row(&dispatched()).clone()) });
+    close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(!d.tier_ops.reads.contains_key(&owner), "close forgets the old baseline read");
+    assert!(row(&d).record.run.is_none());
+    assert!(row(&d).task.is_none());
+    let before = row(&d).clone();
+    let mut late = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Commit(NEXT_TIP)), &mut late);
+    assert!(collect(late).is_empty(), "a late baseline answer cannot dispatch");
+    assert_eq!(row(&d), &before);
+}
+
 #[test]
 fn cancelling_a_tier_task_drops_its_wait() {
     let mut d = dispatched();
     d.wait_tier(&env(), TIER_TASK, None);
-    outputs(
-        &mut d,
-        Event::StepTier { task: TIER_TASK, entry: RELEASE, heard: TierHeard { released: false, cancelled: true } },
-    );
-    assert!(d.next_wall_deadline().is_some());
-    made(&mut d, RELEASE, skein_forge_client::Made::Set);
-    let out = tier_step(&mut d, RELEASE + 1, false);
-    assert_eq!(choice(&out), Some(&TierDecision::Done { words: b"Tier browser cancelled".as_slice().into() }));
+    let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(choice(&out).is_none());
     assert!(row(&d).task.is_none());
     assert_eq!(d.next_wall_deadline(), None);
 }

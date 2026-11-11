@@ -5,7 +5,7 @@ secrets temper's processes hold, where each comes from, who may use it,
 and how it reaches the process that does. LLM accounts, workers' secrets
 and people's sign-ins are jig's (jig's `protocol/README.md`, section 8;
 jig's `domain/accounts.md`; jig's `protocol/llm.md`, sections 5 and 6),
-and temper adds `temper program-login` (section 3); temper's own are its
+and temper adds `temper-box program-login` (section 3); temper's own are its
 forges' credentials, records in jig's secrets' store under temper's tag
 (jig's `protocol/store/secrets.md`), and the git identities made from
 them. A forge's credentials come from the client, in a request carrying
@@ -24,14 +24,14 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
   and taken out as it is decoded.
 - **LLM accounts are jig's,** made from the client: a sign-in with the
   LLM provider, a key, or a program's login. temper writes no OAuth
-  exchange and configures no account, and adds `temper program-login`,
+  exchange and configures no account, and adds `temper-box program-login`,
   which signs a program's login in on a host (section 3).
 - **Every forge credential is a record in jig's secrets' store,** under
   temper's tag, one row per forge and item: the forge's tokens, a GitHub
   App's id, slug and key, the bot's user, a Forgejo forge's webhooks'
   secret, the accepted installations (section 2.1). A connect from the
   client makes them, from the values pasted in its request or through
-  the engine's setup host; nothing configures them, and `temper serve`
+  the engine's setup host; nothing configures them, and `temper-box serve`
   reads no forge credential from a file but an owned Forgejo's handover,
   once. The main store keeps each forge's writer, which is not secret.
 - **Kept before used, read once at start.** A new value is durable in the
@@ -75,13 +75,13 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
 
 | Credential | Owner | Kind | Source | Held by | Used by | Changes |
 |---|---|---|---|---|---|---|
-| an LLM account's source | jig | a signed-in record (refresh token, access token, expiry), a key, or a program's login | a sign-in or a key from the client; a program's login, `temper program-login` on each host (section 3) | jig's secrets' store, lent by skein's accounts driver, the access tokens and keys in jig's accounts' table; a program's login, the program, in the source's configuration directory | the worker's agent processes, through grants | the driver refreshes a signed-in record; a key's holder replaces it from the client; the program renews its own login |
+| an LLM account's source | jig | a signed-in record (refresh token, access token, expiry), a key, or a program's login | a sign-in or a key from the client; a program's login, `temper-box program-login` on each host (section 3) | jig's secrets' store, lent by skein's accounts driver, the access tokens and keys in jig's accounts' table; a program's login, the program, in the source's configuration directory | the worker's agent processes, through grants | the driver refreshes a signed-in record; a key's holder replaces it from the client; the program renews its own login |
 | a git identity | temper | a token with its login, and an author: on Forgejo the `GitToken` record; on GitHub the accepted installations' tokens | the forge's records and tokens, and on Forgejo its record's bot (section 4) | the identities' table on the engine, and on the worker from grants | the git component's invocations | a new generation at each change of value (section 4) |
 | a forge's API token | temper | a Forgejo token, the `ApiToken` record | pasted from the client at a connect, or made by the setup host's reconcile when the forge is managed or owned (setup/reconcile.md) | jig's secrets' store; the forge component, in the forge's access | that forge's API requests | replaced from the client (`credentials.md`, section 5), or made again by reconcile when it does not answer as the bot |
 | a GitHub App's key | temper | an RSA private key, PKCS#1 DER, 2048 bits, the `AppKey` record beside `AppId` | the manifest's conversion; or pasted from the client as GitHub gives it, PEM, which the setup host decodes to DER | jig's secrets' store; the forge component, in the forge's access; the setup host, while a plan runs | signing the App's own requests, and minting its installations' tokens | replaced from the client with a key of the same App (section 5) |
 | an installation's token | temper | a GitHub token, expiring within the hour | minted by the forge component with the App's key, one per accepted installation (section 5); by the setup host, for a page of the picker | the forge component; the forge's git identity; the setup host, while a page is read; never kept | that installation's API requests; git's, through the identity; the picker's page | minted again `renew_before` ahead of its expiry; a picker's page's, dropped with the page |
 | a worker's secret | jig | a shared secret | the worker's secret file; the engine's digest file | the worker; the engine, its digest | the link's opening | an operator replaces both |
-| a sign-in's secret | jig | a bearer token | the printed link, then the sign-in | `jig-client` in `temper open`, which keeps it in its directory; the engine, its digest | each of the client's exchanges and its stream | the sign-in ends or expires |
+| a sign-in's secret | jig | a bearer token | the printed link, then the sign-in | `jig-client` in `temper-box open`, which keeps it in its directory; the engine, its digest | each of the client's exchanges and its stream | the sign-in ends or expires |
 | a Forgejo forge's webhooks' secret | temper | a shared secret, the `WebhookSecret` record; a GitHub forge has none | pasted at a connected Forgejo's connect; or drawn by the setup host and set on the hooks of a managed or owned Forgejo served the listener (setup/reconcile.md, 3), by the plan that makes them | jig's secrets' store; the forge component's webhooks' listener, on loopback; the forge's hooks, which sign each delivery with it | checking each delivery's signature (forge/README.md, section 4) | replaced from the client with the forge's tokens; reconcile sets a managed or owned Forgejo's hooks' secret to the record's |
 | a site admin's token | temper | a Forgejo token, the `AdminToken` record | pasted from the client at a managed connect; an owned Forgejo's handover file, taken once and removed (setup/README.md, section 5) | jig's secrets' store; the setup host, only while a plan runs | reconcile, access at an adoption, and the picker's reads on a managed or owned Forgejo (a `Reachable` plan) | erased by Forget, after which the forge is connected |
 
@@ -89,7 +89,7 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
   under temper's tag (`SecretOwner::Application`), beside jig's own:
   sign-ins' and services' digests, LLM accounts' records and keys (jig's
   `protocol/store/secrets.md`). No forge credential is a file
-  `temper serve` reads, but an owned Forgejo's handover admin's token,
+  `temper-box serve` reads, but an owned Forgejo's handover admin's token,
   read once, kept as a record, and removed.
 - **A GitHub forge has no webhooks' secret.** The setup host points the
   App's hook at `https://<slug>.invalid/`, a name that never resolves; the
@@ -308,7 +308,7 @@ provider's account, held by a person or by the deployment, with its
 sources in its holder's order. temper configures the LLM providers
 (configuration/README.md, section 2), shows and makes accounts from its client
 (`../client/pages/README.md`; `../client/ctl/areas.md`, area 5), and adds
-`temper program-login`, below.
+`temper-box program-login`, below.
 
 - **Made from the client, never configured.** Configuration names LLM
   providers, never an account (jig's `protocol/configuration.md`, section
@@ -366,7 +366,7 @@ sources in its holder's order. temper configures the LLM providers
   - **a key:** pasted on the accounts page, or read by `temper ctl` from
     a private file;
   - **a program's login:** declared from the client under its name, then
-    signed in on each host by `temper program-login` (below). The login
+    signed in on each host by `temper-box program-login` (below). The login
     is the program's own, in the source's configuration directory,
     `<directory>/NAME` under the agent's programs directory
     (configuration/README.md, section 4), and temper never reads it;
@@ -396,20 +396,20 @@ sources in its holder's order. temper configures the LLM providers
   every login kept on its host. A standalone deployment's one worker,
   on its person's machine, keeps that person's logins alone, and is
   unaffected.
-- **`temper program-login [DIRECTORIES] NAME`:**
+- **`temper-box program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
     and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
     `temper ctl account declare` give it with this command, the accounts
     page as the box's whole command (`../client/forge/records.md`, *The
     printed command*). The tools'
-    printed act is `temper program-login --config CONFIG --data DATA
+    printed act is `temper-box program-login --config CONFIG --data DATA
     --cache CACHE NAME`: CONFIG, DATA and CACHE stand for that box's
     directories; ctl reads no box configuration. Skip the command where
     the programs directory's NAME is already signed in. Then
     `account verify ACCOUNT --source program`, ACCOUNT as `account list`
     shows it.
   - It reads and checks the document in its configuration directory
-    (configuration/directories.md) as `temper serve` does
+    (configuration/directories.md) as `temper-box serve` does
     (configuration/README.md, section 6), and the agent's configuration it
     names, reading no secret file; it opens no store, starts no service
     and sends nothing to the engine, which need not run.
@@ -433,7 +433,7 @@ sources in its holder's order. temper configures the LLM providers
     4); a sign-in cannot.
   - Its exit status is the program's. A failure before the exec exits
     1, its reason on stderr: temper writes one line beginning
-    `temper program-login:`. Smith's configuration reader may precede it with
+    `temper-box program-login:`. Smith's configuration reader may precede it with
     its own secret-free `smith: ` diagnostics, as under the other commands
     that read a smith configuration; of its trust roots it says nothing
     unless a block is malformed (skein's `runtime/shell.md`, 6.2). Temper redirects
@@ -670,9 +670,9 @@ sources in its holder's order. temper configures the LLM providers
   (configuration/README.md, section 5).
 - **People's credentials are jig's** (jig's `protocol/client/sign-in.md`
   ): jig mints, verifies, expires and revokes them. Its printed
-  link signs in the deployment's first owner: `temper serve` prints the
+  link signs in the deployment's first owner: `temper-box serve` prints the
   link at start, or `temper box` before it starts serve (`setup/box.md`, 2),
-  `temper open` signs in by it; its client holds the
+  `temper-box open` signs in by it; its client holds the
   bearer token it is given and sends it with every exchange, and the
   terminal keeps it in its private directory, to sign in with it again
   (`../client/README.md`, section 4). Every other way of signing in is open
@@ -720,7 +720,7 @@ sources in its holder's order. temper configures the LLM providers
   a restart erasing again.
 - **Startup:** a secret file readable by another user, or reached
   through a link, refuses the start, naming it.
-- **`temper program-login`,** step tests: each refusal (a name out of
+- **`temper-box program-login`,** step tests: each refusal (a name out of
   its bounds, no program configured, a directory not private or reached
   through a link), each before anything is made; the directory made
   `0o700`; and the exec's program, arguments and environment: the
@@ -775,11 +775,11 @@ sources in its holder's order. temper configures the LLM providers
   elsewhere takes its secrets' directory with its store, since its
   forges' records are there, or sets up and connects its forges
   again.
-- **A login command that finds its box.** Typed by hand, `temper
+- **A login command that finds its box.** Typed by hand, `temper-box
   program-login NAME` reads the directories its environment gives, not a box's
   own. The pages print the box's whole command (`../client/forge/records.md`), and
   the command stays as it stands. Default: so.
-- **A second program.** `temper program-login` signs in the agent's
+- **A second program.** `temper-box program-login` signs in the agent's
   one program, Claude Code. Default: it takes `--program ADAPTER` once
   smith's agent adapts a second (smith's `protocol/programs.md`).
 - **The forge as people's sign-in provider,** for a deployment with more

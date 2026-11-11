@@ -85,7 +85,7 @@ pub(super) fn capacity(
     };
     #[cfg(not(feature = "worker"))]
     let (agent_conflicts, agent_paths) = {
-        let _ = agent;
+        let _: Option<&settings::Agent> = agent;
         (None, None)
     };
     let payload = payload(checkout);

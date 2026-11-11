@@ -88,7 +88,8 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
             out.put(b"decision ");
             out.number(*revision);
         }
-        c::Activity::Kept { .. } => out.put(b"parked"),
+        c::Activity::Stood { .. } | c::Activity::Kept { .. } => out.put(b"parked"),
+        c::Activity::SessionEnded { .. } => out.put(b"session ended"),
         c::Activity::Milestone { .. } => out.put(b"phase changed"),
     }
     out.put(b"\n");

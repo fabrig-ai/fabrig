@@ -3,7 +3,7 @@ use crate::json::Json;
 
 const WORKFLOW: &str = "name: turn-dispatch\non:\n  workflow_dispatch:\n    inputs:\n      word:\n        required: true\n        type: string\njobs:\n  pass:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_INPUT=%s\\n' '${{ inputs.word }}'\n          sleep 5\n  fail:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_FAILED_STEP\\n'\n          exit 1\n";
 fn listing(head: &str, workflow: &str, page: u64) -> String {
-    format!("{REPO}/actions/runs?workflow={workflow}&head_sha={head}&page={page}&limit=2")
+    format!("{REPO}/actions/runs?workflow_id={workflow}&head_sha={head}&page={page}&limit=2")
 }
 fn dispatch(p: &mut Probe<'_>, name: &str, workflow: &str, branch: &str) -> Result<skein_throwaway_forgejo::Exchange> {
     p.send(

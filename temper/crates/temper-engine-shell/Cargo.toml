@@ -23,7 +23,7 @@ temper-service.workspace = true
 temper-shell.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true
-temper-box.workspace = true
+temper-box-machine.workspace = true
 temper-fake.workspace = true
 skein-shell.workspace = true
 skein-io.workspace = true
@@ -32,8 +32,11 @@ skein-lib.workspace = true
 skein-json.workspace = true
 skein-forge.workspace = true
 jig-protocol-config.workspace = true
+temper-version.workspace = true
+temper-protocol-store.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 skein-scratch.workspace = true
 temper-client-protocol-wire.workspace = true
 serde_json.workspace = true

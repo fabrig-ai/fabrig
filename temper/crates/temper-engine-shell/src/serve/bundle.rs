@@ -14,7 +14,7 @@ use temper_service::{
     limits::Clients,
 };
 
-/// The digest of the bundle this binary holds (client/web/README.md, 2.6); `None` built with `TEMPER_BUNDLE=none`.
+/// The digest of the bundle this binary holds (client/web/README.md, 2.6); `None` built with `TEMPER_INTERNAL_BUNDLE=none`.
 pub const OWN: Option<&str> = temper_client_bundle::DIGEST;
 
 fn refusal(shown: &Path, why: impl std::fmt::Display) -> String {

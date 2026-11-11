@@ -24,6 +24,8 @@ use temper_engine_domain_forge as forge;
 /// `protocol/channel/README.md`, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
+    /// The change project's delivery checks' bound (domain/agent/charter.md, 4).
+    pub check_timeout: Option<skein_lib::Duration>,
     /// Root-issued durable task number.
     pub task: u64,
     pub attempt: u64,
@@ -564,7 +566,14 @@ pub enum Fact {
         job: Option<skein_forge::api::JobAttempt>,
     },
     /// A brief section's forge read failed (temper/docs/design/domain/forge/change/repairs.md).
-    BriefReadRefused { task: u64, section: &'static [u8], stage: &'static str, error: Option<skein_forge::api::Error> },
+    BriefReadRefused {
+        task: u64,
+        section: &'static [u8],
+        stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
+        error: Option<skein_forge::api::Error>,
+    },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.
@@ -1150,6 +1159,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
         | Delivery::ProjectReleased { .. }
+        | Delivery::MoveStanding { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)

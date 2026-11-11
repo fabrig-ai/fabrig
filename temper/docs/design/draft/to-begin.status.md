@@ -1,10 +1,9 @@
 # to-begin: status
 
-2026-11-08. Where the design lags or departs from [to-begin.md](to-begin.md).
+2026-11-11. Where the design lags or departs from [to-begin.md](to-begin.md).
 
-- **Design lags:**
-  - 3: step 1, "a setting the project reads holds a change": `../client/pages/README.md` marks it done by any line of the `settings` document that follows a change, another project's own policy among them, and `temper-client-domain`'s `pages/home.rs`, `configured`, reads no line's setting.
 - **Design departs:**
+  - 3: step 1, "a setting the project reads holds a change": `../client/pages/home.md`, 1: a setting of the project's own, an application's of the project's scope, following a change, so that neither another project's setting nor the deployment's marks the step: the user's request of 2026-11-11, "require the project's own accepted setting".
   - 1, 2: Needs you and Chats with content while To begin shows:
     `../client/pages/README.md` leaves both sections out until the card
     goes, even with a chat started elsewhere, by the user's later look
@@ -16,7 +15,7 @@
   - 3: "By queue" and "By turn": `../client/pages/README.md`: the second step names no way of landing on any project, since no client is given a project's `by`; `../client/README.md`, section 5 there holds the question.
   - 3: the lines of steps 1 and 2: `../client/pages/README.md`: step 1 says "In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.", and the repository's "temper can change its code now.", the greenfield mock's, the user's target of 2026-11-05, less its "CI ran on main", which the forge's rows can't back, decided by the request `ui-final-walk`'s task `fix-look`, with "temper" for "Chats" since Chats is not in the rail while To begin shows (the request `to-begin-two-steps`).
   - 3: step 1's act and when it is done, "the configuring chat" (`configuring.md`, 5.1): `../client/pages/README.md`: "Start" opens Ask temper, the person's newest Ask temper chat open in the project or else `Ask { project }`, the chat starting with the person's own words; an Ask temper chat that runs or ran marks the way of working done. The configuring chat goes as Ask temper takes its place: `ask-temper.md`, section 9, the user, 2026-11-07, the look request `ask-temper-place` placing it.
-  - 3: "Until the configuring template is built," the first step's act starting the stock chat: `../client/pages/README.md`: with no template 5 in `me`, Ask temper's page starts no chat and says "Ask temper isn't set up in this project.", falling back to no other template, and only a setting's change marks the step done: `ask-temper.md`, section 9, the user, 2026-11-07.
+  - 3: "Until the configuring template is built," the first step's act starting the stock chat: `../client/pages/README.md`: with no template 5 in `me`, Ask temper's page starts no chat and says "Ask temper isn't set up in this project.", falling back to no other template, and only a change of the project's own setting marks the step done: `ask-temper.md`, section 9, the user, 2026-11-07.
   - 3: steps 1 and 3, "the project holds a chat": `../client/pages/README.md`: the project's chats as `Chats` reads them, the person's own, so another member's chat marks no step, since that is the read Home holds; decided by the cut `look-round-4`, for the user to confirm.
   - 3: step 2's act, "to the adoption form": `../client/pages/README.md`: with a first repository to adopt, "Adopt" sends that adoption at once and the form holds the others, since the look request `project-home-onboarding` gives a step one act; decided by the cut `look-round-4`, for the user to confirm.
   - 4: "A refresh, a restart of the engine or another device computes the same": `../client/pages/README.md`: an adoption under way and its refusal are the session's, so elsewhere the second step reads as a first repository to adopt until the rows say it is in, since no client is given them; decided by the cut `look-round-3`, for the user to confirm.

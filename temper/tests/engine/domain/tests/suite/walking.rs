@@ -199,6 +199,7 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
     let mut world = settled();
     let task = ended(&world);
     let mut assignment = Assignment {
+        check_timeout: None,
         task: task.number,
         attempt: task.attempt,
         conversation: task.attempt,

@@ -1,8 +1,8 @@
-# The configuration and `temper init`
+# The configuration and `temper-box init`
 
-- **One document,** `temper serve`'s, `temper.json` in the
+- **One document,** `temper-box serve`'s, `temper.json` in the
   configuration directory (../configuration/README.md, section 2 and ../configuration/directories.md). Every
-  `temper forge` command and `temper box` read it whole, check it
+  `temper-box forge` command and `temper box` read it whole, check it
   as ../configuration/README.md, section 6 says, `application.machine` among it,
   and act on their part: they read no file but their own part's.
 - **It names no forge.** A forge is a record of the forge connector,
@@ -16,7 +16,7 @@
 - **The document keeps the machine's:** the clients' and the webhooks'
   listeners; in `application.machine` (../configuration/engine.md),
   what the forges a box can run take from this machine, the box's owned
-  Forgejo's port and the fakes' ports among it, which `temper init --box`
+  Forgejo's port and the fakes' ports among it, which `temper-box init --box`
   chooses and the box holds from its start (`box.md`, 1, `init.md`, 2); and the limits,
   whose forge members count the deployment's forges and repositories,
   never a sum over its forges (../forge/README.md, section 6).
@@ -43,8 +43,8 @@
   | Member | Type | Bounds |
   |---|---|---|
   | `owned` | the box's owned Forgejo | its members below; the owned kind's group (`box.md`, 1) and the offer to set one up (`owned.md`, 5) need it |
-  | `owned.forgejo`, `owned.runner.binary` | cache paths (../configuration/directories.md), or `"fetched"` | checked against the pins of `owned.md`, 1; `"fetched"` names temper's pinned build in the cache, which `temper forge fetch` writes (`owned.md`, 6) |
-  | `owned.mirror` | absent, or `{"forgejo", "runner"}`, each an origin | each `https://HOST` or `https://HOST:PORT`, no path: where `temper forge fetch` asks for the pinned paths (`owned.md`, 6) |
+  | `owned.forgejo`, `owned.runner.binary` | cache paths (../configuration/directories.md), or `"fetched"` | checked against the pins of `owned.md`, 1; `"fetched"` names temper's pinned build in the cache, which `temper-box forge fetch` writes (`owned.md`, 6) |
+  | `owned.mirror` | absent, or `{"forgejo", "runner"}`, each an origin | each `https://HOST` or `https://HOST:PORT`, no path: where `temper-box forge fetch` asks for the pinned paths (`owned.md`, 6) |
   | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (`owned.md`, 2); refused beside a set `owned.sign_in`, at that member's path (`../openid-provider.md`, 9) |
   | `owned.runner` | the runner's members, or null for none | `capacity` at least 1; `labels` at least one, at most 8 |
   | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
@@ -54,7 +54,7 @@
   | `fake` | the playground's fake forge | its members below; the fake kind's group (`box.md`, 1) and the playground's start (`playground.md`) need it, and `application.demo` beside it |
   | `fake.listen` | an address, jig's format | as `owned.listen` |
   | `fake.remote` | an HTTP base | `http://<listen>` |
-  | `fake.git` | a data path | the playground's git, a link to `temper fake git` (`init.md`, 2, `playground.md`): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (../channel.md, section 4) |
+  | `fake.git` | a data path | the playground's git, a link to `temper-box fake git` (`init.md`, 2, `playground.md`): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (../channel.md, section 4) |
   | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (`github.md`, 1); a place only to point at a fake (`box.md`, 5) |
 
 - **Runner slots:** change CI and tiers whose workflows use `temper-host`
@@ -111,9 +111,9 @@
   (../configuration/engine.md; skein's `forge/README.md`, section 6).
 - **The clients' listener at a fixed address,** for GitHub: GitHub's
   redirect and setup URLs name it, so its port is never 0 (`github.md`, 1).
-- **`temper serve` checks `application.machine`,** and reads one file
+- **`temper-box serve` checks `application.machine`,** and reads one file
   of a forge's setup, an owned or fake forge's handover (`README.md`, section 3).
-  Under the box, as `temper internal serve --box`, it adopts the box's
+  Under the box, as `temper-box internal serve --box`, it adopts the box's
   pipe, over which it asks for a forge's group, and for its removal
   (`box.md`, 1).
 - **`application.demo`,** the scripted model's fake LLM, `llm` alone,
@@ -122,12 +122,12 @@
   (../configuration/engine.md).
 - **An owned example** ships for a person, a test or QA's host to start
   from (1).
-- **`temper init`** writes a deployment that starts (2), with the
+- **`temper-box init`** writes a deployment that starts (2), with the
   default document (3).
 
 ## 1. The owned example
 
-The box document written by `temper init --box` and the owned example take
+The box document written by `temper-box init --box` and the owned example take
 jig's `standard`'s `documents.lines`, sixteen entries for each creating
 executor list, and its `tasks.charters`, twelve.
 This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
@@ -194,7 +194,7 @@ runs it (`box.md`).
 - **Its agent's configuration** (../configuration/README.md, section 4),
   `owned/agent.json`, declares OpenAI's endpoint and model, and
   Claude Code's program, its path and its programs directory, a
-  directory the person names; and takes `temper init`'s figures, sized
+  directory the person names; and takes `temper-box init`'s figures, sized
   for a project of fabrig's scale (../configuration/stock.md): smith's
   `standard`, with `declared` `memory` 2,147,483,648, `tool_payload`
   the largest smith admits at its model's output of 8,192 tokens (about
@@ -216,7 +216,7 @@ runs it (`box.md`).
   larger of that and its outcome (../configuration/limits.md,
   `standard` against the agent). smith's standard sizes with nothing
   declared refuse the example's model declaration at start.
-  `temper init`'s agent takes the same figures but its endpoints and
+  `temper-box init`'s agent takes the same figures but its endpoints and
   programs (2); its scripted model's window is `gpt-6-luna`'s, so its
   room is the same (3).
 - **Its `engine.limits`** are jig's `standard` profile (../configuration/stock.md
@@ -288,7 +288,7 @@ runs it (`box.md`).
     `root.loads.read_bytes` 2T, the turn and room as large again for
     the evidence a read carries with it (../configuration/README.md, section 9).
 
-  A test holds the example's and `temper init`'s figures to this
+  A test holds the example's and `temper-box init`'s figures to this
   derivation from their agent, and its writer rewrites them:
 
   ```sh
@@ -333,9 +333,9 @@ runs it (`box.md`).
   listener's (`127.0.0.1:7101`), are what a host changes to run several
   boxes on one machine, with each box's directories.
 
-## 2. `temper init`
+## 2. `temper-box init`
 
-`temper init [DIRECTORIES] [--box]` writes a deployment that starts,
+`temper-box init [DIRECTORIES] [--box]` writes a deployment that starts,
 from its three directories (../configuration/directories.md) and what it
 finds on the machine. Alone, it writes a bare deployment: no welcome, no
 playground and no Forgejo on this machine.
@@ -368,12 +368,12 @@ playground and no Forgejo on this machine.
   | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (`playground.md`): a symbolic link to the binary |
+  | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
   | `agent.json` | configuration | 0o644 | smith's agent configuration (../configuration/README.md, section 4): the owned example's endpoints with their limits and its profile (1), and, with `--box`, the scripted provider's endpoint and limits (3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (`owned.md`, 6), and its programs directory, `programs` in the data directory; and its endpoint and limits (3), whether or not `claude` is on `PATH` |
   | `temper.json` | configuration | 0o644 | the default document (3) |
 
 - **What it finds,** each written absolute:
-  - *the binary,* the running `temper`'s own path: the worker's agent's
+  - *the binary,* the running `temper-box`'s own path: the worker's agent's
     `program`, with `arguments` `["internal", "agent",
     <configuration>/agent.json]` and `configuration` that same path
     (../configuration/README.md, section 4), and, with `--box`, the playground's
@@ -382,7 +382,7 @@ playground and no Forgejo on this machine.
     `null`, written without refusing, and init says so (../git.md, section
     3). With `--box`, the playground's link, `<data>/demo/bin/git`, is
     the machine's `fake.git` (`init.md`), so that the playground's git
-    is `temper fake git` (`playground.md`) whatever git the machine has, or none;
+    is `temper-box fake git` (`playground.md`) whatever git the machine has, or none;
   - *Claude Code,* the `claude` found on `PATH`: the `path` of the
     agent's configuration's program; with none, `"fetched"`, temper's
     pinned build, fetched when a command of its source first needs it
@@ -401,8 +401,8 @@ playground and no Forgejo on this machine.
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
     binary's own (`../../client/web/README.md`, 2.6): a temper built with its
     browser starts its first run with it. From a binary built without
-    one (`TEMPER_BUNDLE=none`), init says the browser is not served;
-    the link still signs in a terminal (`temper open`), and a browser
+    one (`TEMPER_INTERNAL_BUNDLE=none`), init says the browser is not served;
+    the link still signs in a terminal (`temper-box open`), and a browser
     that opens it is answered the clients' listener's page for no
     bundle (`../../client/web/README.md`, 2.2), never a bare `404`;
   - *the clients' listener's port:* 8367, when a socket binds
@@ -415,14 +415,14 @@ playground and no Forgejo on this machine.
   - *the webhooks' listener's port:* 8371, by the same rule (3). The
     sockets, the clients', these three with `--box` and the webhooks',
     are held until all the ports are chosen, so that no two are the
-    same; then `temper init` closes them, and `temper box`, whose first
+    same; then `temper-box init` closes them, and `temper box`, whose first
     run ran init in its own process, keeps them, and holds each for its step
     from then on (`box.md`, 1), so that no port it wrote is free between init and
     the step's bind. The port is written fixed, since the setup host gives the
     hook's address from the document at its start (`reconcile.md`, 3); a listener
     bound to port 0, its hooks given the address it reports, is later.
 - **Choosing ports for another box:** keep the first running and give
-  `temper init --box` three separate empty directories. Its occupied preferred ports
+  `temper-box init --box` three separate empty directories. Its occupied preferred ports
   fall back by the rule above, and both documents name the chosen ports
   consistently, including the machine's remotes and the scripted LLM
   endpoint.
@@ -432,7 +432,7 @@ playground and no Forgejo on this machine.
   reservations through startup. The walk `box`, step 1, and the
   `commands` page's init entry explain these choices (`temper help`).
 - **What it says,** on stderr: `init: wrote <path>` for each file;
-  `init: this temper has no browser (built with TEMPER_BUNDLE=none):
+  `init: this temper has no browser (built with TEMPER_INTERNAL_BUNDLE=none):
   the browser is not served` from a binary built without its bundle;
   `init: no git on PATH: a real forge's repositories need git
   2.41 or later, set as workers[].git` when there is none; with
@@ -441,7 +441,7 @@ playground and no Forgejo on this machine.
   has no login in /etc/passwd: the owned Forgejo's person is person`
   with no login; `init: after starting, continue with ChatGPT or add an
   OpenAI API key from the accounts page`; and last, `init: start it with
-  temper serve`, or with `--box` `init: start it with temper box`, with
+  temper-box serve`, or with `--box` `init: start it with temper box`, with
   the flags init was given. Its stdout is empty; exit 0.
 - **Nothing else:** no forge, no account, no credential, no repository
   and no store. The engine's first start makes its store; accounts,
@@ -462,7 +462,7 @@ playground and no Forgejo on this machine.
   the secret's, the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
-  passes ../configuration/README.md, section 6, as `temper serve` checks it, with
+  passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
   Anthropic provider, its program, endpoint and model in both documents
@@ -472,7 +472,7 @@ playground and no Forgejo on this machine.
   and scripted LLM addresses in both documents; `clients.bundle` always
   `null`; each refusal writing nothing, the person's fallback login
   among them; the files' modes; and the link's target. A box on a fresh init,
-  among those tests, reaches `temper serve`'s listening with no forge
+  among those tests, reaches `temper-box serve`'s listening with no forge
   and every group dormant: no `forge-N` directory, no group's file and
   nothing in the cache. The process
   tier starts a box on empty directories (`testing.md`, 4), and a story of its own
@@ -486,7 +486,7 @@ development, with five times the largest figure seen
 (../configuration/stock.md), so a fresh box runs such a project with no
 override.
 
-- **The box's parts,** `temper init --box`'s alone (2):
+- **The box's parts,** `temper-box init --box`'s alone (2):
   `application.welcome` `true`; the machine's `owned`; and the
   playground: the machine's `fake`, `application.demo`, the scripted
   provider in `engine.llm` and in the agent's configuration, and the
@@ -574,7 +574,7 @@ override.
   ). Each project is made on that policy
   by jig's `MakeProject` (`playground.md`, `owned.md`, 7). The policy and the landing rule are
   the binary's stock settings, policy 1 and every project's rule 1, and
-  the document names neither (../configuration/stock.md); `temper init`
+  the document names neither (../configuration/stock.md); `temper-box init`
   writes no `engine.policies`, `engine.rules` or `application.landing`.
 - **Its acts:** `engine.acts` (jig's `protocol/configuration.md`,
   section 3) grants the forge connector, 1, the playground's reset's
@@ -582,10 +582,10 @@ override.
   (`../../domain/forge/adoption.md`, 5), `{"connector": 1, "may": ["remove_project",
   "remove_account", "adopt"]}`, and no other connector any. The
   document's first owner, whom the grant needs, is its `owners`' first.
-  A document without the grant still serves: `temper serve` starts on
+  A document without the grant still serves: `temper-box serve` starts on
   it, and only the reset's acts are refused, *not offered*: each is
   kept, and named in serve's log with the grant to add to
-  `engine.acts`, the one `temper init --box` writes, until a start's document
+  `engine.acts`, the one `temper-box init --box` writes, until a start's document
   grants it.
 - **Its charters and templates** are the binary's stock
   (../configuration/stock.md): charters 1, 2, 4, 5, 6, 9, 10 and 11 and
@@ -632,7 +632,7 @@ override.
   literals of `temper-init`'s forgejo-elsewhere/demo document are
   checked the same way.
 - **`application.demo`,** the scripted model's fake LLM (`playground.md`).
-- **Its box's steps** (`box.md`, 1): `temper serve`; the fake kind's group, the
+- **Its box's steps** (`box.md`, 1): `temper-box serve`; the fake kind's group, the
   fake LLM, a fake forge's preparation and the fake forge, dormant until
   the person tries the playground (`playground.md`); and the owned kind's group,
   dormant until the person sets up an owned Forgejo: its fetch, its

@@ -677,10 +677,32 @@ its next run to hear of. smith does not make the host's judgement.
   answered `running`, and each `job` call's wait, so a long test suite,
   a slow completion or a long build is not taken for a hang (host.md,
   section 4).
+- **The checks' bound** is the charter's, where it names one
+  (`protocol/charter.md`, section 2), and the run's `check_timeout`
+  otherwise: each check is given that much from its start, or what is
+  left of the call's own deadline when that comes first, cut at the
+  run's end. A host that knows a run's work is large (temper, for a
+  project's goal-sized landings) gives its charter a larger bound; the
+  reserve still holds one run at `check_timeout` alone (budget.md, 1),
+  so a larger bound's check in the wind-down is cut at the run's end.
+- **Out of time, once more.** A check stopped at its deadline (it timed
+  out: it neither exited, nor failed to start, nor was cancelled) runs
+  once more at once, on the same tree under the same lease, given twice
+  the time its first run was given, cut at the call's deadline and at
+  the run's ordinary deadline, so the retry never spends the finishing
+  reserve. The host is told the second check's start with its deadline,
+  as the first's. There is no retry while the run winds down, nor where
+  the cut leaves no more than the first run was given; and never a
+  third. Each directory's check retries on its own as it times out; a
+  check that fails otherwise refuses at once, as before. A check that
+  ran out of time a second time, or could not be retried, is feedback
+  as below, `timed-out`, with the time its last run was given: a check
+  that only ran out of time is told as that, never as a failing check's
+  exit.
 - **A failing check is feedback,** with its output's tail, like any
   other. It names its directory and the check it ran there (the
   convention's path), how it ended, and the time it was given, for
-  every exit: the run's `check_timeout`, or what was left of the call's
+  every exit: the checks' bound, or what was left of the call's
   own deadline when that came first. A stopped check keeps its output's
   bounded tail through the last byte read before its pipes close,
   including output read during stopping, as a check that exits does.

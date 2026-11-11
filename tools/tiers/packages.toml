@@ -33,24 +33,24 @@ live-smith = [
 ]
 
 live-temper = [
-    "temper",
+    "temper-box",
 ]
 
 process-temper = [
-    "temper",
+    "temper-box",
 ]
 
 [binaries]
 browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
-browser-temper = [{ package = "temper", bin = "temper" }]
+browser-temper = [{ package = "temper-box", bin = "temper-box" }]
 conformance-hearth = []
 live-jig = []
 live-skein = []
 live-smith = []
 live-temper = []
 process-temper = [
-    { package = "smith-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" },
+    { package = "smith-fake-claude", bin = "fake-claude" },
     { package = "temper-agent", bin = "temper-agent" },
     { package = "temper-client", bin = "temper-client" },
     { package = "temper-engine", bin = "temper-engine" },

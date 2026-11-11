@@ -191,7 +191,9 @@ fn github_ambiguous_update_conflict_reaches_the_owner_on_both_attempts() {
     let (number, head) = conflicting_pull(&mut world);
     for _attempt in 0..2 {
         assert_eq!(world.write(Write::Update { number, style: UpdateStyle::Merge }), Outcome::Failed(Error::Conflict));
-        let Answer::Pull(pull) = world.read(Read::Pull { number }).expect("unchanged head") else { panic!("pull") };
+        let Answer::Pull(pull) = world.read(Read::Pull { number, ci: false }).expect("unchanged head") else {
+            panic!("pull")
+        };
         assert_eq!(pull.commit, head);
     }
     invariants(&mut world);

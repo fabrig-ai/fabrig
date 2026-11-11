@@ -66,6 +66,17 @@ pub fn cut_on_word(value: &[u8], bound: usize) -> Box<[u8]> {
     bytes::concat(&[prefix, marker])
 }
 
+/// When a role runs and what it does, cut on a word within the card's `WHO` bound.
+#[must_use]
+pub fn role_who(when: &[u8], does: &[u8]) -> Box<[u8]> {
+    use crate::WHO;
+    if does.is_empty() || when.len() >= WHO.saturating_sub(b": ".len()) {
+        return cut_on_word(when, WHO);
+    }
+    let room = WHO.saturating_sub(when.len()).saturating_sub(b": ".len());
+    bytes::concat(&[when, b": ", &cut_on_word(does, room)])
+}
+
 /// Through the first ". " or ".\n", trimmed, then cut on a word within `bound`.
 #[must_use]
 pub fn first_sentence(instructions: &[u8], bound: usize) -> Box<[u8]> {

@@ -9,6 +9,7 @@
 | a foreman (../forge/change/questions.md, 1) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (`tools.md`; ../forge/branches.md, 3); `wait` | its goal's report is written |
+| a standing role (`standing.md`) | its person's words; its own work's questions, results and the answers to its own questions; its timers; news its subscriptions class as waking, at a pace; proposals and escalations to decide | `goal`, `change`, `delegate`, `decided`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe`, `subscribe_forge`, `note`, its Now among its notes, `recall`, `message`, the forge's reads, `propose_settings` for its own rules; `wait` | only a cancel: a finish parks it (jig's `domain/tasks/standing.md`, section 2) |
 | Ask temper (`ask-temper.md`) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 **A coordinator hears its changes while it designs.** A coordinator's
@@ -48,7 +49,7 @@ findings reach the agent as `ToolDenied`, with the findings intact. The root
 also emits volatile operator facts for read refusals and call admission
 refusals: task, attempt, tool, layer and reason, with authority findings or
 the forge's error where present. The service routes these facts to its
-operator notes and `temper serve` prints them on stderr. Call-record and
+operator notes and `temper-box serve` prints them on stderr. Call-record and
 archive-read room pressure remains busy, retried by the host; observing it
 changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
@@ -66,7 +67,7 @@ to directory and selected-file `read_file` calls at both endpoints with
 backoff.
 A forge read answered with a kind no agent read asks for (`Runs`, `Run`,
 `Commits`, `Tree` or `Queued`) is refused as such, and nothing stops
-`temper serve`: the run's tool result, marked an error, names the read's
+`temper-box serve`: the run's tool result, marked an error, names the read's
 tool and the kind and says nothing was read, and the service notes a
 read refusal for stderr at layer `host-render`, its reason naming the
 kind.
@@ -301,13 +302,13 @@ of `../../draft/v0.1.0.md`, 2.1.
   , *Needs you*). No protocol, store or tool knows the form:
 
   ```
-  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+  Fix the dropped watch in jig’s store, or keep it alive in temper-box serve?
 
   MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
 
   Saw: The box test reproduces it every time.
   Choice: In jig’s store (recommended)
-  Choice: In temper serve
+  Choice: In temper-box serve
   ```
 
   - The first line is the **question**, and never a trailing line.

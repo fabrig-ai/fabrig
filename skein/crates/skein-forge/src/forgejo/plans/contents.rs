@@ -19,6 +19,8 @@ struct Sides {
     position: u32,
     head: api::Commit,
     more: Option<bool>,
+    cut: bool,
+    count: u32,
 }
 #[derive(Debug)]
 struct Compared {
@@ -47,11 +49,15 @@ pub struct Plan {
     row: Repository,
     size: u64,
     limit: u32,
+    skip: u32,
+    sides: bool,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
+        let (skip, sides) =
+            if let api::Read::PullFiles { skip, sides, .. } = &read { (*skip, *sides) } else { (0, false) };
         let (state, limit) = match read {
-            api::Read::PullFiles { number, head, page } => (
+            api::Read::PullFiles { number, head, page, .. } => (
                 State::Pull {
                     number,
                     head,
@@ -97,7 +103,7 @@ impl Plan {
             | api::Read::Commits { .. }
             | api::Read::Job { .. } => return Err(api::Error::InvalidAnswer),
         };
-        Ok(Self { state, row, size: 0, limit })
+        Ok(Self { state, row, size: 0, limit, skip, sides })
     }
     pub fn begin(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
         let state = core::mem::replace(&mut self.state, State::Ended);
@@ -315,7 +321,25 @@ impl Plan {
         Ok(())
     }
     fn keep_file(&mut self, mut sides: Sides, file: d::ChangedFile, bounds: Bounds) -> Result<Sides, api::Error> {
-        self.add_size(skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len())), bounds)?;
+        sides.count = sides.count.saturating_add(1);
+        if sides.count > self.limit {
+            return Err(api::Error::TooLarge(api::Excess::at_least(
+                api::Bound::Forge,
+                u64::from(self.limit),
+                u64::from(sides.count),
+            )));
+        }
+        if sides.count <= self.skip || sides.cut {
+            return Ok(sides);
+        }
+        let added = skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len()));
+        if let Err(error) = self.add_size(added, bounds) {
+            if sides.files.is_empty() {
+                return Err(error);
+            }
+            sides.cut = true;
+            return Ok(sides);
+        }
         let value = api::File { path: file.filename.clone(), before: None, after: None };
         sides.files.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
             sides.files.capacity(),
@@ -336,6 +360,10 @@ impl Plan {
         clippy::manual_let_else,
         reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
     )]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "each contents state completes one exchange or cuts before an incomplete file"
+    )]
     fn done(&mut self, state: State, body: Option<Body>, bounds: Bounds) -> Result<(State, Step), api::Error> {
         match state {
             State::Pull { number, head, page, changed, files } => {
@@ -349,10 +377,24 @@ impl Plan {
                 {
                     return Err(api::Error::Stale);
                 }
-                let before = reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
-                    .ok_or(api::Error::InvalidAnswer)?;
+                let before = if self.sides {
+                    reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
+                        .ok_or(api::Error::InvalidAnswer)?
+                } else {
+                    head
+                };
                 Ok((
-                    State::Files(Sides { before, after: head, changed, files, position: 0, head, more: None }),
+                    State::Files(Sides {
+                        before,
+                        after: head,
+                        changed,
+                        files,
+                        position: 0,
+                        head,
+                        more: None,
+                        cut: false,
+                        count: 0,
+                    }),
                     Step::send(r::Request::PullFiles {
                         at: self.row.at(),
                         number,
@@ -362,6 +404,10 @@ impl Plan {
             }
             State::Files(sides) => {
                 listed(body)?;
+                if !self.sides {
+                    return Ok(self.terminal(sides));
+                }
+                self.size = 0;
                 self.next_side(sides, bounds)
             }
             State::Compare(mut sides) => {
@@ -387,7 +433,11 @@ impl Plan {
                 Ok((State::Ended, Step::Done(Ok(answer))))
             }
             State::Before { mut sides, .. } => {
-                let value = self.raw(body, bounds)?;
+                let value = match self.raw(body, bounds) {
+                    Ok(value) => value,
+                    Err(api::Error::TooLarge(_)) if sides.position > 0 => return Ok(self.cut_files(sides)),
+                    Err(error) => return Err(error),
+                };
                 sides.files.get_mut(sides.position).ok_or(api::Error::InvalidAnswer)?.before = value;
                 let file = sides.changed.get(sides.position).expect("listed file");
                 let deleted = file.status == d::FileStatus::Deleted;
@@ -400,7 +450,11 @@ impl Plan {
                 }
             }
             State::After { mut sides, .. } => {
-                let value = self.raw(body, bounds)?;
+                let value = match self.raw(body, bounds) {
+                    Ok(value) => value,
+                    Err(api::Error::TooLarge(_)) if sides.position > 0 => return Ok(self.cut_files(sides)),
+                    Err(error) => return Err(error),
+                };
                 sides.files.get_mut(sides.position).ok_or(api::Error::InvalidAnswer)?.after = value;
                 sides.position = sides.position.saturating_add(1);
                 self.next_side(sides, bounds)
@@ -434,11 +488,18 @@ impl Plan {
             Step::send(r::Request::Contents { at: self.row.at(), path: path.clone(), reference: self.row.id(head) });
         (State::Directory { head, path, listing }, step)
     }
-    fn next_side(&self, sides: Sides, bounds: Bounds) -> Result<(State, Step), api::Error> {
+    fn next_side(&mut self, sides: Sides, bounds: Bounds) -> Result<(State, Step), api::Error> {
         if sides.position == sides.changed.len() {
             return Ok(self.terminal(sides));
         }
         let file = sides.changed.get(sides.position).expect("listed file");
+        let added = skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len()));
+        if let Err(error) = self.add_size(added, bounds) {
+            if sides.position == 0 {
+                return Err(error);
+            }
+            return Ok(self.cut_files(sides));
+        }
         if file.status == d::FileStatus::Added {
             let step = self.read_side(file.filename.clone(), sides.after);
             return Ok((State::After { sides, missing: false }, step));
@@ -476,12 +537,18 @@ impl Plan {
         }
         Ok(value)
     }
+    fn cut_files(&self, mut sides: Sides) -> (State, Step) {
+        sides.cut = true;
+        sides.files.truncate(sides.position);
+        self.terminal(sides)
+    }
     fn terminal(&self, sides: Sides) -> (State, Step) {
         let files = sides.files.into_boxed();
         let answer = api::Answer::PullFiles {
             head: sides.head,
-            more: sides.more.unwrap_or(files.len() == usize_of(self.limit)),
+            more: sides.cut || sides.more.unwrap_or(sides.count == self.limit),
             files,
+            cut: sides.cut,
         };
         (State::Ended, Step::Done(Ok(answer)))
     }

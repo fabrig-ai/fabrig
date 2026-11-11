@@ -95,10 +95,10 @@ pub(super) fn template(entry: &Page) -> Result<(), String> {
 
 pub(super) fn links(entry: &Page) -> Result<(), String> {
     for (at, line) in entry.text.lines().enumerate() {
-        for after in line.split("temper help ").skip(1) {
+        for after in line.replace("temper-box help ", "temper help ").split("temper help ").skip(1) {
             let name =
                 after.split(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')).next().unwrap_or("");
-            if !name.is_empty() && name != "--search" && find(name.as_bytes()).is_none() {
+            if !name.is_empty() && name != "--search" && name != "pages" && find(name.as_bytes()).is_none() {
                 return Err(refused(entry, &format!("link {name} names a page"), at + 1));
             }
         }

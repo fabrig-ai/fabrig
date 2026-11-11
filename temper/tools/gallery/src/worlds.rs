@@ -4685,9 +4685,14 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
-        "home-morning" | "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
-            Wall::from_nanos(1_792_483_440_000_000_000)
-        }
+        "home-morning"
+        | "home-decided"
+        | "needs-decided"
+        | "needs-decided-project"
+        | "home-away"
+        | "home-away-one"
+        | "home-away-overturned"
+        | "home-away-quiet" => Wall::from_nanos(1_792_483_440_000_000_000),
         "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
@@ -4897,6 +4902,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            commit: [0xab; 32],
+                            default_branch: true,
                             task,
                             title: title.as_bytes().into(),
                             at: offset(Reference, minute).as_nanos(),
@@ -4912,6 +4919,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        commit: [0xab; 32],
+                        default_branch: true,
                         task: 107,
                         title: b"Hello in Rust".as_slice().into(),
                         at: offset(Reference, -58).as_nanos(),
@@ -4924,6 +4933,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     v::ChangesPanel::new(
         &v::CEILINGS,
         v::ChangesPanelParts {
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
             project: PROJECT,
             landing: b"main".as_slice().into(),
             queues,
@@ -5539,7 +5550,7 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
         },
     )
     .expect("Home away spell");
-    if matches!(name, "home-decided" | "needs-decided") {
+    if matches!(name, "home-decided" | "needs-decided" | "needs-decided-project") {
         return wire::aways(
             &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("no Away spell"),
         );
@@ -5641,7 +5652,10 @@ pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
             "A wording choice inside the task’s spec.",
         ),
     ] {
-        if name == "home-decided" && number != 1 && number != 4 {
+        if name == "home-away-quiet" {
+            continue;
+        }
+        if matches!(name, "home-decided" | "needs-decided-project") && number != 1 && number != 4 {
             continue;
         }
         if name == "needs-decided" && ((project == 1 && number != 1) || (project == 2 && number != 4)) {

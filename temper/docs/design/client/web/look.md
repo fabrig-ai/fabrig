@@ -155,10 +155,10 @@
   ink button, a secondary one a white bordered button, a quiet one
   underlined words. The muted line under the cards is 14.5 px; the
   foot, "‹ Back" at the left and the playground alternative at the
-  right, is muted underlined words. Model's forge region follows the
-  choices before the foot: from 1280 px, a 272 px pane to the right of
+  right, is muted underlined words. Model's pane, "Forge and model",
+  follows the choices before the foot: from 1280 px, a 272 px pane to the right of
   the column, its top at the heading's, with a hairline on its left;
-  narrower, in the column with a hairline above. Its line stacks a quiet
+  narrower, in the column with a hairline above. Forge's line stacks a quiet
   ring, the forge's strong name in ink and each detail muted on its own
   line; once connected the ring is a green tick, drawn by style alone,
   and "Each step" is gone. Under way, the repository precedes the status,
@@ -177,7 +177,7 @@
   fields under it, indented, small bold labels over 38 px inputs, the
   addresses a monospace text area; its foot, under a hairline, the
   quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). Ready's pane is Model's forge region, its lines 18 px apart:
+  2026-11-04). Ready's pane is Model's, its lines 18 px apart:
   each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
   name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
   forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
@@ -479,11 +479,13 @@
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
-- **Team's look** (`../pages/README.md`, *Team*; the whole story's `team.html`
+- **Team's look** (`../pages/team.md`, 1; the whole story's `team.html`
   and `team/team.html`, and `whole-story.css`): its intro as Work's and
   Home's, kicker, headline and lede, in a column 1020 px wide at most
   (`.col.wide`); People's head the mockup's `.shead`, its title at the
-  left; the people a grid of boxes, `.grid3`, columns at least 240 px
+  left and the people's shared role, where it's drawn, at its right on
+  the title's baseline, as `.shead span`: 13 px, muted, wrapping under
+  the title on a narrow width; the people a grid of boxes, `.grid3`, columns at least 240 px
   wide filling the row, 16 px apart, each box `.box`, on the surface's
   ground with the hairline's border, 12 px round, 18 px by 20 px inside,
   8 px between its lines: the name in bold, the role in `small` and

@@ -6,7 +6,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 
 ## Before you start
 
-- **Binary:** `temper` on `PATH`, git 2.41+. Checkout install:
+- **Binary:** `temper-box` on `PATH`, git 2.41+. Checkout install:
   `scripts/install.sh "$HOME/.local"`; builds need Rust's `wasm32-unknown-unknown` target.
 - **Host actions:** `temper-host` needs compatible Node.js on the host
   as `node` for JavaScript `uses:` actions: `actions/checkout@v4`,
@@ -36,8 +36,8 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Backends:** choose before step 2; never mix. Real: account required,
   Forgejo and runner fetched. Fake: no account; local Forgejo real;
   GitHub, model, sign-in, remote Forgejo on loopback fakes. Build:
-  `cargo build -p temper -p smith-fake-claude` puts `fake-claude`
-  beside `temper`; then `scripts/bundle.sh --loopback BUNDLE`.
+  `cargo build -p temper-box -p smith-fake-claude` puts `fake-claude`
+  beside `temper-box`; then `scripts/bundle.sh --loopback BUNDLE`.
 - **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
   (0700), no links, for this box. `DIR`: private.
 - **A model account:** real: private login export, API key, browser
@@ -52,7 +52,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 ## 1. Write the configuration
 
 ```
-temper init --box --config CONFIG --data DATA --cache CACHE
+temper-box init --box --config CONFIG --data DATA --cache CACHE
 ```
 
 Init writes loopback ports 8367–8371 (clients, owned Forgejo, fake forge,
@@ -62,10 +62,10 @@ A box trusts every program listening on this machine's loopback, since browser c
 
 Init releases ports; starts refuse occupied addresses. Step 2 on empty
 directories initializes and retains ports.
-Plain `temper init` then `temper box` has no playground; `--fake-backends`
+Plain `temper-box init` then `temper box` has no playground; `--fake-backends`
 refuses it.
 
-Expect: `init: wrote DATA/worker.secret`; last line: box command (no `--no-tui`).
+Expect: `init: wrote DATA/worker.secret`; last line: box command.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
 OpenAI's, using `claude` on `PATH` when init runs, else fetching its pinned
@@ -76,7 +76,7 @@ build on first use. Logins: `DATA/programs`, apart from your Claude Code configu
 Expect: `me` lists provider 2, Anthropic, `claude_code`.
 Use it in step 5; keep the demo model within init's limits.
 
-If not: `temper init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
+If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
 
 **Coding runs:** edit `CONFIG/agent.json`'s `environment` before step 2;
 preserve the rest of the document. Init's array is empty. Commands and
@@ -99,20 +99,20 @@ After edits, stop (step 8); restart the box (step 2).
 Real backends:
 
 ```
-temper box --no-tui --config CONFIG --data DATA --cache CACHE
+temper-box --config CONFIG --data DATA --cache CACHE
 ```
 
 Fake backends:
 
 ```
-temper box --no-tui --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
+temper-box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-In a terminal without `--no-tui`, with `--echo none`, the TUI runs in
-front, signed in and showing the link (temper help tui); the block's
-other lines, fake backends' `box:` lines and errors go to
-`DATA/box/logs/box.log`, and quitting the TUI stops the box.
-This walk reads the link, so keeps `--no-tui`, as on a pipe.
+`temper box` in a terminal runs the TUI in front, signed in and showing
+the link (temper help tui); the block's other lines, fake backends'
+`box:` lines and errors go to `DATA/box/logs/box.log`, and quitting the
+TUI stops the box. This walk reads the link, so runs `temper-box`
+without a TUI.
 
 Keep running; step logs sit beside `DATA/box/logs/box.log`.
 
@@ -138,7 +138,7 @@ Link alone: stdout; other lines: stderr. Fakes follow the block with
 If not: the box gave up: the link gets no answer; the terminal says why.
 Mend it; rerun for a new link.
 Occupied port: refusal before any link.
-`missing or nonexecutable adapter`: build `fake-claude` beside `temper`.
+`missing or nonexecutable adapter`: build `fake-claude` beside `temper-box`.
 `not in current init shape`: changed `CONFIG`; need empty directories.
 `retained documents must be private files`: `chmod 600` the effective document.
 Refusals name reason or restart; retries exit 1. Keep and report `DATA`.
@@ -232,7 +232,7 @@ A Claude Code login (step 1);
 
 ```
 temper ctl DIR account declare 2 claude_code NAME --key KEY
-temper program-login --config CONFIG --data DATA --cache CACHE NAME
+temper-box program-login --config CONFIG --data DATA --cache CACHE NAME
 temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```

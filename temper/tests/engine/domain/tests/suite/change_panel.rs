@@ -236,6 +236,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     use temper_engine_domain_world::{forge_stand::ForgeStand, store::Store};
     let mut driver = Driver::configured(Store::new(), [config(), config()], &fixtures::forge_limits());
     driver.forge = Some(ForgeStand::with_checks(&[(b"org", b"repo", 2), (b"org", b"private", 3)], &[b"build"]));
+    driver.connect_forges();
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -291,6 +292,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     let store = driver.take_store();
     let mut restored = Driver::configured(store, [config(), config()], &limits);
     restored.forge = stand;
+    restored.connect_forges();
     restored.settle();
     restored.sign_in();
     restored.settle();

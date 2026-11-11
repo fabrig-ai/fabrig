@@ -26,7 +26,7 @@ in the lower world that owns it, never here.
   which plays the story's scripted turns, or, on a program's source,
   smith's fake `claude` (`fakes.md`, 1). git is the fake git program
   (`fakes.md`, 3); other external programs, such as sh, run as real child
-  processes. Launching the `temper internal agent` executable, with its
+  processes. Launching the `temper-box internal agent` executable, with its
   own loop and ring, is checked by the process tier (`process-tier.md`).
 - **Reuse across worlds.** The host composition, fake state machines,
   scenario scripts and outside referee observations are shared with
@@ -282,17 +282,17 @@ in the lower world that owns it, never here.
   It is a general part of the tier (`tests/real-loop/src/terminal.rs`),
   not of one story: a story that needs a person at a client in the real
   loop has one.
-  - **As `temper open` makes it.** The harness hosts the terminal's own
+  - **As `temper-box open` makes it.** The harness hosts the terminal's own
     composition, `temper-client-shell-terminal`'s client and terminal,
     as a program the harness spawns with its pipes for the terminal's
     input and output, as the tools' root is hosted for `temper ctl`.
-    Its settings are `temper open`'s (../client/line.md, 2) but its
+    Its settings are `temper-box open`'s (../client/line.md, 2) but its
     print interval, which the tier sets short, at 20 ms, as it sets the
     engine's paces short: the shell prints at once after a command, and
     a story waits on what the pages say, never on the interval. The
     shipped interval's pacing is skein's text shell's to test (skein's
     `ui/text.md`, section 8).
-  - **Signed in by the printed link,** as `temper open DIRECTORY LINK`
+  - **Signed in by the printed link,** as `temper-box open DIRECTORY LINK`
     is (../client/line.md, 1), on a DIRECTORY of its own in the
     scratch directory, never one of `temper ctl`'s
     (../client/ctl/README.md, section 12). One printed link is live at a time: where
@@ -308,7 +308,7 @@ in the lower world that owns it, never here.
     the pages the shell prints (../client/line.md, sections 3 and
     4): what it knows of the system is what the pages say. It is
     ordinary Rust in the test process, with the process tier's typist
-    as its model (`crates/temper/tests/support/terminal.rs`) and no
+    as its model (`bin/temper-box/tests/support/terminal.rs`) and no
     terminal device; the shell's input and output are the harness's
     pipes in the loop. Its acts are a story's steps: open, type on a
     label, see a page that holds a text and lacks another, and close.
@@ -324,7 +324,7 @@ in the lower world that owns it, never here.
   - **The terminal is the real loop's test surface.** People use the
     browser, or the TUI; the line client is the
     way a real-loop story reads what a person would see
-    (../client/line.md, section 9). The process tier's `temper open`
+    (../client/line.md, section 9). The process tier's `temper-box open`
     tests stay smokes (`process-tier.md`), outside the gate.
   - **A run's live text is one of its stories.** A person's message
     starts a chat turn, and the fake LLM plays a reply in two pieces,

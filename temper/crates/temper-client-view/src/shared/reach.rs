@@ -41,6 +41,18 @@ fn under_words(w: &Words, object: Box<[u8]>, under: u8, classes: Option<&Classes
     }
     object
 }
+/// The first offer's narrower rule (client/pages/needs-you.md, 1, Stop asking).
+#[must_use]
+pub fn rule(w: &Words, classes: &Classes, reach: &Reach, first: Offer) -> Box<[u8]> {
+    let object = match first {
+        Offer::Decide(subject) => object(w, subject, reach.under, Some(classes)),
+        Offer::Words(number) | Offer::Split(number) => {
+            let Some(set) = classes.set(number) else { return Box::default() };
+            w.say(Word::ReachSomeChanges, &[Hole::Name(set.name.clone())])
+        }
+    };
+    w.say(Word::StopAskingRule, &[Hole::Name(object)])
+}
 /// An offer's words: the narrowed table's change (temper/docs/design/client/pages/README.md, Needs you, Stop asking).
 #[must_use]
 pub fn offer(w: &Words, classes: &Classes, reach: &Reach, offer: Offer) -> Box<[u8]> {

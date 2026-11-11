@@ -84,10 +84,10 @@ fn an_added_github_mints_and_serves_a_call() {
 fn remove_ends_waiting_and_flying_calls_unavailable() {
     let mut h = f::known();
     h.run(Duration::from_secs(5));
-    h.call(1, f::REPO, Op::Read(Read::Settings));
+    h.call(1, f::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     h.run(Duration::ZERO);
     h.connected(f::FORGE);
-    h.call(2, f::REPO, Op::Read(Read::Settings));
+    h.call(2, f::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     h.send(Request::Remove { forge: f::FORGE });
     assert_eq!(h.up.len(), 2, "both terminals emitted in the removal step");
     h.run(Duration::ZERO);
@@ -100,7 +100,7 @@ fn remove_ends_waiting_and_flying_calls_unavailable() {
     assert_eq!(h.answers.len(), 2, "one terminal per call");
 
     let mut h = f::Harness::new(f::settings());
-    h.call(1, f::REPO, Op::Read(Read::Settings));
+    h.call(1, f::REPO, Op::Read(Read::Branch { branch: Box::from(*b"main") }));
     assert!(h.answered(1).is_none(), "waiting for the start");
     h.send(Request::Remove { forge: f::FORGE });
     h.run(Duration::ZERO);

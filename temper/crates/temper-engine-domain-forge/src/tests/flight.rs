@@ -46,7 +46,7 @@ fn a_merge_in_the_forges_queue_keeps_its_flight_until_the_merge_is_proved() {
     outputs(&mut domain, Event::ReadAfresh);
     outputs(&mut domain, Event::SettleOutbox);
     let (call, op) = next_call(&mut domain);
-    assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: 1 }));
+    assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: 1, ci: false }));
     let mut pull = open_pull();
     pull.state = skein_forge::api::State::Closed;
     pull.merged = Some(MERGED);

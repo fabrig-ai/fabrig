@@ -28,7 +28,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   - per issue of a live goal: what temper last wrote into it, so an
     unchanged projection is not written again.
 
-  A change watches its base alone until its branch has a head (its producer's result, a handed branch, or a fresh read that finds one: `change/README.md`, 2, step 1), then its branch and its base until its pull is known, then its branch and its pull: a branch nothing has pushed is never polled. A goal's run branch (`branches.md`) is held and never watched, since nothing pushes it. A change of the pull it owns wakes the change,
+  A change watches its base alone until its branch has a head (its producer's result, a handed branch, or a fresh read that finds one: `change/README.md`, 2, step 1), then its branch and its base until its pull is known, then its branch and its pull: a branch nothing has pushed is never polled, and the change's own fresh reads of it wait on what can push it (2, a branch nothing has pushed). A goal's run branch (`branches.md`) is held and never watched, since nothing pushes it. A change of the pull it owns wakes the change,
   as a hint does. A pull observation that changes the gathered facts also
   invalidates any in-flight gather for that change. Before deciding, the
   gather restarts its fresh reads; a wake coalesced while the procedure is
@@ -55,7 +55,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   fit small's `forge.tasks` and `forge.holds`, both eight; each change's two
   names fit `forge.resources_per_task`, which is three. Landed changes keep their watches until
   they clear (`../after-landing.md`, section 6). temper's `standard`, which
-  `temper init`'s box runs, sizes them for a project of fabrig's scale
+  `temper-box init`'s box runs, sizes them for a project of fabrig's scale
   (`../../protocol/configuration/stock.md`): `forge.tasks` and
   `forge.holds` 128, and the resource capacity 128, at least the holds,
   each a held branch's watch.
@@ -112,6 +112,34 @@ part:
   `poll`. `fallback_ms` 0 keeps today's paces. A Forgejo hook that
   stops, or a GitHub App's log not read, stops a repository's
   deliveries alike, and it stops hearing within `fallback`.
+- **A branch nothing has pushed waits on what can push it.** A change
+  has no head until its producer's result, a handed branch or a fresh
+  read gives it one (`change/README.md`, 2, step 1). Until then only its
+  own producer, whose result wakes it, or another hand, whose push the
+  forge delivers, can make its branch, so it reads its branch afresh
+  only on one of these: a hint naming the branch, or a push naming
+  none; its producer's result, or a lost writer's reread (`branches.md`,
+  1); its first step since the connector started; or `fallback` since
+  it last read the branch. A step woken otherwise takes the branch as
+  the last read found it, absent, and reads nothing the change does not
+  decide on while it has no head: no `PullFor`, since no pull request
+  has a branch that never existed, and no CI. Where its procedure names
+  no deadline, its wait is `fallback`, not `queue_window`. A branch the
+  keep watches before its first push, as a landing subscription may
+  name one, rests at `fallback` after `Missing`, whether or not its
+  repository hears, and a hint naming it or the owner's `Pushed` reads
+  it at `hinted` (skein's `forge/client.md`, 4, a branch never there).
+  **`fallback` is the unpushed branch's fallback,** 5 minutes as
+  shipped, with no member of its own. It is safe because a change's
+  branch is made by its own producer, whose result reaches the change
+  at once, or by another hand, whose push's delivery reaches it at
+  `hinted`: only a lost delivery of another's push waits, at most
+  `fallback`, the latency a hearing repository already takes for each
+  of its timed reads. It is long enough because a change waits on its
+  dependencies or its producer for many minutes, through which `slow`'s
+  40 seconds read an absent branch, and through it the repository's
+  row (skein's `forge/connection.md`, 4.2), about seven times in five
+  minutes for nothing. `fallback_ms` 0 keeps `slow` and `queue_window`.
 - **Hints** come from the forge's webhook deliveries, or a GitHub App's
   delivery log (`../../protocol/forge/README.md`, section 4 and 4.1). Every hint
   goes to the client, temper's own echoes among them, which keep their
@@ -128,9 +156,15 @@ part:
   the next step reads them again. An item wakes its pull's change (including reviews on that pull), or a change naming
   that issue or pull. Named resources and subscriptions also retain their
   dependencies. Before a change knows its pull or commit dependencies,
-  it cannot exclude those hints. A resource matching no change, including
-  an unnamed push or a name no longer recognised after a rename, wakes
-  every change in the repository. The client still receives every hint:
+  it cannot exclude those hints. A change with no head (above) has no
+  pull request and no CI of its own: a branch concerns it only when it
+  is its own or a push names none, and a commit or an item only through
+  its named resources and subscriptions. A branch matching no change,
+  including an unnamed push or a name no longer recognised after a
+  rename, wakes every change in the repository that has a head. A commit
+  or an item matching no change wakes none: each change whose
+  dependencies are not yet known matches it already, so no other can
+  be its news. The client still receives every hint:
   filtering procedure wakes never filters its applicable keep reads.
   A relevant wake during a fresh-read step still restarts that step before
   deciding; an irrelevant hint adds no restart. Gate results, task
@@ -139,7 +173,8 @@ part:
   polling, settling or stall deadlines (`change/gates.md`, section 1 and `change/repairs.md` and `queues.md`).
 - **temper's own polls fall back too.** A landing's or a tier's flight
   polling its runs in flight (`../landing.md`, 7.1; `../after-landing.md`,
-  section 3) and a queued merge's look (skein's `forge/client.md`, 7.7)
+  section 3), a landing waiting on a fact it lacks (`../landing.md`, 5.2)
+  and a queued merge's look (skein's `forge/client.md`, 7.7)
   are due at `Domain::poll_at` for their repository with `poll`, so
   while it hears they come at the later of `poll` and its last hint
   plus `fallback`. A job's delivery still wakes its flight at once.
@@ -189,7 +224,10 @@ part:
   commit's checks for each change using it as its head or its base's
   tip, once, and wakes a change only when they fold to a verdict other
   than the one the change last read there (3), or when `settle` passes
-  with the ends its hints told of unshown. The change's own fresh read
+  with the ends its hints told of unshown. It is the one read a commit's
+  hint makes of that CI: the client reads no pull request on it, and a
+  pull watch's later read whose only news is a CI verdict the change
+  has already read wakes it not again. The change's own fresh read
   of its other facts, its pull, branches, ancestry and reviews, runs
   when it decides, not on every hint. A hint naming a branch or an item
   wakes as above.
@@ -207,12 +245,11 @@ part:
   head's statuses and its pull each read at most 3 times a minute, and
   at most 30 requests a minute in all, its repository's listing among
   them. A read is a request to that route, a page counted as one. The
-  head's 9 while hearing are three a minute for each of three causes:
-  the commit's news read on each job's hint, the keep's own read of the
-  pull's CI that the same hint wakes, and settling's reread of a status
-  written after its delivery; the keep's read and the commit's are not
-  shared (measured 2026-11-11: worst minute 37 requests, 9 head-status
-  reads, 4 pull reads).
+  head's 9 while hearing bound three a minute for each of the causes
+  that read it on a job's hint: the commit's news read, and settling's
+  reread of a status written after its delivery. The keep reads no pull
+  request on a commit's hint (skein's `forge/client.md`, 4), and a
+  change's gather reads its head's CI once (3).
 - **GitHub settles too.** It answers mergeability unknown until it has
   checked, and may refuse a merge as not mergeable just after a head
   moves (skein's `forge/github.md`): within the window both are not
@@ -305,10 +342,37 @@ for it, never a read of another kind or another party's.
   head's, the base tip's and the CI a topic publishes (`README.md`, 5.1) are read
   and folded alike, on every forge: on Forgejo the checks are
   its statuses, each context's latest, so its CI reads as before.
-  Where no required checks are named, the pull request's own read,
-  which folds every row of its head the same way (skein's
-  `forge/github.md`, 4.4), is the head's CI when it is at the head, and
-  no second read is made.
+- **Each commit's CI is read once in a gather.** A pull request's read
+  asks for its CI only where its reader uses it, and `PullFor` reads
+  none (skein's `forge/README.md`, 3.2). In a change's gather, where no
+  required checks are named and its pull request is known by number,
+  the pull request is read with its CI, which folds every row of its
+  head as `Checks` does (skein's `forge/github.md`, 4.4), and that is the
+  head's CI when the pull request is at the head: no `Read::Checks` of
+  the head is made. Otherwise, required checks named, the pull request
+  found by `PullFor`, or the pull request at another commit, the pull
+  request is read without CI and one `Read::Checks` of the head is its
+  CI. The base tip's CI is read once, and not again when the base tip
+  is the head. A gathered pull request read without CI differs from a
+  watched one (1) by none of its facts but CI. The keep's pull watch
+  reads its CI, and so does the agents' `read_pull`, whose answer shows
+  it; a landing's members, a brief, an overlap's bracketing reads, a
+  merge's verification and every other reader that uses no CI read
+  none.
+- **One read shared.** Fresh reads of one resource asked together are
+  made once (skein's `forge/client.md`, 5, shared): the goal branch,
+  which each of its changes reads as its base and its landing as a
+  member's head, is read once for the changes one hint wakes together,
+  not once each. A landing's gather reads each branch and each pull
+  request once, however many of its members name it.
+- **The repository's own facts are read once** and kept by the forge
+  component (skein's `forge/connection.md`, 4.2): its settings answer
+  `Settings` with no request, the agents' `read_settings` among them,
+  until a redirect, a `404` that is no answer, a merge refused its style
+  or a write refused `Forbidden` drops them, each the forge's word that
+  they may have changed. A refusal's refresh of what temper may do
+  (jig's `domain/connectors.md`, 12) so reads them afresh. A pull request found by `PullFor`
+  as none, a missing branch, file, run, job or log keeps them.
 - **Every page folded, never a page's combined state.** A forge may
   compute a combined state and a count over the page it was asked for
   (Forgejo 17 does: a read of one status reads success while a job is

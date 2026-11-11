@@ -45,7 +45,7 @@ pub(super) fn listed(
                     let position = w.items.as_mut().expect("issue search has a position");
                     if position.next(items, cut, now).is_some() {
                         let page = position.page;
-                        super::next(d, number, Phase::Find { page, after });
+                        super::next(d, number, Phase::Find { page, after, skip: 0 });
                     } else {
                         super::retry::not_found(d, env, number, out);
                     }
@@ -102,7 +102,7 @@ pub(super) fn comments_found(
     }
     match found {
         Some(comment) => super::finished(d, env, number, Made::Commented(comment), true, out),
-        None if more => super::next(d, number, Phase::Find { page: 1, after: last }),
+        None if more => super::next(d, number, Phase::Find { page: 1, after: last, skip: 0 }),
         None => super::retry::not_found(d, env, number, out),
     }
 }
@@ -112,9 +112,10 @@ pub(super) fn reviews_found(
     number: u64,
     phase: Phase,
     reviews: &[api::Review],
-    more: bool,
+    paging: (bool, bool),
     out: &mut Queue<Request>,
 ) {
+    let (more, cut) = paging;
     let w = d.outbox.entries.get(&number).expect("find owns entry");
     let start = w.entry.start.expect("a recovery search has its durable start");
     let expected = super::key(&w.entry.effect.write).expect("review creation has key");
@@ -146,8 +147,8 @@ pub(super) fn reviews_found(
             break;
         }
     }
-    let page = match phase {
-        Phase::Find { page, .. } => page,
+    let (page, skip) = match phase {
+        Phase::Find { page, skip, .. } => (page, skip),
         Phase::Clock
         | Phase::Check
         | Phase::Queued
@@ -161,7 +162,15 @@ pub(super) fn reviews_found(
     };
     match found {
         Some(review) => super::finished(d, env, number, Made::Reviewed(review), true, out),
-        None if more => super::next(d, number, Phase::Find { page: page.saturating_add(1), after: 0 }),
+        None if more => super::next(
+            d,
+            number,
+            Phase::Find {
+                page: if cut { page } else { page.saturating_add(1) },
+                after: 0,
+                skip: if cut { skip.saturating_add(u32::try_from(reviews.len()).expect("bounded reviews")) } else { 0 },
+            },
+        ),
         None => super::retry::not_found(d, env, number, out),
     }
 }

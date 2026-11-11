@@ -111,6 +111,7 @@ pub enum HostDelivery {
         name: Box<[u8]>,
         tool: Box<[u8]>,
         job: Option<skein_forge::api::JobAttempt>,
+        page: Option<(u32, u32)>,
         answer: CallAnswer,
     },
     Answer {
@@ -132,6 +133,7 @@ pub(crate) struct Flight {
     pub name: Box<[u8]>,
     pub tool: Box<[u8]>,
     pub job: Option<skein_forge::api::JobAttempt>,
+    pub page: Option<(u32, u32)>,
 }
 
 /// Only one tool's rendering context is kept per flight. Boxing the change
@@ -265,6 +267,7 @@ pub(crate) fn decode(domain: &mut Domain, to: ReplyTo, task: u64, attempt: u64, 
         note_decoding: false,
         render: FlightRender::Plain,
         job: None,
+        page: None,
         name: call.name.clone(),
         tool: call.tool.clone(),
     };
@@ -297,10 +300,17 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
     let mut job = None;
+    let mut page = None;
     let render = if let crate::Tool::ReadTask { .. } = &body.tool {
         FlightRender::TaskRead
     } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
         job = super::diagnostics::job_attempt(read);
+        if let skein_forge::api::Read::Reviews { page: at, skip, .. }
+        | skein_forge::api::Read::Remarks { page: at, skip, .. }
+        | skein_forge::api::Read::PullFiles { page: at, skip, .. } = read
+        {
+            page = Some((*at, *skip));
+        }
         FlightRender::ForgeRead
     } else if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
@@ -334,6 +344,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let flight = domain.call_renders.get_mut(&right).expect("current typed flight");
     flight.render = render;
     flight.job = job;
+    flight.page = page;
     flight.key = Some(key);
     relay_payload(domain, env, decision, to, key, body);
 }
@@ -538,6 +549,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
             name: flight.name.clone(),
             tool: flight.tool.clone(),
             job: flight.job,
+            page: flight.page,
             answer,
         })),
     );
@@ -767,6 +779,7 @@ pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
         name: flight.name.clone(),
         tool: flight.tool.clone(),
         job: flight.job,
+        page: flight.page,
         answer,
     })));
     assert!(super::now(domain, request), "read render door reserved");

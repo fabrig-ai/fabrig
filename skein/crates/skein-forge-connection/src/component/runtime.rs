@@ -34,6 +34,7 @@ impl Component {
             }
         }
         let Some(position) = position else { return };
+        common.forget_kept(number);
         // Discard this forge's queued notifications before returning its terminals.
         for _ in 0..up.len() {
             let event = up.pop().expect("queued notification");

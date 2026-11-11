@@ -1,14 +1,14 @@
 # temper's members for the engine
 
 **`machine`:** the machine's places, never a forge: where a box's owned
-Forgejo and the playground's fake forge listen, which `temper init
+Forgejo and the playground's fake forge listen, which `temper-box init
 --box` chooses (../setup/init.md, 2) and the box holds from its start (../setup/box.md,
 1), and where GitHub is. A forge set up or connected takes its place
 from here (../forge/engine.md, 2). Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `owned` | an object, or absent | ../setup/init.md's owned members: `listen`, a socket address on loopback, unique among the deployment's listeners; `remote`, its remotes' base, `http://` and its `listen` as `temper init` writes it; `forgejo` and `runner.binary`, cache paths or `"fetched"`; `runner`, `person`, and the optional `mirror`, `public` and `sign_in`, a client of `engine.clients.provider` (`../openid-provider.md`, 9) | an owned Forgejo's place, which `SetUp` gives its record (../forge/engine.md, 2), and its setup entry and group's steps (../setup/init.md and ../setup/box.md, section 1); absent, no owned forge is offered |
+| `owned` | an object, or absent | ../setup/init.md's owned members: `listen`, a socket address on loopback, unique among the deployment's listeners; `remote`, its remotes' base, `http://` and its `listen` as `temper-box init` writes it; `forgejo` and `runner.binary`, cache paths or `"fetched"`; `runner`, `person`, and the optional `mirror`, `public` and `sign_in`, a client of `engine.clients.provider` (`../openid-provider.md`, 9) | an owned Forgejo's place, which `SetUp` gives its record (../forge/engine.md, 2), and its setup entry and group's steps (../setup/init.md and ../setup/box.md, section 1); absent, no owned forge is offered |
 | `fake` | an object, or absent | `listen`, as `owned.listen`; `remote`, `http://` and its `listen`; `git`, a data path, the fake git's link (../setup/init.md, 2) | the playground's fake forge's place and setup entry, its owner `playground` and its repository `widget` (../setup/playground.md), and its git program, which the engine's routing names in each of its repositories' records (../channel.md, section 4); absent, no playground is offered |
 | `github` | an object, or `null` | `null` for github.com's: `api.github.com`, port 443, TLS with the machine's roots, remotes under `https://github.com`, pages at `https://github.com`. Otherwise `{"api", "transport", "remote", "web", "git"}`: `api` a socket address or a host's name and port, never an in-process name; `transport` plaintext to a socket address on loopback alone, or `{"tls": {"server_name", "trust"}}`; `remote` and `web` remotes' bases; `git` an optional data path, the git program of its repositories | a GitHub forge's place and git program, which `Connect` gives its record (../forge/engine.md, 2); a value is given only to point at a fake, as temper's tests and `temper box --fake-backends` do (`directories.md`, 1), or at the live tier's relay to github.com (`../../testing/live-tier.md`) |
 
@@ -82,6 +82,17 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   P3e), kept in the document as the tier is until kind 5 holds tiers
   (`settings.md`, 2), so that whoever writes the tier writes them; Ask temper, which
   proposes no tier, writes none. The engine decides nothing by them.
+- **The delivery checks' bound,** beside `by`, by either way:
+  `check_timeout_ms`, a u64 of milliseconds from 1,000 to 86,400,000,
+  none when absent: the wall bound each delivery check is given in a run
+  delegated for one of the project's changes, its producers', repairs' and
+  resolutions', a goal's landing into the landing branch's among them, in
+  place of the agent's `check_timeout`
+  (`../../domain/agent/charter.md`, section 4; smith's `domain/run.md`,
+  8.1). A project whose landings are goal-sized sets it above the agent's,
+  so a landing's repair has room to check. It need not fit a charter's
+  reserve: a check is cut at its run's end. One past its bounds refuses the
+  start at its member, `application.landing.projects[i].check_timeout_ms`.
 - **The tiers' project settings,** beside `by`, by either way:
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
@@ -142,13 +153,13 @@ member for member:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../../client/README.md`, section 4); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper-box serve` prints (`../../client/README.md`, section 4); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
 | `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (`limits.md`) | the browser's page and bundle, made at start and served on the clients' listener (`../../client/web/README.md`, 2.2): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`../sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
 - **The printed link and a terminal's approval** are jig's members,
   `engine.clients.link` and `engine.clients.approval` (jig's
-  `protocol/configuration.md`, section 3, clients): `temper init`'s
+  `protocol/configuration.md`, section 3, clients): `temper-box init`'s
   documents, so a box's, and the owned example enable both
   (`../setup/init.md`, 3), the approval being how the TUI signs in from the
   person's browser (`../../client/README.md`, 4.1). Neither runs off
@@ -160,7 +171,7 @@ member for member:
   and `setup_url` name the clients' listener's address, and GitHub's API
   cannot change them once the App is made. A GitHub `Connect` on a
   listener at port 0 is refused, naming `application.clients.listener`
-  (../forge/engine.md, 1); `temper init` writes a fixed port (../setup/init.md, 3).
+  (../forge/engine.md, 1); `temper-box init` writes a fixed port (../setup/init.md, 3).
 
 **`sign_in`:** the people's sign-in with Google (`../sign-in.md`), or
 `null` for none, never missing: with `null`, the browser's signed-out
@@ -184,7 +195,7 @@ answer not found.
 | `members` | a list | 1 to `sign_in.members` | who may sign in, each `{"address", "login"}` |
 | `members[].address` | a string | 3 to 254 bytes of visible ASCII, one `@` with bytes on both sides; unique among members with ASCII letters folded to lower case | the identity's subject, exactly as written; compared with Google's verified `email`, folded |
 | `members[].login` | a string | 1 to 40 bytes of ASCII letters, digits, `-`, `_` and `.`, its first and last a letter or a digit; unique, folded | the login in `Mint`, and the name where Google gives none |
-| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper forge sign-in` (../setup/owned.md, 8) |
+| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper-box forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper-box forge sign-in` (../setup/owned.md, 8) |
 
 - **jig's owners of Google's provider are members:** each of
   `engine.owners` whose provider is `google.provider` has a member's
@@ -218,7 +229,7 @@ missing (`README.md`, section 8): its `llm`, the fake LLM the box runs, with its
 port (`listen`), its LLM provider of `engine.llm` (`provider`), its
 key's file (`key`) and its scripts (`asked`). Its members, their bounds
 and their checks against the document's LLM providers are ../setup/playground.md
-'s, `temper-fake`'s. `temper serve` takes the provider, the key's
+'s, `temper-fake`'s. `temper-box serve` takes the provider, the key's
 path and each script's cue, and reads the key at the playground's start,
 which makes the scripted account with it (../setup/playground.md); with `null`,
 the playground is not offered.
@@ -235,7 +246,7 @@ the playground is not offered.
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
 | `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
-| `under_box` | whether `temper internal serve` was given `--box` (../setup/box.md, 1) |
+| `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
 
 Beside the root: the forge component takes each kept forge's number,
 kind, address and transport from its record, and its kind's log

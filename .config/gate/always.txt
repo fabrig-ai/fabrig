@@ -1,6 +1,6 @@
 # Packages whose tests read other packages' files by path: PACKAGE, or PACKAGE PATH-PREFIX.
 jig-boundary
-temper-box
+temper-box-machine
 temper-client-world
 temper-docs
 temper-client-journeys

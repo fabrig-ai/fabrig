@@ -12,6 +12,9 @@ build = "build/main.rs"
 test = false
 doctest = false
 
+[dependencies]
+skein-shell.workspace = true
+
 # No build dependencies: the script runs cargo for the module and the bundler (client/web/README.md, 2.6).
 
 [lints.rust] # binary: tools/lints/design.md, 2.2

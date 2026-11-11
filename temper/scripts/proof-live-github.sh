@@ -3,7 +3,7 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
-# TEMPER_WRAPPER, when set and not empty, names one command that runs each build
+# TEMPER_TEST_WRAPPER, when set and not empty, names one command that runs each build
 # command below; unset, cargo runs plainly.
 case ${1:-} in fabrig-ai) owner=$1 ;; *) printf '%s\n' 'usage: proof-live-github.sh {fabrig-ai} [FIXTURES]' >&2; exit 2 ;; esac
 [ "$#" -le 2 ] || exit 2
@@ -14,7 +14,7 @@ fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
 # The App key is the only credential; app.json supplies public App/installation ids.
 python3 -c 'from cryptography.hazmat.primitives.serialization import load_pem_private_key'
 export NEXTEST_DOUBLE_SPAWN=0
-${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --no-run
+${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
 cleanup() {
     status=$?
@@ -144,7 +144,7 @@ try:
             print('backstop: branch left=' + name, file=sys.stderr)
 except (RuntimeError, ValueError, KeyError, TypeError, OSError, StopIteration):
     print('backstop: cleanup incomplete; state=' + str(scratch)
-          + ' (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)', file=sys.stderr)
+          + ' (removed on exit unless TEMPER_TEST_LIVE_GITHUB_KEEP=1)', file=sys.stderr)
 finally:
     if token is not None:
         try:
@@ -154,19 +154,19 @@ finally:
         except (RuntimeError, ValueError, TypeError):
             print('backstop: cleanup token revocation incomplete', file=sys.stderr)
     print('live github backstop requests=' + str(count-start) + ' total=' + str(count) + ' state=' + str(scratch)
-          + ' (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)')
+          + ' (removed on exit unless TEMPER_TEST_LIVE_GITHUB_KEEP=1)')
 PY
     backstop_status=$?
     [ "$status" -ne 0 ] || status=$backstop_status
-    if [ "${TEMPER_LIVE_GITHUB_KEEP:-}" = 1 ]; then
-        printf 'live github state kept at %s (TEMPER_LIVE_GITHUB_KEEP=1)\n' "$scratch" >&2
+    if [ "${TEMPER_TEST_LIVE_GITHUB_KEEP:-}" = 1 ]; then
+        printf 'live github state kept at %s (TEMPER_TEST_LIVE_GITHUB_KEEP=1)\n' "$scratch" >&2
     elif [ -n "$scratch" ]; then
         # Only the canonical mktemp path made above may be removed.
         case "$scratch" in
             */temper-live-github.[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9])
                 if rm -rf -- "$scratch"; then
                     if [ "$status" -ne 0 ]; then
-                        printf '%s\n' 'live github state removed; rerun with TEMPER_LIVE_GITHUB_KEEP=1 to keep it' >&2
+                        printf '%s\n' 'live github state removed; rerun with TEMPER_TEST_LIVE_GITHUB_KEEP=1 to keep it' >&2
                     fi
                 else
                     status=1
@@ -181,7 +181,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 status=0
-TEMPER_LIVE_GITHUB_OWNER=$owner TEMPER_LIVE_GITHUB_FIXTURES=$fixtures TMPDIR=$scratch \
-    ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --ignore-default-filter --run-ignored only --no-capture \
+TEMPER_TEST_LIVE_GITHUB_OWNER=$owner TEMPER_TEST_LIVE_GITHUB_FIXTURES=$fixtures TMPDIR=$scratch \
+    ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter --run-ignored only --no-capture \
     -E 'binary(=live_github) & test(=a_chat_lands_a_change_on_github_com_through_a_restart)' || status=$?
 exit "$status"

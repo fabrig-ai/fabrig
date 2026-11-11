@@ -68,7 +68,7 @@ fn fresh_read_refusal_ends_once(error: Error) {
 fn a_fresh_read_starts_immediately_without_global_lifetime_silence() {
     let mut h = Harness::new(LIMITS);
     h.read(1);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1, ci: false }));
 }
 #[test]
 fn priority_and_parallel_limit_follow_the_budget_cases() {
@@ -79,11 +79,11 @@ fn priority_and_parallel_limit_follow_the_budget_cases() {
     h.read(4);
     let first = h.one();
     let second = h.one();
-    assert_eq!(first.op, Op::Read(Read::Pull { number: 4 }));
+    assert_eq!(first.op, Op::Read(Read::Pull { number: 4, ci: false }));
     assert_eq!(second.op, Op::Write(Write::Close { number: 3 }));
     assert!(h.send().is_none());
     terminal(&h.answer(&first, 1, Err(Error::Forbidden)), 4, Error::Forbidden);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
     assert!(h.facts().contains(&Fact::Sent { priority: Priority::Fresh }));
 }
 #[test]
@@ -94,10 +94,10 @@ fn reserve_keeps_a_share_for_keep_and_slow() {
     h.queued(3, Priority::Write);
     h.read(4);
     h.read(5);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 4 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 4, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 5, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 1, ci: false }));
     assert!(h.send().is_none());
     assert_eq!(h.domain.next_deadline(), Some(at(160)));
     h.env.now = at(160);
@@ -156,7 +156,7 @@ fn zero_cost_refund_reopens_the_last_reservation() {
     assert!(h.send().is_none());
     terminal(&h.answer(&sent, 0, Err(Error::Forbidden)), 1, Error::Forbidden);
     assert_eq!(h.domain.calls.remaining(), (1, 0));
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 2, ci: false }));
 }
 #[test]
 fn rate_refusal_stops_every_class_and_retries_with_a_distinct_call_token() {
@@ -285,7 +285,7 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
                     1,
                 ),
             ),
-            ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1 }, Answer::Done, 1)),
+            ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1, ci: false }, Answer::Done, 1)),
             (
                 "comparisons_must_return_the_requested_endpoints",
                 (
@@ -319,7 +319,7 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "an_answer_for_another_pull_cannot_satisfy_a_fresh_read",
                 (
-                    Read::Pull { number: 8 },
+                    Read::Pull { number: 8, ci: false },
                     Answer::Pull(api::Pull {
                         queued: None,
                         dequeued: None,
@@ -447,18 +447,18 @@ fn compare_names_fit_rows_independently_of_counts() {
 #[test]
 fn files_at_a_different_head_are_refused_and_deletions_survive() {
     let mut h = Harness::new(LIMITS);
-    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1 };
+    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1, skip: 0, sides: true };
     drop(h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }));
     let sent = h.one();
     terminal(
-        &h.answer(&sent, 1, Ok(Answer::PullFiles { head: [2; 32], files: Box::new([]), more: false })),
+        &h.answer(&sent, 1, Ok(Answer::PullFiles { head: [2; 32], files: Box::new([]), more: false, cut: false })),
         1,
         Error::InvalidAnswer,
     );
     drop(h.step(Event::Read { owner: Token::new(2), repository: REPO, read }));
     let sent = h.one();
     let file = api::File { path: Box::from(&b"deleted"[..]), before: Some(Box::from(&b"contents"[..])), after: None };
-    let answer = Answer::PullFiles { head: [1; 32], files: Box::new([file]), more: false };
+    let answer = Answer::PullFiles { head: [1; 32], files: Box::new([file]), more: false, cut: false };
     assert_eq!(
         h.answer(&sent, 1, Ok(answer.clone())).as_ref(),
         &[Request::Read { owner: Token::new(2), result: Ok(answer) }]
@@ -545,6 +545,209 @@ fn fresh_reads_retry_transient_failures_and_finish_once_at_the_bound() {
             let due = h.domain.next_deadline().expect("retry armed");
             assert!(due > h.env.now);
             h.env.now = due;
+            h.fire();
+        }
+    }
+    assert!(h.send().is_none());
+    assert!(h.domain.next_deadline().is_none());
+}
+
+#[test]
+fn fresh_reads_share_only_current_equal_calls() {
+    let branch = || Read::Branch { branch: b"g".as_slice().into() };
+    let hinted = |name: &[u8]| Event::Hint {
+        hint: api::Hint { repository: REPO, change: api::Change::Branch(name.into()), key: None },
+    };
+    skein_rows::check(
+        [
+            ("queued", (false, None, REPO, branch(), Priority::Fresh, true)),
+            ("sent", (true, None, REPO, branch(), Priority::Fresh, true)),
+            ("queued after hint", (false, Some(hinted(b"g")), REPO, branch(), Priority::Fresh, true)),
+            ("sent before hint", (true, Some(hinted(b"g")), REPO, branch(), Priority::Fresh, false)),
+            ("unrelated hint", (true, Some(hinted(b"other")), REPO, branch(), Priority::Fresh, true)),
+            (
+                "sent before push",
+                (
+                    true,
+                    Some(Event::Pushed {
+                        resource: crate::Resource {
+                            repository: REPO,
+                            what: crate::What::Branch(b"g".as_slice().into()),
+                        },
+                        commit: [2; 32],
+                    }),
+                    REPO,
+                    branch(),
+                    Priority::Fresh,
+                    false,
+                ),
+            ),
+            (
+                "different read",
+                (true, None, REPO, Read::Branch { branch: b"other".as_slice().into() }, Priority::Fresh, false),
+            ),
+            (
+                "different repository",
+                (true, None, Repository { repository: 6, ..REPO }, branch(), Priority::Fresh, false),
+            ),
+            ("keeping queued", (false, None, REPO, branch(), Priority::Keep, false)),
+            ("keeping sent", (true, None, REPO, branch(), Priority::Keep, false)),
+        ],
+        shared_read_row,
+    );
+}
+fn shared_read_row(
+    (sent, event, repository, read, priority, shared): (bool, Option<Event>, Repository, Read, Priority, bool),
+) {
+    let mut h = Harness::new(LIMITS);
+    let first_read = Read::Branch { branch: b"g".as_slice().into() };
+    crate::calls::queue(
+        &mut h.domain.calls,
+        crate::calls::Owner::Read(Token::new(1)),
+        REPO,
+        Op::Read(first_read),
+        priority,
+    );
+    let first = if sent { Some(h.one()) } else { None };
+    if let Some(event) = event {
+        assert!(h.step(event).is_empty());
+    }
+    assert!(h.step(Event::Read { owner: Token::new(2), repository, read }).is_empty());
+    let first = match first {
+        Some(first) => first,
+        None => h.one(),
+    };
+    if shared {
+        assert!(h.send().is_none(), "one forge call for both askers");
+        assert_eq!(h.domain.calls.remaining(), (3, 1));
+        let result = Ok(Answer::Commit([1; 32]));
+        assert_eq!(
+            h.answer(&first, 2, result.clone()).as_ref(),
+            &[
+                Request::Read { owner: Token::new(1), result: result.clone() },
+                Request::Read { owner: Token::new(2), result },
+            ]
+        );
+        assert_eq!(h.domain.calls.remaining(), (2, 2), "cost settled once");
+    } else {
+        let (second, _) = h.sent();
+        assert_ne!(first.call, second.call);
+        let mut owners = skein_lib::List::with_capacity(2);
+        for call in [&first, &second] {
+            for request in h.answer(call, 1, Err(Error::Forbidden)) {
+                let Request::Read { owner, result: Err(Error::Forbidden) } = request else { panic!("terminal") };
+                owners.push(owner).expect("two terminals");
+            }
+        }
+        assert!(owners.as_slice().contains(&Token::new(1)));
+        assert!(owners.as_slice().contains(&Token::new(2)));
+    }
+    assert!(h.send().is_none());
+}
+
+#[test]
+fn shared_reads_fence_write_answers_and_preserve_entrance_refusals() {
+    skein_rows::check(
+        [
+            ("write answer fences a sent read", (true, false)),
+            ("write answer precedes a queued read", (false, false)),
+            ("full slab refuses a joining asker", (true, true)),
+        ],
+        shared_read_entrance_row,
+    );
+}
+fn shared_read_entrance_row((sent, full): (bool, bool)) {
+    let mut h = Harness::new(Limits { pending: if full { 1 } else { 8 }, calls: if full { 1 } else { 8 }, ..LIMITS });
+    let read = Read::Branch { branch: b"g".as_slice().into() };
+    let write = if sent {
+        None
+    } else {
+        h.queued(9, Priority::Write);
+        Some(h.one())
+    };
+    assert!(h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }).is_empty());
+    let first = if sent { Some(h.one()) } else { None };
+    if full {
+        terminal(&h.step(Event::Read { owner: Token::new(2), repository: REPO, read: read.clone() }), 2, Error::Busy);
+        h.env.limits.op_bytes = 0;
+        terminal(
+            &h.step(Event::Read { owner: Token::new(3), repository: REPO, read }),
+            3,
+            Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 0, 1)),
+        );
+        terminal(&h.answer(&first.expect("sent"), 1, Err(Error::Forbidden)), 1, Error::Forbidden);
+    } else {
+        let write = match write {
+            Some(write) => write,
+            None => {
+                h.queued(9, Priority::Write);
+                h.one()
+            }
+        };
+        terminal(&h.answer(&write, 0, Err(Error::Forbidden)), 9, Error::Forbidden);
+        assert!(h.step(Event::Read { owner: Token::new(2), repository: REPO, read }).is_empty());
+        let second = h.one();
+        let out = h.answer(&second, 1, Err(Error::Forbidden));
+        if let Some(first) = first {
+            terminal(&out, 2, Error::Forbidden);
+            terminal(&h.answer(&first, 1, Err(Error::Forbidden)), 1, Error::Forbidden);
+        } else {
+            assert_eq!(
+                out.as_ref(),
+                &[
+                    Request::Read { owner: Token::new(1), result: Err(Error::Forbidden) },
+                    Request::Read { owner: Token::new(2), result: Err(Error::Forbidden) },
+                ]
+            );
+        }
+    }
+    assert!(h.send().is_none());
+}
+
+#[test]
+fn shared_reads_retry_and_finish_each_asker_once() {
+    skein_rows::check(
+        [
+            ("not connected", (Error::NotConnected, 1)),
+            ("not installed", (Error::NotInstalled, 1)),
+            ("forbidden", (Error::Forbidden, 1)),
+            ("invalid answer", (Error::InvalidAnswer, 1)),
+            ("timeout", (Error::Timeout, LIMITS.read_attempts)),
+            ("unavailable", (Error::Unavailable, LIMITS.read_attempts)),
+            ("rate refusal spends no try", (Error::RateLimited { after: Duration::from_secs(1) }, 2)),
+        ],
+        shared_read_failure_row,
+    );
+}
+fn shared_read_failure_row((error, attempts): (Error, u32)) {
+    let rate_limited = error == Error::RateLimited { after: Duration::from_secs(1) };
+    let mut h = Harness::new(Limits { read_attempts: if rate_limited { 1 } else { LIMITS.read_attempts }, ..LIMITS });
+    for owner in 1..=2 {
+        assert!(
+            h.step(Event::Read {
+                owner: Token::new(owner),
+                repository: REPO,
+                read: Read::Pull { number: 7, ci: false }
+            })
+            .is_empty()
+        );
+    }
+    for attempt in 1..=attempts {
+        let sent = h.one();
+        assert!(h.send().is_none());
+        let error = if rate_limited && attempt == attempts { Error::Timeout } else { error };
+        let out = h.answer(&sent, 0, Err(error));
+        if attempt == attempts {
+            assert_eq!(
+                out.as_ref(),
+                &[
+                    Request::Read { owner: Token::new(1), result: Err(error) },
+                    Request::Read { owner: Token::new(2), result: Err(error) },
+                ]
+            );
+        } else {
+            assert!(out.is_empty());
+            h.env.now = h.domain.next_deadline().expect("retry deadline");
             h.fire();
         }
     }

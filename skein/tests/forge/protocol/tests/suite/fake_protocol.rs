@@ -34,7 +34,7 @@ fn pull_for_answers_the_open_pull_when_the_lookup_names_a_closed_one() {
     );
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(1).expect("answer");
-    assert_eq!(answered.cost, 4, "resolve, oldest lookup, open page, status");
+    assert_eq!(answered.cost, 3, "resolve, oldest lookup, open page");
     let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };
     assert_eq!(pull.number, second);
     assert_eq!(joint.tally().routes.get(&Route::PullFor), Some(&1));
@@ -268,15 +268,19 @@ fn pull_with_statuses(states: &[skein_fake_forge_domain::api::Check]) -> (Joint,
 fn a_pulls_ci_is_pending_while_a_later_context_is_pending() {
     use skein_fake_forge_domain::api::Check;
     let (mut joint, number) = pull_with_statuses(&[Check::Passed, Check::Pending]);
-    for (call, read) in [
-        (1, Read::Pull { number }),
-        (2, Read::PullFor { head: Box::from(b"work".as_slice()), base: Box::from(b"main".as_slice()) }),
+    for (call, read, ci) in [
+        (1, Read::Pull { number, ci: true }, skein_forge::api::Ci::Pending),
+        (
+            2,
+            Read::PullFor { head: Box::from(b"work".as_slice()), base: Box::from(b"main".as_slice()) },
+            skein_forge::api::Ci::None,
+        ),
     ] {
         joint.call(call, REPO, Op::Read(read));
         joint.run_for(Duration::from_secs(1));
         let answered = joint.answered(call).expect("pull answer");
         let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };
-        assert_eq!(pull.ci, skein_forge::api::Ci::Pending);
+        assert_eq!(pull.ci, ci);
     }
 }
 
@@ -284,7 +288,7 @@ fn a_pulls_ci_is_pending_while_a_later_context_is_pending() {
 fn a_pulls_ci_folds_every_status_page() {
     use skein_fake_forge_domain::api::Check;
     let (mut joint, number) = pull_with_statuses(&[Check::Passed, Check::Passed, Check::Failed]);
-    joint.call(1, REPO, Op::Read(Read::Pull { number }));
+    joint.call(1, REPO, Op::Read(Read::Pull { number, ci: true }));
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(1).expect("pull answer");
     let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };

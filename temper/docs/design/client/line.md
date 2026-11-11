@@ -1,6 +1,6 @@
 # The line client
 
-## 1. `temper open DIRECTORY LINK_OR_ADDRESS`
+## 1. `temper-box open DIRECTORY LINK_OR_ADDRESS`
 
 - **DIRECTORY** is the client's private directory. The terminal opens
   its parent as a root (skein-shell's `open_root`) and gives its last
@@ -10,7 +10,7 @@
   bearer credential's file and the small store's, both the native
   shell's (`README.md`, section 4).
 - **LINK_OR_ADDRESS** is one of:
-  - the link `temper serve` printed,
+  - the link `temper-box serve` printed,
     `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`: the client
     signs in by it first, offering the credential DIRECTORY holds, if
     any, beside it, so that a person still signed in keeps their sign-in
@@ -28,16 +28,16 @@
 
   | Cause | stderr |
   |---|---|
-  | not two arguments | `temper open: usage: temper open DIRECTORY LINK_OR_ADDRESS` |
-  | not an `http://` link or address, or HOST not an IP address and port | `temper open: not a link or an address: ARG` |
-  | HOST not on loopback | `temper open: the engine's address must be on loopback` |
-  | DIRECTORY refused | `temper open: DIRECTORY: ` and what skein's io found unsafe or failed |
-  | an address given and no token in DIRECTORY | `temper open: not signed in: give the link temper serve printed` |
-  | the link refused by the engine | `temper open: the link was refused: use the fresh link temper serve printed` |
-  | the engine's sign-ins full (7) | `temper open: all N sign-ins are in use; the earliest ends at T; this link stays usable until U; after that, temper serve prints a fresh one when it is tried` |
+  | not two arguments | `temper-box open: usage: temper-box open DIRECTORY LINK_OR_ADDRESS` |
+  | not an `http://` link or address, or HOST not an IP address and port | `temper-box open: not a link or an address: ARG` |
+  | HOST not on loopback | `temper-box open: the engine's address must be on loopback` |
+  | DIRECTORY refused | `temper-box open: DIRECTORY: ` and what skein's io found unsafe or failed |
+  | an address given and no token in DIRECTORY | `temper-box open: not signed in: give the link temper-box serve printed` |
+  | the link refused by the engine | `temper-box open: the link was refused: use the fresh link temper-box serve printed` |
+  | the engine's sign-ins full (7) | `temper-box open: all N sign-ins are in use; the earliest ends at T; this link stays usable until U; after that, temper-box serve prints a fresh one when it is tried` |
 
   A panic aborts the process (fail-stop); the small store and the keys
-  make what was pending safe to send again at the next `temper open`.
+  make what was pending safe to send again at the next `temper-box open`.
 
 ## 2. The loop
 
@@ -156,7 +156,7 @@ command.
   "Signed out." (`view.md`, 1), the first line reads `== temper == Signed out`
   (skein's `ui/text.md`, section 5: TITLE is "the shell's name when
   there is none"), and temper prints `temper: signed out; to sign in
-  again, run temper open DIRECTORY LINK with a link temper serve
+  again, run temper-box open DIRECTORY LINK with a link temper-box serve
   printed`. A sign-out that did not reach the engine leaves the person
   signed in (jig's
   `client/domain/client/README.md`, section 9): the rail or the top bar says
@@ -181,7 +181,7 @@ command.
   exchange starts; `jig-client-shell-native` finishes the small store's
   last write, then closes its connections and files; the process exits
   0. What is pending stays in DIRECTORY's small store, and the next
-  `temper open` on the same DIRECTORY sends it with its keys, within
+  `temper-box open` on the same DIRECTORY sends it with its keys, within
   the engine's retention.
 
 ## 7. When the engine is unreachable
@@ -195,13 +195,13 @@ command.
   link answered refused, used, expired or unknown exits 1 with the same
   refusal words (1). Temper prints a fresh link when none is live or
   reserved (jig's `protocol/client/sign-in.md`).
-- **The engine's sign-ins full** exits 1 with `temper open: all N
+- **The engine's sign-ins full** exits 1 with `temper-box open: all N
   sign-ins are in use; the earliest ends at T; this link stays usable
-  until U; after that, temper serve prints a fresh one when it is tried`
+  until U; after that, temper-box serve prints a fresh one when it is tried`
   (1), N the deployment's room, T the earliest saved expiry among its
   sign-ins and U the link's own, in universal time to the second,
   `YYYY-MM-DDTHH:MM:SSZ`. Nothing is written to DIRECTORY, and the link
-  is not spent: the same `temper open DIRECTORY LINK`, once a sign-in
+  is not spent: the same `temper-box open DIRECTORY LINK`, once a sign-in
   has ended and before U, signs in. Full waits for a sign-in to end,
   hours away, so the terminal does not wait for it.
 - **Once signed in,** the link is `jig-client`'s to judge (jig's
@@ -219,7 +219,7 @@ The renderer and the command reader are skein's text shell's, step code
 under the subset (skein's `ui/text.md`, section 3). The host adds the
 terminal's operations (`Terminal::operations`) to its ring's, beside
 its client's and its own; it copies none of the terminal's count. The
-terminal starts from temper's view limits, as `temper open` makes it,
+terminal starts from temper's view limits, as `temper-box open` makes it,
 in a unit test (`testing.md`). What temper decides is in its domain and
 its view, both step code; golden text fixes how temper's pages print
 (`testing.md`).
@@ -237,7 +237,7 @@ A command typed while text streams is done as at any time (5).
 ## 10. A page's address
 
 The terminal opens at the inbox (`README.md`, 3.4) and reaches each page by its
-numbered link (5), never by a page's address: `temper open` takes the
+numbered link (5), never by a page's address: `temper-box open` takes the
 engine's address or the sign-in link (1). A browser opens a page by
 its address: a reload, or `/tasks/N` typed or opened, is a new client
 at that address (`web/README.md`, 2.3), and an inbox's address holds its
@@ -262,20 +262,20 @@ draws its heading and its "Task brief".
   help; the run-wait pointer checks of `pages/accounts.md`, 2 cover waiting lines alone.
 - **Sign-in words in the terminal and command help** (1, 6): the browser's
   signed-out paragraph names the link temper printed (`view.md`, 1; `web/README.md`, 2.4),
-  while `temper open`'s refusals, the terminal's link instructions and the
-  command's help still name `temper serve`. A person may have run `temper box`.
+  while `temper-box open`'s refusals, the terminal's link instructions and the
+  command's help still name `temper-box serve`. A person may have run `temper box`.
   Default: those words stay until a wording change covers the terminal and
   command help; the request `ui-qa-small` names the browser paragraph alone.
   The used, expired and unknown answers also retain the terminal's and
   `temper ctl`'s generic refusal words: `ui-small-1` changes the page's
   paragraph, with reason-specific command refusals left for later.
-- **Several terminals:** each `temper open` with its own DIRECTORY is a
+- **Several terminals:** each `temper-box open` with its own DIRECTORY is a
   client of its own. Two on one DIRECTORY share its token and write its
   small store whole over each other. Default: not supported and not
   detected; a lock on DIRECTORY is the candidate, which `temper ctl`
   takes for its own calls (`ctl/README.md`, 6.3).
-- **A fresh link from the client:** default: the person runs `temper
-  open` with the last link, whose refusal makes `temper serve` print a
+- **A fresh link from the client:** default: the person runs `temper-box
+  open` with the last link, whose refusal makes `temper-box serve` print a
   fresh one.
 - **A key typed in the terminal** is echoed by its line editing (5).
   Default: accepted on one person's machine; `temper ctl account

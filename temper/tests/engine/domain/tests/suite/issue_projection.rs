@@ -39,6 +39,7 @@ fn model() -> engine::Model {
         endpoint: 1,
         program: None,
         name: b"gpt-6-luna".as_slice().into(),
+        cache_life_ms: 0,
         window: MODEL_WINDOW,
         output: MODEL_OUTPUT,
         input_price: 1,

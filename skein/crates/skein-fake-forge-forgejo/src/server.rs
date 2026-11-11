@@ -45,6 +45,7 @@ pub struct Server {
     requests: Queue<Request>,
     select: response::Select,
     range: Result<Option<response::Range>, api::Error>,
+    if_none_match: Option<Box<[u8]>>,
     call: Option<Id<Call>>,
     followed: bool,
     listing: Option<crate::setup::repos::Listing>,
@@ -77,6 +78,7 @@ impl Server {
             requests: Queue::uncapped(),
             select: response::Select::Document,
             range: Ok(None),
+            if_none_match: None,
             call: None,
             followed: false,
             listing: None,
@@ -431,6 +433,7 @@ fn http_event(
         Turn::Handled => {}
     }
 }
+#[expect(clippy::manual_map, reason = "the step subset keeps validator capture explicit")]
 fn entrance(
     server: &mut Server,
     service: &mut Service,
@@ -446,6 +449,10 @@ fn entrance(
     let user = service.user(call.header(b"authorization"));
     service.tally.count(None, user);
     server.range = response::range(call.header(b"range"));
+    server.if_none_match = match call.header(b"if-none-match") {
+        Some(value) => Some(bytes::copy_of(value)),
+        None => None,
+    };
     let Some(user) = user else {
         let method = match call.method {
             Method::Get => Some(request::Method::Get),
@@ -640,7 +647,6 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
         | Request::CreateRepoHook { .. }
         | Request::EditRepoHook { .. }
         | Request::Migrate { .. }
-        | Request::DeleteRepository { .. }
         | Request::DeleteRepoHook { .. } => (
             scopes.repository,
             b"token does not have at least one of required scope(s): [read:repository]",
@@ -660,7 +666,7 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
             b"token does not have at least one of required scope(s): [read:admin]",
             b"token does not have at least one of required scope(s): [write:admin]",
         ),
-        Request::Org { .. } | Request::CreateRepository { .. } => (
+        Request::Org { .. } | Request::CreateRepository { .. } | Request::DeleteRepository { .. } => (
             scopes.organization,
             b"token does not have at least one of required scope(s): [read:organization]",
             b"token does not have at least one of required scope(s): [write:organization]",
@@ -813,7 +819,16 @@ fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Error) {
     let request = server.request.as_ref().expect("decoded request");
     respond(server, &env.limits, response::failure(&env.limits, errors::for_request(error, request, env.now)));
 }
-fn respond(server: &mut Server, limits: &Limits, reply: response::Reply) {
+fn respond(server: &mut Server, limits: &Limits, mut reply: response::Reply) {
+    if reply.status == 200 || reply.status == 206 {
+        for header in &reply.headers {
+            if header.is(b"ETag") && server.if_none_match.as_deref() == Some(header.value.as_ref()) {
+                reply.status = 304;
+                reply.body = Box::from([]);
+                break;
+            }
+        }
+    }
     let mut headers =
         List::with_capacity(u32::try_from(reply.headers.len()).expect("bounded headers").saturating_add(1));
     let mut content_type = false;
@@ -844,7 +859,7 @@ fn respond(server: &mut Server, limits: &Limits, reply: response::Reply) {
             status: reply.status,
             headers: headers.into_boxed(),
             body: reply.body,
-            bodyless: reply.status == 204,
+            bodyless: reply.status == 204 || reply.status == 304,
         },
     );
 }

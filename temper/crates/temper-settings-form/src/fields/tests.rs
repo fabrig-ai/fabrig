@@ -136,12 +136,12 @@ fn routes(target: Shape) -> [bool; SHAPES.len()] {
 }
 
 #[test]
-fn ending_fields_describe_both_words_and_the_closers_procedure() {
+fn ending_fields_describe_the_words_and_the_closers_procedure() {
     let ending = resolve(b"flags.ended_by").expect("ending field");
     let Value::Shape(ending) = ending.value else { panic!("ending has a word-or-object shape") };
     let Choice::One { words } = form(ending).choice else { panic!("one ending choice") };
-    assert_eq!(words.len(), 2);
-    for (word, expected) in words.iter().zip([b"result".as_slice(), b"requester"]) {
+    assert_eq!(words.len(), 3);
+    for (word, expected) in words.iter().zip([b"result".as_slice(), b"requester", b"standing"]) {
         assert_eq!(word.word, expected);
     }
     let variants = members(ending);

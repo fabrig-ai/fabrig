@@ -12,7 +12,10 @@ and outcomes on scripted output. The checkout world's `suite::delivery`
 checks the resulting fake object graph, preserved ids and messages, and
 refusal of an unpushed second parent. No deployment replay is on record.
 
+- **Not yet:** 4.1 and 5, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages [in flight: change 68].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
+- **Not yet:** 5, *One object store per repository*, and 9, *Files*: each repository a workspace is made with is a clone of every branch's history into its own `.git`, and every fetch runs there (`temper-worker-domain-checkout/src/cache.rs`, `Cache::hold`; `hold.rs`, `prepared`), so each prepare that makes its workspace (a workstream's first on the worker, an evicted one, every saved start, a damaged one, every one after a worker's start) transfers the whole repository. A deployment of 2026-11-11, about 13 goals on three workers, drew about 50 `git-upload-pack` calls each 10 minutes, about 37 MB each, and about 2.1 GB in the 10 minutes after an engine's restart: by reading, these clones, since a fetch into a cached clone already negotiates with its references, and a worker's 3 or 4 workspaces serve a workstream for each change, goal and chat [in flight: change 467].
+- **Not yet:** 5, *Prepare*, *The landing pin* and *The replaced head's pin*: a prepare fetches a branch again for its pin and baseline (`hold.rs`, `fetched_start`, `PinReplaced`): a goal's run fetches g as its start and as its pin, a repair on its own branch fetches it three times, and a push branch not yet made pins its start's commit by a fetch [in flight: change 468].
 
 Unchecked saves use the same snapshot. The checkout world's delivery rows
 cover both checked and unchecked pushes. A checked delivery after an
@@ -122,7 +125,7 @@ unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
 Section 6's agent program is the worker's named program: the box's
-`temper internal agent AGENT.json` or a deployment's `temper-agent
+`temper-box internal agent AGENT.json` or a deployment's `temper-agent
 AGENT.json`, with the same program used for a model list
 (`../protocol/README.status.md`, 5). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
@@ -182,9 +185,9 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   `workers[0].limits: past its bound`, naming none. The `worker-many-slots`
   request of 2026-11-05 has each start's refusal name what to raise; it asked
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
-  slots past `temper::prepare_in`: that request takes the next deployment at 8
+  slots past `temper_box_shell::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
-- **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
+- **Departs:** 5, 9: with `TEMPER_INTERNAL_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,
   sections 5 and 9 hold exactly. Any value counts as set, and it is read once.
@@ -209,6 +212,12 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
     prepare as transient and spoils it, and the next prepare makes it again, as
     `temper/tests/worker/checkout/tests/suite/reuse.rs` shows with a stale
     `index.lock`. Damage no operation breaks on stays in use;
+  - `stores` stays across a restart as `workspaces` does, and a store's first
+    `Store` keeps one there (`../protocol/git.md`, 4.11). A kept repository's
+    alternates name the store it was cloned with, by token, and the cache gives
+    remotes tokens in the order prepares name them, so where a restart gives its
+    remote another token, its first fetch breaks and the next prepare makes it
+    again. A deployment of one repository always gives it the same token;
   - a workspace's path stays `<root>/workspaces/<token>/<repository>`, its
     token its place in the order workspaces are made, since none is retired: the
     first `0`, the second `4294967296`. A restart does not bring back which
@@ -226,7 +235,7 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   or a URL rewrite (`../protocol/git.md`, 10). That is acceptable only for one
   trusted person.
 
-  6: with `TEMPER_DUMP_LLM` in the worker's environment at its start, an agent
+  6: with `TEMPER_INTERNAL_DUMP_LLM` in the worker's environment at its start, an agent
   process's environment holds that one variable, an absolute directory, and its
   log's lines also go to `dump.log` there; unset, which is the default and the
   only shipped form, section 6 holds exactly. Because the deployment's

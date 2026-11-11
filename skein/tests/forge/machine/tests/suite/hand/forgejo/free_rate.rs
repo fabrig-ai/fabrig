@@ -94,6 +94,22 @@ fn a_304_counts_free_and_cost_before_plan_refusal() {
         let got = terminal(&h);
         assert_eq!((got.cost, got.free), (ONE_REQUEST, ONE_REQUEST));
     }
+    for (mut h, body, expected_rate) in
+        [(github_known(), f::GITHUB_BRANCH, Some(SECOND)), (f::known(), f::BRANCH_BODY, None)]
+    {
+        h.call(0, REPO, branch());
+        h.run(Duration::ZERO);
+        h.connected(FORGE);
+        answer(&mut h, 200, body, b"ETag: \"a\"\r\nX-RateLimit-Limit: 5000\r\nX-RateLimit-Remaining: 4999\r\nX-RateLimit-Reset: 1800000000\r\n");
+        let first = h.answered(0).expect("whole answer").result.clone();
+        begin(&mut h);
+        assert!(
+            h.request_bytes(FORGE).windows(b"If-None-Match: \"a\"".len()).any(|piece| piece == b"If-None-Match: \"a\"")
+        );
+        answer(&mut h, 304, b"", SECOND_FIELDS);
+        let got = terminal(&h);
+        assert_eq!((got.cost, got.free, got.rate, &got.result), (ONE_REQUEST, ONE_REQUEST, expected_rate, &first));
+    }
 }
 
 #[test]

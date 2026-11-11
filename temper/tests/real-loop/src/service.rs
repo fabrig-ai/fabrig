@@ -96,10 +96,6 @@ impl ServiceHost {
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
         Self::with_shape(path, signals, None, false, None, None, Some(issuer))
     }
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C4: TEMPER_R8_WAIT_CHECK, through temper's test table once it exists"
-    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,
@@ -143,8 +139,8 @@ impl ServiceHost {
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations =
-            temper::operations_in_with(&roots, &config, &fixtures::given(&path)).expect("standalone operation count");
+        let operations = temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
+            .expect("standalone operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
         let records_seeded =
@@ -154,7 +150,7 @@ impl ServiceHost {
             restartable,
             start_failures: 0,
             failed_starts: Vec::new(),
-            wait_check: std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
+            wait_check: temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some(),
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,
@@ -289,7 +285,8 @@ impl ServiceHost {
         fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
             .expect("misconfigured start");
         for _ in 0..self.start_failures {
-            let Err(failure) = temper::prepare_in_with(&directories, &fixtures::given(&self.path)) else {
+            let Err(failure) = temper_box_shell::prepare_in_with(&[], b"/", &directories, &fixtures::given(&self.path))
+            else {
                 panic!("unknown engine profile must refuse the start")
             };
             assert!(failure.contains("engine.limits.profile"), "{failure}");
@@ -337,7 +334,7 @@ impl ServiceHost {
             }
         }
     }
-    fn directories(path: &std::path::Path, cluster: bool) -> temper::directories::Directories {
+    fn directories(path: &std::path::Path, cluster: bool) -> temper_box_shell::directories::Directories {
         if cluster {
             let path = path.parent().expect("cluster scratch");
             crate::cluster::directories_in([&path.join("config"), &path.join("data"), &path.join("cache")])
@@ -366,7 +363,9 @@ impl ServiceHost {
     }
     fn prepare_service(&self) -> temper_service::Service {
         use std::os::fd::{AsRawFd, IntoRawFd};
-        let mut service = temper::prepare_in_with(
+        let mut service = temper_box_shell::prepare_in_with(
+            &[],
+            b"/",
             &Self::directories(&self.path, self.cluster.is_some()),
             &fixtures::given(&self.path),
         )
@@ -393,8 +392,13 @@ impl ServiceHost {
         const STDERR_TAIL: usize = 4096;
         let service = self.service.as_ref().expect("an ended service was prepared");
         let directories = Self::directories(&self.path, self.cluster.is_some());
-        let (stderr, code) =
-            temper::service_ending(service.end(), false, &directories, &directories.data, service.unsettled());
+        let (stderr, code) = temper_box_shell::service_ending(
+            service.end(),
+            false,
+            &directories,
+            &directories.data,
+            service.unsettled(),
+        );
         let tail = &stderr.as_bytes()[stderr.len().saturating_sub(STDERR_TAIL)..];
         format!(
             "service {process} exited before caller release: {:?}; end={:?}\nstderr tail:\n{}",
@@ -500,7 +504,7 @@ fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, bl
     )
     .expect("machine roots");
     let roots = skein_tls::Config::from_der(&roots.certificates, &[]).expect("TLS roots").0;
-    let mut log_origins = temper::github_logs::resolve(None, |_| Ok(([127, 0, 0, 1], 443).into()))
+    let mut log_origins = temper_box_shell::github_logs::resolve(None, |_| Ok(([127, 0, 0, 1], 443).into()))
         .expect("production default with fake DNS");
     // The fake serves plaintext on loopback; keep the production host policy.
     for at in 0..log_origins.len() {
@@ -677,7 +681,7 @@ impl Host for ServiceHost {
 
 /// All directories are explicit and belong to this fixture's scratch.
 #[must_use]
-pub fn directories(directory: &std::path::Path) -> temper::directories::Directories {
+pub fn directories(directory: &std::path::Path) -> temper_box_shell::directories::Directories {
     use std::os::unix::ffi::OsStrExt;
     let values = [
         b"--config".as_slice(),
@@ -687,7 +691,7 @@ pub fn directories(directory: &std::path::Path) -> temper::directories::Director
         b"--cache",
         directory.as_os_str().as_bytes(),
     ];
-    temper::directories::resolve(&values.iter().map(|v| Box::from(*v)).collect::<Vec<_>>(), &[], b"/")
+    temper_box_shell::directories::resolve(&values.iter().map(|v| Box::from(*v)).collect::<Vec<_>>(), &[], b"/")
         .expect("fixture directories")
         .0
 }

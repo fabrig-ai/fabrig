@@ -203,17 +203,21 @@ pub(super) const BASE_BRANCH: &[u8] = br#"{"name":"main","commit":{"id":"0300000
 use super::{Asked, Drop};
 use skein_lib::Duration;
 type FailureCase = (Asked, u16, &'static [u8], Option<Duration>, Error, Drop);
-pub(super) fn failures() -> [FailureCase; 43] {
-    use Asked::{BeforeWrite, DeleteBranch, Job, Merge, OpenPull, Read, Update, Write};
+pub(super) fn failures() -> [FailureCase; 47] {
+    use Asked::{BeforeWrite, DeleteBranch, Job, Leaf, Merge, OpenPull, Read, Update, Write};
     use Drop::{Nothing, Path, Row};
     [
         (Read, 302, b"", None, Error::Unavailable, Path),
         (Write, 302, b"", None, Error::Unavailable, Path),
-        (Write, 401, b"", None, Error::Forbidden, Nothing),
+        (Write, 401, b"", None, Error::Forbidden, Row),
+        (Write, 403, b"", None, Error::Forbidden, Row),
+        (Read, 401, b"", None, Error::Forbidden, Nothing),
+        (Leaf, 404, b"", None, Error::Missing, Nothing),
+        (Leaf, 403, b"", None, Error::Forbidden, Nothing),
         (Read, 403, b"", None, Error::Forbidden, Nothing),
-        (Write, 423, b"", None, Error::Forbidden, Nothing),
+        (Write, 423, b"", None, Error::Forbidden, Row),
         (Read, 404, b"", None, Error::Missing, Path),
-        (Job, 404, b"", None, Error::MissingJob, Path),
+        (Job, 404, b"", None, Error::MissingJob, Nothing),
         (Write, 404, b"", None, Error::Missing, Path),
         (Write, 413, b"", None, Error::Full, Nothing),
         (OpenPull, 409, b"", None, Error::Exists, Nothing),

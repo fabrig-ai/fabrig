@@ -31,13 +31,13 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
   providers and their endpoints (`engine.llm`), which are configuration of
   the work too, and leave the document by a design of their own, later. Of their
-  members `temper init` gives each `keep` and `drop` (jig's
+  members `temper-box init` gives each `keep` and `drop` (jig's
   `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
   `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
   `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The
   playground's scripted provider has neither, and no list. jig's
   `engine.projects`,
-  the projects a first start seeds, stays jig's member; `temper init`'s
+  the projects a first start seeds, stays jig's member; `temper-box init`'s
   is `[]` (../setup/init.md, 3), and a document's seeded project names its
   policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
   so the seed copies the stock's policy 1 and no document carries a
@@ -385,7 +385,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   authority, a pattern and a role's permissions (milliseconds, text
   segments) meet nothing.
 - **Before the baseline** (`../../draft/upgrades.md`, 4.1): the settings change the store's families, so a
-  deployment is made again, and nothing is imported. A document `temper
+  deployment is made again, and nothing is imported. A document `temper-box
   init` wrote carried the stock values, now the binary's; one an
   operator edited is told again, after the start, as a proposal ("Tell
   temper how you work").
@@ -400,9 +400,9 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   and refuses them for one that passes its own. temper passes its own
   from 5's first step, which needs nothing new of jig's settings;
   its second needs jig's application settings.
-- **Their writers name none of them:** `temper init`'s document and
+- **Their writers name none of them:** `temper-box init`'s document and
   files (`../setup/init.md`, 2 and 3); the box, which has no document of
-  its own but `temper init`'s (`../setup/box.md`);
+  its own but `temper-box init`'s (`../setup/box.md`);
   `docs/examples/owned.json` and its instructions; the cluster
   fixture's engine documents, whose stories apply their own values as a
   settings file through ctl after sign-in; the fake backends' document
@@ -442,7 +442,7 @@ side never waits on the part of jig it does not use:
    2 refuses such a change, kind 3 naming its charter (2). The
    forge's review charter is the stock's charter 4 until then, fixed by
    the binary, with no document member of its own: its settings change
-   as any charter's, and step 2 makes it kind 3's number 2. `temper
+   as any charter's, and step 2 makes it kind 3's number 2. `temper-box
    init`'s document
    loses the four members and its `charters/`, and every other writer
    of them (4) moves with it. A seeded project names `policy: 1`
@@ -451,7 +451,7 @@ side never waits on the part of jig it does not use:
    equal to the stock, go with it. A document may seed no project at
    all, its first owners the deployment's alone, as jig's seed allows,
    holding no escalation role until a project's policy gives them one;
-   `temper init`'s seeds none, its projects made at runtime on policy 1
+   `temper-box init`'s seeds none, its projects made at runtime on policy 1
    (../setup/init.md, 3); a world or a person that needs a wider project
    raises the rules and policy 1 with one change of settings, then makes
    it, or widens an existing project's ceiling within the new rules
@@ -539,7 +539,7 @@ repository and branch form above (2026-11-04).
 
 ## 7. A model with a larger output
 
-`temper init`'s limits hold the stock's models, each a window of 1,048,576
+`temper-box init`'s limits hold the stock's models, each a window of 1,048,576
 tokens and an output of 8,192 (`stock.md`), as its agent's endpoints declare them. A
 deployment whose model takes a larger output (gpt-6.1-sol at effort high, output
 32,000, for one) raises its agent's endpoint and overrides its profile's turn limits, each derived
@@ -550,7 +550,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every endpoint, so one set of bounds
   holds whichever model a charter names (smith's `protocol/limits.md`, 3.9).
-  `temper init`'s agent takes 48 calls per response, 26
+  `temper-box init`'s agent takes 48 calls per response, 26
   conversations (`stock.md`'s table) and 64 models a charter, its endpoints an
   output of 8,192 and a `reasoning_item` of at most 65,536, and efforts
   move no figure of T, smith charging an effort's name at the charter
@@ -629,7 +629,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   1,245,440 bytes, passes `transcript.said_text`'s 1,048,576-byte ceiling.
   The fallback's T is 18,431,842 bytes, within smith's 33,554,432-byte
   ceiling. The stock keeps its figures, 10,662 and 8,192, and
-  `temper init`'s T of 16,803,810.
+  `temper-box init`'s T of 16,803,810.
 - **What moves with the payload,** P, each named by the start at its path
   against the agent's figure, beside the limits T sets above:
 

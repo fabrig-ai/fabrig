@@ -7,7 +7,7 @@ if [ "$#" -ne 1 ]; then
   printf '%s\n' 'usage: regenerate.sh DATA_DIRECTORY' >&2
   exit 2
 fi
-${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
+${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} env TEMPER_INTERNAL_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
   --data "$1" \
   --base temper/tests/real-loop/tests/fixtures/b1/llm-base.json \
   --out temper/tests/real-loop/tests/fixtures/b1/llm.json \

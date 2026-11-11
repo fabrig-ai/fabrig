@@ -1,7 +1,7 @@
 //! A hint invalidates the procedures whose fresh facts it can concern.
 use skein_forge::api::{Change, Hint, Op, Read};
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::forge_routes::{hint_step, hint_world};
+use temper_engine_domain_world::forge_routes::{hint_step, hint_world, shared_goal_hint_world};
 use temper_engine_forge_world::{REPO, World, translate};
 
 fn hint(world: &mut World, change: Change) -> Vec<u64> {
@@ -25,13 +25,12 @@ fn reads_for(world: &World, task: u64) -> Vec<Op> {
         Op::Read(Read::Branch { branch: row.branch.clone() }),
         Op::Read(Read::Branch { branch: row.base.clone() }),
         Op::Read(match row.pull {
-            Some(number) => Read::Pull { number },
+            Some(number) => Read::Pull { number, ci: true },
             None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
         }),
-        Op::Read(Read::Checks { commit: head }),
         Op::Read(Read::Checks { commit: base }),
         Op::Read(Read::Commits { before: head, after: base, page: 1 }),
-        Op::Read(Read::Reviews { number: row.pull.expect("opened pull"), page: 1 }),
+        Op::Read(Read::Reviews { number: row.pull.expect("opened pull"), page: 1, skip: 0 }),
     ]
 }
 
@@ -215,36 +214,151 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
     row.change.last_head = None;
     row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
     world.event(forge::Event::Change { row: *row });
-    assert_eq!(hint(&mut world, Change::Item(2)), [52, 53], "unknown pull cannot exclude its review hint");
+    assert_eq!(hint(&mut world, Change::Item(2)), [52], "an unpushed change has no pull");
+    assert_eq!(hint(&mut world, Change::Commit(head)), [51], "only the subscriber wakes; an unpushed change has no CI");
+    assert_eq!(hint(&mut world, Change::Item(0)), [51, 52], "unnamed item concerns only changes with heads");
+    assert_eq!(hint(&mut world, Change::Commit([0; 32])), [51, 52], "unnamed commit concerns only changes with heads");
+    for (number, topic, change, expected) in [
+        (2, forge::Topic::Ci { repository: REPO, head }, Change::Commit(head), vec![51, 53]),
+        (3, forge::Topic::Pull { repository: REPO, number: 99 }, Change::Item(99), vec![53]),
+    ] {
+        world.event(forge::Event::Subscribe {
+            subscription: forge::Subscriber {
+                task: 53,
+                number,
+                topic,
+                own_change: None,
+                goal_tasks: None,
+                paths: Box::new([]),
+            },
+        });
+        assert_eq!(hint(&mut world, change), expected, "an unpushed change keeps its subscribed inputs");
+    }
+    let dependency = world.issue(b"unpushed dependency");
+    world.event(forge::Event::Names {
+        task: 53,
+        resources: Box::new([forge::Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: forge::What::Issue(dependency),
+        }]),
+    });
+    assert_eq!(hint(&mut world, Change::Item(dependency)), [53], "named inputs still wake an unpushed change");
+    let mut unknown = temper_engine_forge_world::changes::change_row();
+    unknown.task = 54;
+    unknown.change.task = 54;
+    unknown.change.last_head = Some([54; 32]);
+    world.event(forge::Event::Change { row: unknown });
+    assert_eq!(hint(&mut world, Change::Item(98)), [54], "a pushed change with unknown pull still matches");
+    assert_eq!(hint(&mut world, Change::Commit([98; 32])), [54], "a pushed change with unknown base still matches");
+}
+
+fn waiting_step(world: &mut World, entry: u64) {
+    use temper_engine_domain_forge_change as change;
+    world.event(forge::Event::StepChange {
+        task: 53,
+        entry,
+        heard: change::Heard {
+            delegate_running: false,
+            delegate_live: false,
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Unknown,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([change::Pending { task: 40, kind: change::PendingKind::Other }]),
+        kept: false,
+        merge_job: false,
+    });
+    world.run_for(1);
+}
+
+fn unpushed_profile() -> World {
+    let mut world = hint_world();
+    world.fallback(skein_lib::Duration::from_secs(300));
+    let mut unpushed = temper_engine_forge_world::changes::change_row();
+    unpushed.task = 53;
+    unpushed.change.task = 53;
+    unpushed.branch = b"temper/unpushed".as_slice().into();
+    world.event(forge::Event::Change { row: unpushed });
+    waiting_step(&mut world, 153);
     assert_eq!(
-        hint(&mut world, Change::Commit(head)),
-        [51, 53],
-        "subscriber and unknown head wake; known head reads CI alone"
+        world.take_calls(),
+        [Op::Read(Read::Branch { branch: b"temper/unpushed".as_slice().into() })],
+        "first step reads only the absent branch",
     );
-    assert_eq!(hint(&mut world, Change::Item(0)), [51, 52, 53], "unnamed item is repository-wide");
-    assert_eq!(hint(&mut world, Change::Commit([0; 32])), [51, 52, 53], "unnamed commit is repository-wide");
+    waiting_step(&mut world, 154);
+    assert!(world.take_calls().is_empty(), "a dependency wake before fallback reads nothing");
+    world
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the request profile keeps shared-base, unpushed and landing cases together")]
 fn two_change_hint_request_profile() {
     use temper_engine_domain_forge_change as change;
     const LANDING_REQUEST_BOUND: usize = 18;
     let mut world = hint_world();
-    for (change, expected_wakes) in [
-        (Change::Branch(b"temper/a".as_slice().into()), vec![51]),
-        (Change::Branch(b"release".as_slice().into()), vec![52]),
-        (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52]),
+    world.fallback(skein_lib::Duration::from_secs(300));
+    for (change, expected_wakes, common_goal) in [
+        (Change::Branch(b"temper/a".as_slice().into()), vec![51], false),
+        (Change::Branch(b"release".as_slice().into()), vec![52], false),
+        (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52], false),
+        (Change::Branch(b"release".as_slice().into()), vec![51, 52], true),
     ] {
+        if common_goal {
+            world = shared_goal_hint_world();
+        }
         let wakes = hint(&mut world, change.clone());
         assert_eq!(wakes, expected_wakes, "{change:?}: woken changes");
         let expected_reads: Vec<_> = wakes.iter().flat_map(|task| reads_for(&world, *task)).collect();
+        if common_goal {
+            world.slow_calls(skein_lib::Duration::from_secs(2));
+        }
         for task in wakes {
             hint_step(&mut world, task, 100 + task);
         }
+        if common_goal {
+            world.run_for(20);
+            world.slow_calls(skein_lib::Duration::ZERO);
+        }
         let calls = world.take_calls();
-        assert_eq!(calls.len(), expected_reads.len(), "{change:?}: fresh-read request count");
-        assert_eq!(calls, expected_reads, "{change:?}: only the woken changes' fresh reads");
+        if common_goal {
+            let base = Op::Read(Read::Branch { branch: b"release".as_slice().into() });
+            assert_eq!(calls.iter().filter(|op| **op == base).count(), 1, "two changes share their fresh base read");
+            assert_eq!(calls.len(), expected_reads.len() - 1, "one shared request saved");
+            for op in expected_reads {
+                assert!(calls.contains(&op), "gather still read {op:?}");
+            }
+        } else {
+            assert_eq!(calls.len(), expected_reads.len(), "{change:?}: fresh-read request count");
+            assert_eq!(calls, expected_reads, "{change:?}: only the woken changes' fresh reads");
+        }
     }
+    let branch = Op::Read(Read::Branch { branch: b"temper/unpushed".as_slice().into() });
+    let head = translate::commit(world.branch(b"temper/a"));
+    for (change, expected_wakes, expected_reads) in [
+        (Change::Commit(head), vec![], vec![Op::Read(Read::Checks { commit: head })]),
+        (Change::Commit([99; 32]), vec![], vec![]),
+        (Change::Item(99), vec![], vec![]),
+        (Change::Branch(b"unmatched".as_slice().into()), vec![51, 52], vec![]),
+        (Change::Branch(b"temper/unpushed".as_slice().into()), vec![53], vec![branch.clone()]),
+        (Change::Branch(Box::new([])), vec![51, 52, 53], vec![branch]),
+    ] {
+        let mut unpushed = unpushed_profile();
+        let wakes = hint(&mut unpushed, change.clone());
+        assert_eq!(wakes, expected_wakes, "{change:?}");
+        if wakes.contains(&53) {
+            waiting_step(&mut unpushed, 155);
+        }
+        assert_eq!(unpushed.take_calls(), expected_reads, "{change:?}: unpushed change reads no other facts");
+    }
+    let mut world = hint_world();
     let mut landing_requests = [0; 2];
     for (at, task) in [51, 52].into_iter().enumerate() {
         let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {

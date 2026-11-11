@@ -121,9 +121,12 @@ through `NoteDelete`, any other run refused beyond authority naming the
 scope, and a run's `note` and `recall` name no party's scope
 (`routing/party.rs`); the party alone reads, corrects and deletes it
 through a client, naming project 0, whatever their roles
-(`reads/party.rs`); the brief's required `preferences` section holds its
-lines in name order, `N. DESCRIPTION`, or `None kept.`
-(`routing/run/preferences.rs`); every turn answered to a party other
+(`reads/party.rs`); the brief's required `preferences` section is present
+where the run's charter names the asking family and its authority holds it,
+with the person's lines in name order, `N. DESCRIPTION`, or `None kept.`
+(`routing/run/preferences.rs`, held by the core world's
+`party_brief::an_asking_run_reads_its_persons_preferences_whole`, including
+its charter-without-asking row); every turn answered to a party other
 than its task's requester, on its own, in an activity page or beside a
 line, and every turn of a run's read as its person, is marked withheld
 (`reads/withheld.rs`), and the clients' component projects it by
@@ -360,3 +363,4 @@ try. A window's later pages keep its first page's slot there
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2) [in flight: change 232].

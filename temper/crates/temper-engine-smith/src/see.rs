@@ -169,6 +169,7 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
     addresses::following(form)
 }
 
+/// Each way's name, `now` where current, headline, line and path; then the reader's permission.
 fn ways_text(document: &engine::ways::WaysDocument) -> Box<[u8]> {
     let mut parts = List::uncapped();
     for (at, way) in document.ways.iter().enumerate() {
@@ -178,7 +179,17 @@ fn ways_text(document: &engine::ways::WaysDocument) -> Box<[u8]> {
         let current = document.current == Some(u32::try_from(at).expect("stock way index"));
         let now = if current { " · now".as_bytes() } else { b"".as_slice() };
         parts
-            .push(join(&[&way.name, now, b"\n", &way.line, b"\n", &path_text(&way.path), b"\n"]))
+            .push(join(&[
+                &way.name,
+                now,
+                b"\n",
+                &way.headline,
+                if way.headline.is_empty() { b"" } else { b"\n" },
+                &way.line,
+                b"\n",
+                &path_text(&way.path),
+                b"\n",
+            ]))
             .expect("stock way text");
     }
     if document.current.is_none() {

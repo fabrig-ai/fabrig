@@ -14,7 +14,6 @@ pub enum State {
 #[derive(Debug)]
 pub struct Poll {
     newest: Option<[u8; 16]>,
-    validator: Option<api::Validator>,
     ask: Option<log::Ask>,
     rows: Box<[log::Row]>,
     row: usize,
@@ -25,7 +24,6 @@ pub struct Poll {
 #[derive(Debug)]
 pub struct Puller {
     pub newest: Option<[u8; 16]>,
-    pub validator: Option<api::Validator>,
     pub due: Option<Time>,
     pub state: State,
     pub source: Option<Token>,
@@ -41,7 +39,7 @@ pub enum Action {
 }
 impl Puller {
     pub fn new() -> Self {
-        Self { newest: None, validator: None, due: None, state: State::Resting, source: None, poll: None }
+        Self { newest: None, due: None, state: State::Resting, source: None, poll: None }
     }
     pub fn pause(&mut self) {
         self.state = State::Resting;
@@ -54,7 +52,6 @@ impl Puller {
             && commit
         {
             self.newest = poll.newest.or(self.newest);
-            self.validator = poll.validator;
         }
         self.state = State::Resting;
         self.due = Some(env.now.saturating_add(env.limits.log_poll));
@@ -114,9 +111,6 @@ impl Puller {
     }
     pub fn page(&mut self, page: log::Page) {
         let poll = self.poll.as_mut().expect("active poll");
-        if poll.pages == 0 {
-            poll.validator = page.validator;
-        }
         poll.pages = poll.pages.checked_add(1).expect("bounded log pages");
         poll.rows = page.rows;
         poll.row = 0;
@@ -134,8 +128,7 @@ impl Puller {
         self.due = None;
         self.poll = Some(Poll {
             newest: None,
-            validator: None,
-            ask: Some(log::Ask::First { validator: self.validator.clone() }),
+            ask: Some(log::Ask::First { validator: None }),
             rows: Box::from([]),
             row: 0,
             pages: 0,

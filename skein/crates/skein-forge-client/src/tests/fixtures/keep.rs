@@ -250,8 +250,8 @@ pub(in crate::tests) fn participation(h: &mut Harness, reviews: Box<[api::Review
     let pull = h.one();
     h.answer(pull, Answer::Pull(current()));
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1 }));
-    h.answer(read, Answer::Reviews { reviews, more: false });
+    assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 0 }));
+    h.answer(read, Answer::Reviews { reviews, more: false, cut: false });
 }
 pub(in crate::tests) fn matches_write(op: &Op) -> bool {
     match op {

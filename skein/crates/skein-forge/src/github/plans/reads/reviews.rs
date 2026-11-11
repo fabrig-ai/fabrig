@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
 impl Plan {
     pub(super) fn remarks_initial(&mut self) -> Result<Step, api::Error> {
-        let Read::Remarks { number, review, page } = self.read else {
+        let Read::Remarks { number, review, page, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
@@ -27,13 +27,23 @@ impl Plan {
         let document::Row::Remark(row) = row else {
             return Err(api::Error::InvalidAnswer);
         };
+        if self.cut {
+            return Ok(());
+        }
         self.page_row(bounds)?;
+        if let Read::Remarks { skip, .. } = self.read
+            && self.count <= skip
+        {
+            return Ok(());
+        }
         let body = match row.body {
             crate::text::Body::Kept(body) => body,
             crate::text::Body::Long(_) => Box::from([]),
         };
         let remark = api::Remark { id: row.id, author: row.author, path: row.path, line: row.line, body };
-        self.keep_bytes(64, &[&remark.path, &remark.body], bounds)?;
+        if !self.keep_whole_row(64, &[&remark.path, &remark.body], self.remarks.len(), bounds)? {
+            return Ok(());
+        }
         match self.remarks.push(remark) {
             Ok(()) => Ok(()),
             Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
@@ -66,6 +76,16 @@ impl Plan {
         self.size = size;
         Ok(())
     }
+    fn keep_whole_row(&mut self, width: u64, fields: &[&[u8]], kept: u32, bounds: Bounds) -> Result<bool, api::Error> {
+        match self.keep_bytes(width, fields, bounds) {
+            Ok(()) => Ok(true),
+            Err(api::Error::TooLarge(excess)) if kept > 0 && excess.bound == api::Bound::AnswerBytes => {
+                self.cut = true;
+                Ok(false)
+            }
+            Err(error) => Err(error),
+        }
+    }
     pub(super) fn listing_next(&self) -> Result<bool, api::Error> {
         match self.response {
             Response::Body { next } => Ok(next),
@@ -78,13 +98,13 @@ impl Plan {
         }
         let more = self.listing_next()?;
         let remarks = core::mem::replace(&mut self.remarks, List::with_capacity(0)).into_boxed();
-        self.terminal(api::Answer::Remarks { remarks, more }, bounds)
+        self.terminal(api::Answer::Remarks { remarks, more: more || self.cut, cut: self.cut }, bounds)
     }
 }
 
 impl Plan {
     pub(super) fn reviews_initial(&mut self) -> Result<Step, api::Error> {
-        let Read::Reviews { number, page } = self.read else {
+        let Read::Reviews { number, page, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
@@ -100,10 +120,19 @@ impl Plan {
         let document::Row::Review(row) = row else {
             return Err(api::Error::InvalidAnswer);
         };
+        if self.cut {
+            return Ok(());
+        }
         self.page_row(bounds)?;
         let Some(review) = crate::github::plans::reading::review(word, row)? else {
             return Ok(());
         };
+        if let Read::Reviews { skip, .. } = &mut self.read
+            && *skip > 0
+        {
+            *skip = skip.saturating_sub(1);
+            return Ok(());
+        }
         if review.id <= self.last_review {
             return Err(api::Error::InvalidAnswer);
         }
@@ -112,7 +141,9 @@ impl Plan {
             Some(key) => key.as_ref(),
             None => &[],
         };
-        self.keep_bytes(128, &[key, &review.body], bounds)?;
+        if !self.keep_whole_row(128, &[key, &review.body], self.reviews.len(), bounds)? {
+            return Ok(());
+        }
         match self.reviews.push(review) {
             Ok(()) => Ok(()),
             Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
@@ -124,6 +155,6 @@ impl Plan {
         }
         let more = self.listing_next()?;
         let reviews = core::mem::replace(&mut self.reviews, List::with_capacity(0)).into_boxed();
-        self.terminal(api::Answer::Reviews { reviews, more }, bounds)
+        self.terminal(api::Answer::Reviews { reviews, more: more || self.cut, cut: self.cut }, bounds)
     }
 }

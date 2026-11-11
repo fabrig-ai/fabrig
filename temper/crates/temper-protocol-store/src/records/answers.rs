@@ -111,9 +111,9 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
             w::Answer::Located(w::Located::new(&w::CEILINGS, w::LocatedParts { repository: *repository }).expect(FITS))
         }
         d::Answer::Statuses { ci, statuses, more } => w::Answer::Statuses(encode_statuses_answer(*ci, statuses, *more)),
-        d::Answer::Remarks { remarks, more } => w::Answer::Remarks(encode_remarks_answer(remarks, *more)),
-        d::Answer::PullFiles { head, files, more } => {
-            w::Answer::PullFiles(encode_pull_files_answer(*head, files, *more))
+        d::Answer::Remarks { remarks, more, cut } => w::Answer::Remarks(encode_remarks_answer(remarks, *more, *cut)),
+        d::Answer::PullFiles { head, files, more, cut } => {
+            w::Answer::PullFiles(encode_pull_files_answer(*head, files, *more, *cut))
         }
         d::Answer::Compare { before, after, ahead, behind, files, changed } => {
             w::Answer::Compare(encode_compare_answer(*before, *after, *ahead, *behind, files, *changed))
@@ -128,7 +128,7 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
         }
         d::Answer::Items { items, more, now, cut } => w::Answer::Items(encode_items_answer(items, *more, *now, *cut)),
         d::Answer::Item { item, comments, more } => w::Answer::Item(encode_item_answer(item, comments, *more)),
-        d::Answer::Reviews { reviews, more } => w::Answer::Reviews(encode_reviews_answer(reviews, *more)),
+        d::Answer::Reviews { reviews, more, cut } => w::Answer::Reviews(encode_reviews_answer(reviews, *more, *cut)),
         d::Answer::Pull(value) => w::Answer::Pull(encode_pull(value)),
         d::Answer::Commit(commit) => {
             w::Answer::Commit(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: *commit }).expect(FITS))
@@ -227,12 +227,12 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
             d::Answer::Statuses { ci: topics::decode_ci(ci), statuses: decode_statuses(&statuses, bounds)?, more }
         }
         w::Answer::Remarks(value) => {
-            let w::RemarksAnswerParts { remarks, more } = value.into_parts();
-            d::Answer::Remarks { remarks: decode_remarks(&remarks, bounds)?, more }
+            let w::RemarksAnswerParts { remarks, more, cut } = value.into_parts();
+            d::Answer::Remarks { remarks: decode_remarks(&remarks, bounds)?, more, cut }
         }
         w::Answer::PullFiles(value) => {
-            let w::PullFilesAnswerParts { head, files, more } = value.into_parts();
-            d::Answer::PullFiles { head, files: decode_files(&files, bounds)?, more }
+            let w::PullFilesAnswerParts { head, files, more, cut } = value.into_parts();
+            d::Answer::PullFiles { head, files: decode_files(&files, bounds)?, more, cut }
         }
         w::Answer::Compare(value) => {
             let w::CompareAnswerParts { before, after, ahead, behind, files, changed } = value.into_parts();
@@ -265,8 +265,8 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
             }
         }
         w::Answer::Reviews(value) => {
-            let w::ReviewsAnswerParts { reviews, more } = value.into_parts();
-            d::Answer::Reviews { reviews: decode_reviews(&reviews, bounds)?, more }
+            let w::ReviewsAnswerParts { reviews, more, cut } = value.into_parts();
+            d::Answer::Reviews { reviews: decode_reviews(&reviews, bounds)?, more, cut }
         }
         w::Answer::Pull(value) => d::Answer::Pull(decode_pull(value)),
         w::Answer::Commit(value) => d::Answer::Commit(value.into_parts().commit),
@@ -586,8 +586,9 @@ fn encode_item_answer(item: &d::Summary, comments: &[d::Comment], more: bool) ->
     )
     .expect(FITS)
 }
-fn encode_reviews_answer(reviews: &[d::Review], more: bool) -> w::ReviewsAnswer {
-    w::ReviewsAnswer::new(&w::CEILINGS, w::ReviewsAnswerParts { reviews: encode_reviews(reviews), more }).expect(FITS)
+fn encode_reviews_answer(reviews: &[d::Review], more: bool, cut: bool) -> w::ReviewsAnswer {
+    w::ReviewsAnswer::new(&w::CEILINGS, w::ReviewsAnswerParts { reviews: encode_reviews(reviews), more, cut })
+        .expect(FITS)
 }
 fn encode_statuses_answer(ci: d::Ci, statuses: &[d::Status], more: bool) -> w::StatusesAnswer {
     w::StatusesAnswer::new(
@@ -596,11 +597,17 @@ fn encode_statuses_answer(ci: d::Ci, statuses: &[d::Status], more: bool) -> w::S
     )
     .expect(FITS)
 }
-fn encode_remarks_answer(remarks: &[d::Remark], more: bool) -> w::RemarksAnswer {
-    w::RemarksAnswer::new(&w::CEILINGS, w::RemarksAnswerParts { remarks: encode_remarks(remarks), more }).expect(FITS)
+fn encode_remarks_answer(remarks: &[d::Remark], more: bool, cut: bool) -> w::RemarksAnswer {
+    w::RemarksAnswer::new(&w::CEILINGS, w::RemarksAnswerParts { remarks: encode_remarks(remarks), more, cut })
+        .expect(FITS)
 }
-pub(super) fn encode_pull_files_answer(head: d::Commit, files: &[d::File], more: bool) -> w::PullFilesAnswer {
-    w::PullFilesAnswer::new(&w::CEILINGS, w::PullFilesAnswerParts { head, files: encode_files(files), more })
+pub(super) fn encode_pull_files_answer(
+    head: d::Commit,
+    files: &[d::File],
+    more: bool,
+    cut: bool,
+) -> w::PullFilesAnswer {
+    w::PullFilesAnswer::new(&w::CEILINGS, w::PullFilesAnswerParts { head, files: encode_files(files), more, cut })
         .expect(FITS)
 }
 fn encode_compare_answer(

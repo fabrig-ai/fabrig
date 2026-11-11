@@ -1368,6 +1368,7 @@ const GOAL_REPOSITORY_ID: u32 = 7;
 // A task names its repository by the forge and id, packed (domain/forge/adoption.md).
 const GOAL_REPOSITORY: u64 = temper_engine_domain_forge::tag(ADOPT_FORGE, GOAL_REPOSITORY_ID);
 fn adopt_goal_repository(driver: &mut Driver) {
+    driver.connect_forges();
     let mut request = temper_engine_domain_world::fixtures::adoption(ADOPT_FORGE);
     request.owner = b"acme".as_slice().into();
     request.name = b"shop".as_slice().into();

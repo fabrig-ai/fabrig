@@ -81,7 +81,7 @@ pub(crate) fn read(
     use skein_forge::api::Read;
     let what = match read {
         Read::Branch { branch } | Read::PullFor { head: branch, .. } => crate::What::Branch(parts(branch)),
-        Read::Pull { number } => crate::What::Pull(*number),
+        Read::Pull { number, .. } => crate::What::Pull(*number),
         Read::Locate { .. }
         | Read::Items { .. }
         | Read::Item { .. }
@@ -141,6 +141,23 @@ pub(crate) fn limit(
             repository: repository.repository,
             what: crate::What::Repository,
         }),
+        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
+    });
+}
+
+pub(crate) fn resource_limit(
+    out: &mut skein_lib::Queue<crate::Request>,
+    task: u64,
+    operation: &'static [u8],
+    resource: Option<crate::Name>,
+    member: &'static str,
+    configured: u32,
+    needed: u64,
+) {
+    out.push(crate::Request::ResourceRefused {
+        task,
+        operation,
+        resource,
         cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
     });
 }

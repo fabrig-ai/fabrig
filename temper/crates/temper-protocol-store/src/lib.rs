@@ -16,6 +16,18 @@ mod tests;
 /// One version for every durable family (protocol/store.md, section 4).
 pub const STORE_VERSION: u32 = 11;
 
+/// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
+#[must_use]
+pub fn tier_landings_ceiling() -> u32 {
+    v11::CEILINGS.tier_row_pending.min(v11::CEILINGS.tier_run_landings).min(v11::CEILINGS.tier_finding_blamed)
+}
+
+/// The most `forge.changes` the tier rows hold at two landings per change plus one.
+#[must_use]
+pub fn forge_changes_bound() -> Option<u32> {
+    tier_landings_ceiling().checked_sub(1)?.checked_div(2)
+}
+
 /// Largest encodings under the forge's and task spec's bounds, before jig's key tag.
 #[must_use]
 pub fn application(

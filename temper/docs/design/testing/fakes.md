@@ -24,7 +24,7 @@ skein's (skein's `testing/fakes/llm.md`):
   scripted turn answers with a provider's failure (skein's `testing/fakes/llm.md`,
   2.3), so that a story drives an account's state; and its observations
   say which credential a call used, never a value.
-- **As a process,** `temper fake llm --document FILE`
+- **As a process,** `temper-box fake llm --document FILE`
   (../protocol/setup/playground.md) records what each agent was told when
   given `--observations FILE`, so that the reference case's oracle
   reads a process's queries as it reads a hosted peer's (`reference-case.md`): FILE is
@@ -64,7 +64,7 @@ skein's (skein's `testing/fakes/llm.md`):
   configuration gives, scripted per story, with usage limits and a
   login lost, which smith's and jig's worlds test (`real-loop.md`). The real loop
   runs it signed in, under smith's agent hosts, and the process tier
-  under `temper internal agent` and `temper program-login` (`process-tier.md`).
+  under `temper-box internal agent` and `temper-box program-login` (`process-tier.md`).
 - **What temper's stories need of them** is skein's and smith's to
   design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
@@ -91,7 +91,7 @@ skein's (skein's `testing/fakes/llm.md`):
     sequence: asked turns advance on tool results, a pending `wait`'s
     waking result included, while a new user message holding text
     selects anew and restarts the count (skein's `testing/fakes/llm.md`, 2.4).
-  - **Its output:** one document in `temper fake llm`'s form
+  - **Its output:** one document in `temper-box fake llm`'s form
     (../protocol/setup/playground.md), a script per task, each assistant
     completion of its run one turn, its text and its calls in order,
     the calls' arguments as recorded; a turn's `finish` is `tool_calls`
@@ -188,7 +188,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **GitHub's API** is served by the fake's GitHub layer, over the same
   domain, with the browser's pages as plain HTTP at its `web` origin
   (skein's `testing/fakes/github.md`, section 1); its stories are `real-loop.md`'s.
-- **GitHub's, as a process:** `temper fake forge --document FILE`
+- **GitHub's, as a process:** `temper-box fake forge --document FILE`
   serves the GitHub layer when the document has a `github` member: the
   App (`id`, `slug`, the bot's user id, and `key`, the index of one of
   the layer's fixed test keys, as `testing/temper-github-app` names it),
@@ -205,7 +205,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   record-full observation and the fake exits non-zero before an eviction
   can go unnoticed. Its ready line names its address, which the
   engine's document gives as the forge's `api`, `git` and `web` (`real-loop.md`).
-- **A repository's id and tree, as a process:** in `temper fake forge
+- **A repository's id and tree, as a process:** in `temper-box fake forge
   --document FILE`'s repositories, each may name `id`, its id on the
   forge, a positive integer, and `tree`, the files of its first
   commit, `[{"path", "content"}]`, each path relative and distinct and
@@ -258,7 +258,7 @@ asks for file operations as io's kernel does, so the same core runs
 three ways: hosted by skein's world harness (its `HostedProgram`,
 spawned by name) on skein's fake machine, which runs no program of an
 application's; hosted on the real file system by the real loop; and as a
-process of its own, `temper fake git`, the playground's git. It stays
+process of its own, `temper-box fake git`, the playground's git. It stays
 temper's, as it fakes temper's git component's program, and is built on
 skein's fake forge, whose domain is its only remote state. It reaches
 that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
@@ -296,7 +296,7 @@ loop (`real-loop.md`) and from another process.
   section 9).
 - **Where it runs:** the one-process world (`README.md`, 2.5) on the typed transport;
   the real loop (`real-loop.md`) over the git route of the forge peer it hosts, so
-  that the gate runs the route; `temper fake git` in the playground and the
+  that the gate runs the route; `temper-box fake git` in the playground and the
   process tier. The domain worlds keep the fake checkout at the domain
   face.
 
@@ -327,7 +327,7 @@ its own:
   store's calls carry none (skein's `testing/fakes/forge.md`, section 4).
 - **Its exits:** what real git exits, for what real git does or
   refuses; 128 and a `fatal:` line, as git's on a network failure, when
-  the route is out of reach or fails; 125 and `temper fake git: broken:
+  the route is out of reach or fails; 125 and `temper-box fake git: broken:
   <rule>` on stderr for a spawn that breaks what it checks (above),
   which the hosted program asserts; and, for a remote whose host serves
   no git route (an unnamed 404 or 405, or an answer the route can't
@@ -336,13 +336,13 @@ its own:
   answers as the fake forge refuses an unknown credential, an unnamed
   401, and is git's 401 line. An assertion of skein's kit ends the
   process as a panic (101).
-- **How the binary is it:** `temper` is `temper fake git` when its
+- **How the binary is it:** `temper-box` is `temper-box fake git` when its
   `argv[0]`'s last component is `git`, before it reads a command of its
   own: a link named `git` to the binary, the fake setup entry's `git`,
   which the worker spawns by the absolute path each of the forge's
   repositories' records names (../protocol/setup/init.md, 2;
   ../protocol/channel.md, section 4), with git's command line as it is.
-  A person can run the same program as `temper fake git ARGS...`.
+  A person can run the same program as `temper-box fake git ARGS...`.
 - **Its crates:** the core, `crates/temper-fake-git`, ordinary Rust
   (skein/docs/foundation/programming-model.md, 10.2) with no test dependency, since the
   binary ships it: the checks, the answers, the step core, the replay
@@ -358,7 +358,7 @@ its own:
   once, the listener found from the URL and from `.git/temper-remote`,
   and each exit. The transcripts run on the core whatever its remote.
   The real loop's stories run the route against skein's forge peer; the
-  process tier (`process-tier.md`) runs `temper fake git` from the playground's link.
+  process tier (`process-tier.md`) runs `temper-box fake git` from the playground's link.
 
 **The shell subset.** An LLM can type any command, and no fake can run a
 real build. The machine's sh interprets a small subset of POSIX sh: a few

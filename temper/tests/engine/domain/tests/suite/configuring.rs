@@ -748,21 +748,21 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .find(|value| value.number == ASK_TEMPLATE)
         .expect("asking template");
     let added = s::Item {
-        setting: s::Setting::Template(7),
-        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 7, ..template }))),
+        setting: s::Setting::Template(8),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 8, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), ASK_TEMPLATE, true),
-        ("installed", added.clone(), 7, true),
-        ("absent", added, 8, false),
+        ("installed", added.clone(), 8, true),
+        ("absent", added, 9, false),
         (
             "removed",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Removed },
             ASK_TEMPLATE,
             false,
         ),
-        ("reset addition", s::Item { setting: s::Setting::Template(7), edit: s::Edit::Reset }, 7, false),
+        ("reset addition", s::Item { setting: s::Setting::Template(8), edit: s::Edit::Reset }, 8, false),
         (
             "reset default",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Reset },
@@ -1860,7 +1860,7 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 12; // The reference settings and the world's settings charter.
+    bounds.tasks.charters = 13; // The stock, reference settings and the world's settings charter.
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;

@@ -216,7 +216,7 @@ in temper.
 ### 2.3 Simulated worlds
 
 temper's simulated world is the one-process world (2.5). Every process
-in a scenario runs its `iterate` on skein's simulator: `temper serve`'s
+in a scenario runs its `iterate` on skein's simulator: `temper-box serve`'s
 service, the agents it spawns, the fake forge as a service, the fake LLM
 peer and the person's client. A spawn the worker asks for starts an agent
 process or the fake git program, and a kill ends it. The machine sits
@@ -233,10 +233,10 @@ terminal client, the captures and the faults.
 - **What runs,** on skein's simulator and skein's fake machine:
   - `temper-service`'s system module, the engine's and one worker's
     services in one `iterate`, started from configuration's bytes as
-    `temper serve` starts them, joined by the in-process name `workers`;
+    `temper-box serve` starts them, joined by the in-process name `workers`;
   - the store, jig's store component on skein-kv, on the simulator's
     crashing disk;
-  - the worker's agents, smith's agent processes as `temper internal
+  - the worker's agents, smith's agent processes as `temper-box internal
     agent` runs them, hosted as programs of the world, over skein's fake
     LLM peer;
   - the fake git program for every git invocation (`fakes.md`, 3);
@@ -246,7 +246,7 @@ terminal client, the captures and the faults.
     its domain, view and jig's native transport (../client/README.md, section 2;
     `fakes.md`, 4).
 - **Stories:**
-  - a person signs in by the link `temper serve` prints, and a chat is
+  - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
@@ -356,7 +356,7 @@ tests nothing (`../release.md`, 5.1).
 - **What it installs:** Rust 1.95, the workspace's `rust-version`, and
   `cargo-nextest`, each download checked by its SHA-256.
 - **The runner is small:** line tables only for debug information, no
-  incremental build, `TEMPER_BUNDLE=none`, the registry and the
+  incremental build, `TEMPER_INTERNAL_BUNDLE=none`, the registry and the
   dependencies' build cached by the lock, and each run reports its disk.
 - **A failure reads without a login:** the repository is public, and
   each failing check annotates its run with its failing tests or errors
@@ -365,10 +365,10 @@ tests nothing (`../release.md`, 5.1).
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
   (`process-tier.md`), never a copy of it: the workflow runs it alone under the profile
   `process-temper`, and a run that selects nothing is red.
-- **Its binaries come through `temper forge fetch`** (`../protocol/setup/owned.md`,
+- **Its binaries come through `temper-box forge fetch`** (`../protocol/setup/owned.md`,
   6), into a cache of the workflow's own that starts empty, so each
-  run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
-  `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
+  run shows that the pinned addresses still answer; `TEMPER_TEST_FORGEJO` and
+  `TEMPER_TEST_FORGEJO_RUNNER` then name what it fetched, and the box's own
   fetch finds them in place and holds them to the pins' binary digests.
   The workflow prints each one's version first, so that a binary that
   does not run shows apart from the story.
@@ -394,12 +394,12 @@ tests nothing (`../release.md`, 5.1).
 
   | Test | Its reason |
   |---|---|
-  | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
-  | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
-  | `crates/temper/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
-  | `crates/temper/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `crates/temper/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
-  | `crates/temper/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
-  | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
+  | `crates/temper-box-shell/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
+  | `bin/temper-box/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `bin/temper-box/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
+  | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
+  | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
+  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `bin/temper-box/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
 
@@ -496,17 +496,17 @@ The worker's child domain worlds keep their checks inline.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-crates/temper/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-crates/temper/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
-crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
-crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
-crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
-crates/temper/tests/live.rs         the live tier (2.7), nextest profile live-temper
-crates/temper/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
-crates/temper/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)
-tests/client-browser                temper-client-browser-world: the browser tier (../client/web/testing.md), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
+bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
+bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
+bin/temper-box/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
+bin/temper-box/tests/support/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
+bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
+bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
+bin/temper-box/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
+bin/temper-box/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)
+tests/client-browser                temper-client-browser-world: the browser tier (../client/web/testing.md), Chromium against temper-box serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/testing.md)
-crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
+crates/temper-fake-git              the fake git program's core: temper-box fake git (4.3)
 crates/temper-fake-git-hosted       the fake git program hosted by skein's simulated world (4.3), which the playground ships; its fixtures with the tests
 crates/temper-playground            the world's composition, the playground's and the one-process world's (../playground.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
@@ -554,9 +554,9 @@ scripts/proof-live.sh               the live tier
   ). temper's protocol world for the forge, over skein's crates, is
   `tests/engine/protocol-forge` (../protocol/forge/README.md, section 9).
 - **The setup's crates** test as step code does: `temper-forge-setup`'s
-  files, specs and steps, and `temper-box`'s machine, by their step
+  files, specs and steps, and `temper-box-machine`'s machine, by their step
   tests (../protocol/setup/testing.md, 1); reconcile's machine by skein's world;
-  the hosts, `temper-forge-setup-shell` and `temper-box`'s own, by the
+  the hosts, `temper-forge-setup-shell` and `temper-box-machine`'s own, by the
   process tier (`process-tier.md`), as the binary's are.
 
 ## 6. Open questions
@@ -892,7 +892,7 @@ scripts/proof-live.sh               the live tier
   part.
 - **A managed sitting by a member who isn't an owner.**
   `scripts/proof-live-github-managed.sh live` takes
-  `TEMPER_MANAGED_PERSON`, the login that makes the App under its own
+  `TEMPER_TEST_MANAGED_PERSON`, the login that makes the App under its own
   account (`../protocol/setup/github.md`, 2), while the repository and the
   installation stay `fabrig-ai`'s. That login is an owner of `fabrig-ai`:
   a member's request waits on an owner's approval

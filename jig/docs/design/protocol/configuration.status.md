@@ -2,11 +2,15 @@
 
 2026-11-10. Where jig's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 3 and 3.2: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7) [in flight: change 102].
+- **Not yet:** 3: parts under a resuming charter (`../domain/tasks/standing.md`, 5.4) [in flight: change 106].
+- **Not yet:** 3: a profile's `brief_core_budgets.now` (`../domain/tasks/standing.md`, section 6) [in flight: change 107].
+
 `configuration.md`, sections 3 and 3.1 and `limits.md` have no known gap in ordered charter parts and
 their instruction files, path-specific refusals, the
 `tasks.charter_parts` limit of 8 in every profile, or a template's
 `later`. Parts count with the stored policy against `core.run_bytes`;
-parts and later choices are refused under a resuming charter.
+later choices are refused under a resuming charter.
 
 Section 3 has no known gap in passed model defaults, refusing document
 model tables under those defaults, provider endpoints or charter `rest`.

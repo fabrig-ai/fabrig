@@ -53,6 +53,7 @@ pub use away::{
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
+mod change_ci;
 mod domain;
 pub use domain::make::{BOT_EMAIL, BOT_LOGIN};
 mod effect_words;

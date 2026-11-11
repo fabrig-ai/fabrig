@@ -380,28 +380,48 @@ pub fn remedy(sheet: &Sheet, row: &Row) -> Option<Remedy> {
 }
 #[must_use]
 pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
-    super::making::lines(&sheet.addresses.text, &|org, name| {
-        for reached in &sheet.rows {
-            if reached.owner().login() == org && reached.name() == name {
-                return true;
-            }
-        }
+    super::making::lines(&sheet.addresses.text, &|address, org, name| {
         if let Some(row) = row(rows, sheet.target) {
             for repository in &row.repositories {
                 if repository.owner.as_ref() == org && repository.name.as_ref() == name {
                     return true;
                 }
             }
+            let mut replaceable = false;
             for making in &row.makings {
                 if making.org.as_ref() == org && making.name.as_ref() == name {
                     match &making.state {
-                        w::MakingState::Failed(_) => {}
+                        w::MakingState::Failed(failed) => match failed.reason() {
+                            w::MakeFailure::Taken => {}
+                            w::MakeFailure::Empty
+                            | w::MakeFailure::TimedOut
+                            | w::MakeFailure::Refused(_)
+                            | w::MakeFailure::NotAllowed
+                            | w::MakeFailure::Other => match &making.from {
+                                w::MakeFrom::Empty => {}
+                                w::MakeFrom::Copy(copy) => {
+                                    if let Ok(source) = wire::source::parse(copy.address()) {
+                                        replaceable |= wire::source::address(&source).as_ref() == address;
+                                    }
+                                }
+                            },
+                        },
                         w::MakingState::Waiting
                         | w::MakingState::Making
                         | w::MakingState::Made(_)
                         | w::MakingState::Adopting(_) => return true,
                     }
                 }
+            }
+            // temper/docs/design/client/forge/family.md, 4: copying again replaces
+            // the same source's empty repository.
+            if replaceable {
+                return false;
+            }
+        }
+        for reached in &sheet.rows {
+            if reached.owner().login() == org && reached.name() == name {
+                return true;
             }
         }
         false

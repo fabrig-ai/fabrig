@@ -1,6 +1,6 @@
 # gallery: status
 
-2026-11-10. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
@@ -50,6 +50,11 @@ chosen.
   worlds' parties, accounts and templates. Their counts, words, available
   tabs and resulting page lengths differ because the gallery draws those
   domains (`tools/gallery/src/samples.rs`), not the mock's stored state.
+- **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
+  drafter, and each role's `who` says when it runs alone, where
+  `whole-story/how.html` says what it does too [in flight: change 316].
+- **Not yet:** 2: `sheet-from-home` and `sheet-from-chats` are not in
+  the gallery (`tools/gallery/src/samples.rs`) [in flight: change 525].
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so

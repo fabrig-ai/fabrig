@@ -206,6 +206,7 @@ pub fn encode(source: run::Charter, names: &[EndpointName], limits: &wire::Limit
     let charter = wire::Charter::new(
         limits,
         wire::CharterParts {
+            check_timeout: None,
             mode: match source.mode {
                 run::Mode::Finite => wire::Mode::Finite,
                 run::Mode::Open => wire::Mode::Open,

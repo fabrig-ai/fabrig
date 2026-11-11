@@ -4,7 +4,7 @@ Kind: reference
 
 Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.
 
-The table uses the small profile, not the standard profile selected by temper init. Standard tasks.tree_tasks is 384; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.
+The table uses the small profile, not the standard profile selected by temper-box init. Standard tasks.tree_tasks is 384; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.
 
 The tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.
 
@@ -145,7 +145,7 @@ temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the
 ## brief
 
 - `brief.briefs`: count, 4. Bounds briefs gathering at once.
-- `brief.sections`: count, 9. Bounds sections in one brief.
+- `brief.sections`: count, 10. Bounds sections in one brief.
 - `brief.read_bytes`: bytes, 8,192. Bounds size a connector may report for one section.
 - `brief.brief_bytes`: bytes, 16,384. Bounds total size of one completed brief.
 
@@ -245,6 +245,7 @@ temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the
 - `core.brief_core_budgets.plan`: bytes, 2,048. Bounds plan section text bytes in one brief.
 - `core.brief_core_budgets.notes`: bytes, 2,048. Bounds note index text bytes in one brief.
 - `core.brief_core_budgets.preferences`: bytes, 2,048. Bounds whole requester preferences in one brief.
+- `core.brief_core_budgets.now`: bytes, 4,096. Bounds a standing task's Now body in one brief.
 - `core.public.goals`: count, 0. Bounds live public goals per board.
 - `core.public.ended`: count, 0. Bounds ended public goals kept per project.
 - `core.public.lines`: count, 0. Bounds public lines per goal and delegates per card.

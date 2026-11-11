@@ -175,7 +175,7 @@ pub(crate) fn answered_resource(
             branch_ancestry_answered(d, env, key, before, after, result, out);
             return;
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => {}
     }
     let answer = match result {
         Ok(answer) => answer,
@@ -198,12 +198,12 @@ pub(crate) fn answered_resource(
                 out.push(Request::Changed { resource: key.clone(), result: Ok(Answer::Pull(pull)) });
             }
             if row.record.watch.participating && row.inbox.reviews_needed {
-                row.state = State::Due(Phase::Reviews(row.record.review_page), super::priority(row));
+                row.state = State::Due(Phase::Reviews(row.record.review_page, 0), super::priority(row));
             } else {
                 rest_resource(d, env, key);
             }
         }
-        Answer::Reviews { reviews, more } => reviews_answered(d, env, key, phase, reviews, more, out),
+        Answer::Reviews { reviews, more, cut } => reviews_answered(d, env, key, phase, reviews, (more, cut), out),
         Answer::Commit(commit) => {
             super::taken(d.keep.live.get_mut(key).expect("resource remains"), phase);
             branch_answered(d, env, key, commit, out);
@@ -328,18 +328,22 @@ fn reviews_answered(
     key: &Resource,
     phase: Phase,
     reviews: Box<[api::Review]>,
-    more: bool,
+    paging: (bool, bool),
     out: &mut Queue<Request>,
 ) {
-    let page = match phase {
-        Phase::Reviews(page) => page,
+    let (more, cut) = paging;
+    let (page, skip) = match phase {
+        Phase::Reviews(page, skip) => (page, skip),
         Phase::Object | Phase::Pull | Phase::Branch | Phase::BranchAncestry { .. } => unreachable!("reviews stage"),
     };
-    if more && page >= env.limits.inbox {
+    if more && !cut && page >= env.limits.inbox {
         failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
         return;
     }
-    let next = if more {
+    let next_skip = if cut { skip.saturating_add(u32::try_from(reviews.len()).expect("bounded reviews")) } else { 0 };
+    let next = if cut {
+        page
+    } else if more {
         match page.checked_add(1) {
             Some(next) => next,
             None => {
@@ -378,13 +382,13 @@ fn reviews_answered(
     row.record.reviews = stamps.into_boxed();
     row.record.review_page = next;
     if more {
-        row.state = State::Due(Phase::Reviews(next), super::priority(row));
+        row.state = State::Due(Phase::Reviews(next, next_skip), super::priority(row));
     }
     out.push(Request::Save { record: Stored::Live(row.record.clone()) });
     if !delivered.is_empty() {
         out.push(Request::Changed {
             resource: key.clone(),
-            result: Ok(Answer::Reviews { reviews: delivered.into_boxed(), more }),
+            result: Ok(Answer::Reviews { reviews: delivered.into_boxed(), more, cut }),
         });
     }
     if !more {
@@ -446,6 +450,7 @@ fn remember(stamps: &mut List<Delivery>, wanted: Delivery) -> bool {
 }
 fn branch_answered(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Commit, out: &mut Queue<Request>) {
     let row = d.keep.live.get_mut(key).expect("resource remains");
+    row.branch_present = true;
     if let Some((before, after)) = row.refused.ancestry
         && (row.record.cached.tip != Some(before) || commit != after)
     {
@@ -552,7 +557,7 @@ fn failed_resource(
 ) {
     let ancestry = match phase {
         Phase::BranchAncestry { .. } => true,
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch => false,
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => false,
     };
     if error == Error::Missing && !ancestry {
         let row = d.keep.live.get_mut(key).expect("resource remains");
@@ -592,9 +597,9 @@ pub(super) fn skip_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource, p
             What::Repository | What::Branch(_) => unreachable!("item phase"),
         },
         Phase::Pull if row.record.watch.participating && row.inbox.reviews_needed => {
-            row.state = State::Due(Phase::Reviews(row.record.review_page), super::priority(row));
+            row.state = State::Due(Phase::Reviews(row.record.review_page, 0), super::priority(row));
         }
-        Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchAncestry { .. } => rest_resource(d, env, key),
+        Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => rest_resource(d, env, key),
     }
 }
 fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
@@ -603,7 +608,10 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     let interval = if row.hinted {
         env.limits.hinted
     } else if row.presence == super::Presence::Missing {
-        env.limits.slow
+        match key.what {
+            What::Branch(_) if !row.branch_present => env.limits.slow.max(env.limits.fallback),
+            What::Branch(_) | What::Issue(_) | What::Pull(_) | What::Repository => env.limits.slow,
+        }
     } else {
         match key.what {
             What::Pull(_) => {

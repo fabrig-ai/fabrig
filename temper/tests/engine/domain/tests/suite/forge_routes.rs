@@ -19,6 +19,33 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+const CANCEL_TICKS: u32 = 1000; // The forge world's bound for cancellation and hold release.
+
+fn cancel_task(world: &mut World, task: u64) {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(951)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key: [96; 16],
+        ask: people::Ask::Cancel { project: 1, task, reason: b"stop the landing".as_slice().into(), grace: None },
+    }));
+    if let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned() {
+        // The scripted worker drains its cancelled run and returns its racing result.
+        goal_landing::finish_run(world, &run, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
+    }
+    for _ in 0..CANCEL_TICKS {
+        world.tick();
+        if goal_landing::ended(world, task).is_some() {
+            break;
+        }
+    }
+    assert!(matches!(
+        goal_landing::ended(world, task).expect("cancelled task ended").phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { .. })
+    ));
+    world.until(Until::Ready);
+}
+
 /// Approval-rule stories shared with the change-panel regression.
 #[path = "forge_routes/approval_identity.rs"]
 pub(super) mod approval_identity;
@@ -103,6 +130,7 @@ mod reviews;
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
 
+mod check_timeout;
 mod completed_change;
 mod completed_reads;
 mod saved_close;
@@ -318,7 +346,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
         task: producer.task,
         attempt: producer.attempt,
     })));
-    world.until(Until::Ready);
+    world.drain_cut();
     world.restart(true, true);
     for _ in 0..200 {
         world.tick();
@@ -870,6 +898,11 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
     let words = ci_words(&repair);
+    assert!(
+        contains(words, b"the runner's: no step failed; run again 1 time at this head, failed again"),
+        "{}",
+        String::from_utf8_lossy(words)
+    );
     assert!(
         contains(words, b"No step failed. End of the job's log:\n[log bytes cut]\n"),
         "{}",

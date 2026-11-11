@@ -7,7 +7,7 @@ fn failure_rows() -> [FailureRow; 25] {
     [
         ("redirect", Asked::Read, 301, None, None, Error::Unavailable, Drop::Path),
         ("missing", Asked::Read, 404, None, None, Error::Missing, Drop::Path),
-        ("missing job", Asked::Job, 404, None, None, Error::MissingJob, Drop::Path),
+        ("missing job", Asked::Job, 404, None, None, Error::MissingJob, Drop::Nothing),
         (
             "rate",
             Asked::Read,
@@ -27,7 +27,7 @@ fn failure_rows() -> [FailureRow; 25] {
             Drop::Nothing,
         ),
         ("quota", Asked::Write, 413, None, None, Error::Full, Drop::Nothing),
-        ("archived", Asked::Write, 423, None, None, Error::Forbidden, Drop::Nothing),
+        ("archived", Asked::Write, 423, None, None, Error::Forbidden, Drop::Row),
         ("style", Asked::Merge, 405, Some(Refusal::MergeStyle), None, Error::Refused, Drop::Row),
         ("old head", Asked::Merge, 409, Some(Refusal::HeadOutOfDate), None, Error::Stale, Drop::Nothing),
         ("delete protection", Asked::DeleteBranch, 403, None, None, Error::Protected, Drop::Nothing),
@@ -42,8 +42,8 @@ fn failure_rows() -> [FailureRow; 25] {
         ("update conflict", Asked::Update, 409, Some(Refusal::UpdateConflict), None, Error::Conflict, Drop::Nothing),
         ("empty", Asked::Write, 422, Some(Refusal::Empty), None, Error::Empty, Drop::Nothing),
         ("unknown 422", Asked::OpenPull, 422, None, None, Error::Refused, Drop::Nothing),
-        ("token", Asked::Write, 401, None, None, Error::Forbidden, Drop::Nothing),
-        ("permission", Asked::Write, 403, None, None, Error::Forbidden, Drop::Nothing),
+        ("token", Asked::Write, 401, None, None, Error::Forbidden, Drop::Row),
+        ("permission", Asked::Write, 403, None, None, Error::Forbidden, Drop::Row),
         ("5xx", Asked::Write, 500, None, None, Error::Timeout, Drop::Nothing),
         ("unexpected success", Asked::Write, 202, None, None, Error::Timeout, Drop::Nothing),
     ]

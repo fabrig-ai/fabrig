@@ -34,12 +34,12 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
     for name in &setup::FETCH_NAMES {
         row(name.name, setup_unit(name.unit), (name.value)(&setup::FETCH_BYTES), name.line, &mut owner, out)?;
     }
-    let limits = temper_box::limits::small();
-    for name in &temper_box::limits::NAMES {
+    let limits = temper_box_machine::limits::small();
+    for name in &temper_box_machine::limits::NAMES {
         let unit = match name.unit {
-            temper_box::limits::Unit::Count => "count",
-            temper_box::limits::Unit::Bytes => "bytes",
-            temper_box::limits::Unit::Milliseconds => "milliseconds",
+            temper_box_machine::limits::Unit::Count => "count",
+            temper_box_machine::limits::Unit::Bytes => "bytes",
+            temper_box_machine::limits::Unit::Milliseconds => "milliseconds",
         };
         row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
     }
@@ -49,7 +49,7 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
 /// Jig's engine and worker override names, with small values and the standard tree capacity.
 pub fn engine_reference(out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# Engine limits\n\nKind: reference\n\nEvery limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.\n")?;
-    out.put(b"\nThe table uses the small profile, not the standard profile selected by temper init. Standard tasks.tree_tasks is ")?;
+    out.put(b"\nThe table uses the small profile, not the standard profile selected by temper-box init. Standard tasks.tree_tasks is ")?;
     let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
     out.put(Decimal::of(u64::from(standard.core.tasks.tree_tasks)).as_bytes())?;
     out.put(b"; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.\n\nThe tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.\n\nA change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).\n")?;

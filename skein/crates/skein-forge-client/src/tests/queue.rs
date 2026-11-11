@@ -32,7 +32,7 @@ fn next_look(h: &mut Harness) -> Sent {
     let due = h.domain.next_deadline().expect("queued look armed");
     fire_at(h, due);
     let look = h.one();
-    assert_eq!(look.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(look.op, Op::Read(Read::Pull { number: 9, ci: false }));
     look
 }
 fn queued(h: &mut Harness) -> Sent {
@@ -58,7 +58,7 @@ fn restart(h: &mut Harness) -> Sent {
     h.step(Event::SettleOutbox);
     assert_eq!(h.outbox_done, 0);
     let look = h.one();
-    assert_eq!(look.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(look.op, Op::Read(Read::Pull { number: 9, ci: false }));
     look
 }
 
@@ -114,7 +114,7 @@ fn the_first_look_comes_after_a_poll() {
     h.fire(104);
     assert!(h.send().is_none());
     h.fire(105);
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 9, ci: false }));
 }
 #[test]
 fn a_queued_merge_merged_at_its_head_is_made() {
@@ -198,7 +198,7 @@ fn a_hint_naming_the_pull_brings_the_look_forward() {
     h.env.now = h.env.now.saturating_add(Duration::from_millis(500));
     hint(&mut h, Change::Item(9));
     assert_eq!(h.domain.next_deadline(), Some(due));
-    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9, ci: false }));
 }
 #[test]
 fn a_hint_during_a_look_in_flight_quickens_the_next_one() {
@@ -293,7 +293,7 @@ fn only_a_merge_may_be_answered_queued() {
         &Answer::Queued
     ));
     assert!(!crate::api::accepts(&Op::Write(comment()), &Answer::Queued));
-    assert!(!crate::api::accepts(&Op::Read(Read::Pull { number: 9 }), &Answer::Queued));
+    assert!(!crate::api::accepts(&Op::Read(Read::Pull { number: 9, ci: false }), &Answer::Queued));
 }
 #[test]
 fn a_hint_during_a_failure_backoff_brings_the_look_forward() {
@@ -307,7 +307,7 @@ fn a_hint_during_a_failure_backoff_brings_the_look_forward() {
     assert_eq!(h.domain.next_deadline(), Some(retry));
     hint(&mut h, Change::Item(9));
     assert_eq!(h.domain.next_deadline(), Some(h.env.now.saturating_add(h.env.limits.hinted)));
-    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9, ci: false }));
 }
 #[test]
 fn a_queued_merge_whose_pull_is_missing_fails_missing_and_frees_its_lane() {
@@ -324,7 +324,7 @@ fn a_queued_merge_whose_pull_is_missing_fails_missing_and_frees_its_lane() {
     h.answer(comment, Ok(Answer::Commented(7)));
     merge(&mut h, 3, 9);
     h.clock();
-    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(h.one().op, Op::Read(Read::Pull { number: 9, ci: false }));
     assert_eq!(h.outcomes.len(), 3);
 }
 #[test]
@@ -333,7 +333,7 @@ fn a_restored_queued_merge_whose_first_look_fails_still_lets_the_outbox_finish()
     let look = restart(&mut h);
     h.answer(look, Err(Error::Timeout));
     assert_eq!(h.outbox_done, 1);
-    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(next_look(&mut h).op, Op::Read(Read::Pull { number: 9, ci: false }));
     assert_eq!(h.writes, 1);
 }
 
@@ -366,7 +366,7 @@ fn a_queued_merge_is_looked_at_after_the_fallback_while_its_repository_hears() {
     assert_eq!(h.domain.next_deadline(), Some(at(220)));
     h.fire(220);
     let look = h.one();
-    assert_eq!(look.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(look.op, Op::Read(Read::Pull { number: 9, ci: false }));
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
     h.answer(look, still_queued_answer());
     assert_eq!(h.domain.next_deadline(), Some(at(340)));

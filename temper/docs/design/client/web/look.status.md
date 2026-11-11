@@ -1,6 +1,6 @@
 # look: status
 
-2026-11-10. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -35,8 +35,8 @@ cover two steps and the cut navigation; `home-begin-with-needs` and
 `home-begin-settings-left` draw neither Needs you nor Chats under
 To begin. `ask-first-run`, `ask-typing`, `ask-sending`, `ask-refused`
 and `night-ask`, on `ask-first-run`, have To begin unfinished with its
-way of working left, so they draw the rail's Home and Ask temper alone
-and the phone's three tabs. No known implementation gap remains in
+way of working left, so they draw the rail's Home, Ask temper, the hairline
+and How work runs alone, and the phone's three tabs. No known implementation gap remains in
 these repairs. The existing history story has the night reload row and
 story 11's phone Ask row (`testing.md`, 6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test

@@ -37,7 +37,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 ## 5. Tests
 
 - After each change, the narrowest test that checks it, in the package that holds it: `cargo nextest run -p PKG --test BIN -E 'test(=NAME)'`, or `--lib`. A filter alone still builds every test binary of the package.
-- Development builds and tests set `TEMPER_BUNDLE=none`: without it, a build of `temper` builds the browser's bundle for wasm32 in a nested cargo (`temper/docs/design/client/web/README.md`, 2.6).
+- Development builds and tests set `TEMPER_INTERNAL_BUNDLE=none`: without it, a build of `temper` builds the browser's bundle for wasm32 in a nested cargo (`temper/docs/design/client/web/README.md`, 2.6).
 - Check the count: a run that selected nothing proves nothing (nextest exits 4).
 - Read a failure's log before anything reruns; no unchanged rerun, except once after exit 137.
 - A failure your change can't reach runs once alone: passing, it's a flake, reported with both logs and the machine; failing, it's a question.

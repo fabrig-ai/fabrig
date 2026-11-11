@@ -9,7 +9,7 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Its kind:** GitHub or Forgejo.
 - **Its number** is its identity, the next one, given when it is set
   up or connected and never given again: another number is another
-  forge. `temper init --box` writes no forge, only the places this machine
+  forge. `temper-box init --box` writes no forge, only the places this machine
   gives a Forgejo temper runs, the playground's fake and GitHub
   (`application.machine`).
 - **Its mode,** as `forge list` prints it:

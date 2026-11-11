@@ -107,7 +107,12 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note reads and project deletion cannot write an entry")
                 }
                 None => {}
@@ -120,7 +125,12 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteDeleted { name });
                 }
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note indexes and project deletion cannot delete one entry")
                 }
                 None => {}
@@ -129,6 +139,9 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { to, key }) => {
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
+                }
+                Some(NoteRoute::Now { task }) => {
+                    crate::routing::run::now::recalled(core, env, work, task, entries, more);
                 }
                 Some(
                     NoteRoute::Person { .. }
@@ -145,6 +158,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::indexed(core, env, work, task, lines, more), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::indexed(core, work, task, lines),
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
@@ -176,9 +190,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Brief { task }) => match why {
                     notes::Refusal::Busy => {
                         if core.notes.busy() {
-                            core.pending_note_briefs
-                                .insert(task, NoteBrief::Operation)
-                                .expect("brief count bounds waiting notes");
+                            wait_for_notes(core, work, task, NoteBrief::Operation);
                         } else {
                             defer_brief(core, work, task);
                         }
@@ -211,6 +223,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::refused(core, env, work, task, why), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::refused(core, work, task, why),
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
@@ -220,7 +233,7 @@ pub(crate) fn tag_notes(
     out
 }
 
-fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
+pub(crate) fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
     if !core.notes.busy() {
         let mut waiting = None;
         for (&task, state) in &core.pending_note_briefs {
@@ -241,8 +254,26 @@ fn defer_brief(core: &mut Core, work: &mut Queue<Work>, task: u64) {
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
-    core.pending_note_briefs.insert(task, NoteBrief::Activation).expect("brief count bounds deferred activations");
-    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+    if wait_for_notes(core, work, task, NoteBrief::Activation) {
+        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+    }
+}
+
+/// One wait per live task; a full table pauses as capacity
+/// (`jig/docs/design/domain/engine/briefs.md`, 2.2).
+pub(crate) fn wait_for_notes(core: &mut Core, work: &mut Queue<Work>, task: u64, wait: NoteBrief) -> bool {
+    if core.pending_note_briefs.insert(task, wait).is_ok() {
+        return true;
+    }
+    work.push(Work::PreparationFailed {
+        task,
+        failure: jig_domain_brief::GatherFailure {
+            fate: jig_domain_brief::GatherFate::Capacity,
+            section: b"notes",
+            words: Box::from(b"no room for the index".as_slice()),
+        },
+    });
+    false
 }
 
 pub(crate) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>, more: bool) -> CallPart {

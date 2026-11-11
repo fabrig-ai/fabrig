@@ -18,7 +18,7 @@ fn github_fake_graphql_pull_drives_the_plan_with_empty_ci_fixture() {
     let mut h = r::harness();
     let (number, commit) = r::pull(&mut h);
     let token = r::token(&mut h);
-    let mut plan = Plan::new(api::Repository { forge: 1, repository: 2 }, api::Read::Pull { number });
+    let mut plan = Plan::new(api::Repository { forge: 1, repository: 2 }, api::Read::Pull { number, ci: false });
     let mut tables = Tables::new(4, 8);
     let mut step = plan.begin(r::bounds(), b"example-app", &mut tables).unwrap();
     let mut queried = false;
@@ -103,7 +103,7 @@ fn github_fake_graphql_pull_has_stable_identity_and_domain_merge_commit() {
     let target = f::parts(&[b"/repos/acme/widgets/pulls/", digits.as_bytes()]);
     let response = h.ask(Method::Get, &target, Some(token.expose()), b"");
     assert!(skein_lib::bytes::find(&response.body, b"merge_commit_sha").is_none());
-    let api::Answer::Pull(readback) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(readback) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("merged pull plan")
     };
     assert_eq!(readback.merged, Some(r::object(merged)));
@@ -119,7 +119,7 @@ fn github_fake_graphql_pull_has_stable_identity_and_domain_merge_commit() {
     assert_eq!(repeated, r::object(merged));
     let response = query(&mut h, &token, b"widgets", number);
     assert_eq!(pull(&h, &response).merge_commit, Some(repeated));
-    let api::Answer::Pull(readback) = r::read(&mut h, &token, api::Read::Pull { number }).unwrap() else {
+    let api::Answer::Pull(readback) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
         panic!("repeat merged pull plan")
     };
     assert_eq!(readback.merged, Some(repeated));

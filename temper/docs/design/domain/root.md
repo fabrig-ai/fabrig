@@ -343,7 +343,7 @@ counted at the root, which sees them all.
   delivered, preparations fail or finish, turns are committed. With no
   worker to take assignments, preparations stop, and nothing else does.
 - **Its value** is the document's `engine.memory_bytes`: 1 GiB in
-  `temper init`'s template and the owned example, a budget for the
+  `temper-box init`'s template and the owned example, a budget for the
   transcripts and turns the engine holds, never a cap on the process's
   memory (the help pages say so). No start checks it against a sum
   (skein's programming-model.md, 6.3); a deployment that declared a
@@ -679,8 +679,9 @@ each step the core asks for:
    differ (`routing.md`, 6). Once both are loaded, the root hands the forge the
    deployment's sole owner, the party jig's people answer as such, or none
    (jig's `domain/people/README.md`, section 4), before the forge's restore
-   decision: a forge's link to a box's person holds only while that person
-   is the sole owner (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
+   decision: a forge's link to a box's person holds only while the forge
+   runs under the box and that person is the sole owner, and the forge
+   clears any other in that decision (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
    `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's
@@ -690,7 +691,7 @@ each step the core asks for:
    commits before it land in the copy alone, and a refusal before the
    switch leaves the generation patched from active (jig's
    `domain/engine/restart.md`). A rehearsing root
-   (`../protocol/binaries.md`, `temper upgrade --check`) ends
+   (`../protocol/binaries.md`, `temper-box upgrade --check`) ends
    before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).

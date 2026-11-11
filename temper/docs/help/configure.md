@@ -102,7 +102,7 @@ For a project's landing rule, add `"project": PROJECT` to its `setting`.
 On a box you need none of these steps: temper knows your account on the box's
 own Forgejo, and on GitHub when temper made the App from your own account.
 
-With several members (`temper serve`), a managed Forgejo or a pasted App:
+With several members (`temper-box serve`), a managed Forgejo or a pasted App:
 Add the human collaborator on the forge. On Forgejo, a repository admin must give temper's
 bot admin: collaborator reads can require it even with write. Stock maps the
 human's admin to maintainer (1), write to member (2), read to observer (3).

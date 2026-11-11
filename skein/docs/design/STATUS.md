@@ -1,6 +1,6 @@
 # Status
 
-2026-11-10. Where skein's code lags or departs from its design, and its
+2026-11-11. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. A job's log reads
 by its start as well as its end, in both dialects (`forge/README.status.md`,
 3.2). The full-screen
@@ -20,16 +20,15 @@ routes, `Artifact` and `Commits` among them (`forge/README.md`,
 `forge/github.md`); seven of its artifact facts are unchecked at the
 pinned Forgejo (`forge/README.md`); the App account's `GET /app` fact still has
 no live observation (`forge/github.md`, `forge/setup/README.md`). A copy's facts
-remain unchecked at the pinned Forgejo, one of them not
+remain unchecked at the pinned Forgejo, three of them not
 recorded at all, and no fact records a site admin's read of a repository
-by its path (`forge/setup/README.md`), nor a comparison's `removed` (`forge/README.md`); the fake Forgejo leaves no repository
-at a refused copy, asks a delete the wrong scope and answers a read by
+by its path (`forge/setup/README.md`), nor a comparison's `removed` (`forge/README.md`); the fake Forgejo
+answers a read by
 path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`testing/fakes/forge.md`).
 The forge kit's targeted reads are designed and not built: `Range` for
 containment and emptiness, `Item`'s `since`, `PullFor`'s `head` and `base`
-filters, branch names bounded by bytes, runs found by `workflow_id` and
-resolved once per call, and `Pull`'s CI from a short first page
+filters and branch names bounded by bytes
 (`forge/README.md`, `forge/github.md`, `forge/client.md`, `testing/fakes/forge.md`).
 No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`runtime/shell.md`). json, tls and http's collector have no fuzz target
 (`data/json.md`, `net/tls.md`, `http.md`). A few items lag in `runtime/lib.md`,
@@ -104,8 +103,7 @@ kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
 later review (`forge/README.md`); single departures stand in
 `net/channel.md`, `testing/fakes/forge.md`, `forge/README.md`, `forge/connection.md`, `runtime/io/README.md`,
 `data/json.md`, `data/kv.md`, `runtime/lib.md`, `net/link.md`, `llm/README.md`, `oauth/README.md`, `runtime/shell.md`,
-`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's loader draws no words for a
-stall before its module's answer, its compressor's crates build optimized in
+`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's compressor's crates build optimized in
 development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui/web/README.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
@@ -116,9 +114,9 @@ its checks' exceptions and the `expect`s naming a round or milestone
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
-`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts, `component-kit.md` waits on
-`runtime/lib.md` and `runtime/io/README.md` to name its items, the design departs from
-`redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
+`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts,
+`component-kit.md` leaves the forwarding `Host` and component-kit role open,
+the design departs from `redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
 status holds a departure the user has not answered, a progress's text
 as runs of its own.
 

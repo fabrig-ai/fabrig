@@ -40,7 +40,7 @@ relies on.
   `application.demo` refused, naming its path; the fakes' configurations
   and seeds from the default document; the fake kind's group.
 - **The box's machine:** the order; a restart after its once steps; the
-  backoff and the cap; the stop's order, and `temper serve`'s second
+  backoff and the cap; the stop's order, and `temper-box serve`'s second
   signal; a link step started on its long step's first line, given it
   alone, once per box, and given a restart's first line when the long
   step exited before writing one; a stop, a give up, a group's stop and its
@@ -54,7 +54,7 @@ relies on.
   temper-box, a spawn's arguments with and without the box's id; a hangup
   starting the stop's order; a hangup during a stop closing nothing; a
   second termination after a hangup closing them. On the shipped binary,
-  in `crates/temper/tests/suite/box_listeners/lifetime.rs`, a box started
+  in `bin/temper-box/tests/suite/box_listeners/lifetime.rs`, a box started
   ignoring hangups runs on: one focused path through `main`. The running
   steps' process boundaries are checked in 13.4.
 - **The fetch's machine** (`owned.md`, 6), in temper-fetch, and in
@@ -80,12 +80,12 @@ relies on.
   of another size refused and left; two commands at once making one
   request. No test reaches `downloads.claude.ai` (`README.md`, section 9).
 - **Claude Code's offer and launcher** (`owned.md`, 6, `init.md`, 2, 3), on the shipped
-  binary with an empty environment, in `crates/temper/tests/suite/startup.rs`:
+  binary with an empty environment, in `bin/temper-box/tests/suite/startup.rs`:
   a fresh box's Model step reads ChatGPT's and Claude's cards, its
-  program's path `"fetched"`; `temper program-login` and the launcher's
+  program's path `"fetched"`; `temper-box program-login` and the launcher's
   own link reach a build placed in the cache, its arguments unchanged,
   `DISABLE_AUTOUPDATER=1` in its environment and stdout the build's
-  alone; `temper serve`, a worker alone and `temper program-login` write
+  alone; `temper-box serve`, a worker alone and `temper-box program-login` write
   both links for a fetched program, and neither for a found `claude`.
   `temper-agent`'s own link reaches the build the same way, in its
   package's suite (`../binaries.md`, 3); the substitution's cases are
@@ -112,7 +112,7 @@ relies on.
   stopping the group, running its remover and removing its file and
   record, answered `removed FORGE`, on the real ring too, and a removal
   that fails answered `failed`; a line past `box.line_bytes`
-  refused; `temper serve` restarted with a pipe afresh, an answer meant
+  refused; `temper-box serve` restarted with a pipe afresh, an answer meant
   for the exited one dropped; a restart held unsent and then a stop
   launching nothing; a held spawn's late start and late failure during a
   box's stop, and a late start during a group's stop, the box ending with
@@ -294,7 +294,7 @@ The tier, its budget and its referee are `../../testing/README.md`'s (2.6). What
 it checks of this document:
 
 - **The box's lifetime with running steps** (`box.md`, 1, 2), in
-  `crates/temper/tests/suite/box_lifetime.rs`: a hangup stops a box whose
+  `bin/temper-box/tests/suite/box_lifetime.rs`: a hangup stops a box whose
   playground steps run, nothing left, its log's last line `Stopped`,
   and the same retained configuration binds again; and, on Linux, a
   killed box takes its running steps with it. These checks need real
@@ -303,11 +303,11 @@ it checks of this document:
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (`init.md`, 1). No test
   resolves a default under `$HOME`.
-- **Owned in place of the test's support:** the test runs `temper forge
+- **Owned in place of the test's support:** the test runs `temper-box forge
   prepare`, `run forgejo` and `run runner` itself, with no group's file
-  (`box.md`, 4), then `temper serve`,
+  (`box.md`, 4), then `temper-box serve`,
   whose setup host takes the handover and reconciles (`owned.md`, 5), with the
-  binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
+  binaries `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
   CI.
 - **The hinted story:** the same story with the keep's `poll`,
@@ -383,8 +383,8 @@ it checks of this document:
   unfinished, then gone on, to the App's installation, with no Start
   over, and connected (`owned.md`, 7).
 - **A first run set up for real,** a test of its own: `temper box` on
-  three empty scratch directories, with the binaries `TEMPER_FORGEJO`
-  and `TEMPER_FORGEJO_RUNNER` name placed where the fetch looks,
+  three empty scratch directories, with the binaries `TEMPER_TEST_FORGEJO`
+  and `TEMPER_TEST_FORGEJO_RUNNER` name placed where the fetch looks,
   `<cache>/forgejo/VERSION/forgejo` and
   `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner`, so that the
   fetch hashes them against the pins and fetches nothing (`owned.md`, 6): no
@@ -413,7 +413,7 @@ it checks of this document:
   `webhook_secret` file. The service's step world shows the git value
   and its generation (../forge/README.md, section 9, the box's link). A second
   box on the same directories starts the group by its record, before
-  `temper serve` unless the box signs its person in through that forge; then
+  `temper-box serve` unless the box signs its person in through that forge; then
   serve starts first, to answer the source's discovery (../openid-provider.md, 9). Preparation makes a new handover; serve takes it over,
   its file gone again, and connects forge 1 from its records (`owned.md`, 5), and the task is found
   landed, its CI at its head unknown until a next step reads it

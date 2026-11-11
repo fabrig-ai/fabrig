@@ -1,11 +1,16 @@
 //! Shared engine commands (temper/docs/design/protocol/binaries.md, 1).
 #[cfg(test)]
-extern crate self as temper;
+extern crate self as temper_box_shell;
 use directories::{Directories, private_root, unread};
 use jig_protocol_config::{self as config, read};
 use std::{fmt::Write, net::ToSocketAddrs, os::unix::ffi::OsStrExt, path::Path};
 use temper_forge_setup_shell::process as forge_exec;
 pub use temper_shell::directories;
+
+mod binary;
+pub mod commands;
+pub use binary::{main, versions};
+pub use commands::ENGINE;
 
 pub mod forge;
 pub mod forge_sign_in;
@@ -54,5 +59,5 @@ pub fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
 }
 
 #[cfg(test)]
-#[path = "../../temper/tests/support/configuration.rs"]
+#[path = "../../../bin/temper-box/tests/support/configuration.rs"]
 pub mod test_configuration;

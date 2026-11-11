@@ -1,6 +1,6 @@
-"""The delivery check (tools/pre-pr/design.md, 2–9).
+"""The delivery check (tools/pre-pr/design.md, 1–9).
 
-The private snapshot leaves the caller's index alone; only head failures need a
+The private snapshot leaves the caller's index alone; only exceeded counts need a
 base worktree. Every tool streams before the bounded, final verdict.
 """
 import fnmatch
@@ -91,7 +91,14 @@ def base(root, env):
     result = git(['merge-base'] + heads, root, env)
     if result.returncode or not result.stdout.strip():
         return None, 'no merge base of refs/temper/landing and HEAD'
-    return result.stdout.decode().splitlines()[0], None
+    commit = result.stdout.decode().splitlines()[0]
+    while git(['log', '-1', '--format=%s', commit], root, env).stdout.decode().rstrip('\n') == (
+            'Unchecked: work in progress, saved before a question'):
+        parent = git(['rev-parse', '--verify', '--quiet', commit + '^1'], root, env)
+        if parent.returncode:
+            break
+        commit = parent.stdout.decode().strip()
+    return commit, None
 
 
 def tree(root, git_dir, index, env):
@@ -335,28 +342,50 @@ def clippy(packages, data, root, env):
     return code, errors
 
 
-def nextest(packages, root, env, expression=None, build=False):
-    """Use an isolated JUnit overlay and nextest's exit verdict (section 4)."""
+def one_process(packages, root, env):
+    """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
-        directory = Path(directory)
-        junit = directory / 'junit.xml'
-        overlay = directory / 'nextest.toml'
-        overlay.write_text('[profile.default.junit]\npath = ' + json.dumps(str(junit)) + '\n')
-        arguments = ['cargo', 'nextest', 'run', '--profile', 'default']
-        arguments += package_args(packages) + ['--tool-config-file', f'temper-pre-pr:{overlay}']
-        if expression:
-            arguments += ['-E', expression]
-        arguments += ['--no-run'] if build else ['--no-fail-fast', '--no-tests=warn']
+        directory = Path(directory) / 'tests'
+        arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory),
+                     'default'] + package_args(packages) + ['--no-tests=warn']
         code, log = run(arguments, root, env, stdout=True)
-        if code == 0:
-            return code, []
-        if code == 101:
-            return code, [failure('build', 'no tests ran\n' + log)]
-        if code != 100:
-            return code, [failure('check nextest', f'exit {code}\n' + log)]
-        errors = []
+        if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
+            return code, [failure('build', 'no tests ran\n' + log)], None
+        if code not in (0, 100):
+            return code, [failure('check one-process', f'exit {code}\n' + log)], None
+        starved = None
+        source = 'run.json'
         try:
-            document = ET.parse(junit)
+            state = json.loads((directory / source).read_text())
+            if not isinstance(state['starved'], bool):
+                raise ValueError('starved must be a boolean')
+            source = 'results.json'
+            results = json.loads((directory / source).read_text())
+            if not isinstance(results['tests'], list) or not isinstance(results['unobserved'], list):
+                raise ValueError('tests and unobserved must be lists')
+            entries = {}
+            count = 0
+            for test in results['tests']:
+                binary, name, outcome = test['binary_id'], test['test_name'], test['outcome']
+                if not all(isinstance(value, str) for value in (binary, name, outcome)):
+                    raise ValueError('binary_id, test_name and outcome must be strings')
+                if test.get('alone') not in (None, 'passed', 'failed'):
+                    raise ValueError('invalid alone result')
+                before = test.get('before', [])
+                if not isinstance(before, list) or not all(isinstance(name, str) for name in before):
+                    raise ValueError('before must be a list of names')
+                entries[binary, name] = test
+                count += outcome in ('starved', 'cancelled')
+            if state['starved'] or count:
+                starved = (f'pre-pr: tests starved: {count} starved or cancelled, '
+                           f'{len(results["unobserved"])} unobserved, a warning '
+                           '(skein/docs/foundation/testing-strategy.md, 8.1)')
+                print(starved, flush=True)
+            if code == 0:
+                return code, [], starved
+            source = 'junit.xml'
+            document = ET.parse(directory / source)
+            errors = []
             for suite in document.iter('testsuite'):
                 binary = suite.get('name', '')
                 for case in suite.findall('testcase'):
@@ -364,42 +393,71 @@ def nextest(packages, root, env, expression=None, build=False):
                     if not faults:
                         continue
                     name = case.get('name', '')
+                    test = entries.get((binary, name), {})
+                    if test.get('outcome') == 'cancelled':
+                        continue
                     output = '\n'.join(''.join(node.itertext()) for node in faults +
                                        case.findall('system-out') + case.findall('system-err'))
+                    if test.get('alone') == 'passed':
+                        output += '\nmay depend on an earlier test: ' + ', '.join(test.get('before', []))
                     # Cargo's binary id starts with its owning package's name.
                     package = binary.split('::', 1)[0]
                     errors.append(failure(f'test {binary} {name}', output, (binary, name), package))
-        except (OSError, ET.ParseError) as error:
-            return code, [failure('check nextest', f'JUnit: {error}\n' + log)]
+        except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
+            return code or 1, [failure('check one-process', f'{source}: {error}\n' + log)], starved
         if not errors:
-            errors.append(failure('check nextest', 'exit 100 without JUnit failures\n' + log))
-        return code, errors
+            errors.append(failure('check one-process', 'exit 100 without JUnit failures\n' + log))
+        return code, errors, starved
 
 
-def refresh(roots, paths):
-    """Make both checkouts' changed inputs newer than shared artifacts (section 5)."""
-    stamp = time.time_ns()
-    for root in roots:
-        for name in paths:
-            path = root / name
-            if path.is_file() and path.resolve().is_relative_to(root):
-                os.utime(path, ns=(path.stat().st_atime_ns, stamp))
+def known_reds(tree_id, root, env):
+    """Read the checked snapshot's bounded entries once (section 5)."""
+    path = '.temper/known-reds.md'
+    entry = git(['ls-tree', tree_id, '--', path], root, env)
+    if not entry.stdout.startswith((b'100644 blob ', b'100755 blob ')):
+        return set(), []
+    result = git(['cat-file', 'blob', f'{tree_id}:{path}'], root, env)
+    if result.returncode:
+        return set(), []
+    entries = []
+    for line in result.stdout.decode(errors='replace').splitlines():
+        line = line.rstrip()
+        match = re.fullmatch(r'- test (\S+) (.+)', line)
+        if match:
+            entries.append(('test', *match.groups()))
+        match = re.fullmatch(r'- lint (\S+) (\S+) (.+)', line)
+        if match:
+            entries.append(('lint', *match.groups()))
+    print(f'pre-pr: known reds: {len(entries)} entries ({path})', flush=True)
+    size = len(result.stdout)
+    if len(entries) > 64 or size > 8192:
+        log = (f'{path}: {len(entries):,} entries, {size:,} bytes; '
+               'the cap is 64 entries and 8,192 bytes')
+        return set(), [failure('known-reds', log)]
+    return set(entries), []
 
 
-def inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths):
-    """Restore head freshness after any base judgment (section 5)."""
-    try:
-        return judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths)
-    finally:
-        refresh((root, git_dir / 'temper-pre-pr/base'), paths)
+def inherited(entries, errors):
+    """Only listed tests and coded lints inherit, without their messages (section 5)."""
+    for error in errors:
+        key = error['key']
+        if key is None:
+            continue
+        if error['name'].startswith('test '):
+            entry = ('test', *key)
+        elif error['name'].startswith('clippy ') and key[1]:
+            entry = ('lint', *key[:3])
+        else:
+            continue
+        if entry in entries:
+            error['inherited'] = True
+            error['known_red'] = True
 
 
-def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
-    """Judge only failures seen at head, in a kept detached worktree (section 5)."""
+def judge_base(base_id, git_dir, count_errors, root, env):
+    """Compare exceeded counts alone in the kept detached worktree (section 5)."""
     base_env = env.copy()
     base_env.pop('GIT_INDEX_FILE', None)
-    if data is not None:
-        base_env['CARGO_TARGET_DIR'] = str(data['target_directory'])
     worktree = git_dir / 'temper-pre-pr/base'
     worktree.parent.mkdir(parents=True, exist_ok=True)
     if (worktree / '.git').exists():
@@ -411,9 +469,7 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
         code, log = run(['git'] + arguments, cwd, base_env)
         if code:
             return 'base could not judge: ' + log
-    refresh((worktree, root), paths)
     reasons = []
-    count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
     for name in sorted({e['key'][0] for e in count_errors}):
         code, base_errors = timed('base old-forms ' + name,
                                   lambda: baselines(name, worktree, base_env))
@@ -427,53 +483,9 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
             if tree_name == name and form in counts:
                 base_count, base_limit = counts[form]
                 error['inherited'] = count <= base_count and count - limit <= base_count - base_limit
-    if not any(e['name'].startswith(('clippy ', 'test ')) or e['name'] == 'build' for e in errors):
-        if reasons:
-            for error in count_errors:
-                error['inherited'] = False
-        return '\n'.join(reasons)
-    try:
-        base_data = metadata(worktree, base_env)
-    except (OSError, ValueError, RuntimeError) as error:
-        for finding in count_errors:
-            finding['inherited'] = False
-        return f'base could not judge: {error}'
-    available = members(base_data)
-    lint_errors = [e for e in errors if e['name'].startswith('clippy ')]
-    selected = sorted({e['package'] for e in lint_errors} & available.keys() & set(lints))
-    if selected:
-        code, base_errors = timed('base clippy', lambda: clippy(selected, base_data, worktree, base_env))
-        if code not in (0, 101) or any(e['name'] == 'check clippy' for e in base_errors):
-            reasons.append('base could not judge clippy: ' + ''.join(e['log'] for e in base_errors))
-        else:
-            keys = {e['key'] for e in base_errors}
-            for error in lint_errors:
-                error['inherited'] = error['key'] in keys
-    test_errors = [e for e in errors if e['name'].startswith('test ')]
-    selected = sorted({e['package'] for e in test_errors} & available.keys())
-    if selected:
-        expression = ' | '.join(f'(binary_id(={e["key"][0]}) & test(={e["key"][1]}))'
-                                for e in test_errors if e['package'] in selected)
-        code, base_errors = timed('base tests', lambda: nextest(selected, worktree, base_env, expression))
-        if code not in (0, 100) or any(e['name'] == 'check nextest' for e in base_errors):
-            reasons.append('base could not judge tests: ' + ''.join(e['log'] for e in base_errors))
-        else:
-            keys = {e['key'] for e in base_errors}
-            for error in test_errors:
-                error['inherited'] = error['key'] in keys
-    build_errors = [e for e in errors if e['name'] == 'build']
-    selected = sorted(set(tests) & available.keys())
-    if build_errors and selected:
-        code, base_errors = timed('base build', lambda: nextest(selected, worktree, base_env, build=True))
-        if code == 101:
-            for error in build_errors:
-                error['inherited'] = True
-        elif code:
-            reasons.append('base could not judge build: ' + ''.join(e['log'] for e in base_errors))
     if reasons:
-        for error in errors:
-            if error['key'] is not None or error['name'] == 'build':
-                error['inherited'] = False
+        for error in count_errors:
+            error['inherited'] = False
     return '\n'.join(reasons)
 
 
@@ -497,16 +509,18 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason):
+def summary(base_id, lints, tests, errors, reason, starved=None):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not e['inherited'] for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
     header = f'pre-pr: {"refused" if refused else "passed"} ({base_text})\n'
     header += f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
+    if starved:
+        header += starved + '\n'
     if reason:
         header += tail(reason)
     entries = [e['name'] + '\n' + e['log'] for e in errors if not e['inherited']]
-    entries += ['inherited: ' + e['name'] + (' (no tests ran)' if e['name'] == 'build' else '') + '\n'
+    entries += ['inherited: ' + e['name'] + (' (known red, .temper/known-reds.md)' if e.get('known_red') else '') + '\n'
                 for e in errors if e['inherited']]
     # Even large package sets must leave room for the first failure and the count.
     header = header.encode()[:4096].decode('utf-8', errors='ignore') + '\n'
@@ -525,11 +539,12 @@ def summary(base_id, lints, tests, errors, reason):
 def main():
     root = Path.cwd()
     env = os.environ.copy()
-    env.setdefault('TEMPER_BUNDLE', 'none')
+    env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
     base_id, why = base(root, env)
     errors = []
     lints, tests = [], []
+    starved = None
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         cache = git_dir / 'pre-pr-passed'
@@ -537,6 +552,8 @@ def main():
         if cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"})', flush=True)
             return 0
+        entries, found = known_reds(tree_id, root, env)
+        errors += found
         data = None
         paths, selected = [], []
         docs = False
@@ -595,24 +612,26 @@ def main():
                     _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                     errors += found
                 if tests:
-                    _, found = timed('tests', lambda: nextest(tests, root, env), pending)
+                    _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
                     errors += found
         if docs:
             _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
             errors += found
-        if base_id and any(e['key'] is not None or e['name'] == 'build' for e in errors):
-            why = inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths)
+        inherited(entries, errors)
+        count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
+        if base_id and count_errors:
+            why = judge_base(base_id, git_dir, count_errors, root, env)
         for name, seconds in pending.items():
             if name == 'clippy':
                 prefixes = ('clippy ', 'check clippy')
             elif name == 'tests':
-                prefixes = ('test ', 'build', 'check nextest')
+                prefixes = ('test ', 'build', 'check one-process')
             else:
                 prefixes = (name,)
             found = [e for e in errors if e['name'].startswith(prefixes)]
             status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
             print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
-        verdict = summary(base_id, lints, tests, errors, why if base_id else None)
+        verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
         if not verdict:
             temporary = git_dir / 'pre-pr-passed.tmp'
             temporary.write_text(record + '\n')

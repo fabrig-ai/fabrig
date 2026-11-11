@@ -1,7 +1,13 @@
 # Status
 
-2026-11-10. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The TUI's
+2026-11-11. Where temper's code lags or departs from its design, and
+its design from its drafts, from the status files below. A standing
+role is the stock's charter 13 and template 7, jig's task that stands,
+started with `temper ctl role start` and read with `role list` and
+`role show`, its person its requester, moved to an owner when that
+person leaves the project (`domain/agent/standing.status.md`); its
+areas, routing, talk and reports are the standing-roles draft's later
+milestones (`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
@@ -83,10 +89,13 @@ and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
 (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
-design session, T2, is designed and not yet built: `/draft`, the draft
-in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
-design session*; `client/README.status.md`). The
+design session, T2, is built by goal 172: `/draft`, the draft in a side
+pane that skein's full-screen shell lays beside the body, folded, at
+half or at all by Ctrl-P, the sections the last turn wrote marked new,
+a reply's choices as a prompt, `/goal` with its prompt of ways, and the
+quiet line's pane and goal parts, with goldens and the journey
+`design-session` (`client/tui/pages.md`, *A design session*;
+`client/tui/journeys.md`, 9; `draft/tui-design-session.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
@@ -114,7 +123,7 @@ remains later work (`client/tui/journeys.md`, 3.1 and 11).
 The TUI's look requests stack on `tui-requests`, apart from the browser's
 `look-requests`; the same refresh script keeps either checked-out branch
 on `main` with its own lease and push target (`client/tui/journeys.md`,
-10; `client/web/journeys.md`, 7).
+10; `client/web/journeys.md`, 7; `client/web/look-requests.md`, 1 and 2).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 5; `client/web/README.md`, section 3).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
@@ -128,8 +137,7 @@ quiet checks remain later work (`protocol/configuration/reference.md` and `proto
 `domain/forge/change/repairs.md` and `domain/forge/README.md`, 11). Containment read as a count of
 commits (skein's `Read::Range`) and a branch list's refusal naming its
 bound are designed and not built (`domain/forge/keeping-up.md`, 3;
-`domain/agent/tools.md`); the rest of the draft `forge-reads-targeted`
-lags in the design (`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
+`domain/agent/tools.md`). Root forge reads have their own owner
 range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
@@ -198,9 +206,11 @@ Roles, every agent the project's work runs, from the view `roles`, a
 goal's budget and the switches at its foot, its parts one pure
 function, with a fuzz test of their rules, the joint world's paths over
 CI and tiers and over neither, and six gallery states; its render check
-and walk follow landing. A role's model is among its opened terms, and
-the drafter is no role yet (`client/pages/settings.status.md`, 2;
-`domain/forge/change/branch-path.status.md`; `draft/surfaces.status.md`, 7). A
+and walk follow landing. A role's model is among its opened terms
+(`client/pages/settings.status.md`, 2); its repair, goal 310, gives the
+drafter its place among Roles, and each role's line says when it runs
+and what it does, its charter's words or its instructions' first
+sentence (`domain/forge/change/branch-path.md`). A
 goal's path draws "design" in place of "plan", and a "close-out" after
 the landing, from kind 11, its template's work, the whole story's
 milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
@@ -216,8 +226,16 @@ failures, reds and words alone, with no landing, close-out or catch-up
 of its own (`domain/forge/branches.status.md`, 2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
-the worker's frozen landing pin, run changed-package lints and focused
-tests with direct dependents, and identify inherited failures. The
+the worker's frozen landing pin, or, for a repair or a resolution, the head
+its delivery replaces (`domain/worker.status.md`), run changed-package lints and focused
+tests with direct dependents, one process per test binary, and identify inherited failures. A project
+may give its changes' checks a bound of its own, and a check that only ran
+out of time runs once more at twice its time
+(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`).
+A worker's checkouts borrow one git store per repository per worker, which
+every fetch from the forge fills, so a checkout made again transfers only
+what the worker lacks, and a prepare fetches each branch once
+(`domain/worker.status.md`, 5; `protocol/git.status.md`, 4). The
 reference's coder and coordinator still ask for manual checks
 (`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
@@ -230,12 +248,11 @@ project's headline and lede, kept, judged, read and proposed by ctl and
 Ask temper's tools, Ask temper's *Configuring* asking for both; each
 stock way's headline and the project's words in the `ways` read, heading
 How work runs; and a tier's description from the configuration, on its
-card and in `see settings gates`. Roles says no charter's words, which
-the help says it does, `see ways` no way's headline, and no record shows
-the user's review of Ask temper's sentence; the render check follows
-landing (`protocol/configuration/engine.status.md` and `protocol/configuration/settings.status.md`, 2;
-`client/pages/settings.status.md`, 2; `domain/agent/ask-temper.status.md`, 1;
-`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). How
+card and in `see settings gates`. Roles says each charter's words after
+when its role runs, and `see ways` each way's headline, by its repair,
+goal 310; no record shows the user's review of Ask temper's sentence,
+and the render check follows landing (`protocol/configuration/engine.status.md` and `protocol/configuration/settings.status.md`, 2;
+`draft/ask-temper.status.md`, 5.2). How
 work runs' What reaches you is the whole story's milestone P3b, by plan
 `ui-p3b-reaches`: the project's classes, kind 8, in three columns of
 words, each subject once by one pure function, "Asks you" saying what
@@ -255,23 +272,27 @@ Goals and Changes its filters; Deployment's six tabs, Members and Limits
 new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
 walk follow landing. Team shows from a project's second person, not yet
-for a standing role; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail and drops the words
-that still name Settings, which the design doesn't yet say
-(`client/pages/README.status.md` and `client/view.status.md`, 3;
+for a standing role. Its repair, goal 368, draws To begin's rail with the
+hairline and How work runs, turns the words that still named Settings to
+How work runs and Deployment, and keeps Home and Needs you across projects
+under All projects, Needs you's count across them; its render check and
+walk, and `project-landing`'s new recording, follow landing
+(`client/view.md`, 3; `client/pages/README.status.md` and `client/view.status.md`, 3;
 `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Team is the whole story's
+`draft/surfaces.status.md`, 5, 8 and 10). Team is the whole story's
 milestone P4a, by plan `ui-p4a-team`: a project's people from its
 document, the reader first, each with their role and what waits on them,
 the reader's from Needs you's entries and another's from the tasks they
 requested, in the rail and the switcher's menu from a second person; its
 parts one pure function, with a fuzz test of their rules, the joint
 world's two people reading each other and three gallery states; its
-render check and walk follow landing. No setting names the project's
-triager, so its line isn't drawn; areas, owners and a role's card are
-P4b's and P4c's, and the draft and `team/team.html`, redrawn after the
-plan's cut, word a box's role and the triager otherwise
-(`client/pages/README.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
+render check and walk follow landing. Its repair gives a box the role
+"Owner", People's head the role its people share, "owners of shop", and
+a line's count in words, as `team/team.html` does. No setting names the
+project's triager, so its line isn't drawn; areas, owners, the triager
+as Who routes and a role's card are P4b's and P4c's, and a line's
+sign-offs wait on sign-offs by path and kept sign-offs
+(`client/pages/team.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
 ; `draft/surfaces.status.md`, 6). Away on All projects, by
 plan `ui-away-all`, sets every project the person is in, each by its own
 `SetAway`, one after another, reads "Away on N of M" while they differ
@@ -286,9 +307,10 @@ project's Home's needs as at most three cards; Needs you as a list on a
 wide page, told something else in words, with Decided for you; their
 parts one pure function a page, with a fuzz test of the draft's density
 rules, the joint world's stories across two projects and thirteen
-gallery states; their render check, walk and journey follow landing. The
-draft, redrawn after the plan's cut, words the byline across projects
-otherwise, and its phone's headline is shorter, which a repair takes; a
+gallery states; their render check, walk and journey follow landing. Its
+repair, goal 338, words the byline across projects, "Each project's
+brief, its first line · the newest, vsr's, by the status agent at
+07:52", and the phone's shorter headline as the draft does; a
 need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
 (`client/pages/README.md` and `client/README.md`, 5;
@@ -318,9 +340,11 @@ Decided for you on Home and Needs you, each row saying what allowed it;
 each need's why, Stop asking and Keep asking; and kind 7 without
 `away`. The joint world walks it on Agents review's table. A standing
 role's case waits for R1 and an asker's change's paths for N2; the TUI
-draws no why; Needs you's Decided head, a words offer's order and
-Home's spell with no row showing lag the design; its render check and
-walk follow landing (`domain/forge/README.status.md`;
+draws no why; its repair, goal 367, draws Needs you's Decided head,
+a words offer's sentence over its field, Home's Away spell with no row
+showing, and the why line on the signal ground with "Keep asking" and
+the narrower rule on it, as the whole story's `needs.html` does; its
+render check and walk follow landing (`domain/forge/README.status.md`;
 `client/pages/README.status.md`; `draft/what-reaches-you.status.md`;
 `draft/surfaces.status.md`, 4). Only you is the whole story's milestone
 N3a, by plan `ui-n3a-only`: one pure read of the person's own accounts,
@@ -329,8 +353,8 @@ you, counted in no card's count, its link to Accounts, which offers an
 expiring source its renewal, with the joint world's story through
 temper's engine, the density fuzz's part and four gallery states. What
 waits on a login, a forge's token and a person task asking an act wait
-for reads, the terminal's inbox lists none, and its item's look lags
-`needs.html`; its render check and walk follow landing
+for reads, the terminal's inbox lists none, and its item's question names
+its source where `needs.html` names who uses it; its render check and walk follow landing
 (`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
 2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
 4). Ask temper's
@@ -347,9 +371,8 @@ lines in jig's party scope, each Ask temper brief carries them whole,
 a turn's read shows them and `remember`'s calls to the person alone, and
 the page "What temper remembers about you" reads, changes and deletes
 them (`domain/agent/ask-temper.md`, 4; `client/pages/remembered.md`). A fresh
-start's transcript tail shows `remember`'s calls to every reader, every
-task a person starts reads the list in its brief, not Ask temper's
-alone, and the page empties while it reads again
+start's transcript tail shows `remember`'s calls to every reader, and
+the page empties while it reads again
 (`domain/agent/README.status.md`; `draft/ask-temper.status.md`;
 `client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
@@ -375,8 +398,8 @@ where `me` lists template 6, and opened again in Split (`domain/agent/charter.md
 ). A project made before it keeps a policy whose delegation names no
 charter 12 (`protocol/configuration/README.status.md`), `chat-draft`'s recording
 predates it (`client/web/journeys.status.md`), no walk on record has run a
-real model on its words, and the terminal's `/draft` is the milestone T2's
-(`draft/surfaces.status.md`, 11; `draft/whole-story.execution.md`).
+real model on its words, and the terminal's design session is the milestone T2's
+(`client/tui/pages.md`, *A design session*; `draft/whole-story.execution.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -395,7 +418,7 @@ select on hover, adjacent help notes share paragraph spacing, and Plex
 stays 14px on a phone; temper/ui owns these recorded departures. Its
 render and real-key comparisons follow landing, and compilation and print
 checks establish no rendered equality (`client/pages/README.md` and `client/README.md`, 5;
-`client/web/look.md` and `client/web/gallery.md`, 2 and `client/web/README.md`, 3; `draft/look-requests.md`, 4 and 5).
+`client/web/look.md` and `client/web/gallery.md`, 2 and `client/web/README.md`, 3; `client/web/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
@@ -558,8 +581,8 @@ link is stored on the forge, eligibility counts per repository's forge,
 and approval waits merge into Needs you, Home and goal bands, with the
 files-page review link and Later. Proposals and help state the accepted
 owned-Forgejo limit: agents and CI run as the person, so the rule stops
-mistakes, not a deliberate bypass. A retained link is not cleared on a
-start outside the box with the same sole owner; that scope gap remains
+mistakes, not a deliberate bypass. A start outside the box, or with
+another sole owner or none, clears a restored link
 (`domain/forge/adoption.md`, 6; `draft/forge-identity.md`, section 9).
 The scripted composed story covers owned Forgejo; GitHub's full box
 story, real human reviews and rendered comparison remain unproved.
@@ -637,7 +660,7 @@ stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
 reply or failure, so authorization waits for room (`protocol/openid-provider.md`,
 3). Startup readiness beyond that local admission remains separate
-work (`protocol/sign-in.md`, section 9). `temper init`'s documents hold
+work (`protocol/sign-in.md`, section 9). `temper-box init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup/README.md`). A run reads a task's words
@@ -713,9 +736,12 @@ whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not
 connected pauses a repair with no bound, by that plan's cut (`domain/forge/README.md`).
-No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag, and
-the queue's first can lose its turn to a change stepped during it
+No test runs real git on a dirty workspace (`protocol/git.md`). The queue's first
+keeps its turn through its update, CI and merge, a change's own update and its
+goal's merges into its branch are its own heads, a stall's hold names its step,
+and a change's CI the runner failed runs again before any repair, each shown on
+the fake forge alone (`domain/forge/README.md`; `draft/queue-smooth.md`). Much of a change's own
+bounds and gates, the forge's merge queue and a goal's issue lag
 (`domain/forge/README.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
@@ -762,8 +788,7 @@ check, the closed-chat wait's split and a head's stall-deadline story remain
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
 parsed blocks and timing away-reader scans remain open (`client/README.md`,
 `draft/chat-reading.md`). The bundle travels gzipped and a
-placeholder paints first, but its fade takes 160 ms where the design has 200, and a
-stall before the module's answer draws no words (`client/web/README.md`). On a phone a chat's page hides the accounts'
+placeholder paints first, but its fade takes 160 ms where the design has 200 (`client/web/README.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/web/README.md`).
 Forges kept in the store, a forge's removal and the
@@ -791,7 +816,7 @@ step test past one that delivers nothing asserts no read
 (`protocol/setup/README.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge/README.md`), and the adoption form draws no read-only line
-(`client/README.md`); `temper forge sign-in` prints an owned
+(`client/README.md`); `temper-box forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup/README.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
@@ -804,10 +829,10 @@ held task names no run's or job's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
 past a start (`domain/worker.md`); with
-`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+`TEMPER_INTERNAL_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
-with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+with `TEMPER_INTERNAL_DUMP_LLM` set, never a shipped default, an agent's
 environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
@@ -878,7 +903,7 @@ restored document, on no replay since, its cause unknown (`client/README.md`). T
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
-`temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
+`temper-box forge run`'s refusal and the terminal's `temper-box open` still say plain `temper-box` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
 account's trial names no model choice; a later trial and its retries name that
@@ -886,8 +911,7 @@ account and a model it serves, with fake-provider stories for both orders and
 a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
 account's stopped sample and Ready's trial states (`client/web/README.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
-reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
-notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+reason (`domain/trial.md`). No outcome of the required
 real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
@@ -1022,22 +1046,23 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and Ask temper's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
+read's `owned`, and `draft/to-begin.md`'s five, a dismissal erased
 with its project alone, a step's chats the person's own, the first
 repository's "Adopt" sending its adoption and an adoption under way the
-session's alone, beside a lag, any project's change of settings marking
-its first step; `draft/repository-copies.md`'s holds two the
+session's alone, and its first step marked by a change of the project's
+own settings alone; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
-Home’s own sheet and the two unmocked entry paths remain distinct
-(`draft/repository-copies.md`). Settings’ connection pages share the
+Home keeps its own sheet, as the user asked, and the gallery draws the
+two entry paths into “Add repositories” (`draft/repository-copies.md`;
+`client/forge/family.md`). Settings’ connection pages share the
 welcome’s cards and panels and finish on Accounts or Forges. Failed
 making rows can be dismissed through their project's keyed request;
 absent rows are kept and running rows refused. The browser stories keep
 twelve tests by sharing setups, with no supplied passing result for the
 repaired stories; temper/ui’s render check follows landing
-(`client/README.md`; `draft/look-requests.md`);
+(`client/README.md`; `client/web/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
@@ -1072,27 +1097,28 @@ answer combines several causes (`client/ctl/areas.md` and `client/ctl/testing.md
 The deployment's client, `temper-client`, is built (M1 of
 `draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
 and `ctl`, run by the box's code from the shells both binaries link, its
-help, refusals and `--version`, on `temper-shell`, which the box's `temper`
-prints its table from. Its ctl story runs the box's `temper serve` as the
-engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
-accounts protocol and engine-side crates through an unused line of ctl's
-manifest, and no test yet holds its closure: its boundary row is M5's; its
+help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
+prints its table from. Its ctl story signs in to a `temper-engine` and runs
+after landing. Its closure is held by the boundary test's row, with its five
+shared vocabulary crates as named exceptions; its
 `--version` reads a build script of its own, not `temper-version`
-(`protocol/binaries.status.md`; `client/README.status.md`, 2). The `commands`
-page names no command's binary (`draft/deployment-binaries.status.md`).
+(`protocol/binaries.status.md`; `client/README.status.md`, 2). The compiled
+`commands` page names each command's binary but the client's, whose table
+joins it with `draft/cli.execution.md`'s C3 (`protocol/documentation.status.md`).
 
 The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
 `serve` of an engine alone's document with the web client, the owned
 forge's commands, `internal forge-child`, `versions`, help and `--version`
 from `temper-version`, refusing a worker alone's and a standalone document
 by the binary that runs each, in a table step test of the built binary.
-Its commands are `temper-engine-shell`'s, which the box's `temper` runs too
+Its commands are `temper-engine-shell`'s, which the box's `temper-box` runs too
 with its worker's half; `temper-service`'s worker half is its `worker`
 feature, off in the engine's build; the brief's fitter is
 `temper-protocol-brief`'s. The boundary test holds its closure free of the
 worker's domain and smith's agent but `smith-domain` and three of its
 crates, named with their reason; the closure keeps the box's machine and
 the fakes' crates for the document's check (`draft/deployment-binaries.status.md`).
+The box's `temper-box versions` is the engine's row and code.
 `upgrade` waits on jig's rehearsal and going back, and the feature-off
 service is built only by the engine's own build, not the gate
 (`protocol/binaries.status.md`, 1 and 2; `release.status.md`, 3).
@@ -1107,15 +1133,28 @@ row loosened: Claude Code's launcher is a crate of its own,
 `temper-launcher`; jig's form of the three directories is
 `temper-engine-shell`'s, out of `temper-shell`; and the agent's
 `--version` is `temper-version`'s (`protocol/binaries.status.md`, 1 to 4
-; `protocol/setup/owned.status.md`, 6, and `protocol/setup/README.status.md`, 7). Which of the
-closures' two test shapes every binary's row takes is M5's
-(`draft/deployment-binaries.status.md`). The `agent-binary`
+; `protocol/setup/owned.status.md`, 6, and `protocol/setup/README.status.md`, 7). One
+test shape holds every binary's row (`protocol/binaries.md`, 4). The `agent-binary`
 plan is retired and its vision folded into the design; removal of
 the read-only draft is proposed, with its four accepted departures
-retained (`draft/agent-binary.status.md`). M3's
-worker program, M5's box integration and remaining closure rows, M6's
-release job, and figures are not done by that plan; the parent's Later
-section is unchanged (`draft/deployment-binaries.status.md`).
+retained (`draft/agent-binary.status.md`). M3's worker program and M5's
+box integration, closure rows and help are built by their own plans; M6's
+release job and figures remain, and the parent's Later section is
+unchanged (`draft/deployment-binaries.status.md`).
+
+temper's command lines, `draft/cli.execution.md`'s C2, C4 and C6: the box's
+binary is `temper-box`, a package under `bin/` whose crate is
+`temper-box-shell`, and the engine's, the worker's and the agent's,
+`temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
+`temper-engine-shell`, `temper-worker-shell` and `temper-agent-shell`;
+each holds a table on skein's, reached by `Table::reach`, with its help,
+`--version`, exit 2 for refused arguments, its pre-table modes as rows,
+and its reference documents generated beside `cli/README.md`. The
+internal variables are renamed `TEMPER_INTERNAL_*` and the twins
+dropped. The test set is `temper-test-env`'s table, its variables
+`TEMPER_TEST_*`, through which temper's tests read the environment, with
+its `test-env` generated beside the others. The client's table is
+C3's (`cli/README.status.md`; `draft/cli.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -1133,6 +1172,7 @@ project's escalation role, each asked of the user
 
 Design documents:
 - [`README.md`](README.status.md)
+- [`cli/README.md`](cli/README.status.md)
 - [`playground.md`](playground.status.md)
 - [`release.md`](release.status.md)
 - [`domain/README.md`](domain/README.status.md)
@@ -1162,6 +1202,7 @@ Design documents:
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
+- [`client/web/look-requests.md`](client/web/look-requests.status.md)
 - [`client/tui/journeys.md`](client/tui/journeys.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 
@@ -1174,6 +1215,7 @@ Drafts:
 - [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)

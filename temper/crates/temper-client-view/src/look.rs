@@ -1447,6 +1447,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-only",
         b"temper-only-item",
         b"temper-only-q",
+        b"temper-team-shared",
     ],
     regions: &[b"temper-link"],
 };
@@ -1894,6 +1895,7 @@ pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 717 };
 pub const TEAM_PERSON: Style = Style { owner: owner(), token: 718 };
 pub const TEAM_ROLE: Style = Style { owner: owner(), token: 719 };
 pub const TEAM_LINE: Style = Style { owner: owner(), token: 720 };
+pub const TEAM_SHARED: Style = Style { owner: owner(), token: 729 };
 
 /// Path marks and fades (temper/docs/design/client/pages/chat/conversation.md, 3).
 pub const WAYS_MAYBE: Style = Style { owner: owner(), token: 705 };

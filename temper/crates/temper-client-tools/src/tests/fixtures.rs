@@ -100,6 +100,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     FOLLOW_MERGE,
     &["follow", "list", "--project", "shop"],
     &["follow", "show", "--project", "shop", "1"],
+    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
+    &["role", "list", "--project", "shop"],
+    &["role", "show", "41"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -488,15 +491,8 @@ pub(crate) fn golden(name: &str) -> Box<[u8]> {
     std::fs::read(path).expect("checked golden").into_boxed_slice()
 }
 /// Task-rendering fixtures regenerate only through their owning tests.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 pub(crate) fn check_golden(name: &str, bytes: &[u8]) {
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new("src/tests/golden").join(name).with_extension("txt");
         std::fs::write(path, bytes).expect("write golden");
@@ -716,6 +712,8 @@ impl Harness {
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
+                | crate::jig::rows::ROLE_LIST_AT
+                | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -874,7 +872,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 96;
+pub(super) const TOOL_FORMS: u32 = 99;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

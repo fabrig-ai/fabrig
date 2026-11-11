@@ -1,110 +1,159 @@
-//! temper-worker's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
-use crate::program_login::PROGRAM_LOGIN;
+//! The worker's capture and dispatch (temper/docs/design/cli/README.md, 3, 4 and 7.2).
+use crate::{INTERNAL_WORKSPACE_REUSE, PROGRAM_LOGIN};
 use skein_io::kernel::Exit;
-use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, process::ExitCode};
+use skein_shell::{Argument, Command, Reach, Reached, Set, Table};
+use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_service::startup::{Shape, nearest};
 use temper_shell::{
-    commands::{DIRECTORIES, HELP, Row, Table, Who},
-    directories::{self, Directories},
-    help,
+    directories::{self, Directories, EnvironmentEntry},
+    environment, table,
 };
 
-pub const WORKER: Table = Table { binary: "temper-worker", rows: &ROWS };
-const ROWS: [Row; 3] = [HELP, SERVE, PROGRAM_LOGIN];
-const SERVE: Row = Row {
-    words: &["serve"],
-    who: Who::Deployment,
-    forms: &["[DIRECTORIES]"],
-    line: "Run a worker alone's document until stopped; temper-engine serve runs an engine alone, and the box's temper serve runs an engine and its worker in one process.",
-    arguments: &[DIRECTORIES],
+pub const WORKER: Table = Table {
+    binary: "temper-worker",
+    line: "the deployment's worker: a worker alone, and its programs' sign-in.",
+    version: temper_version::VERSION,
+    commit: temper_version::COMMIT,
+    commands: &[SERVE, PROGRAM_LOGIN, table::HELP],
     settings: &[&directories::SETTINGS],
-    notes: "Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper serve.",
+    variables: &[
+        &environment::JOB,
+        &INTERNAL_WORKSPACE_REUSE,
+        &environment::INTERNAL_DUMP_LLM,
+        &temper_version::INTERNAL_COMMIT,
+        &temper_service_shell::WAIT_CHECK,
+        &temper_service_shell::CUT_AT_LISTEN,
+    ],
+    more: "temper-worker COMMAND --help prints one command; temper-worker help pages lists the pages.",
+};
+const SERVE: Command = Command {
+    reach: Reach::Words(&["serve"]),
+    set: Set::Public,
+    forms: &["[DIRECTORIES]"],
+    line: "Run a worker alone's document until stopped; temper-engine serve runs an engine alone, and the box's temper-box serve runs an engine and its worker in one process.",
+    arguments: &[Argument {
+        shown: temper_shell::commands::DIRECTORIES.shown,
+        line: temper_shell::commands::DIRECTORIES.line,
+    }],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[&environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR],
+    notes: "Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper-box serve.",
 };
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C6: arguments select the worker command; temper-worker's table will read them"
-)]
-#[must_use]
-pub fn main() -> ExitCode {
-    match run(&skein_shell::arguments()) {
-        Ok(code) => ExitCode::from(code),
-        Err(why) => {
-            eprint!("{why}");
-            ExitCode::FAILURE
-        }
-    }
+struct Capture {
+    run_as: Box<[u8]>,
+    arguments: Box<[Box<[u8]>]>,
+    environment: Box<[EnvironmentEntry]>,
+    working: Result<PathBuf, String>,
 }
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "cli C6: the process environment resolves directories; temper-worker's table will pass it"
+    reason = "the binary's capture: argv's first word, arguments, environment and working directory are read once"
 )]
-fn run(arguments: &[Box<[u8]>]) -> Result<u8, String> {
-    if arguments == [Box::from(b"--version".as_slice())] {
-        println!("{}", temper_version::line("temper-worker"));
-        return Ok(0);
+fn capture() -> Capture {
+    Capture {
+        run_as: std::env::args_os().next().map(|word| word.as_bytes().into()).unwrap_or_default(),
+        arguments: skein_shell::arguments(),
+        environment: skein_shell::environment(),
+        working: std::env::current_dir().map_err(|why| why.to_string()),
     }
-    if arguments == [Box::from(b"--help".as_slice())] {
-        print!("{}", WORKER.help());
-        return Ok(0);
+}
+
+#[must_use]
+pub fn main() -> ExitCode {
+    let captured = capture();
+    match run(&captured) {
+        Ok(code) => ExitCode::from(code),
+        Err((code, why)) => {
+            eprint!("{why}");
+            ExitCode::from(code)
+        }
     }
-    let row = WORKER.find(arguments).ok_or_else(|| WORKER.unknown(arguments))?;
-    let arguments = &arguments[row.words.len()..];
-    if arguments == [Box::from(b"--help".as_slice())] {
-        print!("{}", WORKER.row(row));
-        return Ok(0);
-    }
-    let invalid = || WORKER.refused(row, "invalid arguments");
-    match row.words {
-        ["help"] => {
-            let request = help::request(arguments).ok_or_else(invalid)?;
-            print!("{}", help::answer(WORKER.binary, &request)?);
+}
+
+fn run(captured: &Capture) -> Result<u8, (u8, String)> {
+    match WORKER.reach(&captured.run_as, &captured.arguments) {
+        Reached::Help => {
+            print!("{}", WORKER.help());
             Ok(0)
         }
-        ["serve"] => {
-            let working = env::current_dir().map_err(|why| WORKER.refused(row, &why.to_string()))?;
+        Reached::Version => {
+            print!("{}", WORKER.version_line());
+            Ok(0)
+        }
+        Reached::CommandHelp(command) => {
+            print!("{}", WORKER.command_help(command));
+            Ok(0)
+        }
+        Reached::Unknown(why) => Err((2, why)),
+        Reached::Command(command, arguments) => dispatch(command, arguments, captured),
+    }
+}
+
+fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
+    let refused = |why: &str| (2, table::refused(&WORKER, command, why));
+    match command.reach {
+        Reach::Words(["help"]) => {
+            print!("{}", table::help(&WORKER, arguments)?);
+            Ok(0)
+        }
+        Reach::Words(["serve"]) => {
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-worker serve: {why}\n")))?;
             let (directories, rest) =
-                directories::resolve(arguments, &skein_shell::environment(), working.as_os_str().as_bytes())
-                    .map_err(|why| WORKER.refused(row, &why.to_string()))?;
+                directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why.to_string()))?;
             if !rest.is_empty() {
-                return Err(invalid());
+                return Err(refused("invalid arguments"));
             }
-            refuse_document(row, &directories)?;
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
-                match temper_service_shell::run(WORKER.binary, &directories, false, |bytes, owned, _| {
-                    crate::worker::alone(&directories, bytes, owned).map(|service| temper_service_shell::Prepared {
-                        service,
-                        store: Box::new([]),
-                        line_bytes: 0,
-                    })
-                })? {
+                match temper_service_shell::run(
+                    WORKER.binary,
+                    &directories,
+                    &captured.environment,
+                    false,
+                    |bytes, owned, _| {
+                        crate::worker::alone(&directories, bytes, owned, &captured.environment).map(|service| {
+                            temper_service_shell::Prepared { service, store: Box::new([]), line_bytes: 0 }
+                        })
+                    },
+                )
+                .map_err(|why| (1, why))?
+                {
                     Exit::Code(code) => code,
                     Exit::Signal(_) => 1,
                 },
             )
         }
-        ["program-login"] => {
-            let working = env::current_dir().map_err(|why| WORKER.refused(row, &why.to_string()))?;
+        Reach::Words(["program-login"]) => {
+            let working =
+                captured.working.as_ref().map_err(|why| (1, format!("temper-worker program-login: {why}\n")))?;
             let (directories, rest) =
-                directories::resolve(arguments, &skein_shell::environment(), working.as_os_str().as_bytes())
-                    .map_err(|why| WORKER.refused(row, &why.to_string()))?;
-            let [name] = rest.as_ref() else { return Err(invalid()) };
-            refuse_document(row, &directories)?;
-            crate::program_login::run(&directories, OsStr::from_bytes(name), None)
-                .map_err(|why| format!("temper-worker program-login: {}\n", why.lines().collect::<Vec<_>>().join("; ")))
+                directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why.to_string()))?;
+            let [name] = rest.as_ref() else { return Err(refused("invalid arguments")) };
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            crate::program_login::run(&directories, OsStr::from_bytes(name), &captured.environment, None).map_err(
+                |why| (1, format!("temper-worker program-login: {}\n", why.lines().collect::<Vec<_>>().join("; "))),
+            )
         }
-        _ => Err(invalid()),
+        Reach::Words(_) | Reach::RunAs(_) => Err(refused("invalid arguments")),
     }
 }
 
-/// Refuse another binary's nearest shape before the worker's document checks (4.5 and 15.1).
-fn refuse_document(row: &Row, directories: &Directories) -> Result<(), String> {
+/// Refuse another binary's nearest shape before the worker's document checks (protocol/binaries.md, 5).
+fn refuse_document(command: &Command, directories: &Directories) -> Result<(), String> {
     let Ok(bytes) = directories.read() else { return Ok(()) };
     let why = match nearest(&bytes) {
         Some(Shape::EngineAlone) => "an engine alone; temper-engine serve runs it",
-        Some(Shape::Standalone) => "an engine and its worker in one process; the box's temper serve runs it",
+        Some(Shape::Standalone) => "an engine and its worker in one process; temper-box serve runs it",
         Some(Shape::WorkerAlone) | None => return Ok(()),
     };
-    Err(format!("{} {}: temper.json holds {why}\n", WORKER.binary, row.words.join(" ")))
+    let words = match command.reach {
+        Reach::Words(words) => words.join(" "),
+        Reach::RunAs(name) => name.into(),
+    };
+    Err(format!("{} {words}: temper.json holds {why}\n", WORKER.binary))
 }

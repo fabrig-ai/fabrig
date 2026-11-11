@@ -1,26 +1,26 @@
 //! Terminal program login without deployment resources (protocol/credentials.md, 3; protocol/binaries.md, 5).
 //! The caller prefixes a pre-exec failure with its program-login command. Smith's checked
 //! configuration reader may first emit its own secret-free `smith:` diagnostics.
+use skein_shell::{Argument, Command, Reach, Set};
 use std::{
     ffi::OsStr,
     os::unix::{ffi::OsStrExt, process::CommandExt},
 };
 use temper_service_shell::jig_directories;
-use temper_shell::{
-    commands::{Argument, DIRECTORIES, Row, Who},
-    directories,
-};
+use temper_shell::directories::{self, EnvironmentEntry};
 
-pub const PROGRAM_LOGIN: Row = Row {
-    words: &["program-login"],
-    who: Who::Deployment,
+pub const PROGRAM_LOGIN: Command = Command {
+    reach: Reach::Words(&["program-login"]),
+    set: Set::Public,
     forms: &["[DIRECTORIES] NAME"],
     line: "Sign a program source in on this host, through the program's own sign-in.",
     arguments: &[
-        DIRECTORIES,
+        Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line },
         Argument { shown: "NAME", line: "The program source's name: 1 to 32 of a to z, 0 to 9 and -." },
     ],
     settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[],
     notes: "Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.",
 };
 
@@ -73,12 +73,16 @@ pub fn command(
     Ok(smith_agent_document::program::sign_in(super::path(&program.path), &source, environment))
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C6: the process environment configures program sign-in; temper-worker's and temper-box's tables will pass it"
-)]
-pub fn run(directories: &directories::Directories, name: &OsStr, deployment: Option<Deployment>) -> Result<u8, String> {
-    let error = command(directories, name, std::env::vars_os(), deployment)?.exec();
+pub fn run(
+    directories: &directories::Directories,
+    name: &OsStr,
+    environment: &[EnvironmentEntry],
+    deployment: Option<Deployment>,
+) -> Result<u8, String> {
+    let environment = environment
+        .iter()
+        .map(|(name, value)| (OsStr::from_bytes(name).to_os_string(), OsStr::from_bytes(value).to_os_string()));
+    let error = command(directories, name, environment, deployment)?.exec();
     Err(format!("exec: {error}"))
 }
 

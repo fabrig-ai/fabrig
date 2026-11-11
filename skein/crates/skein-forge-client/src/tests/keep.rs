@@ -83,7 +83,7 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
     );
     h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
     h.answer(read, Answer::Pull(current()));
     assert!(!h.domain.is_ready());
     h.fire(105);
@@ -120,7 +120,7 @@ fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() 
             } else if let Op::Read(Read::Item { .. }) = read.op {
                 Answer::Item { item: summary(), comments: Box::new([]), more: false }
             } else {
-                assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+                assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
                 pulls.push(second).unwrap();
                 Answer::Pull(current())
             };
@@ -592,7 +592,10 @@ fn malformed_review_pages_are_rejected_before_any_delivery_or_cursor_mutation() 
         h.news.clear();
         let before = h.record(&pull()).clone();
         let read = h.one();
-        h.answer(read, Answer::Reviews { reviews: Box::new([review(ids[0], 90), review(ids[1], 90)]), more: false });
+        h.answer(
+            read,
+            Answer::Reviews { reviews: Box::new([review(ids[0], 90), review(ids[1], 90)]), more: false, cut: false },
+        );
         assert!(h.news.is_empty());
         assert_eq!(h.record(&pull()), &before);
         assert_eq!(h.failures.as_slice(), &[Error::InvalidAnswer]);
@@ -683,35 +686,48 @@ fn a_reserved_background_share_is_admitted_even_with_one_pending_slot_and_replen
 }
 #[test]
 fn a_restart_between_review_pages_never_repeats_delivered_rows_or_metadata() {
-    let mut h = Harness::new();
-    h.keep(Box::new([watch(pull(), true)]));
-    h.clock();
-    let read = h.one();
-    h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
-    let read = h.one();
-    h.answer(read, Answer::Pull(current()));
-    let read = h.one();
-    h.answer(read, Answer::Reviews { reviews: Box::new([review(1, 90), review(2, 90)]), more: true });
-    assert_eq!(h.record(&pull()).review_page, 2);
-    h.news.clear();
-    h.restart();
-    let read = h.one();
-    h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
-    let read = h.one();
-    h.answer(read, Answer::Pull(current()));
-    let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 2 }));
-    // A pending review became visible before our page: the shifted page
-    // repeats an older row, whose durable delivery stamp suppresses it.
-    h.answer(read, Answer::Reviews { reviews: Box::new([review(2, 90), review(3, 91)]), more: false });
-    match h.news.as_slice() {
-        [Answer::Reviews { reviews, .. }] => {
-            assert_eq!(reviews.len(), 1);
-            assert_eq!(reviews[0].id, 3);
+    for cut in [false, true] {
+        let mut h = Harness::new();
+        h.keep(Box::new([watch(pull(), true)]));
+        h.clock();
+        let read = h.one();
+        h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+        let read = h.one();
+        h.answer(read, Answer::Pull(current()));
+        let read = h.one();
+        h.answer(read, Answer::Reviews { reviews: Box::new([review(1, 90), review(2, 90)]), more: true, cut });
+        assert_eq!(h.record(&pull()).review_page, if cut { 1 } else { 2 });
+        if cut {
+            let read = h.one();
+            assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 2 }));
+            h.answer(read, Answer::Reviews { reviews: Box::new([review(3, 91)]), more: true, cut: true });
+            let read = h.one();
+            assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 3 }));
         }
-        _ => panic!("one new review after recovery, no cached metadata repeat"),
+        h.news.clear();
+        h.restart();
+        let read = h.one();
+        h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+        let read = h.one();
+        h.answer(read, Answer::Pull(current()));
+        let read = h.one();
+        assert_eq!(read.op, Op::Read(Read::Reviews { number: 9, page: if cut { 1 } else { 2 }, skip: 0 }));
+        // A pending review became visible before our page: the shifted page
+        // repeats an older row, whose durable delivery stamp suppresses it.
+        let last = if cut { 4 } else { 3 };
+        h.answer(
+            read,
+            Answer::Reviews { reviews: Box::new([review(2, 90), review(last, 91)]), more: false, cut: false },
+        );
+        match h.news.as_slice() {
+            [Answer::Reviews { reviews, .. }] => {
+                assert_eq!(reviews.len(), 1);
+                assert_eq!(reviews[0].id, last);
+            }
+            _ => panic!("one new review after recovery, no cached metadata repeat"),
+        }
+        assert_eq!(h.record(&pull()).review_page, 1);
     }
-    assert_eq!(h.record(&pull()).review_page, 1);
 }
 #[test]
 fn comment_scan_progress_and_edited_old_versions_are_durable() {
@@ -903,35 +919,43 @@ fn a_branch_still_missing_on_its_read_after_our_push_drifts() {
 }
 #[test]
 fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
-    for cached in [false, true] {
+    for (seen, fallback) in [(false, 0), (false, 30), (false, 120), (true, 120)] {
         let mut h = Harness::new();
+        h.env.limits.fallback = skein_lib::Duration::from_secs(fallback);
         h.env.limits.poll = skein_lib::Duration::from_secs(1000);
         h.env.limits.poll_max = h.env.limits.poll;
         h.keep(Box::new([watch(branch(), false)]));
-        if cached {
-            h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
-        }
+        let start = if seen {
+            let read = h.one();
+            h.answer(read, Answer::Commit([1; 32]));
+            h.fire(160);
+            160
+        } else {
+            100
+        };
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-        assert_eq!(h.drift, u32::from(cached));
+        assert_eq!(h.drift, u32::from(seen));
         assert_eq!(h.record(&branch()).cached.tip, None);
-        for now in [160, 220, 280] {
+        let interval = if seen { 60 } else { 60.max(fallback) };
+        for now in [start + interval, start + interval * 2, start + interval * 3] {
             h.fire(now - 1);
-            assert!(h.send().is_none(), "absence waits the whole slow rest");
+            assert!(h.send().is_none(), "absence waits the whole slow/fallback rest");
             h.fire(now);
             let read = h.one();
             assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
             missing(&mut h, read);
             assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-            assert_eq!(h.drift, u32::from(cached));
+            assert_eq!(h.drift, u32::from(seen));
         }
-        h.fire(340);
+        let present = start + interval * 4;
+        h.fire(present);
         let read = h.one();
         h.answer(read, Answer::Commit([2; 32]));
-        assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
+        assert_eq!(h.news.as_slice().last(), Some(&Answer::Commit([2; 32])));
         let drift = h.drift;
-        h.fire(400);
+        h.fire(present + 60);
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing, Error::Missing]);
@@ -980,6 +1004,23 @@ fn missing_issue_and_pull_rest_at_slow_and_suppress_repeated_news() {
 
 #[test]
 fn missing_uses_hinted_rest_and_unavailable_keeps_backoff() {
+    for pushed in [false, true] {
+        let mut h = Harness::with_limits(Limits { fallback: FALLBACK, ..LIMITS });
+        h.keep(Box::new([watch(branch(), false)]));
+        let read = h.one();
+        missing(&mut h, read);
+        let event = if pushed {
+            Event::Pushed { resource: branch(), commit: [1; 32] }
+        } else {
+            Event::Hint {
+                hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
+            }
+        };
+        h.event(event);
+        assert_eq!(h.domain.next_deadline(), Some(at(101)), "unseen branch, pushed={pushed}");
+        h.fire(101);
+        assert_eq!(h.one().op, Op::Read(branch_read()));
+    }
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
     let read = h.one();
@@ -1016,7 +1057,7 @@ fn missing_pull_stays_absent_across_successful_item_phases() {
         let item = h.one();
         h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
         let read = h.one();
-        assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+        assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing]);
         h.fire(now + 59);
@@ -1079,7 +1120,7 @@ fn timed_reads_fall_back_while_their_repository_hears() {
         ("listing repeat", issue(), false, LIMITS.poll, None, 110, true),
         ("pull rest", pull(), false, LIMITS.poll, None, 110, false),
         ("branch slow rest", branch(), false, LONG_POLL, None, 165, false),
-        ("missing rest", branch(), false, LONG_POLL, Some(Error::Missing), 165, false),
+        ("unseen missing rest", branch(), false, LONG_POLL, Some(Error::Missing), 225, false),
         ("participating repair", pull(), true, Duration::from_secs(100), None, 165, false),
         ("failure backoff", branch(), false, LONG_POLL, Some(Error::Unavailable), 106, false),
     ] {
@@ -1113,13 +1154,13 @@ fn timed_reads_fall_back_while_their_repository_hears() {
                     h.answer(read, Answer::Pull(current()));
                     if participating {
                         let read = h.one();
-                        h.answer(read, Answer::Reviews { reviews: Box::new([]), more: false });
+                        h.answer(read, Answer::Reviews { reviews: Box::new([]), more: false, cut: false });
                     }
                 }
                 // Observe just this resource's armed deadline, not the listing.
                 h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
             }
-            let expected = if hears && result != Some(Error::Unavailable) { 220 } else { own };
+            let expected = if hears && result != Some(Error::Unavailable) { own.max(220) } else { own };
             assert_eq!(h.domain.next_deadline(), Some(at(expected)), "{name}, hears={hears}");
         }
     }
@@ -1478,4 +1519,48 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
         let read = h.one();
         assert_eq!(read.op, Op::Read(Read::Item { number: 9, after, since }), "{name}");
     }
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture keeps only a pull and its repository")]
+fn hints_read_only_the_pulls_whose_branch_facts_can_move() {
+    skein_rows::check(
+        [
+            ("head commit", (Change::Commit([1; 32]), false)),
+            ("base commit", (Change::Commit([2; 32]), false)),
+            ("head branch", (Change::Branch(Box::from(b"topic".as_slice())), true)),
+            ("base branch", (Change::Branch(Box::from(b"main".as_slice())), true)),
+            ("other branch", (Change::Branch(Box::from(b"other".as_slice())), false)),
+        ],
+        |(change, reads_pull)| {
+            let mut h = Harness::new();
+            h.keep(Box::new([watch(pull(), false)]));
+            h.clock();
+            let item = h.one();
+            h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+            let read = h.one();
+            h.answer(read, Answer::Pull(current()));
+            h.event(Event::Hint { hint: api::Hint { repository: REPO, change, key: None } });
+            h.fire(101);
+            let mut pulls = 0;
+            for _ in 0_u32..4 {
+                let Some(read) = h.send() else { break };
+                let answer = match read.op {
+                    Op::Read(Read::Items { .. }) => {
+                        Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) }
+                    }
+                    Op::Read(Read::Item { .. }) => {
+                        Answer::Item { item: summary(), comments: Box::new([]), more: false }
+                    }
+                    Op::Read(Read::Pull { ci: true, .. }) => {
+                        pulls += 1;
+                        Answer::Pull(current())
+                    }
+                    _ => panic!("unexpected hinted read: {read:?}"),
+                };
+                h.answer(read, answer);
+            }
+            assert_eq!(pulls, u32::from(reads_pull));
+        },
+    );
 }

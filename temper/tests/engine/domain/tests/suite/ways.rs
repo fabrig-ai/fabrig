@@ -380,6 +380,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
         .insert(
             PROJECT,
             engine::ProjectLanding {
+                check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,
                 merge_job: None,
@@ -502,7 +503,7 @@ enum Picture {
     Proposal { before: Vec<String>, after: Vec<String> },
     Charter { number: u32, who: String, name: String, facts: Vec<(String, String)> },
     Rule { kind: u32, number: u32, who: String, name: String, facts: Vec<(String, String)> },
-    Roles(Vec<String>),
+    Roles(Vec<(String, String)>),
     NotDrawn(String),
 }
 fn strings(words: &[&str]) -> Vec<String> {
@@ -535,7 +536,9 @@ fn drawn(view: ways::View) -> Picture {
             name: text(card.name),
             facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
         },
-        ways::View::Roles(roles) => Picture::Roles(roles.into_iter().map(|(_, card)| text(card.name)).collect()),
+        ways::View::Roles(roles) => {
+            Picture::Roles(roles.into_iter().map(|(_, card)| (text(card.name), text(card.who))).collect())
+        }
         ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
     }
 }
@@ -565,7 +568,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
         "main",
     ];
     for (address, session, accept, expected) in [
-        ("roles".to_owned(), owner, false, Picture::Roles(strings(&["Chat", "Coding agent", "Reviewer"]))),
+        ("roles".to_owned(), owner, false, Picture::Roles(vec![("Chat".into(), "For each chat: talks with you and asks for the changes".into()), ("Coding agent".into(), "For each change: makes each change, repairs it and resolves its conflicts".into()), ("Reviewer".into(), "For each change: reviews each change at its head, and holds it until it approves".into())])),
         ("way agents review".to_owned(), owner, false, Picture::Way { name: "Agents review".into(), line: "An agent makes each change, another reviews it, and code lands it.".into(), current: true, words: strings(VIEW_MAIN) }),
         ("way Draft first".to_owned(), owner, false, Picture::Way { name: "Draft first".into(), line: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.".into(), current: false, words: strings(draft) }),
         ("path org/repo".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
@@ -752,6 +755,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 .insert(
                     PROJECT,
                     engine::ProjectLanding {
+                        check_timeout: None,
                         by: engine::Way::Queue,
                         close_job: None,
                         merge_job: Some(b"merge".as_slice().into()),
@@ -911,7 +915,10 @@ fn ways_current_is_the_first_equal_path_and_see_ways_marks_yours() {
         }));
         driver.settle();
         let text = see_ways(&mut driver, 1);
-        assert!(text.contains("Agents review · now\n"), "{text}");
+        assert!(
+            text.contains("Agents review · now\nAgents review every change, and code lands it\nAn agent makes each change, another reviews it, and code lands it.\n"),
+            "{text}"
+        );
         assert_eq!(text.starts_with("Agents review · now\n"), equal_paths, "{text}");
         assert_eq!(text.matches(" · now").count(), 1, "only the first equal way: {text}");
         ack(&mut driver);

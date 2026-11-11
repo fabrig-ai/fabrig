@@ -2,19 +2,19 @@
 //! (client/web/README.md, 2.6).
 use std::ffi::OsStr;
 
-/// What `TEMPER_BUNDLE` asks for.
+/// What `TEMPER_INTERNAL_BUNDLE` asks for.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Choice {
     Embed,
     None,
 }
-/// `TEMPER_BUNDLE`: unset or `embed`, the embed; `none`, no bundle; any other value is the build's failure.
+/// `TEMPER_INTERNAL_BUNDLE`: unset or `embed`, the embed; `none`, no bundle; any other value is the build's failure.
 pub fn choice(value: Option<&OsStr>) -> Result<Choice, String> {
     match value.map(OsStr::as_encoded_bytes) {
         None | Some(b"embed") => Ok(Choice::Embed),
         Some(b"none") => Ok(Choice::None),
         Some(_) => Err(format!(
-            "temper-client-bundle: TEMPER_BUNDLE must be embed or none, not {}",
+            "temper-client-bundle: TEMPER_INTERNAL_BUNDLE must be embed or none, not {}",
             value.unwrap_or_default().display()
         )),
     }
@@ -44,7 +44,7 @@ pub fn target_dir(out: &Path) -> Option<PathBuf> {
     out.ancestors().find(|at| at.join("CACHEDIR.TAG").is_file()).map(Path::to_path_buf)
 }
 
-pub const NEED_WASM: &str = "temper-client-bundle: the browser's bundle needs the wasm32-unknown-unknown target: add it (rustup target add wasm32-unknown-unknown), or build without the browser (TEMPER_BUNDLE=none)";
+pub const NEED_WASM: &str = "temper-client-bundle: the browser's bundle needs the wasm32-unknown-unknown target: add it (rustup target add wasm32-unknown-unknown), or build without the browser (TEMPER_INTERNAL_BUNDLE=none)";
 
 /// Decide from rustc's exit status and printed target library directory.
 pub fn wasm_target(success: bool, stdout: &[u8]) -> Result<(), &'static str> {

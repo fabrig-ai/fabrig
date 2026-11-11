@@ -91,12 +91,16 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
             after: optional_number(value, b"after", 0)?,
             since: Time::ZERO,
         }),
-        b"pull" => Ok(api::Read::Pull { number: positive_number(value, b"number")? }),
+        b"pull" => Ok(api::Read::Pull { number: positive_number(value, b"number")?, ci: true }),
         b"pull_for" => Ok(api::Read::PullFor {
             head: value.required(b"head")?.text(b"head")?,
             base: value.required(b"base")?.text(b"base")?,
         }),
-        b"reviews" => Ok(api::Read::Reviews { number: positive_number(value, b"number")?, page: page(value)? }),
+        b"reviews" => Ok(api::Read::Reviews {
+            number: positive_number(value, b"number")?,
+            page: page(value)?,
+            skip: u32::try_from(optional_number(value, b"skip", 0)?).or(Err(Problem::Range(b"skip")))?,
+        }),
         b"statuses" => {
             Ok(api::Read::Statuses { commit: commit(value.required(b"commit")?, b"commit")?, page: page(value)? })
         }
@@ -104,6 +108,7 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
             number: positive_number(value, b"number")?,
             review: positive_number(value, b"review")?,
             page: page(value)?,
+            skip: u32::try_from(optional_number(value, b"skip", 0)?).or(Err(Problem::Range(b"skip")))?,
         }),
         b"branch" => Ok(api::Read::Branch { branch: value.required(b"branch")?.text(b"branch")? }),
         b"branches" => Ok(api::Read::Branches { prefix: value.required(b"prefix")?.text(b"prefix")? }),
@@ -111,6 +116,8 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
             number: positive_number(value, b"number")?,
             head: commit(value.required(b"head")?, b"head")?,
             page: page(value)?,
+            skip: u32::try_from(optional_number(value, b"skip", 0)?).or(Err(Problem::Range(b"skip")))?,
+            sides: true,
         }),
         b"compare" => Ok(api::Read::Compare {
             before: commit(value.required(b"before")?, b"before")?,

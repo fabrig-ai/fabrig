@@ -413,7 +413,7 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     let repository = Stored::Repository(adopted());
     let mut records = skein_lib::List::with_capacity(RESTART_RECORDS);
     records.push(repository.clone()).expect("repository fits");
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: repository });
     outputs(&mut d, Event::Restored { clock: RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -434,9 +434,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
         Answer::Commit(fixtures::BASE),
         Answer::Pull(merged),
         fixtures::checks(skein_forge::api::Check::Passed),
-        fixtures::checks(skein_forge::api::Check::Passed),
         Answer::Commits { commits: Box::new([]), more: false },
-        Answer::Reviews { reviews: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         commit_panel_records(&mut records, fixtures::answer_next(&mut d, Ok(answer)));
     }

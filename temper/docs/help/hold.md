@@ -17,9 +17,9 @@ A hold keeps a task from running until someone with the right to lift it says so
   it or a person, and a release lifts it. A party
   holds a task by placing a hold: today, by stopping it.
 - **Out of tries** names the class of its failures, not their text. The
-  engine's log names each, `temper serve: task TASK run RUN attempt ATTEMPT
+  engine's log names each, `temper-box serve: task TASK run RUN attempt ATTEMPT
   failed CLASS: DETAIL`: under `temper box`, in `DATA/box/logs/serve.log`;
-  under `temper serve`, in its journal (temper help server).
+  under `temper-box serve`, in its journal (temper help server).
 - **A placed hold** is a record of its own, numbered in the deployment.
   It has an owner (the party who placed it), a mode (stop), a scope (a
   task and every task below it, those made later included), when it

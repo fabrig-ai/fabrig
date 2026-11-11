@@ -14,6 +14,8 @@ pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
 pub const FOLLOW_CODE: u32 = 7;
 pub(super) const ASKING_TEMPLATE: u32 = 5;
+// The project's roles (temper/docs/design/domain/forge/change/branch-path.md).
+pub(super) const DRAFTING_TEMPLATE: u32 = 6;
 pub(super) const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
@@ -645,7 +647,7 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         segments.push(Box::from(segment)).ok()?;
     }
     let what = match read {
-        skein_forge::api::Read::Pull { number }
+        skein_forge::api::Read::Pull { number, .. }
         | skein_forge::api::Read::Reviews { number, .. }
         | skein_forge::api::Read::Remarks { number, .. }
         | skein_forge::api::Read::PullFiles { number, .. } => Some((b"pull".as_slice(), Some(decimal(*number)))),
@@ -1547,7 +1549,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
         },
-        tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+        tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
     }
     let mut previous = domain.forge.topic_subscriber(goal, &topic).cloned();
     for work in &domain.work {
@@ -1796,6 +1798,30 @@ pub(crate) fn unheld_run_branch(
         what: branch_what(&branch, limits.forge.name_bytes)?,
     };
     Some(domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &limits.tasks)?).is_none())
+}
+
+/// Read the change project's checks' bound anew for each assignment
+/// (temper/docs/design/domain/agent/charter.md, 4).
+/// Reviews and runs outside a change's coding delegates name no bound.
+pub(crate) fn check_timeout(domain: &Domain, task: u64) -> Option<skein_lib::Duration> {
+    let context = domain.core.tasks.task(task)?;
+    let tasks::Party::Task(parent) = context.requester else { return None };
+    let row = domain.forge.change(parent)?;
+    let (child, kind) = row.delegate?;
+    if child != task {
+        return None;
+    }
+    match kind {
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => {
+            let repository = domain.forge.repository(row.repository)?;
+            domain.config.landings.get(&repository.project)?.check_timeout
+        }
+        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {
+            None
+        }
+    }
 }
 
 /// Resolve a run's repository tags and change ancestry before asking policy
@@ -2172,6 +2198,7 @@ fn describe_change_effect(
         forge_change::Effect::Open => {
             (3, branch_what(&row.branch, env.limits.forge.name_bytes), evidence.head.unwrap_or([0; 32]))
         }
+        forge_change::Effect::Rerun { head } => (17, branch_what(&row.branch, env.limits.forge.name_bytes), head),
         forge_change::Effect::CreateBranch { head } => (9, branch_what(&row.branch, env.limits.forge.name_bytes), head),
         forge_change::Effect::Reopen => (12, pull_what, evidence.head.unwrap_or([0; 32])),
         forge_change::Effect::Retarget => (10, pull_what, evidence.head.unwrap_or([0; 32])),
@@ -2471,6 +2498,42 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     }
 }
 
+// Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
+    let tasks = domain.forge.change_tasks();
+    if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
+        return true;
+    }
+    let mut oldest = None;
+    let mut oldest_last = None;
+    for number in tasks {
+        let settled = domain.forge.droppable(number);
+        if !settled && !domain.forge.droppable_last(number) {
+            continue;
+        }
+        let row = domain.forge.change(number).expect("enumerated change");
+        let goal = match row.goal {
+            Some(goal) => Some(goal),
+            None => tracked_ancestor(domain, tasks::Party::Task(number)),
+        };
+        if let Some(goal) = goal
+            && domain.core.tasks.task(goal).is_some()
+        {
+            continue;
+        }
+        let slot = if settled { &mut oldest } else { &mut oldest_last };
+        *slot = Some(match *slot {
+            Some(prior) => number.min(prior),
+            None => number,
+        });
+    }
+    if let Some(task) = oldest.or(oldest_last) {
+        domain.work.push(Work::Forge(forge::Event::DropChange { task }));
+        return true;
+    }
+    false
+}
+
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -2597,6 +2660,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let Some(base_parts) = branch_parts(&base, env.limits.forge.name_bytes) else { return false };
     let Some(gates) = configured_gates(domain, env, adopted, &base) else { return false };
     if domain.forge.change(task).is_none() {
+        let room = drop_settled_change(domain, env);
         domain.work.push(Work::Forge(forge::Event::Change {
             row: forge::ChangeRow {
                 task,
@@ -2672,6 +2736,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 follow_check: None,
             },
         }));
+        if !room {
+            return true;
+        }
         let branch_name =
             forge::Name { forge: provider.forge, repository: provider.repository, what: forge::What::Branch(parts) };
         let base_name = forge::Name {
@@ -4423,7 +4490,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
     } else {
-        None
+        holds::change_account(domain, env, task, why)
     };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
@@ -4985,7 +5052,7 @@ pub(crate) fn outputs(
                 };
                 domain.work.push(Work::Brief(event));
             }
-            forge::Request::BriefReadRefused { section, stage, error } => {
+            forge::Request::BriefReadRefused { section, stage, reason, heads, error } => {
                 let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 super::diagnostics::emit(
                     domain,
@@ -4993,6 +5060,8 @@ pub(crate) fn outputs(
                         task: row.task,
                         section: crate::assemble::forge_brief_name(&row.kind),
                         stage,
+                        reason,
+                        heads,
                         error,
                     },
                 );
@@ -5424,6 +5493,7 @@ pub(crate) fn outputs(
                                         task,
                                         entry,
                                         prior: evidence.prior,
+                                        leaves_queue: task_leaves_queue(domain, env, task),
                                     }));
                                     change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
                                     continue;
@@ -5470,6 +5540,7 @@ pub(crate) fn outputs(
                                     task,
                                     entry,
                                     prior: evidence.prior,
+                                    leaves_queue: true,
                                 }));
                                 change_decision(
                                     domain,
@@ -5843,7 +5914,16 @@ pub(crate) fn effect_ask(
                     } else {
                         None
                     };
-                    domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
+                    // A review request ends its turn through ReviewRequested, retaining First
+                    // until that request has taken its base and started its repair.
+                    let leaves_queue = request.is_none()
+                        && (answer != authority::Answer::Wait || task_leaves_queue(domain, env, task));
+                    domain.work.push(Work::Forge(forge::Event::VetoChange {
+                        task,
+                        entry,
+                        prior: evidence.prior,
+                        leaves_queue,
+                    }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
                     } else if let Some(head) = request {
@@ -5982,6 +6062,19 @@ fn drop_landing(
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
     } else {
         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
+    }
+}
+
+fn task_leaves_queue(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
+    if landing_route::kept(domain, env, task) {
+        return true;
+    }
+    match domain.core.tasks.task(task) {
+        Some(row) => match row.phase {
+            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) => false,
+        },
+        None => true,
     }
 }
 

@@ -264,6 +264,26 @@ fn each_remaining_answer_round_trips_unchanged() {
     }
 }
 #[test]
+fn listing_answers_preserve_cut_and_refuse_records_without_it() {
+    use skein_forge::api::Answer;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for cut in [false, true] {
+        for answer in [
+            Answer::Reviews { reviews: Box::new([fixtures::review()]), more: true, cut },
+            Answer::Remarks { remarks: Box::new([]), more: true, cut },
+            Answer::PullFiles { head: [1; 32], files: Box::new([fixtures::file()]), more: true, cut },
+        ] {
+            let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
+            let bytes = records::encode(&row);
+            assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+            // A pre-cut named-call record ended at more: the cut byte is last.
+            let old = bytes.get(..bytes.len().saturating_sub(1)).unwrap();
+            assert_eq!(records::decode(old, &bounds), Err(crate::Undecodable));
+        }
+    }
+}
+
+#[test]
 fn fixed_answer_lists_past_their_counts_fail_to_decode() {
     use skein_forge::api::{Answer, Collaborator, Permission};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

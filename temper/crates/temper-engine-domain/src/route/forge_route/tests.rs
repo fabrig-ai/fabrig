@@ -1,6 +1,8 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod room;
+
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2134,7 +2136,7 @@ fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
         panic!("first tier step")
     };
     assert_eq!(got, task);
-    assert!(!heard.released && !heard.cancelled);
+    assert!(!heard.released);
     let words = b"Tier fuzzy run 7 held after 3 runner faults, last: dispatch";
     forge_request(
         &mut domain,
@@ -2331,6 +2333,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             .insert(
                 5,
                 crate::translate::ProjectLanding {
+                    check_timeout: None,
                     close_job: None,
                     merge_job: None,
                     by: crate::translate::Way::Queue,
@@ -2563,11 +2566,8 @@ fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
         jig_domain_core::Event::Tasks(event),
     ));
     offer_tier(&mut domain, &env, task);
-    let Some(Work::Forge(forge::Event::StepTier {
-        task: got,
-        heard: forge::TierHeard { released: false, cancelled: false },
-        ..
-    })) = domain.work.pop()
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard: forge::TierHeard { released: false }, .. })) =
+        domain.work.pop()
     else {
         panic!("step woken tier")
     };
@@ -2662,6 +2662,69 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
 }
 
 #[test]
+fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
+    use super::{forge_change as change, tasks};
+    let expected = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    let found = [
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    for (was, why, words) in [
+        (
+            change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::BranchMoved,
+            b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
+        ),
+        (
+            change::State::Checking { head: expected },
+            change::Hold::BranchMoved,
+            b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
+        ),
+        (
+            change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::Stalled,
+            b"no progress at updating for 30 minutes: waiting for its update of 0123456789ab with main at 89abcdef0123"
+                .as_slice(),
+        ),
+        (
+            change::State::Checking { head: expected },
+            change::Hold::Stalled,
+            b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
+        ),
+        (
+            change::State::First { head: expected, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::Stalled,
+            b"no progress at first for 30 minutes: waiting for the forge to settle whether 0123456789ab merges"
+                .as_slice(),
+        ),
+        (
+            change::State::Landing { head: expected },
+            change::Hold::Stalled,
+            b"no progress at landing for 30 minutes: waiting for its merge of 0123456789ab".as_slice(),
+        ),
+    ] {
+        let mut row = change_row(Some(1));
+        row.change.last_head = Some(expected);
+        row.ci = Some(change::Ci { head: found, status: change::Status::Pending });
+        row.change.state = change::State::Held { was: Box::new(was), why };
+        let (domain, mut env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
+        env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
+        let decision = super::hold_change_decision(&domain, &env, 7, why);
+        let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: category,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
+}
+
+#[test]
 fn a_hold_past_questions_names_its_bound() {
     use super::{forge_change, tasks};
     for (open, words) in [
@@ -2710,7 +2773,7 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
         panic!("released tier step")
     };
     assert_eq!(got, task);
-    assert!(heard.released && !heard.cancelled);
+    assert!(heard.released);
 }
 
 fn repairs_call(control: bool) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
@@ -4354,4 +4417,85 @@ fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
         follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, Some(context.task), &[]),
         Ok(())
     );
+}
+
+#[test]
+fn a_configured_resource_limit_reaches_the_held_tasks_words() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::ResourceRefused {
+        task,
+        operation: b"subscribe",
+        resource: None,
+        cause: forge::RefusalCause::Limit { member: "forge.paths_per_subscription", configured: 4, needed: 5 },
+    });
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+        panic!("resource refusal routes a hold");
+    };
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        panic!("refused task is held");
+    };
+    assert_eq!(*why, tasks::Hold::ResourceUnavailable);
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
+    for text in [
+        b"subscribe".as_slice(),
+        b"forge.paths_per_subscription = 4; required usage 5",
+        b"deployment configuration, restart, then release",
+    ] {
+        let mut found = false;
+        for part in words.windows(text.len()) {
+            found |= part == text;
+        }
+        assert!(found, "missing {text:?} in {words:?}");
+    }
+}
+
+#[test]
+fn a_change_rerun_is_kind_17_on_its_own_branch() {
+    use super::{forge, forge_change, tasks};
+    let (mut domain, mut env) = goal_holds_branch();
+    env.limits.authority.segments = 8;
+    make_goal_task(&mut domain, &env, GOAL_CHANGE, tasks::Party::Task(GOAL_TASK), Box::new([]));
+    let mut row = change_row(Some(1));
+    row.task = GOAL_CHANGE;
+    row.change.task = GOAL_CHANGE;
+    row.repository = adopted(1).provider;
+    let expected = super::resource_name(
+        &adopted(1),
+        &super::branch_what(&row.branch, env.limits.forge.name_bytes).unwrap(),
+        env.limits.authority.segments,
+    )
+    .unwrap();
+    let evidence = forge::ChangeEvidence {
+        prior: row.change.clone(),
+        head: Some(SHA1),
+        base_tip: SHA1,
+        contains_base: forge_change::Status::Passed,
+        ci: forge_change::Status::Failed,
+        gates: Box::new([]),
+        reviews: Box::new([]),
+        reviews_complete: true,
+    };
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let description = super::describe_change_effect(
+        &domain,
+        &env,
+        GOAL_CHANGE,
+        forge_change::Effect::Rerun { head: SHA1 },
+        &evidence,
+    )
+    .expect("re-run description");
+    assert_eq!(description.effect.kind, 17);
+    assert_eq!(description.effect.name, expected);
+    assert_eq!(description.effect.state, SHA1);
+    assert_eq!(description.recovery, super::Recovery::Unrecoverable);
 }

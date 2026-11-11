@@ -18,9 +18,9 @@ the look, 11 what is open.
   host each report and carries out the duties it asks back; the
   recorder keeps what crosses that seam, and the replay gives it back to
   the same host, natively.
-- **Recorded in a build of its own:** `temper` built with its `record`
+- **Recorded in a build of its own:** `temper-box-shell` built with its `record`
   feature records every TUI it runs, from its start, into the TUI's
-  directory; the shipped `temper` holds none of it (section 2).
+  directory; the shipped `temper-box` holds none of it (section 2).
 - **The browser's file, the TUI's records:** the same text, one record
   per line, the same shared records (the start's seed and clocks, a
   turn, a deadline, a mark, the small store's records), and records of
@@ -55,11 +55,11 @@ the look, 11 what is open.
   the walk's logic. With `record` the crate depends on
   `temper-client-shell-web`, natively, for the shared redaction and scan
   (section 5). It is ordinary Rust, as the browser's `journey` module is.
-- **The recording build:** `temper`'s feature `record`, which no other
+- **The recording build:** `temper-box-shell`'s feature `record`, which no other
   package enables, turns on the crate's and has the binary give the run
   a recording (`run::Settings.record`). A build of the workspace that
   compiles the journey module for `temper-client-journeys` gives the run
-  the code but never a recording, so a `temper` built without its own
+  the code but never a recording, so a `temper-box` built without its own
   `record` records nothing.
 - **Nothing else changes in the TUI:** the recorder adds no node, no
   paint, no request and no file but its own (3.1).
@@ -84,7 +84,7 @@ the look, 11 what is open.
   save key, for a terminal that drops the Shift from a Meta key it
   doesn't bind, as emacs' vterm does: it sends Alt+Shift+M as Alt+m.
   Only a recording takes them: a run without one, as the shipped
-  `temper`'s always is (section 2), gives Alt+m and Alt+s to the host as
+  `temper-box`'s always is (section 2), gives Alt+m and Alt+s to the host as
   any other key.
 - **A save** writes the file whole, `recording` in the TUI's directory
   (`README.md`, 2), `0o600`, a synced temporary replacing it,
@@ -94,7 +94,7 @@ the look, 11 what is open.
   `LEAVE`; a save that fails says nothing on the screen, and the next
   save tries again.
 - **One run, one recording:** a recording starts with the TUI and is
-  whole at each save; the next `temper` replaces it.
+  whole at each save; the next TUI run replaces it.
 - **The file keeps every original:** it is the person's, in their
   private directory, and `add` takes it (section 6). It is never
   committed as it is.
@@ -457,7 +457,7 @@ recording's (3.2).
 for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
-- **Built from the checkout:** `temper` with its `record` feature and
+- **Built from the checkout:** the client `temper` with recording enabled (2), and
   `fake-claude`, and the browser's bundle (`scripts/bundle.sh
   --loopback`), each copied into a fresh scratch directory under `/tmp`.
 - **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
@@ -497,16 +497,16 @@ ordinary Rust over skein's harness:
 
 ### 8.3 A box with the TUI in front
 
-What `again` does to record a journey of `temper box` with the TUI in
+What `again` does to record a journey of `temper-box` with the TUI in
 front of it (`box.md`; `../../protocol/setup/box.md`, 6),
 where 8.2 says otherwise:
 
-- **The box in the pseudo-terminal:** `temper box --fake-backends` from
+- **The box in the pseudo-terminal:** `temper-box --fake-backends` from
   the scratch copy is itself started in the pseudo-terminal of 80 by 24,
   in a session of its own, with the TUI's environment of 8.2 but
   `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
   the front opens that terminal and takes its foreground. The front is
-  the same `temper`, built with `record`, and records into the TUI's
+  the same `temper-box`, built with `record`, and records into the TUI's
   directory as bare `temper` does (3.1). No `temper` is started apart,
   and no approval is walked: the front signs in by the link the box
   hands it.
@@ -541,7 +541,7 @@ where 8.2 says otherwise:
 | `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`pages.md`), at the recording's end; its `../../README.md` says so |
 | `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages.md`); its `../../README.md` names each frame |
 | `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`pages.md`, *The launchpad*); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `../../README.md` names each frame |
-| `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, the quiet line naming the goal; the end | the session at half with the drafter's choices under the box, the pane at all and folded, a section marked new, `/goal`'s prompt, and the chat with its linked goal at the recording's end (`pages.md`, *A design session*); its `../../README.md` names each frame |
+| `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at the recording's 80 columns goes first (`pages.md`, *A design session*, *narrow*; the goal's part is the 110-column golden's); the end | `03`, the session at half with the drafter's choices under the box; `05`, the pane at all; `07`, folded; `10`, Open questions marked new; `12`, `/goal`'s ways prompt; `14` and `15`, the returned chat with its goal linked, marked and at the recording's end (`pages.md`, *A design session*); `01`, Hello's launchpad; `02`, `04`, `06`, `08`, `09`, `11` and `13`, before the keys that act (3.3); its `../../README.md` names each frame |
 | `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |
 
 ## 10. Editing the look
@@ -558,7 +558,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   whose NAME starts `tui-`, kept on `main` by the same
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
-  `../../draft/look-requests.md`, 2).
+  `../web/look-requests.md`, 2).
 - **Never landed:** the journeys' test refuses a request's frames, which
   differ from the reprint, and its overlay, so `main`'s overlay stays
   empty.
@@ -578,7 +578,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   section 3). The look requests `tui-launchpad` and
   `tui-chat-title-below` have their render check and
   walk after landing, owned by temper/tui's after-landing check; differences
-  return as repairs carrying its trailer (`../../draft/look-requests.md`,
+  return as repairs carrying its trailer (`../web/look-requests.md`,
   sections 4 and 5). A replay and byte-equal print establish no real
   terminal's look. A growing answer, calls and a question's choices
   remain for a journey that catches them; the joint world and goldens
@@ -606,3 +606,11 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change
   with each `again`, as the browser's (`../web/journeys.md`, section 10).
+- **Redaction in `again`:** a recording keeps the recorder's OS account
+  name, the label the fake box gives Me, and a program's reply may name
+  the scratch directory `/tmp/temper-journey-PID-N` (8.2); neither is
+  drawn, and `add --redact` refuses an admitted recording. The
+  `launchpad-chat`, `launchpad-drawn`, `sign-in-approved` and
+  `design-session` recordings are committed so (the user, 2026-11-11).
+  Default: so, until a later change gives the fake box a fixed account
+  label under `again` and redacts the scratch prefix in what it records.

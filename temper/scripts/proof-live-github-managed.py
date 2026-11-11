@@ -224,7 +224,7 @@ class Sitting:
         self.person = person
         self.wide = mode == 'fake-wide'
         self.mode = 'fake' if self.wide else mode
-        self.wait_secs = int(os.environ.get('TEMPER_SITTING_WAIT_SECS', '0')) if self.mode == 'fake' else 0
+        self.wait_secs = int(os.environ.get('TEMPER_TEST_SITTING_WAIT_SECS', '0')) if self.mode == 'fake' else 0
         require(self.wait_secs >= 0)
         self.port = int(port)
         self.root = Path(__file__).resolve().parent.parent
@@ -247,7 +247,7 @@ class Sitting:
         self.scanned = False
         self.retained = False
         self.last_request = None
-        self.binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/temper'
+        self.binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/temper-box'
         artifacts = [json.loads(line) for line in (self.scratch/'build.jsonl').read_text().splitlines()
                      if line.startswith('{')]
         self.harness = next(row['executable'] for row in artifacts
@@ -366,7 +366,7 @@ class Sitting:
         return address
 
     def configure(self, git, web):
-        template = (self.root/'crates/temper/tests/support/github/engine.json').read_text()
+        template = (self.root/'bin/temper-box/tests/support/github/engine.json').read_text()
         for name, value in {'proc.forge.ready.address': self.api, 'proc.llm.ready.address': '127.0.0.1:9',
                             'story.clients': '127.0.0.1:' + str(self.port)}.items():
             template = template.replace('{' + name + '}', value)
@@ -380,7 +380,7 @@ class Sitting:
             value['application']['clients']['bundle'] = str(self.scratch/'bundle')
         digests = self.scratch/'data/secrets'
         digests.mkdir(parents=True, mode=0o700)
-        private(digests/'w1.digest', (self.root/'crates/temper/tests/support/github/w1.digest').read_bytes())
+        private(digests/'w1.digest', (self.root/'bin/temper-box/tests/support/github/w1.digest').read_bytes())
         directory = self.scratch/'config'
         (directory/'charters').mkdir(parents=True, mode=0o700)
         private(directory/'charters/chat.txt', b'No model calls in this sitting.\n')
@@ -424,7 +424,7 @@ class Sitting:
         self.step = 'signed-in Ready ' + mode
         # This test is not ignored: --ignored would select nothing and exit 0.
         self.command([self.harness, '--exact', 'managed_ready_client', '--nocapture'],
-                     data=(link + '\n').encode(), extra_env={'TEMPER_MANAGED_CLIENT': mode}, ready=True)
+                     data=(link + '\n').encode(), extra_env={'TEMPER_TEST_MANAGED_CLIENT': mode}, ready=True)
 
     def wait_ready(self):
         from cryptography.hazmat.primitives.serialization import load_der_private_key
@@ -668,9 +668,9 @@ class Sitting:
     def run_sitting(self):
         upstream = self.fake() if self.mode == 'fake' else ''
         relay = self.start([self.harness, '--ignored', '--exact', 'managed_relay', '--nocapture'], 'relay',
-                           {'TEMPER_MANAGED_MODE': self.mode, 'TEMPER_MANAGED_SCRATCH': str(self.scratch),
-                            'TEMPER_MANAGED_UPSTREAM': upstream, 'TEMPER_MANAGED_PREFIX': self.prefix,
-                            'TEMPER_MANAGED_EVIDENCE': str(self.evidence), 'TEMPER_MANAGED_PERSON': self.person})
+                           {'TEMPER_TEST_MANAGED_MODE': self.mode, 'TEMPER_TEST_MANAGED_SCRATCH': str(self.scratch),
+                            'TEMPER_TEST_MANAGED_UPSTREAM': upstream, 'TEMPER_TEST_MANAGED_PREFIX': self.prefix,
+                            'TEMPER_TEST_MANAGED_EVIDENCE': str(self.evidence), 'TEMPER_TEST_MANAGED_PERSON': self.person})
         self.relay = relay
         until = time.monotonic() + 30
         ready = self.scratch/'relay-ready.json'

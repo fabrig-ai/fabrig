@@ -2948,6 +2948,14 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 #[test]
 fn changes_document_encodes_and_decodes() {
     let value = forge::ChangesView {
+        landed_default: Box::new([forge::ChangesLanded {
+            task: 49,
+            title: Box::from(b"Default landing".as_slice()),
+            at: skein_lib::Wall::from_nanos(900),
+            commit: [0xcd; 32],
+            default_branch: true,
+        }]),
+        landed_default_more: 2,
         project: 7,
         landing: Box::from(b"main".as_slice()),
         more: 3,
@@ -2972,6 +2980,8 @@ fn changes_document_encodes_and_decodes() {
             ]),
         }]),
         landed: Box::new([forge::ChangesLanded {
+            commit: [0xab; 32],
+            default_branch: true,
             task: 50,
             title: Box::from(b"Landed".as_slice()),
             at: skein_lib::Wall::from_nanos(987),
@@ -3002,6 +3012,14 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!(got.landed().len(), 1);
     let landed = got.landed().get(0).unwrap();
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
+    assert_eq!(*landed.commit(), [0xab; 32]);
+    assert!(landed.default_branch());
+    assert_eq!(got.landed_default_more(), 2);
+    assert_eq!(got.landed_default().len(), 1);
+    let default = got.landed_default().get(0).unwrap();
+    assert_eq!((default.task(), default.title(), default.at()), (49, b"Default landing".as_slice(), 900));
+    assert_eq!(*default.commit(), [0xcd; 32]);
+    assert!(default.default_branch());
 }
 #[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
@@ -3232,6 +3250,24 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let expected_after = w::BranchPath::new(&w::CEILINGS, expected_after).unwrap();
     let card = path.stops[1].card.clone();
     let expected_card = expected.stops().get(1).unwrap().card().clone();
+    let mut roles = List::uncapped();
+    let mut expected_roles = List::with_capacity(3);
+    for (number, name, who) in [
+        (1, b"Chat".as_slice(), b"For each chat: talks with you and asks for the changes".as_slice()),
+        (12, b"Drafter", b"When you start a draft: writes a draft with you, one question at a time, and starts nothing"),
+        (9, b"Status agent", b"When you look at Home after landings: writes the few lines at the top of Home, from what landed and what waits"),
+    ] {
+        let mut role = card.clone();
+        role.name = name.into();
+        role.who = who.into();
+        roles.push((number, role)).unwrap();
+        let mut parts = expected_card.clone().into_parts();
+        parts.name = name.into();
+        parts.who = who.into();
+        expected_roles.push(w::CharterView::new(&w::CEILINGS, w::CharterViewParts {
+            charter: number, card: w::Card::new(&w::CEILINGS, parts).unwrap(),
+        }).unwrap()).unwrap();
+    }
     for (view, expected_view) in [
         (
             ways::View::Proposal { before: path.clone(), after },
@@ -3272,24 +3308,8 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             ),
         ),
         (
-            ways::View::Roles(Box::new([(3, card.clone()), (9, card)])),
-            w::View::Roles(
-                w::RolesView::new(
-                    &w::CEILINGS,
-                    w::RolesViewParts {
-                        roles: List::from_boxed(Box::new([
-                            w::CharterView::new(
-                                &w::CEILINGS,
-                                w::CharterViewParts { charter: 3, card: expected_card.clone() },
-                            )
-                            .unwrap(),
-                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 9, card: expected_card })
-                                .unwrap(),
-                        ])),
-                    },
-                )
-                .unwrap(),
-            ),
+            ways::View::Roles(roles.into_boxed()),
+            w::View::Roles(w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: expected_roles }).unwrap()),
         ),
         (
             ways::View::NotDrawn(b"No such charter".as_slice().into()),
@@ -3604,6 +3624,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
     for task in 0..limits.forge.changes_landed {
         landed
             .push(forge::ChangesLanded {
+                commit: [0xab; 32],
+                default_branch: true,
                 task: u64::from(task),
                 title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                 at: skein_lib::Wall::EPOCH,
@@ -3611,6 +3633,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
             .unwrap();
     }
     let document = forge::Document::Changes(forge::ChangesView {
+        landed_default: landed.clone().into_boxed(),
+        landed_default_more: 0,
         project: 1,
         landing: repeated(b'b', limits.forge.name_bytes),
         queues: queues.into_boxed(),

@@ -112,7 +112,7 @@ record Comment { id: u64 provenance: Provenance author: u64 created: u64 revisio
 record Review { id: u64 provenance: Provenance revision: u64 author: u64 verdict: Verdict commit: fixed 32 key: option bytes 1048576 body: bytes 1048576 at: u64 official: bool }
 record ItemsAnswer { items: bytes 2097152 pieces Summary more: bool now: u64 cut: bool }
 record ItemAnswer { item: Summary comments: bytes 2097152 pieces Comment more: bool }
-record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool }
+record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool cut: bool }
 
 # 04.3cb: the rest of the forge's answer items and families.
 record Status { at: u64 context: bytes 1048576 verdict: Check description: bytes 1048576 url: bytes 1048576 job: option JobAttempt }
@@ -120,8 +120,8 @@ record Remark { id: u64 author: u64 path: bytes 1048576 line: u32 body: bytes 10
 record File { path: bytes 1048576 before: option bytes 1048576 after: option bytes 1048576 }
 record Collaborator { user: u64 permission: Permission }
 record StatusesAnswer { ci: Ci statuses: bytes 2097152 pieces Status more: bool }
-record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool }
-record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool }
+record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool cut: bool }
+record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool cut: bool }
 record CompareAnswer { before: fixed 32 after: fixed 32 ahead: u64 behind: u64 files: list 1024 bytes 1048576 changed: u64 }
 record ChecksAnswer { statuses: bytes 2097152 pieces Status }
 record CollaboratorsAnswer { collaborators: list 65536 Collaborator more: bool }
@@ -292,20 +292,20 @@ record TierFlake { test: bytes 4096 count: u32 }
 record TierLanding { commit: fixed 32 key: fixed 32 }
 record TierTests { tests: list 1024 FailingTest }
 enum TierSelection { tests: TierTests, all }
-record TierFinding { failing: Failures flakes: list 1024 FailingTest blamed: list 257 Blame }
+record TierFinding { failing: Failures flakes: list 1024 FailingTest blamed: list 759 Blame }
 record TierProbe { landing: u32 tests: TierSelection finding: TierFinding }
 enum TierPart { whole, rerun: TierTests, probe: TierProbe }
-record TierRun { number: u64 tip: fixed 32 key: fixed 32 landings: list 257 TierLanding part: TierPart faults: u32 }
+record TierRun { number: u64 tip: fixed 32 key: fixed 32 landings: list 759 TierLanding part: TierPart faults: u32 }
 record TierRecord { sequence: u64 judged: option TierJudged failing: Failures flakes: list 1024 TierFlake run: option TierRun }
 record TierPending { commit: fixed 32 key: option fixed 32 }
 record TierBranchEntry { entry: u64 }
 enum TierBranch { absent, pending: TierBranchEntry, made }
-enum TierFault { setup, completion, no_step, cancelled, other_commit, lost }
+enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
 record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
-record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 257 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
+record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 759 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
 # 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }

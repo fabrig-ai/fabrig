@@ -418,7 +418,9 @@ pub fn json_cases() -> Vec<(String, Option<Request>)> {
             "update-rebase-first-commit",
             "update-rebase-second-commit",
         ]
-        .contains(&case.as_str());
+        .contains(&case.as_str())
+            // These recorded probes use an ignored query, not workflow_id selection.
+            || transcript.target.windows(b"/actions/runs?workflow=".len()).any(|part| part == b"/actions/runs?workflow=");
         let request = if transcript.status < 300 && !probe {
             let request = decode_route(transcript.method, &transcript.target, &transcript.request_body, &limits())
                 .unwrap_or_else(|error| panic!("{case}: transcript request: {error}"))

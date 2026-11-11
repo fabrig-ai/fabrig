@@ -61,8 +61,12 @@ card names kinds 9 and 10 `charter-words` and `project-words`. The domain's `for
 view's `parts_draw_the_current_way_and_the_shown_path`, the joint
 world's `the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's
 `how`, `how-approve`, `how-draft` and `how-yours` hold it; their render
-check follows landing. Roles says no charter's words (`../README.md`, section 5, *How
-work runs' later parts*).
+check follows landing.
+
+- **Not yet:** 2, *Roles*: the view `roles` gives the drafter no row,
+  and a role's `who` says when it runs alone, so Roles says no
+  charter's words (`../../domain/forge/change/branch-path.md`, *The
+  project's roles*) [in flight: change 314].
 
 `README.md`, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and `../view.md`, 3, *The rail*, *The rail's parts*, *Projects in the rail* and *All

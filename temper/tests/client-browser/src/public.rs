@@ -62,7 +62,7 @@ impl Tier {
     pub fn public_demo(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::public_demo(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "box" }
+        Self { scratch, forged: forgery::request(), command: "" }
     }
 }
 

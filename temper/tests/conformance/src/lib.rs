@@ -310,7 +310,13 @@ impl Application for Temper {
         Some(&peers.policy)
     }
     fn start(_: &Config, _: &mut Store) -> Vec<Event> {
-        vec![Event::Root(engine::Event::Restart { pending: false })]
+        vec![
+            Event::Root(engine::Event::Restart { pending: false }),
+            Event::Root(engine::Event::Forge(Box::new(forge::Event::Connection {
+                forge: temper_engine_forge_world::REPO.forge,
+                state: forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+            }))),
+        ]
     }
     fn cold(peers: &mut Peers, store: &Store, _: Clock) {
         peers.projection.invalidate();

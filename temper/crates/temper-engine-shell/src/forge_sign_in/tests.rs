@@ -55,15 +55,25 @@ fn a_public_client_refuses_before_creating_any_file() {
     let bytes = serde_json::to_vec(&value).expect("configuration");
     let directories = configuration::directories(&directory);
     let named = temper_service::startup::named(&bytes, &jig_directories(&directories)).expect("named public client");
-    let refusal = super::run(&directories, &bytes, &named, 1);
+    let refusal = super::run(&directories, &bytes, &named, 1, &[]);
     let files = fs::read_dir(&directory).expect("scratch entries").count();
     let configuration = directory.join("temper.json");
     fs::write(&configuration, &bytes).expect("command configuration");
-    let exit = crate::forge::run("temper", &directories, &["sign-in".into(), "1".into()], None);
+    let exit = crate::forge::run("temper", &directories, &["sign-in".into(), "1".into()], None, &[]);
     let command_files = fs::read_dir(&directory).expect("command scratch entries").count();
     fs::remove_dir_all(directory).expect("scratch removed");
     assert_eq!(refusal, Err("its client has no secret; a box adds its own source".into()));
     assert_eq!(files, 0, "refusal makes no files");
     assert_eq!(exit, 1, "the command uses its refusal exit");
     assert_eq!(command_files, 1, "only the supplied configuration remains");
+}
+
+#[test]
+fn first_sign_in_uses_the_given_registration_switch() {
+    use temper_forge_setup::sign_in::FirstSignIn;
+    let environment = [(Box::from(b"TEMPER_INTERNAL_FORGE_NO_REGISTRATION".as_slice()), Box::from(b"1".as_slice()))];
+    assert_eq!(super::first_sign_in(&environment), FirstSignIn::LinksOnly);
+    assert_eq!(super::first_sign_in(&[]), FirstSignIn::MakesAccount);
+    let empty = [(Box::from(b"TEMPER_INTERNAL_FORGE_NO_REGISTRATION".as_slice()), Box::from(b"".as_slice()))];
+    assert_eq!(super::first_sign_in(&empty), FirstSignIn::MakesAccount);
 }

@@ -170,7 +170,7 @@ fn effects(f: &Fixture, h: &mut Hosted, facts: &mut Vec<Fact>, number: u64, own:
         &result,
     ));
     let item = h.call(repo, Read::Item { number, after: 0, since: skein_lib::Time::ZERO }.operation());
-    let reviews = h.call(repo, Read::Reviews { number: f.feature, page: 1 }.operation());
+    let reviews = h.call(repo, Read::Reviews { number: f.feature, page: 1, skip: 0 }.operation());
     facts.push(super::fact("component-keys-found-on-read-back", matches!(&item, Ok(Answer::Item { item, comments, .. }) if item.key == Some(Box::new([1, 0, 0, 1])) && comments.iter().any(|c| c.key == Some(Box::new([1, 0, 0, 2])) && c.body.as_ref() == b"<!-- kit:key 01000002 -->\npost body")) && matches!(&reviews, Ok(Answer::Reviews { reviews, .. }) if reviews.iter().any(|r| r.key == Some(Box::new([1, 0, 0, 3])) && r.body.as_ref() == b"<!-- kit:key 01000003 -->\nkeyed review")), &(item, reviews)));
     Ok(())
 }

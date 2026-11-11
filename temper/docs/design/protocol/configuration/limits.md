@@ -10,12 +10,12 @@
   component's, its webhooks' listener's and its GitHub App's among them,
   the git component's, the engine's routing's records and forges, the
   setup host's, the clients' listener's forge routes' and the picker's;
-  and the box's, which `temper serve` checks and takes none of but
+  and the box's, which `temper-box serve` checks and takes none of but
   `box.line_bytes`, its pipe's (../setup/box.md).
 - **Two profiles, as jig's:** `small`, for one person's machine with
   the mechanics' smallest work, and `standard`, a project of fabrig's
   scale, its own development, with five times the
-  largest figure seen (`stock.md`); another name is refused. `temper init`'s
+  largest figure seen (`stock.md`); another name is refused. `temper-box init`'s
   document names `standard` for the engine's, the worker's and the
   application's limits alike (`../setup/init.md`, 3). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
@@ -27,7 +27,10 @@
   forge's work at that scale: `forge.tasks`, `forge.holds` and
   `forge.changes` 128, the forge client's `resources` 128 (at least the
   holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
-  `repairs`, `resolutions` and `updates` 80, an issue's `plan_items`
+  `repairs`, `resolutions` and `updates` 80 (its `reruns`, the times a
+  job the runner failed is run again at one head, is 1 in both,
+  `forge.change_policy.reruns`: `../../domain/forge/change/README.md`, 2,
+  step 3), an issue's `plan_items`
   384, and the brief's task section a whole spec of jig's `standard`
   (131,072 bytes) with its contract's and requester's lines; what the
   start's checks tie to these moves with them, the least that passes.
@@ -35,7 +38,7 @@
   (`root.brief.budgets.reviews`); in each profile
   `root.brief.brief_bytes` and `root.journal.result_bytes` are equal,
   so gathering and journalling hold the same brief. The stock host part
-  holds the authorised brief whole at `temper init`'s models
+  holds the authorised brief whole at `temper-box init`'s models
   (`../../domain/agent/tools.md`); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
@@ -77,7 +80,7 @@
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (../credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (../forge/README.md, section 6) |
   | `setup.` | `temper-forge-setup`'s `Limits`: reconcile's (../setup/reconcile.md), the fetch's (../setup/owned.md, 6), and the engine's setup host's states and runs (../setup/README.md, the setup host in the engine) |
-  | `box.` | `temper-box`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1 and 2) |
+  | `box.` | `temper-box-machine`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1 and 2) |
   | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/README.md`, 2.2) |
   | `routes.` | `temper-service`'s clients' listener's forge routes (`../../client/README.md`, the routes) |
   | `sign_in.` | `temper-service`'s Google sign-ins on the clients' listener (`../sign-in.md`, section 6) |
@@ -105,6 +108,31 @@
   watching more branches in a repository needs no more directories. Forge
   subscription admission and the connector both enforce the watched-name
   bound.
+- **`forge.changes` bounds the changes kept at once,** live and ended
+  alike: the forge's change table, whose settled changes leave it,
+  oldest first, as new ones need room, those of live goals kept
+  (`../../domain/forge/change/README.md`, 7). So it bounds the changes
+  live at once, never every change made. Each tier row of the store
+  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
+  and a finding's blamed ones), within the store schema's ceiling for
+  them, 759 (`../store.md`, 4), so `forge.changes` is at most 379,
+  which the start checks (below). The forge's landed commits, the
+  merges temper made, number `max(forge.landings, forge.changes)` at
+  most; a merge finding them full erases one, those of no kept change
+  first, and never waits on it to move its branch's head
+  (`../../domain/forge/change/README.md`, 7).
+- **A limit's refusal names it:** every refusal a configured limit
+  causes, at the start or in a step, names the limit by its dotted name,
+  its value and what was needed. A step's refusal holds its task with
+  the words of the forge's `RefusalCause::Limit`, such as `forge.changes =
+  128; required usage 129; reduce the named work or raise this limit in
+  the deployment configuration, restart, then release`, beside the
+  operation and the resource it refused (`../../client/forge/README.md`,
+  5). A step that holds several bounds in one check refuses on the one
+  it passed, so each refusal names one limit. A refusal no limit causes
+  (an unadopted repository, a malformed name, an unknown task, a
+  duplicate) names its own cause where the forge has one, and keeps the
+  forge's general words otherwise.
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -142,12 +170,12 @@
   | `box.backoff_ms`, `box.backoff_max_ms` | a long step restarted, doubling |
   | `box.restarts`, `box.window_ms` | a long step's exits within the window past which the box gives up; `box.restarts` at most 64; the backoff counted from the exits within the window (../setup/box.md, 2) |
   | `box.grace_ms` | a long step's grace, after each of its stop's two signals (../setup/box.md, 2) |
-  | `box.line_bytes` | a line of the box's pipe, either way, its line feed among them; the box and `temper serve` each read within it (../setup/box.md, 1) |
+  | `box.line_bytes` | a line of the box's pipe, either way, its line feed among them; the box and `temper-box serve` each read within it (../setup/box.md, 1) |
   | `box.log_bytes` | a step's log file, past which it moves to `<name>.log.1` and starts afresh (../setup/box.md, 2) |
   | `box.tail_lines` | the lines of a step's log the box holds, and writes under a failure's terminal line (../setup/box.md, 2) |
   | `box.groups` | the groups' files the box lists under `box/groups` at a later start, and so the groups it runs from them (../setup/box.md, 1) |
   | `clients.bundle_files` | the bundle's files, its page and each compressed form among them |
-  | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper serve` runs |
+  | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper-box serve` runs |
   | `sign_in.members` | the configured members, and the forge connector's bindings held (`forge.bindings`, the members' count) |
   | `sign_in.pending` | the sign-ins under way at once; a start past them is answered the busy page |
   | `sign_in.deadline_ms` | a sign-in's life, from its start to its return's answer; the sign-in cookie's `Max-Age` |
@@ -226,6 +254,18 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
+  - the store's tier rows': `forge.changes` at most the most they hold,
+    `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
+    tier row's pending landings, a run's landings and a finding's blamed
+    ones (`../store.md`, 4), 379 at their 759, checked before the store's
+    sizing, which would otherwise refuse it as past its codec's bounds,
+    naming no limit:
+    `application.limits.overrides.forge.changes: 380, past its bound of
+    379, the most the store's tier rows hold (2 * forge.changes + 1
+    within 759)`. Within it, a store bound the larger rows outgrow
+    refuses the start as the store's sizing names it (`engine.limits.store:
+    the store's map value, N bytes, past its bound of M bytes`), the
+    store limit to raise with it;
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
     HTTP server's largest read within io's intake; `hooks` within the
@@ -363,7 +403,7 @@
   clients hold at most 22 (`../../domain/root.md`, section 9). So:
   - *a stream's room* is 22, `WATCHES_PER_STREAM`, one shipped client's;
   - *the deployment's room* is `clients.streams` times that: 176 at
-    `temper init`'s 8 streams (`stock.md`), 44 at the small profile's 2;
+    `temper-box init`'s 8 streams (`stock.md`), 44 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:

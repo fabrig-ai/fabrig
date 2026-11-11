@@ -40,6 +40,12 @@ pub enum What {
         bytes: u64,
         bound: u64,
     },
+    /// A change count beyond the schema's capacity for tier landings.
+    TierChanges {
+        count: u32,
+        bound: u32,
+        ceiling: u32,
+    },
     Short {
         bytes: u64,
         of: &'static [u8],
@@ -169,6 +175,7 @@ fn words(what: What) -> &'static [u8] {
         | What::Stock(_)
         | What::Checkout { .. }
         | What::Past { .. }
+        | What::TierChanges { .. }
         | What::Within { .. }
         | What::Short { .. }
         | What::CallInput { .. }
@@ -501,6 +508,7 @@ fn checkout(what: What, writer: &mut Writer, length: &mut usize, measuring: bool
         | What::Override(_)
         | What::Against { .. }
         | What::Past { .. }
+        | What::TierChanges { .. }
         | What::Short { .. }
         | What::Within { .. }
         | What::StorePage { .. }
@@ -587,6 +595,19 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
                 put(writer, &mut length, measuring, b" bytes, past its bound of ");
                 put(writer, &mut length, measuring, Decimal::of(bound).as_bytes());
+            }
+            What::TierChanges { count, bound, ceiling } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(
+                    writer,
+                    &mut length,
+                    measuring,
+                    b", the most the store's tier rows hold (2 * forge.changes + 1 within ",
+                );
+                put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
+                put(writer, &mut length, measuring, b")");
             }
             What::Short { bytes, of, needs } => {
                 put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());

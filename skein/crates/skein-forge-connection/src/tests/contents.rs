@@ -49,6 +49,7 @@ fn measured_contents() -> [(&'static str, Answer, u64); 4] {
                     after: Some(Box::from(&b"bc"[..])),
                 }]),
                 more: false,
+                cut: false,
             },
             68,
         ),

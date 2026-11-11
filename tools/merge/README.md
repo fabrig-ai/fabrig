@@ -9,7 +9,7 @@ leaves the baseline.
 The recording rule knows `temper/tests/playground/tests/fixtures/story-a.log`:
 it runs only `walk::story_a_walks_from_the_welcome_to_the_csv_change_landed`
 in `temper-playground-world`'s `suite` binary through `cargo nextest`, with
-`SKEIN_CODEGEN_WRITE=1` and `TEMPER_BUNDLE=none`. The one-process replay reads
+`SKEIN_CODEGEN_WRITE=1` and `TEMPER_INTERNAL_BUNDLE=none`. The one-process replay reads
 the same log. The generator's source must be present and unconflicted; both
 recording sides must be regular files. It removes the conflicted output before
 generating, requires a fresh nonempty regular file without conflict markers,

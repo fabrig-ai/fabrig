@@ -1,4 +1,4 @@
-//! All projects' words, parts and actions (temper/docs/design/client/pages/README.md).
+//! All projects' words, parts and actions (temper/docs/design/client/pages/home.md, 1, Home on All projects).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -9,7 +9,7 @@ use super::fixtures as f;
 use crate::{
     frame::Bindings,
     look, pages,
-    words::{Times, Words},
+    words::{Shell, Times, Words},
 };
 use skein_lib::Wall;
 use skein_ui::{Builder, Role, Run, Tree};
@@ -93,7 +93,7 @@ fn action(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
 }
 #[test]
 fn landed_and_needs_sentences_compose_from_the_facts() {
-    for (projects, needs, expected) in [
+    for (projects, needs, expected, phone) in [
         (
             vec![
                 project(1, "vsr", 10, 0),
@@ -103,30 +103,46 @@ fn landed_and_needs_sentences_compose_from_the_facts() {
             ],
             Needs::Count { count: 2, cut: false },
             "31 changes landed across four projects. Two things need you.",
+            "31 changes landed. Two things need you.",
         ),
         (
             vec![project(1, "vsr", 3, 0)],
             Needs::Count { count: 1, cut: false },
             "3 changes landed in vsr. One thing needs you.",
+            "3 changes landed. One thing needs you.",
         ),
         (
             vec![project(1, "vsr", 1, 0)],
             Needs::Count { count: 0, cut: false },
             "One change landed in vsr. Nothing needs you.",
+            "One change landed. Nothing needs you.",
         ),
         (
             vec![project(1, "vsr", 3, 3)],
             Needs::Count { count: 12, cut: true },
             "The last change landed 2 hours ago. 12+ things need you.",
+            "The last change landed 2 hours ago. 12+ things need you.",
         ),
-        (vec![], Needs::Count { count: 10, cut: false }, "10 things need you."),
-        (vec![], Needs::Unknown, ""),
+        (vec![], Needs::Count { count: 10, cut: false }, "10 things need you.", "10 things need you."),
+        (vec![], Needs::Unknown, "", ""),
     ] {
         let mut facts = facts(projects);
         facts.needs = needs;
         for words in [f::words(), f::browser_words()] {
             let (tree, _) = drawn(&facts, &words);
             assert!(named(&tree, Role::Heading { level: 1 }, expected), "{expected}");
+            let headings: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Heading { level: 1 }).collect();
+            assert_eq!(headings.len(), if words.shell == Shell::Browser { 2 } else { 1 });
+            for (form, text) in [(look::HOME_WIDE, expected), (look::HOME_PHONE, phone)] {
+                let heading = headings.iter().find(|n| n.styles.as_slice().contains(&form));
+                assert_eq!(heading.is_some(), words.shell == Shell::Browser, "{form:?}");
+                if let Some(heading) = heading {
+                    assert_eq!(heading.name.as_deref(), Some(text.as_bytes()));
+                    assert!(heading.styles.as_slice().contains(&look::HOME_HEAD));
+                    let at = tree.nodes().iter().position(|n| core::ptr::eq(n, *heading)).unwrap();
+                    assert_eq!(f::node_text(&tree, at).as_ref(), text.as_bytes());
+                }
+            }
             assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Main).count(), 1);
         }
     }
@@ -204,9 +220,19 @@ fn briefs_join_four_sentences_with_strong_project_names() {
                     count.min(4)
                 );
             }
-            assert_eq!(has(&tree, "Written by the status agent at 07:52"), byline);
+            let expected_byline =
+                "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52";
+            assert_eq!(named(&tree, Role::Paragraph, expected_byline), byline);
+            assert!(!has(&tree, "Written by the status agent at"));
+            if byline {
+                let node = tree.nodes().iter().find(|n| n.name.as_deref() == Some(expected_byline.as_bytes())).unwrap();
+                assert!(node.styles.as_slice().contains(&look::HOME_BYLINE));
+                assert_eq!(node.styles.as_slice().contains(&look::HOME_WIDE), words.shell == Shell::Browser);
+                assert!(!node.styles.as_slice().contains(&look::HOME_PHONE));
+                assert!(has(&tree, expected_byline));
+            }
             assert_eq!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::HOME_BYLINE)), byline);
-            assert_eq!(has(&tree, "The status agent, 07:52"), byline && words.shell == crate::words::Shell::Browser);
+            assert_eq!(has(&tree, "The status agent, 07:52"), byline && words.shell == Shell::Browser);
             assert!(!has(&tree, "Never the headline."));
         }
     }
@@ -214,6 +240,7 @@ fn briefs_join_four_sentences_with_strong_project_names() {
 fn projects_for_briefs(projects: &[Project]) -> Vec<Project> {
     projects
         .iter()
+        .rev()
         .map(|p| Project {
             project: p.project,
             name: p.name.clone(),

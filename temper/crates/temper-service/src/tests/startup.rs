@@ -437,13 +437,11 @@ fn the_standalone_example_reads_into_its_members() {
 #[test]
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
-    let labels: Box<[u32]> = jig.templates.iter().map(|template| template.label).collect();
-    assert_eq!(*labels, [1, 2, 2, 1, 1], "chat, goal, draft goal, asking and design templates, in order");
     assert_eq!(jig.templates[0].number, 1);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
     assert_eq!(jig.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Result);
-    assert_eq!(jig.templates[3].number, 5);
-    assert_eq!(jig.templates[3].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
+    let ask = jig.templates.iter().find(|template| template.number == 5).expect("Ask temper");
+    assert_eq!(ask.flags.ended_by, jig_domain_tasks::EndedBy::Requester);
 }
 #[test]
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {
@@ -1331,6 +1329,46 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     );
 }
 
+#[test]
+fn landing_check_timeout_is_optional_and_reads_milliseconds() {
+    for by in ["queue", "turn"] {
+        for (setting, expected) in [
+            ("", None),
+            (r#""check_timeout_ms":900000,"#, Some(skein_lib::Duration::from_secs(900))),
+            (r#""check_timeout_ms":1000,"#, Some(skein_lib::Duration::from_secs(1))),
+            (r#""check_timeout_ms":86400000,"#, Some(skein_lib::Duration::from_secs(86_400))),
+        ] {
+            let projects = tier_projects("[]", &format!(r#""by":"{by}",{setting}"#));
+            assert_landing_projects_start(&projects);
+            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+            let (members, problems) = application(&input, &fixtures::engine().jig);
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().check_timeout, expected);
+        }
+    }
+}
+
+#[test]
+fn landing_check_timeout_refuses_out_of_range_at_its_member() {
+    for milliseconds in [999_u64, 86_400_001] {
+        let projects = tier_projects("[]", &format!(r#""check_timeout_ms":{milliseconds},"#));
+        let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
+        let Err(problems) = fixtures::start(
+            &document,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        ) else {
+            panic!("out-of-range delivery bound started")
+        };
+        assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].check_timeout_ms: past its bound\n");
+    }
+}
+
 const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0,"description":"the slow suites"}"#;
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
@@ -1684,7 +1722,7 @@ fn demo_refuses_forge_and_project_members() {
 
 #[test]
 fn startup_requires_room_for_the_core_and_two_charter_documents() {
-    for sections in [8_u32, 9] {
+    for sections in [9_u32, 10] {
         let input = fixtures::document();
         let overrides = fixtures::value(&input, b"application.limits.overrides");
         let overrides = core::str::from_utf8(&overrides).unwrap().trim_end().strip_suffix('}').unwrap();
@@ -1700,11 +1738,11 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
         );
-        if sections == 8 {
-            let Err(problems) = started else { panic!("eight sections cannot hold the core and two documents") };
+        if sections == 9 {
+            let Err(problems) = started else { panic!("nine sections cannot hold the core and two documents") };
             assert_eq!(lines(&problems).as_ref(), b"application.limits.overrides.root.brief.sections: must agree with engine.limits.overrides.tasks.charter_documents and the core sections\n");
         } else {
-            started.expect("nine sections hold the core and two documents");
+            started.expect("ten sections hold the core and two documents");
         }
     }
 }

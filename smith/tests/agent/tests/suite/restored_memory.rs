@@ -131,6 +131,7 @@ fn workspace() -> run::Workspace {
 
 fn charter(restoring: bool) -> run::Charter {
     run::Charter {
+        check_timeout: None,
         mode: run::Mode::Finite,
         reserve: run::charter::Reserve { turns: 0, time: skein_lib::Duration::ZERO },
         instructions: Box::new([]),
@@ -1312,6 +1313,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
 /// Copy caller-owned maximum context into an independent observed Start.
 fn maximum_caller_start(caller: &run::Charter) -> run::Charter {
     run::Charter {
+        check_timeout: None,
         instructions: caller.instructions.clone(),
         brief: run::Brief {
             sections: caller

@@ -22,6 +22,7 @@ skein-fail-stop.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
+temper-shell.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

@@ -66,6 +66,7 @@ versioned record Charter {
     waiting: duration
     resume: bool
     mode: Mode
+    check_timeout: option duration
 }
 
 # Result ownership is checked against Limits.outcome_bytes before judgement.

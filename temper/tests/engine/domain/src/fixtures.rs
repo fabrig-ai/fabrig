@@ -5,6 +5,24 @@ use skein_lib::Token;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
+/// The fake routing connects an accessible forge as its configured writer
+/// after each start (temper/docs/design/domain/forge/adoption.md, 1).
+pub(crate) fn connection(config: &engine::Config, number: u16) -> Option<engine::Event> {
+    let configured = config.forges.iter().find(|configured| configured.number == number)?;
+    if !matches!(configured.mode, forge::Mode::Connected | forge::Mode::Fake) {
+        return None;
+    }
+    for writer in &config.forge.writers {
+        if writer.forge == number {
+            return Some(engine::Event::Forge(Box::new(forge::Event::Connection {
+                forge: number,
+                state: forge::Connection::Connected { id: writer.author, login: b"bot".as_slice().into() },
+            })));
+        }
+    }
+    None
+}
+
 #[must_use]
 pub fn forge_limits() -> engine::Limits {
     let mut limits = crate::walking::limits();

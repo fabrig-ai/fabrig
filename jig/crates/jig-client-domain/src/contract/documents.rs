@@ -611,6 +611,8 @@ impl DecodedActivityLine {
             | super::Activity::RunBegan { .. }
             | super::Activity::RunEnded { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -631,6 +633,8 @@ impl DecodedActivityLine {
             | super::Activity::RunEnded { .. }
             | super::Activity::Turn { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -646,6 +650,8 @@ impl DecodedActivityLine {
             | super::Activity::RunBegan { .. }
             | super::Activity::RunEnded { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -720,8 +726,10 @@ fn activity_weight(activity: &super::Activity) -> u64 {
         super::Activity::Heard(word) | super::Activity::Notified { word, .. } => {
             u64::from(LINE_ROOM).saturating_add(byte_weight(word.words.bytes())).saturating_add(kind_weight(&word.kind))
         }
+        super::Activity::Stood { words, .. } => byte_weight(words.bytes()),
         super::Activity::Kept { pending, .. } => u64::from(pending.len()).saturating_mul(u64::from(LINE_ROOM)),
-        super::Activity::RunBegan { .. }
+        super::Activity::SessionEnded { .. }
+        | super::Activity::RunBegan { .. }
         | super::Activity::RunEnded { .. }
         | super::Activity::Turn { .. }
         | super::Activity::Decided { .. }

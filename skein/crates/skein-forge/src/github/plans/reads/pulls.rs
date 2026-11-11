@@ -65,7 +65,7 @@ impl Plan {
         let owner = row.owner.clone();
         let name = row.name.clone();
         let request = match &self.read {
-            Read::Pull { number } => {
+            Read::Pull { number, .. } => {
                 self.stage = Stage::Read;
                 self.pulls.number = Some(*number);
                 Request::Pull { owner, name, number: *number }
@@ -226,6 +226,10 @@ impl Plan {
         }
         let commit = pull.commit;
         self.pulls.pull = Some(pull);
+        if let Read::Pull { ci: true, .. } = self.read {
+        } else {
+            return self.pull_finish(bounds);
+        }
         self.stage = Stage::Combined;
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
         Ok(Some(self.send(Request::CombinedStatus {
@@ -296,6 +300,9 @@ impl Plan {
             self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
             return self.runs_request();
         }
+        self.pull_finish(bounds)
+    }
+    fn pull_finish(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         if self.pulls.graphql {
             self.stage = Stage::PullGraphql;
             let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;

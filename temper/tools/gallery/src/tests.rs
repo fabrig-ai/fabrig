@@ -20,6 +20,20 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn sheet_entry_links_reach_the_adoption_address() {
+    for (name, link) in [("home-add-repository", "Adopt another…"), ("chats-no-repository", "Adopt a repository")] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("sheet entry sample");
+        let mut view = view(&sample);
+        let node = find(view.tree(), Role::Link, link, name);
+        assert_eq!(
+            temper_client_view::href(&mut view, node).as_deref(),
+            Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project: 1 }).as_ref()),
+            "{name}: sheet destination"
+        );
+    }
+}
+
+#[test]
 fn a_later_settings_card_replaces_a_withdrawn_one_without_call_objects() {
     let sample = samples::samples().into_iter().find(|sample| sample.name == "ask-chat-replaced").unwrap();
     let view = view(&sample);
@@ -127,6 +141,7 @@ enum Part {
     StyleCount { style: skein_ui::Style, count: usize },
     HomeCards { primary: &'static [&'static str], projects: &'static [&'static str] },
     Destination { name: &'static str, href: &'static str },
+    Current { name: &'static str },
     FirstButton { disclosure: &'static str, name: &'static str },
     CardChanges { title: &'static str, changes: &'static [&'static str] },
     Cards { section: &'static str, from: &'static [&'static str] },
@@ -141,6 +156,7 @@ enum Part {
     After { first: skein_ui::Style, then: skein_ui::Style },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
+    Selected { name: &'static str },
     NotPressed { name: &'static str },
     Pressed { name: &'static str },
     Text { text: &'static str },
@@ -359,11 +375,12 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Named { role: Role::Paragraph, name: "Two of you." },
             Part::Named { role: Role::Text, name: "You" },
-            Part::Named { role: Role::Paragraph, name: "Owner of shop" },
-            Part::Named { role: Role::Paragraph, name: "3 things wait on you." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Named { role: Role::Text, name: "owners of shop" },
+            Part::Named { role: Role::Paragraph, name: "Three things wait on you." },
             Part::Named { role: Role::Text, name: "Sam" },
-            Part::Named { role: Role::Paragraph, name: "Member" },
-            Part::Named { role: Role::Paragraph, name: "1 question waits on Sam." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Named { role: Role::Paragraph, name: "One question waits on Sam." },
             Part::Absent { role: Role::Text, name: "Service" },
         ],
     },
@@ -373,6 +390,8 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Absent { role: Role::Link, name: "Team" },
             Part::Named { role: Role::Paragraph, name: "Just you." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Absent { role: Role::Text, name: "owners of shop" },
             Part::Named { role: Role::Text, name: "You" },
             Part::Named { role: Role::Paragraph, name: "Nothing waits on you." },
             Part::Absent { role: Role::Text, name: "Sam" },
@@ -399,18 +418,24 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-across",
-        heading: "Nothing needs you.",
+        heading: "Two things need you.",
         parts: &[
             Part::Pressed { name: "All projects" },
             Part::Named { role: Role::Disclosure, name: "All projects" },
+            Part::Destination { name: "temper home", href: "/home" },
+            Part::Destination { name: "Home", href: "/home" },
+            Part::Destination { name: "Needs you 2", href: "/" },
+            Part::Destination { name: "Needs 2", href: "/" },
+            Part::Current { name: "Needs you 2" },
+            Part::Current { name: "Needs 2" },
             Part::Destination { name: "Work", href: "/projects/1/work" },
             Part::Destination { name: "How work runs", href: "/projects/1/settings" },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs 2", "Work", "Ask temper"] },
         ],
     },
     Holds {
         name: "work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
@@ -428,7 +453,7 @@ static HOLDS: [Holds; samples::N] = [
                     "draftwitness-catch-up.md · a chat with you · 07:20",
                 ],
             },
-            Part::Named { role: Role::Region, name: "Landed this week · 4" },
+            Part::Named { role: Role::Region, name: "Landed this week · 3" },
             Part::CardChanges {
                 title: "membership-handoff",
                 changes: &[
@@ -478,7 +503,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "work-drafts",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "Drafts · 2",
@@ -488,7 +513,7 @@ static HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
-            Part::Absent { role: Role::Region, name: "Landed this week · 4" },
+            Part::Absent { role: Role::Region, name: "Landed this week · 3" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
@@ -498,7 +523,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Goals { rows: &["membership-handoff", "fuzz-corpus"] },
@@ -511,7 +536,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Four in flight, two drafts, four landed this week.",
+                name: "Four in flight, two drafts, three landed this week.",
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Named { role: Role::Link, name: "Witness rejoin test" },
@@ -580,7 +605,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "night-work",
-        heading: "Four in flight, two drafts, four landed this week.",
+        heading: "Four in flight, two drafts, three landed this week.",
         parts: &[
             Part::Cards {
                 section: "In flight · 4",
@@ -711,12 +736,41 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::NoRole { role: Role::Table },
             Part::Named { role: Role::Heading { level: 2 }, name: "Roles" },
-            Part::Named { role: Role::Disclosure, name: "Chat" },
-            Part::Named { role: Role::Disclosure, name: "Ask temper" },
-            Part::Named { role: Role::Disclosure, name: "Coordinator" },
-            Part::Named { role: Role::Disclosure, name: "Coding agent" },
-            Part::Named { role: Role::Disclosure, name: "Foreman" },
-            Part::Named { role: Role::Disclosure, name: "Status agent" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Chat",
+                description: "For each chat: talks with you and asks for the changes",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Ask temper",
+                description: "When you ask: explains how work runs here, and proposes changes to it",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Drafter",
+                description: "When you start a draft: writes it with you, in the terminal",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Coordinator",
+                description: "For each goal: designs it, cuts it into changes and lands it",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Coding agent",
+                description: "For each change: makes it, repairs it and resolves its conflicts",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Foreman",
+                description: "When a coding agent asks: answers from the goal’s design, or passes it up",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Status agent",
+                description: "When you look at Home after landings: writes the lines at its top",
+            },
             Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
             Part::StyledText {
                 style: temper_client_view::look::HOW_ROW,
@@ -864,7 +918,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Pressed { name: "Night mode" },
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
@@ -876,7 +930,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-ask",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -1305,9 +1359,21 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-decided",
         heading: "The repository has no license. Name one in the README?",
         parts: &[
-            Part::Named { role: Role::Region, name: "Decided for you" },
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Text, name: "for 24 hours, then in each task's history" },
+            Part::Absent { role: Role::Button, name: "Limits" },
             Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
             Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
+        ],
+    },
+    Holds {
+        name: "needs-decided-project",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Text, name: "welcome-stall · 01:05" },
+            Part::Absent { role: Role::Text, name: "for 24 hours, then in each task's history" },
         ],
     },
     Holds {
@@ -1346,6 +1412,15 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-away-quiet",
+        heading: "57 changes landed. One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "While you were away · Mon 23:10 to now" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Still needs you · 1" },
+            Part::NoStyle { style: temper_client_view::look::DECIDED },
+        ],
+    },
+    Holds {
         name: "home-away-overturned",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -1364,7 +1439,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-off",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away: off" },
             Part::Text { text: "Away is off: questions wait for you again." },
@@ -1372,7 +1447,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-on",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away until 08:00" },
             Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },
@@ -1904,11 +1979,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide implementation choices" },
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
             Part::Text { text: "Let agents decide implementation choices, then tell you." },
             Part::Named { role: Role::Button, name: "Apply" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Propose" },
         ],
     },
@@ -1916,13 +1991,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking-set",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide some changes to protocol core" },
             Part::Reader { role: jig_client::contract::HeldRole::Member },
             Part::Text { text: "Let agents decide changes to protocol core that are:" },
             Part::Named { role: Role::TextField, name: "Which changes" },
             Part::Text { text: "Let agents decide changes to src/wire/**, apart from the rest of protocol core." },
             Part::Named { role: Role::Button, name: "Propose" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Apply" },
         ],
     },
@@ -1930,10 +2005,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-why",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
+            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Text {
                 text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
             },
-            Part::Named { role: Role::Button, name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Stop asking: let agents decide implementation choices" },
         ],
     },
     Holds {
@@ -2027,7 +2103,11 @@ static HOLDS: [Holds; samples::N] = [
                     "fabrig landed 15, proof-6 whole among them.",
                 ],
             },
-            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:52" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
+            Part::Named { role: Role::Heading { level: 1 }, name: "31 changes landed. Two things need you." },
             Part::Text { text: "The status agent, 07:52" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
             Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &["vsr", "vsr-rs"] },
@@ -2074,6 +2154,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-one-project",
         heading: "12 changes landed in vsr. One thing needs you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::HomeCards { primary: &["Only once caught up"], projects: &["vsr"] },
             Part::Absent { role: Role::Region, name: "Projects" },
             Part::StyleCount { style: temper_client_view::look::DECISION, count: 1 },
@@ -2084,6 +2168,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-away",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Named { role: Role::Button, name: "Away on 2 of 4" },
             Part::NotPressed { name: "Away on 2 of 4" },
         ],
@@ -2092,6 +2180,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-away-on",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Pressed { name: "Away until 08:00" },
             Part::Text { text: "Away turned on for 2 projects: agents decide within their limits." },
         ],
@@ -2100,6 +2192,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-all-home",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Pressed { name: "Night mode" },
             Part::Text { text: "vsr · Prover · 02:10" },
             Part::Named { role: Role::Button, name: "Overturn" },
@@ -2232,9 +2328,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-begin-both-left",
         heading: "Hello is ready.",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named {
                 role: Role::Paragraph,
-                name: "Two steps left. Skip them if you like; they stay in Settings and Ask temper.",
+                name: "Two steps left. Skip them if you like; they stay in How work runs and Ask temper.",
             },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
@@ -2246,7 +2346,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
@@ -2495,7 +2595,14 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-begin-settings-left",
         heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Settings." },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "One step left. Skip it if you like; it stays in How work runs.",
+            },
             Part::Absent { role: Role::Button, name: "Start" },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Absent { role: Role::Link, name: "New chat" },
@@ -2652,7 +2759,12 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Setting up: preparing" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph, name: "Forgejo on this machine · work/hello · Setting up: preparing"
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -2661,7 +2773,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Setting up: fetching Forgejo · 42%",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "42%" },
             Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 42%" },
@@ -2672,7 +2790,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Setting up: fetching Forgejo · 41 MB",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "41 MB" },
             Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 41 MB" },
@@ -2683,7 +2807,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::NoRole { role: Role::Progress },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -2692,7 +2822,13 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::NoRole { role: Role::Progress },
-            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Complementary, name: "Forge and model" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · work/hello · Set up failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
+            },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -3212,7 +3348,8 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3385,7 +3522,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-typing",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3401,7 +3538,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-sending",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3417,7 +3554,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-refused",
         heading: "Ask temper",
         parts: &[
-            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
@@ -3896,6 +4033,26 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Value { role: Role::TextField, name: "Organization", value: "work" },
             Part::Named { role: Role::Button, name: "Make it" },
+        ],
+    },
+    Holds {
+        name: "sheet-from-home",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add repositories to Hello" },
+            Part::Selected { name: "Adopt" },
+            Part::Named { role: Role::Choice, name: "Make empty" },
+            Part::Named { role: Role::Choice, name: "Copy public" },
+        ],
+    },
+    Holds {
+        name: "sheet-from-chats",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add repositories to Hello" },
+            Part::Value { role: Role::TextField, name: "Owner", value: "" },
+            Part::Value { role: Role::TextField, name: "Name", value: "" },
+            Part::Named { role: Role::Button, name: "Adopt" },
         ],
     },
     Holds {
@@ -4573,6 +4730,14 @@ fn each_state_holds_what_its_name_says() {
                         );
                     }
                 }
+                Part::Current { name } => {
+                    let id = find(tree, Role::Link, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("current link").states.as_slice().contains(&skein_ui::State::Current),
+                        "{}: {name} current",
+                        sample.name
+                    );
+                }
                 Part::Destination { name, href } => {
                     let Found::Node(node) = main.find(&Find::exactly_named(Role::Link, name.as_bytes())) else {
                         panic!("{}: missing link {name}", sample.name)
@@ -4755,6 +4920,14 @@ fn each_state_holds_what_its_name_says() {
                     "{}: absent style",
                     sample.name
                 ),
+                Part::Selected { name } => {
+                    let id = find(tree, Role::Choice, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("source choice").states.as_slice().contains(&skein_ui::State::Selected),
+                        "{}: {name} selected",
+                        sample.name
+                    );
+                }
                 Part::NotPressed { name } => {
                     let id = find(tree, Role::Button, name, sample.name);
                     assert!(

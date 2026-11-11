@@ -13,7 +13,7 @@ fn temper_bundle_is_embed_unset_or_embed_none_for_none_and_fails_otherwise() {
     for value in ["", "None", "dir", "/tmp/bundle"] {
         assert_eq!(
             steps::choice(Some(OsStr::new(value))),
-            Err(format!("temper-client-bundle: TEMPER_BUNDLE must be embed or none, not {value}")),
+            Err(format!("temper-client-bundle: TEMPER_INTERNAL_BUNDLE must be embed or none, not {value}")),
             "{value:?}"
         );
     }
@@ -84,7 +84,7 @@ fn absent_wasm_target_explains_both_ways_out() {
         assert_eq!(
             steps::wasm_target(success, output.as_bytes()),
             Err(
-                "temper-client-bundle: the browser's bundle needs the wasm32-unknown-unknown target: add it (rustup target add wasm32-unknown-unknown), or build without the browser (TEMPER_BUNDLE=none)"
+                "temper-client-bundle: the browser's bundle needs the wasm32-unknown-unknown target: add it (rustup target add wasm32-unknown-unknown), or build without the browser (TEMPER_INTERNAL_BUNDLE=none)"
             )
         );
     }

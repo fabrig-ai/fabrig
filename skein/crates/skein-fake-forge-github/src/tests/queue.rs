@@ -294,7 +294,7 @@ fn lost_enqueue_answer_recovery_and_a_repeated_merge_keep_one_admission() {
         Err(skein_forge::api::Error::Timeout)
     );
     let skein_forge::api::Answer::Pull(pull) =
-        r::read(&mut h, &token, skein_forge::api::Read::Pull { number }).unwrap()
+        r::read(&mut h, &token, skein_forge::api::Read::Pull { number, ci: false }).unwrap()
     else {
         panic!("recovery pull")
     };
@@ -402,7 +402,7 @@ fn merge_plan_queues_then_pull_plan_reads_the_landed_graphql_commit() {
     assert!(rest.merged);
     assert_eq!(rest.merge_commit, None);
     let skein_forge::api::Answer::Pull(pull) =
-        r::read(&mut h, &token, skein_forge::api::Read::Pull { number }).unwrap()
+        r::read(&mut h, &token, skein_forge::api::Read::Pull { number, ci: false }).unwrap()
     else {
         panic!("plan pull")
     };
@@ -428,7 +428,7 @@ fn failed_group_leaves_pull_plan_open_with_ci_failure() {
     );
     advance_queue(&mut h);
     let skein_forge::api::Answer::Pull(pull) =
-        r::read(&mut h, &token, skein_forge::api::Read::Pull { number }).unwrap()
+        r::read(&mut h, &token, skein_forge::api::Read::Pull { number, ci: false }).unwrap()
     else {
         panic!("plan pull")
     };
@@ -554,7 +554,7 @@ fn group_commit_merges_after_workflow_ci_success() {
     assert_ne!(commit, head);
     advance_queue(&mut h);
     let skein_forge::api::Answer::Pull(pull) =
-        r::read(&mut h, &token, skein_forge::api::Read::Pull { number }).unwrap()
+        r::read(&mut h, &token, skein_forge::api::Read::Pull { number, ci: false }).unwrap()
     else {
         panic!("merged pull")
     };

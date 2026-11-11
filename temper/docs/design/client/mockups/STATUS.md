@@ -24,8 +24,12 @@ The hand-made request’s 01–23 are not committed mockups or journeys;
 checks, with no new visual audit: the retained browser stories share
 setups within twelve tests, and no passing result for their repaired
 versions is supplied here. temper/ui’s comparison follows landing
-(`../../draft/look-requests.md`, 4). Home’s own sheet and the two unmocked
-entry paths remain in `../../draft/repository-copies.status.md`, 9.
+(`../web/look-requests.md`, 4). Home keeps its own empty-or-copy sheet,
+as the user asked (`../forge/family.md`, 3; the draft status's departure,
+`../../draft/repository-copies.status.md`). The two entry paths into
+“Add repositories” that the request left undrawn, To begin's repository
+step and a project with no repository's Chats band, are the gallery's
+`sheet-from-home` and `sheet-from-chats` (`../web/gallery.md`, 2).
 
 ## 1. Under the rules
 
@@ -225,7 +229,7 @@ Not drawn: two ideas that would change temper's engine, not only its pages. A ch
 
 ### 2.3 The first run
 
-`world-first-run.js` is the deployment `temper init --box` writes (`../../protocol/setup/init.md`, 2 and 3): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
+`world-first-run.js` is the deployment `temper-box init --box` writes (`../../protocol/setup/init.md`, 2 and 3): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
 
 - **0. The link opened:** the welcome offers Try the playground or Set up temper (section 1.1). Chats behind it has the setup strip, no model and a disabled send button.
 - **1. The demo chosen:** the engine asks temper box for the demo’s fakes, makes the project Playground, adds the Scripted model’s account and adopts playground/widget into it. The chats page is the demo's start (client README, 5.6): the banner under the navigation, as on every page; a chatbar with no task and no number; the context line; the three suggested requests.

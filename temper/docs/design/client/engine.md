@@ -6,7 +6,7 @@ does for the client:
 - **The clients' listener** is `temper-service`'s: TCP on the loopback
   address temper's configuration names
   (`../protocol/configuration/engine.md`), at a fixed port, never 0,
-  which `temper init` chooses, since a GitHub App's redirect and setup
+  which `temper-box init` chooses, since a GitHub App's redirect and setup
   addresses name it (`../protocol/configuration/README.md`, the clients'
   listener; `../protocol/setup/box.md`, 1). On
   it, it mounts jig's clients' component (`jig-protocol-engine-clients`)
@@ -45,8 +45,8 @@ does for the client:
   (jig's `protocol/browser/README.md`, section 11). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
   (`web/README.md`, 2.4); with none, the page for no bundle, which says
-  so and names `temper open` (`web/README.md`, 2.2), with
-  `Referrer-Policy: no-referrer`, and the link is `temper open`'s alone
+  so and names `temper-box open` (`web/README.md`, 2.2), with
+  `Referrer-Policy: no-referrer`, and the link is `temper-box open`'s alone
   (`line.md`, 1).
 - **jig's example guards, as they are** (jig's `protocol/browser/README.md`,
   12.2), the Host allow-list holding the listener's own address. The

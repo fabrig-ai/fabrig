@@ -251,12 +251,12 @@ impl Runs {
 
 /// Resolve the three independently owned scratch roots.
 #[must_use]
-pub fn directories_in(roots: [&Path; 3]) -> temper::directories::Directories {
+pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Directories {
     use std::os::unix::ffi::OsStrExt;
     let options = ["--config", "--data", "--cache"].into_iter().zip(roots);
     let args: Vec<Box<[u8]>> = options
         .into_iter()
         .flat_map(|(option, path)| [option.as_bytes().into(), path.as_os_str().as_bytes().into()])
         .collect();
-    temper::directories::resolve(&args, &[], b"/").expect("fixture directories").0
+    temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
 }

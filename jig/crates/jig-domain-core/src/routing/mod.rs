@@ -288,9 +288,11 @@ pub(crate) enum NoteRoute {
     Person { request: Token },
     Brief { task: u64 },
     Preferences { task: u64 },
+    Now { task: u64 },
 }
 
-/// One brief's wait within the existing `limits.brief.briefs` table.
+/// One task's wait within the live-tasks bound (`limits.tasks.tasks`)
+/// (`jig/docs/design/domain/engine/briefs.md`, 2.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum NoteBrief {
     Operation,
@@ -336,6 +338,11 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
     let mut out = Queue::uncapped();
     work.push(Work::Event(event));
     for _ in 0..env.limits.routes {
+        // A resumed preparation may be stale or need no notes operation.
+        // Drain its continuations before waking the next waiter while notes is idle.
+        if work.is_empty() && !core.stopping {
+            effect::note::resume_brief(core, &mut work);
+        }
         let Some(next) = work.pop() else { break };
         let mut batch = step_work(core, env, next, &mut work);
         for _ in 0..batch.len() {

@@ -38,7 +38,7 @@ you can change them as any setting (temper help settings).
 
 ## How it changes
 
-- **Made:** `temper init` makes none. `project make NAME --key KEY` makes
+- **Made:** `temper-box init` makes none. `project make NAME --key KEY` makes
   one from policy 1 and prints its number. Setting up the box's Forgejo,
   or connecting a Forgejo with a first repository, makes a new
   project, named after the repository, unless you name one that

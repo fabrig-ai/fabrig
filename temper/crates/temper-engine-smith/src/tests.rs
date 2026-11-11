@@ -26,6 +26,7 @@ fn decided(tool: &[u8], json: &[u8]) -> Result<engine::Call, Problem> {
 
 fn assignment() -> engine::Assignment {
     engine::Assignment {
+        check_timeout: None,
         task: 23,
         attempt: 7,
         conversation: 7,
@@ -54,6 +55,7 @@ fn assignment() -> engine::Assignment {
                     dialect: 1,
                     endpoint: 1,
                     name: b"scripted".as_slice().into(),
+                    cache_life_ms: 0,
                     window: 8192,
                     output: 1024,
                     input_price: 1,
@@ -400,6 +402,18 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
     assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
     assert!(charter.outcome.change.is_none());
     assert!(charter.outcome.report.is_some());
+}
+
+#[test]
+fn an_assignments_check_bound_reaches_the_smith_charter() {
+    for bound in [Some(Duration::from_secs(900)), None] {
+        let mut assignment = delivering_assignment();
+        assignment.check_timeout = bound;
+        assert_eq!(crate::charter(&assignment).check_timeout, bound);
+        // A resumed attempt uses the same application assignment field.
+        assignment.transcript = Box::new([b"history".as_slice().into()]);
+        assert_eq!(crate::charter(&assignment).check_timeout, bound);
+    }
 }
 
 #[test]
@@ -2491,11 +2505,33 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
             }
         }
     );
+    for skip in [0, 5, u32::MAX] {
+        for (tool, members, read) in [
+            (b"read_reviews".as_slice(), "\"number\":1", skein_forge::api::Read::Reviews { number: 1, page: 3, skip }),
+            (
+                b"read_remarks",
+                "\"number\":1,\"review\":2",
+                skein_forge::api::Read::Remarks { number: 1, review: 2, page: 3, skip },
+            ),
+            (
+                b"read_pull_files",
+                "\"number\":1,\"head\":\"0000000000000000000000000000000000000000000000000000000000000000\"",
+                skein_forge::api::Read::PullFiles { number: 1, head: [0; 32], page: 3, skip, sides: true },
+            ),
+        ] {
+            let input = format!("{{{members},\"page\":3,\"skip\":{skip}}}");
+            assert_eq!(
+                decided(tool, input.as_bytes()).unwrap().tool,
+                engine::Tool::ReadNamed { repository: None, read }
+            );
+        }
+    }
     for (tool, input, problem) in [
         (b"read_branch".as_slice(), b"{}".as_slice(), Problem::Missing(b"branch")),
         (b"read_branch", br#"{"branch":1}"#, Problem::Type(b"branch")),
         (b"read_reviews", br#"{"number":1,"page":4294967296}"#, Problem::Range(b"page")),
         (b"read_reviews", br#"{"number":1,"page":0}"#, Problem::Range(b"page")),
+        (b"read_reviews", br#"{"number":1,"skip":4294967296}"#, Problem::Range(b"skip")),
         (b"read_checks", br#"{"commit":"bad"}"#, Problem::Range(b"full commit identifier")),
     ] {
         assert_eq!(decided(tool, input), Err(problem));
@@ -2522,12 +2558,12 @@ fn every_forge_read_declares_its_flat_members_as_json() {
         (b"read_item", &[b"number", b"after"]),
         (b"read_pull", &[b"number"]),
         (b"read_pull_for", &[b"head", b"base"]),
-        (b"read_reviews", &[b"number", b"page"]),
+        (b"read_reviews", &[b"number", b"page", b"skip"]),
         (b"read_statuses", &[b"commit", b"page"]),
-        (b"read_remarks", &[b"number", b"review", b"page"]),
+        (b"read_remarks", &[b"number", b"review", b"page", b"skip"]),
         (b"read_branch", &[b"branch"]),
         (b"read_branches", &[b"prefix"]),
-        (b"read_pull_files", &[b"number", b"head", b"page"]),
+        (b"read_pull_files", &[b"number", b"head", b"page", b"skip"]),
         (b"read_compare", &[b"before", b"after"]),
         (b"read_checks", &[b"commit"]),
         (b"read_file", &[b"head", b"path", b"max_bytes"]),
@@ -2563,7 +2599,10 @@ fn every_forge_read_declares_its_flat_members_as_json() {
         );
         let description =
             properties.required(b"repository").unwrap().required(b"description").unwrap().text(b"description").unwrap();
-        assert!(skein_lib::bytes::find(&description, b"leave it out, or empty").is_some());
+        assert!(
+            skein_lib::bytes::find(&description, b"leave it out, or empty").is_some()
+                || skein_lib::bytes::find(&description, b"omit or empty").is_some()
+        );
         for name in *names {
             let property = properties.required(name).unwrap();
             assert!(!property.required(b"description").unwrap().text(b"description").unwrap().is_empty());
@@ -3126,6 +3165,64 @@ fn item_listings_report_the_answer_byte_cut() {
         assert_eq!(skein_lib::bytes::find(rendered.text(), b"Page cut at forge.client.answer_bytes.").is_some(), cut);
         assert!(skein_lib::bytes::find(rendered.text(), b"More pages available.").is_some());
     }
+    for cut in [false, true] {
+        for (tool, value) in [
+            (
+                b"read_reviews".as_slice(),
+                api::Answer::Reviews {
+                    reviews: Box::new([api::Review {
+                        id: 1,
+                        author: 2,
+                        verdict: api::Verdict::Comment,
+                        commit: [0; 32],
+                        body: Box::new([]),
+                        key: None,
+                        at: skein_lib::Time::ZERO,
+                        official: false,
+                        provenance: api::Provenance::Original,
+                        revision: 0,
+                    }]),
+                    more: true,
+                    cut,
+                },
+            ),
+            (
+                b"read_remarks",
+                api::Answer::Remarks {
+                    remarks: Box::new([api::Remark {
+                        id: 1,
+                        author: 2,
+                        path: b"x".as_slice().into(),
+                        line: 1,
+                        body: Box::new([]),
+                    }]),
+                    more: true,
+                    cut,
+                },
+            ),
+            (
+                b"read_pull_files",
+                api::Answer::PullFiles {
+                    head: [0; 32],
+                    files: Box::new([api::File { path: b"x".as_slice().into(), before: None, after: None }]),
+                    more: true,
+                    cut,
+                },
+            ),
+        ] {
+            let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+            for (page, skip) in [(1, 0), (3, 5)] {
+                let rendered = crate::answer_for_page(&recorded, tool, 2048, crate::ForgeReadBounds::STOCK, page, skip);
+                assert!(!rendered.error());
+                let ending: Box<[u8]> = if cut {
+                    format!("Page cut: read on with page {page}, skip {}.\n", skip + 1).into_bytes().into()
+                } else {
+                    b"More pages available.\n".as_slice().into()
+                };
+                assert!(rendered.text().ends_with(&ending), "{:?}", rendered.text());
+            }
+        }
+    }
 }
 
 #[test]
@@ -3236,6 +3333,7 @@ fn many_pull_paths_fit_the_text_fragments() {
         head: [0x11; 32],
         files: files.into_boxed(),
         more: false,
+        cut: false,
     })));
     for (cap, omitted) in [(4096, true), (10_240, false)] {
         let feedback = crate::answer_bounded(&recorded, cap);
@@ -3271,6 +3369,7 @@ fn oversized_file_and_pull_feedback() {
             api::File { path: b"close-out.md".as_slice().into(), before: None, after: Some(vec![b'c'; 6000].into()) },
         ]),
         more: true,
+        cut: false,
     };
     for (tool, value, size) in [(b"read_file".as_slice(), file, 12_962), (b"read_pull_files", files, 18_076)] {
         oversized_file_feedback(tool, value, size);
@@ -3333,6 +3432,7 @@ fn fitting_file_and_pull_feedback() {
             after: Some(b"closed".as_slice().into()),
         }]),
         more: false,
+        cut: false,
     };
     for value in [small, pull] {
         let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
@@ -3366,6 +3466,7 @@ fn file_and_pull_rendering_boundaries() {
                     after: None,
                 }]),
                 more: true,
+                cut: false,
             },
             api::Answer::Directory {
                 head: [1; 32],
@@ -3414,6 +3515,7 @@ fn pull_inventory_limits() {
             head: [0x11; 32],
             files: files.clone(),
             more,
+            cut: false,
         })));
         let feedback = crate::answer_bounded(&recorded, 1024);
         let words = feedback.text();

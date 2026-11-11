@@ -107,7 +107,7 @@ and the root ready (`preparation::a_window_with_a_large_turn_starts_fresh_from_t
 Section 11 has no known gap in a duplicate person's identity: a store
 holding one refuses the start as jig's `Failure::Link`, the second
 person's row naming the first's, and the engine stops with that reason,
-`temper serve: restart refused during PHASE: RECORD links missing
+`temper-box serve: restart refused during PHASE: RECORD links missing
 LINKED`, as for every link jig's start cannot make
 (`tests/engine/domain`'s `a_duplicate_person_identity_refuses_naming_both_rows`;
 `temper-service-shell/src/host.rs`, `start_failure`).
@@ -122,7 +122,7 @@ LINKED`, as for every link jig's start cannot make
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 8.1: the
-  rehearsing root, `temper upgrade --check`.
+  rehearsing root, `temper-box upgrade --check`.
 - **Not yet:** 8.1: the forge's link of its restored records panics at
   the first it cannot make, `forge link KIND -> NEED for KEY`, where
   step 3 refuses the start naming the record and what it links to, as

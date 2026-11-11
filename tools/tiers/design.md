@@ -68,9 +68,8 @@ and invalid records are refused before any command, including in verification.
 An optional `env` names a test environment variable (uppercase ASCII with
 `_TEST_` in its name). After building the binary, set that variable to its
 absolute `target_directory/debug/BINARY` path, replacing any inherited value.
-Variable names are unique within a pair. `process-temper` sets
-`TEMPER_TEST_CLAUDE` this way for its two program-login tests, with
-`smith-fake-claude`'s `fake-claude`, the one adapter both trees run.
+Variable names are unique within a pair. For example, an entry with
+`env = "DEMO_TEST_ADAPTER"` sets that variable to the built adapter's path.
 
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
@@ -131,7 +130,7 @@ define each fail the pair's setup: the message names the file and the field
 Every child inherits the caller's environment with `NEXTEST_DOUBLE_SPAWN=0`
 (skein/docs/foundation/testing-strategy.md, 8). The chosen bundle variable
 is set to the absolute output directory for nextest, replacing any inherited
-value. `TEMPER_BUNDLE=none` stays as the caller's environment sets it: temper's
+value. `TEMPER_INTERNAL_BUNDLE=none` stays as the caller's environment sets it: temper's
 native binary must not embed a person's browser bundle. Chromium, fonts and
 live sign-ins remain the caller's environment prerequisites; this tool
 installs nothing and performs no sign-in.
@@ -620,7 +619,10 @@ incomplete record.
 ## 8. Later
 
 Switching a caller's focused and fuzzy steps to section 11's mode is a
-separate change of that caller, tree by tree. The gate and after-landing
+separate change of that caller, tree by tree. The delivery check runs its
+focused tests so (`tools/pre-pr/design.md`, 4), and item 4 of the gate in
+`.config/gate/README.md` names the mode's commands for both suites; CI's
+own runner, outside the repository, follows them by its owner's change. The gate and after-landing
 runs then measure the suites with process CPU; the mode's introduction
 requires no CPU comparison or change to budgets, timeouts or build settings.
 Per-test CPU within a shared process remains outside this mode's contract.

@@ -550,7 +550,8 @@ worst case (skein/docs/foundation/programming-model.md, 6.3):
 - decisions in progress and their hand-offs; loads in flight and their
   rows;
 - briefs gathering, with the sizes of the connectors' sections, and the
-  notes' indexes in use;
+  notes' indexes in use; the preparations waiting for notes, at most one
+  entry per live task (`briefs.md`, 2.2);
 - watches, each its subject, a task query's keys and order among them,
   its window and two marks (`views.md`).
 

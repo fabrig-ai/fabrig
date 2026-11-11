@@ -51,11 +51,10 @@ const PULL_FOR_SPEC: Spec = Spec {
     schema: PULL_FOR_SCHEMA,
     effect: run::HostEffect::Read,
 };
-const REVIEWS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number"]}"#;
+const REVIEWS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"owner/name; omit or empty for sole project repo."},"number":{"type":"integer","description":"Pull #.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","minimum":1,"maximum":4294967295,"default":1,"description":"Page."},"skip":{"type":"integer","description":"Rows read.","minimum":0,"maximum":4294967295,"default":0}},"required":["number"]}"#;
 const REVIEWS_SPEC: Spec = Spec {
     name: b"read_reviews",
-    description:
-        b"Pull reviews within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.",
+    description: b"Pull reviews within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.",
     schema: REVIEWS_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -66,10 +65,10 @@ const STATUSES_SPEC: Spec = Spec {
     schema: STATUSES_SCHEMA,
     effect: run::HostEffect::Read,
 };
-const REMARKS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"review":{"type":"integer","description":"The review's id, as read_reviews answers it.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number","review"]}"#;
+const REMARKS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"owner/name; omit or empty for sole project repo."},"number":{"type":"integer","description":"Pull #.","minimum":1,"maximum":18446744073709551615},"review":{"type":"integer","description":"read_reviews id.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","minimum":1,"maximum":4294967295,"default":1,"description":"Page."},"skip":{"type":"integer","description":"Rows read.","minimum":0,"maximum":4294967295,"default":0}},"required":["number","review"]}"#;
 const REMARKS_SPEC: Spec = Spec {
     name: b"read_remarks",
-    description: b"Review remarks within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.",
+    description: b"Review remarks within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.",
     schema: REMARKS_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -87,10 +86,10 @@ const BRANCHES_SPEC: Spec = Spec {
     schema: BRANCHES_SCHEMA,
     effect: run::HostEffect::Read,
 };
-const PULL_FILES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"head":{"type":"string","description":"The head's commit id: 40 or 64 lowercase hexadecimal digits."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number","head"]}"#;
+const PULL_FILES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"owner/name; omit or empty for sole project repo."},"number":{"type":"integer","description":"Pull #.","minimum":1,"maximum":18446744073709551615},"head":{"type":"string","description":"Head: 40/64 lowercase hex."},"page":{"type":"integer","minimum":1,"maximum":4294967295,"default":1,"description":"Page."},"skip":{"type":"integer","description":"Rows read.","minimum":0,"maximum":4294967295,"default":0}},"required":["number","head"]}"#;
 const PULL_FILES_SPEC: Spec = Spec {
     name: b"read_pull_files",
-    description: b"Changed files within forge.client.rows/answer_bytes. Whole sides; read_file at head/base. Next page lists other files, not this page.",
+    description: b"Whole pull files within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut. read_file at head/base.",
     schema: PULL_FILES_SCHEMA,
     effect: run::HostEffect::Read,
 };

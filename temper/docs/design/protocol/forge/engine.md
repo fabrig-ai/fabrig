@@ -468,7 +468,7 @@ entrance limits and settings before it builds it, with room for
   `Need { run, need }`, `Done { run, outcome }` and `Stop { run,
   failure }`. It holds an admin's token and a GitHub App's key only
   while a plan runs. temper has no use for skein's one-shot host
-  (`skein/docs/design/forge/setup/README.md`, 4.2): `temper forge prepare` and `run` drive no
+  (`skein/docs/design/forge/setup/README.md`, 4.2): `temper-box forge prepare` and `run` drive no
   plan (../setup/reconcile.md).
 - **The plans the routing runs** (skein's `forge/setup/README.md`; ../setup/README.md):
 
@@ -587,12 +587,12 @@ routing carries it to the root, and the domain reads it
 
 ## 8. The box's link
 
-`temper serve`'s side of the box's pipe (../setup/box.md, 1): a step machine
+`temper-box serve`'s side of the box's pipe (../setup/box.md, 1): a step machine
 of the routing in `temper-service`, its lines and the root's asks in,
 its lines, the root's states and its answers out, hosted on the
 service's io.
 
-- **Under the box alone.** `temper internal serve --box` adopts the
+- **Under the box alone.** `temper-box internal serve --box` adopts the
   box's pipe, the two fds after its listeners (../setup/box.md, 1), and the
   link writes its lines on the first and holds one read on the second,
   a line at most `box.line_bytes` (../configuration/limits.md), its

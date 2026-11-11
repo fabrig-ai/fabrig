@@ -167,7 +167,7 @@ test-threads = 3
 
 # The one walk that signs in to ChatGPT on the fake box, where the callback's port is fixed.
 [[profile.process-temper.overrides]]
-filter = "package(=temper) & binary(=process) & test(=fake_backends::walk::sign_in::a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create)"
+filter = "package(=temper-box) & binary(=process) & test(=fake_backends::walk::sign_in::a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create)"
 test-group = "temper-sign-in-callback"
 
 # The after-landing tier, under --run-ignored only: the owned-forge landing pair on the

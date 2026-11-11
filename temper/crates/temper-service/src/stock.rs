@@ -182,6 +182,7 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                             endpoint: endpoint.number,
                             dialect: endpoint.dialect,
                             program: endpoint.program.clone(),
+                            cache_life_ms: if row.number == 8 { 0 } else { 300_000 },
                             window: 1_048_576,
                             output: 8192,
                             input_price: row.input,
@@ -365,6 +366,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
         reviewer(&models),
         coordinator(&models),
+        standing_role(&models),
         foreman(&models),
         status(&models),
         trial(&models),
@@ -393,6 +395,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         chat(result_bytes),
         goal(result_bytes),
         draft_goal(result_bytes),
+        role(result_bytes),
         ask(result_bytes),
         design(result_bytes),
     ]);
@@ -543,6 +546,7 @@ fn charter(
                 10 => TRIAL_TOOLS,
                 11 => ASK_TOOLS,
                 12 => DRAFTER_TOOLS,
+                13 => jig_domain_tasks::Tools(2047),
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -594,9 +598,25 @@ fn coordinator(models: &[CatalogueModel]) -> Charter {
     value
 }
 
+// temper/docs/design/domain/agent/standing.md, 2: every delegate's result concerns the role.
+const ROLE_WAKE: WakePolicy = WakePolicy { results: ResultsWake::Each, ..COORDINATOR_WAKE };
+
+fn standing_role(models: &[CatalogueModel]) -> Charter {
+    let (shared, parts) = sections(include_bytes!("stock/role.md"));
+    let mut value = charter(13, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
+    value.parts = parts;
+    value.policy.waiting = Duration::ZERO;
+    value.policy.inspect = false;
+    value.policy.modify = false;
+    value.policy.shell = false;
+    value.policy.agents = false;
+    value.wake = ROLE_WAKE;
+    value
+}
+
 #[expect(clippy::disallowed_methods, reason = "compiled stock headings and UTF-8 are held by the parts test")]
 fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
-    let text = core::str::from_utf8(text).expect("stock coordinator is UTF-8");
+    let text = core::str::from_utf8(text).expect("stock charter is UTF-8");
     let mut sections = text.strip_prefix("## ").expect("stock section heading").split("\n## ");
     let (heading, shared) = sections.next().expect("stock shared section").split_once('\n').expect("heading line");
     assert_eq!(heading, "shared", "stock shared heading");
@@ -610,7 +630,7 @@ fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
         }
         parts
             .push(CharterPart { on, instructions: bytes::copy_of(instructions.trim_matches('\n').as_bytes()) })
-            .expect("four stock coordinator parts");
+            .expect("at most four stock charter parts");
     }
     (bytes::copy_of(shared.trim_matches('\n').as_bytes()), parts.into_boxed())
 }
@@ -668,6 +688,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(9),
                 authority::Executor::Charter(11),
                 authority::Executor::Charter(12),
+                authority::Executor::Charter(13),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
@@ -725,6 +746,17 @@ fn draft_goal(result_bytes: u32) -> Template {
             ended_by: EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 }),
             ..goal(result_bytes).flags
         },
+        ..goal(result_bytes)
+    }
+}
+fn role(result_bytes: u32) -> Template {
+    Template {
+        number: 7,
+        name: bytes::copy_of(b"standing role"),
+        deadline: TemplateDeadline::None,
+        tracked: None,
+        flags: Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept },
+        label: 3,
         ..goal(result_bytes)
     }
 }
@@ -806,12 +838,17 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
                 b"writes a draft with you, one question at a time, and starts nothing",
             )),
         ),
+        (
+            9,
+            13,
+            settings::Value::CharterWords(bytes::copy_of(b"owns its work for the project's life and keeps its Now")),
+        ),
     ];
-    let mut stock = List::with_capacity(13);
+    let mut stock = List::with_capacity(14);
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, nine charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, ten charter lines and one goal template's work");
     }
     stock.into_boxed()
 }

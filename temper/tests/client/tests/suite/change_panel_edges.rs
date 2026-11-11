@@ -103,9 +103,10 @@ fn late_open_landed_change_keeps_its_final_panel() {
     let merge = *landed.merge();
     let number = value.pull().as_ref().expect("retained pull").number();
     let stand = world.front().engine.forge.as_mut().expect("fake forge");
-    let skein_forge::api::Answer::Pull(pull) =
-        stand.read(skein_forge::api::Repository { forge: 1, repository: 7 }, skein_forge::api::Read::Pull { number })
-    else {
+    let skein_forge::api::Answer::Pull(pull) = stand.read(
+        skein_forge::api::Repository { forge: 1, repository: 7 },
+        skein_forge::api::Read::Pull { number, ci: false },
+    ) else {
         panic!("landed pull on fake forge")
     };
     assert_eq!(

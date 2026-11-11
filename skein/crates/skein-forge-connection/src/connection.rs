@@ -33,6 +33,9 @@ use skein_lib::{
     stream::{Down, Read, Up},
 };
 use skein_link::{Link, Moved as LinkMoved, Start, Upload};
+mod conditional;
+use crate::kept::Store;
+use conditional::Conditional;
 pub(crate) mod forgejo;
 pub(crate) mod github;
 
@@ -100,6 +103,7 @@ enum State {
     Idle { draining: bool, until: Option<Time> },
 }
 struct Exchange {
+    conditional: Conditional,
     upload: Option<Upload>,
     receive: Receiving,
     json_body: JsonBody,
@@ -156,6 +160,8 @@ pub struct Connection {
     pub(crate) role: Use,
     pub(crate) origin: Option<u32>,
     state: State,
+    pub(crate) identity: Option<u64>,
+    reused: u32,
     pub(crate) link: Link,
     pub(crate) membership: Membership,
     // The last send remains observable in Idle and Closed after its exchange is released.
@@ -198,6 +204,8 @@ impl Connection {
         let http = http::Client::new(&limits::http(l, link.encrypted(), &shared.io));
         Self {
             forge: forge.number,
+            identity: None,
+            reused: 0,
             role: Use::Calls,
             origin,
             state: Connecting { until: Some(deadline) },
@@ -265,12 +273,20 @@ impl Connection {
             None => http::Body::None,
         }
     }
-    pub(crate) fn send(&mut self, env: &Env<Limits>, call: http::Call, upload: Option<Box<[u8]>>) {
+    pub(crate) fn send(
+        &mut self,
+        env: &Env<Limits>,
+        mut call: http::Call,
+        upload: Option<Box<[u8]>>,
+        kept: &mut Store,
+    ) {
         self.json_limits = limits::documents(&env.limits).json;
         self.written = false;
         let intake = Intake::with_capacity(env.limits.chunk.max(5));
         let json_body = JsonBody { intake, read: None, below: false, ended: false };
-        let exchange = Exchange { upload: Upload::of(upload), receive: Receiving::Empty, json_body, json_next: None };
+        let conditional = Conditional::new(self, &mut call, kept);
+        let exchange =
+            Exchange { conditional, upload: Upload::of(upload), receive: Receiving::Empty, json_body, json_next: None };
         self.state = Sending { exchange, until: self.deadline() };
         self.http_down(env, http::Request::Call(call));
         if self.exchange().upload.is_some() {
@@ -278,14 +294,19 @@ impl Connection {
             self.http_down(env, http::Request::Upload(demand));
         }
     }
-    pub fn drain_redirect(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> bool {
+    pub(crate) fn drain_redirect(
+        &mut self,
+        env: &Env<Limits>,
+        io: &mut Queue<skein_io::Request>,
+        kept: &mut Store,
+    ) -> bool {
         if !self.draining() {
             return false;
         }
         if self.deadline() <= Some(env.now) {
             self.timeout();
         }
-        self.drain(env, io);
+        self.drain(env, io, kept);
         match &mut self.state {
             Idle { draining, .. } | Closed { draining, .. } => *draining = false,
             Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => {}
@@ -335,6 +356,9 @@ impl Connection {
         env.with(limits::http(&env.limits, self.link.encrypted(), &self.shared.io))
     }
     fn http_down(&mut self, env: &Env<Limits>, request: http::Request) {
+        if self.replay_demand(&request) {
+            return;
+        }
         let h = self.http_env(env);
         http::down(&mut self.http, &h, request, &mut self.http_up, &mut self.http_down);
     }
@@ -343,7 +367,13 @@ impl Connection {
         tokenizer::down(&mut self.json, &j, request, &mut self.json_up, &mut self.json_down);
     }
     /// One child-machine movement, in the holder's bounded pump.
-    pub(crate) fn step(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>, held: bool) -> Moved {
+    pub(crate) fn step(
+        &mut self,
+        env: &Env<Limits>,
+        io: &mut Queue<skein_io::Request>,
+        held: bool,
+        kept: &mut Store,
+    ) -> Moved {
         let held = held || self.phase() == Phase::Closed;
         if !held || self.closing() {
             match self.link.pump(io) {
@@ -394,14 +424,14 @@ impl Connection {
             return Moved::Within;
         }
         if let Some(event) = self.http_up.pop() {
-            return self.http_event(env, event);
+            return self.http_event(env, event, kept);
         }
-        Moved::Nothing
+        self.pump_replay(env, kept).unwrap_or(Moved::Nothing)
     }
     /// Moves a stack whose holder has released its exchange.
-    pub(crate) fn drain(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+    pub(crate) fn drain(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>, kept: &mut Store) {
         for _ in 0_u32..64 {
-            match self.step(env, io, false) {
+            match self.step(env, io, false, kept) {
                 Moved::Nothing => break,
                 Moved::Finished { reuse, .. } => self.finish(env, reuse, false),
                 Moved::Within | Moved::Head(_) | Moved::Token(_) => {}
@@ -419,6 +449,7 @@ impl Connection {
         self.json_request(env, tokenizer::Request::Next);
     }
     pub(crate) fn discard(&mut self, env: &Env<Limits>) {
+        self.cancel_capture();
         self.exchange().receive = Receiving::Empty;
         self.http_down(env, http::Request::Discard);
     }
@@ -502,9 +533,17 @@ impl Connection {
             Up::Room => unreachable!("JSON bodies only read"),
         }
     }
-    fn http_event(&mut self, env: &Env<Limits>, event: http::Event) -> Moved {
+    fn http_event(&mut self, env: &Env<Limits>, event: http::Event, kept: &mut Store) -> Moved {
+        match &event {
+            http::Event::Body(event) => self.capture(event, kept),
+            http::Event::Response(_)
+            | http::Event::Upload(_)
+            | http::Event::Done(_)
+            | http::Event::Failed(_)
+            | http::Event::Closed => {}
+        }
         match event {
-            http::Event::Response(response) => return Moved::Head(response),
+            http::Event::Response(response) => return Moved::Head(self.conditional_head(env, response, kept)),
             http::Event::Body(event) => match &mut self.exchange().receive {
                 Receiving::Json => self.json_body_event(event),
                 Receiving::Empty => {
@@ -558,6 +597,10 @@ impl Connection {
             },
             http::Event::Upload(event) => self.upload(env, event),
             http::Event::Done(reuse) => {
+                if self.replay_done(reuse) {
+                    return Moved::Within;
+                }
+                self.end_kept(kept);
                 let raw = match core::mem::replace(&mut self.exchange().receive, Receiving::Empty) {
                     Receiving::Json => Payload::Json,
                     Receiving::Empty => Payload::Empty,
@@ -706,7 +749,8 @@ impl Connection {
         {
             return true;
         }
-        !self.http_up.is_empty()
+        self.replay_ready()
+            || !self.http_up.is_empty()
             || !self.http_down.is_empty()
             || self.link.has_work()
             || !self.json_up.is_empty()

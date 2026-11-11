@@ -31,20 +31,20 @@
   walk, so the page's steps on a host stand on these stories alone.
   the whole document: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and
-  `crates/temper/tests/live.rs` holds no other rung.
+  `bin/temper-box/tests/live.rs` holds no other rung.
   the whole document: neither GitHub proof has shown it holds on `fabrig-ai` alone:
   `scripts/proof-live-github.sh` and `proof-live-github-managed.sh live`
-  stay for the next live walk, the second with `TEMPER_MANAGED_PERSON`
+  stay for the next live walk, the second with `TEMPER_TEST_MANAGED_PERSON`
   set. That sitting's relay admits GraphQL's `VIEWER` alone
-  (`crates/temper/tests/support/relay_managed.rs`) where the story's
-  admits `PULL` on the probe too (`crates/temper/tests/support/relay.rs`),
+  (`bin/temper-box/tests/support/relay_managed.rs`) where the story's
+  admits `PULL` on the probe too (`bin/temper-box/tests/support/relay.rs`),
   and an open pull on an organization's repository reads through `PULL`
   (`skein/crates/skein-forge/src/github/plans/reads/pulls.rs`); whether
   a live sitting's engine reads the pull it opens is unknown.
   the whole document: a live
   story ending at its task's first terminal failure. the whole document: the live GitHub
   story connects the probe App without `--read-only`, so its record's
-  `read_only` is false (`crates/temper/tests/support/live_github.rs`).
+  `read_only` is false (`bin/temper-box/tests/support/live_github.rs`).
   the whole document: the owned-forge
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store. The focused settings proof above
@@ -53,13 +53,13 @@
   remains after-landing work (11): the plan compiles the live story
   without running it, and no worker holds its login.
   the whole document: the held record's guard is shown on the fake issuer and on stubs
-  alone (`crates/temper/tests/process.rs`,
+  alone (`bin/temper-box/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
-  and `crates/temper/tests/suite/startup.rs`). Its return with no box up
+  and `bin/temper-box/tests/suite/startup.rs`). Its return with no box up
   holds through red-26's repair (660556eab1,
   `a_failed_terminal_return_allows_recovery_without_reopening_import`),
   and that red closed recovered. Nothing offline runs its lines in
-  `crates/temper/tests/live.rs`, and whether a live store's box, with its
+  `bin/temper-box/tests/live.rs`, and whether a live store's box, with its
   owned Forgejo, answers the guard within its 240 s is unknown.
    the shell subset;
   skein's fake machine runs no `sh` and no `rg`.  of
@@ -87,12 +87,12 @@
   (`checks.md`, 5); the check binds no kind by a template's role
   (`temper/tools/stage-one/src/check.rs`, `subject_key`), and nothing
   tells Ask temper to propose it (`../domain/agent/agents.status.md`, 1).
-  the whole document: `scripts/proof-live.sh`'s `TEMPER_LIVE_STORE` and
-  `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
+  the whole document: `scripts/proof-live.sh`'s `TEMPER_TEST_LIVE_STORE` and
+  `TEMPER_TEST_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
   `$HOME/src/rust/tmp/`, a scratch layout of whoever runs fabrig's
   development; `live-tier.md` names the first, and
-  `crates/temper/tests/suite/forge_land.rs` holds it. The user's request
+  `bin/temper-box/tests/suite/forge_land.rs` holds it. The user's request
   of 11-04 makes `AGENTS.md`, 1 absolute and says fabrig names nothing
   outside plan directories, but `tests/boundary/tests/outward.rs`
   matches the `~/` form alone, so these pass it. They stay because the
@@ -111,7 +111,7 @@
   shaper renders the template's `acme` to the owner, so `acme` would
   prove nothing. The relay's own tests take `acme` and `alice`.
   the whole document: Offline startup admission: no shared helper clears goal projection
-  grants. `crates/temper/tests/support/live_github.rs`'s
+  grants. `bin/temper-box/tests/support/live_github.rs`'s
   `configure_engine` clears none, and `github_land.rs`'s, a separate
   function, removes the charters, templates, policies and rules for
   stock policy 1. No reason is recorded.

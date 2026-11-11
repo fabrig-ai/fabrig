@@ -160,9 +160,15 @@ fn scratch() -> io::Result<PathBuf> {
 #[expect(clippy::disallowed_methods, reason = "cli C8: CARGO_TARGET_DIR for the journey tool's built binaries")]
 fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
-    cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);
+    cargo.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none").args([
+        "build",
+        "-p",
+        "temper-box",
+        "-p",
+        "smith-fake-claude",
+    ]);
     if is_tui {
-        cargo.args(["--features", "temper/record"]);
+        cargo.args(["-p", "temper-client", "--features", "temper-client-shell-tui/record"]);
     }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
@@ -170,7 +176,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
     }
     let bundle = scratch.join("bundle");
     let mut bundler = Command::new(root.join("scripts/bundle.sh"));
-    bundler.current_dir(root).env("TEMPER_BUNDLE", "none").arg("--loopback");
+    bundler.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none").arg("--loopback");
     if !is_tui {
         bundler.arg("--record");
     }
@@ -179,11 +185,15 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
     let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("../target"), |target| root.join(target));
-    for name in ["temper", "fake-claude"] {
+    for name in ["temper-box", "fake-claude"] {
         fs::copy(target.join("debug").join(name), scratch.join(name))
             .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
     }
-    Ok(Paths { temper: scratch.join("temper"), bundle, chromium, scratch: scratch.to_owned() })
+    if is_tui {
+        fs::copy(target.join("debug/temper-client"), scratch.join("temper-client"))
+            .map_err(|error| format!("cannot copy temper-client into {}: {error}", scratch.display()))?;
+    }
+    Ok(Paths { temper: scratch.join("temper-box"), bundle, chromium, scratch: scratch.to_owned() })
 }
 
 fn reprint_all() -> Result<bool, String> {

@@ -1,14 +1,14 @@
 # records: status
 
-2026-11-10. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
 - **Not yet:** the whole document: the walk the request `first-usable-model` of
   2026-11-06 asks: none on record has a real box with one account, unedited, start
   a chat that answers, or a box with no usable account say why it waits. A real
-  `temper program-login` needs a person's sign-in, so such a walk starts from a login
+  `temper-box program-login` needs a person's sign-in, so such a walk starts from a login
   already signed in, or a key, and pastes the printed command only as far as the
-  program's prompt. No test runs that command through `temper program-login`:
-  `temper`'s `program_login/tests.rs` runs it by `sh -c` against a stub, so that it
+  program's prompt. No test runs that command through `temper-box program-login`:
+  `temper-box-shell`'s `program_login/tests.rs` runs it by `sh -c` against a stub, so that it
   reaches the sign-in for that box's `programs/NAME` is seen by reading.
 - **Not yet:** 
   `Board { project }` with its reordering: no

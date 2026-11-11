@@ -28,6 +28,7 @@ use skein_lib::{Env, List, Queue, Secret, Time, Wall};
 /// One connection's scripted stream, shared by its step tests.
 #[derive(Debug)]
 pub struct ConnectionHarness {
+    pub kept: crate::kept::Store,
     pub connection: crate::connection::Connection,
     pub forgejo: crate::connection::forgejo::Exchange,
     pub github: crate::connection::github::Exchange,
@@ -69,6 +70,7 @@ impl ConnectionHarness {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         connection.connect(&env);
         Self {
+            kept: crate::kept::Store::new(limits.kept_bytes),
             connection,
             forgejo: crate::connection::forgejo::Exchange::new(),
             github: crate::connection::github::Exchange::new(),
@@ -83,8 +85,8 @@ impl ConnectionHarness {
     }
     pub fn pump(&mut self) {
         match self.forge.kind {
-            Kind::Forgejo => self.forgejo.pump(&mut self.connection, &self.env, &mut self.io),
-            Kind::GitHub => self.github.pump(&mut self.connection, &self.env, &mut self.io),
+            Kind::Forgejo => self.forgejo.pump(&mut self.connection, &self.env, &mut self.io, &mut self.kept),
+            Kind::GitHub => self.github.pump(&mut self.connection, &self.env, &mut self.io, &mut self.kept),
         }
     }
     /// Forgejo tests supply the component's complete token header.
@@ -102,6 +104,7 @@ impl ConnectionHarness {
             &self.user_agent,
             skein_forge::forgejo::plans::plan::Exchange { request, range },
             authorization,
+            &mut self.kept,
         ) {
             Ok(()) => Ok(()),
             Err(_) => Err("Forgejo refused"),
@@ -112,7 +115,15 @@ impl ConnectionHarness {
         exchange: skein_forge::github::plans::plan::Exchange,
         authorization: Option<Secret>,
     ) -> Result<(), &'static str> {
-        match self.github.start(&mut self.connection, &self.env, &self.forge, USER_AGENT, exchange, authorization) {
+        match self.github.start(
+            &mut self.connection,
+            &self.env,
+            &self.forge,
+            USER_AGENT,
+            exchange,
+            authorization,
+            &mut self.kept,
+        ) {
             Ok(()) => Ok(()),
             Err(_) => Err("GitHub refused"),
         }
@@ -307,8 +318,8 @@ pub fn request_bytes(settings: Settings) -> Box<[u8]> {
 // The request caps are the fixture's TLS send and io output bounds.
 pub const TLS_REQUEST_ROOM: usize = 16_384;
 pub const PLAIN_REQUEST_ROOM: usize = 32_768;
-// forge/connection.md 7.4 reserves 192 bytes for head framing.
-pub const HEAD_FRAMING: usize = 192;
+// Fixed framing (192) plus both 128-byte validators and their field framing (300).
+pub const HEAD_FRAMING: usize = 492;
 pub const SECRET_BOUND: usize = 128;
 pub const PULL_PAYLOAD: &[u8] = b"{\"repository\":{\"id\":2},\"number\":7}";
 

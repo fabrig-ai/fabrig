@@ -32,27 +32,23 @@ pub(crate) fn main(
     if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
         needs = true;
     }
-    if needs {
-        b.name(&w.say(Word::AllHomeDecidedTitle, &[]));
-    } else {
-        b.name(&heading);
-    }
+    b.name(&heading);
     b.open(Role::Slot);
     b.style(if needs { look::DECIDED_HEAD } else { look::HOME_HEAD });
     text(b, Role::Heading { level: 2 }, &heading, None);
-    if needs {
-        text(b, Role::Text, &w.say(Word::NeedsDecidedLifetime, &[]), None);
-    } else if let Some(project) = project {
+    if let Some(project) = project {
         b.open(Role::Button);
         b.name(&w.say(Word::AwayLimits, &[]));
         b.bind(bindings.insert(Act::Away(temper_client_domain::pages::away::Act::Limits { project })));
         b.close();
+    } else if needs {
+        text(b, Role::Text, &w.say(Word::NeedsDecidedLifetime, &[]), None);
     }
     b.close();
     b.open(Role::Slot);
     b.style(look::DECIDED);
     for row in &shown.rows {
-        let name = if needs || project.is_none() {
+        let name = if project.is_none() {
             Some(
                 super::project_name(root.pages().me(root.client()), row.project)
                     .unwrap_or(w.say(Word::Project, &[Hole::Number(u64::from(row.project))])),

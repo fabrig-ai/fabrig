@@ -284,8 +284,12 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         let (call, _) = fixtures::next_at(&mut d, &env);
         fixtures::answer_at(&mut d, &env, call, Ok(Answer::Pull(fixtures::open_pull())));
         let (call, _) = fixtures::next_at(&mut d, &env);
-        let requests =
-            fixtures::answer_at(&mut d, &env, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let requests = fixtures::answer_at(
+            &mut d,
+            &env,
+            call,
+            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         let mut decision = None;
         for request in &requests {
             if let Request::LandingDecision { decision: found, .. } = request {
@@ -304,6 +308,110 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
             if status == Status::Passed { Some(fixtures::HEAD) } else { None }
         );
     }
+}
+
+#[test]
+fn landing_gather_reads_each_branch_and_pull_once() {
+    skein_rows::check(
+        [
+            ("shared base", (false, false)),
+            ("shared head and pull", (true, false)),
+            ("same names in another repository", (true, true)),
+        ],
+        landing_shared_gather_row,
+    );
+}
+fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    member_landing(&mut d);
+    let mut change = d.changes.get(&fixtures::CHANGE).expect("first change").clone();
+    change.task = 52;
+    change.change.task = 52;
+    if !same {
+        change.branch = b"temper/52".as_slice().into();
+        change.pull = Some(2);
+    }
+    if other_repository {
+        change.repository.repository = 3;
+    }
+    let repo = change.repository;
+    d.changes.insert(52, change).expect("second member");
+    // A stack's gather can name one repository more than once (landing.md, 5.3).
+    let row = d.landing.rows.get_mut(&61).expect("landing");
+    let first = row.landing.members.first().expect("first member").clone();
+    let mut second = first.clone();
+    second.change = 52;
+    second.repository.repository = repo.repository;
+    if !same {
+        second.pull = 2;
+    }
+    row.landing.members = Box::new([first, second]);
+    row.asks = Box::new([None, None]);
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        },
+    );
+    let mut branches = 0_u32;
+    let mut bases = 0_u32;
+    let mut pulls = 0_u32;
+    let mut ended = false;
+    for _ in 0..10_u32 {
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                branches = branches.checked_add(1).expect("bounded reads");
+                if branch.as_ref() == b"main" {
+                    bases = bases.checked_add(1).expect("bounded reads");
+                    Answer::Commit(fixtures::BASE)
+                } else {
+                    Answer::Commit(fixtures::HEAD)
+                }
+            }
+            Op::Read(Read::Pull { number, ci: false }) => {
+                pulls = pulls.checked_add(1).expect("bounded reads");
+                let mut pull = fixtures::open_pull();
+                pull.number = number;
+                if number == 2 {
+                    pull.head = b"temper/52".as_slice().into();
+                }
+                Answer::Pull(pull)
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(_) | Op::Write(_) => panic!("unexpected gather read {op:?}"),
+        };
+        for request in fixtures::answer(&mut d, call, Ok(answer)) {
+            if let Request::LandingDecision { .. } = request {
+                ended = true;
+            }
+        }
+        if ended {
+            break;
+        }
+    }
+    assert!(ended, "gather completed");
+    assert_eq!(bases, if other_repository { 2 } else { 1 }, "one base read per repository");
+    assert_eq!(
+        branches,
+        if other_repository {
+            4
+        } else if same {
+            2
+        } else {
+            3
+        }
+    );
+    assert_eq!(pulls, if same && !other_repository { 1 } else { 2 });
 }
 
 #[test]
@@ -348,8 +456,9 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
-    let requests = fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
+    let requests =
+        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
     outputs(&mut d, Event::Withdraw { entry: 92 });
     let mut evidence = None;
@@ -404,7 +513,71 @@ fn landing_deadline_wakes_once_and_an_offered_step_clears_it() {
     assert_eq!(d.next_wall_deadline(), None);
 }
 
+#[test]
+fn landing_waits_use_the_repositories_hearing_deadline() {
+    skein_rows::check(
+        [
+            ("quiet", (false, 60, 0, false, 5)),
+            ("hearing", (true, 60, 0, false, 60)),
+            ("poll is later", (true, 60, 58, false, 5)),
+            ("expired", (true, 60, 60, false, 5)),
+            ("disabled", (true, 0, 0, false, 5)),
+            ("another repository", (true, 60, 0, true, 5)),
+        ],
+        landing_hearing_row,
+    );
+}
+fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bool, u64)) {
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    member_landing(&mut d);
+    d.offered_change(fixtures::CHANGE);
+    let mut clock = env();
+    clock.limits.client.fallback = Duration::from_secs(fallback);
+    if hint {
+        fixtures::repository_heard(
+            &mut d,
+            &clock,
+            if other { skein_forge::api::Repository { repository: 3, ..REPO } } else { REPO },
+        );
+    }
+    clock.now = clock.now.saturating_add(Duration::from_secs(elapsed));
+    clock.wall = Wall::from_nanos(clock.wall.as_nanos().saturating_add(Duration::from_secs(elapsed).as_nanos()));
+    let expected = Wall::from_nanos(clock.wall.as_nanos().saturating_add(Duration::from_secs(delay).as_nanos()));
+    d.wait_landing(&clock, 61, None);
+    assert_eq!(d.next_wall_deadline(), Some(expected), "default wait");
+    d.offered_landing(61);
+    d.wait_landing(&clock, 61, Some(clock.wall));
+    assert_eq!(d.next_wall_deadline(), Some(clock.wall), "explicit deadlines are not stretched");
+    d.offered_landing(61);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").pull = None;
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &clock,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        },
+        &mut out,
+    );
+    let mut until = None;
+    while let Some(request) = out.pop() {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found }, .. } = request {
+            until = found;
+        }
+    }
+    assert_eq!(until, Some(expected), "missing fact wait");
+}
+
 fn member_landing(d: &mut Domain) {
+    member_landing_with_gates(d, Box::new([]));
+}
+
+fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     let mut row = landing_row(61, policy::Phase::Preparing);
     row.landing.members = Box::new([policy::Member {
         change: fixtures::CHANGE,
@@ -413,7 +586,7 @@ fn member_landing(d: &mut Domain) {
         head: None,
         base: None,
         candidate: None,
-        gates: Box::new([]),
+        gates,
         asked: None,
         landed: None,
     }]);
@@ -482,7 +655,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             Op::Read(Read::Items { .. }) => {
                 Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
             }
-            Op::Read(Read::Pull { number: 1 }) => {
+            Op::Read(Read::Pull { number: 1, ci: false }) => {
                 let mut pull = fixtures::open_pull();
                 if merged {
                     pull.state = skein_forge::api::State::Closed;
@@ -763,5 +936,121 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         assert_eq!(d.review_facts.get(&52), Some(&facts), "another change keeps its facts");
         assert_eq!(d.review_since.get(&52), Some(&env().wall));
         assert!(!outputs(&mut d, Event::Committed { entry: 91 }).contains(&mark), "no repeated drop mark");
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one landing world drives both filtered-key bounds through the same read chain"
+)]
+fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
+    use skein_forge::api::{Answer, Op, Read, TreeEntry, TreeEntryKind};
+    for (member, entries, path_bytes, configured, needed) in
+        [("forge.key_entries", 2, 1024, 2, 3), ("forge.key_path_bytes", 16, 4, 4, 6)]
+    {
+        let mut d = landing_fixture();
+        fixtures::connect(&mut d);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
+            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        let after = d.after_landing(5).unwrap();
+        assert!(d.project_landing(
+            5,
+            temper_engine_domain_forge_change::Way::Turn,
+            Box::new([RepositoryGates {
+                repository: REPO,
+                tiers: Box::new([]),
+                gates: Box::new([policy::Gate {
+                    name: b"gate".as_slice().into(),
+                    workflow: b"gate.yml".as_slice().into(),
+                    ignored: Box::new([b"dir/skip".as_slice().into()]),
+                    blocking: true,
+                }])
+            }]),
+            after
+        ));
+        member_landing_with_gates(
+            &mut d,
+            Box::new([policy::GateProof { proof: policy::Proof::Unkeyed, posted: policy::Posted::Nothing, faults: 0 }]),
+        );
+        let mut env = env();
+        env.limits.key_entries = entries;
+        env.limits.key_path_bytes = path_bytes;
+        let mut out = Queue::uncapped();
+        step(
+            &mut d,
+            &env,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+            &mut out,
+        );
+        assert!(!d.landing.pending.is_empty(), "initial {out:?}");
+        let mut refused = false;
+        for _ in 0..10_u32 {
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            let seen = op.clone();
+            let answer = match op {
+                Op::Read(Read::Branch { branch }) => {
+                    Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+                }
+                Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+                Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+                Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                Op::Read(Read::Tree { object, .. }) => {
+                    let entries = if object == [9; 32] {
+                        Box::new([
+                            TreeEntry {
+                                name: b"a".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [7; 32],
+                            },
+                            TreeEntry {
+                                name: b"b".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [8; 32],
+                            },
+                        ])
+                    } else {
+                        Box::new([
+                            TreeEntry {
+                                name: b"dir".as_slice().into(),
+                                mode: 0o040_000,
+                                kind: TreeEntryKind::Tree,
+                                object: [9; 32],
+                            },
+                            TreeEntry {
+                                name: b"x".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [7; 32],
+                            },
+                        ])
+                    };
+                    Answer::Tree { entries, more: false }
+                }
+                Op::Read(_) | Op::Write(_) => panic!("unexpected key read {op:?}"),
+            };
+            let out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            for request in &out {
+                if let Request::ResourceRefused { task: 61, cause, .. } = request {
+                    assert_eq!(*cause, RefusalCause::Limit { member, configured, needed });
+                    refused = true;
+                }
+                assert!(!matches!(request, Request::Refused { .. }), "a key bound is not structural: {out:?}");
+            }
+            assert!(refused || !d.landing.pending.is_empty(), "chain ended after {seen:?}: {out:?}");
+            if refused {
+                break;
+            }
+        }
+        assert!(refused, "filtered key must name {member}");
     }
 }

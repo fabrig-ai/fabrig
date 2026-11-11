@@ -366,6 +366,8 @@ fn deadlines_find_runs_in_every_state_they_run_in_over_many_seeds_cells() -> BTr
             time: Span::millis(2_000, 15_000),
             tokens_min: 80_000,
             tokens_max: 100_000,
+            // Keep submitted delivery pending until the run's deadline.
+            delivery: Span::millis(20_000, 20_000),
             ..landing.host
         };
         let partner = Script { changes: 1000, turn: Span::millis(100, 2_000), ..landing.partner };

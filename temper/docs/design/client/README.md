@@ -5,7 +5,7 @@ presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
 and its requests; its view, on
-skein's UI kit; the terminal that `temper open` runs, on skein's text
+skein's UI kit; the terminal that `temper-box open` runs, on skein's text
 shell; signing in and the small store; what temper's server does for it;
 and how it is tested. jig's client is jig's `client/domain/client/README.md`, its
 API jig's `client/domain/contract/README.md` and its protocol jig's
@@ -104,7 +104,7 @@ section 5.
   as skein-ui's tree (skein's `ui/README.md`); the terminal prints that tree
   with skein's text shell (skein's `ui/text.md`); the browser, its
   second shell, maps it with skein's browser parts (`web/README.md`).
-- **A terminal first.** `temper open` runs temper's client, its view and
+- **A terminal first.** `temper-box open` runs temper's client, its view and
   skein's text shell over `jig-client-shell-native`, jig's native
   transport (`line.md`).
 - **Signed in by jig's printed link,** on loopback, and kept signed in
@@ -154,7 +154,7 @@ temper-client-tui               the TUI: its state, its events, its pages as ske
 temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
 └── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
-temper                          the box's binary; `temper open` runs the terminal, `temper [ADDRESS]` the TUI (../protocol/binaries.md)
+temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
 temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
 temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
@@ -197,7 +197,7 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
     its own lines and the sign-in's retries (`line.md`, 2, 6, 7); and
     `Terminal`, the one host of skein's loop, composing the native
     client with stdin, stdout and the termination signals (`line.md`, 2). The
-    worlds put skein's fake person where `temper open` puts the
+    worlds put skein's fake person where `temper-box open` puts the
     terminal (`testing.md`);
   - `limits`: the client's limits and their sum.
 - **`temper-client-tui`** holds, as modules: `state`, the TUI's own
@@ -222,18 +222,19 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   limits beside them; and `start`, the TUI's arguments and start (`tui/README.md`, 1, 2
   ): the address, the directory and what it keeps, the engine's link
   file read, the terminal's scheme and depth, the opener, and `run`.
-- **The clients' start, one for two binaries.** The box's `temper` and
-  `temper-client` each run the TUI and `ctl` by the same code, in the
-  shells both link, never through the other binary
+- **The clients' shared start.** The client's `temper`, the box's
+  `temper-box` and `temper-client` use the same client code, in the
+  shells they link, never through another binary
   (`../draft/deployment-binaries.md`, section 4):
   - `temper [ADDRESS]` and `temper-client [ADDRESS]` call
     `temper_client_shell_tui::start::run`, given the binary's name for
-    the lines it prints (`tui/README.md`, 1);
+    the lines it prints (`tui/README.md`, 1); the box runs that TUI by
+    `temper-box internal tui` until C3 (`../cli/README.md`, 6);
   - `temper ctl` and `temper-client ctl` call
     `temper_client_shell_cli::start::run`, whose lines name `temper ctl`
     in both (`ctl/README.md`, 6.1);
   - an argument naming an engine's address or a sign-in link is read by
-    `temper_client_shell_terminal::address`, for the TUI and for `temper
+    `temper_client_shell_terminal::address`, for the TUI and for `temper-box
     open` (`line.md`, 1);
   - the engine's link file is `temper-shell`'s `link_file`, which the
     engine writes and the TUI reads (`tui/README.md`, 2), and the TUI's state directory
@@ -253,7 +254,7 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
 The native terminal, the browser and `temper ctl` receive sixteen entries
 in a document's short lists, including creating's complete charter and
 procedure lists, sixteen in an authority's grants and delegation kinds,
-and eighty live delegates in a chat's close. This covers `temper init`'s
+and eighty live delegates in a chat's close. This covers `temper-box init`'s
 and the owned example's `standard` profile: its `documents.lines`
 sixteen, its grants and executors sixteen, its `tasks.delegates` eighty
 (`../protocol/configuration/stock.md`); a settings file and Ask temper's
@@ -562,11 +563,11 @@ temper's:
   The record is read only for that source: another's is no sign-in of the page's.
 
 - **The printed link** (jig's `protocol/client/sign-in.md`): at
-  start, `temper serve`, or `temper box` before it starts serve
+  start, `temper-box serve`, or `temper box` before it starts serve
   (`../protocol/setup/box.md`, 2), prints a sign-in link for the deployment's
   first owner (`../protocol/binaries.md`), in the default
   mapping's link route under temper's prefix,
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper open
+  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
   loopback and that route, and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
@@ -593,7 +594,7 @@ temper's:
   shell keep it, before anything is told of the sign-in; a new sign-in
   by a link has it written anew, and a sign-in kept writes nothing,
   its credential unchanged; signed out, the host has the native
-  shell keep none, which erases it. A later `temper open DIRECTORY
+  shell keep none, which erases it. A later `temper-box open DIRECTORY
   ADDRESS` has the native shell read it before its loop (`line.md`, 1), and the
   host gives it back as held (`SignIn { with: Held(credential) }`). It
   is never printed and never an argument, and neither temper's root
@@ -677,7 +678,7 @@ was answered with. A box enables it beside the printed link
     the opener's report says otherwise. The run gives the address to the
     opener as its one argument, with no shell between: `xdg-open
     ADDRESS` on Linux, `open ADDRESS` on macOS, a departure, on purpose,
-    from `temper open`, which opens no browser (`line.md`, 5). The opener's
+    from `temper-box open`, which opens no browser (`line.md`, 5). The opener's
     stdin, stdout and stderr are none of the terminal's, so nothing it
     says reaches the screen; its environment is the TUI's. Its exit
     ended, the run reports `Opened { opened }`, done on 0. Closing
@@ -743,7 +744,7 @@ was answered with. A box enables it beside the printed link
     An ended approval's code, address and expiry are no longer drawn:
     the outcome's line stands under the screen's first line.
   - *Signed in:* the TUI keeps the credential in its directory
-    (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
+    (`../draft/tui.md`, 4.1), as `temper-box open` keeps a link's (section
     4), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (`pages/README.md`).
   - *Not asked while the TUI signs in from the engine's link* (`tui/pages.md`):

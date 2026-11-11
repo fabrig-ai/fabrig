@@ -2,6 +2,10 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** the whole document: `read_reviews`, `read_remarks` and
+  `read_pull_files` take no `skip`, and a page the answer's bytes cut
+  says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`)
+  [in flight: change 161].
 - **Not yet:** the whole document: the stock charters (`chat.txt`, `../../../../crates/temper-service/src/stock/coordinator.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;

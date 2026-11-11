@@ -40,6 +40,9 @@ fn facts(front: &mut Joint) -> Facts {
     let api::Answer::Pull(pull) = read(front, api::Read::PullFor { head: BRANCH.into(), base: BASE.into() }) else {
         panic!("opened pull request")
     };
+    let api::Answer::Pull(pull) = read(front, api::Read::Pull { number: pull.number, ci: true }) else {
+        panic!("pull CI for the story's observations")
+    };
     let api::Answer::Checks(checks) = read(front, api::Read::Checks { commit: pull.commit }) else {
         panic!("CI contexts at the pull's head")
     };

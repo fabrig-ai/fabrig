@@ -183,7 +183,15 @@ impl Common {
                     )
                     .expect("checked credential length");
                     c.until(Some(deadline));
-                    match forgejo.exchange.start(c, env, forge, &self.owner.user_agent, request, authorization) {
+                    match forgejo.exchange.start(
+                        c,
+                        env,
+                        forge,
+                        &self.owner.user_agent,
+                        request,
+                        authorization,
+                        &mut self.kept,
+                    ) {
                         Ok(()) => {
                             forgejo.exchange.keep_after(plan.after());
                         }
@@ -196,7 +204,8 @@ impl Common {
                 }
             }
             let waiting = self.waiting.get_mut(id).expect("indexed call");
-            forgejo.exchange.pump(c, env, io);
+            forgejo.exchange.pump(c, env, io, &mut self.kept);
+            waiting.free = waiting.free.checked_add(c.take_free()).expect("bounded exchanges");
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
@@ -306,27 +315,29 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
                 if *single {
                     return 1;
                 }
-                return match kind {
-                    crate::settings::Kind::Forgejo => limits::page_size(Listing::Items, cap, l, s),
-                    crate::settings::Kind::GitHub => limits::bounded_page_size(Listing::Items, cap, l, s),
-                };
+                return limits::page_size(Listing::Items, cap, l, s);
             }
             api::Read::PullFor { .. } => return limits::bounded_page_size(Listing::Items, cap, l, s),
-            api::Read::Reviews { .. } => Listing::Reviews,
+            api::Read::Reviews { .. } => return limits::page_size(Listing::Reviews, cap, l, s),
             api::Read::Statuses { .. } | api::Read::Checks { .. } => Listing::Statuses,
             api::Read::Pull { .. } => match kind {
                 crate::settings::Kind::Forgejo => Listing::Statuses,
                 crate::settings::Kind::GitHub => return 1,
             },
-            api::Read::Remarks { .. } => Listing::Remarks,
+            api::Read::Remarks { .. } => return limits::page_size(Listing::Remarks, cap, l, s),
             api::Read::Branches { .. } => Listing::Branches,
             api::Read::Collaborators { .. } => Listing::Collaborators,
-            api::Read::PullFiles { .. } => Listing::PullFiles,
+            api::Read::PullFiles { .. } => return limits::page_size(Listing::PullFiles, cap, l, s),
             api::Read::Compare { .. } | api::Read::Commits { .. } => Listing::Compare,
             api::Read::Runs { .. } => Listing::Runs,
             api::Read::Tree { .. } => Listing::Tree,
+            api::Read::Item { .. } => {
+                return match kind {
+                    crate::settings::Kind::Forgejo => 1,
+                    crate::settings::Kind::GitHub => limits::page_size(Listing::Items, cap, l, s),
+                };
+            }
             api::Read::Locate { .. }
-            | api::Read::Item { .. }
             | api::Read::Branch { .. }
             | api::Read::Protection { .. }
             | api::Read::Permission { .. }
@@ -338,7 +349,10 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
         },
         api::Op::Write(_) => return 1,
     };
-    limits::page_size(listing, cap, l, s)
+    match kind {
+        crate::settings::Kind::Forgejo => limits::page_size(listing, cap, l, s),
+        crate::settings::Kind::GitHub => limits::bounded_page_size(listing, cap, l, s),
+    }
 }
 
 impl Component {
@@ -436,7 +450,7 @@ impl Component {
         }
         for (_, id) in &self.common.connections {
             let c = self.common.connection_slab.get_mut(*id).expect("indexed connection");
-            if c.drain_redirect(env, io) {
+            if c.drain_redirect(env, io, &mut self.common.kept) {
                 self.common.wake = Some(env.now);
             }
             if self.common.lifecycle != Lifecycle::Live
@@ -445,7 +459,7 @@ impl Component {
             {
                 c.close(env, c.in_flight(), io);
                 if c.link.has_work() {
-                    c.drain(env, io);
+                    c.drain(env, io, &mut self.common.kept);
                 }
                 if c.link.has_work() {
                     self.common.wake = Some(env.now);

@@ -2,35 +2,35 @@
 
 ## 1. What it runs
 
-`temper box [DIRECTORIES] [--echo none|steps] [--no-tui]` runs its steps, which
+`temper-box [DIRECTORIES] [--echo none|steps] [--no-tui]` runs its steps, which
 `temper-forge-setup`'s `kinds` and `temper-fake`'s fake slot give from
-the document (`init.md`), each a command of the `temper`
+the document (`init.md`), each a command of the `temper-box`
 binary, as a child process given the box's three directories as flags,
 `--config C --data D --cache K`, each absolute (../configuration/directories.md
 ), written `DIRS` below, `N` a forge's number:
 
 ```
-temper box
+temper-box
 │                                     the fake kind's group, the playground's fakes: asked (below)
-├── temper fake llm DIRS              long (8.4)
-├── temper forge prepare DIRS N       once: the fake forge's handover
-├── temper fake forge DIRS N          long (8.4)
+├── temper-box fake llm DIRS              long (8.4)
+├── temper-box forge prepare DIRS N       once: the fake forge's handover
+├── temper-box fake forge DIRS N          long (8.4)
 │                                     the owned kind's group, an owned Forgejo's: asked (below)
-├── temper forge fetch DIRS N         once, when its binaries are fetched (6.6)
-├── temper forge prepare DIRS N       once
-├── temper forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
-│   └── forgejo web                   via temper internal forge-child; execs without fd 3
-├── forgejo-runner daemon             long: temper forge run DIRS N runner
-├── temper forge source DIRS N        once, then again until the source serves, when machine.owned.sign_in is set (`../openid-provider.md`, 9)
-└── temper internal serve DIRS --box  long: its own tree (../binaries.md); its setup
+├── temper-box forge fetch DIRS N         once, when its binaries are fetched (6.6)
+├── temper-box forge prepare DIRS N       once
+├── temper-box forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
+│   └── forgejo web                   via temper-box internal forge-child; execs without fd 3
+├── forgejo-runner daemon             long: temper-box forge run DIRS N runner
+├── temper-box forge source DIRS N        once, then again until the source serves, when machine.owned.sign_in is set (`../openid-provider.md`, 9)
+└── temper-box internal serve DIRS --box  long: its own tree (../binaries.md); its setup
                                       host takes each handover and reconciles (section 5);
                                       its listeners from fd 3, then its pipe to the box (below)
 ```
 
-- **In a terminal,** the box also runs the TUI in front, `temper internal
+- **In a terminal,** the box also runs the TUI in front, `temper-box internal
   tui --box http://HOST:PORT`, its child and no step (6).
-- **A step's start.** On Linux the box spawns each step through `temper
-  internal forge-child --parent BOX --signal terminate -- temper ARGS`, BOX
+- **A step's start.** On Linux the box spawns each step through `temper-box
+  internal forge-child --parent BOX --signal terminate -- temper-box ARGS`, BOX
   its own process id (`owned.md`, 4). That process execs the step, keeping its
   descriptors, its environment and its process group, so nothing else of
   this section sees the difference. A box that ends in any way, killed
@@ -39,7 +39,7 @@ temper box
   step directly, so a box killed outright leaves them running, and its
   next start refuses on the ports they hold.
 - **An empty configuration directory,** absent or with no entry, is
-  written first by `temper init --box` (`init.md`, 2), in the box's own process, before
+  written first by `temper-box init --box` (`init.md`, 2), in the box's own process, before
   the document is read; the box says so in its own log, `First run:
   wrote the configuration, <path>` (2), and goes on to its steps.
   Otherwise the box
@@ -61,7 +61,7 @@ temper box
   to `<data>/box/groups/N`, private, then asks `start N` on the pipe:
   at an owned forge's set up (`owned.md`, 5) and at the playground's start (`playground.md`).
   The box builds the group's steps by the kind from that file, and runs
-  them in order; `temper forge fetch`, `prepare`, `run` and `remove`
+  them in order; `temper-box forge fetch`, `prepare`, `run` and `remove`
   read forge N's setup from the same file, and with none as 4 says.
   Once the group's long steps have started and, for an owned Forgejo,
   Forgejo answers, the box writes its record, `<data>/box/started/N`, one empty file, and
@@ -72,7 +72,7 @@ temper box
 - **At a later start,** the box lists `box/groups`, at most `box.groups`
   files (../configuration/limits.md), and runs each group whose
   `started` record exists from its file, in its place, as an unasked
-  group, before `temper serve`, or just after it when the box signs its
+  group, before `temper-box serve`, or just after it when the box signs its
   person in through that forge: a later preparation's source commands
   and Forgejo, loading its source, fetch discovery from temper
   (`../openid-provider.md`, 9), and serve takes the handover later for it (`owned.md`, 5). A
@@ -83,7 +83,7 @@ temper box
 - **A forge's group, removed.** At a forge's removal
   (`../../domain/forge/adoption.md`, 1) serve asks `remove N`, and again at each of
   its starts until it is answered `removed N`. The box stops the group's
-  steps as it stops a group (2), then runs its remover, `temper forge
+  steps as it stops a group (2), then runs its remover, `temper-box forge
   remove DIRS N`, a once step, which removes the forge's directory,
   `<data>/forge-N` or `<data>/playground-N`, and refuses any path
   outside the data directory or within the cache, so the cache, and
@@ -97,16 +97,16 @@ temper box
   to its end, a dormant group's among them: so that the port a step
   reports is its own from before it starts, and a second first run's
   init finds the first one's ports taken (`init.md`, 2). Each step names its
-  listeners, the socket addresses the document gives it (3): `temper
+  listeners, the socket addresses the document gives it (3): `temper-box
   serve` the clients' and the webhooks' listeners, the fake LLM and the
-  fake forge their ports, and, on Linux, `temper forge run N forgejo` the
+  fake forge their ports, and, on Linux, `temper-box forge run N forgejo` the
   owned Forgejo's port, the machine's (`init.md`; `owned.md`, 4). On a
-  first run the box keeps the sockets `temper init` chose (`init.md`, 2); on a later
+  first run the box keeps the sockets `temper-box init` chose (`init.md`, 2); on a later
   start it opens each at the document's address before any step, with
   skein's `open_listener`, and a port taken refuses its start, naming
   the port and the document, as any start is refused. A box started with
-  listeners of its own (`LISTEN_FDS`, systemd's convention, as `temper
-  internal serve`, `temper fake` and `temper forge run` read it: skein's
+  listeners of its own (`LISTEN_FDS`, systemd's convention, as `temper-box
+  internal serve`, `temper-box fake` and `temper-box forge run` read it: skein's
   `runtime/shell.md`, 6.6) takes each one given for a step's address, matched by
   its address, and opens only the rest, so a person's socket activation
   and a test's held port reach the box's steps as they reach serve; one
@@ -119,18 +119,18 @@ temper box
   own `Listen` for that address then takes the socket it was given
   (skein's `runtime/io/sockets.md`, 2), so nothing above io knows it was given one. A
   step with no listener is given none, and no `LISTEN_FDS`. On Linux,
-  `temper forge run N forgejo` is given the owned Forgejo's port and
+  `temper-box forge run N forgejo` is given the owned Forgejo's port and
   stays Forgejo's parent (`owned.md`, 4); on macOS it is given none, and a fresh
-  box closes the reservation `temper init` made for its port, so
+  box closes the reservation `temper-box init` made for its port, so
   Forgejo binds it itself. A listener at port 0 is not held: its step binds it, as without the box, since a
   port the kernel chooses can't collide. A held one could not be claimed
   either, since the step's `Listen` names port 0, not the port chosen.
   It changes at each restart, as it does without the box. `LISTEN_FDS`
   counts only the sockets given.
-- **The pipe,** two of them, made again at each spawn of `temper
+- **The pipe,** two of them, made again at each spawn of `temper-box
   internal serve`, at the two descriptors after its listeners: 3 + *n*,
   serve to box, and 4 + *n*, box to serve, *n* its listeners' count, so
-  fds 5 and 6 under the default document's two. `--box` tells `temper
+  fds 5 and 6 under the default document's two. `--box` tells `temper-box
   internal serve` to adopt them, and a serve given `--box` whose
   descriptor 3 + *n* or 4 + *n* is not an open pipe refuses its start,
   naming the fd, *n* being the `LISTEN_FDS` it was given, 0 without it
@@ -171,14 +171,14 @@ temper box
   once. While a group's steps close at its `stop` or `remove`, or its
   remover runs, a `start`, a `stop` or a `remove` for any forge is
   answered `failed FORGE busy`. An
-  answer to a `temper serve` that has exited is dropped: its restart
+  answer to a `temper-box serve` that has exited is dropped: its restart
   finds the handover at its start (`owned.md`, 5). Each line is at most
   `box.line_bytes` (../configuration/limits.md), which both sides
   read within; another line, or a longer one, is named on its reader's
   stderr and ignored. serve's side, its asks, its reads and the states
   they tell the engine's root, is the routing's box link (../forge/engine.md,
   8).
-- **The first link's secret** (2) reaches `temper internal serve`'s
+- **The first link's secret** (2) reaches `temper-box internal serve`'s
   first start on its standard input, a pipe of its own: the box writes
   the secret's 32 bytes, nothing around them, and closes it; with its TUI
   in front, the printed link's 32 bytes and then the first local
@@ -199,7 +199,7 @@ temper box
 - **A group's failure** before `started` answers `failed`, and the group
   is dormant again, to be asked again; the box runs on. Once started,
   its long steps are restarted, and given up on, as 2 says.
-- **A first run's steps** (`init.md`, 3): `temper serve` alone runs at the
+- **A first run's steps** (`init.md`, 3): `temper-box serve` alone runs at the
   start; the fake kind's group is dormant until the person tries the
   playground (`playground.md`), and the owned kind's until the person sets up an
   owned Forgejo (`owned.md`, 5). No step is a link: serve's links are the
@@ -225,7 +225,7 @@ temper box
   `box.backoff_ms` to `box.backoff_max_ms` (../configuration/limits.md),
   first running again the steps that are once just before it: a Forgejo is
   restarted after its preparation, so a change of the setup reaches its
-  `app.ini`. `temper serve` restarts on its own, with a pipe made afresh,
+  `app.ini`. `temper-box serve` restarts on its own, with a pipe made afresh,
   and its start takes a handover the preparation left and reconciles each
   managed and owned forge. A token revoked under a running engine stops
   that forge alone, named, and not the engine (../forge/README.md, a forge stopped);
@@ -244,7 +244,7 @@ temper box
 - **Stops** at a first termination signal, `SIGINT`, `SIGTERM` or a closed
   terminal's `SIGHUP`: the long steps in reverse
   order, each by a signal, `box.grace_ms`, a second signal, which turns
-  `temper serve`'s drain into an abort (../binaries.md),
+  `temper-box serve`'s drain into an abort (../binaries.md),
   `box.grace_ms` again, then a close. The machine knows a step only as
   once, long or link, so every long step, and a link step still
   running, is sent both; a dormant group's steps run nothing, and are
@@ -269,7 +269,7 @@ temper box
   `stopped FORGE`, or at a `remove` runs the group's remover (1), and
   runs on; a termination signal during it
   stops the box as above, which closes them too.
-- **Its stdout** carries the first link (below) and then `temper
+- **Its stdout** carries the first link (below) and then `temper-box
   serve`'s stdout, the sign-in links it draws, but for its first line
   when a link step follows it, which is that step's (`playground.md`). The box reads every step's output a line at a
   time, and writes a line only once it holds it whole, to its line feed
@@ -313,7 +313,7 @@ temper box
 - **Its own log,** `<data>/box/logs/box.log`, holds what a person need not
   read on their terminal, in the order it happens, each line beginning with
   the time of day as the terminal's lines do, and no link:
-  `First run: wrote the configuration, <path>` when `temper init` ran
+  `First run: wrote the configuration, <path>` when `temper-box init` ran
   (1), and `First run: no sign-in through temper: <why>` when it made no
   provider's key (`init.md`, 2); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
   <step>` as each step of `always` starts; for an asked group, named by its
@@ -351,10 +351,8 @@ temper box
 
   The last line names the TUI's command (`../../client/tui/README.md`, 1) at
   the link's own origin, its `http://HOST:PORT`, for a terminal that
-  finds no engine's link file (`../../client/tui/README.md`, 2): the word
-  that runs this binary, `temper` where `temper` on `PATH` is this
-  binary and its path otherwise, `~` for the home directory, then the
-  origin.
+  finds no engine's link file (`../../client/tui/README.md`, 2): the client's
+  `temper` command, then the origin.
   It is the first block's alone, on stderr with the lines around it; a
   fresh link is printed as below. With its TUI in front, the box prints no
   block: the link goes to the front and the other lines to `box.log`
@@ -367,7 +365,7 @@ temper box
   is ready waits on its connection, in the backlog of the socket the box
   holds (1), the browser showing its own loading, and then signs in. That
   socket is the one the box holds today on both systems: it hands on what
-  skein's `open_listener` or `temper init` made, and on macOS, where no
+  skein's `open_listener` or `temper-box init` made, and on macOS, where no
   socket says it is listening (skein's `runtime/shell.md`, 6.6), serve's check of it
   passes as it does for any listener given.
 
@@ -509,7 +507,7 @@ temper box
   With `--echo steps` it writes no tail, the lines already shown.
   A failure that is neither a step's exit nor its readiness, a step
   that logged nothing since its start, or a log not written has no tail.
-- **Its environment:** each step gets the box's; `temper forge run`
+- **Its environment:** each step gets the box's; `temper-box forge run`
   clears it for Forgejo (`owned.md`, 4).
 - **Its children** are skein-io's (skein's `runtime/io/processes.md`), each in a
   process group of its own; closing one kills its group. A descendant
@@ -552,18 +550,18 @@ temper box
   machine's step tests drive a group from dormant to `started`, and to
   `failed`, a started one to `stopped`, and one to `removed`, by lines
   and exits alone (`testing.md`, 1).
-- **The binary hands it the steps.** `temper box` resolves its three
-  directories, runs `temper init --box` when the configuration directory is
+- **The binary hands it the steps.** `temper-box` resolves its three
+  directories, runs `temper-box init --box` when the configuration directory is
   empty (1), checks the document as `init.md` says, asks
-  `temper-forge-setup` for its kinds' steps, `temper serve` and the
+  `temper-forge-setup` for its kinds' steps, `temper-box serve` and the
   owned kind's group, and `temper-fake` for the fake kind's group (`playground.md`),
-  and gives them to `temper-box`, each asked group apart.
+  and gives them to `temper-box-machine`, each asked group apart.
 - **Welcome peers first:** the fake-backend configuration supplies an
   always-running prefix before the ordinary steps. Every asked group's
   insertion point, the playground's included, follows that prefix.
   An empty prefix leaves the ordinary order unchanged. Stopping or
   removing an asked group never stops these peers.
-- **Checked:** a boundary test fails the gate when `temper-box` depends
+- **Checked:** a boundary test fails the gate when `temper-box-machine` depends
   on a crate named `temper-*` but `temper-forge-setup`, or names an item
   of it but `steps`, `Steps`, `Group`, `Stage`, `Step` and its `Kind`,
   `FORGE_ARGUMENT`, and of its kinds and group's files `BoxKind`,
@@ -571,35 +569,35 @@ temper box
 
 ## 4. Other arrangements of the same commands
 
-None has the box's pipe: `temper serve` runs without `--box`, and runs
+None has the box's pipe: `temper-box serve` runs without `--box`, and runs
 no owned forge. An owned forge's group is the box's: `SetUp` of an
 owned forge is refused *not under the box* (`owned.md`, 5). GitHub and a Forgejo
 elsewhere connect as under the box.
 
-`temper forge fetch`, `prepare` and `run` are commands of their own
+`temper-box forge fetch`, `prepare` and `run` are commands of their own
 too, and a forge the box did not run has no group's file (1). A forge
 with none takes the machine's `owned` part, in `<data>/forge-N`, so that
 a host's own units run them with no file written by hand, and a data
 directory started afresh keeps them working. A document with no `owned`
 part refuses, naming the file and the part; a file there is read as
-ever, its kind and its refusals its own. `temper forge remove` reads the
+ever, its kind and its refusals its own. `temper-box forge remove` reads the
 file alone, and refuses a forge with none: it removes a directory by
 its kind, which it does not guess.
 
 The welcome follows the document under every arrangement, its member
 `application.welcome` (../configuration/engine.md), and never `--box`,
-which only the box gives `temper internal serve`, for its pipe. A unit
+which only the box gives `temper-box internal serve`, for its pipe. A unit
 running `temper box` shows the welcome as any box does; one running
-`temper serve` on a hand-written document shows it only if that document
+`temper-box serve` on a hand-written document shows it only if that document
 asks.
 
 - **systemd,** a unit for `temper box`, whose own stop stops its tree
-  (2), or one for `temper serve` alone; `temper serve`'s
+  (2), or one for `temper-box serve` alone; `temper-box serve`'s
   unit keeps systemd's default kill of its control group, which ends a
   crashed service's whole tree before its restart (skein's `runtime/shell.md`,
   12);
 - **A host's own units,** `temper help server`'s walk: a unit running
-  `temper forge fetch`, `prepare` and `run`, beside one for `temper
+  `temper-box forge fetch`, `prepare` and `run`, beside one for `temper-box
   serve`; a deployment's engine host runs the same units on
   `temper-engine`, its document an engine alone's (../binaries.md, 2). No owned forge's record is made there, so nothing takes the
   handover (`owned.md`, 5), and a start on a new store lists no forge. A person
@@ -617,7 +615,7 @@ asks.
 
 ## 5. The welcome's fake backends
 
-temper box --fake-backends [--bundle DIR] [DIRECTORIES] prepares the retained isolated
+temper-box [DIRECTORIES] --fake-backends [--bundle BUNDLE] prepares the retained isolated
 sandbox of ../configuration/directories.md, 1. Ordinary children read the effective
 temper.json and agent.json through their effective directory flags; peer
 commands read absolute effective document paths. Changing only the parent's
@@ -625,7 +623,7 @@ parsed bytes is insufficient.
 
 Build the loopback bundle once, then start even with empty configuration:
 
-    scripts/bundle.sh --loopback DIR && temper box --fake-backends --bundle DIR
+    scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle DIR
 
 The flag overrides an init-shaped source's application.clients.bundle;
 without it, that configured bundle is used. Missing both refuses with the
@@ -645,7 +643,7 @@ the printed link names them. A stopped box holds none, so a port the kernel
 hands on meanwhile refuses its restart, naming the port. An init-shaped
 source's listeners stay its own.
 
-`TEMPER_FAKE_BOX_PORTS`, the process tier's and never a person's
+`TEMPER_INTERNAL_FAKE_BOX_PORTS`, the process tier's and never a person's
 (`../../testing/process-tier.md`), names a new sandbox's nine ports, separated
 by commas: init's five, clients, owned, forge, llm and webhooks, then the
 peers' github, oauth, llm and forgejo. A new sandbox holds each of them or
@@ -669,7 +667,7 @@ model key stays the API-key choice. Neither value is a real credential.
 
 The standalone issuer command is:
 
-    temper fake oauth --document FILE [--ready PREFIX] [--seed N]
+    temper-box fake oauth --document FILE [--ready PREFIX] [--seed N]
 
 Its bounded document has a loopback listen socket with a nonzero port,
 redirect_port (the shipped 1455 by default) and redirect_path
@@ -744,27 +742,28 @@ document.
 
 ## 6. The TUI in front
 
-In a terminal, `temper box` runs the TUI in front of its steps, as a child
+In a terminal, bare `temper-box` runs the TUI in front of its steps, as a child
 of its own, the front: the person's terminal shows the TUI from the box's
 first moment, the TUI is signed in with nothing to read or paste, and
 quitting it stops the box. The TUI's side is `../../client/tui/box.md`,
-and the terminal's foreground skein's `runtime/shell.md`, 6.3.
+and the terminal's foreground skein's `runtime/shell.md`, 6.3. This front
+remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6).
 
 - **When.** The box runs its front when all of these hold, read once at
   its start, after its refusals and before anything is written: no
-  `--no-tui`, which either form takes (`temper box [DIRECTORIES] [--echo
-  none|steps] [--no-tui]`, `temper box [DIRECTORIES] --fake-backends
-  [--bundle BUNDLE] [--no-tui]`); echo `none` (2, *Its terminal*, from
+  `--no-tui` (internal until C3); the forms are
+  `temper-box [DIRECTORIES] [--echo none|steps] [--no-tui]` and
+  `temper-box [DIRECTORIES] --fake-backends [--bundle BUNDLE]`; echo `none` (2, *Its terminal*, from
   `--echo` or `TEMPER_ECHO`); its standard input and output each a
   terminal (skein's `terminal_modes`); its controlling terminal opened
   (skein's `open_terminal`); and a first link drawn (2, *The sign-in
   block*). Otherwise, under `--no-tui` or `--echo steps`, on a pipe or a
   file, with no controlling terminal, or where 2 *Where the box draws
   none* holds, it runs with no front, byte for byte as 1 to 5 say.
-- **Its command:** `temper internal tui --box http://HOST:PORT`,
+- **Its command:** `temper-box internal tui --box http://HOST:PORT`,
   `HOST:PORT` the clients' listener, on loopback (../configuration/README.md,
   section 2), never the configured public origin, which a browser's
-  printed link may name (2, *The sign-in block*). On Linux the box spawns it through `temper internal
+  printed link may name (2, *The sign-in block*). On Linux the box spawns it through `temper-box internal
   forge-child --parent BOX --signal terminate --`, as every step, on
   macOS directly (1, *A step's start*). Its environment is the box's,
   `LISTEN_FDS` and `LISTEN_PID` dropped as for a step given no listener.
@@ -868,10 +867,10 @@ and the terminal's foreground skein's `runtime/shell.md`, 6.3.
   `SIGTERM` reaches it too.
 - **Where it lives.** The binary decides the front, draws the local
   link's secret and URL, opens the controlling terminal and keeps its
-  descriptor, and gives temper-box's host the front's arguments, its URL
+  descriptor, and gives temper-box-machine's host the front's arguments, its URL
   and its secret in its settings. The host runs the front beside the
   machine, routes the terminal's lines and writes the box's lines with
-  `temper_box::front`, which owns their words and bytes; it says when the
+  `temper_box_machine::front`, which owns their words and bytes; it says when the
   front has ended, and the binary takes the foreground back in the loop's
   drain hook (skein's `runtime/shell.md`, section 11), between that turn and its
   submissions, since neither of skein's terminal calls is step code's.

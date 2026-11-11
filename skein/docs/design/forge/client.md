@@ -181,6 +181,12 @@ The client holds the resources the owner names, and nothing else.
     pages are as many rows as the bytes
     hold, so the listing's cost follows the changes' count and size, not
     the largest issue a repository could hold.
+  - **A cut page of reviews** (`forgejo.md`, 1.1 and 1.3), in an item's
+    scan or a find (7.5), is read on at the same page with `skip` the
+    rows kept from it so far (`README.md`, 3.2), and the next page from
+    `skip` 0 once a page ends uncut. A skip lives in memory: a stored scan
+    position names whole pages alone, so a restart reads that page again
+    and the stamps drop what it delivered.
   - **The mark** is the newest time seen. If an item changed at or after
     the listing began, it is instead the time of the first full page of
     one time, when there was one. The next listing replays what may have
@@ -194,10 +200,18 @@ The client holds the resources the owner names, and nothing else.
   `slow`), and starts again at `poll` on a change or hint. That finds what
   moves no updated time: CI, a base. Issues and branches rest at `slow`.
   A branch, issue or pull that answers `Missing` rests at `slow`, or
-  `hinted` when a hint named it: absence is an answer. A branch created
-  by someone else can therefore be seen up to `slow` late, or `hinted`
-  with a hint. The owner knows the result of its own pushes and reads
-  afresh before decisions (section 5).
+  `hinted` when a hint named it: absence is an answer.
+  - **A branch never there.** One that has not read present since the
+    client started rests after `Missing` at the later of `slow` and
+    `fallback`, whether or not its repository hears (4.1): only a push
+    makes it, and a push's hint naming it, or its owner's `Pushed` for
+    it, reads it at `hinted`. Once it reads present it rests as any
+    branch. `fallback` 0 leaves it at `slow`.
+
+  A branch created by someone else can therefore be seen up to `slow`
+  late, `fallback` while it has never been there, or `hinted` with a
+  hint. The owner knows the result of its own pushes and reads afresh
+  before decisions (section 5).
   The read that ends a `slow` rest, or retries a failure, is `Slow`. A
   participating item's `Slow` read rescans its comments from 0 and rereads
   its reviews, finding an edit that moved no time; a hint naming an item
@@ -216,7 +230,10 @@ The client holds the resources the owner names, and nothing else.
 - **Hints.** `Hint { repository, change, key }` names an item, a branch,
   a branch moved (with head and actor) or a commit. It affects the held
   resources it can have moved: the item, the branch, the pull requests
-  with that branch or commit as head or base, the repository's listing.
+  with that branch as head or base, the repository's listing. A
+  commit's hint moves no pull request's head or base, only its CI, which
+  an owner that needs it at once reads afresh (section 5), so it affects
+  no pull request: the pull's next timed read finds what it told.
   Nothing it says is stored or delivered. A branch name or key over
   `op_bytes` is refused with a fact and read for nothing.
   - **Every hint is handed over,** the owner's own echoes among them,
@@ -333,6 +350,16 @@ Before a decision depends on a fact, the owner asks for it afresh with
 (README.md, section 3).
 
 - **One terminal:** exactly one `Request::Read`, an answer or an error.
+- **Shared.** A fresh read asked while the same read (its repository
+  and `Read` alike) is queued, or is out and was sent after all of these
+  the client has taken: the last write's answer for that repository,
+  the last hint affecting the read's resource, and the last `Pushed`
+  for its branch, joins it: one call, its cost counted once, each
+  asker its own terminal, as if each had asked alone. A read sent
+  before any of them is not joined, since its answer may be older than
+  what the asker knows. A joined read is admitted as any read is (2.3,
+  `Busy` included) and is answered with the call it joined; a failure
+  is each asker's, and its retries the call's.
 - **Refused at the entrance,** with no API call, `TooLarge` by section
   2.3 first, then `Busy` when the call slab is full or when the
   foreground share is spent and a keeping read is due (section 6).

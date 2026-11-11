@@ -39,7 +39,8 @@ struct World {
     hold: Option<Token>,
     trace: Vec<String>,
     commits: Vec<(Commit, Commit, u32, Vec<u8>)>,
-    landing_fetches: usize,
+    pins: usize,
+    branch_fetches: Vec<Vec<u8>>,
     push_races: usize,
     push_attempts: usize,
     expected: temper_fake_checkout::git::Tree,
@@ -120,7 +121,8 @@ impl World {
             hold: None,
             trace: Vec::new(),
             commits: Vec::new(),
-            landing_fetches: 0,
+            pins: 0,
+            branch_fetches: Vec::new(),
             push_races: 0,
             push_attempts: 0,
             expected,
@@ -171,8 +173,15 @@ impl World {
             if let Op::Commit { parent, merging: Some(second), identity, title, .. } = &op {
                 self.commits.push((*parent, *second, *identity, title.to_vec()));
             }
-            if matches!(op, Op::Fetch { into: temper_worker_domain_checkout::git::Into::Landing, .. }) {
-                self.landing_fetches += 1;
+            if matches!(
+                op,
+                Op::Fetch { into: temper_worker_domain_checkout::git::Into::Landing, .. }
+                    | Op::Point { into: temper_worker_domain_checkout::git::Into::Landing, .. }
+            ) {
+                self.pins += 1;
+            }
+            if let Op::Fetch { want: temper_worker_domain_checkout::git::Want::Branch { branch }, .. } = &op {
+                self.branch_fetches.push(branch.to_vec());
             }
             let pushing = matches!(op, Op::Push { .. });
             if pushing {
@@ -260,14 +269,19 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         repository: b"temper".as_slice().into(),
     });
     if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
-        assert_eq!(world.landing_fetches, 1, "one pin during prepare, contained starts included");
+        assert_eq!(world.pins, 1, "one pin during prepare, contained starts included");
         assert_eq!(
             world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
             Some(world.base.to_le_bytes().as_slice()),
             "prepare pins the landing tip"
         );
     } else {
-        assert_eq!(world.landing_fetches, 0, "no landing named");
+        assert_eq!(world.pins, 1, "a resolution pins its replaced head once");
+        assert_eq!(
+            world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
+            Some(world.ours.to_le_bytes().as_slice()),
+            "a resolution pins its branch before the merge"
+        );
     }
     if matches!(case, Case::Conflict) {
         assert_eq!(conflicts.len(), 1);
@@ -295,11 +309,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.ours));
     }
     let landed = world.push(false, matches!(case, Case::Ambiguous));
-    assert_eq!(
-        world.landing_fetches,
-        usize::from(matches!(case, Case::Contained | Case::Resumed | Case::Conflict)),
-        "pushes and verification never move the pin"
-    );
+    assert_eq!(world.pins, 1, "pushes and verification never move the pin");
     let commit = if matches!(case, Case::Moved) {
         assert_eq!(&*landed, &[Landing::Moved]);
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.base));
@@ -335,6 +345,103 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
     Report { trace: world.trace, tree: world.expected, parents: (world.ours, world.base) }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum PinCase {
+    Repair,
+    Saved,
+    Resolution,
+    NewBranch,
+    ReadOnly,
+}
+
+/// Reuse a producer's checkout, then check the replacement pin through two deliveries.
+pub fn replaced_pin(case: PinCase) {
+    let mut world = World::new(73, Case::Clean, 64);
+    let repository = || Repository {
+        name: b"temper".as_slice().into(),
+        remote: b"forge/temper".as_slice().into(),
+        git: None,
+        start: Start::Branch { branch: b"topic".as_slice().into() },
+        identity: 0,
+        account: None,
+        push: Some(b"topic".as_slice().into()),
+        expected: None,
+        landing: Some(b"main".as_slice().into()),
+        save: Some(b"saved".as_slice().into()),
+    };
+    let spec = |repository| Spec { key: b"merge".as_slice().into(), repositories: Box::new([repository]) };
+    let Request::Prepared { prepared: Prepared::Ready { workspace, .. }, .. } =
+        world.finish(Event::Prepare { client: Token::new(1), spec: spec(repository()) }, false)
+    else {
+        panic!("producer ready")
+    };
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    let pin = [at.as_slice(), b"/.git/refs/temper/landing"].concat();
+    assert_eq!(world.disk.content(&pin), Some(world.base.to_le_bytes().as_slice()));
+    let hold = world.hold.take().expect("producer held");
+    world.finish(Event::Release { hold }, false);
+    world.pins = 0;
+    world.branch_fetches.clear();
+    let mut repository = repository();
+    repository.landing = None;
+    let mut expected = world.ours;
+    match case {
+        PinCase::Repair => {}
+        PinCase::Saved => {
+            world.forge.create_branch(b"forge/temper", b"saved", world.ours).expect("saved branch");
+            let saved = world.forge.advance(b"forge/temper", b"saved", b"saved-only", b"unfinished\n");
+            assert_ne!(saved, expected);
+            repository.start = Start::Saved { branch: b"saved".as_slice().into() };
+        }
+        PinCase::Resolution => {
+            repository.start = Start::Merge { branch: b"topic".as_slice().into(), base: translate::commit(world.base) };
+        }
+        PinCase::NewBranch => {
+            repository.start = Start::Commit { commit: translate::commit(world.ours) };
+            repository.push = Some(b"new".as_slice().into());
+        }
+        PinCase::ReadOnly => {
+            repository.push = None;
+            repository.landing = Some(b"main".as_slice().into());
+            expected = world.base;
+        }
+    }
+    let Request::Prepared { prepared: Prepared::Ready { workspace: reused, .. }, .. } =
+        world.finish(Event::Prepare { client: Token::new(2), spec: spec(repository) }, false)
+    else {
+        panic!("replacement ready")
+    };
+    assert_eq!(reused, workspace, "the producer's cached checkout is reused");
+    if matches!(case, PinCase::Repair) {
+        assert_eq!(world.branch_fetches, [b"topic".to_vec()], "one fetch serves start, baseline and pin");
+    }
+    assert_eq!(world.pins, usize::from(!matches!(case, PinCase::ReadOnly)), "one pin per writable hold");
+    assert_eq!(
+        world.disk.content(&pin),
+        Some(expected.to_le_bytes().as_slice()),
+        "prepare replaces the cached producer pin, not the saved start"
+    );
+    if !matches!(case, PinCase::ReadOnly) {
+        for content in [b"first\n".as_slice(), b"second\n".as_slice()] {
+            world.disk.write(&[at.as_slice(), b"/repair"].concat(), content);
+            let landings = world.push(false, false);
+            assert!(matches!(landings.as_ref(), [Landing::Landed { .. }]));
+            assert_eq!(
+                world.disk.content(&pin),
+                Some(expected.to_le_bytes().as_slice()),
+                "deliveries keep the prepare pin"
+            );
+            assert_eq!(world.pins, 1, "deliveries never fetch a new pin");
+        }
+    }
+    let hold = world.hold.take().expect("replacement held");
+    world.finish(Event::Release { hold }, false);
 }
 
 /// The named prefix leaves every conflicted file and the merge state on disk.
@@ -660,6 +767,7 @@ fn expected_merge_message(head: u64) -> String {
 
 /// A goal starts on main (g), brings its run head in, and writes only topic (r)
 /// (temper/docs/design/domain/worker.md, 5).
+#[expect(clippy::too_many_lines, reason = "one scenario holds the goal start, its pin and delivery together")]
 pub fn goal_later_run(case: Case) {
     let mut world = World::new(73, case, 64);
     assert!(matches!(case, Case::Contained | Case::Resumed | Case::Conflict));
@@ -698,6 +806,16 @@ pub fn goal_later_run(case: Case) {
         repository: b"temper".as_slice().into(),
     });
     assert!(world.forge.moves().is_empty(), "prepare moves neither g nor r");
+    assert_eq!(
+        world.branch_fetches.iter().filter(|branch| branch.as_slice() == b"main").count(),
+        1,
+        "g is fetched once"
+    );
+    assert_eq!(
+        world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
+        Some(world.base.to_le_bytes().as_slice()),
+        "the pin stays at g's tip"
+    );
     let prepared = match case {
         Case::Contained => {
             assert!(conflicts.is_empty());
@@ -793,6 +911,14 @@ fn design_start() -> (World, Vec<u8>, u64) {
         workspace,
         repository: b"temper".as_slice().into(),
     });
+    assert_eq!(world.branch_fetches, [b"g".to_vec()], "g is fetched once during prepare");
+    assert_eq!(
+        world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
+        Some(world.ours.to_le_bytes().as_slice())
+    );
+    let mut tree = world.disk.tree(&at);
+    tree.retain(|path, _| !path.starts_with(b".git/"));
+    assert_eq!(tree, world.forge.tree(world.ours), "the run starts on g's tree");
     world.forge.moves();
     let tip = world.ours;
     (world, at, tip)
@@ -838,7 +964,7 @@ pub fn design_clean_move() {
     world.push(false, false);
     let next = world.forge.branch(b"forge/temper", b"g").expect("g exists");
     assert_eq!(world.forge.parent(next), Some(head), "next delivery builds on pushed merge");
-    assert_eq!(world.landing_fetches, 1, "design deliveries never move the prepare pin");
+    assert_eq!(world.pins, 1, "design deliveries never move the prepare pin");
     assert_eq!(
         world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
         Some(tip.to_le_bytes().as_slice())

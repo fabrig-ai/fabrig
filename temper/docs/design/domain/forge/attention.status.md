@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [attention.md](attention.md).
 
+- **Not yet:** 5: a standing role's Decided rows for its person and Overturn waking it, held by no story (`../agent/standing.md`, section 3) [in flight: change 109].
+
 - **Not yet:** 5: a call answered ask at the bound, with no row past
   its day, erases the project's rows older than 7 days without marking
   `decided`, so its document lists them until the next mark

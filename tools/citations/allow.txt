@@ -27,6 +27,7 @@ temper/docs/design/client/pages/chat/document.md docs/design/draft/NAME.md # a c
 temper/docs/design/client/pages/chat/document.md docs/design/draft/SLUG.md # the words a goal is told, naming a path in the project's repository
 temper/docs/design/client/pages/chat/document.md untitled.md # the name an empty document shows
 temper/docs/design/client/tui/pages.md untitled.md # the name an empty document shows
+temper/docs/design/client/tui/journeys/design-session/README.md farewell-line.md # the fake design session's draft name, not a document in this repository
 temper/docs/design/client/web/gallery.md away-mode.md # a chat's document's name, an example
 temper/docs/design/client/pages/goal.md docs/design/draft/away-mode.md # an adopted repository's draft path, as example data
 temper/docs/design/client/pages/goal.md docs/design/draft/name.md # the Start goal field's example placeholder, not a document here

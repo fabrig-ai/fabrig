@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-test-env.workspace = true
+temper-service-shell.workspace = true
 temper-client-domain.workspace = true
 skein-fake-forge-http.workspace = true
 temper-playground.workspace = true
@@ -28,7 +30,7 @@ temper-protocol-store.workspace = true
 temper-protocol-records = { workspace = true, features = ["forge"] }
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
-temper.workspace = true
+temper-box-shell.workspace = true
 temper-client-shell-cli.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-tools.workspace = true

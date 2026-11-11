@@ -39,6 +39,12 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         done: false,
     });
     row.done = false;
+    // Its creation answer owns the pending change. A wake before that answer
+    // must not delegate the same close or landing step again.
+    if row.making.is_some() {
+        submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+        return;
+    }
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => Some(contains),

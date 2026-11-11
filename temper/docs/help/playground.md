@@ -9,7 +9,7 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 - **Its parts:** a fake Forgejo, with the repository
   `playground/widget`; provider 3, a scripted model, with a key the
   deployment holds; the project `Demo`, which adopts the
-  repository. The model is a stock setting. `temper init --box` writes the fake forge's
+  repository. The model is a stock setting. `temper-box init --box` writes the fake forge's
   place, `application.machine.fake`, into the configuration; the
   forge, the account and the project are made when the playground
   starts.

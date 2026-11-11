@@ -43,22 +43,30 @@ impl Plan {
         }
         if self.stage == Stage::Before || self.stage == Stage::After {
             if more {
-                return Err(api::Error::TooLarge(Excess {
-                    bound: api::Bound::AnswerBytes,
-                    limit: u64::from(bounds.answer_bytes),
-                    size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1),
-                    exact: false,
-                }));
+                return self.cut_files(
+                    api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1),
+                        exact: false,
+                    }),
+                    bounds,
+                );
             }
             if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
-                return Err(api::Error::TooLarge(Excess {
-                    bound: api::Bound::AnswerBytes,
-                    limit: u64::from(bounds.answer_bytes),
-                    size: self.size.saturating_add(skein_lib::len_u64(bytes.len())),
-                    exact: false,
-                }));
+                return self.cut_files(
+                    api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size: self.size.saturating_add(skein_lib::len_u64(bytes.len())),
+                        exact: false,
+                    }),
+                    bounds,
+                );
             }
-            self.keep_bytes(0, &[&bytes], bounds)?;
+            if let Err(error) = self.keep_bytes(0, &[&bytes], bounds) {
+                return self.cut_files(error, bounds);
+            }
             return self.side_done(Some(bytes), bounds);
         }
         if self.stage != Stage::Raw {
@@ -128,8 +136,8 @@ impl Plan {
             self.limit = 1;
             self.files.paths = skein_lib::List::with_capacity(bounds.rows);
         } else {
-            let files = super::size::capacity(bounds, crate::measure::FILE_BYTES)?;
-            self.limit = super::size::page_size(bounds, files)?;
+            self.limit = super::size::page_size(bounds, bounds.page_size)?;
+            let files = self.limit;
             self.files.descriptors = skein_lib::Queue::with_capacity(files);
             self.files.files = skein_lib::List::with_capacity(files);
         }
@@ -187,32 +195,36 @@ impl Plan {
                 }
                 if self.stage == Stage::FileListing {
                     self.page_row(bounds)?;
+                    if let Read::PullFiles { skip, .. } = self.read
+                        && self.count <= skip
+                    {
+                        return Ok(());
+                    }
                     if file.status == crate::github::document::FileStatus::Renamed && file.previous.is_none() {
                         return Err(api::Error::InvalidAnswer);
                     }
                 }
-                let previous = match &file.previous {
-                    Some(path) => path.as_ref(),
-                    None => &[],
-                };
+                if self.files.full {
+                    return Ok(());
+                }
                 let path_bytes = skein_lib::len_u64(file.path.len());
-                let previous_bytes = skein_lib::len_u64(previous.len());
                 let width = path_bytes
-                    .checked_add(64)
-                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?
-                    .checked_add(previous_bytes)
+                    .checked_add(u64::try_from(crate::measure::FILE_BYTES).expect("file width"))
                     .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 self.files.descriptor_size =
                     self.files.descriptor_size.checked_add(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.files.descriptor_size > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge(Excess {
-                        bound: api::Bound::AnswerBytes,
-                        limit: u64::from(bounds.answer_bytes),
-                        size: self.files.descriptor_size,
-                        exact: false,
-                    }));
+                    if self.files.descriptors.is_empty() {
+                        return Err(api::Error::TooLarge(Excess {
+                            bound: api::Bound::AnswerBytes,
+                            limit: u64::from(bounds.answer_bytes),
+                            size: self.files.descriptor_size,
+                            exact: false,
+                        }));
+                    }
+                    self.files.full = true;
+                    return Ok(());
                 }
-                self.keep_bytes(64, &[&file.path], bounds)?;
                 if self.files.descriptors.try_push(file).is_err() {
                     return Err(api::Error::TooLarge(crate::measure::capacity_excess(
                         self.files.descriptors.capacity(),
@@ -279,15 +291,35 @@ impl Plan {
                     self.files.previous = file.previous;
                 }
             }
+            if let Err(error) =
+                self.keep_bytes(u64::try_from(crate::measure::FILE_BYTES).expect("file width"), &[&file.path], bounds)
+            {
+                return self.cut_files(error, bounds);
+            }
             self.files.current = Some(api::File { path: file.path, before: None, after: None });
+            if let Read::PullFiles { sides: false, .. } = self.read {
+                return self.finish_file(bounds);
+            }
             return self.side_request(self.files.status != Some(crate::github::document::FileStatus::Added), bounds);
         }
         let files = core::mem::replace(&mut self.files.files, skein_lib::List::with_capacity(0)).into_boxed();
         if let Read::PullFiles { head, .. } = self.read {
-            self.terminal(api::Answer::PullFiles { head, files, more: self.files.more }, bounds)
+            self.terminal(
+                api::Answer::PullFiles { head, files, more: self.files.more || self.files.full, cut: self.files.full },
+                bounds,
+            )
         } else {
             Err(api::Error::InvalidAnswer)
         }
+    }
+    fn cut_files(&mut self, error: api::Error, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+        if self.files.files.is_empty() {
+            return Err(error);
+        }
+        let Read::PullFiles { head, .. } = self.read else { return Err(api::Error::InvalidAnswer) };
+        self.files.current = None;
+        let files = core::mem::replace(&mut self.files.files, skein_lib::List::with_capacity(0)).into_boxed();
+        self.terminal(api::Answer::PullFiles { head, files, more: true, cut: true }, bounds)
     }
     fn side_request(&mut self, before: bool, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let file = self.files.current.as_ref().ok_or(api::Error::InvalidAnswer)?;
@@ -363,6 +395,9 @@ impl Plan {
             return Err(api::Error::Stale);
         }
         self.files.after = head;
+        if let Read::PullFiles { sides: false, .. } = self.read {
+            return Ok(Some(self.file_listing()?));
+        }
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
         let request = Request::Compare {
             owner: row.owner.clone(),

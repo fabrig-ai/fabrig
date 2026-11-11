@@ -76,6 +76,236 @@ fn a_change_runs_each_repositorys_checks_then_is_delivered_and_accepted() {
 }
 
 #[test]
+fn each_directory_retries_a_timed_out_check_under_the_same_lease() {
+    let limits = Limits { check_timeout: Duration::from_secs(60), ..LIMITS };
+    let mut harness = Harness::new(limits);
+    let mut policy = coding();
+    policy.reserve.time = Duration::from_secs(60);
+    let (run, conversation) = harness.coding_policy(1, 100, policy);
+    let requests = harness.step(finish(conversation, 7, Declared::Change(change())));
+    let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+        panic!("first check: {requests:?}");
+    };
+    assert_eq!((*deadline, *told), (Time::from_nanos(Duration::from_secs(60).as_nanos()), *deadline));
+    let owner = *owner;
+    for root in [Token::new(900), Token::new(901)] {
+        harness.after(Duration::from_secs(60));
+        let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
+        let [Request::Check { owner: retry, program, deadline, .. }, Request::Checking { deadline: told, .. }] =
+            &*requests
+        else {
+            panic!("timed out check retries immediately: {requests:?}");
+        };
+        assert_eq!((*retry, program.root), (owner, root));
+        assert_eq!((*deadline, *told), (harness.env.now.saturating_add(Duration::from_secs(120)), *deadline));
+        assert_eq!(harness.domain.calls(), 1);
+        assert_eq!(
+            harness.domain.runs.get(skein_lib::Id::from_token(run)).unwrap().lease,
+            crate::lease::Lease::Workspace { owner }
+        );
+        harness.after(Duration::from_secs(120));
+        let requests = harness.step(pass_checks(owner));
+        if root == Token::new(900) {
+            let [Request::Check { program, .. }, Request::Checking { .. }] = &*requests else {
+                panic!("next directory: {requests:?}");
+            };
+            assert_eq!(program.root, Token::new(901));
+        } else {
+            let [Request::Deliver { owner: submitted, .. }] = &*requests else { panic!("delivery: {requests:?}") };
+            assert_eq!(*submitted, owner);
+        }
+    }
+}
+
+#[test]
+fn a_second_timeout_refuses_with_the_retrys_given_time() {
+    let mut harness = Harness::new(Limits { check_timeout: Duration::from_secs(60), ..LIMITS });
+    let mut policy = coding();
+    policy.reserve.time = Duration::from_secs(60);
+    let (_, conversation) = harness.coding_policy(1, 100, policy);
+    let requests = harness.step(finish(conversation, 7, Declared::Change(change())));
+    let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else { panic!("first check") };
+    let owner = *owner;
+    harness.after(Duration::from_secs(60));
+    let retry = harness.step(Event::Checked { owner, ran: timed_out_check() });
+    let [Request::Check { .. }, Request::Checking { .. }] = &*retry else { panic!("retry: {retry:?}") };
+    harness.after(Duration::from_secs(120));
+    assert_eq!(
+        harness.step(Event::Checked { owner, ran: timed_out_check() }).as_ref(),
+        [returned(
+            7,
+            Returned::ChecksFailed {
+                repository: bytes(b"temper"),
+                check: bytes(b".temper/pre-pr"),
+                given: Duration::from_secs(120),
+                ran: timed_out_check()
+            }
+        )]
+    );
+    harness.domain.reclaim();
+    assert_eq!(harness.domain.calls(), 0);
+}
+
+#[test]
+fn the_charters_check_bound_replaces_the_limit_and_is_cut_by_the_call() {
+    for (bound, call_seconds, expected_seconds) in [
+        (None, 500, 300),
+        (Some(Duration::from_secs(400)), 500, 400),
+        (Some(Duration::from_secs(400)), 200, 200),
+        (Some(Duration::from_secs(86_400)), 1000, 600),
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let mut policy = coding();
+        policy.check_timeout = bound;
+        let (_, conversation) = harness.coding_policy(1, 100, policy);
+        let deadline = harness.env.now.saturating_add(Duration::from_secs(call_seconds));
+        let requests = harness.step(finish_by(conversation, 7, Declared::Change(change()), deadline));
+        let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+            panic!("first check: {requests:?}");
+        };
+        let given = Duration::from_secs(expected_seconds);
+        assert_eq!((*deadline, *told), (harness.env.now.saturating_add(given), *deadline));
+        let owner = *owner;
+        assert_eq!(
+            harness.step(Event::Checked { owner, ran: ran(1, b"failed") }).as_ref(),
+            [returned(
+                7,
+                Returned::ChecksFailed {
+                    repository: bytes(b"temper"),
+                    check: bytes(b".temper/pre-pr"),
+                    given,
+                    ran: ran(1, b"failed")
+                }
+            )]
+        );
+    }
+}
+
+#[test]
+fn the_check_bound_is_admitted_from_one_second_to_one_day_independently_of_reserve() {
+    for (bound, admitted) in [
+        (Duration::from_millis(999), false),
+        (Duration::from_secs(1), true),
+        (Duration::from_secs(86_400), true),
+        (Duration::from_nanos(86_400_000_000_001), false),
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let mut policy = coding();
+        policy.check_timeout = Some(bound);
+        let requests = harness.start(1, policy);
+        if admitted {
+            let [Request::Admitted { .. }, Request::Read { .. }] = &*requests else { panic!("admitted: {requests:?}") };
+        } else {
+            assert_eq!(answered(requests), (1, Answer::Refused(Refusal::Invalid(Invalid::MalformedCharter))));
+        }
+    }
+}
+
+#[test]
+fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
+    for (start, call_until, expected) in [(0, 150, 150), (150, 600, 300)] {
+        let mut harness = Harness::new(Limits { check_timeout: Duration::from_secs(60), ..LIMITS });
+        let (_, conversation) = harness.coding(1, 100);
+        harness.after(Duration::from_secs(start));
+        let requests = harness.step(finish_by(
+            conversation,
+            7,
+            Declared::Change(change()),
+            Time::ZERO.saturating_add(Duration::from_secs(call_until)),
+        ));
+        let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else { panic!("first check") };
+        let owner = *owner;
+        harness.after(Duration::from_secs(60));
+        let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
+        let [Request::Check { deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+            panic!("retry with room: {requests:?}");
+        };
+        assert_eq!((*deadline, *told), (Time::ZERO.saturating_add(Duration::from_secs(expected)), *deadline));
+        harness.after(Duration::from_secs(90));
+        assert_eq!(
+            harness.step(Event::Checked { owner, ran: timed_out_check() }).as_ref(),
+            [returned(
+                7,
+                Returned::ChecksFailed {
+                    repository: bytes(b"temper"),
+                    check: bytes(b".temper/pre-pr"),
+                    given: Duration::from_secs(90),
+                    ran: timed_out_check()
+                }
+            )]
+        );
+    }
+}
+
+#[test]
+fn checks_without_retry_room_or_a_timeout_return_feedback_at_once() {
+    for (exit, start, call_until) in [
+        (Exit::Code { code: 1 }, 0, 600),
+        (Exit::Cancelled, 0, 600),
+        (Exit::Unstarted, 0, 600),
+        (Exit::Signalled { signal: 15 }, 0, 600),
+        (Exit::TimedOut, 0, 120),
+        (Exit::TimedOut, 0, 119),
+        (Exit::TimedOut, 180, 600),
+        (Exit::TimedOut, 181, 600),
+        (Exit::TimedOut, 301, 600),
+    ] {
+        let mut harness = Harness::new(Limits { check_timeout: Duration::from_secs(60), ..LIMITS });
+        let (_, conversation) = harness.coding(1, 100);
+        harness.after(Duration::from_secs(start));
+        let requests = harness.step(finish_by(
+            conversation,
+            7,
+            Declared::Change(change()),
+            Time::ZERO.saturating_add(Duration::from_secs(call_until)),
+        ));
+        let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else { panic!("first check") };
+        let owner = *owner;
+        harness.after(Duration::from_secs(60));
+        assert_eq!(
+            harness.step(Event::Checked { owner, ran: Ran { exit, ..timed_out_check() } }).as_ref(),
+            [returned(
+                7,
+                Returned::ChecksFailed {
+                    repository: bytes(b"temper"),
+                    check: bytes(b".temper/pre-pr"),
+                    given: Duration::from_secs(60),
+                    ran: Ran { exit, ..timed_out_check() }
+                }
+            )],
+            "exit={exit:?}, start={start}, call_until={call_until}"
+        );
+    }
+}
+
+#[test]
+fn winding_down_for_turns_does_not_retry_even_with_ordinary_time_left() {
+    let mut harness = Harness::new(Limits { check_timeout: Duration::from_secs(60), ..LIMITS });
+    let mut policy = coding();
+    policy.budget.turns = 4;
+    policy.reserve.turns = 2;
+    let (_, main) = harness.coding_policy(1, 100, policy);
+    drop(harness.step(Event::Used { conversation: main, spend: Spend { turns: 2, ..Spend::ZERO } }));
+    let permit = crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0));
+    let crate::CompletionPermit::Final { .. } = permit else { panic!("finishing reserve: {permit:?}") };
+    let requests = harness.step(finish(main, 7, Declared::Change(change())));
+    let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else {
+        panic!("first check: {requests:?}")
+    };
+    let owner = *owner;
+    harness.after(Duration::from_secs(60));
+    let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
+    let [Request::Return { result: Returned::ChecksFailed { given, .. }, .. }] = &*requests else {
+        panic!("no retry in wind-down: {requests:?}");
+    };
+    assert_eq!(*given, Duration::from_secs(60));
+}
+
+fn timed_out_check() -> Ran {
+    Ran { exit: Exit::TimedOut, output: bytes(b"tail"), cut: 3 }
+}
+
+#[test]
 fn a_change_that_fails_its_checks_or_its_delivery_goes_back_to_the_llm() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);

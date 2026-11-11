@@ -158,7 +158,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
    | `account replace-key ACCOUNT FILE` | replaces the account's key with the one read from FILE | replace a key | |
    | `account forget ACCOUNT [--source SOURCE]` | removes a source, or the account with every source, each signed out as `account disconnect` does | remove | |
-   | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host with its directories, `temper program-login --config CONFIG --data DATA --cache CACHE NAME`; CONFIG, DATA and CACHE stand for that box's directories, and skips it where the programs directory's NAME is already signed in, then `account verify ACCOUNT --source program`, ACCOUNT as `account list` shows it (`../../protocol/credentials.md`, section 3) | declare a program's login | yes |
+   | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host with its directories, `temper-box program-login --config CONFIG --data DATA --cache CACHE NAME`; CONFIG, DATA and CACHE stand for that box's directories, and skips it where the programs directory's NAME is already signed in, then `account verify ACCOUNT --source program`, ACCOUNT as `account list` shows it (`../../protocol/credentials.md`, section 3) | declare a program's login | yes |
    | `account verify ACCOUNT [--source SOURCE]` | has each host check a program source's login now; answered once asked, then `account list --until settled` | check | |
    | `account rank ACCOUNT POSITION [--source SOURCE]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
    | `account retry ACCOUNT [--source SOURCE]` | resumes a limited source, so that the runs it holds start again | resume | |
@@ -237,7 +237,7 @@ The table grows area by area, each with its stories (`testing.md`).
      answer.
 
    - **A program's login is never the tools'.** `account declare` makes
-     the source; the person, or the harness, runs `temper program-login`
+     the source; the person, or the harness, runs `temper-box program-login`
      on each host, outside `temper ctl`, since it hands the terminal to
      the program's own sign-in (`../../protocol/credentials.md`, section 3).
      The printed act names `--config CONFIG --data DATA --cache CACHE`,

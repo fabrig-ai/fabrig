@@ -68,7 +68,10 @@ fn ask(d: &mut Domain, env: &Env<Limits>, key: (Repository, Box<[u8]>), read: ap
     d.sequence = d.sequence.checked_add(1).expect("tier read sequence");
     let owner = Token::new(d.sequence | (1_u64 << 59));
     let repository = key.0;
-    d.tier_ops.reads.insert(owner, key).expect("one log read per tier alongside its key walk");
+    d.tier_ops
+        .reads
+        .insert(owner, super::Read { tier: key, baseline: false })
+        .expect("one log read per tier alongside its key walk");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 
@@ -237,7 +240,7 @@ pub(super) fn forget(d: &mut Domain, row: &TierRow) {
         }
         let mut owner = None;
         for (token, read_key) in &d.tier_ops.reads {
-            if read_key == &key && Some(*token) != walker {
+            if read_key.tier == key && Some(*token) != walker {
                 owner = Some(*token);
             }
         }

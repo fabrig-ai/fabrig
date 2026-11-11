@@ -78,18 +78,12 @@ fn two_people_read_each_other_on_team() {
     people(
         &world,
         owner,
-        &[
-            [b"You", b"Owner of Project 1", b"1 question waits on you."],
-            [b"Other", b"Member", b"Nothing waits on Other."],
-        ],
+        &[[b"You", b"Owner", b"One question waits on you."], [b"Other", b"Member", b"Nothing waits on Other."]],
     );
     people(
         &world,
         member,
-        &[
-            [b"You", b"Member", b"Nothing waits on you."],
-            [b"Person", b"Owner of Project 1", b"1 question waits on Person."],
-        ],
+        &[[b"You", b"Member", b"Nothing waits on you."], [b"Person", b"Owner", b"One question waits on Person."]],
     );
     world.person(
         owner,
@@ -108,14 +102,11 @@ fn two_people_read_each_other_on_team() {
     people(
         &world,
         owner,
-        &[[b"You", b"Owner of Project 1", b"Nothing waits on you."], [b"Other", b"Member", b"Nothing waits on Other."]],
+        &[[b"You", b"Owner", b"Nothing waits on you."], [b"Other", b"Member", b"Nothing waits on Other."]],
     );
     people(
         &world,
         member,
-        &[
-            [b"You", b"Member", b"Nothing waits on you."],
-            [b"Person", b"Owner of Project 1", b"Nothing waits on Person."],
-        ],
+        &[[b"You", b"Member", b"Nothing waits on you."], [b"Person", b"Owner", b"Nothing waits on Person."]],
     );
 }

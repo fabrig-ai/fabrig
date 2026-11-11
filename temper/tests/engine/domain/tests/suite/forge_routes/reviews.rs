@@ -178,16 +178,20 @@ fn a_gate_reviews_a_named_pull_with_its_whole_section_at_a_sha1_head() {
 fn a_changes_reviewer_reads_its_own_pull() {
     let (mut world, reviewer, head) = review_world();
     let Answer::Pull(pull) =
-        read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 }).expect("pull read")
+        read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false }).expect("pull read")
     else {
         panic!("pull")
     };
     assert_eq!(pull.number, 1);
     assert_eq!(pull.commit, head);
-    let Answer::PullFiles { head: observed, files, more } =
-        read(&mut world, &reviewer, 11, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 })
-            .expect("files read")
-    else {
+    let Answer::PullFiles { head: observed, files, more, .. } = read(
+        &mut world,
+        &reviewer,
+        11,
+        forge_world::REPO,
+        Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true },
+    )
+    .expect("files read") else {
         panic!("files")
     };
     assert_eq!(observed, head);
@@ -450,7 +454,7 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
     let completions = occupy_read_capacity(&mut world);
     let before = world.answers.len();
     let busy = world.busy_calls;
-    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
     ask_read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head });
     for _ in 0..8 {
         world.tick();
@@ -473,7 +477,7 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
     for _ in 0..8 {
         world.tick();
     }
-    let pull = read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    let pull = read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
     assert!(matches!(pull, Ok(Answer::Pull(pull)) if pull.number == 1 && pull.commit == head));
     assert_review_checks(read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head }));
     for _ in 0..8 {
@@ -593,7 +597,7 @@ fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
     let (mut world, reviewer, _) = review_read_budget(2, 0);
     let held = occupy_read_capacity(&mut world);
     let before = world.answers.len();
-    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1, ci: false });
     for _ in 0..8 {
         world.tick();
     }
@@ -626,7 +630,10 @@ fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
 fn reviewer_read_errors_are_terminal_without_backoff() {
     let (mut world, reviewer, _) = review_world();
     let busy = world.busy_calls;
-    assert_eq!(read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 999 }), Err(Error::Missing));
+    assert_eq!(
+        read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 999, ci: false }),
+        Err(Error::Missing)
+    );
     for _ in 0..8 {
         world.tick();
     }
@@ -761,7 +768,13 @@ fn a_changes_grants_name_its_repository_alone() {
     let (mut world, reviewer, head) = repository_scoped_reviewer();
     assert!(
         matches!(
-            read(&mut world, &reviewer, 10, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
+            read(
+                &mut world,
+                &reviewer,
+                10,
+                forge_world::REPO,
+                Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true }
+            ),
             Ok(Answer::PullFiles { .. })
         ),
         "chat change passes its reads to the reviewer"
@@ -2156,7 +2169,13 @@ fn lost_read_diagnostics_change_no_reviewer_grant_or_answer() {
     }
     assert_eq!(world.root.facts_lost(), 1);
     assert!(matches!(
-        read(&mut world, &reviewer, 100, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
+        read(
+            &mut world,
+            &reviewer,
+            100,
+            forge_world::REPO,
+            Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true }
+        ),
         Ok(Answer::PullFiles { .. })
     ));
     assert_eq!(

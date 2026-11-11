@@ -85,6 +85,7 @@ fn github_plans_row_from_document() {
                 organization: document.organization,
                 merge: method,
                 html_url: document.html_url.clone(),
+                settings: api::Settings { default_branch: document.default_branch.clone(), merge, squash, rebase },
             }
         );
     }
@@ -103,5 +104,70 @@ fn github_pull_ci_fold_flags() {
         (true, true, true, api::Ci::Failed),
     ] {
         assert_eq!(super::reading::ci(failed, pending, present), expected);
+    }
+}
+
+#[test]
+fn github_settings_from_resolved_located_or_settings_row_sends_nothing() {
+    use super::{
+        Body, Heard,
+        plan::{Bounds, Plan, Step},
+    };
+    use crate::github::{header::Head, request::Request};
+    let bounds = Bounds { inner: 8, page_size: 8, rows: 16, answer_bytes: 4096, body_bytes: 1024 };
+    for read in [
+        api::Read::Branch { branch: Box::from(*b"main") },
+        api::Read::Locate { owner: Box::from(*b"owner"), name: Box::from(*b"name") },
+        api::Read::Settings,
+    ] {
+        let mut tables = Tables::new(2, 2);
+        let mut plan = Plan::new(key(7), api::Op::Read(read.clone()));
+        let request = if let api::Read::Locate { owner, name } = &read {
+            Request::Locate { owner: owner.clone(), name: name.clone() }
+        } else {
+            Request::Repository { id: 7 }
+        };
+        assert_eq!(plan.begin(bounds, b"app", &mut tables), Ok(Step::send(request)));
+        assert_eq!(plan.heard(Heard::Head { status: 200, head: Head::new() }, bounds, b"app", &mut tables), Ok(None));
+        let mut repository = document();
+        repository.default_branch = Box::from(*b"trunk");
+        repository.merge = false;
+        repository.rebase = false;
+        let step = plan
+            .heard(Heard::Done(Body::Document(document::Document::Repository(repository))), bounds, b"app", &mut tables)
+            .unwrap();
+        if let api::Read::Branch { .. } = read {
+            let Some(Step::Send(_)) = step else { panic!("branch after resolution") };
+            assert_eq!(
+                plan.heard(Heard::Head { status: 200, head: Head::new() }, bounds, b"app", &mut tables),
+                Ok(None)
+            );
+            assert_eq!(
+                plan.heard(
+                    Heard::Done(Body::Document(document::Document::Branch(document::Branch {
+                        name: Box::from(*b"main"),
+                        commit: [1; 32],
+                    }))),
+                    bounds,
+                    b"app",
+                    &mut tables
+                ),
+                Ok(Some(Step::Done(Ok(api::Answer::Commit([1; 32])))))
+            );
+        } else {
+            let Some(Step::Done(Ok(_))) = step else { panic!("locate or settings answer") };
+        }
+        for _ in 0_u8..2 {
+            let mut settings = Plan::new(key(7), api::Op::Read(api::Read::Settings));
+            assert_eq!(
+                settings.begin(bounds, b"app", &mut tables),
+                Ok(Step::Done(Ok(api::Answer::Settings(api::Settings {
+                    default_branch: Box::from(*b"trunk"),
+                    merge: false,
+                    squash: true,
+                    rebase: false,
+                }))))
+            );
+        }
     }
 }

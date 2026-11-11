@@ -11,11 +11,12 @@ fn handshake_bytes_do_not_write_an_exchange() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::limits() };
     let mut c = Connection::new(&forge, &env.limits, f::shared(), env.now);
     let mut io = Queue::uncapped();
+    let mut kept = Store::new(env.limits.kept_bytes);
     c.link.connecting(Token::new(100), &mut io);
     c.connect(&env);
     let mut sent = false;
     for _ in 0_u32..64 {
-        match c.step(&env, &mut io, false) {
+        match c.step(&env, &mut io, false, &mut kept) {
             Moved::Within | Moved::Nothing => {}
             Moved::Head(_) | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no HTTP exchange"),
         }
@@ -99,7 +100,7 @@ fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
                 unreachable!("early head or upload ending")
             }
         };
-        let moved = h.connection.http_event(&h.env, event);
+        let moved = h.connection.http_event(&h.env, event, &mut h.kept);
         match moved {
             Moved::Head(response) => assert_eq!(response.status, 413, "early head reaches the holder"),
             Moved::Within => assert!(!head, "early head is not swallowed"),
@@ -109,7 +110,7 @@ fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
         assert!(h.connection.in_flight(), "the exchange remains held");
         h.connection.stream(&h.env, Up::Room);
         for _ in 0_u32..64 {
-            match h.connection.step(&h.env, &mut h.io, false) {
+            match h.connection.step(&h.env, &mut h.io, false, &mut h.kept) {
                 Moved::Within | Moved::Nothing => {}
                 Moved::Head(_) | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no answer queued"),
             }

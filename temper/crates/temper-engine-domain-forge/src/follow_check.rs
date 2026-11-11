@@ -203,7 +203,8 @@ pub(crate) fn advance(
     }
     let mut follow = following(d, row);
     if let Some(key::Verdict::Fault(reason)) = follow.outcome {
-        fault(d, row, &mut follow, fault_words(reason));
+        let words = fault_words(&follow, reason);
+        fault(d, row, &mut follow, &words);
         remember(row, &follow);
         if row.follow_check.as_ref().expect("check").held.is_some() {
             return Action::Held;
@@ -298,7 +299,10 @@ pub(crate) fn answered(
                 let _ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime);
                 match follow.outcome {
                     Some(key::Verdict::Passed) => finish(d, env, row, &follow, None, out),
-                    Some(key::Verdict::Fault(reason)) => fault(d, row, &mut follow, fault_words(reason)),
+                    Some(key::Verdict::Fault(reason)) => {
+                        let words = fault_words(&follow, reason);
+                        fault(d, row, &mut follow, &words);
+                    }
                     Some(key::Verdict::Running | key::Verdict::Failed) | None => {}
                 }
             }
@@ -357,18 +361,22 @@ fn tree_answer(
             check.key = Some(value);
             None
         }
-        key::Keyed::Need(_) | key::Keyed::TooLarge => Some(Action::Held),
+        key::Keyed::Need(_) | key::Keyed::TooLarge { .. } => Some(Action::Held),
     }
 }
-fn fault_words(fault: key::Fault) -> &'static [u8] {
-    match fault {
+fn fault_words(follow: &runs::Follow, fault: key::Fault) -> Box<[u8]> {
+    let words: &[u8] = match fault {
         key::Fault::SetUp => b"set-up",
         key::Fault::Completion => b"completion",
         key::Fault::NoStep => b"no step",
         key::Fault::Cancelled => b"cancelled",
         key::Fault::OtherCommit => b"other commit",
         key::Fault::Lost => b"lost",
-    }
+        key::Fault::MissingWorkflow => {
+            return joined(&[b"workflow ", &follow.workflow, b" not found at ", &crate::commit_text(&follow.commit)]);
+        }
+    };
+    Box::from(words)
 }
 fn fault(d: &Domain, row: &mut ChangeRow, follow: &mut runs::Follow, kind: &[u8]) {
     let retries = d

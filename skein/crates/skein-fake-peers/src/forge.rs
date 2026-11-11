@@ -624,10 +624,16 @@ impl Host for Peer {
         &mut self.face.submissions
     }
     fn work_pending(&self, now: Time) -> bool {
+        let forge = self.forge.borrow();
         self.face.work_pending()
             || (self.face.stopping && self.blob_listener.is_some())
             || self.github_deliveries.iter().any(github_delivery::work)
-            || self.forge.borrow().domain.is_due(now)
+            || forge.domain.is_due(now)
+            // Only requests route takes are ours; another fake's replies stay parked.
+            || forge.pending.iter().any(|request| match request {
+                domain::Request::Hook { .. } => true,
+                domain::Request::Reply { to, .. } => self.calls.iter().any(|call| *to == ReplyTo::new(call.token)),
+            })
             || self.connections.iter().any(|connection| {
                 connection.server.has_work()
                     || !connection.above.is_empty()

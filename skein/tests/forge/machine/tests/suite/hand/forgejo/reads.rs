@@ -74,7 +74,6 @@ use api::{Answer, Op, Read};
 use skein_forge_machine_world::hand as fixtures;
 use skein_lib::Duration;
 const ISSUE: &[u8] = br#"{"number":1,"pull_request":null,"state":"open","user":{"id":2,"login":"writer"},"labels":[],"updated_at":"2020-01-01T00:00:01+05:30","title":"t","body":"b"}"#;
-const EMPTY_STATUS: &[u8] = br#"{"state":"","total_count":0,"statuses":null}"#;
 const SHA: [u8; 32] = [0; 32];
 fn answer(h: &mut fixtures::Harness, body: &[u8]) {
     h.answer(fixtures::FORGE, &fixtures::ok(body));
@@ -177,16 +176,19 @@ fn a_call_without_a_kept_path_resolves_by_id_and_counts_it() {
 #[test]
 fn a_pending_review_is_skipped_but_fills_the_page() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Reviews { number: 1, page: 1 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
     answer(&mut h, br#"[{"id":1,"user":{"id":2,"login":"writer"},"state":"PENDING","commit_id":"0000000000000000000000000000000000000000","body":"","official":false,"dismissed":false},{"id":2,"user":{"id":2,"login":"writer"},"state":"REQUEST_REVIEW","commit_id":"0000000000000000000000000000000000000000","body":"","official":false,"dismissed":false}]"#);
-    assert_eq!(h.answered(1).expect("reviews").result, Ok(Answer::Reviews { reviews: Box::from([]), more: true }));
+    assert_eq!(
+        h.answered(1).expect("reviews").result,
+        Ok(Answer::Reviews { reviews: Box::from([]), more: true, cut: false })
+    );
     last(&h, b"GET /api/v1/repos/fixture/specimen/pulls/1/reviews?page=1&limit=2 HTTP/1.1");
 }
 #[test]
-fn statuses_say_more_while_pages_fall_short_of_total_count() {
+fn short_status_pages_end_regardless_of_total_count() {
     let mut h = fixtures::known();
     for (name, page, total, expected_ci, expected) in [
-        ("first", 1, br#"{"state":"pending","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Pending, true),
+        ("first", 1, br#"{"state":"pending","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Pending, false),
         ("later", 3, br#"{"state":"success","total_count":3,"statuses":[]}"#.as_slice(), api::Ci::Passed, false),
     ] {
         h.call(u64::from(page), fixtures::REPO, Op::Read(Read::Statuses { commit: SHA, page }));
@@ -237,10 +239,8 @@ fn pull_for_lists_open_pulls_when_the_lookup_names_a_closed_one() {
         b"GET /api/v1/repos/fixture/specimen/pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=2 HTTP/1.1",
     );
     answer(&mut h, &concat(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
-    last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=2 HTTP/1.1");
-    answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("open pull").result, Ok(Answer::Pull(expected_pull(13, api::State::Open))));
-    assert_eq!(h.answered(1).expect("open pull").cost, 3);
+    assert_eq!(h.answered(1).expect("open pull").cost, 2);
 }
 #[test]
 fn pull_for_answers_the_lookups_closed_pull_when_none_is_open() {
@@ -248,9 +248,8 @@ fn pull_for_answers_the_lookups_closed_pull_when_none_is_open() {
     h.call(1, fixtures::REPO, Op::Read(Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) }));
     answer(&mut h, &pull(12, b"closed", b"work"));
     answer(&mut h, &listed(&pull(9, b"open", b"other")));
-    answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("closed pull").result, Ok(Answer::Pull(expected_pull(12, api::State::Closed))));
-    assert_eq!(h.answered(1).expect("closed pull").cost, 3);
+    assert_eq!(h.answered(1).expect("closed pull").cost, 2);
 }
 
 fn revisions_from_bytes() {
@@ -466,10 +465,10 @@ fn locate_keeps_the_repository() {
     assert!(h.component.forgejo_tables().repository(fixtures::REPO).is_some(), "located row kept");
 }
 #[test]
-fn settings_refresh_the_kept_repository() {
+fn settings_from_the_kept_repository_costs_nothing() {
     let mut h = fixtures::known();
     h.call(2, fixtures::REPO, Op::Read(Read::Settings));
-    answer(&mut h, REPOSITORY);
+    h.run(skein_lib::Duration::ZERO);
     assert_eq!(
         h.answered(2).expect("settings").result,
         Ok(Answer::Settings(api::Settings {
@@ -479,21 +478,21 @@ fn settings_refresh_the_kept_repository() {
             rebase: false
         }))
     );
-    assert_eq!(h.answered(2).expect("settings").cost, 1);
+    assert_eq!(h.answered(2).expect("settings").cost, 0);
     assert_eq!(
-        h.component.forgejo_tables().repository(fixtures::REPO).expect("refreshed row").merge_style,
-        d::MergeStyle::Merge
+        h.component.forgejo_tables().repository(fixtures::REPO).expect("kept row").merge_style,
+        d::MergeStyle::Squash
     );
 }
 #[test]
 fn remarks_select_the_requested_slice_and_cut_after_it() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Remarks { number: 1, review: 2, page: 2 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Remarks { number: 1, review: 2, page: 2, skip: 0 }));
     let row = br#"{"id":3,"user":{"id":2,"login":"writer"},"path":"file","position":4,"body":"abc"}"#;
     answer(&mut h, &concat(&[b"[", row, b",", row, b",", row, b",", row, b",", row, b"]"]));
     let remark = api::Remark { id: 3, author: 2, path: Box::from(&b"file"[..]), line: 4, body: Box::from(&b"abc"[..]) };
     assert_eq!(
         h.answered(1).expect("remarks").result,
-        Ok(Answer::Remarks { remarks: Box::new([remark.clone(), remark]), more: true })
+        Ok(Answer::Remarks { remarks: Box::new([remark.clone(), remark]), more: true, cut: false })
     );
 }

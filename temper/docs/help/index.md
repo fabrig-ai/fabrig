@@ -7,8 +7,8 @@ temper runs software work for people: agents take tasks on the repositories of a
 ## What temper is
 
 - **A deployment** is temper's engine, its workers and the forges it
-  works on. `temper init` writes its configuration, `temper box` runs
-  it on one machine, `temper serve` runs its engine.
+  works on. `temper-box init` writes its configuration, `temper box` runs
+  it on one machine, `temper-box serve` runs its engine.
 - **An agent works in a deployment** for a person with `temper ctl`,
   one call a process.
 - **temper's own runs** read these pages with their host tool
@@ -16,8 +16,9 @@ temper runs software work for people: agents take tasks on the repositories of a
 
 ## Reading
 
-- `temper help NAME` prints a page whole; `temper help --search
-  WORDS...` finds the sections holding every word.
+- `temper help pages` prints this index; `temper help NAME` prints a
+  page whole; `temper help --search WORDS...` finds the sections holding
+  every word.
 - `temper ctl help` prints the page `ctl`, then the groups;
   `temper ctl help GROUP VERB` prints one tool.
 - Read what a call prints first: its acts, an error's remedy. A page

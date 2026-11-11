@@ -59,7 +59,8 @@ fn closing_waiting_calls_emits_only_the_close_terminal() {
 
 #[test]
 fn all_due_calls_finish_in_the_same_timer_turn() {
-    let limits = Limits { connections: 20, ..fixtures::limits() };
+    let limits =
+        Limits { connections: 20, kept_bytes: 20 * u64::from(fixtures::shared().answer_bytes), ..fixtures::limits() };
     let shared = fixtures::shared();
     let shared = skein_forge_connection::Shared { calls: 20, ..shared };
     let mut h = fixtures::Harness::with(limits, shared, fixtures::settings());
@@ -78,7 +79,8 @@ fn all_due_calls_finish_in_the_same_timer_turn() {
 
 #[test]
 fn one_offer_drains_all_eligible_held_answers() {
-    let limits = Limits { connections: 20, ..fixtures::limits() };
+    let limits =
+        Limits { connections: 20, kept_bytes: 20 * u64::from(fixtures::shared().answer_bytes), ..fixtures::limits() };
     let shared = fixtures::shared();
     let shared = skein_forge_connection::Shared { calls: 20, ..shared };
     let mut h = fixtures::Harness::with(limits, shared, fixtures::settings());

@@ -409,10 +409,10 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
     ] {
         let document = WaysDocument {
             project: 1,
-            ways: ["One", "Two"]
-                .map(|name| WayEntry {
+            ways: [("One", "A way to work."), ("Two", "Another way to work."), ("No headline", "")]
+                .map(|(name, headline)| WayEntry {
                     name: name.as_bytes().into(),
-                    headline: b"A way to work.".as_slice().into(),
+                    headline: headline.as_bytes().into(),
                     line: b"A way.".as_slice().into(),
                     path: branch_path(),
                     items: Box::new([]),
@@ -425,7 +425,9 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
             may_change,
         };
         let own = if own.is_empty() { String::new() } else { format!("\n{own}{PATH}\n") };
-        let expected = format!("{first}\nA way.\n{PATH}\n\n{second}\nA way.\n{PATH}\n{own}\n{permission}\n{FOLLOWING}");
+        let expected = format!(
+            "{first}\nA way to work.\nA way.\n{PATH}\n\n{second}\nAnother way to work.\nA way.\n{PATH}\n\nNo headline\nA way.\n{PATH}\n{own}\n{permission}\n{FOLLOWING}"
+        );
         assert_eq!(rendered("ways", 0, SeeAnswer::Ways(Box::new(document)), 20_000), (expected, false));
     }
 }

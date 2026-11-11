@@ -21,6 +21,7 @@ struct Checks {
 #[derive(Debug)]
 enum Shape {
     Checks,
+    Verdict(api::Ci),
     Statuses { ci: api::Ci, more: bool },
 }
 #[derive(Debug)]
@@ -79,6 +80,7 @@ impl Plan {
             .expect("nonzero width");
         let capacity = match shape {
             Shape::Checks => bounds.rows.min(room),
+            Shape::Verdict(_) => 0,
             Shape::Statuses { .. } => bounds.page_size.min(bounds.rows).min(room),
         };
         let checks =
@@ -87,7 +89,7 @@ impl Plan {
     }
     pub fn statuses(commit: api::Commit, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
         Ok(Self {
-            state: Self::listing(commit, Shape::Checks, 1, bounds, false),
+            state: Self::listing(commit, Shape::Verdict(api::Ci::None), 1, bounds, false),
             row,
             limit: bounds.page_size,
             count: 0,
@@ -146,13 +148,11 @@ impl Plan {
             }
             State::Run { .. } | State::Job { .. } => {
                 if status == 404 {
-                    tables.drop_repository(repository);
                     return Err(api::Error::MissingJob);
                 }
             }
             State::Log { truncated, part, max, .. } => {
                 if status == 404 {
-                    tables.drop_repository(repository);
                     return Err(api::Error::MissingJob);
                 }
                 if let Some(range) = fields.content_range {
@@ -203,6 +203,10 @@ impl Plan {
                         tables.keep_user(forge, user.id, user.login.clone());
                     }
                     let value = reading::status(status, &self.row.html_url)?;
+                    if let Shape::Verdict(ci) = &mut checks.shape {
+                        *ci = reading::fold_ci(*ci, value.check);
+                        return Ok(State::Listing { checks, page });
+                    }
                     let answer = api::Answer::Checks(Box::new([value.clone()]));
                     checks.size = checks
                         .size
@@ -381,16 +385,11 @@ impl Plan {
                     _ => return Err(api::Error::InvalidAnswer),
                 };
                 checks.shape = match checks.shape {
-                    Shape::Statuses { .. } => {
-                        let read = u64::from(page.saturating_sub(1))
-                            .saturating_mul(u64::from(self.limit))
-                            .saturating_add(u64::from(self.count));
-                        Shape::Statuses {
-                            ci: reading::ci(combined.state, combined.total_count),
-                            more: read < combined.total_count,
-                        }
-                    }
-                    Shape::Checks => {
+                    Shape::Statuses { .. } => Shape::Statuses {
+                        ci: reading::ci(combined.state, combined.total_count),
+                        more: self.count == self.limit,
+                    },
+                    Shape::Checks | Shape::Verdict(_) => {
                         if self.count == self.limit {
                             page = page.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                             let step = self.send(r::Request::CombinedStatus {
@@ -400,7 +399,13 @@ impl Plan {
                             });
                             return Ok((State::Listing { checks, page }, Some(step)));
                         }
-                        Shape::Checks
+                        match checks.shape {
+                            Shape::Verdict(_) if page == 1 && combined.state != Some(d::StatusState::Warning) => {
+                                Shape::Verdict(reading::ci(combined.state, combined.total_count))
+                            }
+                            Shape::Checks | Shape::Verdict(_) => checks.shape,
+                            Shape::Statuses { .. } => unreachable!("listing shape"),
+                        }
                     }
                 };
                 self.next_check(checks)
@@ -475,6 +480,7 @@ impl Plan {
                 let statuses = checks.statuses.into_boxed();
                 let answer = match checks.shape {
                     Shape::Checks => api::Answer::Checks(statuses),
+                    Shape::Verdict(ci) => api::Answer::Statuses { ci, statuses, more: false },
                     Shape::Statuses { ci, more } => api::Answer::Statuses { ci, statuses, more },
                 };
                 return Ok((State::Ended, Some(Step::Done(Ok(answer)))));

@@ -6,14 +6,32 @@ use alloc::boxed::Box;
 use skein_forge::api::{Change, Commit, Hint};
 
 pub(super) fn concerns(d: &Domain, row: &ChangeRow, hint: &Hint) -> bool {
+    let has_head = has_head(d, row);
     let own = match &hint.change {
         Change::Branch(branch) | Change::BranchMoved { branch, .. } => {
-            branch.is_empty() || *branch == row.branch || *branch == row.base
+            branch.is_empty() || *branch == row.branch || (has_head && *branch == row.base)
         }
-        Change::Commit(head) => commit(d, row, *head),
-        Change::Item(number) => item(d, row, *number),
+        Change::Commit(head) => has_head && commit(d, row, *head),
+        Change::Item(number) => has_head && item(d, row, *number),
     };
     own || dependencies(d, row.task, hint)
+}
+
+pub(super) fn has_head(d: &Domain, row: &ChangeRow) -> bool {
+    if row.change.last_head.is_some() || row.pull.is_some() {
+        return true;
+    }
+    if let Some(read) = d.settling.get(&row.task)
+        && read.branch.present
+    {
+        return true;
+    }
+    for (_, pending) in &d.steps {
+        if pending.task == row.task && pending.branch.is_some() {
+            return true;
+        }
+    }
+    false
 }
 
 fn item(d: &Domain, row: &ChangeRow, number: u64) -> bool {

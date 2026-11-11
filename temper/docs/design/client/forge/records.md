@@ -278,19 +278,19 @@
   (`../../protocol/configuration/README.md`, section 1, the standalone shape),
   `program_login` is that machine's whole command but NAME, the running
   binary's word and the three directories in effect, each as a word
-  (*The words of a command for this machine*): `~/temper program-login
+  (*The words of a command for this machine*): `~/temper-box program-login
   --config '…' --data '…' --cache '…'`. The pages print it with NAME after "On this machine,
   run:". It is a path of a machine that the party signed in to it
   may read: a read carries a sign-in (jig's `protocol/client/README.md`), and no
   answer goes before one. A path that isn't UTF-8, a line past its
   bound, and a deployment whose workers are elsewhere send none: the pages
-  then print the placeholders the tools do, `temper program-login --config
+  then print the placeholders the tools do, `temper-box program-login --config
   CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
   directories:". Once the owner's `program_environment` answer comes, it
-  replaces this command: an empty answer prints `temper program-login NAME`,
+  replaces this command: an empty answer prints `temper-box program-login NAME`,
   and any other prints its words followed by `program-login NAME`.
 - **The program's environment, `program_environment`:** of the deployment's
-  scope, with no fields and no subject: what `temper program-login` needs
+  scope, with no fields and no subject: what `temper-box program-login` needs
   around it to act on this deployment, from this machine's shell. It is the
   party's read, and only the deployment's owner has it, at any time, since the
   welcome's Model step shows them the command during set up and Connect a model
@@ -298,12 +298,12 @@
   its words. Its answer is
   the record `ProgramEnvironmentAnswer`: `environment` (bytes), the words the
   command starts with, which a page draws before `program-login NAME`. They are
-  none when `temper` runs this binary and each of the three directories
+  none when `temper-box` runs this binary and each of the three directories
   (`../../protocol/configuration/directories.md`) is the one the command finds by itself
   in the environment the engine started in. Otherwise they are the word that
   runs the binary, after `TEMPER_CONFIG=…`, `TEMPER_DATA=…` and `TEMPER_CACHE=…`,
   in that order, each only where its own directory isn't that one: a box with
-  its data alone moved says `TEMPER_DATA=~/x temper`. Where that environment
+  its data alone moved says `TEMPER_DATA=~/x temper-box`. Where that environment
   gives the command no directories by itself, no `HOME` or XDG variable placing
   them, all three are named. It is one string, composed where the
   binary and the directories are known, so that the client holds no path as a
@@ -315,21 +315,21 @@
 - **The words of a command for this machine:** how `program_environment`'s are
   made.
   - *The word that runs the binary.* The running process's executable, less the
-    ` (deleted)` Linux adds to one rebuilt while it runs. The word is `temper`
-    when the first executable file named `temper` on the process's `PATH` is
+    ` (deleted)` Linux adds to one rebuilt while it runs. The word is `temper-box`
+    when the first executable file named `temper-box` on the process's `PATH` is
     that file, by canonical paths: only the first counts, as that is what a
     shell runs, and an entry of `PATH` that isn't absolute counts for nothing,
     since the person's shell stands elsewhere. Otherwise it is the executable's
-    path, as a word (below). An executable that can't be read gives `temper`.
+    path, as a word (below). An executable that can't be read gives `temper-box`.
   - *A path as a word,* for the executable and the three `TEMPER_` values alike:
     repeated slashes collapsed, then a leading `$HOME`, whole components of it,
     as `~/`, and the path alone as `~`. It stays unquoted where it can, so that
     the shell expands `~/`, which it does right after `=` in an assignment
     prefix too. A path needing quotes quotes only what follows `~/`
-    (`~/'my dir/temper'`), and whole where no `$HOME` leads it (`'/my dir/temper'`).
+    (`~/'my dir/temper-box'`), and whole where no `$HOME` leads it (`'/my dir/temper-box'`).
     `$HOME` unset, relative or `/` leads nothing.
   - *The bound.* The words fit the answer's 49,216 bytes: a word for the binary
-    that would pass it gives way to `temper`.
+    that would pass it gives way to `temper-box`.
 - **A change's panel, the subject `change`** (`served.md`, 2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -522,10 +522,17 @@
     across the queues, which fill in order; the changes queued are the
     rows listed and `more`;
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
-    across the project's repositories, each a `ChangesLanded`: `task`,
-    `title` and `at`, the landing log's (`../../domain/after-landing.md`,
-    section 10);
-  - `landed_more`, what `landed` cut.
+    across the project's repositories, a row for each change of each
+    landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
+    log's (`../../domain/after-landing.md`, section 10); `commit`, the
+    landing's, 32 bytes; and `default_branch`, whether the branch the
+    landing moved is its repository's default branch;
+  - `landed_more`, what `landed` cut;
+  - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
+    set, at most `forge.changes_landed`, newest first, so that landings
+    into goal branches never push them out (`../pages/work.md`, 1, *Work*);
+    a landing with no change, a push from outside temper, gives no row;
+  - `landed_default_more`, what `landed_default` cut.
 
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
@@ -594,7 +601,9 @@
     charter, the role its card opens), `tier` (`name`), `queue` or
     `turn`;
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
-    change until it approves"; `name`, at most 64, as "the reviewer",
+    change until it approves", or a role's "For each chat: talks with
+    you and asks for the changes"
+    (`../../domain/forge/change/branch-path.md`, *The project's roles*); `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
     at most 32 bytes and `value` at most 184, as "Model" and "Opus `../pages/accounts.md`, 2 ·
     high", "Can", "Asked to": the engine makes every value at most 128

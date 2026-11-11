@@ -9,12 +9,13 @@ pub enum Request {
     Search(Box<[u8]>),
 }
 
-/// Its words after `help`: none, a NAME, or `--search` and words
+/// Its words after `help`: none, `pages`, a NAME, or `--search` and words
 /// (joined with one space); anything else is None.
 #[must_use]
 pub fn request(words: &[Box<[u8]>]) -> Option<Request> {
     match words {
         [] => Some(Request::Index),
+        [word] if word.as_ref() == b"pages" => Some(Request::Index),
         [flag, rest @ ..] if flag.as_ref() == b"--search" && !rest.is_empty() => {
             Some(Request::Search(rest.join(&b' ').into_boxed_slice()))
         }
@@ -33,19 +34,23 @@ pub fn answer(name: &str, request: &Request) -> Result<String, String> {
         },
         Request::Search(words) => {
             let found = temper_docs::search(&PAGES, words, 20).map_err(|why| format!("{name}: {}\n", why.says()))?;
-            if found.hits.is_empty() {
-                return Err(format!("{name}: nothing matches\n"));
-            }
-            let mut text = String::new();
-            for hit in found.hits.as_slice() {
-                writeln!(text, "{}: {}: {}", hit.page, hit.heading, hit.line).expect("writing into a string");
-            }
-            if found.more {
-                text.push_str("and more; narrow the words\n");
-            }
-            Ok(text)
+            search_answer(name, &found)
         }
     }
+}
+
+pub(crate) fn search_answer(name: &str, found: &temper_docs::Hits) -> Result<String, String> {
+    if found.hits.is_empty() {
+        return Err(format!("{name}: nothing matches\n"));
+    }
+    let mut text = String::new();
+    for hit in found.hits.as_slice() {
+        writeln!(text, "{}: {}: {}", hit.page, hit.heading, hit.line).expect("writing into a string");
+    }
+    if found.more {
+        text.push_str("and more; narrow the words\n");
+    }
+    Ok(text)
 }
 
 #[cfg(test)]

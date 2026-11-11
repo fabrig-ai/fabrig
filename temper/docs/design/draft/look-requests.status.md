@@ -1,21 +1,13 @@
 # look-requests: status
 
-2026-11-08. Where the design lags or departs from [look-requests.md](look-requests.md).
+2026-11-11. Where the design lags or departs from [look-requests.md](look-requests.md).
 
-The landing/account and after-landing comparison agree with
-`../client/web/journeys.md`, 7. The `connect-flows` account at `9164d33492`
-records source and print checks and assigns comparison to temper/ui;
-it claims no rendered equality.
+`../client/web/look-requests.md`, sections 1 to 7, holds the round trip;
+its status records the implementation gaps. `../client/web/journeys.md`,
+7, keeps the journeys' side and cites it for the procedure. The draft's
+section 8 is `../client/web/look-requests.md`, 8.
 
-- **Design lags:**
-  - 1, 7: no design document of its own beside `../client/web/journeys.md` holds the round trip, and section 7 there cites this draft for it: the round that first followed this draft, `look-round-2`, was asked for no new design of its own.
-  - 2: `../client/web/journeys.md`, 7, says nothing of what a request's message says or of held requests, and of hand-made pages only that their values need not be a journey's.
-  - 3, 5: `../client/web/journeys.md`, 7, has "Done" as a landing that moves
-    the rules and markup, reprints and accounts, with render comparison
-    after landing. It still asks for no terminal check or trailer on a
-    later fix. Its account includes named states, as the draft requires.
-  - 4: `../client/web/journeys.md`, 7, asks for the render check and leaves how to this draft; the journeys' test compares the reprint with the committed pages alone (`../client/web/journeys.md`, 6).
-  - 6: what is not the look's has no path in `../client/web/journeys.md`, 7.
+- **Design lags:** none.
 - **Design departs:**
-  - 1, 2: the TUI's requests stack on a branch of their own, `tui-requests`, named `tui-…`, apart from the browser's on `look-requests`, where this draft keeps every request on one branch; the same `look-refresh.sh` keeps each on `main` (`../client/tui/journeys.md`, 10; `../client/web/journeys.md`, 7), so that the TUI's look and the web's are asked for in parallel (the user, 2026-11-08).
+  - 1, 2: the TUI's requests stack on a branch of their own, `tui-requests`, named `tui-…`, apart from the browser's on `look-requests`, where this draft keeps every request on one branch; the same `look-refresh.sh` keeps each on `main` (`../client/tui/journeys.md`, 10; `../client/web/look-requests.md`, 1 and 2), so that the TUI's look and the web's are asked for in parallel (the user, 2026-11-08).
 - **Open:** none.

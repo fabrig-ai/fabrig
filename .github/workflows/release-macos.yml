@@ -57,7 +57,7 @@ jobs:
           restore-keys: cargo-home-macos-26-
 
       - name: The build, under the release profile as the workspace has it
-        run: TEMPER_BUNDLE=embed cargo build --release --locked -p temper --bin temper
+        run: TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper-box --bin temper-box
 
       # Stripping invalidates the linker's ad hoc signature, without which
       # Apple Silicon runs no file; codesign makes it again, in place, so
@@ -65,40 +65,40 @@ jobs:
       - name: Stripped by Xcode's strip, and signed again ad hoc
         run: |
           xcrun --find strip
-          ls -l target/release/temper
-          xcrun strip target/release/temper
-          ls -l target/release/temper
-          codesign --force --sign - target/release/temper
-          if ! codesign --verify --verbose target/release/temper; then
-              echo "::error title=codesign::target/release/temper's signature does not verify after the strip"
+          ls -l target/release/temper-box
+          xcrun strip target/release/temper-box
+          ls -l target/release/temper-box
+          codesign --force --sign - target/release/temper-box
+          if ! codesign --verify --verbose target/release/temper-box; then
+              echo "::error title=codesign::target/release/temper-box's signature does not verify after the strip"
               exit 1
           fi
-          codesign --display --verbose=2 target/release/temper
+          codesign --display --verbose=2 target/release/temper-box
 
       - name: An arm64 Mach-O executable
         run: |
-          kind=$(file -b target/release/temper)
+          kind=$(file -b target/release/temper-box)
           echo "$kind"
           if [[ $kind != *"Mach-O 64-bit"* || $kind != *executable* || $kind != *arm64* ]]; then
-              echo "::error title=file::target/release/temper is not an arm64 Mach-O executable: $kind"
+              echo "::error title=file::target/release/temper-box is not an arm64 Mach-O executable: $kind"
               exit 1
           fi
 
       - name: It prints its usage
         run: |
           status=0
-          ./target/release/temper --help >"$RUNNER_TEMP/help.txt" || status=$?
+          ./target/release/temper-box --help >"$RUNNER_TEMP/help.txt" || status=$?
           cat "$RUNNER_TEMP/help.txt"
           first=$(head -n 1 "$RUNNER_TEMP/help.txt")
-          if [ "$status" -ne 0 ] || [[ $first != "usage: temper "* ]]; then
-              echo "::error title=temper --help::exit $status, first line: $first"
+          if [ "$status" -ne 0 ] || [[ $first != "usage: temper-box "* ]]; then
+              echo "::error title=temper-box --help::exit $status, first line: $first"
               exit 1
           fi
 
       - name: The artifact's two files
         run: |
           mkdir "$RUNNER_TEMP/artifact"
-          cp target/release/temper "$RUNNER_TEMP/artifact/temper"
+          cp target/release/temper-box "$RUNNER_TEMP/artifact/temper"
           git rev-parse HEAD >"$RUNNER_TEMP/artifact/commit"
           cat "$RUNNER_TEMP/artifact/commit"
 

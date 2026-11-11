@@ -62,23 +62,23 @@ NAME`). What comes later is `README.md`, section 9; what is open,
   `owned.md`, 3): per forge, one writing plan at once and the picker's read beside
   it (`reconcile.md`, 1). The preparation, Forgejo's settings and the processes' specs
   are machines and pure functions of `temper-forge-setup`, hosted by
-  three commands, `temper forge fetch`, `temper forge prepare` and
-  `temper forge run` (`owned.md`). No command writes the records.
+  three commands, `temper-box forge fetch`, `temper-box forge prepare` and
+  `temper-box forge run` (`owned.md`). No command writes the records.
 - **`temper box` is wiring only.** It runs a configuration's steps in
-  order (the fakes, fetch, prepare, Forgejo, its runner, `temper
+  order (the fakes, fetch, prepare, Forgejo, its runner, `temper-box
   serve`), restarts what exits, and stops them in reverse order. It
   knows kinds, not forges: an owned Forgejo's group and the playground's
-  fakes' wait, dormant, until `temper serve` asks over a pipe for one of
+  fakes' wait, dormant, until `temper-box serve` asks over a pipe for one of
   them for a forge, and run again at each later start once started
   (`box.md`, 1). It names no Forgejo request and nothing of setup but its
   steps. systemd or a test arrange the commands another way, with no
   owned forge (`box.md`).
-- **`temper init` writes a deployment that starts** into the three
+- **`temper-box init` writes a deployment that starts** into the three
   directories (../configuration/directories.md): the default document, its
   agent's configuration and the worker's secret; no forge, no account
   and no credential, which are the client's. With `--box` it adds the
   box's parts: the welcome's member, the owned Forgejo and the
-  playground. `temper box` runs `temper init --box` first on an empty
+  playground. `temper box` runs `temper-box init --box` first on an empty
   configuration directory (`init.md`, 2, 3).
 - **A first run is empty** (`init.md`, 3): the store holds no forge, and, where
   the document shows the welcome (../configuration/engine.md), the
@@ -140,7 +140,7 @@ NAME`). What comes later is `README.md`, section 9; what is open,
 
 | | connected | managed | owned | fake |
 |---|---|---|---|---|
-| Runs the forge and CI's runner | the person | the person | temper | temper: its fake forge, `temper fake forge`, whose CI answers each push itself; no runner |
+| Runs the forge and CI's runner | the person | the person | temper | temper: its fake forge, `temper-box fake forge`, whose CI answers each push itself; no runner |
 | Makes temper's bot, its tokens, its access and the webhooks | the person | temper: on Forgejo with a site admin's token, the webhooks on this host alone (`reconcile.md`, 5); on GitHub, an App from temper's manifest | temper, with an admin it makes | temper, with the admin the fake is seeded with |
 | temper is given, on Forgejo | the bot's two tokens, pasted; optionally a webhooks' secret | a site admin's token, pasted | the Forgejo and runner binaries, or `"fetched"` for temper's (`owned.md`, 6); an address on loopback; the person's login and email | an address on loopback; the seed's owner and repositories |
 | temper is given, on GitHub | an App's id and its private key, pasted | the person's steps in their browser, from a link temper prints | none: GitHub is never owned | none: the fake is a Forgejo |
@@ -187,12 +187,12 @@ one below, and the service always runs connected) are held by skein's
 it (section 2). temper's layers, and what passes between them:
 
 ```
-owned      temper forge fetch        ──► the Forgejo and runner binaries, in the cache (6.6)
-           temper forge prepare      ──► the forge's work path, the runner's, person_password,
+owned      temper-box forge fetch        ──► the Forgejo and runner binaries, in the cache (6.6)
+           temper-box forge prepare      ──► the forge's work path, the runner's, person_password,
                                          admin_token (the handover)
-           temper forge run          ──► forgejo web (its child on Linux), forgejo-runner daemon (exec'd)
-fake       temper forge prepare      ──► the forge's directory, admin_token (the handover)
-           temper fake forge         ──► the fake, seeded with temper-admin and that token (8.4)
+           temper-box forge run          ──► forgejo web (its child on Linux), forgejo-runner daemon (exec'd)
+fake       temper-box forge prepare      ──► the forge's directory, admin_token (the handover)
+           temper-box fake forge         ──► the fake, seeded with temper-admin and that token (8.4)
 managed    the engine's setup host   ──► the forge's records (below); takes the handover once
 connected  the forge component       ◄── its access, built from the records
 ```
@@ -201,10 +201,10 @@ connected  the forge component       ◄── its access, built from the record
   number beneath the data directory, `forge-N` for an owned forge and
   `playground-N` for the playground's fake one, and removed with the
   forge (`box.md`, 1): private, `0o700`, the user's own and not reached through a link,
-  as a worker's root is (../configuration/README.md, section 3). `temper forge
+  as a worker's root is (../configuration/README.md, section 3). `temper-box forge
   prepare` makes it so when it is absent; a directory that is not so
   refuses the command, naming it. A managed or connected forge has none.
-  A fake forge's holds `admin_token` until the engine takes it; `temper
+  A fake forge's holds `admin_token` until the engine takes it; `temper-box
   fake forge` reads it before binding (`playground.md`). An owned forge's files:
 
   | File | Made by | Read by | Holds |
@@ -225,7 +225,7 @@ connected  the forge component       ◄── its access, built from the record
 - **Fetched binaries are the cache's,** not the forge's directory's:
   `<cache>/forgejo/VERSION/forgejo` and
   `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner`, shared by
-  every owned forge whose binaries are `"fetched"`, written by `temper
+  every owned forge whose binaries are `"fetched"`, written by `temper-box
   forge fetch` alone and fetched again at will (`owned.md`, 6; ../configuration/directories.md
   ).
 - **No other credential file is written or read for owned or fake.**
@@ -237,7 +237,7 @@ connected  the forge component       ◄── its access, built from the record
   over it, private, so a reader never sees half a token.
 - **The handover is read** as ../configuration/README.md, section 5 reads a
   secret's file, within `records.value_bytes`: it is the one credential
-  file of an owned or fake forge that `temper serve` reads (`owned.md`, 5).
+  file of an owned or fake forge that `temper-box serve` reads (`owned.md`, 5).
 - **The records, by mode** (../credentials.md, the records):
 
   | Forge | Records |
@@ -323,7 +323,7 @@ connected  the forge component       ◄── its access, built from the record
 | the webhooks' secret | Forgejo, every mode | the person, pasted; a setup plan, drawn (`reconcile.md`, 4) | the `WebhookSecret` record | the webhooks' listener; Forgejo's hooks |
 | a GitHub App's key | GitHub | GitHub, at the manifest's conversion; the person, pasted as PEM | the `AppKey` record, DER; a PEM never | the forge component, for its tokens; the setup host, while a plan runs |
 | an installation's token; a GitHub git token | GitHub | the forge component, from the App's key | memory alone | the forge component; git |
-| the scripted model's key | the playground | `temper init`, random (`init.md`, 2), or the fake LLM from its seed in a document's form (`playground.md`) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (`playground.md`) |
+| the scripted model's key | the playground | `temper-box init`, random (`init.md`, 2), or the fake LLM from its seed in a document's form (`playground.md`) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (`playground.md`) |
 
 - **Every credential the engine holds is a record** in jig's secrets'
   store (../credentials.md, the records), written by the setup host's
@@ -336,7 +336,7 @@ connected  the forge component       ◄── its access, built from the record
   at its end.
 - **No secret in an argument, a URL or a log,** for Forgejo's command
   line as for git (../credentials.md, section 4): 6.3.
-- **No new credential to set up from the client:** `temper forge
+- **No new credential to set up from the client:** `temper-box forge
   fetch` sends none and keeps none, its downloads trusted by their
   pinned digests alone (`owned.md`, 6); the box's pipe carries no secret, a
   failure's reason among its lines (`box.md`, 1); and the handover is taken as
@@ -392,7 +392,7 @@ that they cover what its work waits on.
   box has none of.
 - **Polling is unchanged** (skein's `forge/client.md`, section 4): the
   keep's alarms, its paces and the slow pass are what they are with no
-  webhook. A delivery lost while `temper serve` is down, refused for its
+  webhook. A delivery lost while `temper-box serve` is down, refused for its
   size, or never sent is found by them; Forgejo does not send a failed
   delivery again (skein's `forge/forgejo.md`, section 2).
 - **GitHub sends no delivery to temper:** its App's changes come from
@@ -453,14 +453,14 @@ temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run:
 │                              with its bottle's extraction
 ├── temper-forge-setup, temper-fetch-shell
 └── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
-temper-box                   the box's machine (step code), its kinds' groups, their files and records
-│                              and its pipe to temper serve among it, and its host (ordinary Rust) on
+temper-box-machine           the box's machine (step code), its kinds' groups, their files and records
+│                              and its pipe to temper-box serve among it, and its host (ordinary Rust) on
 │                              skein-io's processes; nothing of setup but its steps and its kinds
 │                              (7.3); one crate, under the subset's
 │                              lints, its host written within the subset
 ├── temper-forge-setup
 └── skein-lib, skein-io, skein-shell
-temper-init                  step code: the default document and the files temper init writes, from
+temper-init                  step code: the default document and the files temper-box init writes, from
 │                              the facts the binary finds (8.2, 8.3); reads, writes and binds nothing
 ├── temper-fetch
 └── skein-lib, skein-json
@@ -470,21 +470,21 @@ temper-fake                  step code: the playground's member, application.dem
 ├── temper-forge-setup
 ├── skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-llm-domain, skein-fake-peers
 └── jig-protocol-config, skein-lib, skein-json
-temper-fake-git              ordinary Rust: the fake git program's core, temper fake git, its replay and
+temper-fake-git              ordinary Rust: the fake git program's core, temper-box fake git, its replay and
 │                              its two remotes (../../testing/fakes.md, 3)
 ├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
-temper-engine-shell          ordinary Rust: temper forge fetch|prepare|run|sign-in|source|remove and
+temper-engine-shell          ordinary Rust: temper-box forge fetch|prepare|run|sign-in|source|remove and
 │                              internal forge-child, their rows and the checks they make, for both
 │                              binaries below (../binaries.md, 1)
-├── temper-forge-setup-shell, temper-forge-setup, temper-box, temper-fake (the demo member's check)
+├── temper-forge-setup-shell, temper-forge-setup, temper-box-machine, temper-fake (the demo member's check)
 └── temper-service, temper-shell
 temper-agent                 the deployment's agent: its table, its modes, its help and --version,
 │                              temper-version's (../binaries.md, 3); Claude Code's launcher by its name
 ├── temper-shell, temper-version, smith-agent-shell, temper-launcher
 └── skein-shell, skein-io, skein-fail-stop
-temper                       the box's binary: the forge's commands through temper-engine-shell,
-                               temper box, temper init, temper fake llm|forge|git; Claude Code's
+temper-box                   the box's binary: the forge's commands through temper-engine-shell,
+                               the bare form, temper-box init, temper-box fake llm|forge|git; Claude Code's
                                launcher by its name, temper-launcher's (6.6)
 temper-engine                the engine's binary: the forge's commands through temper-engine-shell,
                                on an engine alone's document (../binaries.md, 2)
@@ -493,7 +493,7 @@ temper-engine                the engine's binary: the forge's commands through t
 - **The engine runs the setup host** in its protocol layer (`reconcile.md`, 1):
   temper-service maps each forge's setup onto the plans' given values
   through `temper-forge-setup` (`reconcile.md`), and depends on no
-  `temper-forge-setup-shell`, and on `temper-box` only for the `box.`
+  `temper-forge-setup-shell`, and on `temper-box-machine` only for the `box.`
   limits' reference page (`temper-service/src/limits/reference.rs`).
 - **The agent's binary links no forge setup:** `temper-agent` reaches
   Claude Code's fetch through `temper-launcher`, `temper-fetch-shell`
@@ -504,9 +504,9 @@ temper-engine                the engine's binary: the forge's commands through t
   crate, so `temper-engine`'s closure holds none of smith's agent
   document through it (`../binaries.md`, 1 and 2).
 - **The binary checks the machine's part and its limits** for every
-  command, `temper serve`'s included, the box's and the engine's
+  command, `temper-box serve`'s included, the box's and the engine's
   through `temper-engine-shell`: `temper-forge-setup` checks
-  `application.machine` and the `setup.` limits, and `temper-box` the `box.` limits, beside
+  `application.machine` and the `setup.` limits, and `temper-box-machine` the `box.` limits, beside
   temper-service's startup.
 - **Machines, not scripts.** The plans (skein's) and the preparation
   decide from what they read, and say each request or command they need;
@@ -521,7 +521,7 @@ temper-engine                the engine's binary: the forge's commands through t
   (`skein-fake-forge-forgejo`, skein's `testing/fakes/forge.md`, section 4),
   from the server's side of `skein-forge`, as it serves the engine's.
 - **The fakes are product,** `crates/skein-fake-*` (skein's
-  `testing/fakes/forge.md`, section 1), since `temper fake`
+  `testing/fakes/forge.md`, section 1), since `temper-box fake`
   ships them; the worlds and the real loop use them as before.
 
 ## 8. Where it serves
@@ -617,7 +617,7 @@ Each is intended; what it needs is named with it.
   lifetime guard on macOS needs a mechanism of its own; until one is
   designed, the box's ordered stop, including a hangup, is its cleanup.
 
-- **A box started in the background of a terminal** (`box.md`, 6): `temper box &`
+- **A box started in the background of a terminal** (`box.md`, 6): `temper-box &`
   from a shell with job control has a terminal on its standard input and
   output, so it runs its front, which takes the terminal's foreground
   from the shell. `--no-tui` keeps it off. Telling a background start
@@ -634,9 +634,9 @@ Each is intended; what it needs is named with it.
 - **A start holding the engine's documents to temper's clients** (`init.md`, 1):
   no start compares `documents.text_bytes` with what the web and terminal
   clients receive, so a deployment past 512 starts, and those clients
-  refuse a document whose text is longer. A test holds `temper init`'s
+  refuse a document whose text is longer. A test holds `temper-box init`'s
   documents to them; a deployment's own override is held by nothing.
-- **The deployment's own UX:** what `temper init` alone writes and says
+- **The deployment's own UX:** what `temper-box init` alone writes and says
   beyond `init.md`, 2, and how a server is set up. For now it is the cheapest
   bare deployment.
 - **Flags of their own** (`--welcome`, `--playground`), when a
@@ -837,7 +837,7 @@ Each is intended; what it needs is named with it.
   the process tier's story pins it after landing. Default: the step's
   request; if Forgejo does not serve the source after it, the step keeps
   failing, saying so, and Forgejo's next start serves it.
-- **A sign-in source for `temper serve`'s owned Forgejo** (`owned.md`, 8): its
+- **A sign-in source for `temper-box serve`'s owned Forgejo** (`owned.md`, 8): its
   command is printed, not run, so nothing retries it; a source whose
   discovery failed at Forgejo's start serves at a person's first sign-in,
   as above. Default: as `owned.md`, 8 says.

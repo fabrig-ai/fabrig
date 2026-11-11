@@ -97,7 +97,7 @@ def regenerate(repository, path, stages, conflicts):
         # Require a fresh output: success without writing cannot settle a file.
         target.unlink()
         subprocess.run(command, cwd=repository, check=True, stdin=subprocess.DEVNULL,
-                       env={**os.environ, 'SKEIN_CODEGEN_WRITE': '1', 'TEMPER_BUNDLE': 'none'})
+                       env={**os.environ, 'SKEIN_CODEGEN_WRITE': '1', 'TEMPER_INTERNAL_BUNDLE': 'none'})
         if target.is_symlink() or not target.is_file():
             raise ValueError('generator did not produce a regular file')
         generated = target.read_bytes()

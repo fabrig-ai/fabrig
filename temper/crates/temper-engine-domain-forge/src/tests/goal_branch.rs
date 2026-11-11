@@ -247,6 +247,367 @@ fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
 }
 
 #[test]
+fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
+    for (case, count, number, access, branch, reason) in [
+        ("full", LIMITS.entries, 5, Some(Role::Owned), true, None),
+        ("not adopted", LIMITS.entries, TAKING, None, true, Some(b"the repository is not adopted".as_slice())),
+        (
+            "read only",
+            LIMITS.entries,
+            TAKING,
+            Some(Role::Context),
+            true,
+            Some(b"the repository is adopted to be read, not written".as_slice()),
+        ),
+        (
+            "no branch writes",
+            LIMITS.entries,
+            TAKING,
+            Some(Role::Owned),
+            false,
+            Some(b"the repository's adoption takes no branch writes".as_slice()),
+        ),
+        (
+            "entry in use",
+            LIMITS.entries,
+            1,
+            Some(Role::Owned),
+            true,
+            Some(b"its outbox entry 1 is already in use".as_slice()),
+        ),
+    ] {
+        let mut d = fresh();
+        outputs(&mut d, Event::Hold { entry: number, task: GOAL, resource: name(GOAL_BRANCH), from: None });
+        fixtures::answer_next(&mut d, Err(Error::Missing));
+        let (call, _) = fixtures::next_call(&mut d);
+        let first = if case == "full" { number + 1 } else { 1 };
+        for n in first..first + u64::from(count) {
+            outputs(&mut d, Event::Enqueue { entry: status(n, OTHER) });
+        }
+        match access {
+            Some(role) => {
+                let repository = d.repositories.get_mut(&REPO).unwrap();
+                repository.role = role;
+                repository.kinds.branch = branch;
+            }
+            None => {
+                d.repositories.remove(&REPO);
+            }
+        }
+        let requests = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+        match reason {
+            Some(reason) => assert_eq!(
+                requests.as_ref(),
+                &[Request::MakeFailed { task: GOAL, resource: name(GOAL_BRANCH), reason: reason.into() }],
+                "{case}"
+            ),
+            None => {
+                assert_no_making(&requests);
+                assert!(!d.is_ready(), "{case}: no busy loop");
+                assert_eq!(d.next_deadline(), None, "{case}: no polling timer");
+                assert_no_making(&ready(&mut d));
+                assert_eq!(
+                    outputs(
+                        &mut d,
+                        Event::Claim {
+                            designs: Box::new([]),
+                            task: OTHER,
+                            attempt: 1,
+                            writes: Box::new([name(GOAL_BRANCH)]),
+                            holders: Box::new([GOAL]),
+                        }
+                    )
+                    .as_ref(),
+                    &[Request::Taken { task: OTHER, resource: name(GOAL_BRANCH), by: GOAL }]
+                );
+            }
+        }
+        assert_eq!(d.entries.len(), count, "{case}: no entry replaced or added");
+        for (n, row) in &d.entries {
+            assert_eq!(row.entry, status(*n, OTHER), "{case}");
+        }
+        assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None, "{case}");
+        for request in requests {
+            if let Request::Call { .. } = request {
+                panic!("{case}: no call: {request:?}");
+            }
+        }
+        if case == "full" {
+            outputs(&mut d, Event::Committed { entry: first });
+            fixtures::answer_next(
+                &mut d,
+                Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }),
+            );
+            let (_, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Write(status(first, OTHER).effect.write), "a higher entry hands off");
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table follows each entry-freeing cause through a fresh-number creation")]
+fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
+    for cause in ["made", "withdrawn", "not made"] {
+        let mut environment = env();
+        environment.limits.entries = 1;
+        let mut d = domain_with_limits(&environment.limits);
+        at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
+        if cause == "not made" {
+            at_step(
+                &mut d,
+                &environment,
+                Event::Restore { record: Stored::Entry { entry: status(1, OTHER), held: true } },
+            );
+        }
+        at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        at_step(&mut d, &environment, Event::ReadAfresh);
+        at_step(&mut d, &environment, Event::SettleOutbox);
+        if cause != "not made" {
+            at_step(&mut d, &environment, Event::Enqueue { entry: status(1, OTHER) });
+        }
+        let completing = if cause == "made" {
+            at_step(&mut d, &environment, Event::Committed { entry: 1 });
+            at_answer(
+                &mut d,
+                &environment,
+                Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now }),
+            );
+            let (call, op) = at_call(&mut d, &environment);
+            assert_eq!(op, Op::Write(status(1, OTHER).effect.write));
+            Some(call)
+        } else {
+            None
+        };
+        at_step(
+            &mut d,
+            &environment,
+            Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None },
+        );
+        at_answer(&mut d, &environment, Err(Error::Missing));
+        assert_no_making(&at_answer(&mut d, &environment, Ok(Answer::Commit(TIP))));
+        let freed = if let Some(call) = completing {
+            at_step(
+                &mut d,
+                &environment,
+                Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result: Ok(Answer::Done),
+                }),
+            )
+        } else if cause == "withdrawn" {
+            at_step(&mut d, &environment, Event::Withdraw { entry: 1 })
+        } else {
+            at_step(&mut d, &environment, Event::Resolve { entry: 1, again: false })
+        };
+        assert!(freed.contains(&Request::Erase { key: Key::Entry(1) }), "{cause}: {freed:?}");
+        assert!(d.is_ready(), "{cause}: freed room wakes without polling");
+        let mut resumed = Queue::uncapped();
+        resume(&mut d, &environment, &mut resumed);
+        let mut saved = skein_lib::List::with_capacity(u32::try_from(freed.len()).unwrap() + resumed.len());
+        for request in freed {
+            saved.push(request).unwrap();
+        }
+        while let Some(request) = resumed.pop() {
+            saved.push(request).unwrap();
+        }
+        let saved = saved.into_boxed();
+        let mut asks = 0_u32;
+        for request in &saved {
+            if let Request::ContinueGoalBranch { task } = request {
+                assert_eq!(*task, GOAL, "{cause}");
+                asks += 1;
+            }
+        }
+        assert_eq!(asks, 1, "{cause}: fresh number asked once: {saved:?}");
+        assert_no_making(&saved);
+        at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: CLOSING });
+        let tip = [5; 32];
+        let saved = at_answer(&mut d, &environment, Ok(Answer::Commit(tip)));
+        let mut expected = entry();
+        expected.number = CLOSING;
+        expected.effect.write = Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: tip };
+        assert!(
+            saved.contains(&Request::Save {
+                read_afresh: None,
+                release: Some(CLOSING),
+                record: Stored::Entry { entry: expected.clone(), held: false },
+            }),
+            "{cause}: fresh number and fresh tip: {saved:?}"
+        );
+        assert_eq!(d.entries.get(&CLOSING).unwrap().entry, expected);
+        assert!(!d.entries.contains_key(&TAKING), "{cause}: old number given up");
+        at_step(&mut d, &environment, Event::Committed { entry: CLOSING });
+        at_answer(
+            &mut d,
+            &environment,
+            Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now }),
+        );
+        let (_, op) = at_call(&mut d, &environment);
+        assert_eq!(op, Op::Write(expected.effect.write), "{cause}");
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table checks FIFO re-waits and inverted fresh-tip answers through handoff"
+)]
+fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
+    for (case, entries) in [("full again", 1), ("inverted tip answers", 2)] {
+        let mut environment = env();
+        environment.limits.entries = entries;
+        let mut d = domain_with_limits(&environment.limits);
+        at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
+        at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        at_step(&mut d, &environment, Event::ReadAfresh);
+        at_step(&mut d, &environment, Event::SettleOutbox);
+        for number in 1..=u64::from(entries) {
+            at_step(&mut d, &environment, Event::Enqueue { entry: status(number, 9) });
+        }
+        // G2 starts reading first, but G1 meets the full outbox first.
+        let other_branch = b"temper/7/g8";
+        at_step(
+            &mut d,
+            &environment,
+            Event::Hold { entry: CLOSING, task: OTHER, resource: name(other_branch), from: None },
+        );
+        assert!(d.hold(&name(other_branch)).is_some(), "G2 held");
+        at_answer(&mut d, &environment, Err(Error::Missing));
+        let (later, _) = at_call(&mut d, &environment);
+        // Distinct default reads keep the client from coalescing the two answers.
+        d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"other-main".as_slice().into();
+        at_step(
+            &mut d,
+            &environment,
+            Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None },
+        );
+        assert!(d.hold(&name(GOAL_BRANCH)).is_some(), "G1 held");
+        at_answer(&mut d, &environment, Err(Error::Missing));
+        assert_no_making(&at_answer(&mut d, &environment, Ok(Answer::Commit(TIP))));
+        assert_no_making(&at_step(
+            &mut d,
+            &environment,
+            Event::Client(skein_forge_client::Event::Answered {
+                call: later,
+                cost: 1,
+                free: 0,
+                rate: None,
+                result: Ok(Answer::Commit(TIP)),
+            }),
+        ));
+        at_step(&mut d, &environment, Event::Withdraw { entry: 1 });
+        let asked = ready(&mut d);
+        assert_eq!(asked.as_ref(), &[Request::ContinueGoalBranch { task: GOAL }]);
+        assert!(!d.is_ready(), "one freed entry asks only one waiter, even before the answer");
+        assert!(ready(&mut d).is_empty());
+        at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 30 });
+        let (reread, _) = at_call(&mut d, &environment);
+        if case == "inverted tip answers" {
+            at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
+            assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+            d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"new-main".as_slice().into();
+            at_step(&mut d, &environment, Event::ContinueGoalBranch { task: OTHER, entry: 31 });
+            assert!(d.is_ready(), "before the younger reread");
+            at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
+            at_step(&mut d, &environment, Event::Committed { entry: 31 });
+            assert!(!d.is_ready(), "a higher fresh entry waits for the older tip read");
+            at_step(
+                &mut d,
+                &environment,
+                Event::Client(skein_forge_client::Event::Answered {
+                    call: reread,
+                    cost: 1,
+                    free: 0,
+                    rate: None,
+                    result: Ok(Answer::Commit(TIP)),
+                }),
+            );
+            let mut log = Queue::uncapped();
+            let mut calls = Queue::uncapped();
+            step(&mut d, &environment, Event::Committed { entry: 30 }, &mut log);
+            for branch in [GOAL_BRANCH, other_branch.as_slice()] {
+                let mut sent = false;
+                for _ in 0_u8..4 {
+                    resume(&mut d, &environment, &mut log);
+                    while let Some(request) = log.pop() {
+                        if let Request::Call { call, op, .. } = request {
+                            calls.push((call, op));
+                        }
+                    }
+                    let Some((call, op)) = calls.pop() else { continue };
+                    match op {
+                        Op::Read(Read::Items { .. }) => {
+                            step(
+                                &mut d,
+                                &environment,
+                                Event::Client(skein_forge_client::Event::Answered {
+                                    call,
+                                    cost: 1,
+                                    free: 0,
+                                    rate: None,
+                                    result: Ok(Answer::Items {
+                                        cut: false,
+                                        items: Box::new([]),
+                                        more: false,
+                                        now: environment.now,
+                                    }),
+                                }),
+                                &mut log,
+                            );
+                            d.reclaim();
+                        }
+                        Op::Write(Write::CreateBranch { branch: actual, commit }) => {
+                            assert_eq!(actual.as_ref(), branch, "{case}: wait order is send order");
+                            assert_eq!(commit, TIP);
+                            step(
+                                &mut d,
+                                &environment,
+                                Event::Client(skein_forge_client::Event::Answered {
+                                    call,
+                                    cost: 1,
+                                    free: 0,
+                                    rate: None,
+                                    result: Ok(Answer::Branch(BranchCreation::Created)),
+                                }),
+                                &mut log,
+                            );
+                            d.reclaim();
+                            sent = true;
+                            break;
+                        }
+                        other @ (Op::Read(_) | Op::Write(_)) => panic!("{case}: unexpected call: {other:?}"),
+                    }
+                }
+                assert!(sent, "{case}: {branch:?} branch sent");
+            }
+            continue;
+        }
+        // Another effect wins the room while the oldest making reads its fresh tip.
+        at_step(&mut d, &environment, Event::Enqueue { entry: status(31, 9) });
+        assert_no_making(&at_step(
+            &mut d,
+            &environment,
+            Event::Client(skein_forge_client::Event::Answered {
+                call: reread,
+                cost: 1,
+                free: 0,
+                rate: None,
+                result: Ok(Answer::Commit(TIP)),
+            }),
+        ));
+        at_step(&mut d, &environment, Event::Withdraw { entry: 31 });
+        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: GOAL }], "oldest keeps its place");
+        at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 32 });
+        at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
+        at_step(&mut d, &environment, Event::Withdraw { entry: 32 });
+        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+    }
+}
+
+#[test]
 fn taking_an_existing_goal_branch_makes_nothing() {
     let mut d = fresh();
     take(&mut d);
@@ -277,6 +638,10 @@ fn a_goal_branch_making_that_fails_for_good_says_why() {
 fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     use temper_engine_domain_forge_change as change;
     let mut d = fresh();
+    outputs(
+        &mut d,
+        Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } },
+    );
     let (making_call, _) = making(&mut d);
     let mut row = fixtures::opening_row();
     row.base = GOAL_BRANCH.into();
@@ -287,7 +652,9 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     let waiting = fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     assert!(waiting.contains(&Request::ChangeDecision {
         task: fixtures::CHANGE,
-        decision: change::Decision::Wait { until: None },
+        decision: change::Decision::Wait {
+            until: Some(Wall::from_nanos(env().wall.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos())))
+        },
         entry: None,
         evidence: None
     }));
@@ -299,6 +666,45 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     let (_, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+}
+
+#[test]
+fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = fresh();
+    fixtures::connect(&mut d);
+    making(&mut d);
+    let mut row = fixtures::opening_row();
+    row.base = GOAL_BRANCH.into();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    let since = row.change.since;
+    outputs(&mut d, Event::Change { row });
+    fixtures::step_change(&mut d);
+    let waiting = fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    let until = Wall::from_nanos(since.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos()));
+    assert!(waiting.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Wait { until: Some(until) },
+        entry: None,
+        evidence: None
+    }));
+    d.wait_change(&env(), fixtures::CHANGE, Some(until));
+    let mut later = env();
+    let wake = fixtures::advance(&mut d, &mut later, LIMITS.change_policy.stall);
+    let mut signalled = false;
+    for request in &wake {
+        signalled |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+    }
+    assert!(signalled);
+    at_step(&mut d, &later, fixtures::change_step());
+    let held = at_answer(&mut d, &later, Ok(Answer::Commit(fixtures::HEAD)));
+    assert!(held.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Hold(change::Hold::Stalled),
+        entry: None,
+        evidence: None
+    }));
 }
 
 #[test]
@@ -838,7 +1244,7 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
             }
             Op::Read(Read::Branch { branch }) if branch.as_ref() == GOAL_BRANCH => Answer::Commit(TIP),
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
-            Op::Read(Read::Pull { number: 1 }) => {
+            Op::Read(Read::Pull { number: 1, ci: false }) => {
                 let mut pull = fixtures::open_pull();
                 pull.base = GOAL_BRANCH.into();
                 if merged {
@@ -869,7 +1275,7 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
 }
 
 #[test]
-fn a_merge_into_a_held_goal_branch_saves_only_an_owned_heads_advance() {
+fn a_merge_into_a_held_goal_branch_saves_its_head_whatever_the_previous_record() {
     for owned in [Some(true), Some(false), None] {
         let mut d = fresh();
         take(&mut d);
@@ -881,28 +1287,36 @@ fn a_merge_into_a_held_goal_branch_saves_only_an_owned_heads_advance() {
         }
         let requests = merge_into_goal(&mut d);
         let advanced = BranchHead { name: name(GOAL_BRANCH), commit: MERGED, owned: true };
-        assert_eq!(
+        assert!(
             requests.contains(&Request::Save {
                 read_afresh: None,
                 release: None,
                 record: Stored::BranchHead(advanced.clone())
             }),
-            owned == Some(true),
             "owned={owned:?}: {requests:?}"
         );
-        match owned {
-            Some(owned) => {
-                let expected = BranchHead { name: name(GOAL_BRANCH), commit: if owned { MERGED } else { TIP }, owned };
-                assert_eq!(d.heads.get(&name(GOAL_BRANCH)), Some(&expected), "owned={owned}");
-            }
-            None => assert_eq!(d.heads.get(&name(GOAL_BRANCH)), None),
-        }
+        assert_eq!(d.heads.get(&name(GOAL_BRANCH)), Some(&advanced), "owned={owned:?}");
         for request in &requests {
             if let Request::Save { record: Stored::BranchHead(head), .. } = request {
-                assert_eq!(owned, Some(true), "an unowned or absent head is read afresh");
                 assert_eq!(head, &advanced);
             }
         }
+        let mut landing = fixtures::opening_row();
+        landing.task = OTHER;
+        landing.change.task = OTHER;
+        landing.branch = GOAL_BRANCH.into();
+        landing.pending = None;
+        landing.effect = temper_engine_domain_forge_change::EffectResult::None;
+        landing.change.state = temper_engine_domain_forge_change::State::Checking { head: TIP };
+        landing.change.last_head = Some(TIP);
+        outputs(&mut d, Event::Change { row: landing });
+        fixtures::connect(&mut d);
+        held_branch::step_at_head_for(&mut d, OTHER, MERGED);
+        assert_eq!(
+            d.change(OTHER).unwrap().change.state,
+            temper_engine_domain_forge_change::State::Checking { head: MERGED }
+        );
+        assert_eq!(d.change(OTHER).unwrap().drift, None);
     }
 }
 

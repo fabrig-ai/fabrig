@@ -510,6 +510,12 @@ impl World {
                             owner: text(b'o'),
                             name: text(b'n'),
                             html_url: text(b'h'),
+                            settings: api::Settings {
+                                default_branch: text(b'b'),
+                                merge: true,
+                                squash: false,
+                                rebase: false,
+                            },
                             object_format: forgejo::id::ObjectFormat::Sha1,
                             merge_style: forgejo::document::MergeStyle::Merge,
                         },
@@ -520,6 +526,12 @@ impl World {
                             owner: text(b'o'),
                             name: text(b'n'),
                             html_url: text(b'h'),
+                            settings: api::Settings {
+                                default_branch: text(b'b'),
+                                merge: true,
+                                squash: false,
+                                rebase: false,
+                            },
                             owner_id: 1,
                             organization: false,
                             merge: Some(gh::plans::tables::Method::Merge),
@@ -735,7 +747,9 @@ pub fn full_heap(forges: Forges, ceiling: u64) -> Full {
     {
         w.hold_responses = true;
         w.call(1, forge, || api::Op::Read(api::Read::Compare { before: [0; 32], after: head() }));
-        w.call(2, forge, || api::Op::Read(api::Read::PullFiles { number: 1, head: head(), page: 1 }));
+        w.call(2, forge, || {
+            api::Op::Read(api::Read::PullFiles { number: 1, head: head(), page: 1, skip: 0, sides: true })
+        });
         w.settle();
         assert_eq!(w.live_calls, 2);
         w.release_responses();

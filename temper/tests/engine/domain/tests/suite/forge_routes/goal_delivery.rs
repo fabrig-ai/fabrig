@@ -430,6 +430,8 @@ fn a_delivery_under_its_open_change_is_that_changes_new_head() {
             matches!(op,
             skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit })
                 if *commit == translate::commit(h2))
+                || matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: true })
+                    if row(&world, c1).pull == Some(*number))
         });
         assert_eq!(world.merges, 0, "the superseded head never lands");
         assert_eq!(writer(&world, &r), None);

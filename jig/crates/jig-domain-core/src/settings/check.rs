@@ -237,7 +237,7 @@ fn check_set(
             }
             Value::Template(template) => {
                 match template.flags.ended_by {
-                    tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+                    tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
                     tasks::EndedBy::Closer(closer) => {
                         if !connectors.contains(&closer.connector) {
                             return Err(Failure { setting, fault: Fault::Reference, detail: None });
@@ -577,9 +577,6 @@ fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> O
     if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
         return Some(Failure { setting, fault: Fault::Count, detail: None });
     }
-    if charter.policy.resume && !charter.parts.is_empty() {
-        return Some(Failure { setting, fault: Fault::Shape, detail: None });
-    }
     for part in &charter.parts {
         if part.on.is_empty() || !part.on.is_known() {
             return Some(Failure { setting, fault: Fault::Shape, detail: None });
@@ -650,6 +647,10 @@ fn template_fault(
         template.flags,
         match executor {
             people::TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
+            // A standing template leaves the agent's charter to its creator.
+            people::TemplateExecutor::Chosen if template.flags.ended_by == tasks::EndedBy::Standing => {
+                tasks::Executor::Agent { charter: 1 }
+            }
             people::TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
         },
     ) {

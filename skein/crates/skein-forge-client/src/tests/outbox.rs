@@ -195,7 +195,7 @@ fn a_retargeted_merge_fails_before_any_write() {
     );
     h.clock();
     let check = h.one();
-    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
     h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
     assert_eq!(h.writes, 0);
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::Stale))]);
@@ -242,7 +242,7 @@ fn update_recovery_proves_the_requested_base_is_an_ancestor() {
                 }
                 Some(false) => {
                     let check = h.one();
-                    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+                    assert_eq!(check.op, Op::Read(Read::Pull { number: 9, ci: false }));
                     h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
                     let update = h.one();
                     assert_eq!(update.op, Op::Write(Write::Update { number: 9, style: api::UpdateStyle::Merge }));
@@ -427,7 +427,7 @@ fn a_review_written_after_the_head_moves_is_classified_as_a_raced_effect() {
         at: at(100),
         official: true,
     };
-    h.answer(find, Ok(Answer::Reviews { reviews: Box::new([review]), more: false }));
+    h.answer(find, Ok(Answer::Reviews { reviews: Box::new([review]), more: false, cut: false }));
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Raced { made: Made::Reviewed(7), why: Error::Stale })]);
 }
 #[test]
@@ -529,7 +529,11 @@ fn review_recovery_rejects_revised_or_unknown_rows_before_classifying_the_head()
             let find = h.one();
             h.answer(
                 find,
-                Ok(Answer::Reviews { reviews: Box::new([recovered_review(6, provenance, head)]), more: false }),
+                Ok(Answer::Reviews {
+                    reviews: Box::new([recovered_review(6, provenance, head)]),
+                    more: false,
+                    cut: false,
+                }),
             );
             assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
             assert_eq!(h.writes, 1);
@@ -541,35 +545,42 @@ fn review_recovery_rejects_revised_or_unknown_rows_before_classifying_the_head()
 }
 #[test]
 fn review_recovery_requires_an_original_row_strictly_after_the_saved_boundary() {
-    for head in [[1; 32], [3; 32]] {
-        let mut h = recovering_review();
-        let find = h.one();
-        assert_eq!(find.op, Op::Read(Read::Reviews { number: 9, page: 1 }));
-        h.answer(
-            find,
-            Ok(Answer::Reviews {
-                reviews: Box::new([
-                    recovered_review(4, api::Provenance::Original, head),
-                    recovered_review(5, api::Provenance::Original, head),
-                ]),
-                more: true,
-            }),
-        );
-        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
-        let find = h.one();
-        assert_eq!(find.op, Op::Read(Read::Reviews { number: 9, page: 2 }));
-        h.answer(
-            find,
-            Ok(Answer::Reviews {
-                reviews: Box::new([recovered_review(6, api::Provenance::Original, [1; 32])]),
-                more: false,
-            }),
-        );
-        assert_eq!(h.writes, 1);
-        assert_eq!(
-            h.outcomes.as_slice(),
-            &[(1, Outcome::Uncertain), (1, Outcome::Made { made: Made::Reviewed(6), found: true }),]
-        );
+    for cut in [false, true] {
+        for head in [[1; 32], [3; 32]] {
+            let mut h = recovering_review();
+            let find = h.one();
+            assert_eq!(find.op, Op::Read(Read::Reviews { number: 9, page: 1, skip: 0 }));
+            h.answer(
+                find,
+                Ok(Answer::Reviews {
+                    reviews: Box::new([
+                        recovered_review(4, api::Provenance::Original, head),
+                        recovered_review(5, api::Provenance::Original, head),
+                    ]),
+                    more: true,
+                    cut,
+                }),
+            );
+            assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
+            let find = h.one();
+            assert_eq!(
+                find.op,
+                Op::Read(Read::Reviews { number: 9, page: if cut { 1 } else { 2 }, skip: if cut { 2 } else { 0 } })
+            );
+            h.answer(
+                find,
+                Ok(Answer::Reviews {
+                    reviews: Box::new([recovered_review(6, api::Provenance::Original, [1; 32])]),
+                    more: false,
+                    cut: false,
+                }),
+            );
+            assert_eq!(h.writes, 1);
+            assert_eq!(
+                h.outcomes.as_slice(),
+                &[(1, Outcome::Uncertain), (1, Outcome::Made { made: Made::Reviewed(6), found: true }),]
+            );
+        }
     }
 }
 #[test]

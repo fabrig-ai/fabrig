@@ -67,6 +67,16 @@ fn the_themes_are_valid_and_name_every_look() {
                     0,
                 ),
                 (5, "tui-list", Place::Bottom, Arrange::Lines, None, 0),
+                (
+                    6,
+                    "tui-pane",
+                    Place::Side { percent: 50 },
+                    Arrange::Lines,
+                    Some(Border {
+                        corners, across: '─', down: '│', paint: fore(faint), title: false, sides: false
+                    }),
+                    1,
+                ),
             ] {
                 let region = Region { owner: look::OWNER, number };
                 let want = RegionLook { region, place, arrange, border, pad, paint: Paint::NONE };

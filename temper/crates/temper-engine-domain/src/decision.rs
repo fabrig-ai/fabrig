@@ -73,6 +73,11 @@ pub enum Delivery {
         owner: Token,
         range: jig_domain_notes::Range,
     },
+    /// Move a leaver's standing roles only after the saved roster commits.
+    MoveStanding {
+        project: u32,
+        owner: Option<u64>,
+    },
     /// The root hears a project made only after its decision commits.
     ProjectMade {
         project: u32,
@@ -527,6 +532,7 @@ impl Decision {
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ProjectMade { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }

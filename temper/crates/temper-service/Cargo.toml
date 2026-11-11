@@ -30,7 +30,7 @@ temper-engine-domain-forge-tiers.workspace = true
 jig-protocol-charter.workspace = true
 jig-domain-brief.workspace = true
 temper-forge-setup.workspace = true
-temper-box.workspace = true
+temper-box-machine.workspace = true
 temper-protocol-records = { workspace = true, features = ["forge"] }
 skein-forge-setup.workspace = true
 skein-forge.workspace = true
@@ -89,6 +89,7 @@ jig-protocol-worker-link = { workspace = true, optional = true }
 jig-protocol-worker-agents = { workspace = true, optional = true }
 
 [dev-dependencies]
+temper-test-env.workspace = true
 smith-protocol-llm.workspace = true
 serde_json.workspace = true
 temper-docs.workspace = true

@@ -318,6 +318,7 @@ pub(crate) fn workspace() -> Workspace {
 
 pub(crate) fn charter() -> Charter {
     Charter {
+        check_timeout: None,
         mode: crate::Mode::Finite,
         reserve: crate::charter::Reserve { turns: 0, time: Duration::ZERO },
         instructions: Box::new([]),

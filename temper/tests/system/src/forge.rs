@@ -285,7 +285,13 @@ impl World {
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
-            events: VecDeque::from([engine::Event::Restart { pending: false }]),
+            events: VecDeque::from([
+                engine::Event::Restart { pending: false },
+                engine::Event::Forge(Box::new(forge_top::Event::Connection {
+                    forge: 1,
+                    state: forge_top::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+                })),
+            ]),
             store,
             fake,
             fake_env,

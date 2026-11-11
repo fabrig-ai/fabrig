@@ -139,7 +139,25 @@ pub fn render_for_task(
     forge: ForgeReadBounds,
     job: Option<skein_forge::api::JobAttempt>,
 ) -> engine::Event {
+    render_for_task_page(to, answer, tool, max_bytes, task, receiving_bytes, forge, job, None)
+}
+#[must_use]
+#[expect(clippy::too_many_arguments, reason = "host rendering carries the asked job beside both answer bounds")]
+pub fn render_for_task_page(
+    to: ReplyTo,
+    answer: &engine::CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    task: u64,
+    receiving_bytes: u32,
+    forge: ForgeReadBounds,
+    job: Option<skein_forge::api::JobAttempt>,
+    page: Option<(u32, u32)>,
+) -> engine::Event {
     let max_bytes = max_bytes.min(receiving_bytes);
+    if let Some((page, skip)) = page {
+        return rendered(to, temper_engine_smith::answer_for_page(answer, tool, max_bytes, forge, page, skip));
+    }
     if let Some(job) = job {
         return rendered(to, temper_engine_smith::answer_for_job(answer, tool, max_bytes, forge, job));
     }

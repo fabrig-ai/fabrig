@@ -34,18 +34,18 @@ enum Read {
     Branches { prefix: Box<[u8]> },
     Items { since: skein_lib::Time, page: u32, kind: Option<api::Kind>, single: bool },
     Item { number: u64, after: u64, since: skein_lib::Time },
-    Pull { number: u64 },
+    Pull { number: u64, ci: bool },
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     Statuses { commit: api::Commit, page: u32 },
     Checks { commit: api::Commit },
     Permission { user: u64 },
     Collaborators { page: u32 },
-    Remarks { number: u64, review: u64, page: u32 },
-    Reviews { number: u64, page: u32 },
+    Remarks { number: u64, review: u64, page: u32, skip: u32 },
+    Reviews { number: u64, page: u32, skip: u32 },
     File { head: api::Commit, path: Box<[u8]>, max_bytes: u32 },
     Compare { before: api::Commit, after: api::Commit },
     Commits { before: api::Commit, after: api::Commit, page: u32 },
-    PullFiles { number: u64, head: api::Commit, page: u32 },
+    PullFiles { number: u64, head: api::Commit, page: u32, skip: u32, sides: bool },
     Job { attempt: api::JobAttempt, max_bytes: u32, part: api::LogPart },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -94,6 +94,7 @@ pub struct Plan {
     request: Option<Exchange>,
     rows: List<Box<[u8]>>,
     size: u64,
+    cut: bool,
     count: u32,
     page: u32,
     limit: u32,
@@ -125,17 +126,19 @@ impl Plan {
             api::Read::Branches { prefix } => Read::Branches { prefix },
             api::Read::Items { since, page, kind, single } => Read::Items { since, page, kind, single },
             api::Read::Item { number, after, since } => Read::Item { number, after, since },
-            api::Read::Pull { number } => Read::Pull { number },
+            api::Read::Pull { number, ci } => Read::Pull { number, ci },
             api::Read::PullFor { head, base } => Read::PullFor { head, base },
             api::Read::Statuses { commit, page } => Read::Statuses { commit, page },
             api::Read::Compare { before, after } => Read::Compare { before, after },
             api::Read::Commits { before, after, page } => Read::Commits { before, after, page },
             api::Read::File { head, path, max_bytes } => Read::File { head, path, max_bytes },
-            api::Read::Reviews { number, page } => Read::Reviews { number, page },
-            api::Read::Remarks { number, review, page } => Read::Remarks { number, review, page },
+            api::Read::Reviews { number, page, skip } => Read::Reviews { number, page, skip },
+            api::Read::Remarks { number, review, page, skip } => Read::Remarks { number, review, page, skip },
             api::Read::Collaborators { page } => Read::Collaborators { page },
             api::Read::Permission { user } => Read::Permission { user },
-            api::Read::PullFiles { number, head, page } => Read::PullFiles { number, head, page },
+            api::Read::PullFiles { number, head, page, skip, sides } => {
+                Read::PullFiles { number, head, page, skip, sides }
+            }
             api::Read::Checks { commit } => Read::Checks { commit },
             api::Read::Protection { branch } => Read::Protection { branch },
             api::Read::Job { attempt, max_bytes, part } => Read::Job { attempt, max_bytes, part },
@@ -149,6 +152,7 @@ impl Plan {
             request: None,
             rows: List::with_capacity(0),
             size: 0,
+            cut: false,
             count: 0,
             page: 1,
             limit: 0,
@@ -178,6 +182,10 @@ impl Plan {
                 return Ok(self.send(Request::Locate { owner: owner.clone(), name: name.clone() }));
             }
             Read::Settings => {
+                if let Some(row) = tables.repository(self.repository) {
+                    let answer = api::Answer::Settings(row.settings.clone());
+                    return self.terminal(answer, bounds)?.ok_or(api::Error::InvalidAnswer);
+                }
                 self.stage = Stage::Read;
                 return Ok(self.send(Request::Repository { id: u64::from(self.repository.repository) }));
             }
@@ -200,14 +208,12 @@ impl Plan {
                 self.raw_cap = room.min(*max_bytes);
             }
             Read::Reviews { .. } => {
-                let capacity = size::capacity(bounds, crate::measure::REVIEW_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
-                self.reviews = List::with_capacity(capacity);
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
+                self.reviews = List::with_capacity(self.limit);
             }
             Read::Remarks { .. } => {
-                let capacity = size::capacity(bounds, crate::measure::REMARK_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
-                self.remarks = List::with_capacity(capacity);
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
+                self.remarks = List::with_capacity(self.limit);
             }
             Read::Collaborators { .. } => {
                 let capacity = size::capacity(bounds, crate::measure::COLLABORATOR_BYTES)?;
@@ -475,12 +481,14 @@ impl Plan {
         refusal: Option<&document::Refusal>,
         tables: &mut Tables,
     ) -> api::Error {
-        let asked =
-            if let (Read::Branch { .. }, Stage::Read) | (Read::File { .. }, Stage::Raw) = (&self.read, self.stage) {
-                crate::github::failure::Asked::Leaf
-            } else {
-                crate::github::failure::Asked::Read
-            };
+        let asked = if let (Read::Branch { .. }, Stage::Read)
+        | (Read::File { .. }, Stage::Raw)
+        | (Read::PullFor { .. }, Stage::Listing) = (&self.read, self.stage)
+        {
+            crate::github::failure::Asked::Leaf
+        } else {
+            crate::github::failure::Asked::Read
+        };
         let error = failure::read(asked, status, head, refusal, self.repository, tables);
         if let Read::Job { .. } = self.read
             && error == api::Error::Missing

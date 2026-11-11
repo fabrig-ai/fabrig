@@ -8,13 +8,13 @@ variable, else its default.
 |---|---|---|---|---|
 | configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`; smith's agent configuration, `agent.json`; the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
 | data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (../setup/README.md, section 3); the scripted model's key and the fake git's link, in `demo/` (../setup/playground.md); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (../setup/box.md, 1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (../setup/box.md, 2); the programs directory | the deployment: backed up whole |
-| cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (../setup/owned.md, 6) | never backed up |
+| cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper-box forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (../setup/owned.md, 6) | never backed up |
 
 - **The document is `temper.json` in the configuration directory,**
   always: no command takes a document's path. A command that finds none
-  there is refused, naming the path, and `temper init`, which writes one
+  there is refused, naming the path, and `temper-box init`, which writes one
   (../setup/init.md, 2); `temper box` alone, on an empty configuration
-  directory, runs `temper init --box` first (../setup/box.md, 1).
+  directory, runs `temper-box init --box` first (../setup/box.md, 1).
 - **Resolved once, at start,** before the document is read: each
   directory, from its flag, variable or default, is made absolute
   against the working directory, by joining names, and every parser is
@@ -26,7 +26,7 @@ variable, else its default.
   at its name, or the start is refused, naming it (skein's `runtime/io/files.md`,
   3). A linked parent is accepted, as the programs directory's is
   (`README.md`, section 4). The configuration directory must hold the document; only
-  `temper init` makes it.
+  `temper-box init` makes it.
 - **Each path member's kind:**
   - *configuration paths:* jig's charters' instructions and trusted
     roots' files, and the machine's GitHub `transport.tls.trust`
@@ -39,7 +39,7 @@ variable, else its default.
     `fake.git` and `github.git` (`engine.md`); and `application.demo`'s
     `llm.key` (../setup/playground.md);
   - *cache paths:* `application.machine.owned`'s `forgejo` and
-    `runner.binary`, or `"fetched"` for `temper forge fetch`'s
+    `runner.binary`, or `"fetched"` for `temper-box forge fetch`'s
     (../setup/init.md and ../setup/owned.md, section 6);
   - *absolute paths,* refused when relative: each of
     `application.workers`' `git` but a null one,
@@ -143,7 +143,7 @@ box: program login: COMMAND
 box: GitHub own App id 1, key file FILE
 ```
 
-A FILE is a path, never its contents. COMMAND is `temper program-login`
+A FILE is a path, never its contents. COMMAND is `temper-box program-login`
 with the effective directories, ending in the placeholder `NAME (the name
 the Model step shows)` for the source name the Model step declares.
 

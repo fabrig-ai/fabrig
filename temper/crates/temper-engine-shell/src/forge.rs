@@ -162,16 +162,12 @@ fn run_failure(
         host::Failed::Exec(why) => format!("{}: {why}", text(&launch.program)),
     }
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: LISTEN_FDS selects the inherited forge listener; temper-engine's table will pass it"
-)]
-fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, String> {
-    let Some(count) = std::env::var_os("LISTEN_FDS") else { return Ok(None) };
+fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<Option<std::net::SocketAddr>, String> {
+    let Some(count) = temper_shell::environment::LISTEN_FDS.value(environment) else { return Ok(None) };
     if which == Which::Runner {
         return Err("LISTEN_FDS: runner takes no listeners (fd 3)".into());
     }
-    if count.as_bytes() != b"1" {
+    if count != b"1" {
         return Err("LISTEN_FDS: forgejo requires exactly 1 listener at fd 3".into());
     }
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
@@ -181,14 +177,16 @@ pub fn start(
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
 ) -> Result<u8, Refused> {
-    start_with_binary("temper", directories, arguments, ssl_cert_file)
+    start_with_binary("temper", directories, arguments, ssl_cert_file, environment)
 }
 fn start_with_binary(
     binary: &str,
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
 ) -> Result<u8, Refused> {
     let usage = || Refused {
         verb: "prepare",
@@ -219,12 +217,12 @@ fn start_with_binary(
         return remove(directories, number).map(|()| 0).map_err(refused);
     }
     // Inspect before reading the document or opening the lock: neither may occupy fd 3.
-    let listener = which.map(inherited_listener).transpose().map_err(refused)?.flatten();
+    let listener = which.map(|which| inherited_listener(which, environment)).transpose().map_err(refused)?.flatten();
     let bytes = directories.read().map_err(refused)?;
     let super::setup::Deployment { named, checked, .. } =
         super::setup::check(&bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
-        return super::forge_sign_in::run(directories, &bytes, &named, number).map_err(refused);
+        return super::forge_sign_in::run(directories, &bytes, &named, number, environment).map_err(refused);
     }
     let entry = entry(directories, &named.machine, number).map_err(refused)?;
     let owned = match &entry.mode {
@@ -279,7 +277,7 @@ fn start_with_binary(
                 .sign_in
                 .as_ref()
                 .is_some_and(|sign_in| sign_in.forges.iter().any(|row| row.forge == number))
-                .then(super::forge_sign_in::first_sign_in)
+                .then(|| super::forge_sign_in::first_sign_in(environment))
         })
         .with_source_address(
             owned_sign_in
@@ -368,8 +366,9 @@ pub fn run(
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
 ) -> u8 {
-    match start_with_binary(binary, directories, arguments, ssl_cert_file) {
+    match start_with_binary(binary, directories, arguments, ssl_cert_file, environment) {
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
@@ -550,8 +549,18 @@ pub fn reads_document(row: &Row) -> bool {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Forge { directories: super::Directories, arguments: Vec<OsString>, ssl_cert_file: Option<std::path::PathBuf> },
-    ForgeChild { parent: u32, signal: skein_io::kernel::Signal, program: OsString, arguments: Vec<OsString> },
+    Forge {
+        directories: super::Directories,
+        arguments: Vec<OsString>,
+        ssl_cert_file: Option<std::path::PathBuf>,
+        environment: Box<[EnvironmentEntry]>,
+    },
+    ForgeChild {
+        parent: u32,
+        signal: skein_io::kernel::Signal,
+        program: OsString,
+        arguments: Vec<OsString>,
+    },
 }
 
 pub fn configure(
@@ -599,18 +608,15 @@ pub fn configure(
     }
     let mut arguments = vec![OsString::from(verb)];
     arguments.extend(rest);
-    let ssl_cert_file = environment
-        .iter()
-        .find(|(name, _)| name.as_ref() == b"SSL_CERT_FILE")
-        .filter(|(_, value)| !value.is_empty())
-        .map(|(_, value)| super::path(value).to_path_buf());
-    Ok(Command::Forge { directories, arguments, ssl_cert_file })
+    let ssl_cert_file =
+        temper_shell::environment::SSL_CERT_FILE.value(environment).map(|value| super::path(value).to_path_buf());
+    Ok(Command::Forge { directories, arguments, ssl_cert_file, environment: environment.into() })
 }
 
 pub fn command(binary: &str, command: Command) -> Result<u8, String> {
     match command {
-        Command::Forge { directories, arguments, ssl_cert_file } => {
-            Ok(run(binary, &directories, &arguments, ssl_cert_file))
+        Command::Forge { directories, arguments, ssl_cert_file, environment } => {
+            Ok(run(binary, &directories, &arguments, ssl_cert_file, &environment))
         }
         Command::ForgeChild { parent, signal, program, arguments } => {
             let why = temper_forge_setup_shell::process::child(parent, signal, &program, &arguments);

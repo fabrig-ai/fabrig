@@ -1,6 +1,8 @@
 # run: status
 
-2026-11-10. Where smith's code lags or departs from [run.md](run.md).
+2026-11-11. Where smith's code lags or departs from [run.md](run.md).
+
+- **Not yet:** 8.1, *The checks' bound* and *Out of time, once more*: every check is given `check_timeout` (`smith-domain-run/src/land.rs`, `next`), the charter names no bound, and a check stopped at its deadline refuses its delivery at once, with no retry [in flight: change 73].
 
 Section 3.3 has no known gap in omitting the workspace tool instructions
 and Checkout section when no workspace is given. The remaining Checkout

@@ -1,18 +1,18 @@
 //! Process-tier fault injection at the shell's listen/drain boundary.
 //! This module may abort its own process, never create or supervise one.
+use temper_shell::directories::EnvironmentEntry;
 
-/// Cut one start before the shell submits the iteration announcing its listener.
-/// Both test switches are required; an exclusive fixture marker makes the
-/// box's next start continue without another cut.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: TEMPER_R8_WAIT_CHECK and TEMPER_R8_CUT_AT_LISTEN select the restart cut; the binary's table will pass them"
-)]
-pub(crate) fn cut_at_listen() {
-    if std::env::var_os("TEMPER_R8_WAIT_CHECK").is_none() {
-        return;
-    }
-    let Some(marker) = std::env::var_os("TEMPER_R8_CUT_AT_LISTEN") else { return };
+/// Retain the cut marker from both switches at host construction.
+pub(crate) fn marker(environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
+    use std::os::unix::ffi::OsStrExt;
+    crate::WAIT_CHECK.value(environment)?;
+    crate::CUT_AT_LISTEN.value(environment).map(|value| std::path::Path::new(std::ffi::OsStr::from_bytes(value)).into())
+}
+
+/// Cut one start before submitting its listener announcement. An exclusive
+/// marker makes the box's next start continue without another cut.
+pub(crate) fn cut_at_listen(marker: Option<&std::path::Path>) {
+    let Some(marker) = marker else { return };
     match std::fs::OpenOptions::new().write(true).create_new(true).open(marker) {
         Ok(marker) => {
             drop(marker);

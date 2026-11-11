@@ -14,7 +14,7 @@
   (`skein/docs/design/testing/fakes/forge.md`, section 7). Another binary refuses the command,
   naming its path and what it printed. A fetched binary is checked so
   too, after its digest at its fetch; temper downloads nothing but by
-  `temper forge fetch` (6).
+  `temper-box forge fetch` (6).
 - **One pin,** `skein-forge`'s, read by owned mode, the throwaway and
   the conformance alike, so the Forgejo temper runs is the Forgejo whose
   facts it checked (`testing.md`, 3): the versions, and beside them each fetched
@@ -46,7 +46,7 @@ private, never edited by hand:
   `ACCOUNT_LINKING = login`, and `[service]`
   `ALLOW_ONLY_EXTERNAL_REGISTRATION = true` (`../openid-provider.md`, 4). The
   source itself is not the preparation's: it is added by the command
-  `temper forge sign-in` prints, as for a managed Forgejo (8);
+  `temper-box forge sign-in` prints, as for a managed Forgejo (8);
 - on a box, when `application.machine.owned.sign_in` is not `null`: the same, with
   `ACCOUNT_LINKING = auto` (`../openid-provider.md`, 9). Its source is its own step's (`box.md`, 1);
 - `[webhook]`: `ALLOWED_HOST_LIST` the webhooks' listener's IP address,
@@ -59,7 +59,7 @@ private, never edited by hand:
 
 ## 3. The preparation
 
-`temper forge prepare [DIRECTORIES] FORGE`, before Forgejo runs. It takes
+`temper-box forge prepare [DIRECTORIES] FORGE`, before Forgejo runs. It takes
 Forgejo's lock (4), and the runner's too when it writes the runner's
 files: at a first preparation, for changed settings (item 2), and for
 a runner older than its pin (item 3) or added (item 4); checks the
@@ -189,11 +189,11 @@ binaries; and decides by
 
 ## 4. Running
 
-`temper forge run [DIRECTORIES] FORGE forgejo|runner`:
+`temper-box forge run [DIRECTORIES] FORGE forgejo|runner`:
 
 - **Checks** the binary, and that `state` records a preparation at the
   pinned versions, with a runner exactly when the setup has one;
-  refuses otherwise, naming what to run: `temper forge prepare` for a
+  refuses otherwise, naming what to run: `temper-box forge prepare` for a
   forge not prepared, a preparation that did not end, an older version,
   or a runner added or removed (3); no command of this temper for a
   newer version, or one it cannot read.
@@ -215,7 +215,7 @@ binaries; and decides by
   its parent `SIGTERM` once when it starts with `LISTEN_FDS` set (its
   `KillParent`, which no setting turns off), so forge run doesn't exec,
   which would make the box that parent. It holds the lock for Forgejo's
-  whole life, adopts the listener into skein-io, and spawns `temper
+  whole life, adopts the listener into skein-io, and spawns `temper-box
   internal forge-child --parent PID --signal kill -- forgejo web …`, PID
   its own, with the listener at the child's descriptor 3, the spec's
   environment ending in `LISTEN_FDS=1`, and the spec's directory.
@@ -228,11 +228,11 @@ binaries; and decides by
     forge run killed takes Forgejo with it at once. Kill, not Terminate:
     a Forgejo still stopping gracefully when nothing waits for it would
     meet the restarted forge run's on the box's socket and its database
-    (`crates/temper/tests/suite/startup.rs`,
+    (`bin/temper-box/tests/suite/startup.rs`,
     `killing_forge_run_alone_kills_its_forgejo_child`).
     Forgejo's graceful stop is forge run's forwarded Terminate. The box
     names Terminate for each of its steps (`box.md`, 1). A
-    failure, the parent changed or the program missing, prints `temper
+    failure, the parent changed or the program missing, prints `temper-box
     internal forge-child: WHY` and exits 1.
   - **Its shutdowns:** one that io names as Forgejo's (skein's `runtime/io/README.md`,
     section 4) is ignored, every time; every other is forwarded to
@@ -266,7 +266,7 @@ binaries; and decides by
   crates' sources (`crates/*/src`, test files aside) and fails the gate
   when either appears outside that module, but for what it declares by
   file, each for that use alone: `std::process::ExitCode` in the
-  binaries' `main`s, `temper`'s, `temper-client`'s and `temper-agent`'s; `temper
+  binaries' `main`s, `temper-box`'s, `temper-client`'s and `temper-agent`'s; `temper-box
   program-login`'s exec of smith's command (../credentials.md, section 3);
   Claude Code's fetch's lock, in `temper-fetch-shell`, and its
   launcher's exec and process id, in `temper-launcher` (6); and the
@@ -281,7 +281,7 @@ binaries; and decides by
 ## 5. Then the engine's start, and the person
 
 - **The handover is the engine's,** for an owned or fake forge, at
-  `temper serve`'s start after the records' load and the root's restore,
+  `temper-box serve`'s start after the records' load and the root's restore,
   or at the box's `started FORGE` (`box.md`, 1). Whenever the handover file is
   present, even with a kept `AdminToken`, the setup host reads
   `admin_token` once by the service's io, as a private file beneath the
@@ -379,7 +379,7 @@ binaries; and decides by
 
 ## 6. Fetching
 
-`temper forge fetch [DIRECTORIES] FORGE`, before an owned forge's
+`temper-box forge fetch [DIRECTORIES] FORGE`, before an owned forge's
 preparation, for a forge whose `forgejo` or `runner.binary` is
 `"fetched"` (`init.md`): a once step of the box (`box.md`, 1), and a command of
 its own for any other host.
@@ -494,7 +494,7 @@ its own for any other host.
 - **Claude Code,** a `programs.claude_code.path` of `"fetched"` (`init.md`, 2):
   temper's pinned build, by this section's machine and host, in what
   follows only where it differs from Forgejo's binaries. No step of the
-  box and no `temper forge fetch` runs it: the first command of its
+  box and no `temper-box forge fetch` runs it: the first command of its
   source that needs it does (`../../draft/claude-provider.md`, 3), its
   sign-in, its status or a run, so a machine that never chooses Claude
   never downloads it. Declaring a source has each host report its login
@@ -522,7 +522,7 @@ its own for any other host.
     The binary says its platform, as its shell was built for: its
     system, its architecture and, on Linux, whether it was built for
     musl. Another machine refuses, naming its architecture; a `claude`
-    on `PATH` answers it, at the next `temper init`.
+    on `PATH` answers it, at the next `temper-box init`.
   - **One form everywhere:** the same URL shape on Linux and macOS, one
     request and one answer, no bottle and no mirror: a machine that
     cannot reach it uses its own `claude`.
@@ -535,15 +535,15 @@ its own for any other host.
     `"fetched"`, the launcher's path, `claude-code/claude` beside the
     programs directory (`<data>/claude-code/claude` as init writes it),
     a symbolic link to the worker's agent's program, its `agent` member's
-    `program` (../configuration/README.md, section 4): the box's `temper`, or a
+    `program` (../configuration/README.md, section 4): the box's `temper-box`, or a
     deployment's `temper-agent`, and smith, jig and the agent never meet
     the word. A
-    `temper` or a `temper-agent` (`../binaries.md`, 3) run by the name
+    `temper-box` or a `temper-agent` (`../binaries.md`, 3) run by the name
     `claude`, as the playground's git is (`playground.md`), is the launcher: it takes
     the cache from `cache` beside it, a symbolic link to the cache
     directory,
     fetches the build if it is missing, and replaces itself with it,
-    its arguments unchanged. `temper serve`, a worker alone and `temper
+    its arguments unchanged. `temper-box serve`, a worker alone and `temper-box
     program-login` each write both links at their start, when the path
     is `"fetched"`, in that directory, private: a link pointing elsewhere
     is replaced by a new one and a rename, and a right one left as it is,
@@ -570,11 +570,11 @@ its own for any other host.
     two commands at once one fetches and the other finds it. A command
     killed at its own deadline, a status's or a run's, fails as that
     command, and leaves its part file to the next, which writes it again
-    from its start; `temper program-login`, which has no deadline,
+    from its start; `temper-box program-login`, which has no deadline,
     finishes it.
   - **It says so on stderr,** stdout being the command's own: `fetching
     Claude Code`, then this section's lines, `BINARY` being
-    `claude-code`. `temper program-login`'s terminal shows them.
+    `claude-code`. `temper-box program-login`'s terminal shows them.
   - **Its own updates off:** the launcher sets `DISABLE_AUTOUPDATER=1`
     in the build's environment, so the pin stays the pin. A `claude`
     found on `PATH` is the person's, and keeps its own.
@@ -720,9 +720,9 @@ its own for any other host.
 (`init.md`, 2) and adds its own source (`box.md`, 1), with no secret and no command for the person
 (`../openid-provider.md`, 9). What follows is for every other arrangement.
 
-`temper forge sign-in [DIRECTORIES] FORGE`, for a Forgejo of
+`temper-box forge sign-in [DIRECTORIES] FORGE`, for a Forgejo of
 `application.sign_in.forges` (`../openid-provider.md`), managed or
-owned, on temper's host, before `temper serve`:
+owned, on temper's host, before `temper-box serve`:
 
 1. **The provider's key,** when its file, `engine.clients.provider.key`,
    is missing: `openssl genpkey -algorithm RSA -pkeyopt
@@ -749,12 +749,12 @@ owned, on temper's host, before `temper serve`:
    (2), and a managed one's owner
    writes.
 
-Then `temper serve`, and the printed command, once, on Forgejo's host.
+Then `temper-box serve`, and the printed command, once, on Forgejo's host.
 
-- **Printed for `temper serve`'s owned Forgejo too, not run** (with o/sign-in,
+- **Printed for `temper-box serve`'s owned Forgejo too, not run** (with o/sign-in,
   2026-10-23), for two reasons: `add-oauth` fetches temper's discovery
   document at once and adds no source when temper does not answer, and
-  the preparation runs before `temper serve` (`owned.md`, 3, `box.md`, 2); and `add-oauth`
+  the preparation runs before `temper-box serve` (`owned.md`, 3, `box.md`, 2); and `add-oauth`
   takes its client secret only as an argument, where the preparation
   puts no secret (3). A source added by Forgejo's command line while
   Forgejo runs works at once, so the order costs a person nothing.

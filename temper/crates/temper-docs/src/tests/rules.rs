@@ -363,8 +363,14 @@ fn a_recipe_keeps_its_four_headings() {
 
 #[test]
 fn a_capital_word_after_temper_help_is_no_link() {
-    links(&fixture(Kind::Index, "temper help NAME\ntemper help --search\ntemper help\n")).expect("no links");
-    fails(links, &fixture(Kind::Index, "temper help nope"), "link nope");
+    for binary in ["temper", "temper-box"] {
+        links(&fixture(
+            Kind::Index,
+            leaked(format!("{binary} help NAME\n{binary} help --search\n{binary} help pages\n{binary} help\n")),
+        ))
+        .expect("no page names");
+        fails(links, &fixture(Kind::Index, leaked(format!("{binary} help nope"))), "link nope");
+    }
 }
 
 #[test]
@@ -530,7 +536,7 @@ fn approval_help_names_the_forge_and_project_policy_route() {
             "member",
             "observer",
             "temper knows your account on the box's own Forgejo, and on GitHub when temper made the App from your own account.",
-            "With several members (`temper serve`), a managed Forgejo or a pasted App:",
+            "With several members (`temper-box serve`), a managed Forgejo or a pasted App:",
         ]
         .into_iter()
         .chain(instructions.iter().copied())

@@ -87,6 +87,7 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
         "projects": [{
           "project": 1,
           "by": "queue",
+          "check_timeout_ms": 900000,
           "tier_retries": 2,
           "verification_bound_ms": 7200000,
           "gates": [{
@@ -122,6 +123,12 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   least that many milliseconds apart; none when absent. Set optional
   `description` to what it checks: 1 to 120 UTF-8 bytes without control
   characters, shown as Checks on its card and by `see settings gates`.
+  For goal-sized delivery checks, set optional `check_timeout_ms` beside
+  `by`: 1,000 to 86,400,000 milliseconds, 900,000 in the example. It bounds
+  each delivery check of the project's change producers, repairs and
+  resolutions, including goal landings; absent, the agent's bound applies.
+  Other runs keep the agent's bound. Each attempt reads it anew; it need
+  not fit the reserve, and a check is cut at the run's end.
 - **The report format:** set `format` to `junit` for JUnit reports or
   `lines` for one failing test id per line.
 - **The workflow** is dispatch-only and takes the inputs

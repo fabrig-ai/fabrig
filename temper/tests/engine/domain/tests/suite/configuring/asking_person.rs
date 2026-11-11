@@ -90,6 +90,8 @@ pub(crate) fn world() -> PersonWorld {
     bounds.tasks.batch = 4;
     bounds.tasks.spec_bytes = 512;
     bounds.tasks.parameters = 8;
+    // Nine narrowed forge grants, each with this repository's 30 name bytes.
+    bounds.tasks.authority_bytes = 270;
     bounds.tasks.inbox_messages = 8;
     bounds.tasks.inbox_bytes = 8 * bounds.tasks.message_bytes;
     bounds.tasks.run_inbox = 8;
@@ -119,6 +121,7 @@ pub(crate) fn world() -> PersonWorld {
     world.driver.send(Event::Credential { number: 1, generation: 1, valid: skein_lib::Duration::from_secs(3600) });
     world.driver.settle();
     world.driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::new());
+    world.driver.connect_forges();
     adopt_repository(&mut world, PROJECT, b"repo", 29);
 
     let mut ask = walking::goal_from(

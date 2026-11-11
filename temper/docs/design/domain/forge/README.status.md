@@ -43,13 +43,20 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
-- **Not yet:** `keeping-up.md`, 2, by plan `forge-polls-quiet`: no `fallback`
-  reaches the client (`forge.client.fallback_ms`), and the landing's
-  and tiers' flights poll their runs every `poll`, not at `poll_at`.
+- **Not yet:** 6, *Made when the forge says* and *Let go*: an update's made head is not recorded as the change's own, and a let-go update is judged against the base's tip read now, not the tip it asked for; 10, the stories of a goal's landing whose own update or close-out moves its branch, a push from outside during an update, and a stalled update (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `step_read`) [in flight: change 596].
+- **Not yet:** 10, two changes into one branch, the second staying queued while the first updates, is checked and merges [in flight: change 594].
+- **Not yet:** 2, *Kinds*, kind 17 given to a change with kind 2 on its branch; 4, kind 17's row for a change; 10, the stories of a change's CI the runner failed, run again [in flight: change 601].
+- **Not yet:** 1, quiet on the forge: a branch nothing has pushed is read on every hint and every `queue_window` (`keeping-up.status.md`) [in flight: change 157].
+- **Not yet:** 1, quiet on the forge: a gather reads its head's CI twice, and every pull read reads CI [in flight: change 158].
+- **Not yet:** 1, quiet on the forge: the repository's own facts are read again on each `Settings` and after each `PullFor` that finds none [in flight: change 159].
+- **Not yet:** 1, quiet on the forge, and `keeping-up.md`, 2: no fresh read is shared, and the landing's waits and the tiers' flights poll every `poll`, not at `poll_at` [in flight: change 160].
+- **Not yet:** 1, quiet on the forge: review and pull-file pages are sized for their largest row [in flight: change 161].
+- **Not yet:** 1, quiet on the forge: no read is conditional [in flight: change 155].
+- **Not yet:** 5.3: goal overlap reads a pull request's files with both sides, for their paths alone (`temper-engine-domain-forge/src/topics.rs`) [in flight: change 436].
 - **Not yet:** `change/branch-path.md`, *The project's roles*: the drafter, charter 12,
-  which the stock holds and its template 6 starts since P6 landed after
-  `look-round-25`'s cut, is no role, and the list gives it no place or
-  line (`../../draft/surfaces.status.md`, 7).
+  which the stock holds and its template 6 starts, is no role, and a
+  role's `who` says when it runs alone, not what it does, its charter's
+  words or its instructions' first sentence [in flight: change 314].
 
 `adoption.md` have no known gap in a repository's CI workflows:
 `temper-engine-domain-forge`'s `workflows.rs` reads `.github/workflows`,

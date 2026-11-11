@@ -95,7 +95,7 @@ or less sophisticated on macOS, and rough edges are fine.
   signs in, sets the forge up and asks for a change in a chat; the
   change is pushed, Forgejo's runner runs its CI on the Mac, and temper
   lands it.
-- **It is a story temper has:** `temper/crates/temper/tests/process.rs`,
+- **It is a story temper has:** `temper/bin/temper-box/tests/process.rs`,
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`,
   in the process tier (`../testing/process-tier.md`). macOS runs that
   story, never a copy of it, its agent review and its restart included:

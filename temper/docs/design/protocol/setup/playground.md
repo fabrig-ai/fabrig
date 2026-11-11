@@ -12,7 +12,7 @@ removes them all (below). Its pages and its banner are the client's
 Its bar: one suggested request landed
 end to end on the scripted model, by the engine's own loop with nothing
 staged. The chat delegates a change on `playground/widget`; its coding agent
-edits a file; the worker commits and pushes the branch with `temper
+edits a file; the worker commits and pushes the branch with `temper-box
 fake git`, on the fake forge's git route; the change opens its pull
 request, passes the fake's CI and lands into `main`; and the chat says
 so. The other suggestions answer in text. The engine hears the fake by
@@ -183,7 +183,7 @@ them as it does any Forgejo.
 
   Each is checked as skein checks a script's turns (its section 2.3).
   No turn holds a hold, a failing line or opaque bytes.
-- **Its words,** as `temper init` writes them (`init.md`, 2), the playground's,
+- **Its words,** as `temper-box init` writes them (`init.md`, 2), the playground's,
   as the person meets it (`../../draft/archive/first-run.md`, 2.3; the
   client's phrasebook, `../../client/pages/welcome.md`, 2): one `asked` script
   for each request the client suggests in the playground's project
@@ -263,7 +263,7 @@ them as it does any Forgejo.
   play them (`testing.md`, 4). The real loop's landing story already plays a cued
   chat's `delegate` to its landing on skein's peers, so the playground
   adds no story there.
-- **`temper fake llm DIRS`,** a long step: skein's fake LLM peer, run
+- **`temper-box fake llm DIRS`,** a long step: skein's fake LLM peer, run
   `without_records` as a peer serving a person is (skein's
   `testing/fakes/llm.md`), its domain `Domain::played` with `asked` as its asked
   scripts, `cued` as its system-cued scripts, and `otherwise` as its
@@ -286,16 +286,16 @@ them as it does any Forgejo.
   would. It serves `llm.provider`'s models, at their windows and
   outputs; no failure and no latency is configured, and its limits
   are `temper-fake`'s constants.
-- **`temper forge prepare DIRS N` on a fake forge,** a once step: its
+- **`temper-box forge prepare DIRS N` on a fake forge,** a once step: its
   directory made private; `admin_token` written when absent, 20 bytes
   from the kernel's random source as 40 lowercase hexadecimal digits,
   as Forgejo's tokens are. The fake reads it before it binds, so the
   handover is the preparation's, not the fake's own at its start, as
-  the draft had it: no step races `temper serve` for the file.
-- **`temper fake forge DIRS N`,** a long step: skein's fake forge peer,
+  the draft had it: no step races `temper-box serve` for the file.
+- **`temper-box fake forge DIRS N`,** a long step: skein's fake forge peer,
   `without_records`, at the machine's `fake.listen`. It reads `admin_token` before it
   binds, refusing to start without it, naming the file, and leaves the
-  file for `temper serve`. Its seed:
+  file for `temper-box serve`. Its seed:
   - *temper's admin,* `temper-admin`, a site admin of the setup's
     routes, its one token the handover's, with every scope (skein's
     `testing/fakes/forge.md`, section 4);
@@ -325,7 +325,7 @@ them as it does any Forgejo.
   engine's setup host grants it, by `Adopt` (below). It serves its
   git route among its routes (skein's `testing/fakes/forge.md`, section 4), and
   no git smart HTTP; it keeps no state across its starts.
-- **The fake's start-time adoption,** in `temper serve`'s setup host:
+- **The fake's start-time adoption,** in `temper-box serve`'s setup host:
   after the records' load, the root's restore, the handover and
   reconcile (`owned.md`, 5), the playground's forge's at its group's `started` (`box.md`, 1),
   one `Adopt { forge, repository }` for each of
@@ -339,7 +339,7 @@ them as it does any Forgejo.
   forge connects from records once they all end done. A stop leaves the
   forge not connected, named by its step; the engine and every other
   forge run on. The playground's start adopts the repository into its
-  project once the forge is connected (above). `temper forge fetch` and `run` refuse a fake, "it is fake,
+  project once the forge is connected (above). `temper-box forge fetch` and `run` refuse a fake, "it is fake,
   not owned".
 - **Its deliveries follow the setup's hooks** (skein's `testing/fakes/forge.md`,
   section 4): each event goes to each hook a repository's setup holds
@@ -351,7 +351,7 @@ them as it does any Forgejo.
   on loopback (`init.md`, 3), and its fake draws no loss and no latency; it
   records no delivery, being `without_records`. A runner's serve
   has one too, on loopback.
-- **`temper fake git`,** no step: the playground's forge's git, which the
+- **`temper-box fake git`,** no step: the playground's forge's git, which the
   worker spawns for the fake's repositories by the program their
   records name, the machine's `fake.git`, the playground's link (`init.md`, 2; ../channel.md,
   section 4), in place of `workers[].git`, as it spawns real git
@@ -400,8 +400,8 @@ them as it does any Forgejo.
 
   Both peers run `without_records`, with the flags or without them,
   but the fake LLM given `--observations`, which records its queries.
-- **From a document of its own,** `temper fake llm --document FILE` and
-  `temper fake forge --document FILE`, the document form, which reads
+- **From a document of its own,** `temper-box fake llm --document FILE` and
+  `temper-box fake forge --document FILE`, the document form, which reads
   no deployment: FILE is a fake's configuration, a JSON object, as
   `temper-fake` derives it from the deployment's document in the box's
   form, with what a run needs beside it. The LLM's:
@@ -471,7 +471,7 @@ them as it does any Forgejo.
   (skein's `testing/fakes/forge.md`, 2.3). Each at most 60000; absent, 0, as the
   box's fakes and a runner's run.
 - **Its outputs,** in a document's form, where the box's fakes read the
-  files `temper init` and the preparation drew: the fake writes each
+  files `temper-box init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
   its ready line, created new at 0o600 when absent. A retained admin token,
   model key, added key or TLS root is kept only when it is this user's
@@ -483,7 +483,7 @@ them as it does any Forgejo.
   and refuse an existing file. Each file's directory must exist, but the admin
   token's, the forge's directory (`README.md`, section 3), which the fake makes
   private when absent and refuses, naming it, when it is not private, as
-  `temper forge prepare` does. Each key, `key`'s and `added_keys`', and the admin token are each 20
+  `temper-box forge prepare` does. Each key, `key`'s and `added_keys`', and the admin token are each 20
   bytes as 40 lowercase hexadecimal digits, from skein-lib's `Rng`
   seeded by `--seed` and a constant of each credential's (an added key's its index's), a stream apart
   from the domain's draws, so the runner draws none. A seeded credential is no secret
@@ -499,12 +499,12 @@ them as it does any Forgejo.
   removes the handover (`owned.md`, 5), and the run's directories go with the run.
 - **A runner** starts the fakes first, learns their addresses from their
   ready lines, then writes temper's document naming them and the
-  handover the fake wrote, and starts `temper serve`.
-- **`temper serve`** takes the fake's handover and reconciles from
+  handover the fake wrote, and starts `temper-box serve`.
+- **`temper-box serve`** takes the fake's handover and reconciles from
   records (`owned.md`, 5), runs its start-time adoption from those records, then
   connects (above): under the box, the playground's forge once its
   group has started (`box.md`, 1).
-- **`temper fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
+- **`temper-box fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
   check of the fake forge's promises. It is
   skein's judge (skein's `testing/fakes/forge.md`, 2.5) over forge N's
   observations, with temper's decisions from temper's own record, a
@@ -620,10 +620,10 @@ them as it does any Forgejo.
   fixtures also name `skein-forge-client`,
   `temper-engine-domain-forge-change` and
   `temper-engine-domain-forge-issues`. The binary's
-  `crates/temper/src/fake.rs` hosts the peers on skein-shell, reads the
+  `crates/temper-box-shell/src/fake.rs` hosts the peers on skein-shell, reads the
   check's files and opens the store's copy at the limits
   `temper-service`'s `startup::store_limits` derives from the document,
-  and `temper fake git` is `temper-fake-git`'s core on the real file
+  and `temper-box fake git` is `temper-fake-git`'s core on the real file
   system (`../../testing/fakes.md`, 3), which `main` runs when its
   `argv[0]`'s last component is `git`.
   `Mode::Fake` and the link step's kind are `temper-forge-setup`'s.

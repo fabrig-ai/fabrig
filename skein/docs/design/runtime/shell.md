@@ -917,3 +917,55 @@ first line is its title and whose second paragraph says it's generated:
 Entries keep their table's order; a variable read by several commands
 appears once. The checks read these headings and `**Set:**` items
 (`../../foundation/cli.md`, 9, check 5), so their form is the contract.
+
+### 14.4 Reaching a command
+
+`Table::reach` answers what a binary's arguments reach, so that every
+binary's dispatch, help and refusals agree
+(`../../foundation/cli.md`, 5 and 7). It takes the name the binary was
+run by, argv's first word, and the words after it, as the binary's
+capture holds them, and reads nothing else:
+
+```rust
+pub enum Reached<'a> {
+    /// `-h`, `--help` or `help`, alone: the page (14.2).
+    Help,
+    /// `--version`, alone: the version line (14.2).
+    Version,
+    /// A command's words, then `-h` or `--help` alone: its page.
+    CommandHelp(&'static Command),
+    /// A command and the arguments after its words.
+    Command(&'static Command, &'a [Box<[u8]>]),
+    /// No command: the refusal's line, newline included.
+    Unknown(String),
+}
+
+impl Table {
+    pub fn reach<'a>(&self, run_as: &[u8], arguments: &'a [Box<[u8]>]) -> Reached<'a>;
+    pub fn unknown(&self, arguments: &[Box<[u8]>]) -> String;
+}
+```
+
+In this order:
+
+1. **Run as another program:** a command reached by `Reach::RunAs(NAME)`
+   whose NAME is `run_as`'s last part, after its last `/`, is reached
+   with every argument, its grammar delegated: `--help` and `--version`
+   are its own.
+2. **The binary's page and version:** exactly `-h`, `--help` or `help`
+   is `Help`; exactly `--version` is `Version`.
+3. **By its words:** the command reached by `Reach::Words` whose words
+   are the longest prefix of the arguments, the bare form's none being
+   a prefix of any. When the arguments after its words are exactly
+   `-h` or `--help`, `CommandHelp`; otherwise `Command`, with those
+   arguments.
+4. **None:** `Unknown`, the line `unknown` gives.
+
+`unknown` is `BINARY: no command WORDS; BINARY --help lists them` and a
+newline, WORDS the arguments up to and including the first one no
+command's words continue with, joined by spaces, and
+`BINARY: no command; BINARY --help lists them` for no arguments. A
+binary prints it on stderr and exits 2 (`../../foundation/cli.md`, 5).
+A bare form that takes no positional argument answers a word it
+doesn't take with the same line, so a mistyped command reads the same
+whether the binary has a bare form or not.

@@ -111,21 +111,23 @@ fn roles_fixture() -> Joint {
     use temper_engine_domain_world::{direct::Driver, oracle, store::Store};
     let limits = fixtures::domain_limits();
     let mut bounds = temper_client_world::front::engine_limits();
-    // The stock's kind 9 lines run up to charter 12 beside these five charters.
+    // The stock's kind 9 lines run up to charter 12 beside these six charters.
     bounds.tasks.charters = 12;
     let mut config = kinds::configuration(&bounds);
     let mut charters = config.core.defaults.charters.into_vec();
-    for number in [9, 11] {
+    for number in [9, 11, 12] {
         let mut charter = charters[0].clone();
         charter.number = number;
         charters.push(charter);
     }
     config.core.defaults.charters = charters.into_boxed_slice();
     let mut templates = config.core.defaults.templates.into_vec();
-    let mut asking = templates[0].clone();
-    asking.number = 5;
-    asking.executor = jig_domain_people::TemplateExecutor::Charter(11);
-    templates.push(asking);
+    for (number, charter) in [(5, 11), (6, 12)] {
+        let mut template = templates[0].clone();
+        template.number = number;
+        template.executor = jig_domain_people::TemplateExecutor::Charter(charter);
+        templates.push(template);
+    }
     config.core.defaults.templates = templates.into_boxed_slice();
     let bootstrap = oracle::config::copy(&config);
     let mut driver = Driver::cold(Store::with_limits(&bounds), bootstrap, &bounds);
@@ -167,11 +169,11 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
     let roles = nodes.iter().filter(|node| node.styles.as_slice().contains(&look::HOW_ROLE)).collect::<Vec<_>>();
     assert_eq!(
         roles.iter().map(|node| node.name.as_deref().expect("role name")).collect::<Vec<_>>(),
-        [b"Chat".as_slice(), b"Ask temper", b"Coding agent", b"Reviewer", b"Status agent"]
+        [b"Chat".as_slice(), b"Ask temper", b"Drafter", b"Coding agent", b"Reviewer", b"Status agent"]
     );
     assert_eq!(
         roles.last().expect("status agent").description.as_deref(),
-        Some(b"When you look at Home after landings".as_slice())
+        Some(b"When you look at Home after landings: writes the few lines at the top of Home, from what landed and what waits".as_slice())
     );
     for (repository, paths) in [(Repository::CiAndTiers, PATHS[0]), (Repository::Neither, PATHS[1])] {
         let (mut world, person) = with_repository(Reader::Owner, Some(repository));

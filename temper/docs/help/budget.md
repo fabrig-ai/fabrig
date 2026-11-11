@@ -30,7 +30,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   units for each of the chat's run turns (256 for its 64), whichever
   is more; a chat or goal may spend 24K; the ceilings and owner's
   pool hold 80 × 24K for eighty at once, the project's period one
-  chat more for temper's work. On `temper init`'s box C is 1,057 units, so a
+  chat more for temper's work. On `temper-box init`'s box C is 1,057 units, so a
   run draws 2,114 to 4,228. The stock chat runs 64 turns and an hour;
   the coding agent, its reviewers and its foremen 800 turns and eight
   hours, each with a reserve of 1 turn and 60 seconds; a run is held

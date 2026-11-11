@@ -40,7 +40,7 @@ program account and applies the fixture's own files and argv through ctl
 on the Claude deployment's catalogue. Readback checks model 64's person
 source, estimated figures and `low` effort, and both charters naming
 `claude-haiku-5-5` at `low`, with no alternatives and `rest` false
-(`crates/temper/tests/suite/forge_land.rs`). The settings table retains
+(`bin/temper-box/tests/suite/forge_land.rs`). The settings table retains
 ChatGPT's single change on stock row 7, `gpt-6-luna`, and refusal of an
 unexpected stock model. These checks establish no real-model launch or
 live landing; `README.md`, section 7 retains that proof.
@@ -116,8 +116,8 @@ that proof remains with the after-landing runs (11).
     request has the joint world, because the joint world has no setup
     driver: its copies stop at Waiting, and making one there would inject
     `MakingMade`, a stub of what the walks proved;
-  - the idle-socket walk's log line is `temper fake oauth`'s own, so its
-    story is the `temper` package's focused `suite::fake`, beside the
+  - the idle-socket walk's log line is `temper-box fake oauth`'s own, so its
+    story is the `temper-box` package's focused `suite::fake`, beside the
     fake's other process stories, where the request has one real-loop
     test reject and log: lifting the command's private host into the
     real loop for one line would test a copy of the process, not the
@@ -125,7 +125,7 @@ that proof remains with the after-landing runs (11).
 
 - **Not yet:** `process-tier.md`, *Two drivers' offline proofs*: no pass in profile
   `process-temper` is on record for B0's two
-  (`crates/temper/tests/proof_live.rs`) or for `managed_ready_client`'s
+  (`bin/temper-box/tests/proof_live.rs`) or for `managed_ready_client`'s
   fake sitting, and no CPU figure against the tier's budgets
   (`tools/tiers/budgets.toml`). The repair `ignored-tiers/red-83`
   changed both since the plan compiled and listed them: B0's setup
@@ -133,8 +133,8 @@ that proof remains with the after-landing runs (11).
   whichever is more, and checks it at least the rung's, and its twin
   chooses the goal's turns from fresh inputs, so that a forge
   notification before the child's result waits for it
-  (`crates/temper/tests/support/forge_land/rung.rs`); the sitting
+  (`bin/temper-box/tests/support/forge_land/rung.rs`); the sitting
   connects a new forge, makes its project through ctl before Ready
   adopts and renders no `policies`
-  (`crates/temper/tests/support/managed_sitting.rs`). The next
+  (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).

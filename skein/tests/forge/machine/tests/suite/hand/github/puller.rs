@@ -218,9 +218,10 @@ fn first_poll_keeps_non_redelivery_guid_and_validator_without_hints() {
     h.answer(f::FORGE, &page(&[row(3, b"issues", true), row(2, b"issues", false), row(1, b"issues", false)], TAG));
     hints(&mut h);
     assert_eq!(kept(&h), Some(expected(2)));
-    assert_eq!(h.component.test_github().puller.validator.as_ref().expect("tag").as_bytes(), b"\"baseline\"");
     assert!(h.hints.is_empty());
     assert_eq!(requests(&h, b"GET /app/hook/deliveries/"), 0);
+    next_poll(&mut h);
+    assert_eq!(requests(&h, b"If-None-Match: \"baseline\""), 1);
 }
 
 #[test]
@@ -235,11 +236,11 @@ fn cursor_poll_hints_each_row_once_and_keeps_first_pages_validator() {
     hints(&mut h);
     assert_eq!(h.hints.len(), 2);
     assert_eq!(kept(&h), Some(expected(3)));
-    assert_eq!(h.component.test_github().puller.validator.as_ref().expect("tag").as_bytes(), b"\"new\"");
     assert_eq!(requests(&h, b"cursor=older%2Fpage"), 1);
     assert_eq!(requests(&h, b"GET /app/hook/deliveries/3 "), 1);
     assert_eq!(requests(&h, b"GET /app/hook/deliveries/2 "), 1);
     next_poll(&mut h);
+    assert_eq!(requests(&h, b"If-None-Match: \"new\""), 1);
     h.answer(f::FORGE, &page(&[row(3, b"issues", false)], NEW_TAG));
     hints(&mut h);
     assert_eq!(h.hints.len(), 2);
@@ -252,9 +253,10 @@ fn unchanged_poll_keeps_guid_and_validator_and_reads_no_delivery() {
     h.answer(f::FORGE, &f::response(304, b""));
     hints(&mut h);
     assert_eq!(kept(&h), Some(expected(1)));
-    assert_eq!(h.component.test_github().puller.validator.as_ref().expect("tag").as_bytes(), b"\"baseline\"");
     assert_eq!(requests(&h, b"If-None-Match: \"baseline\""), 1);
     assert!(h.hints.is_empty());
+    next_poll(&mut h);
+    assert_eq!(requests(&h, b"If-None-Match: \"baseline\""), 2);
 }
 
 #[test]
@@ -417,16 +419,16 @@ fn delivery_bound_holds_at_limit_and_skips_one_byte_past() {
 }
 
 #[test]
-fn failed_page_preserves_guid_validator_and_retries_at_next_poll() {
+fn failed_page_preserves_guid_and_reuses_the_first_pages_validator() {
     let mut h = baseline(f::limits());
     next_poll(&mut h);
     h.answer(f::FORGE, &page(&[row(3, b"ping", false)], NEXT));
     h.answer(f::FORGE, &f::response(500, b"{}"));
     hints(&mut h);
     assert_eq!(kept(&h), Some(expected(1)));
-    assert_eq!(h.component.test_github().puller.validator.as_ref().expect("tag").as_bytes(), b"\"baseline\"");
     next_poll(&mut h);
-    assert_eq!(requests(&h, b"If-None-Match: \"baseline\""), 2);
+    assert_eq!(requests(&h, b"If-None-Match: \"baseline\""), 1);
+    assert_eq!(requests(&h, b"If-None-Match: \"new\""), 1);
 }
 
 #[test]

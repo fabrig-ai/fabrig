@@ -8,7 +8,7 @@
   made over Chromium's accessibility tree, and the browser's own: the
   current address, read from the navigation history, and keys pressed
   with Shift.
-- **What it runs against:** `temper serve`, a child of the harness's
+- **What it runs against:** `temper-box serve`, a child of the harness's
   loop, on a scratch directory, from a configuration the test writes
   with the bundle named: no Forgejo, no runner. 1's
   stories need no answer of the forge's or the LLM's, so its forge and
@@ -66,7 +66,7 @@
    or send from the chat; the end returns, read again if the window let
    it go, and the pill goes (`../pages/chat/conversation.md`, 2).
 6. **jig's attack stories that need a browser,** from
-   `jig-client-fake-person-browser`, against `temper serve`: a
+   `jig-client-fake-person-browser`, against `temper-box serve`: a
    cross-site request from another port and from another host does
    nothing; a framed page shows nothing (jig's `protocol/browser/testing.md`
    ). The rebound Host, which needs no browser, stays in the
@@ -96,7 +96,7 @@ its own sent to the provider's address while the page stays
 a press opening a tab within its gesture, the answer pointing it, the
 provider's redirect followed to the engine's listener in that tab, and
 the page, which stayed, drawing the end.
-- **Against:** `temper serve` with two synthetic providers sharing an issuer,
+- **Against:** `temper-box serve` with two synthetic providers sharing an issuer,
   its authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
   harness's loop, each grant a success for one synthetic subject, and
@@ -239,13 +239,13 @@ One test, the github plan's: 6's 10, counted in 3's cap.
   redirect and the setup address need no browser; the real loop's
   GitHub stories follow all three steps as plain requests
   (`../../testing/real-loop.md`).
-- **What it runs against:** `temper serve` with a GitHub forge whose
+- **What it runs against:** `temper-box serve` with a GitHub forge whose
   `api` and `web` are the fake's GitHub layer, hosted on loopback in the
   harness's loop by skein's forge peer (skein's `testing/fakes/github.md`, section
   1), which serves the tier for this test alone: the test needs only
   its `web`. A GitHub forge needs a fixed
   clients' listener (`../forge/served.md`, 1), so the tier reserves a loopback
-  port the kernel assigns before `temper serve` starts and names it in
+  port the kernel assigns before `temper-box serve` starts and names it in
   the configuration.
 - **The test:** the signed-in browser opens the welcome's forge choice
   and presses Connect GitHub. The ordinary client supplies its return
@@ -275,7 +275,7 @@ One test, the provider's (`../../protocol/openid-provider.md`, 8).
   navigation that started on another site and present on the page's own
   exchanges, so that the `Authorize` place answers *go* for a person
   signed in.
-- **What it runs against:** `temper serve` with jig's provider, its key
+- **What it runs against:** `temper-box serve` with jig's provider, its key
   and its client's secret made in the test's scratch directory, and one
   client whose redirect URI is a page of the harness's on the other
   loopback site (`localhost` against `127.0.0.1`), hosted in the
@@ -289,7 +289,7 @@ One test, the provider's (`../../protocol/openid-provider.md`, 8).
 
 ## 6. The stories
 
-The tier's tests, each on its own `temper serve` (the playground's on its
+The tier's tests, each on its own `temper-box serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
 over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
 5 another; 8 and 9 share their Accounts setup, and 16 shares its sheet's

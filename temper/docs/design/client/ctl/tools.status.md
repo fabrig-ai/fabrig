@@ -7,6 +7,8 @@
 - **Not yet:** 3: `follow start`, `follow hold`, `follow skip` and
   `follow merge` [in flight: change 113].
 
+- **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6) [in flight: change 108].
+
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
 
 - **Not yet:** 1: the groups `finding`, `qa`, `party` and

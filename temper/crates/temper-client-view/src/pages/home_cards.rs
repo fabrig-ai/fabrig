@@ -36,7 +36,7 @@ pub(crate) fn cards(
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
         if let needs::Need::Card(card) = need {
-            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card));
+            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
         }
         b.open(Role::Slot);
         b.style(look::NEED_ACTS);

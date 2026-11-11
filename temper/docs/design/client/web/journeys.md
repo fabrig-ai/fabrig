@@ -567,6 +567,9 @@ python3 -m http.server 8766
 
 ## 7. Editing the look
 
+The request's message, holds, landing, account and after-landing render
+check are `look-requests.md`, sections 1 to 7. The journeys' side:
+
 - **On the print:** the person serves the checkout, walks a journey, and
   writes rules in `overlay.css`, with the browser's tools (a DevTools
   workspace mapped to the checkout saves the Styles pane's edits to the
@@ -578,9 +581,10 @@ python3 -m http.server 8766
 - **The diff is the request:** the overlay's rules and the pages'
   changes, under `docs/design/client/journeys/`.
 - **Requests stack** on a branch of the person's own, `look-requests`,
-  one commit each, named by a `Look-request: NAME` trailer (NAME
-  `[a-z0-9][a-z0-9-]*`), which a rebase keeps. A later request is drawn
-  on the pages the earlier ones ask for. They are done in order, each
+  one commit each, named by exactly one `Look-request: NAME` trailer
+  (NAME `[a-z0-9][a-z0-9-]*`, unique on the branch), which a rebase keeps.
+  A later request is drawn on the pages the earlier ones ask for. They
+  are done in order, each
   read by its name on the branch as it is then, as its own commit's
   diff.
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
@@ -602,21 +606,12 @@ python3 -m http.server 8766
 - **Never landed:** the journeys' test refuses a request's pages, which
   differ from the reprint, and its overlay (section 6), so `main`'s
   overlay stays empty.
-- **Done** is a landing, carrying the request's trailer in commits of
-  its own (never the request's commit itself), that moves the overlay's
-  rules into `temper.css` or `task-pages.css` and the markup's changes
-  into the view, and reprints. The reprint then equals the request's
-  pages where their facts agree; a hand-made page's values need not be
-  a journey's (the request's README says where they came from). The
-  landing accounts for every rule, page change and named state in its
-  last commit; where it departs, the account says why, and the later
-  requests take the reprint as it is (`../../draft/look-requests.md`, 5).
-  After it lands, the render check compares the request with the reprint
-  at each width, with disclosures and menus open, and what differs goes
-  back as a finding (`../../draft/look-requests.md`, 4). What the
-  edits imply beyond the pages recorded (the same part in a state no
-  journey reaches) is the view's and `temper.css`'s for every state, and
-  the mockups follow (`../mockups/README.md`, 1).
+- **The landing** moves the overlay's rules into `temper.css` or
+  `task-pages.css` and the markup's changes into the view, for every
+  state, then reprints (`look-requests.md`, 3). Its own commits carry
+  the request's trailer, never the request's commit itself. The account
+  and what done means are `look-requests.md`, 5; the render comparison
+  follows landing on main (`look-requests.md`, 4).
 
 ## 8. A recording gone stale
 
@@ -809,24 +804,26 @@ Settings, Models page is drawn by the gallery's `models`, `models-add`,
 states (`gallery.md`, 2). The account in `model-catalogue-2/models-proof`'s
 last commit names each page 07 change and Settings overlay rule. The render
 comparison at 1440, 1280, 1000 and 420 px and its screenshots follow landing,
-owned by temper/ui (`../../draft/look-requests.md`, 4).
+owned by temper/ui (`look-requests.md`, 4).
 
 The `chat-title` request's `chat-title/01.html` is a recorded chat with its
 heading changed by hand, not a journey to reprint or land (section 7). No
 recorded journey has a first prompt past its first sentence, so no print
 changes with it; the view's table holds the states its message names in
 words (`../pages/README.md`, *A chat's heading is short*). temper/ui's render
-check follows landing (`../../draft/look-requests.md`, 4).
+check follows landing (`look-requests.md`, 4).
 
 The `connect-flows` request’s hand-made pages 01–23 are not journeys to
 reprint or land (section 7). They draw Accounts, model connection,
 Forges, forge connection and Settings’ “Add repositories” sheet, including
 search, empty, copy and failed-copy states. The gallery draws these through
-the shipped view (`gallery.md`, 2). No request page, `connect.css` or
+the shipped view (`gallery.md`, 2), and the two entry paths into the sheet
+the request left undrawn, as `sheet-from-home` and `sheet-from-chats`
+(`../forge/family.md`, 3). No request page, `connect.css` or
 `adopt.js` is part of the print. The welcome’s existing recordings still
 replay and reprint; the Settings sheet browser stories compile within the
 plan. temper/ui compares the request with main after landing, at the
-widths and open states in `../../draft/look-requests.md`, 4.
+widths and open states in `look-requests.md`, 4.
 
 The `chat-terminal` requests' hand-made `chat-terminal/01.html` through
 `06.html`, their `terminal.css`, `terminal.js` and `fonts/`, are not
@@ -835,7 +832,7 @@ journeys to reprint or land (section 7): page 01 is a recorded chat with
 states draw them through the view, and the states their messages name in
 words (`gallery.md`, 2). The fonts are the bundle's (`look.md`).
 `chat-draft`'s pages reprint with ">_" in their bar. temper/ui compares
-the requests with main after landing (`../../draft/look-requests.md`, 4).
+the requests with main after landing (`look-requests.md`, 4).
 
 The `ask-temper-start` request's hand-made `ask-temper-start/01.html` and
 `02.html` are not journeys to reprint or land (section 7): a new project's
@@ -855,14 +852,14 @@ look, with the switch at the rail's foot. The gallery's `night-*` states draw
 those three pages through the view (`gallery.md`, 2); every journey's
 print draws the switch, unpressed, since no recording keeps a night look.
 temper/ui compares the three requests with main after landing
-(`../../draft/look-requests.md`, 4).
+(`look-requests.md`, 4).
 
 ## 10. Open questions
 
 - **The two-step Home and night requests** (9): temper/ui compares
   `ask-temper-start`, `to-begin-two-steps` and `night-mode` against main
   after landing at 1440, 1000 and 420 px, with menus, disclosures and
-  each named state (`../../draft/look-requests.md`, section 4). Use
+  each named state (`look-requests.md`, section 4). Use
   `project-landing`'s two-step print, the `home-begin-*` states and the
   three `night-*` states; include Home with a need and a chat left out
   with either step left (`home-begin-with-needs`), and their return after
@@ -886,7 +883,7 @@ temper/ui compares the three requests with main after landing
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the
   `ask-temper-place` request after landing, at 1440, 1000 and 420 px
-  (`../../draft/look-requests.md`, section 4). Include the rail's "Ask
+  (`look-requests.md`, section 4). Include the rail's "Ask
   temper" row and the phone's "Ask" tab where the page shows navigation;
   a phone chat hides that navigation (`look.md`). Default:
   fake-box recordings and their replayed prints; print equality
@@ -895,7 +892,7 @@ temper/ui compares the three requests with main after landing
 - **The chat terminal's comparison** (9): temper/ui compares all four
   `chat-terminal` requests' hand-made pages and named states against
   the shipped view after landing, at 1440, 1000 and 420 px, with menus
-  and disclosures open (`../../draft/look-requests.md`, sections 4 and 5;
+  and disclosures open (`look-requests.md`, sections 4 and 5;
   `README.md`, section 3). Default: the nine gallery states and
   reprinted `chat-draft` and `welcome-playground` pages; they establish
   no rendered equality. Real-key checks remain `../README.md`, section
@@ -904,7 +901,7 @@ temper/ui compares the three requests with main after landing
 - **The chat heading's comparison** (9): temper/ui compares `chat-title`'s
   hand-made page 01 and the request's named states against the shipped
   view after landing, at 1440, 1000 and 420 px, including open disclosures
-  and menus (`../../draft/look-requests.md`, section 4). Default: unchanged
+  and menus (`look-requests.md`, section 4). Default: unchanged
   journey prints and the view's short-title and heading tables; they
   establish no rendered equality. Screenshots and findings belong to
   that comparison.
@@ -912,7 +909,7 @@ temper/ui compares the three requests with main after landing
 - **The Models page's comparison** (9): temper/ui compares `model-picker`'s
   hand-made page 07 with the gallery's Models states after landing, with
   screenshots at 1440, 1280, 1000 and 420 px
-  (`../../draft/look-requests.md`, section 4). Default: reprinted journeys and
+  (`look-requests.md`, section 4). Default: reprinted journeys and
   gallery states; print equality establishes no rendered equality.
 
 - **The flow's rendered look** (9): temper/ui checks a flow in a chat
@@ -922,7 +919,7 @@ temper/ui compares the three requests with main after landing
 
 - **The connect-flows comparison** (9): temper/ui compares the
   hand-made request's 01–23 against main after landing, including the
-  open and named states, under `../../draft/look-requests.md`, 4. Default:
+  open and named states, under `look-requests.md`, 4. Default:
   gallery and journey print checks establish no rendered equality;
   screenshots and any findings belong to that comparison.
 
@@ -939,7 +936,7 @@ temper/ui compares the three requests with main after landing
   moves to a journey once the fake box reaches it, its answers then the
   engine's own (`gallery.md`). Ready and Model's forge done
   can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
-  that fewer states are hand-made (`../../draft/look-requests.md`, 8); Model's
+  that fewer states are hand-made (`look-requests.md`, 8); Model's
   forge failed waits on a fake box whose set up can fail. The two
   fetching states wait on a still page at the fetch: `welcome-set-up`'s
   recording holds the fetch's rows, but they keep the page moving, so
@@ -947,7 +944,7 @@ temper/ui compares the three requests with main after landing
   `../../protocol/setup/README.md`, section 9).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
-  (`../../draft/look-requests.md`, 4 and 8).
+  (`look-requests.md`, 4 and 8).
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.

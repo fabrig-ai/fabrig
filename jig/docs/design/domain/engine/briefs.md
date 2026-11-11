@@ -15,7 +15,8 @@ Its sections come from two places:
 
 - **The core's,** which it holds typed: the task (its number and project,
   which a run names in a note's scope, its spec and, unless
-  its requester ends it (../tasks/lifecycle.md, 9), its contract,
+  its requester ends it (../tasks/lifecycle.md, 9) or it stands
+  (../tasks/standing.md, section 2), its contract,
   and its lineage: its requesters' specs, cut); its dependencies' and
   inputs' results in jig's terms, and, for a run after its task was kept
 (../tasks/lifecycle.md, 8), what it waited for: each dependency added, when and by
@@ -26,9 +27,11 @@ whom; its delegates, their states, and the
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; the proposals and escalations
   waiting for its decision; the index of its notes; for a run that
-  explains to its person, that person's preferences, whole (2.1); a
+  explains to its person, that person's preferences, whole (2.1); for a
+  standing task, its Now, whole (../tasks/standing.md, section 6); a
   transcript's tail,
-  when it does not resume, the window's last turns as text rendered by the
+  when it does not resume, but for a standing task's session's first run
+  (../tasks/standing.md, 5.4), the window's last turns as text rendered by the
   host's protocol layer when loaded, a turn too large to load as its
   fixed marker (`executors.md`, 2), within the tail's own budget; and,
   for a run whose tools hold `delegate`,
@@ -132,7 +135,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
   one scope: a goal's `project` and number. What lives there is the
   application's to say: an application's chats may keep a document in it. A
   brief's index lists this scope first, as it lists a goal's first (section
-  1).
+  1). A standing task's own scope is the same: the goal scope named by its
+  own number, which holds its Now (../tasks/standing.md, section 6).
 - **In the store,** where parties read, correct and delete them through a
   client. Notes are hints: where a note and the facts disagree, the facts
   are right.
@@ -224,7 +228,12 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   tasks up, which a delegate works for, is later (`README.md`, section 10).
 - **Read by those runs, whole in their brief:** the core section
   `preferences` (section 1), present where the run's task's requester is a
-  person and its authority holds the asking family: the scope's index lines,
+  person and the asking family is one its run's charter names and its
+  authority holds, as a host family is offered (`executors.md`, 1), so that
+  a run whose charter names no asking family reads no person's preferences,
+  whatever its authority holds; a charter whose record carries no mask
+  names every family, the asking one among them, as it decodes
+  (`RunPolicy::EVERY_FAMILY`). The section holds the scope's index lines,
   every one, in name order, the oldest first, each `N. DESCRIPTION`, `N` its
   place from 1, or the one line `None kept.`. It is required, and its budget
   holds `notes.party_entries` lines of `notes.party_bytes` numbered, so it is
@@ -257,3 +266,38 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   every scope's is, evicted least recently used (section 2), and parties are
   never erased (../people/README.md, section 3), so neither is their scope; a party's
   erasure is later, with its scope.
+
+### 2.2 A brief's wait for notes
+
+The notes child serves one operation at a time: a write, a read or a
+project's deletion. A cold index holds it busy while it loads each
+scope it lacks, page by page, until every scope is cached or a load
+fails. A preparation whose brief needs an index (its notes, section 1,
+or its person's preferences, 2.1) while notes is busy waits for it, and
+does not fail:
+
+- **The wait table.** The core keeps one entry per waiting task, keyed
+  by the task: either it waits for notes with its preparation kept, or,
+  refused busy while notes is idle (an index whose load found no room
+  in the root), it gives up its preparation and its next activation
+  returns to due (`executors.md`, 1, step 2). When notes is idle again
+  the core resumes one waiting preparation, and the next as each
+  operation ends, so that none is left waiting while notes is idle. A
+  task's ending removes its entry, and the table starts empty.
+- **Its bound is the live tasks' (`tasks.tasks`),** the bound of the
+  preparation contexts, and not the briefs gathering (`brief.briefs`):
+  every entry is one live task's, and every preparing task may wait at
+  once. A preparation is bounded only by live tasks, and the brief
+  child's table counts briefs gathering, a later step whose briefs are
+  the costly part. After a restart every due task activates together,
+  and the first cold index holds notes busy while the rest arrive: an
+  application that gathers two briefs at once (temper's root does) runs
+  many more preparations than that. An entry is a task number and its
+  mark, so the table costs a few bytes per live task, nothing that grows
+  with the store.
+- **A full table pauses, never aborts.** The bound leaves no room for a
+  full table while the tasks child keeps its own, but the core does not
+  rely on it: a task whose wait finds the table full fails its
+  preparation as capacity, `notes: no room for the index` (1.1), and is
+  due again after a backoff with no try spent. Its activation's reasons
+  and its inbox stay with the tasks child, so nothing is lost.

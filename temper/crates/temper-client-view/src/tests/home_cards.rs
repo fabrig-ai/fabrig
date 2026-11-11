@@ -214,3 +214,45 @@ fn proposals_held_tasks_and_approvals_keep_their_acts() {
         );
     }
 }
+
+#[test]
+fn reason_line_stays_under_the_question_and_keeps_asking_under_its_offers() {
+    use d::pages::{self, stop_asking::Act as Stop};
+    for owner in [true, false] {
+        let mut root = super::needs::stop_root(owner, true);
+        let object = c::ObjectKey::Question { task: f::INBOX_TASK, message: 1 };
+        for opened in [false, true] {
+            if opened {
+                f::root_event(
+                    &mut root,
+                    d::Event::Act { action: d::Action::Pages(pages::Act::StopAsking(Stop::Open { object })) },
+                );
+            }
+            let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+            for w in [f::browser_words(), f::words()] {
+                let (tree, bindings) = draw(&root, &[Need::Card(card)], false, &w);
+                assert_eq!(
+                    control(&tree, &bindings, "Stop asking"),
+                    d::Action::Pages(pages::Act::StopAsking(Stop::Open { object }))
+                );
+                let position = |style| tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
+                assert!(position(look::ASK_QUESTION) < position(look::WHY));
+                assert!(position(look::WHY) < position(look::NEED_ACTS));
+                assert!(!tree.nodes().iter().any(|n| n.name.as_deref()
+                    == Some(b"Stop asking: let agents decide some changes to protocol core".as_slice())));
+                let keep = f::find(&tree, Role::Button, b"Keep asking");
+                assert_eq!(keep.is_some(), opened);
+                if opened {
+                    assert_eq!(
+                        control(&tree, &bindings, "Keep asking"),
+                        d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object }))
+                    );
+                    let offers = super::inbox::subtree(&tree, position(look::WHY_OFFERS));
+                    let buttons: Vec<_> = offers.iter().filter(|n| n.role == Role::Button).collect();
+                    assert_eq!(buttons.last().unwrap().name.as_deref(), Some(b"Keep asking".as_slice()));
+                    assert!(buttons.last().unwrap().styles.as_slice().contains(&look::ASK_QUIET));
+                }
+            }
+        }
+    }
+}

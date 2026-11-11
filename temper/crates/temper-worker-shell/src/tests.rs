@@ -26,15 +26,29 @@ fn a_programs_owner_refusal_identifies_the_directory_ownership_conflict() {
 
 #[test]
 fn the_dump_directory_is_set_by_a_value_and_made_absolute() {
-    use std::{ffi::OsString, path::PathBuf};
+    use std::path::PathBuf;
     let working = std::env::current_dir().expect("test working directory");
     for (row, value, expected) in [
         ("absent", None, None),
-        ("empty", Some(OsString::new()), None),
-        ("relative", Some(OsString::from("request-dumps")), Some(working.join("request-dumps"))),
-        ("absolute", Some(OsString::from("/request-dumps")), Some(PathBuf::from("/request-dumps"))),
+        ("empty", Some(""), None),
+        ("relative", Some("request-dumps"), Some(working.join("request-dumps"))),
+        ("absolute", Some("/request-dumps"), Some(PathBuf::from("/request-dumps"))),
     ] {
-        assert_eq!(super::dump_directory(value), expected, "{row}");
+        let environment: Vec<_> = value
+            .into_iter()
+            .map(|value| (Box::from(b"TEMPER_INTERNAL_DUMP_LLM".as_slice()), Box::from(value.as_bytes())))
+            .collect();
+        assert_eq!(super::dump_llm(&environment), expected, "{row}");
     }
-    assert_eq!(super::DUMP_BOUND, 4_294_967_296);
+}
+
+#[test]
+fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
+    for (value, expected) in [(None, false), (Some("1"), true), (Some(""), false), (Some("on"), true)] {
+        let environment: Vec<_> = value
+            .into_iter()
+            .map(|value| (Box::from(b"TEMPER_INTERNAL_WORKSPACE_REUSE".as_slice()), Box::from(value.as_bytes())))
+            .collect();
+        assert_eq!(super::workspace_reuse(&environment), expected, "{value:?}");
+    }
 }

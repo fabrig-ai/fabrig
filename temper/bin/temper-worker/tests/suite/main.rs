@@ -1,9 +1,10 @@
 //! The worker binary's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
 use std::process::{Command, Stdio};
+use temper_worker_shell::{PROGRAM_LOGIN, WORKER};
 
 const ENGINE: &str = r#"{"engine":{"hosts":{"listener":[{"socket":"127.0.0.1:0"}]}}}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
-const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
+const WORKER_DOCUMENT: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 const LOGIN: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE", "work"];
 const LOGIN_WITHOUT_NAME: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
@@ -23,27 +24,42 @@ fn version(text: &str) -> bool {
 }
 
 fn help(text: &str) -> bool {
-    let rows: Vec<_> = text.lines().filter_map(|line| line.trim().strip_prefix("temper-worker ")).collect();
-    text.lines().next() == Some("usage: temper-worker COMMAND [ARGUMENT...]")
-        && ["serve [DIRECTORIES]", "program-login [DIRECTORIES] NAME"].iter().all(|words| rows.contains(words))
-        && rows
+    let Some((_, commands)) = text.split_once("\ncommands:\n") else { return false };
+    let names: Vec<_> = commands
+        .split("\n\n")
+        .next()
+        .expect("command lines")
+        .lines()
+        .filter_map(|line| line.strip_prefix("  "))
+        .filter(|line| !line.starts_with(' '))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    text == WORKER.help()
+        && names == ["serve", "program-login", "help"]
+        && ["--config CONFIG", "--data DATA", "--cache CACHE", "TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"]
             .iter()
-            .all(|row| ![Some("forge"), Some("box"), Some("versions")].contains(&row.split_whitespace().next()))
+            .all(|word| words.contains(word))
 }
 
 fn serve_help(text: &str) -> bool {
-    text.starts_with("usage: temper-worker serve [DIRECTORIES]\n")
+    text == WORKER.command_help(WORKER.commands.first().expect("serve command"))
+        && !text.starts_with("internal:")
         && text.contains("worker alone")
         && text.contains("temper-engine serve")
-        && text.contains("temper serve")
+        && text.contains("temper-box serve")
 }
 
 fn login_help(text: &str) -> bool {
-    text.starts_with("usage: temper-worker program-login [DIRECTORIES] NAME\n")
+    text == WORKER.command_help(&PROGRAM_LOGIN) && !text.starts_with("internal:")
 }
 
 fn pages(text: &str) -> bool {
-    text.starts_with("# ")
+    text == temper_shell::help::answer(WORKER.binary, &temper_shell::help::Request::Index).expect("index page")
+}
+
+fn commands_page(text: &str) -> bool {
+    text == temper_shell::table::commands_page(&WORKER)
 }
 
 #[derive(Debug)]
@@ -65,13 +81,22 @@ type Case = (&'static [&'static str], Option<&'static str>, i32, Check, Stderr);
 
 const ROWS: &[Case] = &[
     (&["--version"], None, 0, version, Exact("")),
+    (&["-h"], None, 0, help, Exact("")),
     (&["--help"], None, 0, help, Exact("")),
     (&["serve", "--help"], None, 0, serve_help, Exact("")),
     (&["program-login", "--help"], None, 0, login_help, Exact("")),
-    (&["help"], None, 0, pages, Exact("")),
-    (&["box"], None, 1, empty, Exact("temper-worker: no command box; temper-worker --help lists them\n")),
-    (&["versions"], None, 1, empty, Exact("temper-worker: no command versions; temper-worker --help lists them\n")),
-    (&[], None, 1, empty, Exact("temper-worker: no command; temper-worker --help lists them\n")),
+    (&["help"], None, 0, help, Exact("")),
+    (&["help", "pages"], None, 0, pages, Exact("")),
+    (&["help", "commands"], None, 0, commands_page, Exact("")),
+    (&["frobnicate"], None, 2, empty, Exact("temper-worker: no command frobnicate; temper-worker --help lists them\n")),
+    (&[], None, 2, empty, Exact("temper-worker: no command; temper-worker --help lists them\n")),
+    (
+        &["serve", "extra"],
+        None,
+        2,
+        empty,
+        Exact("temper-worker serve: invalid arguments\nusage: temper-worker serve [DIRECTORIES]\n"),
+    ),
     (
         SERVE,
         Some(ENGINE),
@@ -85,7 +110,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker serve: temper.json holds an engine and its worker in one process; the box's temper serve runs it\n",
+            "temper-worker serve: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
         ),
     ),
     (
@@ -101,19 +126,19 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker program-login: temper.json holds an engine and its worker in one process; the box's temper serve runs it\n",
+            "temper-worker program-login: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
         ),
     ),
     (
         LOGIN_WITHOUT_NAME,
         None,
-        1,
+        2,
         empty,
         Exact(
             "temper-worker program-login: invalid arguments\nusage: temper-worker program-login [DIRECTORIES] NAME\n",
         ),
     ),
-    (SERVE, Some(WORKER), 1, empty, Stderr::WorkerChecks),
+    (SERVE, Some(WORKER_DOCUMENT), 1, empty, Stderr::WorkerChecks),
 ];
 
 #[test]
