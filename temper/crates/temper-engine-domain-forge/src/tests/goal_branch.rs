@@ -638,6 +638,10 @@ fn a_goal_branch_making_that_fails_for_good_says_why() {
 fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     use temper_engine_domain_forge_change as change;
     let mut d = fresh();
+    outputs(
+        &mut d,
+        Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } },
+    );
     let (making_call, _) = making(&mut d);
     let mut row = fixtures::opening_row();
     row.base = GOAL_BRANCH.into();

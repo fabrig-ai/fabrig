@@ -194,7 +194,7 @@ fn the_roots_read_range_is_its_own() {
 #[test]
 fn the_connectors_own_reads_are_outside_the_roots_range() {
     use temper_engine_domain_forge_landing as policy;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -3324,7 +3324,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
 
 #[test]
 fn an_open_write_with_an_empty_title_uses_the_default() {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.title = Box::new([]);

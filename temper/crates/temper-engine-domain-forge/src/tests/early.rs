@@ -7,7 +7,7 @@ use temper_engine_domain_forge_change as change;
 const CHILD: u64 = 71;
 
 fn producing() -> Domain {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pending = None;

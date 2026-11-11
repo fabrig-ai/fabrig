@@ -32,7 +32,7 @@ fn held_goal() -> Domain {
 }
 
 fn held_by(holder: Option<u64>) -> Domain {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);

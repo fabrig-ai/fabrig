@@ -52,6 +52,9 @@ impl Driver {
         self.events.clear();
         self.delivered.clear();
         self.send(engine::Event::Restart { pending: false });
+        if self.forge.is_some() {
+            self.connect_forges();
+        }
     }
     /// Replace a root together with the configuration used by its restart oracle.
     pub fn replace_root(&mut self, configuration: engine::Config) {
@@ -77,6 +80,7 @@ impl Driver {
     pub fn forge() -> Driver {
         let mut driver = Driver::configured(Store::new(), [config(71), config(71)], &crate::fixtures::forge_limits());
         driver.forge = Some(crate::forge_stand::ForgeStand::new());
+        driver.connect_forges();
         driver
     }
 
@@ -137,7 +141,17 @@ impl Driver {
     ) -> Driver {
         let mut driver = Self::configured(store, configs, limits);
         driver.forge = Some(crate::forge_stand::ForgeStand::with(repositories));
+        driver.connect_forges();
         driver
+    }
+
+    /// Play routing access for this fixture's configured fake forges.
+    pub fn connect_forges(&mut self) {
+        for configured in &self.restart_config.forges {
+            if let Some(event) = crate::fixtures::connection(&self.restart_config, configured.number) {
+                self.events.push_back(event);
+            }
+        }
     }
 
     /// Offer one input through admission; an input the journal cannot take
