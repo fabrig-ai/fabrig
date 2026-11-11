@@ -479,7 +479,9 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
         let answer = match op {
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"main" => Answer::Commit(fixtures::BASE),
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
-            Op::Read(Read::Items { .. }) => Answer::Items { items: Box::new([]), more: false, now: env().now },
+            Op::Read(Read::Items { .. }) => {
+                Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
+            }
             Op::Read(Read::Pull { number: 1 }) => {
                 let mut pull = fixtures::open_pull();
                 if merged {

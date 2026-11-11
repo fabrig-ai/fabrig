@@ -561,7 +561,7 @@ fn every_landed_write_runs_once_with_full_installation_authorization() {
 #[test]
 fn original_reads_keep_the_dialects_typed_answers() {
     for (label, op, bodies) in [
-        ("Items", Read::Items { since: Time::ZERO, page: 1, kind: None }, &[b"[]".as_slice()][..]),
+        ("Items", Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }, &[b"[]".as_slice()][..]),
         ("Statuses", Read::Statuses { commit: [0; 32], page: 1 }, &[f::GITHUB_COMBINED][..]),
     ] {
         let mut h = known();

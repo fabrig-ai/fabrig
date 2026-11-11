@@ -113,8 +113,8 @@ impl Harness {
     }
     pub(in crate::tests) fn clock(&mut self) {
         let sent = self.one();
-        assert_eq!(sent.op, Op::Read(Read::Items { since: at(u64::MAX), page: 1, kind: None }));
-        self.answer(sent, Answer::Items { items: Box::new([]), more: false, now: at(100) });
+        assert_eq!(sent.op, Op::Read(Read::Items { single: false, since: at(u64::MAX), page: 1, kind: None }));
+        self.answer(sent, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(100) });
     }
     pub(in crate::tests) fn fire(&mut self, now: u64) {
         self.env.now = at(now);
@@ -153,8 +153,8 @@ impl Harness {
                 Stored::Live(_) | Stored::Writer(_) => panic!("repository record"),
             };
             let listing = self.one();
-            assert_eq!(listing.op, Op::Read(Read::Items { since, page: 1, kind: None }));
-            self.answer(listing, Answer::Items { items: Box::new([]), more: false, now: self.env.now });
+            assert_eq!(listing.op, Op::Read(Read::Items { single: false, since, page: 1, kind: None }));
+            self.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: self.env.now });
         }
     }
     pub(in crate::tests) fn repository(&self) -> &crate::RepositoryRecord {

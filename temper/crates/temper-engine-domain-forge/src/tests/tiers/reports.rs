@@ -214,7 +214,7 @@ fn an_unavailable_artifact_is_read_again_without_a_fault_or_retry() {
                     &mut d,
                     &env,
                     call,
-                    Ok(api::Answer::Items { items: Box::new([]), more: false, now: env.now }),
+                    Ok(api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
                 );
             } else if let api::Op::Read(api::Read::Branch { .. }) = asked {
                 fixtures::answer_at(&mut d, &env, call, Ok(api::Answer::Commit(BASE)));

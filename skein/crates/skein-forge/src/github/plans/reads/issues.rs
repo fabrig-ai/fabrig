@@ -32,9 +32,9 @@ impl State {
 impl Plan {
     pub(super) fn issue_admission(&mut self, bounds: Bounds) -> Result<(), api::Error> {
         match self.read {
-            Read::Items { .. } => {
+            Read::Items { single, .. } => {
                 let capacity = size::capacity(bounds, measure::SUMMARY_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
+                self.limit = if single { 1 } else { size::page_size(bounds, capacity)? };
                 self.issues.items = List::with_capacity(capacity);
             }
             Read::Item { .. } => {
@@ -287,7 +287,7 @@ impl Plan {
                 let mut items = core::mem::replace(&mut self.issues.items, List::with_capacity(0)).into_boxed();
                 // Only contiguous equal-time runs are sorted: times remain the forge's order.
                 order(&mut items)?;
-                self.terminal(api::Answer::Items { items, more: next, now: self.issues.now }, bounds)
+                self.terminal(api::Answer::Items { items, more: next, cut: false, now: self.issues.now }, bounds)
             }
             Read::Item { .. } if self.stage == Stage::Comments => {
                 if !self.issues.more && next {

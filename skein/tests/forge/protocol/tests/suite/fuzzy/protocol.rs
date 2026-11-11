@@ -31,7 +31,7 @@ fn reported_costs_account_for_served_and_cut_requests() {
 
     let mut joint = Joint::cutting(26, 300, Faults { reset: 0, drop: 0, server_error: 0 });
     joint.run_for(Duration::from_secs(20));
-    joint.call(1, joint::REPO, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None }));
+    joint.call(1, joint::REPO, Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }));
     joint.run_for(Duration::from_secs(11));
     let answer = joint.answered(1).expect("calibration terminal");
     let requests = joint.request_counts();

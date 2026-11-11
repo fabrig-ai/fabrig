@@ -1516,10 +1516,13 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             text.add(b"Repository ")?;
             text.number(u64::from(*repository))?;
         }
-        api::Answer::Items { items, more, .. } => {
+        api::Answer::Items { items, more, cut, .. } => {
             text.add(b"Items:\n")?;
             for item in items {
                 summary(text, item)?;
+            }
+            if *cut {
+                text.add(b"Page cut at forge.client.answer_bytes.\n")?;
             }
             if *more {
                 text.add(b"More pages available.\n")?;

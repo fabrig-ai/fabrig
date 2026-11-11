@@ -266,7 +266,9 @@ fn remaining(entry: &Entry, clock: RecoveryClock, env: &Env<Limits>) -> Duration
     }
 }
 pub(super) fn not_found(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
-    d.outbox.entries.get_mut(&number).expect("find owns entry").restart_checked = true;
+    let writing = d.outbox.entries.get_mut(&number).expect("find owns entry");
+    writing.restart_checked = true;
+    writing.items = None;
     let w = d.outbox.entries.get(&number).expect("find owns entry");
     let left = remaining(&w.entry, d.outbox.clock, env);
     if left == Duration::ZERO {
