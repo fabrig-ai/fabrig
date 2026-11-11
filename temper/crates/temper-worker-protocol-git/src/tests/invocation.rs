@@ -38,22 +38,25 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
     [
+        (Command::Remote { remote: remote.clone() }, &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE]),
+        (Command::Store { directory: Box::from(&b"stores/new-1"[..]) }, &[b"init", b"--bare", b"--quiet"]),
+        (Command::UpdateRef { into: git::Into::Fetched, commit }, &[b"update-ref", b"refs/temper/fetched", ID]),
         (Command::Version, &[b"version"]),
         (
             Command::Origin { directory: Box::from(&b"workspaces/0/app"[..]) },
             &[b"--git-dir=workspaces/0/app/.git", b"config", b"--local", b"--get", b"remote.origin.url"],
         ),
         (
-            Command::Clone { remote: remote.clone(), directory: Box::from(&b"app"[..]) },
-            &[b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", fixtures::REMOTE, b"app"],
+            Command::Clone { directory: Box::from(&b"app"[..]) },
+            &[b"init", b"--quiet", b"--", b"app"],
         ),
         (
-            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Branch(branch.clone()) },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -63,11 +66,11 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
                 b"--no-recurse-submodules",
                 b"--",
                 fixtures::REMOTE,
-                b"+refs/heads/temper/7:refs/temper/fetched",
+                b"+refs/heads/temper/7:refs/temper/7/fetched",
             ],
         ),
         (
-            Command::Fetch { into: git::Into::Landing, remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            Command::Fetch { workspace: Token::new(7), into: git::Into::Landing, remote: remote.clone(), source: Source::Branch(branch.clone()) },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -77,11 +80,11 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
                 b"--no-recurse-submodules",
                 b"--",
                 fixtures::REMOTE,
-                b"+refs/heads/temper/7:refs/temper/landing",
+                b"+refs/heads/temper/7:refs/temper/7/landing",
             ],
         ),
         (
-            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Commit(commit) },
+            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Commit(commit) },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -91,11 +94,11 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
                 b"--no-recurse-submodules",
                 b"--",
                 fixtures::REMOTE,
-                b"+abababababababababababababababababababab:refs/temper/fetched",
+                b"+abababababababababababababababababababab:refs/temper/7/fetched",
             ],
         ),
         (
-            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Default },
+            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Default },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -105,7 +108,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
                 b"--no-recurse-submodules",
                 b"--",
                 fixtures::REMOTE,
-                b"+HEAD:refs/temper/fetched",
+                b"+HEAD:refs/temper/7/fetched",
             ],
         ),
         (

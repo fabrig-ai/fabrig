@@ -33,4 +33,4 @@ fetch
 --no-recurse-submodules
 --
 http://127.0.0.1:3000/fixture/specimen.git
-+refs/heads/topic:refs/temper/fetched
++refs/heads/topic:refs/temper/1/fetched

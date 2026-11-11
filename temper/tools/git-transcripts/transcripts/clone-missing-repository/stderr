@@ -1,3 +1,2 @@
-Cloning into 'missing'...
 remote: Repository not found
 fatal: repository 'http://127.0.0.1:3000/fixture/missing.git/' not found

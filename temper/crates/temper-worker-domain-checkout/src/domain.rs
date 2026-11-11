@@ -22,7 +22,7 @@ impl Domain {
     pub fn new(limits: &Limits) -> Domain {
         let holds = limits::holds(limits).expect("validated hold-slot limits");
         Domain {
-            cache: Cache::with_capacity(limits.workspaces),
+            cache: Cache::with_capacity(limits.workspaces, limits::stores(limits).expect("validated store slots")),
             holds: Slab::with_capacity(holds),
             facts: Facts::with_capacity(limits.facts),
         }

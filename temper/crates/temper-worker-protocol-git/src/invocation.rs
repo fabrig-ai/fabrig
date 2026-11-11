@@ -1,7 +1,7 @@
 //! Sized builders for protocol/git.md, sections 3 to 5.
 use crate::Identity;
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Writer, base64};
+use skein_lib::{Decimal, List, Token, Writer, base64};
 use temper_worker_domain_checkout::git;
 
 // protocol/git.md, 4.7: a hidden log at any depth is never staged.
@@ -34,8 +34,11 @@ pub enum Command {
     SnapshotReset { commit: git::Commit },
     Version,
     Origin { directory: Box<[u8]> },
-    Clone { remote: Box<[u8]>, directory: Box<[u8]> },
-    Fetch { remote: Box<[u8]>, source: Source, into: git::Into },
+    Clone { directory: Box<[u8]> },
+    Remote { remote: Box<[u8]> },
+    Store { directory: Box<[u8]> },
+    UpdateRef { into: git::Into, commit: git::Commit },
+    Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
     CheckOut { commit: git::Commit },
     Clean,
@@ -54,6 +57,7 @@ pub enum Command {
 pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
     match op {
         git::Op::Make { .. } => None,
+        git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
@@ -71,14 +75,15 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
 pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
     let remote = match command {
         Command::SnapshotFetch { remote, .. }
-        | Command::Clone { remote, .. }
+        | Command::Remote { remote }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote.as_ref()),
         Command::IsAncestor { .. } => match op {
             git::Op::Push { remote, .. } => Some(remote.as_ref()),
             git::Op::Look { .. } | git::Op::DiffPaths { .. } | git::Op::IsAncestor { .. } => None,
-            git::Op::Make { .. }
+            git::Op::Store { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -91,6 +96,9 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Origin { .. }
+        | Command::Store { .. }
+        | Command::Clone { .. }
+        | Command::UpdateRef { .. }
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
@@ -190,17 +198,17 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             let git_dir = joined(&[b"--git-dir=", directory, b"/.git"]);
             words(&mut out, &[&git_dir, b"config", b"--local", b"--get", b"remote.origin.url"]);
         }
-        Command::Clone { remote, directory } => words(
-            &mut out,
-            &[b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", remote, directory],
-        ),
-        Command::Fetch { remote, source, into } => {
+        Command::Clone { directory } => words(&mut out, &[b"init", b"--quiet", b"--", directory]),
+        Command::Remote { remote } => words(&mut out, &[b"remote", b"add", b"origin", b"--", remote]),
+        Command::Store { .. } => words(&mut out, &[b"init", b"--bare", b"--quiet"]),
+        Command::UpdateRef { into, commit } => words(&mut out, &[b"update-ref", reference(*into), &hex(*commit)]),
+        Command::Fetch { remote, source, into, workspace } => {
             let from = match source {
                 Source::Branch(branch) => joined(&[b"refs/heads/", branch]),
                 Source::Commit(commit) => hex(*commit),
                 Source::Default => Box::from(&b"HEAD"[..]),
             };
-            let spec = joined(&[b"+", &from, b":", reference(*into)]);
+            let spec = joined(&[b"+", &from, b":", &store_reference(*workspace, *into)]);
             words(
                 &mut out,
                 &[
@@ -270,11 +278,16 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
 /// Whole environment; no PATH or inherited variable reaches git.
 #[must_use]
 pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>) -> Box<[Box<[u8]>]> {
+    environment_for(home, kind, identity, true)
+}
+pub(crate) fn environment_for(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>, credentials: bool) -> Box<[Box<[u8]>]> {
     let identity = match kind {
-        Some(git::Kind::Clone | git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
+        Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
         None
         | Some(
-            git::Kind::Look
+            git::Kind::Store
+            | git::Kind::Clone
+            | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor
             | git::Kind::Make
@@ -309,8 +322,9 @@ pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Ident
             let email = joined(&[b"GIT_AUTHOR_EMAIL=", email]);
             words(&mut out, &[&author, &email]);
         }
-        Some(git::Kind::Clone | git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
-            if let Some(identity) = identity {
+        Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
+            if let Some(identity) = identity
+                && credentials {
                 let raw = joined(&[&identity.login, b":", identity.token.expose()]);
                 let size = u32::try_from(raw.len()).expect("channel identity length fits u32");
                 let size =
@@ -323,7 +337,9 @@ pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Ident
         }
         None
         | Some(
-            git::Kind::Look
+            git::Kind::Store
+            | git::Kind::Clone
+            | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor
             | git::Kind::Make
@@ -398,4 +414,11 @@ pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
         git::Into::Fetched => b"refs/temper/fetched",
         git::Into::Landing => b"refs/temper/landing",
     }
+}
+
+/// Workspace references in a shared store (protocol/git.md, 4.3).
+#[must_use]
+pub fn store_reference(workspace: Token, into: git::Into) -> Box<[u8]> {
+    let name = reference(into).strip_prefix(b"refs/temper/").expect("fixed reference prefix");
+    joined(&[b"refs/temper/", Decimal::of(workspace.raw()).as_bytes(), b"/", name])
 }

@@ -25,11 +25,7 @@ rerere.enabled=false
 merge.conflictStyle=merge
 -c
 submodule.recurse=false
-clone
---no-checkout
---no-tags
---origin
-origin
+init
+--quiet
 --
-http://127.0.0.1:3000/fixture/specimen.git
 specimen
