@@ -28,6 +28,7 @@ skein-fake-person.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 jig-protocol-config.workspace = true
 skein-heap.workspace = true
 temper-service = { workspace = true, features = ["worker"] }

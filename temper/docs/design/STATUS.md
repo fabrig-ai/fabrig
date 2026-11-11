@@ -1127,7 +1127,7 @@ box integration, closure rows and help are built by their own plans; M6's
 release job and figures remain, and the parent's Later section is
 unchanged (`draft/deployment-binaries.status.md`).
 
-temper's command lines, `draft/cli.execution.md`'s C2 and C6: the box's
+temper's command lines, `draft/cli.execution.md`'s C2, C4 and C6: the box's
 binary is `temper-box`, a package under `bin/` whose crate is
 `temper-box-shell`, and the engine's, the worker's and the agent's,
 `temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
@@ -1136,8 +1136,10 @@ each holds a table on skein's, reached by `Table::reach`, with its help,
 `--version`, exit 2 for refused arguments, its pre-table modes as rows,
 and its reference documents generated beside `cli/README.md`. The
 internal variables are renamed `TEMPER_INTERNAL_*` and the twins
-dropped; the client's table is C3's (`cli/README.status.md`;
-`draft/cli.status.md`).
+dropped. The test set is `temper-test-env`'s table, its variables
+`TEMPER_TEST_*`, through which temper's tests read the environment, with
+its `test-env` generated beside the others. The client's table is
+C3's (`cli/README.status.md`; `draft/cli.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

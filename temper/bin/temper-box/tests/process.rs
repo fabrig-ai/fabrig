@@ -2133,18 +2133,13 @@ fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_BOX_PARENT_TEST, through temper's test table once it exists"
-)]
 fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     use std::{
         fs,
         process::{Command, Stdio},
     };
     use support::parent::{Guard, wait};
-    const CHILD: &str = "TEMPER_BOX_PARENT_TEST";
-    if let Some(root) = std::env::var_os(CHILD) {
+    if let Some(root) = temper_test_env::value(&temper_test_env::BOX_PARENT_TEST) {
         let root = std::path::Path::new(&root);
         let command = support::boxed::dying_with_test(skein_world::end_to_end::Command {
             program: skein_scratch::paths::binary("temper-box"),
@@ -2179,7 +2174,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     support::own_listener_files(scratch.path());
     let child = Command::new(std::env::current_exe().expect("test binary"))
         .args(["--exact", "a_story_box_and_its_steps_die_when_the_test_process_is_killed", "--nocapture"])
-        .env(CHILD, scratch.path())
+        .env(temper_test_env::BOX_PARENT_TEST.name, scratch.path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()

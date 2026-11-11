@@ -34,7 +34,7 @@
   `bin/temper-box/tests/live.rs` holds no other rung.
   the whole document: neither GitHub proof has shown it holds on `fabrig-ai` alone:
   `scripts/proof-live-github.sh` and `proof-live-github-managed.sh live`
-  stay for the next live walk, the second with `TEMPER_MANAGED_PERSON`
+  stay for the next live walk, the second with `TEMPER_TEST_MANAGED_PERSON`
   set. That sitting's relay admits GraphQL's `VIEWER` alone
   (`bin/temper-box/tests/support/relay_managed.rs`) where the story's
   admits `PULL` on the probe too (`bin/temper-box/tests/support/relay.rs`),
@@ -87,8 +87,8 @@
   (`checks.md`, 5); the check binds no kind by a template's role
   (`temper/tools/stage-one/src/check.rs`, `subject_key`), and nothing
   tells Ask temper to propose it (`../domain/agent/agents.status.md`, 1).
-  the whole document: `scripts/proof-live.sh`'s `TEMPER_LIVE_STORE` and
-  `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
+  the whole document: `scripts/proof-live.sh`'s `TEMPER_TEST_LIVE_STORE` and
+  `TEMPER_TEST_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
   `$HOME/src/rust/tmp/`, a scratch layout of whoever runs fabrig's
   development; `live-tier.md` names the first, and

@@ -27,7 +27,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
         [
             ("HOME".into(), "/home/person".into()),
             ("PATH".into(), "/bin".into()),
-            ("TEMPER_BENIGN".into(), benign.clone()),
+            ("BENIGN_SETTING".into(), benign.clone()),
             ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
             ("ANTHROPIC_API_KEY".into(), "private".into()),
             ("CLAUDE_CODE_OAUTH_TOKEN".into(), "private".into()),
@@ -47,7 +47,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     for (name, value) in [
         ("HOME", OsStr::new("/home/person")),
         ("PATH", OsStr::new("/bin")),
-        ("TEMPER_BENIGN", benign.as_os_str()),
+        ("BENIGN_SETTING", benign.as_os_str()),
         ("CLAUDE_CONFIG_DIR", source.as_os_str()),
     ] {
         assert_eq!(environment[OsStr::new(name)], value);
