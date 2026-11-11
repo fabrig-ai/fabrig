@@ -484,6 +484,8 @@ pub enum Word {
     SettingsNoneTag,
     SettingsNoneBody,
     SettingsSignedIn,
+    WorkGoalBranchOne,
+    WorkGoalBranchMany,
     WorkOne,
     WorkKicker,
     WorkNothing,
@@ -1778,7 +1780,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2331;
+const PHRASES: u32 = 2333;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1805,10 +1807,10 @@ const PHRASES: u32 = 2331;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4190;
+const SEGMENTS: u32 = 4194;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56546;
-const ALL: [Word; 1647] = [
+const ENGLISH_BYTES: u32 = 56628;
+const ALL: [Word; 1649] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2273,6 +2275,8 @@ const ALL: [Word; 1647] = [
     Word::SettingsNoneTag,
     Word::SettingsNoneBody,
     Word::SettingsSignedIn,
+    Word::WorkGoalBranchOne,
+    Word::WorkGoalBranchMany,
     Word::WorkOne,
     Word::WorkKicker,
     Word::WorkNothing,
@@ -3958,6 +3962,8 @@ impl Word {
             Self::StartGoalAlways => 3593,
             Self::StartGoalAlwaysDetail => 3594,
             Self::GoalFollowsAway => 3595,
+            Self::WorkGoalBranchOne => 5672,
+            Self::WorkGoalBranchMany => 5673,
             Self::WorkOne => 4679,
             Self::WorkKicker => 4650,
             Self::WorkNothing => 4651,
@@ -5795,6 +5801,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsMoreMany => (&[b"More than ", b" goals, ", b" under way."], &[Number, Number]),
         Word::GoalsLede => (&[b"A goal turns a draft into landed work."], &[]),
         Word::GoalsWays => (&[b"A goal turns a draft into landed work, its own way: "], &[]),
+        Word::WorkGoalBranchOne => (&[b"Also one change landed into a goal branch."], &[]),
+        Word::WorkGoalBranchMany => (&[b"Also ", b" changes landed into goal branches."], &[Name]),
         Word::WorkOne => (&[b"One"], &[]),
         Word::WorkKicker => (&[b"", b" \xc2\xb7 Work"], &[Name]),
         Word::WorkNothing => (&[b"Nothing in flight yet."], &[]),
