@@ -2477,9 +2477,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut base_repair = false;
     let mut producer = None;
     let mut llm = crate::ChangeLlm::default();
-    let mut route = forge_change::Route::None;
+    let mut route = None;
     let mut requester_branch = false;
     let mut repairs = None;
+    let mut follows = None;
     let mut catch_up = None;
     let mut close = None;
     for parameter in &context.spec.parameters {
@@ -2503,8 +2504,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 let Some(choices) = change_llm::read(value) else { return false };
                 (producer, llm) = choices;
             }
-            tasks::Parameter::Number { name: 14, value: 1 } => route = forge_change::Route::Foreman,
-            tasks::Parameter::Number { name: 14, value: 2 } => route = forge_change::Route::Up,
+            tasks::Parameter::Number { name: 14, value: 1 } => route = Some(forge_change::Route::Foreman),
+            tasks::Parameter::Number { name: 14, value: 2 } => route = Some(forge_change::Route::Up),
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
             tasks::Parameter::Bytes { name: 12, value } => {
                 if value.len() != 40 && value.len() != 64 {
@@ -2523,6 +2524,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 }
                 repairs = Some(commit);
             }
+            tasks::Parameter::Bytes { name: 18, value } => {
+                let Some(value) = change_follows(value, env.limits.forge.follow_merge) else { return false };
+                follows = Some(value);
+            }
             // The close request is parameter 17 (temper/docs/design/domain/forge/change/README.md, 1).
             tasks::Parameter::Bytes { name: 17, value } => close = Some(value.clone()),
             tasks::Parameter::Bytes { name: 16, value } => {
@@ -2535,6 +2540,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
         }
     }
+    let mut route =
+        route.unwrap_or(if follows.is_some() { forge_change::Route::Up } else { forge_change::Route::None });
     match context.requester {
         tasks::Party::Task(_) => {}
         tasks::Party::Person(_) | tasks::Party::Deployment { .. } => route = forge_change::Route::None,
@@ -2639,6 +2646,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 producer_failure: None,
                 report: Box::new([]),
                 repairs,
+                follows,
                 catch_up,
                 close,
                 merge_result: None,
@@ -4636,6 +4644,9 @@ fn producer_started_from(domain: &Domain, env: &Env<Limits>, task: u64, kind: fo
         return Box::new([]);
     }
     let Some(row) = domain.forge.change(task) else { return Box::new([]) };
+    if row.follows.is_some() {
+        return Box::new([]);
+    }
     let forge_change::Early::Started(heads) = &row.change.early else { return Box::new([]) };
     let mut marks = List::with_capacity(env.limits.tasks.dependencies);
     for head in heads {
@@ -6028,6 +6039,24 @@ fn route_resource(
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
         jig_domain_core::effects::connector::Event::Resource { project, name, role, hold },
     )));
+}
+
+/// Parameter 18's decimal follow and ordered landings (domain/forge/follows.md, 4).
+fn change_follows(text: &[u8], limit: u32) -> Option<forge::ChangeFollows> {
+    let colon = skein_lib::bytes::find(text, b":")?;
+    let follow = u32::try_from(skein_lib::bytes::decimal(text.get(..colon)?)?).ok()?;
+    let mut remaining = Some(text.get(colon.checked_add(1)?..)?);
+    let mut commits = List::with_capacity(limit);
+    for _ in 0..limit {
+        let Some(text) = remaining else { break };
+        let end = skein_lib::bytes::find(text, b",").unwrap_or(text.len());
+        commits.push(catch_up_commit(text.get(..end)?)?).ok()?;
+        remaining = if end == text.len() { None } else { Some(text.get(end.checked_add(1)?..)?) };
+    }
+    if remaining.is_some() {
+        return None;
+    }
+    Some(forge::ChangeFollows { follow, commits: commits.into_boxed() })
 }
 
 /// Parameter 16 uses the forge's padded commit and lowercase spelling

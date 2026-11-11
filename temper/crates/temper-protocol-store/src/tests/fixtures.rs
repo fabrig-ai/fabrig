@@ -903,6 +903,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         producer_failure: None,
         report: Box::new([]),
         repairs: Some([28; 32]),
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,

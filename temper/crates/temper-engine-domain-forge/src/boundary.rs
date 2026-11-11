@@ -940,6 +940,12 @@ pub enum Ending {
     Cancelled,
     Failed { line: Box<[u8]> },
 }
+/// The source landings a change follows (temper/docs/design/domain/forge/follows.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeFollows {
+    pub follow: u32,
+    pub commits: Box<[skein_forge::api::Commit]>,
+}
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
@@ -997,6 +1003,7 @@ pub struct ChangeRow {
     pub questions: change::Questions,
     /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
+    pub follows: Option<ChangeFollows>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge/change/README.md, 2).
     pub catch_up: Option<skein_forge::api::Commit>,
     /// The close request (temper/docs/design/domain/forge/change/README.md, 1).
