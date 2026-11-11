@@ -42,7 +42,6 @@ milestones C2, C3 and C6 of `temper/docs/design/draft/cli.execution.md`.
   (`temper/docs/design/testing/README.md`, 2.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
-  14.4: `Table::front`, `Front` and `Table::refusal` [in flight: change 77]
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
   through the shell's re-export too. temper's own two readers
