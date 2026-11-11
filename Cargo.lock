@@ -302,16 +302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-transcripts"
-version = "0.0.0"
-dependencies = [
- "serde_json",
- "skein-fail-stop",
- "skein-scratch",
- "skein-throwaway-forgejo",
-]
-
-[[package]]
 name = "github-conformance"
 version = "0.0.0"
 dependencies = [
@@ -5900,6 +5890,26 @@ dependencies = [
  "skein-world",
  "temper-fetch-shell",
  "temper-forge-setup",
+]
+
+[[package]]
+name = "temper-git-transcripts"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-git-transcripts-tool",
+]
+
+[[package]]
+name = "temper-git-transcripts-tool"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
+ "skein-throwaway-forgejo",
+ "temper-version",
 ]
 
 [[package]]

@@ -305,7 +305,8 @@ members = [
     "temper/crates/temper-service-shell",
     "temper/crates/temper-worker-protocol-git",
     "temper/crates/temper-client-protocol-wire",
-    "temper/tools/git-transcripts",
+    "temper/bin/temper-git-transcripts",
+    "temper/crates/temper-git-transcripts-tool",
     "temper/crates/temper-twin-tool",
     "temper/bin/temper-twin",
     "temper/crates/temper-protocol-worker-wire",
@@ -602,6 +603,7 @@ temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool"
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
+temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }

@@ -292,7 +292,7 @@ loop (`real-loop.md`) and from another process.
   `PATH`; the settings present; the remote a `https` URL, or a loopback
   `http` one.
 - **Checked against real git:** its answers to the transcripts of
-  `tools/git-transcripts` match real git's, masked (../protocol/git.md,
+  `temper-git-transcripts` match real git's, masked (../protocol/git.md,
   section 9).
 - **Where it runs:** the one-process world (`README.md`, 2.5) on the typed transport;
   the real loop (`real-loop.md`) over the git route of the forge peer it hosts, so

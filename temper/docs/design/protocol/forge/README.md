@@ -627,7 +627,7 @@ temper's part:
   (`forge/setup/forgejo.md`, section 2; ../setup/testing.md, 3); what git relies on of
   Forgejo (a renamed repository's redirect, a protected branch's refusal
   of a push) is ../git.md's (`../git.md`, section 3 and 4.8), named in
-  `tools/git-transcripts/facts.txt`.
+  `crates/temper-git-transcripts-tool/facts.txt`.
 - **GitHub's,** each a named fact of skein's `forge/github.md`, which
   temper's tests run against skein's fake alone (section 9): the App's
   installations and their tokens' hour, the delivery log and its

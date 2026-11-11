@@ -223,7 +223,7 @@
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
 - **The throwaway Forgejo** is the one in skein's `testing/fakes/forge.md`,
-  section 6, never an existing Forgejo: temper's `tools/git-transcripts`
+  section 6, never an existing Forgejo: temper's `temper-git-transcripts`
   records real git against it (../protocol/git.md, section 9). temper's
   users give it the binaries `TEMPER_FORGEJO` and
   `TEMPER_FORGEJO_RUNNER` name, and refuse to run without
