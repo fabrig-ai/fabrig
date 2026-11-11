@@ -1632,6 +1632,7 @@ pub enum Event {
     /// Gather a planned section with the core's allotted budget.
     GatherPlanned {
         section: Token,
+        task: u64,
         parts: u32,
         bytes: u32,
         ci_budget: u32,
@@ -2171,6 +2172,8 @@ pub enum Request {
     BriefReadRefused {
         section: Token,
         stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
     /// A held section transferred its rendered bytes to the root.

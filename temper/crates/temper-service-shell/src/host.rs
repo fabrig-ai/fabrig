@@ -425,17 +425,26 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
                 String::from_utf8_lossy(&tool)
             )
         }
-        temper_service::Note::BriefReadRefused { task, section, stage, error } => {
-            let error = match error {
-                Some(skein_forge::api::Error::TooLarge(excess)) => format!(
-                    "TooLarge: past {}",
-                    String::from_utf8_lossy(&temper_engine_domain_forge::bound_words(excess))
+        temper_service::Note::BriefReadRefused { task, section, stage, reason, heads, error } => {
+            let (bound, error) = match error {
+                Some(skein_forge::api::Error::TooLarge(excess)) => {
+                    let bound = temper_engine_domain_forge::bound_words(excess);
+                    let bound = String::from_utf8_lossy(&bound);
+                    (format!(" {bound}"), format!(" error=TooLarge: past {bound}"))
+                }
+                Some(error) => (String::new(), format!(" error={error:?}")),
+                None => (String::new(), String::new()),
+            };
+            let heads = match heads {
+                Some((pinned, head)) => format!(
+                    " pinned={} head={}",
+                    String::from_utf8_lossy(&temper_engine_domain_forge::commit_text(&pinned)),
+                    String::from_utf8_lossy(&temper_engine_domain_forge::commit_text(&head)),
                 ),
-                Some(error) => format!("{error:?}"),
-                None => "None".into(),
+                None => String::new(),
             };
             format!(
-                "{binary} serve: brief read refused task={task} section={} stage={stage} error={error}\n",
+                "{binary} serve: brief read refused task={task} section={} stage={stage} reason={reason}{bound}{heads}{error}\n",
                 String::from_utf8_lossy(section)
             )
         }
@@ -1711,25 +1720,19 @@ fn read_job_refusal_line_names_the_asked_attempt() {
 
 #[test]
 fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
-    assert_eq!(
-        note_line(
-            "temper",
-            temper_service::Note::BriefReadRefused {
-                task: 7,
-                section: b"pull",
-                stage: "item",
-                error: Some(skein_forge::api::Error::InvalidAnswer),
-            }
-        ),
-        "temper serve: brief read refused task=7 section=pull stage=item error=InvalidAnswer\n"
-    );
-    assert_eq!(
-        note_line(
-            "temper",
-            temper_service::Note::BriefReadRefused { task: 7, section: b"ci", stage: "checks", error: None }
-        ),
-        "temper serve: brief read refused task=7 section=ci stage=checks error=None\n"
-    );
+    use skein_forge::api::{Bound, Error, Excess};
+    for (stage, reason, heads, error, expected) in [
+        ("item", "the forge's answer did not match its read", None, Some(Error::InvalidAnswer),
+         "temper serve: brief read refused task=7 section=pull stage=item reason=the forge's answer did not match its read error=InvalidAnswer\n"),
+        ("pull", "the change's head moved", Some(([1; 32], [99; 32])), None,
+         "temper serve: brief read refused task=7 section=pull stage=pull reason=the change's head moved pinned=0101010101010101010101010101010101010101010101010101010101010101 head=6363636363636363636363636363636363636363636363636363636363636363\n"),
+        ("files", "the answer is past", None, Some(Error::TooLarge(Excess::exact(Bound::Rows, 8, 22))),
+         "temper serve: brief read refused task=7 section=pull stage=files reason=the answer is past forge.client.rows (8): 22 rows error=TooLarge: past forge.client.rows (8): 22 rows\n"),
+    ] {
+        assert_eq!(note_line("temper", temper_service::Note::BriefReadRefused {
+            task: 7, section: b"pull", stage, reason, heads, error,
+        }), expected);
+    }
 }
 
 #[test]
