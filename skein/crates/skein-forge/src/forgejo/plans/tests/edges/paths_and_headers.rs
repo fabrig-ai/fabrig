@@ -46,9 +46,10 @@ fn answering_404_keeps_the_path() {
 }
 
 #[test]
-fn terminal_404_drops_the_path() {
+fn actions_leaf_404_keeps_the_path() {
     let job = Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES };
     for (name, read, answers, error) in [
+        ("run read", Read::Run { run: 7 }, &[][..], Error::Missing),
         ("run", job.clone(), &[][..], Error::MissingJob),
         ("job", job.clone(), &[(200, RUN)][..], Error::MissingJob),
         ("log", job, &[(200, RUN), (200, JOB)][..], Error::MissingJob),
@@ -56,7 +57,18 @@ fn terminal_404_drops_the_path() {
         let mut run = Run::known(Op::Read(read));
         replies(&mut run, answers);
         assert_eq!(run.answer(404, MISSING), Step::Done(Err(error)), "{name}");
-        assert_eq!(run.tables().repository(REPO), None, "{name}");
+        assert_eq!(run.tables().repository(REPO), Some(&fixtures::specimen()), "{name}");
+        let mut next = crate::forgejo::plans::plan::Plan::new(REPO, Op::Read(Read::Settings));
+        assert_eq!(
+            next.begin(fixtures::BOUNDS, fixtures::WORD, run.tables()),
+            Ok(Step::Done(Ok(Answer::Settings(api::Settings {
+                default_branch: Box::from(*b"main"),
+                merge: true,
+                squash: false,
+                rebase: false,
+            })))),
+            "{name}"
+        );
     }
 }
 
@@ -262,13 +274,12 @@ fn branch_and_contents_404_keep_the_row() {
 
 #[test]
 fn repository_404_drops_the_row() {
-    for read in [Read::Settings, Read::Item { number: 1, after: 0, since: Time::ZERO }] {
-        let mut run = Run::known(Op::Read(read));
-        run.begin();
-        assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
-        assert_eq!(run.tables().repository(REPO), None);
-    }
+    let mut run = Run::known(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
+    run.begin();
+    assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
+    assert_eq!(run.tables().repository(REPO), None);
     for read in [
+        Read::Settings,
         Read::Branch { branch: Box::from(&b"topic"[..]) },
         Read::File { head: HEAD, path: Box::from(super::FILE_PATH), max_bytes: RAW_BYTES },
     ] {

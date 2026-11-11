@@ -86,7 +86,9 @@ impl Plan {
                 (State::Locating, self.send(Request::Repository { at: r::Repo { owner, name } }))
             }
             State::New { read: api::Read::Settings } => {
-                let _row = tables.repository(self.repository);
+                if let Some(row) = tables.repository(self.repository) {
+                    return terminal(api::Answer::Settings(row.settings.clone()), bounds);
+                }
                 (State::Settings, self.send(Request::RepositoryById { id: u64::from(self.repository.repository) }))
             }
             State::New { read } => match tables.repository(self.repository).cloned() {
@@ -617,7 +619,7 @@ fn head(
             *missing = true;
             return Ok(state);
         }
-        State::Branch { .. } => super::failure::Asked::Leaf,
+        State::Branch { .. } | State::PullFor { .. } => super::failure::Asked::Leaf,
         State::Items { now, .. } => {
             if status == 200 {
                 *now = reading::time(fields.date.ok_or(api::Error::InvalidAnswer)?);
@@ -634,7 +636,6 @@ fn head(
         | State::Issue { .. }
         | State::Comments { .. }
         | State::Pull { .. }
-        | State::PullFor { .. }
         | State::Pulls { .. }
         | State::Status { .. }
         | State::ProtectionBranch { .. }
