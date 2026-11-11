@@ -150,6 +150,7 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         d.fact(Fact::Refused);
         return;
     }
+    calls::pushed(&mut d.calls, key);
     if let Some(row) = d.keep.live.get_mut(key)
         && row.active
     {
@@ -190,6 +191,7 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         // still cause a read so the returned row can establish provenance.
         Some(_) | None => {}
     }
+    calls::hinted(&mut d.calls, &d.keep, &hint);
     if let Some(row) = d.keep.repos.get_mut(&hint.repository)
         && row.active
     {
@@ -228,6 +230,24 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         }
     }
     crate::outbox::queue::hinted(d, env, &hint);
+}
+/// A fresh reader may have no kept row relating a pull to its branches or
+/// commits. Without that knowledge those hints fence it conservatively.
+pub(crate) fn affects_fresh(keep: &super::Keep, key: &Resource, change: &Change) -> bool {
+    if let Some(row) = keep.live.get(key) {
+        return affected(row, key, change);
+    }
+    match (&key.what, change) {
+        (What::Branch(branch), Change::Branch(name) | Change::BranchMoved { branch: name, .. }) => branch == name,
+        (What::Pull(number) | What::Issue(number), Change::Item(item)) => number == item,
+        (What::Branch(_), Change::Commit(_))
+        | (What::Pull(_), Change::Branch(_) | Change::BranchMoved { .. } | Change::Commit(_))
+        | (What::Repository, Change::Branch(_) | Change::BranchMoved { .. } | Change::Item(_) | Change::Commit(_)) => {
+            true
+        }
+        (What::Branch(_), Change::Item(_))
+        | (What::Issue(_), Change::Branch(_) | Change::BranchMoved { .. } | Change::Commit(_)) => false,
+    }
 }
 fn affected(row: &Live, key: &Resource, change: &Change) -> bool {
     match change {

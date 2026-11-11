@@ -1,7 +1,7 @@
 //! A hint invalidates the procedures whose fresh facts it can concern.
 use skein_forge::api::{Change, Hint, Op, Read};
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::forge_routes::{hint_step, hint_world};
+use temper_engine_domain_world::forge_routes::{hint_step, hint_world, shared_goal_hint_world};
 use temper_engine_forge_world::{REPO, World, translate};
 
 fn hint(world: &mut World, change: Change) -> Vec<u64> {
@@ -300,25 +300,46 @@ fn unpushed_profile() -> World {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the request profile keeps shared-base, unpushed and landing cases together")]
 fn two_change_hint_request_profile() {
     use temper_engine_domain_forge_change as change;
     const LANDING_REQUEST_BOUND: usize = 18;
     let mut world = hint_world();
     world.fallback(skein_lib::Duration::from_secs(300));
-    for (change, expected_wakes) in [
-        (Change::Branch(b"temper/a".as_slice().into()), vec![51]),
-        (Change::Branch(b"release".as_slice().into()), vec![52]),
-        (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52]),
+    for (change, expected_wakes, common_goal) in [
+        (Change::Branch(b"temper/a".as_slice().into()), vec![51], false),
+        (Change::Branch(b"release".as_slice().into()), vec![52], false),
+        (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52], false),
+        (Change::Branch(b"release".as_slice().into()), vec![51, 52], true),
     ] {
+        if common_goal {
+            world = shared_goal_hint_world();
+        }
         let wakes = hint(&mut world, change.clone());
         assert_eq!(wakes, expected_wakes, "{change:?}: woken changes");
         let expected_reads: Vec<_> = wakes.iter().flat_map(|task| reads_for(&world, *task)).collect();
+        if common_goal {
+            world.slow_calls(skein_lib::Duration::from_secs(2));
+        }
         for task in wakes {
             hint_step(&mut world, task, 100 + task);
         }
+        if common_goal {
+            world.run_for(20);
+            world.slow_calls(skein_lib::Duration::ZERO);
+        }
         let calls = world.take_calls();
-        assert_eq!(calls.len(), expected_reads.len(), "{change:?}: fresh-read request count");
-        assert_eq!(calls, expected_reads, "{change:?}: only the woken changes' fresh reads");
+        if common_goal {
+            let base = Op::Read(Read::Branch { branch: b"release".as_slice().into() });
+            assert_eq!(calls.iter().filter(|op| **op == base).count(), 1, "two changes share their fresh base read");
+            assert_eq!(calls.len(), expected_reads.len() - 1, "one shared request saved");
+            for op in expected_reads {
+                assert!(calls.contains(&op), "gather still read {op:?}");
+            }
+        } else {
+            assert_eq!(calls.len(), expected_reads.len(), "{change:?}: fresh-read request count");
+            assert_eq!(calls, expected_reads, "{change:?}: only the woken changes' fresh reads");
+        }
     }
     let branch = Op::Read(Read::Branch { branch: b"temper/unpushed".as_slice().into() });
     let head = translate::commit(world.branch(b"temper/a"));
@@ -338,6 +359,7 @@ fn two_change_hint_request_profile() {
         }
         assert_eq!(unpushed.take_calls(), expected_reads, "{change:?}: unpushed change reads no other facts");
     }
+    let mut world = hint_world();
     let mut landing_requests = [0; 2];
     for (at, task) in [51, 52].into_iter().enumerate() {
         let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {

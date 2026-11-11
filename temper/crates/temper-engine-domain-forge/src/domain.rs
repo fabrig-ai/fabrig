@@ -280,6 +280,9 @@ pub struct Domain {
 }
 
 impl Domain {
+    pub(crate) fn poll_at(&self, env: &Env<Limits>, repository: skein_forge::api::Repository) -> skein_lib::Time {
+        self.client.poll_at(&env.limits.client, env.now, repository, env.limits.client.poll)
+    }
     /// The party's rows in key order (temper/docs/design/domain/forge/attention.md, 1).
     #[must_use]
     pub fn dismissals(&self, party: u64) -> Box<[crate::PersonFact]> {
