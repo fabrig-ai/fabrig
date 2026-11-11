@@ -1025,7 +1025,9 @@ and restart remain after-landing proof (`testing/live-tier.md` and `testing/READ
 ). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
 (`testing/README.md`). The forge's connect refusals that
-ctl renders name no remedy (`protocol/documentation.md`). Six
+ctl renders name no remedy (`protocol/documentation.md`). The help
+has no concepts `finding` and `qa` and no walk `upgrade`, since what
+they describe is not built (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
 drafts, the reference drafts' statuses hold two departures decided
