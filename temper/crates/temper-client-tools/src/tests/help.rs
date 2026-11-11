@@ -294,7 +294,7 @@ const USAGES: &[&[u8]] = &[
     b"task hand-back TASK [--key KEY]\n",
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
-    b"project remove PROJECT --key KEY\n",
+    b"project delete PROJECT --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

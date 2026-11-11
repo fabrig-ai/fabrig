@@ -62,17 +62,24 @@ you can change them as any setting (temper help settings).
   pull request shows what its agent wrote too.
   Opening visibility also needs anonymous admission configured;
   temper help open-public-reading walks every figure and the restart.
-- **Deleted:** an owner uses `project remove PROJECT --key KEY`, with
+- **Deleted:** an owner uses `project delete PROJECT --key KEY`, with
   no confirmation, or Delete on How work runs in the client, confirmed
-  by its name; the playground's reset deletes `Demo`. ctl can remove a
-  fresh store's default project too. It takes no new work at once and
-  leaves every list. Each live chat is asked to finish within its chat
-  template's grace from `me`; no chat template, no grace. Its tasks are
-  then erased, its own settings and roles with them, and its repositories
-  leave it. Its name is free again; its number is never given again.
-  ctl prints `removed: project 3, fabrig`, the answer's number and the
-  name `me` gave at the call, or the number alone with no name. A restored
-  request prints `kept: remove-project, removed: project 3`.
+  by its name; the playground's reset deletes `Demo`. ctl can delete a
+  fresh store's default project too. An owner's deletion is refused while
+  it has live tasks, naming their live roots in jig's words:
+  `project delete: This project has live tasks; end them first: 12, 15`.
+  Close its chats or cancel its roots, wait for them to end, then use a new
+  key: the refused key keeps its refusal. Deletion takes no new work at
+  once and leaves every list. Its tasks are erased, its settings and roles
+  with them, and its repositories leave it. Its name is free again; its
+  number is never given again. ctl prints `deleted: project 3, fabrig`,
+  the answer's number and the name `me` gave at the call, or the number alone
+  with no name. A number is sent even when absent from `me`; an unknown
+  name sends nothing, exit 2, `unknown project`. Asking again with the same
+  number and key gets the first answer after deletion as while it lasts,
+  within the engine's retention. A restored request prints
+  `kept: remove-project, deleted: project 3`. `project show 3` then prints
+  `project 3 was deleted` on stderr, exit 2; an unknown project says `unknown`.
 
 ## What temper guarantees
 
@@ -97,7 +104,7 @@ you can change them as any setting (temper help settings).
   `project fund` raises its period spend or a role's;
   `project amend PROJECT --visibility public|private --key KEY`
   changes its visibility. The public page is a path under the
-  deployment's address. `project remove PROJECT --key KEY` removes it.
+  deployment's address. `project delete PROJECT --key KEY` deletes it.
 - **The client:** How work runs on the rail opens the project's process;
   on a phone, choose How work runs for PROJECT in the project switcher.
   Delete there deletes the project, for its owners. The switcher's

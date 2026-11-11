@@ -38,7 +38,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"model", line: b"Models: read those your party may use" },
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
-    Group { name: b"project", line: b"Projects: make or remove one, read periods and pools, set spend and visibility" },
+    Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
 ];
 pub const TOOLS: &[&Tool] = &[
@@ -113,7 +113,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::HAND_BACK,
     &rows::TASK_NOTES,
     &rows::PROJECT_MAKE,
-    &rows::PROJECT_REMOVE,
+    &rows::PROJECT_DELETE,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())
