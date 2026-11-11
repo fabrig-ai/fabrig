@@ -1,6 +1,6 @@
 //! The engine's table and the box's shared forge commands (temper/docs/design/cli/README.md, 7).
 use skein_shell::{Argument, Command, Reach, Set, Table};
-use temper_shell::{commands::Row, directories, table::HELP};
+use temper_shell::{commands::Row, directories, environment, table::HELP};
 
 pub const ENGINE: Table = Table {
     binary: "temper-engine",
@@ -25,7 +25,7 @@ pub const SERVE: Command = Command {
     arguments: &[DIRECTORIES],
     settings: &[&directories::SETTINGS],
     switches: &[],
-    variables: &[],
+    variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR],
     notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.",
 };
 
@@ -41,9 +41,11 @@ pub const VERSIONS: Command = Command {
     notes: "Reads no configuration and no store.",
 };
 
-pub const FETCH: Command = from_row(&super::forge::FETCH, &[DIRECTORIES, FORGE]);
+pub const FETCH: Command =
+    Command { variables: &[&environment::SSL_CERT_FILE], ..from_row(&super::forge::FETCH, &[DIRECTORIES, FORGE]) };
 pub const PREPARE: Command = from_row(&super::forge::PREPARE, &[DIRECTORIES, FORGE]);
-pub const RUN: Command = from_row(&super::forge::RUN, &[DIRECTORIES, FORGE]);
+pub const RUN: Command =
+    Command { variables: &[&environment::LISTEN_FDS], ..from_row(&super::forge::RUN, &[DIRECTORIES, FORGE]) };
 pub const REMOVE: Command = from_row(&super::forge::REMOVE, &[DIRECTORIES, FORGE]);
 pub const SOURCE: Command = from_row(&super::forge::SOURCE, &[DIRECTORIES, FORGE]);
 pub const SIGN_IN: Command = from_row(&super::forge::SIGN_IN, &[DIRECTORIES, FORGE]);

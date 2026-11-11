@@ -209,14 +209,14 @@ fn program_login_line_names_the_model_steps_placeholder_and_quotes_effective_dir
 fn fake_backends_is_an_additive_box_only_switch() {
     let environment = [(Box::<[u8]>::from(b"HOME".as_slice()), Box::<[u8]>::from(b"/fixture/home".as_slice()))];
     for (words, expected) in [
-        (vec!["box", "--fake-backends"], true),
-        (vec!["box", "--no-tui", "--fake-backends", "--bundle", "/bundle"], true),
-        (vec!["box", "--fake-backends", "--no-tui", "--bundle", "/bundle"], true),
-        (vec!["box", "--fake-backends", "--bundle", "/bundle", "--no-tui"], true),
-        (vec!["box", "--no-tui", "--fake-backends", "--no-tui"], false),
-        (vec!["box", "--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"], true),
-        (vec!["box", "--fake-backends", "--fake-backends"], false),
-        (vec!["box", "--fake-backends", "extra"], false),
+        (vec!["--fake-backends"], true),
+        (vec!["--no-tui", "--fake-backends", "--bundle", "/bundle"], true),
+        (vec!["--fake-backends", "--no-tui", "--bundle", "/bundle"], true),
+        (vec!["--fake-backends", "--bundle", "/bundle", "--no-tui"], true),
+        (vec!["--no-tui", "--fake-backends", "--no-tui"], false),
+        (vec!["--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"], true),
+        (vec!["--fake-backends", "--fake-backends"], false),
+        (vec!["--fake-backends", "extra"], false),
         (vec!["serve", "--fake-backends"], false),
         (vec!["init", "--fake-backends"], false),
     ] {
@@ -224,7 +224,7 @@ fn fake_backends_is_an_additive_box_only_switch() {
         let result = crate::configure_with(&args, &environment, b"/fixture");
         assert_eq!(matches!(result, Ok(crate::Command::BoxFakeBackends { .. })), expected, "{words:?}: {result:?}");
     }
-    let args = [Box::<[u8]>::from(b"box".as_slice())];
+    let args = [];
     assert!(matches!(crate::configure_with(&args, &environment, b"/fixture"), Ok(crate::Command::Box { .. })));
 }
 
@@ -239,7 +239,7 @@ fn bundle_paths_resolve_against_the_invocation_directory() {
     for (given, expected) in
         [(b"assets".as_slice(), "/fixture/assets"), (b"/bundles/loopback".as_slice(), "/bundles/loopback")]
     {
-        let command = configure(&[b"box", b"--fake-backends", b"--bundle", given]).expect("bundle arguments");
+        let command = configure(&[b"--fake-backends", b"--bundle", given]).expect("bundle arguments");
         let crate::Command::BoxFakeBackends { bundle, .. } = command else { panic!("fake box") };
         assert_eq!(bundle, Some(PathBuf::from(expected)));
     }
@@ -248,8 +248,8 @@ fn bundle_paths_resolve_against_the_invocation_directory() {
 #[test]
 fn bundle_and_fake_flags_allow_interleaved_directory_settings() {
     let cases: &[&[&[u8]]] = &[
-        &[b"box", b"--bundle", b"assets", b"--config", b"/c", b"--fake-backends", b"--data", b"/d", b"--cache", b"/k"],
-        &[b"box", b"--data", b"/d", b"--fake-backends", b"--cache", b"/k", b"--bundle", b"assets", b"--config", b"/c"],
+        &[b"--bundle", b"assets", b"--config", b"/c", b"--fake-backends", b"--data", b"/d", b"--cache", b"/k"],
+        &[b"--data", b"/d", b"--fake-backends", b"--cache", b"/k", b"--bundle", b"assets", b"--config", b"/c"],
     ];
     for words in cases {
         let command = configure(words).expect("interleaved bundle and directory settings");
@@ -264,12 +264,12 @@ fn bundle_and_fake_flags_allow_interleaved_directory_settings() {
 #[test]
 fn malformed_bundle_grammar_is_refused() {
     let cases: &[&[&[u8]]] = &[
-        &[b"box", b"--bundle", b"assets"],
-        &[b"box", b"--fake-backends", b"--bundle"],
-        &[b"box", b"--bundle", b"--fake-backends"],
-        &[b"box", b"--fake-backends", b"--bundle", b"assets", b"extra"],
-        &[b"box", b"--fake-backends", b"--bundle", b"assets", b"--bundle", b"other"],
-        &[b"box", b"--fake-backends", b"--bundle", b"assets", b"--fake-backends"],
+        &[b"--bundle", b"assets"],
+        &[b"--fake-backends", b"--bundle"],
+        &[b"--bundle", b"--fake-backends"],
+        &[b"--fake-backends", b"--bundle", b"assets", b"extra"],
+        &[b"--fake-backends", b"--bundle", b"assets", b"--bundle", b"other"],
+        &[b"--fake-backends", b"--bundle", b"assets", b"--fake-backends"],
         &[b"serve", b"--fake-backends", b"--bundle", b"assets"],
         &[b"init", b"--bundle", b"assets"],
     ];
@@ -294,7 +294,7 @@ fn bundle_paths_check_both_sides_of_the_absolute_bound() {
         (Vec::new(), false),
         (b"assets\0other".to_vec(), false),
     ] {
-        assert_eq!(configure(&[b"box", b"--fake-backends", b"--bundle", &given]).is_ok(), accepted);
+        assert_eq!(configure(&[b"--fake-backends", b"--bundle", &given]).is_ok(), accepted);
     }
 }
 
@@ -566,7 +566,7 @@ fn missing_bundle_refuses(source: &Directories) {
     let error = start(source, None).err().expect("no bundle");
     assert!(error.contains("scripts/bundle.sh --loopback DIR"), "{error}");
     assert!(error.contains("application.clients.bundle"), "{error}");
-    assert!(error.contains("temper box --fake-backends --bundle BUNDLE"), "{error}");
+    assert!(error.contains("temper-box --fake-backends --bundle BUNDLE"), "{error}");
     assert!(!crate::path(&source.data).exists(), "refuse before data mutation");
     assert!(!crate::path(&source.cache).exists(), "refuse before cache mutation");
 }
@@ -1034,37 +1034,28 @@ fn source_adapter_is_a_bounded_fact_without_path_discovery() {
 }
 
 #[test]
-fn fake_backends_echo_takes_the_variable_and_refuses_the_flag() {
+fn fake_backends_echo_takes_the_flag() {
     use temper_box_machine::host::Echo;
-    let args = ["box", "--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"]
-        .map(|word| Box::from(word.as_bytes()));
-    for (value, expected) in [("steps", Echo::Steps), ("none", Echo::None)] {
-        let environment = [(Box::from(b"TEMPER_ECHO".as_slice()), Box::from(value.as_bytes()))];
+    let args =
+        ["--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"].map(|word| Box::from(word.as_bytes()));
+    for (flags, expected) in
+        [(vec![], Echo::None), (vec!["--echo", "steps"], Echo::Steps), (vec!["--echo", "none"], Echo::None)]
+    {
+        let mut arguments = args.to_vec();
+        arguments.extend(flags.into_iter().map(|word| Box::from(word.as_bytes())));
         let crate::Command::BoxFakeBackends { echo, .. } =
-            crate::configure_with(&args, &environment, b"/").expect("valid fake-backend echo")
+            crate::configure_with(&arguments, &[], b"/").expect("valid fake-backend echo")
         else {
             panic!("fake box")
         };
         assert_eq!(echo, expected);
     }
-    let crate::Command::BoxFakeBackends { echo, .. } =
-        crate::configure_with(&args, &[], b"/").expect("valid fake-backend echo")
-    else {
-        panic!("fake box")
-    };
-    assert_eq!(echo, Echo::None);
-    let mut flagged = args.to_vec();
-    flagged.extend([Box::from(b"--echo".as_slice()), Box::from(b"steps".as_slice())]);
+    let mut arguments = args.to_vec();
+    arguments.extend(["--echo", "bad"].map(|word| Box::from(word.as_bytes())));
     assert!(
-        crate::configure_with(&flagged, &[], b"/")
-            .expect_err("invalid fake-backend echo")
-            .contains("invalid box arguments")
-    );
-    let environment = [(Box::from(b"TEMPER_ECHO".as_slice()), Box::from(b"bad".as_slice()))];
-    assert!(
-        crate::configure_with(&args, &environment, b"/")
-            .expect_err("invalid fake-backend echo")
-            .contains("TEMPER_ECHO: expected none or steps")
+        crate::configure_with(&arguments, &[], b"/")
+            .expect_err("invalid echo")
+            .contains("--echo: expected none or steps")
     );
 }
 

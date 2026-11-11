@@ -521,7 +521,7 @@ fn refused_deployment_start(root: &Path) {
         }
         let before = snapshot(&dir);
         let output = command.output().expect("refused fake");
-        assert_eq!(output.status.code(), Some(1), "{name}");
+        assert_eq!(output.status.code(), Some(if own_document { 2 } else { 1 }), "{name}");
         assert!(output.stdout.is_empty());
         let file = if observations { "observations" } else { "playground-1/admin_token" };
         let location = if names_file { format!("{}: ", dir.join(file).display()) } else { String::new() };
@@ -582,7 +582,7 @@ fn refused_deployment_start(root: &Path) {
         }
         let before = snapshot(&dir);
         let output = command.output().expect("refused demo");
-        assert_eq!(output.status.code(), Some(1), "{name}");
+        assert_eq!(output.status.code(), Some(if extra { 2 } else { 1 }), "{name}");
         assert!(output.stdout.is_empty(), "{name}");
         let location = if names_file { format!("{}: ", path.display()) } else { String::new() };
         let expected = if extra {

@@ -139,7 +139,6 @@ fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting,
         .collect();
     args.extend([
         paths.temper.clone().into_os_string(),
-        "box".into(),
         "--fake-backends".into(),
         "--bundle".into(),
         paths.bundle.clone().into_os_string(),

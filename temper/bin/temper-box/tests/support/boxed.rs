@@ -187,7 +187,7 @@ pub fn echo_steps(mut flags: Vec<String>) -> Vec<String> {
 pub fn run_echo_steps(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     let mut command = Command {
         program: skein_scratch::paths::binary("temper-box"),
-        arguments: std::iter::once("box".into()).chain(super::configuration::flags(directory)).collect(),
+        arguments: super::configuration::flags(directory),
         directory: directory.into(),
         environment: Vec::new(),
     };
@@ -200,7 +200,7 @@ pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: 
     run_command(
         Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(super::configuration::flags(directory)).collect(),
+            arguments: super::configuration::flags(directory),
             directory: directory.into(),
             environment: Vec::new(),
         },
@@ -212,10 +212,11 @@ pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: 
 /// Drives the same box referee with an isolation wrapper around the shipped binary.
 #[must_use]
 pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
-    let data = command.arguments.iter().any(|arg| arg == "box").then(|| {
-        let pair = command.arguments.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
-        PathBuf::from(&pair[1])
-    });
+    let data = if command.arguments.first().is_some_and(|word| word == "serve") {
+        None
+    } else {
+        command.arguments.windows(2).find(|pair| pair[0] == "--data").map(|pair| PathBuf::from(&pair[1]))
+    };
     let clock = Clock::new();
     let mut binary =
         Binary::start_with_tree(dying_with_test(command), Mode::Pipes, 262_144, Expectation::Supervise, false)
@@ -448,7 +449,7 @@ pub fn run_story_with_box<T>(
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+            arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             // Init's optional git/claude discovery is exercised without PATH.
             // The demo uses the written link to this binary, and needs neither.
@@ -1012,7 +1013,7 @@ fn run_ctl_peers<T>(
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+            arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             // Real repository stories, including a fake box's owned Forgejo,
             // need init to discover system git for their first chat's checkout.
@@ -1246,7 +1247,7 @@ fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
     Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+            arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             environment,
         }),

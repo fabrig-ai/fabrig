@@ -605,7 +605,6 @@ pub fn green_light() {
 fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> Child {
     Command::new("setsid")
         .arg(binary)
-        .arg("box")
         .args(super::deployment_flags(paths))
         .args(["--echo", "steps"])
         .env_clear()

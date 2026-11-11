@@ -2560,8 +2560,9 @@ pub fn run_live(
     let mut binary = Binary::start_with_tree(
         Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into())
-                .chain(deployment_flags(plan.paths).into_iter().map(Into::into))
+            arguments: deployment_flags(plan.paths)
+                .into_iter()
+                .map(Into::into)
                 .chain(["--echo".into(), "steps".into()])
                 .collect(),
             directory: plan.paths[0].parent().expect("scratch root").into(),
