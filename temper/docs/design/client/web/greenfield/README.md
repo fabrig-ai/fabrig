@@ -11,7 +11,7 @@ these pages, exactly, with the changes made since by look requests.
 Where this mock and `../mockups/` differ, this mock is the design
 (`../mockups/README.md`, section 1).
 
-**The whole story's mockups lead where they draw** (`../web/whole-story/`,
+**The whole story's mockups lead where they draw** (`../whole-story/`,
 its README; `../../../draft/surfaces.md`, section 13): the rail, Home across
 projects, Needs you's list and its why, Work, Team, How work runs,
 Deployment, the phone's tabs and the terminal's screens. This mock leads
@@ -28,7 +28,7 @@ filters, How work runs and Deployment (`../../view.md`, 3); and its
 - `phone.html`: the pages in a phone's frame.
 - `mock.css`: the look; the client's stylesheets take its rules.
 
-**How work runs** is the whole story's `../web/whole-story/how.html`
+**How work runs** is the whole story's `../whole-story/how.html`
 (`../../pages/settings.md`, 2, *The page*): this mock's `settings.html` leads its
 How work runs tab only for the rows the page keeps, What the project shows
 and Ways of working at its foot, and its question route and "Away until",
