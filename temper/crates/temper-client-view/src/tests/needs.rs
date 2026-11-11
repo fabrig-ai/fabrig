@@ -2204,18 +2204,18 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
 }
 
 pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
-    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
-    let classes = Classes {
-        items: Box::new([Item {
-            subject: if set { Subject::Set(1) } else { Subject::Kind(Kind::Implementation) },
-            words: Box::default(),
-            class: Class::Ask,
-        }]),
-        sets: Box::new([PathSet {
-            number: 1,
-            name: b"protocol core".as_slice().into(),
-            patterns: Box::new([b"src/**".as_slice().into(), b"wire/**".as_slice().into()]),
-        }]),
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject, Way};
+    let classes = if set {
+        Classes {
+            items: Box::new([Item { subject: Subject::Set(1), words: Box::default(), class: Class::Ask }]),
+            sets: Box::new([PathSet {
+                number: 1,
+                name: b"protocol core".as_slice().into(),
+                patterns: Box::new([b"src/**".as_slice().into(), b"wire/**".as_slice().into()]),
+            }]),
+        }
+    } else {
+        Classes::stock(Way::AgentsReview)
     };
     let (mut root, _, watch) = fixture_classes_role(
         QUESTION,
@@ -2247,22 +2247,27 @@ fn rule_in_terminal(root: &d::Domain, rule: &[u8]) {
     use crate::frame::Bindings;
     use crate::pages::needs::{WhyForm, why_line};
     let tree_limits = f::tree_limits();
-    let mut b = skein_ui::Builder::new(&tree_limits);
+    let mut visible = skein_ui::View::new(&tree_limits);
+    let mut b = visible.builder();
     let mut bindings = Bindings::new(128);
     let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
     b.open(Role::Main);
     why_line(&mut b, root, &f::words(), &mut bindings, needs::Need::Card(card), WhyForm::Rule);
     b.close();
-    let tree = b.finish();
+    visible.finish(b, 1, &mut Queue::uncapped());
+    let tree = visible.tree();
     for (name, action) in [
         (b"Keep asking".as_slice(), pages::stop_asking::Act::Keep { object: card.object }),
         (rule, pages::stop_asking::Act::Open { object: card.object }),
     ] {
-        let control = f::find(&tree, Role::Button, name).unwrap();
-        let (node, first) = f::terminal_command(&tree, &tree_limits, control, name, b"Reached you because");
-        assert_eq!(bindings.decode(tree.find(node).unwrap().binding.unwrap().token, first), Some(d::Action::Pages(pages::Act::StopAsking(action))));
+        let control = f::find(tree, Role::Button, name).unwrap();
+        let (node, first) = f::terminal_command(tree, &tree_limits, control, name, b"Reached you because");
+        assert_eq!(
+            bindings.decode(tree.bound(node).unwrap().token, first),
+            Some(d::Action::Pages(pages::Act::StopAsking(action)))
+        );
     }
-    assert!(f::find(&tree, Role::Button, b"Stop asking").is_none());
+    assert!(f::find(tree, Role::Button, b"Stop asking").is_none());
 }
 #[test]
 fn reason_line_rules_and_open_offers_belong_to_the_card() {
@@ -2286,7 +2291,8 @@ fn reason_line_rules_and_open_offers_belong_to_the_card() {
             assert!(has(&kept_view, b"Reached you because"));
             assert!(f::find(view.tree(), Role::Button, b"Stop asking").is_none());
             let line = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY));
-            let buttons: Vec<_> = line.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref().unwrap()).collect();
+            let buttons: Vec<_> =
+                line.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref().unwrap()).collect();
             assert_eq!(buttons, [b"Keep asking".as_slice(), rule]);
             assert!(line.iter().any(|n| n.text.iter().any(|run| run.text.as_ref() == " · ".as_bytes())));
             let nodes = main(&view);
@@ -2294,7 +2300,10 @@ fn reason_line_rules_and_open_offers_belong_to_the_card() {
             assert!(position(look::ASK_CONTEXT) < position(look::WHY));
             assert!(position(look::ASK_SAW) < position(look::WHY));
             assert!(position(look::WHY) < position(look::ASK_CHOICES));
-            assert_eq!(press(&mut view, b"Keep asking"), d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) })));
+            assert_eq!(
+                press(&mut view, b"Keep asking"),
+                d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) }))
+            );
             assert_eq!(
                 press(&mut view, rule),
                 d::Action::Pages(pages::Act::StopAsking(Stop::Open { object: object(1) }))
@@ -2339,11 +2348,19 @@ fn reason_line_rules_and_open_offers_belong_to_the_card() {
                     );
                 }
             }
-            assert_eq!(press(&mut view, b"Keep asking"), d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) })));
+            assert_eq!(
+                press(&mut view, b"Keep asking"),
+                d::Action::Pages(pages::Act::StopAsking(Stop::Keep { object: object(1) }))
+            );
             if set {
                 let field = f::find(view.tree(), Role::TextField, b"Which changes").unwrap();
                 let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
-                let sentence = offers.iter().position(|n| n.name.as_deref() == Some(b"Let agents decide changes to protocol core that are:".as_slice())).unwrap();
+                let sentence = offers
+                    .iter()
+                    .position(|n| {
+                        n.name.as_deref() == Some(b"Let agents decide changes to protocol core that are:".as_slice())
+                    })
+                    .unwrap();
                 let field_at = offers.iter().position(|n| n.id == field).unwrap();
                 let act_at = offers.iter().position(|n| n.role == Role::Button).unwrap();
                 assert!(sentence < field_at && field_at < act_at);
@@ -2388,7 +2405,9 @@ fn reason_line_rules_and_open_offers_belong_to_the_card() {
             let view = f::browser_page_view(&root);
             let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
             let line = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY));
-            for control in line.iter().chain(offers.iter()).filter(|n| n.role == Role::Button || n.role == Role::TextField) {
+            for control in
+                line.iter().chain(offers.iter()).filter(|n| n.role == Role::Button || n.role == Role::TextField)
+            {
                 assert!(control.states.as_slice().contains(&skein_ui::State::Disabled));
             }
         }

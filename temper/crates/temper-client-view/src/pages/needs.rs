@@ -521,7 +521,17 @@ pub(crate) fn why_line(
             WhyForm::Rule => {
                 let Some(needs::Why::Reach { project, reach }) = needs::why(root, need) else { return };
                 let Some(classes) = root.forge().classes(project) else { return };
-                keep_button(b, w, bindings, need.object(), match open { Some(open) => open.busy(), None => false }, false);
+                keep_button(
+                    b,
+                    w,
+                    bindings,
+                    need.object(),
+                    match open {
+                        Some(open) => open.busy(),
+                        None => false,
+                    },
+                    false,
+                );
                 b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
                 crate::shared::rule(w, classes, &reach, *first)
             }

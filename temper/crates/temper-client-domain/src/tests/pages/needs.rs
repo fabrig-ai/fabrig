@@ -1764,7 +1764,11 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
             expected.then_some(Box::from([offer].as_slice())),
             "{name}"
         );
-        assert_eq!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).len(), usize::from(expected), "{name}: Keep guard");
+        assert_eq!(
+            stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).len(),
+            usize::from(expected),
+            "{name}: Keep guard"
+        );
     }
     for (name, closing, expected) in [
         ("toggle", Closing::Offers(Stop::Open { object: FIRST }), None),
@@ -1970,19 +1974,39 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         question.from = Some(c::Requester::Task(42));
         let mut asked = List::with_capacity(2);
         for (number, task, reach) in [(1, f::TASK, first_reach), (2, 42, second_reach)] {
-            asked.push(w::Asked::new(&w::CEILINGS, w::AskedParts {
-                number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach),
-            }).unwrap()).unwrap();
+            asked
+                .push(
+                    w::Asked::new(
+                        &w::CEILINGS,
+                        w::AskedParts { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
         }
-        let document = w::Decisions::new(&w::CEILINGS, w::DecisionsParts {
-            project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false,
-        }).unwrap();
-        super::welcome::up(&mut fixture.root, jig_client::Up::FamilyDelivered {
-            watch: fixture.decided,
-            record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::decisions(&document) },
-        });
+        let document = w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
+        )
+        .unwrap();
+        super::welcome::up(
+            &mut fixture.root,
+            jig_client::Up::FamilyDelivered {
+                watch: fixture.decided,
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::decisions(&document),
+                },
+            },
+        );
         if answered {
-            root_event(&mut fixture.root, crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object, words: Box::from(CHOICE) })) });
+            root_event(
+                &mut fixture.root,
+                crate::Event::Act {
+                    action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object, words: Box::from(CHOICE) })),
+                },
+            );
         }
         if let Some(object) = opened {
             stop_act(&mut fixture.root, Stop::Open { object });
@@ -1994,21 +2018,44 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         let sent = stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object }));
         if let Some(subject) = sent_subject {
             assert_eq!(sent.len(), 1, "{name}");
-            assert_eq!(sent[0].1, crate::forge::dismissed::ask(
-                crate::forge::dismissed::PersonFact::KeepAsking { project: fixtures::PROJECT, subject, at: STOP_WALL },
-                &stop_limits().forge,
-            ).unwrap(), "{name}");
+            assert_eq!(
+                sent[0].1,
+                crate::forge::dismissed::ask(
+                    crate::forge::dismissed::PersonFact::KeepAsking {
+                        project: fixtures::PROJECT,
+                        subject,
+                        at: STOP_WALL
+                    },
+                    &stop_limits().forge,
+                )
+                .unwrap(),
+                "{name}"
+            );
             assert!(fixture.root.pages().stop_asking().is_none(), "{name}");
             for card in &fixture.root.pages().inbox().unwrap().cards {
-                assert_eq!(stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_some(), card.object == FIRST, "{name}");
+                assert_eq!(
+                    stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_some(),
+                    card.object == FIRST,
+                    "{name}"
+                );
             }
             assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object })).is_empty(), "already keeping");
         } else {
             assert!(sent.is_empty(), "{name}");
-            assert_eq!(match fixture.root.pages().stop_asking() { Some(open) => Some(open.object()), None => None }, opened, "{name}");
+            assert_eq!(
+                match fixture.root.pages().stop_asking() {
+                    Some(open) => Some(open.object()),
+                    None => None,
+                },
+                opened,
+                "{name}"
+            );
         }
     }
-    for reach in [Reach { kind: Kind::Money, ..first_reach }, Reach { reason: temper_protocol_reaches::Reason::Always, ..first_reach }] {
+    for reach in [
+        Reach { kind: Kind::Money, ..first_reach },
+        Reach { reason: temper_protocol_reaches::Reason::Always, ..first_reach },
+    ] {
         let mut fixture = stop_fixture(true, reach, true, true, None);
         assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).is_empty(), "nothing offered");
     }

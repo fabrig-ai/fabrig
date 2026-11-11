@@ -321,13 +321,27 @@ fn entry(
             return;
         }
         if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
-            super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card), super::needs::WhyForm::Short);
+            super::needs::why_line(
+                b,
+                root,
+                words,
+                bindings,
+                temper_client_domain::pages::needs::Need::Card(card),
+                super::needs::WhyForm::Short,
+            );
             b.close();
             return;
         }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
-        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card), super::needs::WhyForm::Short);
+        super::needs::why_line(
+            b,
+            root,
+            words,
+            bindings,
+            temper_client_domain::pages::needs::Need::Card(card),
+            super::needs::WhyForm::Short,
+        );
         if has_facts(page) {
             let proposal = crate::cards::proposal_has_rows(page);
             if !proposal {
@@ -347,7 +361,14 @@ fn entry(
             control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task } });
         }
     } else if !update {
-        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card), super::needs::WhyForm::Short);
+        super::needs::why_line(
+            b,
+            root,
+            words,
+            bindings,
+            temper_client_domain::pages::needs::Need::Card(card),
+            super::needs::WhyForm::Short,
+        );
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
         b.style(look::TITLE);
