@@ -1,5 +1,5 @@
 [package]
-name = "temper-stage-one"
+name = "temper-client-gallery"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,19 +7,20 @@ rust-version.workspace = true
 publish.workspace = true
 
 [[bin]]
-name = "temper-stage-one"
-path = "src/main.rs"
+name = "temper-client-gallery"
+path = "main.rs"
 test = false
 
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
 [dependencies]
+temper-client-gallery-tool.workspace = true
 skein-fail-stop.workspace = true
-serde = { version = "1", features = ["derive"] }
-serde_json.workspace = true
-settings-form.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
-
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

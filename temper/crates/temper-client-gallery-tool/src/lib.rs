@@ -7,6 +7,8 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+mod cli;
+pub use cli::{TABLE, main};
 mod driver;
 mod needs;
 pub mod samples;
@@ -19,8 +21,8 @@ pub use samples::Sample;
 const NARROW: u16 = 388;
 
 pub const STYLESHEETS: [&str; 2] = [
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/temper-client-shell-web/temper.css"),
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/temper-client-shell-web/task-pages.css"),
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../temper-client-shell-web/temper.css"),
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../temper-client-shell-web/task-pages.css"),
 ];
 #[derive(Debug)]
 pub enum Refusal {
@@ -47,7 +49,7 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
         stylesheets,
         pictures: vec![],
         page: None,
-        files: Some(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/temper-client-shell-web/files"))),
+        files: Some(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../temper-client-shell-web/files"))),
         noscript: "temper needs WebAssembly and scripts.".to_owned(),
     };
     let digest = match skein_ui_bundle::bundle(

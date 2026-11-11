@@ -50,11 +50,8 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper temper", until: "cli C2" },
     Exception { what: "temper-agent temper-agent", until: "cli C6" },
     Exception { what: "temper-client temper-client", until: "cli C3" },
-    Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
-    Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
-    Exception { what: "temper-stage-one temper-stage-one", until: "cli C8" },
 ];
 const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },
@@ -75,7 +72,6 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench smith-bench", until: "smith's round" },
     Exception { what: "smith-bench test-peer", until: "smith's round" },
     Exception { what: "temper temper", until: "cli C2" },
-    Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
 ];
@@ -234,7 +230,7 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/tests/real-loop/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tests/system/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tools/journeys/Cargo.toml: temper-client-shell-tui", until: "cli C5" },
-    Exception { what: "temper/tools/stage-one/Cargo.toml: serde", until: "cli C5" },
+    Exception { what: "temper/crates/temper-stage-one-tool/Cargo.toml: serde", until: "cli C5" },
     Exception { what: "temper/crates/temper-twin-tool/Cargo.toml: serde_json", until: "cli C5" },
 ];
 

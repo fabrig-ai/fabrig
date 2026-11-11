@@ -549,8 +549,7 @@ pub fn profile() -> Result<SettingsFile, GoldenError> {
 #[must_use]
 pub fn main(args: &[String]) -> ExitCode {
     if !(args.is_empty() || args == ["--json"]) {
-        eprintln!("usage: temper-stage-one obligations [--json]");
-        return ExitCode::from(2);
+        return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::OBLIGATIONS, "invalid arguments"));
     }
     let golden = match reference() {
         Ok(golden) => golden,

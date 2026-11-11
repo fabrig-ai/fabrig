@@ -1,11 +1,39 @@
 //! The browser tier's static host (temper/docs/design/client/web/testing.md, 3;
-//! temper/docs/design/playground.md, 7).
+//! temper/docs/design/playground.md, 7), with its table and front
+//! (temper/docs/design/testing/tools.md, 3 and 4).
+use skein_shell::{Argument, Command, Front, Reach, Set, Table};
 use std::{
     collections::BTreeMap,
     fs,
     io::{self, Read, Write},
     net::{TcpListener, TcpStream},
+    os::unix::ffi::OsStrExt,
     path::{Component, Path, PathBuf},
+    process::ExitCode,
+};
+
+const SERVE: Command = Command {
+    reach: Reach::Words(&[]),
+    set: Set::Internal,
+    forms: &["OUT"],
+    line: "Serve the playground's bundle as static files with its headers.",
+    arguments: &[Argument { shown: "OUT", line: "The built playground's output directory." }],
+    settings: &[],
+    switches: &[],
+    variables: &[],
+    notes: "",
+};
+
+/// The static host's command line (temper/docs/design/testing/tools.md, 4).
+pub const TABLE: Table = Table {
+    binary: "temper-playground-serve",
+    line: "the browser tier's static host for the playground's bundle.",
+    version: temper_version::VERSION,
+    commit: temper_version::COMMIT,
+    commands: &[SERVE],
+    settings: &[],
+    variables: &[],
+    more: "Read temper/docs/design/playground.md, section 7.",
 };
 
 struct Host {
@@ -117,22 +145,56 @@ fn mime(path: &Path) -> &'static str {
     }
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C8: the playground fixture's arguments, until it is a binary of temper/bin/"
-)]
-fn main() -> io::Result<()> {
-    skein_fail_stop::install();
-    let mut args = std::env::args_os().skip(1);
-    let root = args.next().expect("usage: playground-serve OUT");
-    assert!(args.next().is_none(), "usage: playground-serve OUT");
-    let host = Host::open(Path::new(&root))?;
+/// Capture the arguments once and answer through the table before opening a host.
+#[must_use]
+pub fn main() -> ExitCode {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the binary's capture: temper-playground-serve's arguments, once (skein/docs/foundation/cli.md, 6)"
+    )]
+    let arguments = skein_shell::arguments();
+    match TABLE.front(&arguments) {
+        Front::Print(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Front::Refuse(text) => {
+            eprint!("{text}");
+            ExitCode::from(2)
+        }
+        Front::Run { command, rest } => {
+            let root = match rest {
+                [] => return refuse(command, "OUT is not given"),
+                [root] => root,
+                [_, _, ..] => return refuse(command, "expected one OUT"),
+            };
+            if root.starts_with(b"-") {
+                return refuse(command, &format!("no flag {}", String::from_utf8_lossy(root)));
+            }
+            match serve(Path::new(std::ffi::OsStr::from_bytes(root))) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(why) => {
+                    eprintln!("temper-playground-serve: {why}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+    }
+}
+
+fn refuse(command: &Command, why: &str) -> ExitCode {
+    eprint!("{}", TABLE.refusal(command, why));
+    ExitCode::from(2)
+}
+
+fn serve(root: &Path) -> io::Result<()> {
+    let host = Host::open(root)?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
     println!("http://{}/", listener.local_addr()?);
     io::stdout().flush()?;
     for stream in listener.incoming() {
         if let Err(why) = host.serve(&mut stream?) {
-            eprintln!("playground-serve: {why}");
+            eprintln!("temper-playground-serve: {why}");
         }
     }
     Ok(())
@@ -140,8 +202,34 @@ fn main() -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::Host;
+    use super::{Host, TABLE};
     use std::{fs, os::unix::fs::symlink};
+
+    #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the table's reference documents; the test table will pass it"
+    )]
+    fn the_reference_documents_match_the_table() {
+        let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+        let directory = skein_scratch::paths::tree().join("docs/design/cli");
+        for (name, rendered) in [
+            ("temper-playground-serve-args.md", TABLE.arguments_document()),
+            ("temper-playground-serve-env.md", TABLE.environment_document(&[&TABLE])),
+        ] {
+            let path = directory.join(name);
+            if write {
+                fs::create_dir_all(&directory).expect("reference directory");
+                fs::write(&path, &rendered).expect("write table reference");
+            } else {
+                assert_eq!(
+                    fs::read_to_string(&path).expect("table reference"),
+                    rendered,
+                    "{name}; regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
+                );
+            }
+        }
+    }
 
     const FILES_CACHE: &[u8] = b"public, max-age=31536000, immutable";
     const PAGE_CACHE: &[u8] = b"no-cache";
@@ -151,8 +239,8 @@ mod tests {
         fs::create_dir_all(scratch.path().join("out/digest")).expect("digest directory");
         fs::write(scratch.path().join("out/index.html"), b"page").expect("page");
         fs::write(scratch.path().join("out/digest/boot.js"), b"script").expect("script");
-        let headers = include_str!("../../../../crates/temper-client-shell-web/playground/headers")
-            .replace("{bundle}", "/bundle/digest");
+        let headers =
+            include_str!("../../temper-client-shell-web/playground/headers").replace("{bundle}", "/bundle/digest");
         fs::write(scratch.path().join("out/headers"), headers).expect("headers");
         scratch
     }
