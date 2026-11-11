@@ -1258,7 +1258,14 @@ fn advance(
                         );
                     }
                 }
-                policy::Keyed::TooLarge => emit(out, Request::Refused { task: p.task }),
+                policy::Keyed::TooLarge { bound: None, .. } => emit(out, Request::Refused { task: p.task }),
+                policy::Keyed::TooLarge { bound: Some(bound), needed } => {
+                    let (member, configured) = match bound {
+                        policy::KeyBound::Entries => ("forge.key_entries", env.limits.key_entries),
+                        policy::KeyBound::PathBytes => ("forge.key_path_bytes", env.limits.key_path_bytes),
+                    };
+                    crate::refusal::limit(out, p.task, repo, member, configured, needed);
+                }
             }
         }
         Stage::Collect => unreachable!("collect emits the next read itself"),

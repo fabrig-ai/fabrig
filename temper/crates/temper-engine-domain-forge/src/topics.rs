@@ -25,7 +25,7 @@ enum Stage {
 /// One coherent pull-file read chain; at most one per live change.
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
-    task: u64,
+    pub(crate) task: u64,
     pub(crate) repository: skein_forge::api::Repository,
     pull: u64,
     head: skein_forge::api::Commit,
@@ -204,12 +204,7 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
     }
     let mut unknown = false;
     for task in tasks {
-        let Some(row) = d.changes.get(task) else {
-            if subscriber.paths.is_empty() {
-                unknown = true;
-            }
-            continue;
-        };
+        let Some(row) = d.changes.get(task) else { continue };
         match row.change.state {
             change::State::Landed { .. }
             | change::State::Red { .. }

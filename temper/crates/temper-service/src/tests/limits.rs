@@ -107,6 +107,43 @@ fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the test formats override documents and their expected diagnostics")]
+fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
+    for changes in [1024_u32, 1025] {
+        let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
+        let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
+        let directories = jig_protocol_config::Directories::working();
+        let starting = crate::startup::named(&document, &directories).unwrap_err();
+        let reading =
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+        for problems in [starting, reading] {
+            assert_eq!(
+                crate::startup::lines(&problems).as_ref(),
+                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 379, the most the store's tier rows hold (2 * forge.changes + 1 within 759)\n").as_bytes(),
+            );
+        }
+    }
+}
+
+#[test]
+fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.changes":379}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    let starting = crate::startup::named(&document, &directories).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+    for problems in [starting, reading] {
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            b"engine.limits.store: the store's map value, 43644525 bytes, past its bound of 3419252 bytes\n",
+        );
+    }
+}
+
+#[test]
 fn an_unknown_name_or_a_value_past_its_type_is_refused() {
     let mut limits = limits::profile(limits::Profile::Small);
     let before = limits;

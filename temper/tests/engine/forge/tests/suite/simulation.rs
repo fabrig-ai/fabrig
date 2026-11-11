@@ -1928,7 +1928,9 @@ fn landing_subscriptions_admit_shared_watches_and_refuse_a_full_union() {
     let subscription = landing_subscription(53, b"overflow");
     let key = top::Key::Subscription { task: 53, topic: subscription.topic.clone() };
     world.event(top::Event::Subscribe { subscription });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Refused { task: 53 })));
+    assert!(world.seen().iter().any(|request| matches!(request, top::Request::ResourceRefused {
+        task: 53, cause: top::RefusalCause::Limit { member: "forge.client.resources", configured, needed }, ..
+    } if *configured == u64::from(LIMITS.client.resources) && *needed == u64::from(LIMITS.client.resources) + 1)));
     assert!(!world.stored().contains_key(&key), "a refused watch must retain no subscription");
 }
 
@@ -2741,7 +2743,7 @@ fn goals_classify_landings_from_their_subtree_heads_and_planned_paths_after_rest
     };
     world.event(top::Event::Hint { hint: hint.clone() });
     world.run_for(5);
-    for (task, expected) in [(42, top::Class::Wakes), (43, top::Class::Kept), (44, top::Class::Wakes)] {
+    for (task, expected) in [(42, top::Class::Wakes), (43, top::Class::Kept), (44, top::Class::Kept)] {
         let news: Vec<_> = world
             .seen()
             .iter()
