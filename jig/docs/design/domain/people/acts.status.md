@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [acts.md](acts.md).
 
+- **Not yet:** 1: `Talk` and `Leave` (`../tasks/standing.md`, 5.6) [in flight: change 775].
+
 - **Not yet:**  a service's credential reissued or removed. 1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
   release; a widening funded from the amender's pool.  retention; a

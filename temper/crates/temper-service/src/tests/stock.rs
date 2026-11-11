@@ -96,6 +96,7 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
                 families.delegate.0
                     | families.message.0
                     | families.control.0
+                    | families.subscribe.0
                     | families.note.0
                     | families.recall.0
                     | families.read.0
@@ -120,7 +121,7 @@ fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
         .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
     {
         assert_eq!(authority.notes, Scopes::GOAL);
-        assert_eq!(authority.tools, Tools(3975));
+        assert_eq!(authority.tools, Tools(4007));
         assert!(authority.note_resources.is_empty());
     }
     let observer = &policy.roles.iter().find(|role| role.number == 3).expect("observer").authority;
@@ -136,10 +137,8 @@ fn configure_reference_authority_allows_coordinator_tools() {
     let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = stock.policies.get(&1).unwrap().policy.clone();
     let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
-    for family in [8, 32] {
-        assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Refuse);
-    }
-    for family in [128, 256] {
+    assert_eq!(reference_call(&before, &policy.roles[0].authority, 8, Call::Tool), Answer::Refuse);
+    for family in [32, 128, 256] {
         assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Allow);
     }
     let required = reference_requirements();
@@ -549,6 +548,28 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!(template.contract, defaults.templates[0].contract);
     assert!(template.llm.is_none());
     assert!(defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(13)));
+}
+
+#[test]
+fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 13).expect("standing role charter");
+    let shared = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert!(shared.contains("Add it to my rules?"));
+    assert!(shared.contains("with `propose_settings`, your reason naming the talk"));
+    assert!(shared.contains("an owner of the deployment accepts it, and name the proposal"));
+    assert!(shared.contains("An instruction for the work at hand goes in your Now"));
+    assert!(shared.contains("A decision becomes a record"));
+    assert!(shared.contains("Open your Now with one line saying what this session has done so far"));
+    assert!(shared.contains("session's line on Team"));
+    assert!(shared.contains("write the note described `report` in your own task scope, whole, replacing last week's"));
+    assert!(shared.contains("what you spent, from your brief's period line"));
+    let first = core::str::from_utf8(&charter.parts[0].instructions).unwrap();
+    assert!(first.contains("Set a timer for Mondays at 06:00 UTC, repeating every week, for your weekly report"));
+    assert!(first.contains("say in your Now that it is set"));
+    let work = core::str::from_utf8(&charter.parts[1].instructions).unwrap();
+    assert!(work.contains("If your Now doesn't say that your weekly report's timer is set, set it"));
 }
 
 #[test]
