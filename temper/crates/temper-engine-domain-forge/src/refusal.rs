@@ -145,6 +145,23 @@ pub(crate) fn limit(
     });
 }
 
+pub(crate) fn resource_limit(
+    out: &mut skein_lib::Queue<crate::Request>,
+    task: u64,
+    operation: &'static [u8],
+    resource: Option<crate::Name>,
+    member: &'static str,
+    configured: u32,
+    needed: u64,
+) {
+    out.push(crate::Request::ResourceRefused {
+        task,
+        operation,
+        resource,
+        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
+    });
+}
+
 /// A refused forge bound, in the words of domain/forge/change/repairs.md.
 #[must_use]
 pub fn bound_words(excess: skein_forge::api::Excess) -> Box<[u8]> {
