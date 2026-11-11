@@ -55,6 +55,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         // A restore leaves out at most a proposal's application items and one project's policy
         // (domain/engine/settings.md, 10, Bounded).
         outcome_restored_left_out: jig_domain_tasks::SETTINGS_ITEMS.checked_add(1)?,
+        refusal_live_tasks_tasks: domain::NAMED_TASKS,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,

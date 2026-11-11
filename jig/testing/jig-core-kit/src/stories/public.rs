@@ -36,6 +36,7 @@ pub fn bounded_world(seed: u64, conversation: bool, watermark: u32, reads: u32) 
     eprintln!("public story seed {seed}");
     config.core.defaults.charters[0].policy.instructions = b"hidden-instructions-marker".as_slice().into();
     config.core.seed_projects[0].name = PROJECT_NAME.into();
+    config.core.grants = Box::new([people::ActGrant { connector: 1, may: Box::new([people::ActKind::RemoveProject]) }]);
     limits.core.public = core::PublicIndexLimits { goals: 2, ended: 2, lines: 4, depth: 2 };
     limits.public_reads = reads;
     limits.public_watermark = watermark;
@@ -172,8 +173,29 @@ pub fn untrack(world: &mut World, task: u64) {
 }
 
 pub fn delete(world: &mut World) {
-    let answer = ask(world, 63, people::Ask::RemoveProject { project: 1, grace: None });
-    assert!(matches!(answer, people::Reply::Outcome(people::Outcome::ProjectRemoved { .. })), "{answer:?}");
+    world.send(root::Event::Core(core::Event::Act {
+        reply_to: ReplyTo::new(Token::new(63)),
+        connector: 1,
+        key: [63; 16],
+        act: Box::new(people::Act::RemoveProject { project: 1, grace: None }),
+        carried: None,
+    }));
+    let answer = if world.manual {
+        let index = world
+            .released
+            .iter()
+            .rposition(|out| matches!(out, root::Request::Deliver(root::Delivery::Core(core::Held::Acted { .. }))))
+            .expect("manual act terminal");
+        let root::Request::Deliver(root::Delivery::Core(core::Held::Acted { outcome, .. })) =
+            world.released.remove(index)
+        else {
+            unreachable!()
+        };
+        outcome
+    } else {
+        world.act_answers.last().expect("act terminal").1.clone()
+    };
+    assert_eq!(answer, people::Outcome::ProjectRemoved { project: 1 });
 }
 
 pub mod races;

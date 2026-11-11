@@ -273,6 +273,11 @@ pub enum Refusal {
         model: super::Text,
         why: super::LlmWhy,
     },
+    /// The project's live roots, lowest first, and the remainder not named.
+    LiveTasks {
+        tasks: skein_lib::List<u64>,
+        more: u32,
+    },
 }
 
 /// The role the engine actually found held, when known.

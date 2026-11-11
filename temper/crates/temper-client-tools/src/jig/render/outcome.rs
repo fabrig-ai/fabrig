@@ -1187,6 +1187,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::Full(_)
         | c::Refusal::AccountMove { .. }
         | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::LiveTasks { .. }
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }

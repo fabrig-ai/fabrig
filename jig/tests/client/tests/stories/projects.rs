@@ -168,6 +168,41 @@ fn an_owner_removes_a_project_and_reads_its_answer_once() {
 }
 
 #[test]
+fn a_live_projects_removal_reaches_the_client_with_its_roots() {
+    let (mut world, client) = ready(true);
+    for (number, requester) in
+        [(15, c::Requester::Person(PARTY)), (14, c::Requester::Task(12)), (12, c::Requester::Person(PARTY))]
+    {
+        let mut task = stories::task();
+        task.chip.task = number;
+        task.requester = requester;
+        task.flags.conversation = number == 12;
+        world
+            .front()
+            .engine
+            .act(
+                Time::ZERO,
+                Wall::EPOCH,
+                Change::Object {
+                    project: PROJECT,
+                    key: c::ObjectKey::Task(number),
+                    value: c::ReadValue::Task(Box::new(task)),
+                },
+            )
+            .unwrap();
+    }
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT, grace: None });
+    settle(&mut world);
+    let mut tasks = skein_lib::List::with_capacity(2);
+    tasks.push(12).unwrap();
+    tasks.push(15).unwrap();
+    assert_eq!(answer(&mut world), c::Answer::Refused { refusal: c::Refusal::LiveTasks { tasks, more: 0 }, at: None });
+    assert!(world.root(client).client().pending(key).is_none(), "the client received the refusal");
+    assert!(frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
+    assert!(world.front().engine.truth().objects.contains_key(&c::ObjectKey::Task(12)));
+}
+
+#[test]
 fn a_remove_project_kept_across_a_restart_is_answered_once() {
     let (mut world, client) = ready(true);
     world.fault(FrontFault::NoAnswer);

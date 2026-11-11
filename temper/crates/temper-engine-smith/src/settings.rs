@@ -552,6 +552,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         | Refusal::Full { .. }
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
+        | Refusal::LiveTasks { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
         | Refusal::Kept { .. }
