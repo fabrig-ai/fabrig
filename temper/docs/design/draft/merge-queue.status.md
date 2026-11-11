@@ -17,4 +17,4 @@ Nothing of this draft is designed or built yet: its execution file's milestones 
   - 11: `../domain/landing.md`, 13.1's gate definition doesn't say whether a gate reads the base, nor gives a dispatch the base.
   - 12: `../testing/process-tier.md` has neither story: a queue that lands green, a red narrowed.
 - **Design departs:** none yet.
-- **Open:** none. The user's word of 2026-11-11: `batch` 4 for this project once batches are built, a setting to change as needed.
+- **Open:** none.

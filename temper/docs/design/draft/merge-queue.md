@@ -1,6 +1,6 @@
 # merge-queue: landing by turn as a merge queue
 
-`turn` (`../domain/landing.md`) already proves a candidate, main's tip with a change on top, and fast-forwards main to exactly that commit. This draft makes it a merge queue: one landing per train at a time, a batch of the changes ready when it forms, stacked by merges, one proof at the top, a red narrowed by prefixes, and the proved green prefix landed. It is written for a project of one repository at twenty goals in flight, each landing proved by the project's full suites, and changes as little of `turn` as it can.
+`turn` (`../domain/landing.md`) already proves a candidate, main's tip with a change on top, and fast-forwards main to exactly that commit. This draft makes it a merge queue: one landing per train at a time, a batch of the changes ready when it forms, stacked by merges, one proof at the top, a red narrowed by prefixes, and the proved green prefix landed. It changes as little of `turn` as it can.
 
 ## 1. In one page
 
@@ -17,11 +17,10 @@
 - **Built in `turn`:** a landing task per ready change; prepare by the forge's rebase onto main's tip (`../domain/landing.md`, 5.2); keys and receipts (6); gates dispatched at the candidate, runner faults retried (7.1, 7.4); the turn, a fast-forward of main (8); restart recovery (15); views.
 - **Designed in `turn`, not built:** several members in one repository, prepared by a job (4.1, 5.3); a project's prepare and key commands.
 - **What keeps `turn` from being a queue:**
-  - **Proofs run side by side** (7.2) and the first proved lands first (9): at twenty ready changes, each proves at once, one lands, and the rest go stale and prove again, twenty, then nineteen, and so on.
+  - **Proofs run side by side** (7.2) and the first proved lands first (9): with n ready changes, each proves at once, one lands, and the rest go stale and prove again: n, then n-1, and so on.
   - **Independent changes never share a landing:** members join only by `with` or a dependency, and two live landings never merge (4.1).
   - **A red with several members in a repository** cannot say which member caused it (7.3).
   - **The forge's rebase replays a goal's branch** commit by commit: a branch that took its changes and main by merges meets again, at each landing, the conflicts its merges settled.
-- **What the project needs** (2026-11-11, at ten to seventeen goals): a goal ready to land every eight to eleven minutes at twenty goals; a full proof of four to five minutes, one at a time on a shared host; one red in about seventeen landings, by a previous batching queue's record on this repository; a quarter of goals meeting a conflict with main.
 
 ## 3. Trains
 
@@ -178,7 +177,7 @@ Focused and fuzzy suites alone, in the forge world and the engine's domain stori
 
 Each is written and compiled in its milestone, the first in M2 and the second in M3, and runs in the process tier after it lands.
 
-After landing, on a staging deployment before the project's own: goals land through it at the project's volume.
+After landing, on a staging deployment: goals land through it at a realistic volume.
 
 ## 13. Later
 
