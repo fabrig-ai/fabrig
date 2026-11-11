@@ -128,7 +128,7 @@ Design documents:
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
 Drafts:
-- [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
+- [`draft/agent-binary.md`](draft/agent-binary.status.md) — completion and draft fate: `draft/agent-binary.status.md`.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)

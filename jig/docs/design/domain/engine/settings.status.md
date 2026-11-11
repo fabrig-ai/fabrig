@@ -1,28 +1,18 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
 - **Not yet:** 12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
   adds the visible accounts' largest `left_out` to each project's count.
-  Settings can therefore keep the old count until another Frame mark.
+  Settings can therefore keep the old count until another Frame mark. The field is computed correctly on a fresh read.
   The mark table has no row for this case; this finding is by reading,
   with no runtime result supplied. No reason for the omission is recorded.
 
-- **Not yet:**  runs on the engine's own slots under
-  `smith-inline-agent`; the engine hub's hello before placement; the
-  two-claim placement balance.  the remaining point-load fences.
-   the brief's lineage, calls and waiting sections.  what a
-  turn's calls made, written beside the turn.  the tools `move`, `succeed`,
-  `hold` and `lift`.
-   core-world stories that opt out of the restart
-  oracle with a named finding (`broken()` in `jig/tests/core`), most for
-  a claim the start settles (6, step 3) changing a task's `chip`, `acts`
-  or run `settings`, which the projection keeps durable, others for a
-  frame's `needs` with a person proposal left pending and
-  `Deployment.messages` advancing on a retried deadline; the core
-  world's `world` and `direct` drivers run no oracle.
+- **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
+   the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
+   the restart-oracle gaps remain `../testing.status.md`, 9.
   6: pending reasons admitted past `people.words` are cut at that bound
   in the review, with loss stated; no continuation is served.
   6: a
@@ -53,31 +43,12 @@
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
 
-- **Not yet:** 6: the whole project-deletion commit has no
-  established admission price against `journal.writes`, because the
-  established allowance covers settings-proposal withdrawals alone,
-  excluding the remaining state writes, closing the project and cancellation
-  operations. No reason is recorded.
+- **Not yet:** 6: the project-deletion admission price remains `README.status.md`, 5.1.
 
-- **Departs:**  `Core::new` without a start is ready, because the
-  core's unit fixtures need no start; every root starts it.
-   the core's answers to parties cross the engine's client translation
-  with optional refusal and ending facts always empty; the fields and
-  the choice to fill them or drop them in a client wire version are in
-  `jig/docs/design/client/domain/contract/README.status.md`; no reason is recorded.
-   the root interface has no text for public `Core::effect_owner` and
-  `application_part_request`
-  (`jig-domain-core/src/routing/flight.rs`), `call_room`
-  (`jig-domain-core/src/runs/calls.rs`), or `next_finishing_deadline` and
-  `finishing_due` (`jig-domain-core/src/routing/timers.rs`), which the test
-  service uses; no reason is recorded.
-   children's timers arrive through `fire`, but the section has no
-  text on how many due children a pass fires.
-  `jig-domain-core/src/routing/timers.rs`, `due`, returns one `Timer`, the
-  first due child in people, tasks, fleet, brief and accounts order;
-  `temper-engine-domain/src/domain.rs`, `fire_routed`, fires it once per
-  pass, and `jig-test-service/src/engine.rs`, `fire`, also fires one;
-  no reason is recorded.
+- **Departs:**  the unstarted-core departure remains `restart.status.md` (Departs, the whole document).
+   the optional-answer facts departure remains `jig/docs/design/client/domain/contract/README.status.md`, 3.
+   the undocumented root methods remain `README.status.md`, 4.
+   the child-timer departure remains `README.status.md`, 4.1.
   2, 6, 8: accepting proposed settings rechecks the change and
   refuses it as full, leaving it pending, if held revisions or charter
   versions would pass their limits. With one charter slot, the acceptance
@@ -86,3 +57,10 @@
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+
+- **Design departs:** 6, from the request `ui-walk-large` of 2026-11-06, decided by
+  its plan's cut: that request has a proposal of settings' project set when it is
+  made, and the core works its `projects` out at each read, because its items never
+  change once it is made, so the value is the same and no stored format moves. That
+  request has it show in each project it touches and in every project whose owner can
+  decide it; a row names the lowest 32, the bound of that list on the client's wire.

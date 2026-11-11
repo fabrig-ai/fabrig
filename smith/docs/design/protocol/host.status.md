@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-10. Where smith's code lags or departs from [host.md](host.md).
+2026-11-11. Where smith's code lags or departs from [host.md](host.md).
 
 Section 2 has no known gap in carrying a usable program check's optional
 email alongside its state.
@@ -15,3 +15,5 @@ after the child settles, without taking a run slot.
 
 Section 5.3 retains version-7 opening context in its bounded turn body;
 version-6 local layout fingerprints keep the existing older-store refusal.
+
+- **Departs:** the local host sets one token tag by hand.

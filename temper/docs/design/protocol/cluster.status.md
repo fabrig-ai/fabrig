@@ -1,6 +1,6 @@
 # cluster: status
 
-2026-11-10. Where the tree's code lags or departs from [cluster.md](cluster.md).
+2026-11-11. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
 - **Not yet:** 6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration
@@ -10,7 +10,7 @@
   proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
   lost-worker, hung-worker and late-worker boundary stories remain.
 
-- **Departs:**  a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper-box forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge/engine.status.md`, 8).  `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 5, 6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
+- **Departs:**  the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `README.status.md`, 4 and 5. 5, 6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
 
 `binaries.md`, section 2's `temper-engine` is present, with `binaries.md`, 1's rules: its
 table of `help`, `serve`, `versions`, the forge's six verbs and

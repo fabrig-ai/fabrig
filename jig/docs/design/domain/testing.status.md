@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-11. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
@@ -55,3 +55,11 @@ observation and world-cost work.
   counting allocator and their fuzzy exercises use seeds, but
   `jig/tests/brief/src/world.rs` and `jig/tests/notes/src/world.rs` step
   without the heap check. No reason is recorded.
+
+- **Not yet:** 9: core-world stories that opt out of the restart
+  oracle with a named finding (`broken()` in `jig/tests/core`), most for
+  a claim the start settles (`engine/README.md`, 6, step 3) changing a task's `chip`, `acts`
+  or run `settings`, which the projection keeps durable, others for a
+  frame's `needs` with a person proposal left pending and
+  `Deployment.messages` advancing on a retried deadline; the core
+  world's `world` and `direct` drivers run no oracle.

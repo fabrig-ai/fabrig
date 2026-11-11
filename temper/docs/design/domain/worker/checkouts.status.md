@@ -95,3 +95,6 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   section 3's settings hold off; those settings do not hold off a filter driver
   or a URL rewrite (`../../protocol/git.md`, 10). That is acceptable only for one
   trusted person.
+
+Under those settings real git ran no `post-checkout` hook and did run a
+filter driver (the `worker-slots` cut, 2026-11-05).

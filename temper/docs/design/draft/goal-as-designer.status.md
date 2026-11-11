@@ -1,6 +1,6 @@
 # goal-as-designer: status
 
-2026-11-10. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
+2026-11-11. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
 
 Section 8's first/later choice is carried by `per-wake.md`, section 5
 and `../protocol/configuration/reference.md`: template 4 chooses xhigh
@@ -21,9 +21,7 @@ section 5. The reference takes the permitted 63,740-byte fallback after
 `turn-in-transcript` refuses the larger pair. Its charter allowance is
 127,480, below the hub's 262,144: a whole fallback-sized spec fits,
 and a 131,072-byte section is cut at the worker. The fake-program table
-reaches 100,000 bytes; the 131,072-byte fake case and the live story's
-runtime result remain unestablished (`smith/docs/design/protocol/limits.status.md`,
-section 11). The stock's figures stay as they are.
+reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/design/protocol/limits.status.md`, 11. The stock's figures stay as they are.
 
 - **Design lags:**
   - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/tools/stage-one/`), so folding this in changes their inputs.

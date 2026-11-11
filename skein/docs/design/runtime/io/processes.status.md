@@ -1,7 +1,6 @@
 # processes: status
 
-2026-11-10. Where the tree's code lags or departs from [processes.md](processes.md).
+2026-11-11. Where the tree's code lags or departs from [processes.md](processes.md).
 
-- **Not yet:**  a tree's metadata, the filesystem's status and sync, and
-  btrfs's subvolumes (`StatEntry` to `SubvolumePath`). the whole document:
+- **Not yet:**  the metadata and filesystem operations remain `files.status.md` (Not yet, the whole document). the whole document:
   cgroups and contained trees.

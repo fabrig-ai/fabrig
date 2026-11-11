@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-08. How far temper's client is from its mockups
+Revised 2026-11-11. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -150,9 +150,7 @@ Where the client does otherwise:
   be its charter's default, which the client is not given. The gallery
   draws `gpt-6.1-sol` where its facts serve it. Opening focus is built
   in both shells; the static gallery omits focus by its contract
-  (`../web/gallery.md`, 1). Before the chats' rows arrive, or when the
-  Ask temper chat is past the watch's window, the rail's link opens the
-  page before its first words (`../pages/README.status.md`). A proposal
+  (`../web/gallery.md`, 1). The first-chat selection gap remains `../forge/records.status.md` (Departs, The first chat). A proposal
   review's "Change
   something" awaits the client's proposal view
   (`../pages/README.status.md` and `../pages/settings.status.md`, 2).
@@ -276,7 +274,6 @@ The paste’s gallery is below [Connect a model](connect-model.html?world=first-
 | `done` | `#paste-done` | Ready, “Signed in to ChatGPT”, using the existing return’s drawing |
 
 The earlier first-run mockup, a story of its own, also drew "Reset demo", a turn's "Just now", the composer's placeholder, "Landed into main" and the pull request's link on the card. The client leaves each out (`../README.md`, section 5), and so does this world.
-
 
 ### 2.5 Chats, a chat, Accounts and the inbox
 

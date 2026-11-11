@@ -1,6 +1,6 @@
 # The store: status
 
-2026-11-05. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2.1, 2.2, 2.3, 4.1, 4.2: layers as read-only btrfs
   subvolumes, the empty layer's root ownership, and the on-disk snapshot,
@@ -49,9 +49,7 @@
   and cgroup prerequisites; recording the range before the first layer
   and refusing a different range. The store record's codec carries a
   range, but startup checks only the layout and uid.
-- **Not yet:** 3.4: subtree digests and the packages layer's boot
-  digests. The tree codec carries `boot`; the walk copies its parent's
-  list and gives an empty list with no parent.
+- **Not yet:** 3.4: the tree-record digest gaps remain `records.status.md`, 3.
 - **Departs:** 5.1: unsettled: `records.md`, 2 allows a reconciled packages
   layer's base to be collected while its descendants are kept; 5.1
   makes that base an ancestor held by a descendant's pin. Section 10

@@ -42,7 +42,7 @@
   - 6: `../client/pages/team.md`, 1 holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
-    areas on their box, a role's card or "Hand an area to a role"
+    areas on their box, a role's card or report, or "Hand an area to a role"
     (`standing-roles.md` has no design yet either), and its lede counts
     the people alone. This section has the triager as Who routes, a chip
     under the areas, where `../client/pages/team.md`, 1 has a line at
@@ -150,9 +150,8 @@
     by the change 20 min ago"; and a left-off row's time today as the
     view's clock, "18:40", where it has "today 18:40". Decided by the cut
     of `tui-whole-t1`, whose list of the launchpad's departures from its
-    mockups names neither. The code also lacks the blank row under the
-    header that the mockups and the design draw
-    (`../client/tui/pages/README.status.md`).
+    mockups names neither. The blank header-row code gap remains `../client/tui/pages/launchpad.status.md`, 1.
+
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
