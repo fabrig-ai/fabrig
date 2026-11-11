@@ -86,6 +86,10 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     outputs(&mut d, Event::SettleOutbox);
     fixtures::step_change(&mut d);
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    // With neither a recorded pull nor a pushed head, no history is read.
+    if !known && !pushed {
+        return d;
+    }
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     let mut pull = fixtures::open_pull();
     pull.state = State::Closed;

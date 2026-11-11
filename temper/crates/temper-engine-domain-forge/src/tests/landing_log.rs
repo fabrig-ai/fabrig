@@ -74,6 +74,7 @@ fn a_pull_seen_merged_is_logged() {
         merge_job: false,
         pending: Box::new([]),
         branch: Some(HEAD),
+        branch_fresh: false,
         base_tip: Some(FIRST),
         pull: Some(pull),
         ci: change::Status::Passed,
