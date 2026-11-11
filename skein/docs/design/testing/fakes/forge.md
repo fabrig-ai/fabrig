@@ -172,6 +172,13 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   whose base lacks it, or a repository whose settings allow no manual
   merge, is refused (`Refused`). A record repeated at the same commit on
   a pull request it merged answers `Merged` again.
+- **Manual merges,** two settings of a repository, each off unless a
+  world sets it, as Forgejo's: `allow_manual_merge` admits a record;
+  `autodetect_manual_merge` marks an open pull request merged once its
+  base branch, moved by any write, contains its head, merged at the
+  first merge commit on the ancestry path from its head to the base's
+  tip, or at its head where there is none (a fast-forward), as Forgejo's
+  detection reads it. Nothing else of the pull request moves.
 - **Trees:** every commit's tree is read through `Read::Tree`, its
   entries in name order, paged.
 - **A run's report:** a workflow may name failing tests by id (`fails:
