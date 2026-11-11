@@ -26,7 +26,7 @@ pub use boundary::{
 pub use call::{CallKey, call_key, call_name};
 pub use charter::charter;
 pub use encode::{EndpointName, encode};
-pub use hosted::{RootParts, hosted, message};
+pub use hosted::{RootParts, hosted, message, now_title};
 pub use identity::run_identity;
 pub use result::{Field, RunResult, Unreadable, result};
 pub use smith_domain_run::Mode;

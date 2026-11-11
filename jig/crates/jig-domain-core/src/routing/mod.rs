@@ -288,6 +288,7 @@ pub(crate) enum NoteRoute {
     Person { request: Token },
     Brief { task: u64 },
     Preferences { task: u64 },
+    Now { task: u64 },
 }
 
 /// One brief's wait within the existing `limits.brief.briefs` table.

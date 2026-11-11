@@ -441,22 +441,13 @@ impl Domain {
         numbers.into_boxed()
     }
 
-    /// Current subscribed top-level connector procedures eligible for period renewal.
+    /// Live standing root agents and subscribed root procedures eligible for period renewal.
     #[must_use]
     pub fn standing_tasks(&self, project: u32) -> Box<[u64]> {
         let mut numbers = List::with_capacity(self.names.capacity());
         for (number, _) in &self.names {
             let row = record(self, *number).expect("live name");
-            let procedure = match row.executor {
-                crate::Executor::Procedure { .. } => true,
-                crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
-            };
-            if row.project == project
-                && row.root == *number
-                && procedure
-                && row.recurring.is_none()
-                && !row.subscriptions.is_empty()
-            {
+            if row.project == project && crate::standing::eligible(row) {
                 numbers.push(*number).expect("one identity per task");
             }
         }

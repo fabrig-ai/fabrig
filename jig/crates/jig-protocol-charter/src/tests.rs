@@ -925,6 +925,31 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
 }
 
 #[test]
+fn hosted_titles_a_now_with_its_note_revision_and_write_time() {
+    let mut value = hosted_fixture();
+    value.brief = Box::new([jig_domain_brief::GatherPlaced::Core {
+        kind: jig_domain_brief::Core::Now,
+        text: b"Note 12, revision 3, written at 123 ns since Unix epoch.\nWrite your Now before you park.\n\nWaiting"
+            .as_slice()
+            .into(),
+    }]);
+    let result = crate::hosted(
+        &value,
+        crate::RootParts {
+            tools: Box::new([]),
+            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+            deployment: &[3; 16],
+            limits: &wire::CEILINGS,
+        },
+    )
+    .expect("hosted Now");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
+    let [section] = decoded.brief().as_slice() else { panic!("one Now") };
+    assert_eq!(section.title(), b"Now: Note 12, revision 3, written at 123 ns since Unix epoch.");
+    assert!(section.body().ends_with(b"Waiting"));
+}
+
+#[test]
 fn hosted_refuses_a_connector_section_without_its_bytes() {
     let mut value = hosted_fixture();
     value.brief = Box::new([jig_domain_brief::GatherPlaced::Connector {

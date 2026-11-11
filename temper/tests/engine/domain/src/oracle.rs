@@ -259,6 +259,7 @@ impl Driver {
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }

@@ -7,10 +7,10 @@ fn engine() -> crate::Engine {
 #[test]
 fn a_start_requires_room_for_the_cores_sections_and_charter_documents() {
     for (documents, sections, admitted, overrides) in [
-        (0, 6, false, br#""tasks.charter_documents":0,"brief.sections":6"#.as_slice()),
-        (0, 7, true, br#""tasks.charter_documents":0,"brief.sections":7"#),
-        (2, 8, false, br#""tasks.charter_documents":2,"brief.sections":8"#),
-        (2, 9, true, br#""tasks.charter_documents":2,"brief.sections":9"#),
+        (0, 7, false, br#""tasks.charter_documents":0,"brief.sections":7"#.as_slice()),
+        (0, 8, true, br#""tasks.charter_documents":0,"brief.sections":8"#),
+        (2, 9, false, br#""tasks.charter_documents":2,"brief.sections":9"#),
+        (2, 10, true, br#""tasks.charter_documents":2,"brief.sections":10"#),
     ] {
         let prefix = br#"{"profile":"small","overrides":{"#;
         let mut limits =

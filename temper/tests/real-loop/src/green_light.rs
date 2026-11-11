@@ -97,7 +97,7 @@ pub fn fixture() -> forge::Fixture {
                 ("tasks.result_bytes", 512),
                 ("documents.text_bytes", 2048),
                 ("documents.lines", 32),
-                ("brief.sections", 9),
+                ("brief.sections", 10),
             ] {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }

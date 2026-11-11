@@ -1,23 +1,48 @@
-//! Period renewal for subscribed top-level procedures (domain/tasks/README.md, section 5;
-//! domain/authority.md, section 7). Old delegates keep their old-period source.
+//! Period renewal for standing root tasks (domain/tasks/standing.md, section 4;
+//! domain/tasks/README.md, section 5; domain/authority.md, section 7).
+//! Old delegates keep their old-period source.
 use crate::domain::{Domain, publish, record, task_mut};
-use crate::{Executor, Funder, FundingRecord, Limits, Numbers, Phase, Request};
+use crate::{EndedBy, Executor, Funder, FundingRecord, Hold, Limits, Numbers, Phase, Request, TaskRecord};
 use skein_lib::{Env, List, Queue};
 
-pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period: u64, out: &mut Queue<Request>) {
-    if !domain.ready() || period == 0 {
-        return;
-    }
-    let Some(task) = record(domain, number) else { return };
-    let procedure = match task.executor {
-        Executor::Procedure { .. } => true,
-        Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => false,
+pub(crate) fn eligible(task: &TaskRecord) -> bool {
+    let standing = match task.executor {
+        Executor::Procedure { .. } => !task.subscriptions.is_empty(),
+        Executor::Agent { .. } => task.flags.ended_by == EndedBy::Standing,
+        Executor::Person(_) | Executor::Job { .. } => false,
     };
     let live = match task.phase {
         Phase::Waiting | Phase::Active(_) | Phase::Held { .. } => true,
         Phase::Closing(_) | Phase::Ended(_) => false,
     };
-    if !procedure || !live || task.root != number || task.recurring.is_some() || task.subscriptions.is_empty() {
+    standing && live && task.root == task.number && task.recurring.is_none()
+}
+
+pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    let task = record(domain, number).expect("answered task live");
+    if task.flags.ended_by != EndedBy::Standing {
+        return;
+    }
+    let mut latest = 0;
+    for (source, _) in &domain.funding {
+        match *source {
+            Funder::Period { project, period } if project == task.project => latest = latest.max(period),
+            Funder::Task(_) | Funder::Pool { .. } | Funder::Recurring { .. } | Funder::Period { .. } => {}
+        }
+    }
+    renew(domain, env, number, latest, out);
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "renewal preflights then transfers one period's funding and releases its budget hold atomically"
+)]
+pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period: u64, out: &mut Queue<Request>) {
+    if !domain.ready() || period == 0 {
+        return;
+    }
+    let Some(task) = record(domain, number) else { return };
+    if !eligible(task) {
         return;
     }
     let project = task.project;
@@ -35,6 +60,7 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
     let reserved = task.numbers.reserved;
     let made = task.made;
     if task.run_reserved != 0
+        || crate::run::run_attempt(&task.phase).is_some()
         || domain.funding.contains_key(&archived)
         || domain.funding.len() == domain.funding.capacity()
         || match spent.checked_add(reserved) {
@@ -63,6 +89,21 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
             return;
         }
     }
+    let release = match task.phase {
+        Phase::Held { why: Hold::Budget, .. } => {
+            match crate::control::check_release(
+                domain,
+                &crate::compound::Staged::new(0),
+                env,
+                task.requester,
+                crate::Release { task: number, again: None, message: None },
+            ) {
+                Ok(plan) => Some((task.requester, plan)),
+                Err(_) => return,
+            }
+        }
+        Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Closing(_) | Phase::Ended(_) => None,
+    };
     let ledger = FundingRecord {
         funder: archived,
         parent: Some(old),
@@ -95,6 +136,9 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
     task.funder = fresh;
     task.numbers = Numbers { budget, spent: 0, spent_below: 0, reserved: 0 };
     task.made = 1;
-    publish(domain, env, number, out);
+    match release {
+        Some((by, plan)) => crate::control::apply_release(domain, env, by, plan, out),
+        None => publish(domain, env, number, out),
+    }
     crate::funders::retire(domain, out);
 }
