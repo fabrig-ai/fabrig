@@ -1,6 +1,16 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+
+- **Not yet:** 2, *A landing rule's value* and *Judged by the forge*:
+  a rule has no `sets`, so its bound counts none and the forge refuses
+  no set [in flight: change 202].
+- **Not yet:** 2, *Kept by the forge*: a commit changing a project's
+  classes' sets steps no live change; kinds 1 and 2 alone wake them
+  [in flight: change 206].
+- **Not yet:** 3, *Judged over the rules the forge holds then*: a rule
+  covers a change by its branch alone, never by the paths it touches
+  at the merge's head [in flight: change 206].
 
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

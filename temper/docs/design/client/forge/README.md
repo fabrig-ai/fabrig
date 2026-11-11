@@ -312,7 +312,9 @@ its own:
     yours, so your review wouldn't count.", "GitHub" on GitHub. Another role:
     "It waits for a review by ROLE; yours wouldn't count.", ROLE as above.
 - **Its acts:** where the viewer's review would count and the card has an
-  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", in
+  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", or,
+  for a row with `sets`, "Sign off on Forgejo ↗" or "Sign off on GitHub ↗"
+  (`../../draft/what-reaches-you.md`, section 7), in
   `.choices`, a link opening the review in a new tab; otherwise no primary, so
   an owner still sees a wait nobody can end and is never sent to a review that
   would come back unknown. Then the pair: "Open", to the change's `Task { task

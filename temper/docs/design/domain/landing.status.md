@@ -1,11 +1,14 @@
 # landing: status
 
-2026-11-09. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-11. Where temper's code lags or departs from [landing.md](landing.md).
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
 
+- **Not yet:** 8: the turn's merge of a member reads no comparison of
+  main's tip and its candidate, so a rule by path covers every member
+  [in flight: change 208].
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 16: the real-process story
