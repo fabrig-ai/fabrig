@@ -497,6 +497,17 @@ pub(super) fn status(world: &mut World, head: u64, state: raw::Check) {
         ),
         raw::Answer::Done
     );
+    // Scripted CI ends deliver their commit's news; a status written as the
+    // worker alone sends no fake Actions delivery and would await fallback.
+    if matches!(state, raw::Check::Passed | raw::Check::Failed) {
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: forge_world::REPO,
+                change: skein_forge::api::Change::Commit(translate::commit(head)),
+                key: None,
+            },
+        })));
+    }
 }
 
 pub(super) fn ended(world: &World, task: u64) -> Option<&tasks::TaskRecord> {

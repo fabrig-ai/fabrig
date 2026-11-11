@@ -28,14 +28,7 @@ impl Settle {
     }
 
     /// First reads open no window: only a prior base read detects a move.
-    pub(crate) fn fold(
-        mut self,
-        now: Wall,
-        own: Wall,
-        settle: Duration,
-        moving: bool,
-        base: Option<Commit>,
-    ) -> Settle {
+    pub(crate) fn fold(mut self, now: Wall, own: Wall, settle: Duration, moving: bool, base: Option<Commit>) -> Settle {
         if self.base.is_some() && self.base != base {
             self.since = Some(now);
         }
@@ -69,13 +62,12 @@ pub(crate) fn hinted(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api:
     }
 }
 
-/// Fold the fresh pull and CI before constructing this step's facts.
+/// Fold the fresh pull before constructing this step's mergeability facts.
 pub(crate) fn observe(
     d: &mut Domain,
     env: &Env<Limits>,
     row: &ChangeRow,
     pull: Option<&skein_forge::api::Pull>,
-    _ci: change::Status,
     base_tip: Commit,
 ) {
     let (moving, base) = match pull {

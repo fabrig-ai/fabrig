@@ -56,11 +56,21 @@ fn checks_resolve_linked_jobs_independently_of_check_state() {
 }
 #[expect(clippy::disallowed_macros, reason = "wire fixtures vary status states and job links")]
 fn page(rows: &[(&str, &str)], total: u64) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(4096);
-    out.put(format!(r#"{{"state":"pending","total_count":{total},"statuses":["#).as_bytes()).unwrap();
+    let head = format!(r#"{{"state":"pending","total_count":{total},"statuses":["#);
+    let mut encoded = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    let mut size = head.len().saturating_add(2);
     for (index, (state, link)) in rows.iter().enumerate() {
-        if index > 0 { out.put(b",").unwrap(); }
-        out.put(format!(r#"{{"creator":null,"updated_at":"1970-01-01T00:00:00Z","context":"build","status":"{state}","description":"CI","target_url":"{link}"}}"#).as_bytes()).unwrap();
+        let row = format!(r#"{{"creator":null,"updated_at":"1970-01-01T00:00:00Z","context":"build","status":"{state}","description":"CI","target_url":"{link}"}}"#).into_bytes().into_boxed_slice();
+        size = size.saturating_add(row.len()).saturating_add(usize::from(index > 0));
+        encoded.push(row).unwrap();
+    }
+    let mut out = skein_lib::Writer::new(size);
+    out.put(head.as_bytes()).unwrap();
+    for (index, row) in encoded.iter().enumerate() {
+        if index > 0 {
+            out.put(b",").unwrap();
+        }
+        out.put(row).unwrap();
     }
     out.put(b"]}").unwrap();
     out.finish()
@@ -68,28 +78,34 @@ fn page(rows: &[(&str, &str)], total: u64) -> Box<[u8]> {
 
 #[test]
 fn statuses_of_one_run_share_its_lookup_and_each_take_their_own_job() {
-    let mut run = Run::with_limits(fixtures::profile_limits(), fixtures::BOUNDS, Op::Read(Read::Checks { commit: HEAD }));
+    let mut run =
+        Run::with_limits(fixtures::profile_limits(), fixtures::BOUNDS, Op::Read(Read::Checks { commit: HEAD }));
     run.begin();
     let second_link = "/fixture/specimen/actions/runs/5/jobs/1";
     run.answer(200, &page(&[("pending", LINK), ("success", second_link)], 2));
     run.answer(200, &page(&[], 2));
     run.answer(200, RUNS);
     let jobs = br#"[{"id":1,"run_id":7,"attempt":3},{"id":92,"run_id":7,"attempt":4}]"#;
-    assert_eq!(run.answer(200, jobs), Step::Done(Ok(Answer::Checks(Box::new([
-        status(api::Check::Pending, LINK, Some(ATTEMPT)),
-        status(api::Check::Passed, second_link, Some(api::JobAttempt { job: 92, attempt: 4, ..ATTEMPT })),
-    ])))));
+    assert_eq!(
+        run.answer(200, jobs),
+        Step::Done(Ok(Answer::Checks(Box::new([
+            status(api::Check::Pending, LINK, Some(ATTEMPT)),
+            status(api::Check::Passed, second_link, Some(api::JobAttempt { job: 92, attempt: 4, ..ATTEMPT })),
+        ]))))
+    );
     let [runs, jobs] = LOOKUPS;
     run.assert_sent(&[
         "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",
         "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=2&limit=2",
-        runs, jobs,
+        runs,
+        jobs,
     ]);
 }
 
 #[test]
 fn linked_runs_are_read_once_each_in_first_status_order() {
-    let mut run = Run::with_limits(fixtures::profile_limits(), fixtures::BOUNDS, Op::Read(Read::Checks { commit: HEAD }));
+    let mut run =
+        Run::with_limits(fixtures::profile_limits(), fixtures::BOUNDS, Op::Read(Read::Checks { commit: HEAD }));
     run.begin();
     let other = "/fixture/specimen/actions/runs/8/jobs/0";
     run.answer(200, &page(&[("success", other), ("pending", LINK)], 3));
@@ -97,11 +113,14 @@ fn linked_runs_are_read_once_each_in_first_status_order() {
     run.answer(200, br#"{"total_count":1,"workflow_runs":[{"id":99,"index_in_repo":8,"commit_sha":"0100000000000000000000000000000000000000"}]}"#);
     run.answer(200, br#"[{"id":82,"run_id":99,"attempt":2}]"#);
     run.answer(200, RUNS);
-    assert_eq!(run.answer(200, JOBS), Step::Done(Ok(Answer::Checks(Box::new([
-        status(api::Check::Passed, other, Some(api::JobAttempt { run: 99, job: 82, attempt: 2, ..ATTEMPT })),
-        status(api::Check::Pending, LINK, Some(ATTEMPT)),
-        status(api::Check::Failed, other, Some(api::JobAttempt { run: 99, job: 82, attempt: 2, ..ATTEMPT })),
-    ])))));
+    assert_eq!(
+        run.answer(200, JOBS),
+        Step::Done(Ok(Answer::Checks(Box::new([
+            status(api::Check::Passed, other, Some(api::JobAttempt { run: 99, job: 82, attempt: 2, ..ATTEMPT })),
+            status(api::Check::Pending, LINK, Some(ATTEMPT)),
+            status(api::Check::Failed, other, Some(api::JobAttempt { run: 99, job: 82, attempt: 2, ..ATTEMPT })),
+        ]))))
+    );
     let [runs, jobs] = LOOKUPS;
     run.assert_sent(&[
         "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",

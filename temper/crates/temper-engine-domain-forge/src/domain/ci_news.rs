@@ -1,7 +1,10 @@
 //! Commit-only fresh reads and counted job ends (domain/forge/keeping-up.md, 2).
-use super::*;
-use skein_forge::api::{self, Check, Ci, Commit, Repository as Provider, Status};
+use super::{Domain, Duration, Env, Limits, List, Queue, Request, ci_refresh, hints};
+use skein_forge::api::{Check, Ci, Commit, Repository as Provider, Status};
 use skein_lib::Time;
+#[cfg(test)]
+#[path = "../tests/ci_news.rs"]
+mod tests;
 
 #[derive(Hash, Debug)]
 pub(super) struct Watch {
@@ -14,9 +17,24 @@ pub(super) struct Watch {
     reading: bool,
 }
 
-fn due(at: Option<Time>, now: Time) -> bool { match at { Some(at) => at <= now, None => false } }
-fn shown(target: Option<u32>, count: u32) -> bool { match target { Some(target) => count >= target, None => false } }
-fn earlier(at: Option<Time>, next: Time) -> Time { match at { Some(at) => at.min(next), None => next } }
+fn due(at: Option<Time>, now: Time) -> bool {
+    match at {
+        Some(at) => at <= now,
+        None => false,
+    }
+}
+fn shown(target: Option<u32>, count: u32) -> bool {
+    match target {
+        Some(target) => count >= target,
+        None => false,
+    }
+}
+fn earlier(at: Option<Time>, next: Time) -> Time {
+    match at {
+        Some(at) => at.min(next),
+        None => next,
+    }
+}
 
 fn concluded(rows: &[Status]) -> u32 {
     let mut count = 0_u32;
@@ -41,24 +59,63 @@ pub(super) fn observe(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit
         }
         return;
     }
-    // Keep only dependencies this change still recognises, including its in-flight gather.
+    // Keep only live dependencies, including facts from an in-flight gather.
     let mut old = List::with_capacity(d.ci_news.len());
     for ((owner, commit), _) in &d.ci_news {
-        if *owner == task && let Some(row) = d.changes.get(owner) {
-            let hint = api::Hint { repository: row.repository, change: api::Change::Commit(*commit), key: None };
-            if !hints::concerns(d, row, &hint) { old.push((*owner, *commit)).expect("sized from watches"); }
+        let stale = match d.changes.get(owner) {
+            Some(row) => row.terminal() || (*owner == task && !hints::known_commit(d, row, *commit)),
+            None => true,
+        };
+        if stale {
+            old.push((*owner, *commit)).expect("sized from watches");
         }
     }
-    for key in &old { d.ci_news.remove(key); }
-    d.ci_news.insert(key, Watch { status, concluded: concluded(rows), target: None, end: None, due: None,
-        delay: env.limits.client.hinted, reading: false }).expect("live change dependencies");
+    for key in &old {
+        d.ci_news.remove(key);
+    }
+    d.ci_news
+        .insert(
+            key,
+            Watch {
+                status,
+                concluded: concluded(rows),
+                target: None,
+                end: None,
+                due: None,
+                delay: env.limits.client.hinted,
+                reading: false,
+            },
+        )
+        .expect("internal change dependencies");
 }
 
 /// A recognised commit is read alone; an unknown dependency keeps the hint's fallback wake.
 pub(super) fn hint(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit) -> bool {
-    let Some(watch) = d.ci_news.get_mut(&(task, head)) else { return false };
+    if !d.ci_news.contains_key(&(task, head)) {
+        let Some(row) = d.changes.get(&task) else { return false };
+        if !hints::known_commit(d, row, head) {
+            return false;
+        }
+        d.ci_news
+            .insert(
+                (task, head),
+                Watch {
+                    status: Ci::None,
+                    concluded: 0,
+                    target: None,
+                    end: None,
+                    due: None,
+                    delay: env.limits.client.hinted,
+                    reading: false,
+                },
+            )
+            .expect("internal change dependencies");
+    }
+    let watch = d.ci_news.get_mut(&(task, head)).expect("known commit");
     watch.target = Some(watch.target.unwrap_or(watch.concluded).saturating_add(1));
-    if watch.end.is_none() { watch.end = Some(env.now.saturating_add(env.limits.client.settle)); }
+    if watch.end.is_none() {
+        watch.end = Some(env.now.saturating_add(env.limits.client.settle));
+    }
     let due = env.now.saturating_add(env.limits.client.hinted);
     watch.due = Some(earlier(watch.due, due));
     true
@@ -77,9 +134,13 @@ pub(super) fn deadline(d: &Domain) -> Option<Time> {
 fn wake(d: &mut Domain, task: u64) {
     let mut owners = List::with_capacity(d.steps.len());
     for (owner, step) in &d.steps {
-        if step.task == task { owners.push(*owner).expect("sized from steps"); }
+        if step.task == task {
+            owners.push(*owner).expect("sized from steps");
+        }
     }
-    for owner in &owners { d.steps.get_mut(owner).expect("pending step").woken = true; }
+    for owner in &owners {
+        d.steps.get_mut(owner).expect("pending step").woken = true;
+    }
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
 }
 
@@ -91,8 +152,14 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         }
     }
     for (task, head) in &ready {
-        let Some(row) = d.changes.get(task) else { d.ci_news.remove(&(*task, *head)); continue };
-        if row.terminal() { d.ci_news.remove(&(*task, *head)); continue; }
+        let Some(row) = d.changes.get(task) else {
+            d.ci_news.remove(&(*task, *head));
+            continue;
+        };
+        if row.terminal() || !hints::known_commit(d, row, *head) {
+            d.ci_news.remove(&(*task, *head));
+            continue;
+        }
         let repository = row.repository;
         let watch = d.ci_news.get_mut(&(*task, *head)).expect("due watch");
         if due(watch.end, env.now) {
@@ -108,15 +175,28 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
 }
 
-pub(super) fn read(d: &mut Domain, env: &Env<Limits>, repository: Provider, head: Commit, rows: Option<&[Status]>, status: Ci) {
+pub(super) fn read(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    repository: Provider,
+    head: Commit,
+    rows: Option<&[Status]>,
+    status: Ci,
+) {
     let mut wakes = List::with_capacity(env.limits.changes);
     let mut keys = List::with_capacity(d.ci_news.len());
-    for (key, _) in &d.ci_news { keys.push(*key).expect("sized from watches"); }
+    for (key, _) in &d.ci_news {
+        keys.push(*key).expect("sized from watches");
+    }
     for (task, commit) in &keys {
         let watch = d.ci_news.get_mut(&(*task, *commit)).expect("watch key");
-        if *commit != head || !watch.reading { continue; }
+        if *commit != head || !watch.reading {
+            continue;
+        }
         let Some(row) = d.changes.get(task) else { continue };
-        if row.repository != repository { continue; }
+        if row.repository != repository {
+            continue;
+        }
         watch.reading = false;
         if let Some(rows) = rows {
             let changed = watch.status != status;
@@ -137,5 +217,7 @@ pub(super) fn read(d: &mut Domain, env: &Env<Limits>, repository: Provider, head
             watch.delay = watch.delay.saturating_mul(2).min(env.limits.client.poll.max(env.limits.client.hinted));
         }
     }
-    for task in &wakes { wake(d, *task); }
+    for task in &wakes {
+        wake(d, *task);
+    }
 }

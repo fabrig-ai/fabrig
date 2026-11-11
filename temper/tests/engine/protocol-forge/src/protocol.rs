@@ -104,18 +104,35 @@ impl Protocol {
         if hearing {
             let hooked = skein_forge_kit::fixtures::hook_settings();
             settings.webhooks = hooked.webhooks;
-            settings.forges.get_mut(0).expect("forge").access.as_mut().expect("access").webhook_secret =
-                hooked.forges.get(0).expect("forge").access.as_ref().expect("access").webhook_secret.clone();
+            settings
+                .forges
+                .get_mut(0)
+                .expect("forge")
+                .access
+                .as_mut()
+                .expect("access")
+                .webhook_secret
+                .clone_from(&hooked.forges.get(0).expect("forge").access.as_ref().expect("access").webhook_secret);
             config.hooks = skein_forge_kit::fixtures::hooked_protocol_config().hooks;
         }
         let mut checks = joint::checks(1000);
         checks.contexts = (0..30).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
         checks.latency_min = Duration::from_secs(600);
         checks.latency_max = Duration::from_secs(600);
+        // The story supplies each end and its status separately, with no second
+        // delivery of the same jobs from the fake's automatic CI timers.
+        checks.silent = 1000;
         let mut component_limits = fixtures::limits();
         component_limits.inner = 64;
-        let joint = Joint::with(seed, 0, config, component_limits, settings,
-            fixtures::protocol_shared_for(&limits.client), checks);
+        let joint = Joint::with(
+            seed,
+            0,
+            config,
+            component_limits,
+            settings,
+            fixtures::protocol_shared_for(&limits.client),
+            checks,
+        );
         Self::with_limits(seed, joint, fixtures::FORGEJO, limits)
     }
     /// One job's end, with its status independently scheduled by the story.
@@ -124,19 +141,35 @@ impl Protocol {
         let context = format!("job-{job}");
         let reference = self.joint.domain.check_run(self.fixture.path, commit, context.as_bytes()).expect("job");
         self.joint.hook(forge::Request::Hook {
-            queue: None, repository: Box::from(self.fixture.path), change: raw::Change::Job,
-            number: None, branch: None, commit: None, by: Some(1), body: None,
+            queue: None,
+            repository: Box::from(self.fixture.path),
+            change: raw::Change::Job,
+            number: None,
+            branch: None,
+            commit: None,
+            by: Some(1),
+            body: None,
             ended: Some(raw::Ended { job: reference, commit, state: raw::Check::Passed }),
         });
     }
     pub fn job_status(&mut self, branch: &[u8], job: u32) {
         let context = format!("job-{job}").into_bytes().into_boxed_slice();
-        let raw::Answer::Checks(rows) = self.external(raw::Op::Read(raw::Read::Checks { commit: self.branch(branch) }), self.fixture.writer) else { panic!("checks") };
+        let raw::Answer::Checks(rows) =
+            self.external(raw::Op::Read(raw::Read::Checks { commit: self.branch(branch) }), self.fixture.writer)
+        else {
+            panic!("checks")
+        };
         let link = rows.iter().find(|row| row.status.context == context).expect("job status").link.clone();
-        self.external(raw::Op::Write(raw::Write::Status {
-            commit: self.branch(branch), context,
-            state: raw::Check::Passed, description: Box::new([]), link,
-        }), self.fixture.writer);
+        self.external(
+            raw::Op::Write(raw::Write::Status {
+                commit: self.branch(branch),
+                context,
+                state: raw::Check::Passed,
+                description: Box::new([]),
+                link,
+            }),
+            self.fixture.writer,
+        );
     }
     fn with(seed: u64, joint: Joint, fixture: fixtures::Fixture) -> Self {
         Self::with_limits(seed, joint, fixture, &LIMITS)
@@ -536,7 +569,7 @@ impl Protocol {
                 self.joint.time(next);
                 self.env.now = self.joint.env.now;
                 self.env.wall = self.joint.env.wall;
-            } else {
+            } else if self.joint.hooks_busy() {
                 self.joint.time(self.env.now.saturating_add(Duration::from_nanos(100_000)));
                 self.env.now = self.joint.env.now;
                 self.env.wall = self.joint.env.wall;

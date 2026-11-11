@@ -19,10 +19,10 @@ use crate::{adoption, brief, held, topics};
 pub const DEFAULT_CHANGE_TITLE: &[u8] = b"Update repository";
 
 mod admission;
+mod ci_news;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
-mod ci_news;
 #[path = "make.rs"]
 pub(crate) mod make;
 #[path = "outage.rs"]
@@ -62,7 +62,7 @@ enum LostReadState {
     WaitingForRoom,
     WaitingForConnection,
 }
-/// One fresh verdict read for a commit with live CI subscribers.
+/// One fresh verdict read shared by commit news and live CI subscribers.
 #[derive(Hash, Debug)]
 pub(crate) struct PendingCi {
     repository: skein_forge::api::Repository,
@@ -745,8 +745,8 @@ impl Domain {
             landed: Map::with_capacity(l.landings.max(l.changes)),
             landings: Map::with_capacity(l.landings.max(l.client.resources)),
             lost: Map::with_capacity(l.holds),
-            pending_ci: Map::with_capacity(l.subscriptions.max(l.changes.saturating_mul(8))),
-            ci_news: Map::with_capacity(l.changes.saturating_mul(8)),
+            pending_ci: Map::uncapped(),
+            ci_news: Map::uncapped(),
             restart_fresh: None,
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
@@ -1783,10 +1783,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 if !matched || hints::concerns(d, d.changes.get(&task).expect("repository's change"), &hint) {
                     let refreshing = match hint.change {
                         skein_forge::api::Change::Commit(head) => ci_news::hint(d, env, task, head),
-                        skein_forge::api::Change::Item(_) | skein_forge::api::Change::Branch(_)
+                        skein_forge::api::Change::Item(_)
+                        | skein_forge::api::Change::Branch(_)
                         | skein_forge::api::Change::BranchMoved { .. } => false,
                     };
-                    if !refreshing { d.procedure_wakes.insert(task, true).expect("one pending wake per change"); }
+                    if !refreshing {
+                        d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                    }
                 }
             }
             ci_hint(d, env, &hint, out);
@@ -4084,7 +4087,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             }
         }
     }
-    crate::settle::observe(d, env, &row, pending.pull.as_ref(), pending.ci, base_tip);
+    crate::settle::observe(d, env, &row, pending.pull.as_ref(), base_tip);
     if row.change.released == Some(change::Hold::BranchMoved)
         && let Some(head) = pending.branch
     {
@@ -6742,7 +6745,7 @@ pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
     for owner in removed.into_boxed() {
         d.lost.remove(&owner);
     }
-    let mut ci = List::with_capacity(d.pending_ci.capacity());
+    let mut ci = List::with_capacity(d.pending_ci.len());
     for (owner, pending) in &d.pending_ci {
         if pending.repository.forge == forge {
             ci.push(*owner).expect("bounded CI reads");

@@ -101,13 +101,19 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
 #[test]
 fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() {
     use skein_lib::Duration;
-    let mut h = Harness::with_limits(Limits { rate: 100, reserve: 0, poll: Duration::from_secs(5),
-        poll_max: Duration::from_secs(30), slow: Duration::from_secs(40), ..LIMITS });
+    let mut h = Harness::with_limits(Limits {
+        rate: 100,
+        reserve: 0,
+        poll: Duration::from_secs(5),
+        poll_max: Duration::from_secs(30),
+        slow: Duration::from_secs(40),
+        ..LIMITS
+    });
     h.keep(Box::new([watch(pull(), false)]));
     let mut pulls = List::with_capacity(40);
     for second in 100..400 {
         h.fire(second);
-        for _ in 0..8 {
+        for _ in 0_u32..8 {
             let Some(read) = h.send() else { break };
             let answer = if let Op::Read(Read::Items { .. }) = read.op {
                 Answer::Items { items: Box::new([]), more: false, now: at(second) }
@@ -122,8 +128,12 @@ fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() 
         }
     }
     for since in 220..340 {
-        let mut count = 0;
-        for read in &pulls { if *read >= since && *read < since + 60 { count += 1; } }
+        let mut count = 0_u32;
+        for read in &pulls {
+            if *read >= since && *read < since + 60 {
+                count += 1;
+            }
+        }
         assert!(count <= 3, "quiet minute at {since}: {pulls:?}");
     }
 }

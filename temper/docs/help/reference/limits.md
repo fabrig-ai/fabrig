@@ -112,6 +112,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.hinted_ms`: milliseconds, 1,000. Sets the delay before a hinted forge read.
 - `forge.client.slow_ms`: milliseconds, 40,000. Sets the delay before a slow forge read.
 - `forge.client.settle_ms`: milliseconds, 30,000. Bounds settling after a pull request's head or base moves, while hinted CI and mergeability are read again.
+- `forge.client.fallback_ms`: milliseconds, 300,000. Timed reads fall back while repository deliveries arrive; 0 keeps the polling paces.
 - `forge.client.facts`: count, 16. Bounds forge client facts awaiting drain.
 - `forge.change_policy.repairs`: count, 3. Bounds repair attempts in a change.
 - `forge.change_policy.resolutions`: count, 3. Bounds conflict resolution attempts in a change.

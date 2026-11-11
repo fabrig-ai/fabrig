@@ -256,9 +256,14 @@ impl Plan {
                     for position in 0..checks.statuses.len() {
                         let status = checks.statuses.get_mut(position).expect("status position");
                         if header::job_link(&status.url, &self.row.html_url)
-                            == Some((run_number, self.count.saturating_sub(1))) && job.run_id == run {
+                            == Some((run_number, self.count.saturating_sub(1)))
+                            && job.run_id == run
+                        {
                             status.job = Some(api::JobAttempt {
-                                head: checks.head, run: job.run_id, job: job.id, attempt: job.attempt,
+                                head: checks.head,
+                                run: job.run_id,
+                                job: job.id,
+                                attempt: job.attempt,
                             });
                         }
                     }
@@ -484,7 +489,9 @@ impl Plan {
                         seen |= number == run_number;
                     }
                 }
-                if seen { continue; }
+                if seen {
+                    continue;
+                }
                 let step = self.send(r::Request::Runs {
                     at: self.row.at(),
                     head_sha: self.row.id(checks.head),

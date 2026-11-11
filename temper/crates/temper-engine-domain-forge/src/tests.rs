@@ -14,7 +14,7 @@ mod completed_reads;
 mod connect;
 mod dismissed;
 mod early;
-mod fixtures;
+pub(crate) mod fixtures;
 mod flight;
 mod forge_user;
 mod goal_branch;
@@ -145,7 +145,7 @@ const LIMITS: Limits = Limits {
     client: CLIENT,
 };
 
-fn env() -> Env<Limits> {
+pub(crate) fn env() -> Env<Limits> {
     Env { now: Time::from_nanos(100_000_000_000), wall: Wall::from_nanos(100_000_000_000), limits: LIMITS }
 }
 
@@ -266,7 +266,7 @@ fn restoring_domain(started: Wall) -> Domain {
     d.restore_begin(started);
     d
 }
-fn domain() -> Domain {
+pub(crate) fn domain() -> Domain {
     domain_with_limits(&LIMITS)
 }
 fn domain_with_limits(limits: &Limits) -> Domain {
