@@ -1097,6 +1097,7 @@ impl World {
                 Some(remote.to_vec())
             }
             Op::Store { .. }
+            | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
@@ -1213,6 +1214,7 @@ impl World {
             Op::Store { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
+            | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
             | Op::Commit { .. }
@@ -1326,7 +1328,8 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Store
+                    Kind::Point
+                    | Kind::Store
                     | Kind::Fetch
                     | Kind::Create
                     | Kind::CheckOut

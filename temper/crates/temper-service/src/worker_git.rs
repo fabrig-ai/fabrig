@@ -82,7 +82,8 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
-        git::Op::Clone { .. }
+        git::Op::Point { .. }
+        | git::Op::Clone { .. }
         | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
@@ -117,7 +118,8 @@ pub(crate) fn pick(
                 email: email.clone(),
             }));
         }
-        git::Op::Clone { .. }
+        git::Op::Point { .. }
+        | git::Op::Clone { .. }
         | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }

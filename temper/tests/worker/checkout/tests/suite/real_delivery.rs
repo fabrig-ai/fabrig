@@ -117,6 +117,7 @@ impl World {
         }
         let at = match &op {
             git::Op::Clone { at, .. }
+            | git::Op::Point { at, .. }
             | git::Op::Fetch { at, .. }
             | git::Op::Create { at, .. }
             | git::Op::CheckOut { at, .. }

@@ -40,6 +40,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Create { remote, branch, commit, .. } => {
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit: *commit }
         }
+        git::Op::Point { into, commit, .. } => Command::UpdateRef { into: *into, commit: *commit },
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
         git::Op::DiffPaths { before, after, .. } => Command::DiffPaths { before: *before, after: *after },
@@ -90,6 +91,7 @@ pub fn after(
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -131,7 +133,13 @@ pub fn after(
                 return Next::Run(Command::UpdateRef { into: *into, commit });
             }
         }
-        Command::UpdateRef { commit, .. } if code == 0 => return Next::End(git::Done::Fetched { commit: *commit }),
+        Command::UpdateRef { commit, .. } if code == 0 => {
+            return Next::End(if op.kind() == git::Kind::Point {
+                git::Done::Succeeded
+            } else {
+                git::Done::Fetched { commit: *commit }
+            });
+        }
         Command::Create { branch, .. } => {
             if let Some(next) = pushed(stdout, branch, true, tail, cut) {
                 return next;
@@ -169,6 +177,7 @@ pub fn after(
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -227,6 +236,7 @@ pub fn after(
             | git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -296,6 +306,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -314,6 +325,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -332,6 +344,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }

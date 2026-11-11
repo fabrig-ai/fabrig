@@ -60,6 +60,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
+        | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
@@ -87,6 +88,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
@@ -298,7 +300,8 @@ pub(crate) fn environment_for(
         Some(git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
         None
         | Some(
-            git::Kind::Clone
+            git::Kind::Point
+            | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor
@@ -350,7 +353,8 @@ pub(crate) fn environment_for(
         }
         None
         | Some(
-            git::Kind::Clone
+            git::Kind::Point
+            | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor

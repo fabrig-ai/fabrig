@@ -222,7 +222,8 @@ pub fn version(stdout: &[u8]) -> Option<Version> {
 #[must_use]
 pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     match kind {
-        git::Kind::Clone
+        git::Kind::Point
+        | git::Kind::Clone
         | git::Kind::Look
         | git::Kind::DiffPaths
         | git::Kind::IsAncestor

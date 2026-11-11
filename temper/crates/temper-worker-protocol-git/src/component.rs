@@ -141,7 +141,8 @@ impl Component {
             | git::Op::Create { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
-            git::Op::Make { .. }
+            git::Op::Point { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
@@ -356,7 +357,8 @@ impl Component {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
-                    git::Op::Store { .. }
+                    git::Op::Point { .. }
+                    | git::Op::Store { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }

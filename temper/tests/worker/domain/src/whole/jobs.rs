@@ -149,6 +149,7 @@ impl World {
                     }
                     git::Op::Store { .. }
                     | git::Op::Clone { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }

@@ -62,9 +62,12 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-        Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => {
-            Done::Succeeded
-        }
+        Op::Point { .. }
+        | Op::Store { .. }
+        | Op::Make { .. }
+        | Op::Clone { .. }
+        | Op::Create { .. }
+        | Op::CheckOut { .. } => Done::Succeeded,
     }
 }
 

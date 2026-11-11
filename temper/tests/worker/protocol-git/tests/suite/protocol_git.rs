@@ -24,6 +24,18 @@ fn each_operation_ends_once_with_its_transcript_s_outcome() {
 }
 
 #[test]
+fn a_point_failure_is_broken_without_forge_classification() {
+    let mut scenario = fixtures::point();
+    let invocation = scenario.script.invocations.front_mut().expect("update-ref");
+    invocation.transcript.exit = 128;
+    invocation.transcript.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
+    scenario.expected = Expected::fault(git::Fault::Broken);
+    let outcome = world::run(&scenario, fixtures::SEED);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.spawns, 1);
+}
+
+#[test]
 fn a_deadline_at_each_invocation_ends_timed_out_and_starts_no_more() {
     for (name, mut scenario) in fixtures::operations() {
         for invocation in 1..=u32::try_from(scenario.script.invocations.len()).expect("sequence") {

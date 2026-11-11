@@ -1595,7 +1595,8 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Create { remote, .. }
         | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
-        Op::Make { .. }
+        Op::Point { .. }
+        | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }

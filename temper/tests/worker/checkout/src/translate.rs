@@ -46,6 +46,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         Op::Store { .. } => None,
         Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
+        | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
@@ -67,7 +68,8 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Clone { .. }
+        Op::Point { .. }
+        | Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
@@ -85,7 +87,8 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
             Some(remote)
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
-        Op::Clone { .. }
+        Op::Point { .. }
+        | Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
@@ -163,6 +166,17 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                     Done::Fetched { commit: commit(fetched) }
                 }
                 Err(fault) => failed(fault),
+            }
+        }
+        Op::Point { at, into, commit } => {
+            assert_cloned(disk, &at);
+            let reference = match into {
+                temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
+                temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
+            };
+            match git::update_ref(disk, &path(&at), reference, fake(commit)) {
+                Ok(()) => Done::Succeeded,
+                Err(_) => Done::Failed { fault: Fault::Broken },
             }
         }
         Op::Create { at, remote, branch, commit, identity: _, account: _ } => {

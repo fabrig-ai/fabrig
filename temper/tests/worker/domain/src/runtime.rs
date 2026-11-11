@@ -392,9 +392,12 @@ impl World {
 
     fn git(&mut self, op: Op) -> Done {
         match op {
-            Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => {
-                Done::Succeeded
-            }
+            Op::Point { .. }
+            | Op::Store { .. }
+            | Op::Make { .. }
+            | Op::Clone { .. }
+            | Op::Create { .. }
+            | Op::CheckOut { .. } => Done::Succeeded,
             Op::Fetch { want, .. } => {
                 let commit = match want {
                     Want::Branch { branch } => {

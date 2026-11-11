@@ -136,6 +136,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             ),
         ),
         ("fetch", fetch()),
+        ("point", point()),
         (
             "store",
             scenario(
@@ -219,6 +220,16 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             query
         }),
     ]
+}
+#[must_use]
+pub fn point() -> Scenario {
+    let mut point = scenario(
+        git::Op::Point { at: at(), into: git::Into::Landing, commit: TWO },
+        &["update-ref"],
+        Expected::done(git::Done::Succeeded),
+    );
+    point.identity = false;
+    point
 }
 #[must_use]
 pub fn fetch() -> Scenario {

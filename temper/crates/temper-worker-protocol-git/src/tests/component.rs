@@ -327,6 +327,37 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
     assert_eq!(component.done(), None);
 }
 
+#[test]
+fn a_point_spawns_one_local_update_ref_without_an_identity() {
+    for into in [git::Into::Fetched, git::Into::Landing] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op: git::Op::Point { at: fixtures::at(), into, commit: fixtures::COMMIT },
+            deadline: fixtures::DEADLINE,
+            identity: None,
+        });
+        let Some(skein_io::Request::Spawn { spawn, .. }) = component.below.out.io.pop() else { panic!("point spawn") };
+        assert_eq!(&*spawn.dir, b"workspaces/7/app");
+        let mut expected = skein_lib::List::uncapped();
+        for setting in crate::invocation::SETTINGS {
+            expected.push(Box::from(b"-c".as_slice())).expect("uncapped args");
+            expected.push(Box::from(setting)).expect("uncapped args");
+        }
+        let reference = match into {
+            git::Into::Fetched => b"refs/temper/fetched".as_slice(),
+            git::Into::Landing => b"refs/temper/landing".as_slice(),
+        };
+        for word in [b"update-ref".as_slice(), reference, b"abababababababababababababababababababab"] {
+            expected.push(Box::from(word)).expect("uncapped args");
+        }
+        assert_eq!(spawn.args.as_ref(), expected.as_slice());
+        assert_eq!(spawn.env, crate::invocation::environment(fixtures::HOME, None, None));
+        assert!(component.below.out.io.is_empty(), "one invocation");
+        assert_eq!(component.done(), None);
+    }
+}
+
 /// temper/docs/design/protocol/git.md, 4.6: merge progress is not a parsed result.
 #[test]
 fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {

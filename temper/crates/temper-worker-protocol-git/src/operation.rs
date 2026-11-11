@@ -248,6 +248,7 @@ impl Operation {
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
@@ -364,6 +365,7 @@ impl Operation {
                         git::Op::Store { .. }
                         | git::Op::Make { .. }
                         | git::Op::Clone { .. }
+                        | git::Op::Point { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
                         | git::Op::CheckOut { .. }
@@ -631,7 +633,8 @@ fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
             }
         }
         git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Create { at, .. }
+        git::Op::Point { at, .. }
+        | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::DiffPaths { at, .. }
         | git::Op::IsAncestor { at, .. }
