@@ -500,13 +500,31 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Help | Command::Exit => true,
-            Command::Goal | Command::Font | Command::Theme => false,
+            Command::Goal => goal_offered(root),
+            Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
         }
     }
     commands.into_boxed()
+}
+
+/// Whether /goal is offered on this chat (client/tui/pages.md, Offered).
+#[must_use]
+pub fn goal_offered(root: &Domain) -> bool {
+    use temper_client_domain::pages::{chat::document, terminal::Command};
+    let Some(chat) = root.pages().chat() else { return false };
+    if !temper_client_view::shared::offered(root, chat.task(root.client()), Command::Goal) {
+        return false;
+    }
+    let Some(draft) = &chat.draft else { return false };
+    for section in document::sections(&draft.body) {
+        if !section.heading.is_empty() {
+            return true;
+        }
+    }
+    false
 }
 
 /// The launchpad's selection keys (temper/docs/design/client/tui/pages.md).
@@ -541,7 +559,10 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
         return None;
     }
     let page = if let Some(chat) = root.pages().chat() {
-        Address::Chat { task: chat.task }
+        match chat.goal_from(root) {
+            Some((goal, _)) => Address::Task { task: goal },
+            None => Address::Chat { task: chat.task },
+        }
     } else {
         Address::Home { project: root.pages().project()? }
     };

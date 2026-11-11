@@ -11,7 +11,33 @@ fn each_act_is_its_event() {
     let unbound = f::find(sign_in.tree(), Role::Heading { level: 1 }, b"temper").id;
     let mut first = f::view();
     f::build(&mut first, &tui, &f::live(Some(f::me(&[]))).0);
+    let mut goal_root = f::GoalCase::READY.root();
+    f::event(
+        &mut goal_root,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::MessageWords {
+                words: b"/goal".as_slice().into(),
+            }),
+        },
+    );
+    let mut commands = f::view();
+    f::build(&mut commands, &tui, &goal_root);
+    let command = f::find(commands.tree(), Role::MenuItem, b"/goal").id;
+    super::foot::open_goal(&mut goal_root);
+    let mut goal = f::view();
+    f::build(&mut goal, &tui, &goal_root);
+    let way = f::find(goal.tree(), Role::MenuItem, b"1. Plan, tasks, land whole").id;
+    let cancel = f::find(goal.tree(), Role::MenuItem, b"Cancel").id;
     let rows = [
+        (
+            &commands,
+            command,
+            Act::Press,
+            Some(Event::Command { command: temper_client_domain::pages::terminal::Command::Goal }),
+        ),
+        (&goal, way, Act::Press, Some(Event::Way { template: 4 })),
+        (&goal, cancel, Act::Press, Some(Event::Act { act: temper_client_domain::pages::Act::StartCancel })),
+        (&goal, way, Act::Submit, None),
         (
             &sign_in,
             field,

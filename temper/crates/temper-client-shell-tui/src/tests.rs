@@ -1,3 +1,6 @@
+#[path = "tests/goal.rs"]
+mod goal;
+
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
     limits,
@@ -2069,6 +2072,7 @@ fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the host's look, navigation and closing rules")]
 fn the_host_goes_to_the_launchpad_and_follows_the_root() {
+    goal::navigation();
     let mut failures = Vec::new();
     for row in [
         "first project once",
@@ -2427,14 +2431,21 @@ fn each_event_becomes_its_acts() {
         assert_eq!(duties.open.as_deref(), open, "{event:?}");
         assert!(duties.asked.is_empty(), "{event:?}");
     }
-    for (projects, chat, selected, address) in [
-        (false, false, false, None),
-        (true, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
-        (true, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
-        (true, false, true, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+    for (projects, chat, selected, linked, address) in [
+        (false, false, false, false, None),
+        (true, false, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
+        (true, true, false, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        (true, false, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        (true, true, false, true, Some(b"http://127.0.0.1:8367/tasks/25".as_slice())),
     ] {
-        let mut host = if projects { left_off_host() } else { signed_host(false).0 };
-        if chat {
+        let mut host = if linked {
+            goal::host(true, false)
+        } else if projects {
+            left_off_host()
+        } else {
+            signed_host(false).0
+        };
+        if chat && !linked {
             give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
         }
         if selected {
@@ -2508,6 +2519,7 @@ fn each_event_becomes_its_acts() {
         assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
     }
     reply_events();
+    goal::events();
     let mut failures = Vec::new();
     for row in [
         "stop",
