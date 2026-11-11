@@ -19,7 +19,10 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
     let least = ceilings.tier_row_pending.min(ceilings.tier_run_landings).min(ceilings.tier_finding_blamed);
     let bound = crate::forge_changes_bound().expect("tier rows hold a landing");
     assert_eq!(crate::tier_landings_ceiling(), least);
+    assert_eq!([ceilings.tier_row_pending, ceilings.tier_run_landings, ceilings.tier_finding_blamed], [759; 3]);
+    assert_eq!(bound, 379);
     assert_eq!(bound, (least - 1) / 2);
+    assert_eq!(crate::v11::TierRow::encoded_bound(&ceilings), Some(4_291_165_782));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
