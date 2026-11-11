@@ -1,5 +1,6 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
+use temper_engine_shell::{ENGINE, commands};
 
 const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
@@ -22,19 +23,19 @@ fn version(text: &str) -> bool {
 }
 
 fn help(text: &str) -> bool {
-    let rows: Vec<_> = text.lines().filter_map(|line| line.trim().strip_prefix("temper-engine ")).collect();
-    text.lines().next() == Some("usage: temper-engine COMMAND [ARGUMENT...]")
-        && ["serve [DIRECTORIES]", "forge fetch [DIRECTORIES] FORGE", "versions"]
-            .iter()
-            .all(|words| rows.contains(words))
-        && rows.iter().all(|row| ![Some("box"), Some("program-login")].contains(&row.split_whitespace().next()))
+    let rows: Vec<_> =
+        text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
+    text == ENGINE.help()
+        && ["serve", "versions", "help"].iter().all(|word| rows.contains(word))
+        && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
 
 fn serve_help(text: &str) -> bool {
-    text.starts_with("usage: temper-engine serve [DIRECTORIES]\n")
+    text == ENGINE.command_help(&commands::SERVE)
+        && !text.starts_with("internal:")
         && text.contains("engine alone")
         && text.contains("temper-worker serve")
-        && text.contains("temper serve")
+        && text.contains("temper-box serve")
 }
 
 fn versions(text: &str) -> bool {
@@ -45,7 +46,20 @@ fn versions(text: &str) -> bool {
 }
 
 fn pages(text: &str) -> bool {
-    text.starts_with("# ") && text.contains("temper")
+    text == temper_shell::help::answer(ENGINE.binary, &temper_shell::help::Request::Index).expect("index page")
+}
+
+fn commands_page(text: &str) -> bool {
+    text == temper_shell::table::commands_page(&ENGINE)
+}
+
+fn forge_help(text: &str) -> bool {
+    // The notice is wrapped to 80 columns by skein's help renderer.
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .starts_with("internal: not part of temper-engine's public command line; it may change without notice.")
+        && text == ENGINE.command_help(&commands::FETCH)
 }
 
 type Check = fn(&str) -> bool;
@@ -53,19 +67,24 @@ type Case = (&'static [&'static str], Option<&'static str>, i32, Check, &'static
 
 const ROWS: &[Case] = &[
     (&["--version"], None, 0, version, ""),
+    (&["-h"], None, 0, help, ""),
     (&["--help"], None, 0, help, ""),
     (&["serve", "--help"], None, 0, serve_help, ""),
-    (&["help"], None, 0, pages, ""),
-    (&["box"], None, 1, empty, "temper-engine: no command box; temper-engine --help lists them\n"),
+    (&["forge", "fetch", "--help"], None, 0, forge_help, ""),
+    (&["help"], None, 0, help, ""),
+    (&["help", "pages"], None, 0, pages, ""),
+    (&["help", "commands"], None, 0, commands_page, ""),
+    (&["help", "nope"], None, 1, empty, "temper-engine: no page nope; temper-engine help lists them\n"),
+    (&["box"], None, 2, empty, "temper-engine: no command box; temper-engine --help lists them\n"),
     (
         &["program-login", "a"],
         None,
-        1,
+        2,
         empty,
         "temper-engine: no command program-login; temper-engine --help lists them\n",
     ),
-    (&[], None, 1, empty, "temper-engine: no command; temper-engine --help lists them\n"),
-    (&["--version", "extra"], None, 1, empty, "temper-engine: no command --version; temper-engine --help lists them\n"),
+    (&[], None, 2, empty, "temper-engine: no command; temper-engine --help lists them\n"),
+    (&["--version", "extra"], None, 2, empty, "temper-engine: no command --version; temper-engine --help lists them\n"),
     (
         SERVE,
         Some(WORKER),
@@ -78,7 +97,7 @@ const ROWS: &[Case] = &[
         Some(STANDALONE),
         1,
         empty,
-        "temper-engine serve: temper.json holds an engine and its worker in one process; the box's temper serve runs it\n",
+        "temper-engine serve: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
     ),
     (
         FETCH,
@@ -91,9 +110,9 @@ const ROWS: &[Case] = &[
     (
         &["versions", "extra"],
         None,
-        1,
+        2,
         empty,
-        "temper-engine versions: invalid arguments\nusage: temper-engine versions \n",
+        "temper-engine versions: invalid arguments\nusage: temper-engine versions\n",
     ),
 ];
 
