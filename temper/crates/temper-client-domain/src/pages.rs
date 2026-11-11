@@ -1098,7 +1098,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => {
             me_changed(pages, client, out);
-            pages.team.told(client, &Told::Changed { handle }, out);
+            pages.team.told(client, &Told::Changed { handle }, env.limits.forge, out);
         }
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
@@ -1176,7 +1176,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Some(me) => me.party.number,
             None => 0,
         };
-        pages.team.configure(&pages.address, you, &env.limits, &mut pages.next, out);
+        pages.team.configure(&pages.address, you, client, &env.limits, &mut pages.next, out);
     } else {
         pages.team.leave(out);
     }
@@ -1914,7 +1914,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         pages.needs.say(toasted, env.now);
         return true;
     }
-    if pages.team.told(client, &told, out) {
+    if pages.team.told(client, &told, env.limits.forge, out) {
         return true;
     }
     if pages.roles.told(&told, env.limits.forge) {
