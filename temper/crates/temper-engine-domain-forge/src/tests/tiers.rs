@@ -104,6 +104,11 @@ pub(super) fn key_trees(d: &mut Domain) -> Box<[Request]> {
                 all.extend(fixtures::answer(d, call, Ok(api::Answer::Commit(tip))));
                 continue;
             }
+            api::Op::Read(api::Read::Runs { .. }) if !d.tier_ops.follows.contains_key(&(REPO, TIER.into())) => {
+                // A dropped run's listing can precede the new baseline's read.
+                all.extend(fixtures::answer(d, call, Ok(api::Answer::Runs { runs: Box::new([]), more: false })));
+                continue;
+            }
             _ => panic!("key tree read: {op:?}"),
         };
         let source = if tip == HEAD { BASE } else { tip };
@@ -1030,6 +1035,26 @@ fn late_dispatch_and_read_answers_cannot_revive_a_closed_tier_task() {
     crate::tiers::veto(&mut d, TIER_TASK, DISPATCH, &mut late);
     crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Runs { runs: Box::new([]), more: false }), &mut late);
     assert!(collect(late).is_empty());
+    assert_eq!(row(&d), &before);
+}
+
+#[test]
+fn a_late_baseline_read_cannot_revive_a_closed_tier_task() {
+    let mut d = configured(None);
+    let (owner, read) = d.tier_ops.reads.iter().next().expect("tier-owned fresh baseline read");
+    assert_eq!(read.tier, (REPO, TIER.into()));
+    assert!(read.baseline);
+    let owner = *owner;
+    // A run was restored while the fresh baseline read was in flight.
+    outputs(&mut d, Event::Restore { record: Stored::Tier(row(&dispatched()).clone()) });
+    close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(!d.tier_ops.reads.contains_key(&owner), "close forgets the old baseline read");
+    assert!(row(&d).record.run.is_none());
+    assert!(row(&d).task.is_none());
+    let before = row(&d).clone();
+    let mut late = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Commit(NEXT_TIP)), &mut late);
+    assert!(collect(late).is_empty(), "a late baseline answer cannot dispatch");
     assert_eq!(row(&d), &before);
 }
 
