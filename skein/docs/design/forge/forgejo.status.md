@@ -1,6 +1,8 @@
 # forgejo: status
 
-2026-11-10. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-11. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+
+- **Not yet:** 1.1 and 1.3: `Items` pages sized for real rows and cut at the answer's bytes; an issue listing's page holds as many of the listing's largest rows as `answer_bytes` holds, one at temper's limits (`skein-forge-connection/src/limits.rs`, `page_size`) [in flight: change 44].
 
 - **Not yet:** 2: no conformance fact records a `style=merge` update of a
   head already holding its base, or what a rebase's push does to a push

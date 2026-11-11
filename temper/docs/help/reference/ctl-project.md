@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Projects: make one, read periods and pools, set spend and visibility.
+Projects: make or remove one, read periods and pools, set spend and visibility.
 
 ## project show
 
@@ -53,4 +53,16 @@ Prints: The new project's number
 --json: the record make-project.
 Key: --key KEY, required.
 Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.
+```
+
+## project remove
+
+```
+project remove PROJECT --key KEY
+  PROJECT (project): a project's name or number; required. The project
+Remove your own project, closing it at once and deleting it whole after
+Prints: `removed: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name
+--json: the record project_removed.
+Key: --key KEY, required.
+Only an owner removes a project, a fresh store's default project among them. Each live chat is asked to finish within its chat template's grace from me; no chat template, no grace. No confirmation. A project not in your me sends nothing, exit 2. A member who is not its owner, or a project already being deleted, is refused, exit 2. A key replay prints the same removal while deletion lasts. A restored request prints kept: remove-project, removed: project N, with no name.
 ```

@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-10. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `settings.md`, section 7 has no known gap in the engine and workers' shared output
 room. Init's templates and the owned example give the engine the
@@ -269,7 +269,7 @@ or in the terminal refusal naming the item and rejected way.
 
 - **Not yet:** `limits.md`'s `forge.client.fallback_ms`, by plan
   `forge-polls-quiet`: temper's profiles hold no `fallback`, so the name
-  is refused.
+  is refused [in flight: change 43].
 - **Not yet:** 7, the turn's check, and `settings.md`, 7: a worker whose turn's frame
   passes its `io.output` is refused `workers[0].limits: past its bound`,
   as its link's limits are not valid (`temper-service/src/worker_settings.rs`,
