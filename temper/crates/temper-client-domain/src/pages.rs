@@ -2944,12 +2944,13 @@ fn configure_stock_ways(pages: &mut Pages, client: &Client) {
     if pages.stock_ways.is_none() {
         return;
     }
-    let asking = match (&pages.chats, address_project(&pages.address)) {
-        (Some(chats), Some(project)) => chats.chat_counts(client, pages.me(client), project),
-        (Some(_), None) | (None, Some(_) | None) => false,
+    let Some(project) = address_project(&pages.address) else { return };
+    let asking = match &pages.chats {
+        Some(chats) => chats.chat_counts(client, pages.me(client), project),
+        None => false,
     };
     if let Some(page) = &mut pages.stock_ways {
-        page.configure(asking || home::configured(client));
+        page.configure(asking || home::configured(client, project));
     }
 }
 
