@@ -488,6 +488,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     let previous_tries = old.tries;
     let kept = ends::kept(domain, number);
     let discarded = !narrowed && kept.discards(&end);
+    let stood = if discarded && old.flags.ended_by == crate::EndedBy::Standing { ends::stood(&end) } else { None };
     let end = if narrowed || discarded { End::Parked } else { end };
     let result_followups = match &end {
         End::FinishedWithFollowups { .. } => true,
@@ -640,6 +641,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     task.record.llm_changed = false;
     let spent = task.record.run_spent;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunEnded { attempt, end: end_kind, spent }, out);
+    if let Some(words) = stood {
+        crate::activity::append(&mut task.record, env.wall, crate::Line::Stood { attempt, words }, out);
+    }
     if parked && !kept.owes {
         let pending = task.record.waiting_on.clone();
         crate::activity::append(
@@ -662,6 +666,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     {
         crate::closing::cancel_tree(domain, env, number, grace.by, &grace.reason, out);
     }
+    crate::standing::after_run(domain, env, number, out);
     // The numbered reminder must precede any preparation caused by unread words.
     if !parked || !kept.owes {
         crate::wake::after_run(domain, env, number, out);
