@@ -163,9 +163,7 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
         }
         None => (None, None),
     };
-    if facts.decided.is_some()
-        && let Some(spell) = &facts.spell
-    {
+    if let Some(spell) = &facts.spell {
         if let Some(end) = spell.end {
             let expires = skein_lib::Wall::from_nanos(end.as_nanos().saturating_add(86_400_000_000_000));
             times.next = [times.next, Some(expires)].into_iter().flatten().min();
@@ -344,12 +342,7 @@ fn needs(
         (false, false) => Word::HomeNeedsCount,
         (false, true) => Word::NeedsHeadCut,
     };
-    text(
-        b,
-        Role::Heading { level: 2 },
-        &w.say(heading, &[Hole::Number(u64::from(count))]),
-        Some(look::HOME_SIGNAL),
-    );
+    text(b, Role::Heading { level: 2 }, &w.say(heading, &[Hole::Number(u64::from(count))]), Some(look::HOME_SIGNAL));
     go(b, bindings, &w.say(Word::AllHomeAllNeeds, &[]), inbox_address(project), None);
     b.close();
     let lines = session.answered(times.now, ANSWERED_ON_HOME, Some(project));

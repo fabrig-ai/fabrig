@@ -988,7 +988,9 @@ fn done_with_and_without_lines_and_home_project() {
             let nodes = main(&view);
             let region = nodes
                 .iter()
-                .position(|node| node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes()))
+                .position(|node| {
+                    node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes())
+                })
                 .unwrap();
             let home =
                 nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();

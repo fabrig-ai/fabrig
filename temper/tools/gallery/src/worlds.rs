@@ -4684,9 +4684,14 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
-        "home-morning" | "home-decided" | "needs-decided" | "needs-decided-project" | "home-away" | "home-away-one" | "home-away-overturned" | "home-away-quiet" => {
-            Wall::from_nanos(1_792_483_440_000_000_000)
-        }
+        "home-morning"
+        | "home-decided"
+        | "needs-decided"
+        | "needs-decided-project"
+        | "home-away"
+        | "home-away-one"
+        | "home-away-overturned"
+        | "home-away-quiet" => Wall::from_nanos(1_792_483_440_000_000_000),
         "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),

@@ -1414,7 +1414,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-off",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away: off" },
             Part::Text { text: "Away is off: questions wait for you again." },
@@ -1422,7 +1422,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-on",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away until 08:00" },
             Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },

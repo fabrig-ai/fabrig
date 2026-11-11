@@ -406,7 +406,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "home-away", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
-        Sample { name: "home-away-quiet", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-away-quiet",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "home-away-overturned",
             world: FirstRun { step: 7 },
@@ -2560,8 +2565,16 @@ fn home_domain(name: &str) -> Domain {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let away_sample = matches!(name, "rail-away-on" | "rail-away-off");
-    let home_away =
-        matches!(name, "home-decided" | "needs-decided" | "needs-decided-project" | "home-away" | "home-away-one" | "home-away-overturned" | "home-away-quiet");
+    let home_away = matches!(
+        name,
+        "home-decided"
+            | "needs-decided"
+            | "needs-decided-project"
+            | "home-away"
+            | "home-away-one"
+            | "home-away-overturned"
+            | "home-away-quiet"
+    );
     let needs_decided = matches!(name, "needs-decided" | "needs-decided-project");
     let needs_project = name == "needs-decided-project";
     let away_name = name;

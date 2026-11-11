@@ -2162,8 +2162,10 @@ fn expires_is_when_the_oldest_stops_showing() {
 fn no_form_while_to_begin_shows() {
     let mut f = fixture();
     ready(&mut f);
+    spell(&mut f, None, None, 0);
     let out = decisions(&mut f, &[decision(1, 100)]);
     assert!(away_form(&f, 100).is_none());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::from_nanos(100)).spell, None);
     assert!(task_reads(&out).is_empty());
     let (_, out) = skip(&mut f);
     assert!(away_form(&f, 100).is_some());
@@ -2199,12 +2201,6 @@ fn spell_does_not_require_a_showing_decision() {
             }
         );
     }
-    let mut f = fixture();
-    ready(&mut f);
-    spell(&mut f, None, None, 0);
-    let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(100));
-    assert!(facts.to_begin());
-    assert_eq!(facts.spell, None);
 }
 #[test]
 fn span_is_since_and_its_end() {

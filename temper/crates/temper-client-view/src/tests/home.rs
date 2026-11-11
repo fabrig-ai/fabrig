@@ -3373,11 +3373,23 @@ fn lede_and_byline_stand() {
 }
 #[test]
 fn spell_intro_without_decisions_uses_the_needs_sentence() {
-    for (landed, objects, off, headline, span) in [
-        (58, &QUESTIONS[..1], false, "57 changes landed. One thing needs you.", "now"),
-        (58, &QUESTIONS[..0], true, "57 changes landed. Nothing needs you.", "Sun 23:50"),
-        (1, &QUESTIONS[..1], false, "One thing needs you.", "now"),
-        (1, &QUESTIONS[..0], true, "Nothing needs you.", "Sun 23:50"),
+    for (landed, objects, off, headline, kicker_words) in [
+        (
+            58,
+            &QUESTIONS[..1],
+            false,
+            "57 changes landed. One thing needs you.",
+            "While you were away · Sun 23:10 to now",
+        ),
+        (
+            58,
+            &QUESTIONS[..0],
+            true,
+            "57 changes landed. Nothing needs you.",
+            "While you were away · Sun 23:10 to Sun 23:50",
+        ),
+        (1, &QUESTIONS[..1], false, "One thing needs you.", "While you were away · Sun 23:10 to now"),
+        (1, &QUESTIONS[..0], true, "Nothing needs you.", "While you were away · Sun 23:10 to Sun 23:50"),
     ] {
         let mut away = away_fixture(0);
         if off {
@@ -3390,8 +3402,7 @@ fn spell_intro_without_decisions_uses_the_needs_sentence() {
         let root = away_home(away, false, objects, parts);
         for browser in [false, true] {
             let view = status_view(&root, browser);
-            let expected = crate::accounts::words::join(&["While you were away · Sun 23:10 to ".as_bytes(), span.as_bytes()]);
-            assert_eq!(kicker(&root, browser), expected);
+            assert_eq!(kicker(&root, browser).as_ref(), kicker_words.as_bytes());
             main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
             for node in main_nodes(view.tree()) {
                 assert!(!node.styles.as_slice().contains(&crate::look::DECIDED));
@@ -3614,10 +3625,10 @@ fn ended_and_overturned_says_landed_and_strikes_took() {
     );
 }
 #[test]
-fn away_needs_head_keeps_the_shared_title() {
+fn away_needs_head_is_still_only_while_needs_show() {
     for objects in [&[][..], &QUESTIONS[..2]] {
         let root = away_home(away_fixture(1), false, objects, status_parts());
-        let heading = "Needs you · 2";
+        let heading = "Still needs you · 2";
         for browser in [false, true] {
             let view = status_view(&root, browser);
             assert_eq!(

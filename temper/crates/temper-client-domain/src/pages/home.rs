@@ -196,7 +196,7 @@ pub(crate) fn configured(client: &Client) -> bool {
     false
 }
 
-/// The recent Away spell accompanying Home's decisions (client/pages/README.md, Decided for you).
+/// The recent Away spell shaping Home's intro (client/pages/home.md, 1, Decided for you).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Spell {
     pub since: Wall,
