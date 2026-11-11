@@ -9,7 +9,7 @@ use skein_forge::api::Error;
 use skein_forge_client::{Resource, Watch};
 use skein_lib::{Duration, List, Map, Queue, Token};
 
-type Failed = (Option<Name>, RefusalCause);
+pub(super) type Failed = (Option<Name>, RefusalCause);
 
 pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
     let resources = watched_names(d, &resources);
@@ -94,27 +94,19 @@ pub(super) fn landing_subscription_problem(
     limits: &Limits,
     repository: skein_forge::api::Repository,
     branch: &[u8],
-) -> Option<(&'static [u8], Option<u32>)> {
+) -> Result<(), Failed> {
     let resource = Resource { repository, what: skein_forge_client::What::Branch(Box::from(branch)) };
     let Some(name) = super::from_client(&resource, limits) else {
-        return Some((b"malformed branch: use nonempty slash-separated branch segments", None));
+        return Err((None, RefusalCause::InvalidName));
     };
-    let problem: (&[u8], Option<u32>) = (b"landing branch watch does not fit forge resource limits", None);
     let mut watches = Map::uncapped();
     for (_, names) in &d.names {
-        if add(d, limits, names, &mut watches).is_err() {
-            return Some(problem);
-        }
+        add(d, limits, names, &mut watches)?;
     }
-    if add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches).is_err()
-        || add(d, limits, core::slice::from_ref(&name), &mut watches).is_err()
-    {
-        return Some(problem);
-    }
-    match finish(watches, limits, Some(name)) {
-        Ok(_) => None,
-        Err(_) => Some(problem),
-    }
+    add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches)?;
+    add(d, limits, core::slice::from_ref(&name), &mut watches)?;
+    finish(watches, limits, Some(name))?;
+    Ok(())
 }
 
 fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
@@ -133,7 +125,7 @@ fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, 
     Ok(())
 }
 
-fn validate(d: &Domain, limits: &Limits, name: &Name) -> Result<(), Failed> {
+pub(super) fn validate(d: &Domain, limits: &Limits, name: &Name) -> Result<(), Failed> {
     let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     if !d.repositories.contains_key(&repository) {
         return Err((Some(name.clone()), RefusalCause::Unadopted));
