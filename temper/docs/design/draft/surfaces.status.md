@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-09. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-11. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 2: `../client/view.md`, 3, *While To begin shows*, keeps the rail
@@ -62,24 +62,11 @@
     questions wait on you.".
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
-    classes, Roles by when each runs, and a goal's
+    classes, Roles by when each runs and what it does, and a goal's
     budget; its heading names the way without its chief departure,
-    which waits for rules by path; and `../domain/forge/change/branch-path.md`, *The
-    project's roles*, gives the drafter no place among Roles, though the
-    stock holds it and template 6 starts it since P6, which landed
-    after the cut of `look-round-25`. Rules by path,
+    which waits for rules by path. Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3c and P3d). What a role does, past when it runs, is kept
-    since P3e, a charter's words (`../protocol/configuration/settings.md`, 2,
-    kind 9), but no design says it on Roles: the view `roles` carries no
-    such fact, and `../domain/forge/README.md`, section 11, *A role's words on
-    its card*, and `../client/README.md`, section 5, defer it, though the
-    help's settings page and a run's "none kept" answer say Roles says a
-    charter by them. The plan `ui-p3e-words` left it out, Roles not having
-    landed at its cut, so a role's "Asked to", its instructions' first
-    sentence, stays the only words of what it does, which the audit of
-    2026-11-08 found reads badly for some charters ("Read only what the
-    change needs…"). Its section 11 also
+    section 3, P3c and P3d). `../client/pages/settings.md`, section 3, also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.

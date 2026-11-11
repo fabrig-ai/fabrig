@@ -10,4 +10,4 @@
 - **Not yet:** 1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words
-  (`../../protocol/configuration/settings.md`, 8).
+  (`../../protocol/configuration/settings.md`, 8) [in flight: change 315].
