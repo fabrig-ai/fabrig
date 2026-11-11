@@ -727,7 +727,7 @@ Where these stop, above the API, the application holds:
 - **Wake policies:** what wakes a task, and whether a cheap model should
   triage news before a coordinator wakes. Tuned from use (tasks/README.md,
   section 8).
-- **Scaling out:** one engine per deployment until it binds.
+- **Scaling out:** engine/README.md, section 10's question.
 - **An event's payload:** a variant such as `Event::AcceptedTurn` carries its
   fields loose, and its route gathers them for its helper, so a field added to
   a variant is still written in its arms. Variants holding named structs would
