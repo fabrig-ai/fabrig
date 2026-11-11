@@ -96,11 +96,7 @@ fn judge_accepts_rules_within_their_bounds() {
         ("deployment first", base.clone(), Ok(())),
         (
             "project sets without classes",
-            Item {
-                kind: 2,
-                scope: PROJECT,
-                ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() })
-            },
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() }) },
             Ok(()),
         ),
         (
@@ -207,7 +203,11 @@ fn judge_refuses_each_fault_by_name() {
         ),
         (
             "project sets past bound",
-            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() }) },
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() })
+            },
             Err(Refusal::Sets),
         ),
         (
@@ -240,7 +240,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "empty pattern",
             with_rule(LandingRule {
-                                pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
+                pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
             Err(Refusal::Pattern),
@@ -248,7 +248,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "segments past bound",
             with_rule(LandingRule {
-                                pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
+                pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
             Err(Refusal::Pattern),
@@ -257,7 +257,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "exact last bytes",
             with_rule(LandingRule {
-                                pattern: GatePattern {
+                pattern: GatePattern {
                     last: GateLast::Exact(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()
                 },
@@ -268,7 +268,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "open last bytes",
             with_rule(LandingRule {
-                                pattern: GatePattern {
+                pattern: GatePattern {
                     last: GateLast::Open(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()
                 },
