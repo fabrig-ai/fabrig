@@ -179,13 +179,29 @@ pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
             skips,
             parity: encode_parity(row.parity.as_ref()),
             questions,
+            pending: match &row.pending {
+                Some(act) => Some(encode_act(act)),
+                None => None,
+            },
         },
     )
     .expect(FITS)
 }
 pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow, Undecodable> {
-    let w::FollowRowParts { project, follow, source, branch, heard, task, stopped, queue, skips, parity, questions } =
-        row.into_parts();
+    let w::FollowRowParts {
+        project,
+        follow,
+        source,
+        branch,
+        heard,
+        task,
+        stopped,
+        queue,
+        skips,
+        parity,
+        questions,
+        pending,
+    } = row.into_parts();
     let mut entries = List::with_capacity(queue.len());
     for entry in queue.into_boxed() {
         entries.push(decode_entry(entry, bounds)?).expect(FITS);
@@ -212,6 +228,10 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
         skips: decoded_skips.into_boxed(),
         parity: decode_parity(parity),
         questions: decoded_questions.into_boxed(),
+        pending: match pending {
+            Some(act) => Some(decode_act(act)),
+            None => None,
+        },
     })
 }
 fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {
@@ -225,4 +245,45 @@ fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undec
         files.push(file.into_parts().name).or(Err(Undecodable))?;
     }
     Err(Undecodable)
+}
+
+fn encode_act(act: &d::follows::FollowAct) -> w::FollowAct {
+    use d::follows::FollowAct as A;
+    match act {
+        A::Start { after } => {
+            w::FollowAct::Start(w::FollowAt::new(&w::CEILINGS, w::FollowAtParts { after: *after }).expect(FITS))
+        }
+        A::Hold { after, reason } => w::FollowAct::Hold(
+            w::FollowReasonAct::new(&w::CEILINGS, w::FollowReasonActParts { after: *after, reason: reason.clone() })
+                .expect(FITS),
+        ),
+        A::Skip { after, reason } => w::FollowAct::Skip(
+            w::FollowReasonAct::new(&w::CEILINGS, w::FollowReasonActParts { after: *after, reason: reason.clone() })
+                .expect(FITS),
+        ),
+        A::Merge { afters } => {
+            let mut commits = List::with_capacity(u32::try_from(afters.len()).expect(FITS));
+            for after in afters {
+                commits.push(*after).expect(FITS);
+            }
+            w::FollowAct::Merge(
+                w::FollowMergeAct::new(&w::CEILINGS, w::FollowMergeActParts { afters: commits }).expect(FITS),
+            )
+        }
+    }
+}
+fn decode_act(act: w::FollowAct) -> d::follows::FollowAct {
+    use d::follows::FollowAct as A;
+    match act {
+        w::FollowAct::Start(value) => A::Start { after: *value.after() },
+        w::FollowAct::Hold(value) => {
+            let p = value.into_parts();
+            A::Hold { after: p.after, reason: p.reason }
+        }
+        w::FollowAct::Skip(value) => {
+            let p = value.into_parts();
+            A::Skip { after: p.after, reason: p.reason }
+        }
+        w::FollowAct::Merge(value) => A::Merge { afters: value.into_parts().afters.into_boxed() },
+    }
 }

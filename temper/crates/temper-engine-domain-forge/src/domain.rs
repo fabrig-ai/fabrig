@@ -233,6 +233,8 @@ pub struct Domain {
     pub(crate) landing: crate::landing::State,
     pub(crate) follow_retry: Map<(u32, u32), skein_lib::Time>,
     pub(crate) follow_queue: u32,
+    pub(crate) follow_merge: u32,
+    pub(crate) follow_reason_bytes: u32,
     pub(crate) follow_rows: Map<(u32, u32), crate::FollowRow>,
     pub(crate) follow_reads: Map<Token, crate::follows::Pending>,
     pub(crate) tier_ops: crate::tiers::State,
@@ -495,6 +497,7 @@ impl Domain {
             return Some(crate::Answered::SetUp(*answer));
         }
         match self.application_outcome(token) {
+            Some(crate::ApplicationOutcome::Follow(words)) => Some(crate::Answered::Follow(words.clone())),
             Some(crate::ApplicationOutcome::MakeKept) => Some(crate::Answered::Make(crate::MakeAnswer::Kept)),
             Some(crate::ApplicationOutcome::MakeRefused(why)) => {
                 Some(crate::Answered::Make(crate::MakeAnswer::Refused(*why)))
@@ -776,6 +779,8 @@ impl Domain {
             landing: crate::landing::State::new(l),
             follow_retry: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
             follow_queue: l.follow_queue,
+            follow_merge: l.follow_merge,
+            follow_reason_bytes: l.follow_reason_bytes,
             follow_rows: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
             follow_reads: Map::with_capacity(crate::follows::capacity(l).expect("checked follow capacity")),
             tier_ops: crate::tiers::State::new(l),
@@ -1491,6 +1496,18 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::BoxRemoved { forge } => {
             crate::removal::box_removed(d, forge, out);
             crate::playground::removed(d, out);
+        }
+        Event::FollowChangeAmended { task, follows, words } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                row.follows = Some(follows);
+                row.title = temper_engine_domain_forge_closer::first_line(&words).into();
+                row.body = words;
+                let row = row.clone();
+                save_change(d, out, row);
+            }
+        }
+        Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
+            crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
         }
         Event::Application { request, token, retention, ask, role, carried } => match ask {
             crate::Ask::RemoveForge { forge } => {
@@ -7388,6 +7405,7 @@ impl Domain {
                         crate::ApplicationOutcome::CoreRefused(_)
                         | crate::ApplicationOutcome::ForgeRefused(_)
                         | crate::ApplicationOutcome::MakeKept
+                        | crate::ApplicationOutcome::Follow(_)
                         | crate::ApplicationOutcome::MakeRefused(_) => false,
                     } {
                         return Key::Application(key.raw());

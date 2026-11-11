@@ -3,7 +3,10 @@ use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};
 use skein_lib::{Env, List, Queue, Time, Token};
+mod acts;
 pub mod words;
+pub use acts::FollowAct;
+pub(crate) use acts::asked;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowRow {
@@ -18,6 +21,7 @@ pub struct FollowRow {
     pub skips: Box<[FollowSkip]>,
     pub parity: Option<FollowParity>,
     pub questions: Box<[FollowQuestion]>,
+    pub pending: Option<FollowAct>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowEntry {
@@ -113,7 +117,14 @@ pub enum FollowRefusal {
     UnknownFollow,
     Stopped,
     UnknownEntry,
+    Skipped,
     AlreadyStarted,
+    NotConsecutive,
+    MergeBound,
+    ReasonBound,
+    NoWord,
+    Pending,
+    NotOwner,
 }
 impl Domain {
     pub fn follow_start(&self, project: u32, follow: u32, after: Commit) -> Result<FollowRow, FollowRefusal> {
@@ -137,11 +148,20 @@ impl Domain {
                 | FollowState::WaitsFor(_)
                 | FollowState::HeldByOwner(_) => {
                     entry.word = true;
+                    entry.state = FollowState::NotMade;
                 }
                 FollowState::Producing | FollowState::Held(_) => return Err(FollowRefusal::AlreadyStarted),
             }
         }
-        if found { Ok(row) } else { Err(FollowRefusal::UnknownEntry) }
+        if found {
+            return Ok(row);
+        }
+        for skip in &row.skips {
+            if skip.after == after {
+                return Err(FollowRefusal::Skipped);
+            }
+        }
+        Err(FollowRefusal::UnknownEntry)
     }
     #[must_use]
     pub fn follow_task(&self, task: u64) -> Option<&FollowRow> {
@@ -224,6 +244,7 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
                 skips: Box::new([]),
                 parity: None,
                 questions: Box::new([]),
+                pending: None,
             };
             save(&row, out);
             d.follow_rows.insert(key, row).expect("accepted follow bound");
@@ -504,6 +525,12 @@ fn finish_range(d: &mut Domain, env: &Env<Limits>, pending: Range, out: &mut Que
 }
 pub(crate) fn row_bytes(row: &FollowRow) -> Option<u64> {
     let mut bytes = skein_lib::len_u64(row.branch.len());
+    let pending = match &row.pending {
+        Some(FollowAct::Hold { reason, .. } | FollowAct::Skip { reason, .. }) => skein_lib::len_u64(reason.len()),
+        Some(FollowAct::Merge { afters }) => skein_lib::len_u64(afters.len()).checked_mul(32)?,
+        Some(FollowAct::Start { .. }) | None => 0,
+    };
+    bytes = bytes.checked_add(pending)?;
     bytes = bytes.checked_add(
         skein_lib::len_u64(row.questions.len()).checked_mul(u64::try_from(size_of::<FollowQuestion>()).ok()?)?,
     )?;

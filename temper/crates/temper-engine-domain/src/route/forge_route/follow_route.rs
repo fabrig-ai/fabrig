@@ -3,10 +3,12 @@ use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append
 use forge::follows::{FollowQuestion, FollowRefusal};
 use jig_domain_core::{Dependency, StepCancel, StepMessage};
 use skein_forge::api::Commit;
+mod acts;
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
     row: forge::FollowRow,
     made: Box<[Made]>,
+    act: Option<forge::follows::FollowAct>,
 }
 #[derive(Hash, Debug)]
 enum Made {
@@ -67,15 +69,21 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, follow
 fn branch<'a>(named: &'a [u8], repository: &'a forge::Repository) -> &'a [u8] {
     if named.is_empty() { &repository.settings.default_branch } else { named }
 }
+#[expect(clippy::too_many_lines, reason = "the owner act and ordered delegate batch form one procedure decision")]
 pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
     let Some(mut row) = domain.forge.follow_task(task).cloned() else { return };
     refresh(domain, &mut row);
     take_questions(domain, task, &mut row);
+    let act = row.pending.clone();
     let mut decision = ProcedureStep::new(StepEnd::Wait);
     let mut made = List::with_capacity(env.limits.tasks.batch);
     let mut batch = List::with_capacity(env.limits.tasks.batch);
     answer_questions(domain, env, &mut row, &mut decision);
+    if acts::apply(domain, env, &mut row, &mut decision).is_none() {
+        super::holds::hold(domain, task, b"the follow cannot apply its owner act within the specification bound");
+        return;
+    }
     let Some(setting) = domain.forge.follow(row.project, row.follow).cloned() else { return };
     let Some(delegation) = domain.core.tasks.delegation(task) else { return };
     // A remake is one batch, including the tail. No held task is released.
@@ -164,7 +172,7 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     domain
         .follow_steps
-        .insert((task, step), Pending { row, made: made.into_boxed() })
+        .insert((task, step), Pending { row, made: made.into_boxed(), act })
         .expect("one pending follow step");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
@@ -202,7 +210,7 @@ fn refresh(domain: &Domain, row: &mut forge::FollowRow) {
     let Some(setting) = domain.forge.follow(row.project, row.follow) else { return };
     for entry in &mut row.queue {
         let Some(change) = entry.change else { continue };
-        if entry.remake {
+        if matches_owner_hold(&entry.state) || entry.remake {
             continue;
         }
         let Some(task) = domain.core.tasks.task(change) else { continue };
@@ -246,7 +254,6 @@ fn delegate(
     spend: u64,
     count: u32,
 ) -> Option<super::super::Delegate> {
-    let source = domain.forge.repository(setting.source.repository)?;
     let target = domain.forge.repository(setting.target.repository)?;
     let base = Box::from(branch(&setting.target.branch, target));
     let mut call = crate::ChangeCall::words(b"Follow".as_slice().into(), None);
@@ -259,9 +266,25 @@ fn delegate(
     context.tasks_left = context.tasks_left.checked_div(count)?;
     let mut member = super::chat_change(domain, env, &context, &call, target, base, None, spend).ok()?;
     member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true).ok()?;
+    member.spec = describe(domain, env, row, core::slice::from_ref(entry), member.spec)?;
+    Some(member)
+}
+fn describe(
+    domain: &Domain,
+    env: &Env<Limits>,
+    row: &forge::FollowRow,
+    entries: &[forge::FollowEntry],
+    mut spec: tasks::Spec,
+) -> Option<tasks::Spec> {
+    let setting = domain.forge.follow(row.project, row.follow)?;
+    let source = domain.forge.repository(setting.source.repository)?;
+    let target = domain.forge.repository(setting.target.repository)?;
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     let mut bytes = 0_u32;
-    for parameter in member.spec.parameters {
+    for parameter in spec.parameters {
+        if let tasks::Parameter::Bytes { name: 18, .. } = &parameter {
+            continue;
+        }
         if let tasks::Parameter::Bytes { value, .. } = &parameter {
             bytes = bytes.checked_add(u32::try_from(value.len()).ok()?)?;
         }
@@ -270,13 +293,20 @@ fn delegate(
     let mut follows = List::uncapped();
     append(&mut follows, &super::decimal(u64::from(row.follow)));
     append(&mut follows, b":");
-    append(&mut follows, &super::commit_text(&entry.after));
+    let mut first = true;
+    for entry in entries {
+        if !first {
+            append(&mut follows, b",");
+        }
+        append(&mut follows, &super::commit_text(&entry.after));
+        first = false;
+    }
     bytes = bytes.checked_add(follows.len())?;
     parameters.push(tasks::Parameter::Bytes { name: 18, value: follows.into_boxed() }).ok()?;
     let configured = domain.forge.configured(source.provider.forge)?;
     let pages = configured.web.as_deref().unwrap_or(&configured.git);
-    member.spec.words = forge::follows::words::build(
-        core::slice::from_ref(entry),
+    spec.words = forge::follows::words::build(
+        entries,
         &forge::follows::words::Words {
             follow: row.follow,
             source: super::repository_name(source),
@@ -288,8 +318,8 @@ fn delegate(
         },
         env.limits.tasks.spec_bytes.checked_sub(bytes)?,
     )?;
-    member.spec.parameters = parameters.into_boxed();
-    Some(member)
+    spec.parameters = parameters.into_boxed();
+    Some(spec)
 }
 fn take_questions(domain: &Domain, task: u64, row: &mut forge::FollowRow) {
     let Some(record) = domain.core.tasks.task(task) else { return };
@@ -433,6 +463,32 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
             }
         }
     }
+    for entry in &pending.row.queue {
+        if let Some(task) = entry.change
+            && let Some(record) = domain.core.tasks.task(task)
+            && let Some(change) = domain.forge.change(task)
+        {
+            for parameter in &record.spec.parameters {
+                if let tasks::Parameter::Bytes { name: 18, value } = parameter {
+                    let follows = super::change_follows(value, u32::MAX);
+                    if change.follows != follows
+                        && let Some(follows) = follows
+                    {
+                        domain.work.push(Work::Forge(forge::Event::FollowChangeAmended {
+                            task,
+                            follows,
+                            words: record.spec.words.clone(),
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    if let Some(current) = domain.forge.follow_task(task)
+        && current.pending != pending.act
+    {
+        pending.row.pending.clone_from(&current.pending);
+    }
     refresh(domain, &mut pending.row);
     domain.work.push(Work::Forge(forge::Event::Follow { row: pending.row }));
 }
@@ -481,6 +537,11 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
     } else if let tasks::Party::Task(parent) = task.requester
         && let Some(mut row) = domain.forge.follow_task(parent).cloned()
     {
+        for ((task, _), _) in &domain.follow_steps {
+            if *task == parent {
+                return;
+            }
+        }
         refresh(domain, &mut row);
         if let tasks::Phase::Ended(end) = &task.phase {
             for entry in &mut row.queue {
@@ -539,12 +600,14 @@ pub(crate) fn owner_wait(domain: &Domain, task: u64, project: u32, follows: &for
     }
     let Some(setting) = domain.forge.follow(project, follows.follow) else { return true };
     let Some(row) = domain.forge.follow_row(project, follows.follow) else { return true };
-    if setting.start == forge::settings::FollowStart::Code {
-        return false;
-    }
+
     for after in &follows.commits {
         for entry in &row.queue {
-            if entry.after == *after && !entry.word {
+            if entry.after == *after
+                && (matches_owner_hold(&entry.state)
+                    || pending_hold(row, after)
+                    || (setting.start == forge::settings::FollowStart::Owner && !entry.word))
+            {
                 return true;
             }
         }
@@ -652,4 +715,27 @@ pub(crate) fn check_batch(
         }
     }
     Ok(())
+}
+
+fn matches_owner_hold(state: &forge::FollowState) -> bool {
+    match state {
+        forge::FollowState::HeldByOwner(_) => true,
+        forge::FollowState::NotMade
+        | forge::FollowState::WaitsWord
+        | forge::FollowState::WaitsFor(_)
+        | forge::FollowState::Producing
+        | forge::FollowState::Held(_)
+        | forge::FollowState::Ended(_) => false,
+    }
+}
+fn pending_hold(row: &forge::FollowRow, commit: &Commit) -> bool {
+    match &row.pending {
+        Some(forge::follows::FollowAct::Hold { after, .. }) => after == commit,
+        Some(
+            forge::follows::FollowAct::Start { .. }
+            | forge::follows::FollowAct::Skip { .. }
+            | forge::follows::FollowAct::Merge { .. },
+        )
+        | None => false,
+    }
 }

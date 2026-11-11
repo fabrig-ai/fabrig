@@ -117,6 +117,10 @@ pub const TOOLS: &[&Tool] = &[
     &rows::PROJECT_REMOVE,
     &crate::follow::LIST,
     &crate::follow::SHOW,
+    &crate::follow::START,
+    &crate::follow::HOLD,
+    &crate::follow::SKIP,
+    &crate::follow::MERGE,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

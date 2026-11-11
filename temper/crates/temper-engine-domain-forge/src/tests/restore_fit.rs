@@ -40,6 +40,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             skips: Box::new([]),
             parity: None,
             questions: Box::new([]),
+            pending: None,
         }),
         RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {

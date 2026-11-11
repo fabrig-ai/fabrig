@@ -597,6 +597,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
     Forge(forge::Ask),
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
@@ -607,6 +608,7 @@ pub enum Application {
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Follow(Option<Box<[u8]>>),
     Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
