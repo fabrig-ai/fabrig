@@ -215,6 +215,11 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         let panel = w::WaysPanel::new(
             &w::CEILINGS,
             w::WaysPanelParts {
+                rules: w::PathRules::new(
+                    &w::CEILINGS,
+                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+                )
+                .unwrap(),
                 words: case.words.map(|(headline, lede)| {
                     w::ProjectWords::new(
                         &w::CEILINGS,

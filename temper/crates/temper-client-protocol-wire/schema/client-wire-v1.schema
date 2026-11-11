@@ -162,7 +162,10 @@ record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
 record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
+# Rules by path (client/forge/records.md, A project's ways).
+record PathRule { paths: text 256 review: text 64 sign_off: text 64 lands: text 64 }
+record PathRules { rows: list 9 PathRule note: text 160 }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords rules: PathRules may_change: bool }
 # A view, read when shown (client/forge/records.md and client/pages/chat/conversation.md, 3).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: BranchPath current: bool }

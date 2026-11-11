@@ -208,7 +208,19 @@ fn fixture(
             .unwrap();
             let panel = w::WaysPanel::new(
                 &w::CEILINGS,
-                w::WaysPanelParts { words: None, project: f::PROJECT, ways, current, own: path, may_change: false },
+                w::WaysPanelParts {
+                    rules: w::PathRules::new(
+                        &w::CEILINGS,
+                        w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+                    )
+                    .unwrap(),
+                    words: None,
+                    project: f::PROJECT,
+                    ways,
+                    current,
+                    own: path,
+                    may_change: false,
+                },
             )
             .unwrap();
             up(
