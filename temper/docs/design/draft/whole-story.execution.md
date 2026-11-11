@@ -95,7 +95,7 @@ or the nearest thing, and says so in that draft's status.
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
 | T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 5) |
-| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | designed, building: plan `tui-design-session` |
+| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | landed; its walk follows (`../client/README.md`, section 5) |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
 | E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
 | V1 | The pilot, vsr alone: adopted, its way Draft first, its checks as CI, a goal from a draft | `whole-story.md`, 5.2 | GitHub's rungs (`v0.1.0.md`, 2.2); a worker with vsr's C toolchain | temper/migration, with the user | must | not started |
@@ -332,12 +332,11 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | F2 | waits | F1, by its needs |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
-| T2 | in flight | the plan `tui-design-session`: its design in `../client/tui/pages.md`, *A design session*, and skein's side region (`skein/docs/design/ui/screen.md`, 5.2) first |
+| T2 | landed | goal 172: `../client/tui/pages.md`, *A design session*, on skein's side region (`skein/docs/design/ui/screen.md`, 5.2); its walk follows landing |
 | T3 | waits | T1, R2 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P7; T2, whose needs have landed: T1 by
-  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair; N2,
-  temper/migration's, and N3b, both must.
+- **Next to start:** P7; N2, temper/migration's, and N3b, both
+  must.

@@ -106,9 +106,12 @@ makes each call to a forge and hears its deliveries, is
   (section 4). A run's push is the worker's, over git, under its task's
   hold (`../worker.md`, section 5).
 - **Kinds,** for authority (jig's `domain/authority.md`, section 4),
-  numbered: 1, reads; 2, a run's push; 3 to 15, the effects, one per row
-  of section 4's table. No kind implies another: each write a task means
-  to make needs a grant of its own kind. Landing rules govern kind 4,
+  numbered: 1, reads; 2, a run's push; 3 to 15, and 17, the effects, one
+  per row of section 4's table (16 and 17 are also a landing's,
+  `../landing.md`, 11). No kind implies another: each write a task means
+  to make needs a grant of its own kind. A change is given kind 17 on its
+  branch wherever it is given kind 2 there, since a push of the same head
+  would run the same CI (`change/README.md`, 2, step 3). Landing rules govern kind 4,
   the merge (`change/gates.md`, 2). None forces a push (`change/gates.md`, 2).
 - **Topics:** landings on a branch; CI on a head; a pull request's
   state; the comments and reviews on a participating object (section 5).
@@ -210,6 +213,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 | 14 | set a pull request's reviewers | a set | idempotent | written again |
 | 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made; but a goal's own branch, which temper alone makes, is conditional: made again while none of its name exists (`branches.md`, 1) | the branch exists at that commit |
 | 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
+| 17 | rerun a job | a transition: a failed job of the change's CI at its head run again, with the jobs that need it, as its next attempt (skein's `Write::Rerun`; `change/README.md`, 2, step 3) | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named; at that attempt still, completed, it was not made, and the change decides again on a fresh read |
 
 - **The outbox is bounded** by the connector's `entries` limit: no entry
   is committed past it, and room frees only as an entry leaves it, by its
@@ -424,7 +428,9 @@ instead (`../landing.md`, section 5).
   `forge/github.md`, 5.2). Either way the update is done once the head,
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (section 4), and the new head is heard as any
-  push.
+  push. That head is the change's own, recorded as its branch's head in
+  the step that settles the update, never drift (`change/README.md`,
+  3, *Its own writes are its own*).
 - **Lost, and made again.** An update whose answer is lost is looked for
   by that read and, not found after its lifetime, checked and made again,
   up to `write_attempts` (skein's `forge/client.md`, 7.5). It holds no one.
@@ -433,7 +439,9 @@ instead (`../landing.md`, section 5).
   did not answer, or what it was decided on has gone, perhaps to a copy of
   its own. The top keeps its account and reports no result, and a change
   updating or preparing (`../landing.md`, 5.2) with no result and none
-  outstanding decides again on a fresh read of its head and base:
+  outstanding decides again on a fresh read of its head and base, the
+  base being the tip the update asked for, though the branch has moved
+  on since:
 
   | Its head | Holds the base | It |
   |---|---|---|
@@ -610,6 +618,16 @@ restart; an update whose answer is lost, found, or made again and landed,
 under a queue and as a turn's prepare; one lost for good, decided again
 until its count holds it, told why, and released; one whose base went on
 while it was lost; a copy of it landing after the change moved on, held;
+a goal's landing whose own update lands, going on to CI on its new head
+and merging, and one whose goal's close-out merged into its branch just
+before, doing the same; a push from outside during an update, held with
+both heads named; a stalled update held after the stall, its words
+naming the step; two changes into one branch, the second, better placed,
+staying queued while the first updates, is checked at its new head and
+merges, then taking its turn unprompted; a change's CI failed at its
+set-up step, run again and passing, its gates kept; one run again that
+fails again, then repaired, its brief saying so; a workflow step's
+failure repaired with no re-run; a re-run whose answer is lost, found made;
 a mergeability unsettled within the window, then settled; a
 forge preloaded with ten times the history, idle at the same cost. Of
 the rules as settings (`change/gates.md`, 3): a landing rule changed between two merges,
@@ -917,9 +935,11 @@ whole.
   so such a request starts no repair. Whether a landing should repair it as a
   change does, from the remarks of a person reviewing a whole goal, is undecided.
   Default: so, until a request asks.
-- **CI asked again at an unchanged head** (`change/repairs.md`; `../landing.md`): a landing or a
-  change whose CI failed for an infrastructure fault, not the change, cannot
-  have its CI run again until a new commit or a cancel; a person's ask, and a
+- **CI asked again at an unchanged head** (`change/repairs.md`; `../landing.md`): a change
+  whose CI the runner failed has it run again (`change/README.md`, 2, step 3), but one
+  that failed for another infrastructure fault inside a workflow's step (a network
+  outage, a flaky test) cannot have its CI run again until a new commit or a cancel,
+  nor can a landing's failed receipt be superseded; a person's ask, and a
   repair's verdict that the cause is outside the change, would rerun a change's
   failed jobs or supersede a landing's failed receipt. It needs a client
   request, stored retry state and a repair's contract, so the restart work of

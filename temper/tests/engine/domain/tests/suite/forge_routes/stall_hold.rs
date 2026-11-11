@@ -157,6 +157,42 @@ fn close(mut world: World, owner: &engine::Assignment) {
 }
 
 #[test]
+fn a_stalled_update_names_its_wait_and_reaches_its_goal() {
+    // A tiny stall reaches the wait before the pending write's ten-second lifetime.
+    let (mut world, goal, _, _, task) =
+        super::goal_closer::updating_landing_with_stall(false, Some(Duration::from_secs(5)));
+    let State::Updating { from, base, .. } = row(&world, task).change.state else { panic!("updating") };
+    world.hold_write_answers = Some(HoldWrite::All);
+    for _ in 0..STEPS {
+        world.tick();
+        if !world.held_write_answers.is_empty() {
+            break;
+        }
+    }
+    assert!(!world.held_write_answers.is_empty(), "the forge's update answer remains outstanding");
+    stall(&mut world, task);
+    goal_entry(&world, task, goal.task);
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else {
+        panic!("stall account")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("stall's wait") };
+    let from = forge_top::commit_text(&from);
+    let base = forge_top::commit_text(&base);
+    assert_eq!(
+        words.as_ref(),
+        format!(
+            "no progress at updating for 0 minutes: waiting for its update of {} with main at {}",
+            core::str::from_utf8(&from[..12]).unwrap(),
+            core::str::from_utf8(&base[..12]).unwrap()
+        )
+        .as_bytes()
+    );
+    world.hold_write_answers = None;
+    world.events.extend(world.held_write_answers.drain(..));
+    close(world, &goal);
+}
+
+#[test]
 fn a_stalled_change_holds_its_task_and_wakes_its_idle_goal() {
     let (mut world, goal, task, producer) = preparing(true);
     waiting(&mut world, task, &producer, true);

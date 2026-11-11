@@ -5,6 +5,8 @@ use super::{
     authority, decimal, forge, tasks,
 };
 use alloc::boxed::Box;
+mod change;
+pub(super) use change::account as change_account;
 
 pub(super) fn source(domain: &Domain, entry: Option<u64>, words: Box<[u8]>) -> tasks::HoldSource {
     tasks::HoldSource::Account { connector: domain.config.forge_connector, entry, words }

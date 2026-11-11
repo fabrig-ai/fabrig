@@ -22,7 +22,7 @@ mod tests;
 
 pub use boundary::{
     Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Change, Ci, Decision, Delegate, DelegateSpend, Early, Effect,
-    EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Open, Pending,
+    EffectResult, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Open, Pending,
     PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State,
     Status, Stepped, Verification, Way,
 };

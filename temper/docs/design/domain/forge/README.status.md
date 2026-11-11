@@ -37,6 +37,9 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
+- **Not yet:** 6, *Made when the forge says* and *Let go*: an update's made head is not recorded as the change's own, and a let-go update is judged against the base's tip read now, not the tip it asked for; 10, the stories of a goal's landing whose own update or close-out moves its branch, a push from outside during an update, and a stalled update (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `step_read`) [in flight: change 596].
+- **Not yet:** 10, two changes into one branch, the second staying queued while the first updates, is checked and merges [in flight: change 594].
+- **Not yet:** 2, *Kinds*, kind 17 given to a change with kind 2 on its branch; 4, kind 17's row for a change; 10, the stories of a change's CI the runner failed, run again [in flight: change 601].
 - **Not yet:** 1, quiet on the forge: a branch nothing has pushed is read on every hint and every `queue_window` (`keeping-up.status.md`) [in flight: change 157].
 - **Not yet:** 1, quiet on the forge: a gather reads its head's CI twice, and every pull read reads CI [in flight: change 158].
 - **Not yet:** 1, quiet on the forge: the repository's own facts are read again on each `Settings` and after each `PullFor` that finds none [in flight: change 159].
