@@ -724,9 +724,12 @@ whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not
 connected pauses a repair with no bound, by that plan's cut (`domain/forge/README.md`).
-No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag, and
-the queue's first can lose its turn to a change stepped during it
+No test runs real git on a dirty workspace (`protocol/git.md`). The queue's first
+keeps its turn through its update, CI and merge, a change's own update and its
+goal's merges into its branch are its own heads, a stall's hold names its step,
+and a change's CI the runner failed runs again before any repair, each shown on
+the fake forge alone (`domain/forge/README.md`; `draft/queue-smooth.md`). Much of a change's own
+bounds and gates, the forge's merge queue and a goal's issue lag
 (`domain/forge/README.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
@@ -1184,6 +1187,7 @@ Drafts:
 - [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
