@@ -1,4 +1,4 @@
-"""The delivery check (tools/pre-pr/design.md, 2–9).
+"""The delivery check (tools/pre-pr/design.md, 1–9).
 
 The private snapshot leaves the caller's index alone; only exceeded counts need a
 base worktree. Every tool streams before the bounded, final verdict.

@@ -1,4 +1,4 @@
-"""Delivery selection and base judgments (tools/pre-pr/design.md, 3, 5, 9)."""
+"""Delivery selection, known reds and inherited counts (tools/pre-pr/design.md, 3, 5, 9)."""
 import contextlib
 import importlib.util
 import io
@@ -104,6 +104,8 @@ sys.exit(int(count > 0))
                               ('api', 'clippy::rule', 'api/src/lib.rs', 'changed message'), 'api')
         for entry, check, error, accepted in (
                 ('- test api::rules rule', 'tests', test, True),
+                ('- test api::rules rule\n' * 65, 'tests', test, False),
+                ('- test api::rules rule\n' + 'x' * 8193, 'tests', test, False),
                 ('- test api::rules other', 'tests', test, False),
                 ('- test api::other rule', 'tests', test, False),
                 (None, 'tests', test, False),
@@ -132,33 +134,41 @@ sys.exit(int(count > 0))
                                   ' (known red, .temper/known-reds.md)', summary)
                     self.assertIn(f'pre-pr: {check}: inherited,', log)
                 else:
-                    self.assertNotIn('inherited:', summary)
-                self.assertEqual(path.exists(), 'pre-pr: known reds: 1 entries (.temper/known-reds.md)' in log)
+                    self.assertNotIn('inherited: ' + error['name'], summary)
+                if entry is None:
+                    self.assertNotIn('pre-pr: known reds:', log)
+                else:
+                    self.assertIn('pre-pr: known reds:', log)
                 self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
                 self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def test_known_reds_are_bounded_snapshot_entries(self):
-        for content, count, accepted in (
-                ('- test api::rules rule\n' * 64, 64, True),
-                ('- test api::rules rule\n' * 65, 65, False),
-                ('x' * 8192, 0, True),
-                ('x' * 8193, 0, False),
-                ('- test api::rules rule\n' + 'x' * 8193, 1, False),
-                ('# Prose\n - test api::rules rule\n- test api::rules\n'
-                 '- lint api clippy::rule\n', 0, True)):
-            with self.subTest(entries=count, size=len(content)):
-                # Only this unstaged Markdown changes: reading is independent of code selection.
-                self.write('.temper/known-reds.md', content)
-                result, log, _, code = self.deliver()
-                self.assertEqual(result, int(not accepted), log)
-                self.assertEqual(code, (False, False, False))
-                self.assertIn(f'pre-pr: known reds: {count} entries (.temper/known-reds.md)', log)
-                if not accepted:
-                    self.assertIn('known-reds\n.temper/known-reds.md: '
-                                  f'{count} entries, {len(content):,} bytes; '
-                                  'the cap is 64 entries and 8,192 bytes', log)
-                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+        for with_base in (True, False):
+            if not with_base:
+                self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+            for content, count, accepted in (
+                    ('- test api::rules rule\n' * 64, 64, True),
+                    ('- test api::rules rule\n' * 65, 65, False),
+                    ('x' * 8192, 0, True),
+                    ('x' * 8193, 0, False),
+                    ('é' * 4096, 0, True),
+                    ('é' * 4096 + 'x', 0, False),
+                    ('- test api::rules rule\n' + 'x' * 8193, 1, False),
+                    ('# Prose\n - test api::rules rule\n- test api::rules\n'
+                     '- lint api clippy::rule\n', 0, True)):
+                with self.subTest(entries=count, size=len(content.encode()), base=with_base):
+                    # Only this unstaged Markdown changes: reading is independent of code selection.
+                    self.write('.temper/known-reds.md', content)
+                    result, log, _, code = self.deliver()
+                    self.assertEqual(result, int(not accepted), log)
+                    self.assertEqual(code, (not with_base, False, False))
+                    self.assertIn(f'pre-pr: known reds: {count} entries (.temper/known-reds.md)', log)
+                    if not accepted:
+                        self.assertIn('known-reds\n.temper/known-reds.md: '
+                                      f'{count} entries, {len(content.encode()):,} bytes; '
+                                      'the cap is 64 entries and 8,192 bytes', log)
+                    (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def test_saved_edits_are_checked_with_new_edits(self):
         title = 'Unchecked: work in progress, saved before a question'

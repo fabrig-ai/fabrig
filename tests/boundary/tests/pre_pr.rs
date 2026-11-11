@@ -511,13 +511,7 @@ fn only_what_the_delivery_broke_refuses() {
             false,
             "test A::rules rule",
         ),
-        (
-            "no file",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            None,
-            false,
-            "test A::rules rule",
-        ),
+        ("no file", json!({"tests": [test_failure("rule", "head junit tail")]}), None, false, "test A::rules rule"),
         (
             "different binary",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
