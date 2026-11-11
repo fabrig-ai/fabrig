@@ -207,7 +207,8 @@ record Open { asker: u64 number: u64 line: bytes 256 words: bytes 262144 stands:
 record Questions { route: Route taken: u32 open: list 128 Open }
 record ChangeFailure { line: bytes 1048576 }
 enum ChangeEnding { landed, no_change, cancelled, failed: ChangeFailure }
-record ChangeRow { goal: option u64 ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice foreman_charter: u32 effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 catch_up: option fixed 32 close: option bytes 16384 merge_result: option bytes 512 }
+record SignOff { person: u64 head: fixed 32 at: u64 }
+record ChangeRow { signed: list 8 SignOff goal: option u64 ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice foreman_charter: u32 effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 catch_up: option fixed 32 close: option bytes 16384 merge_result: option bytes 512 }
 # 04.4ac: goal issue projections and the root-authorized desired view.
 enum Phase { waiting, active, settling, held, done, failed, cancelled }
 record PlanItem { text: text 65536 phase: Phase }
@@ -348,7 +349,7 @@ record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 record KeepAsking { project: u32 subject: ClassSubject at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
 record Dismissed { party: u64 what: PersonFact }
-record LoggedChange { task: u64 pull: option u64 title: bytes 256 }
+record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 }
 record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange }
 record LandingLog { repository: Repository landings: list 256 LoggedLanding }
 
