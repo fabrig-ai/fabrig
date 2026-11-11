@@ -760,7 +760,7 @@ in a terminal or not, as 1 to 5 say.
   | fd | What | Way |
   |---|---|---|
   | 0 | a pipe its parent holds and never writes: its end is the parent's quit or death | in |
-  | 1, 2 | one pipe its parent reads, for what the box writes before `box.log` is open, a fail-stop report among it | out |
+  | 1, 2 | pipes its parent reads, for what the box writes before `box.log` is open, a fail-stop report among it; one pipe or two, the box writes to each as to its stdout and stderr | out |
   | 3 | the local link's URL, written whole by the box, then closed | out |
   | 4 | the box's lines (below), until the box exits | out |
 
