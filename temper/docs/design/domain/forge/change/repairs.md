@@ -26,7 +26,11 @@
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
-  step failed. The log is read at the job attempt that failed on this
+  step failed. Where its job's failure is the runner's, the brief says so
+  and why, with how many times the job was run again at this head
+  (`README.md`, 2, step 3: `the runner's: set-up failed; run again 1 time
+  at this head, failed again`). A failure the runner caused within
+  `reruns` is run again, never repaired. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
   read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
   On GitHub the pin comes from the failed check's resolved Actions job,
@@ -325,9 +329,13 @@
   commands so a bounded task summary retains a way out. They advertise
   only commands the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
-  mergeability never known, a forge's merge queue that neither lands
-  nor ejects it, a gate's task stuck) is bounded by a stall counted from
-  the head's push or the last release; past it, the change is held. The
+  mergeability never known, an update or a merge whose answer or head
+  never shows, a forge's merge queue that neither lands nor ejects it, a
+  gate's task stuck) is bounded by a stall, the deployment's
+  `forge.change_policy.stall_ms` (`../../../protocol/configuration/limits.md`),
+  counted from the head's push, the write it waits on or the last
+  release; past it, the change is held. No step of a change's way waits
+  past it with no hold. The
   default, 30 minutes, outlasts an ordinary CI run so a healthy change
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
@@ -345,6 +353,21 @@
   the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
   in conflict goes to its merge job and then a resolution, however many
   commits behind it is.
+- **A stall's hold says where.** Its words name the step the change was
+  held at and what it waits on, commits at the forge's short length, in
+  one shape: `no progress at STEP for N minutes: waiting for WHAT`, N
+  the stall in whole minutes. For instance:
+
+  | Held at | WHAT |
+  |---|---|
+  | opening | `its pull request to open` |
+  | checking | `CI at 0123456789ab` |
+  | gating | `its gates at 0123456789ab` |
+  | first | `the forge to settle whether 0123456789ab merges` |
+  | updating | `its update of 0123456789ab with main at 89abcdef0123` |
+  | landing | `its merge of 0123456789ab` |
+
+  A step not listed says its own wait in the same shape.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the

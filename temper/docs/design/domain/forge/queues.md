@@ -24,16 +24,26 @@ are comparable.
   goes before every change that became ready after it, whatever their
   priorities.
 - **The first owns the queue.** Only the first is brought up to date and
-  merged; the rest wait. It keeps its turn through a clean update, CI on
-  its new head and its merge, so no CI run is wasted by a change
-  overtaking it. It **leaves the queue** on a conflict, on a check that
-  fails (CI, a gate asked again), on a gate added, when held or
-  closing, when its task is kept by a dependency added to it, or once
-  the forge's own merge queue holds it (1), and the next becomes
-  first; it comes back when it is ready again, at its place by its
+  merged; the rest wait. A change owns the queue's turn from the step it
+  becomes first until it leaves the queue or lands, and while it owns it
+  no other change into the branch is first, whatever its priority or its
+  age: the order above, aging included, chooses only who takes the turn
+  next. It keeps its turn through a clean update, CI on its new head (a
+  re-run of the runner's failures there included, `change/README.md`, 2,
+  step 3), its gates carried over and its merge, so no CI run is wasted
+  by a change overtaking it. It **leaves the queue** on a conflict, on a
+  check that fails (CI, a gate asked again), on a gate added, when held
+  or closing, when its task is kept by a dependency added to it, or once
+  the forge's own merge queue holds it (1), and the next becomes first:
+  a change that gives up its turn, or lands, wakes the ready changes into
+  its branch in the same step, so the next takes the turn with no wait of
+  its own. It comes back when it is ready again, at its place by its
   first time. A kept change keeps its head, its checks and its gates'
   verdicts: once its last dependency is met, it is ready again at once
-  if they still hold. A resolution never holds the queue.
+  if they still hold. A resolution never holds the queue. A ready repair
+  of the branch's own CI (below) goes first even so: the owner keeps its
+  turn and waits for it, as every change does while the branch's CI
+  fails.
 - **Shown whole,** to the client's subject `changes`
   (`../../client/forge/records.md`): the change that owns the queue first, at
   whichever step of its turn, then the ready changes in this order.
