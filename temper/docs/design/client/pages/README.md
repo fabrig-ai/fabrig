@@ -22,7 +22,7 @@ nothing known, a section draws its title with no line under it.
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
-acts lead (`../mockups/README.md`, section 1). Lists of tasks are
+acts lead (`../web/mockups/README.md`, section 1). Lists of tasks are
 task queries (jig's `client/domain/contract/README.md`, 4.1): the chat and
 goal templates' labels are jig's defaults, which temper's configuration
 keeps (`../../protocol/configuration/README.md`, section 2).
@@ -324,7 +324,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   `client/domain/contract/documents.md`, 1); Only you's other kinds, a forge's
   token to replace, and a person task asking an act rather than a choice,
   which stays among the cards meanwhile; Only you in the terminal's inbox
-  (`../tui/pages.md`); a need's goal, role and asker on its from
+  (`../tui/pages/README.md`); a need's goal, role and asker on its from
   line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
   person's word as a finding and a setting names the project's triager
   (`../../domain/findings.md`, sections 4 and 6); one brief across projects written per person,
@@ -366,3 +366,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   done?" in every project, the playground's start among them, draw
   (`README.md`). Default: neither drawn, the agent's waiting for its page's
   owner.
+
+- **A page refused busy.** How a page says its rows have not arrived,
+  rather than calling them absent, belongs to the client's presentation
+  (`../README.md`), outside watch sizing. Default: keep the handle's
+  behind state and its retry (jig's `client/domain/client/watches.md`, 1).

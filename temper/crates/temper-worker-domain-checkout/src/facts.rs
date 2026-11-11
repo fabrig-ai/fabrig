@@ -1,5 +1,5 @@
-//! What the checkout tells whoever watches the worker (domain/worker.md,
-//! section 7): a fact for each thing that happened, content-free (tokens,
+//! What the checkout tells whoever watches the worker (domain/worker/README.md,
+//! section 6): a fact for each thing that happened, content-free (tokens,
 //! kinds and counts, never a name, a branch or a message), in a bounded queue
 //! the parent drains at its own pace.
 //!

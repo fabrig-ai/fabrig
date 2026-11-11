@@ -1,4 +1,4 @@
-//! The draft's sheet through the host (client/tui/pages.md, A design session).
+//! The draft's sheet through the host (client/tui/pages/design-session.md, 1).
 use super::*;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 

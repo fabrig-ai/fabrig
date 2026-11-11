@@ -1,4 +1,4 @@
-//! The draft beside a chat (temper/docs/design/client/tui/pages.md, A design session).
+//! The draft beside a chat (temper/docs/design/client/tui/pages/design-session.md, 1).
 use super::text;
 use crate::{
     look, marked,

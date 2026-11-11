@@ -120,8 +120,8 @@ GitHub forge on the fake's GitHub layer, it checks the forge connector's
 connected state, the picker and GitHub's merge queue as the branch's
 landing queue (`../domain/forge/README.md`).
 
-A change's merge job has its story there (`../domain/forge/change/repairs.md`; `../domain/worker.md`,
-4.4), one table, `suite::merge_job`: a project naming a `merge_job`
+A change's merge job has its story there (`../domain/forge/change/repairs.md`; `../domain/worker/jobs.md`
+), one table, `suite::merge_job`: a project naming a `merge_job`
 makes the job, the worker that declared the kind takes it, prepares the
 head with the base merged in on the fake disk, runs the command, and
 delivers or not, and the engine goes on from its branch. The command is

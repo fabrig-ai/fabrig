@@ -1,5 +1,5 @@
 //! A parked producer's delivered and saved edits across a moved landing
-//! branch (temper/docs/design/domain/worker.md, section 5, **Saved work**).
+//! branch (temper/docs/design/domain/worker/checkouts.md, **Saved work**).
 use super::{Script, VecDeque, World, call, engine, questioning_config, run, tasks};
 
 // The goal creates the waiting change and its producer before the independent change runs.

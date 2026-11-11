@@ -2,7 +2,7 @@
 
 Draft, 2026-11-02. One small goal through the reference, from a draft to
 cleared, showing each mechanism of `reference-code-production.md` and
-`reference-landing.md` once. It is condensed from a real run of the
+`archive/reference-landing.md` once. It is condensed from a real run of the
 `archive/playground-reset.md` draft in this directory. It keeps that run's names
 and kinds of event and drops its repetition: 64 changes become nine,
 five designers two, 54 questions five, and nine checks along the way

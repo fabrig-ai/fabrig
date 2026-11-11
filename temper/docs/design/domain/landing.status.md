@@ -18,7 +18,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 - **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
-  prepare and key commands, as jobs (`worker.md`, 4.4). 6.2: the baseline
+  prepare and key commands, as jobs (`worker/jobs.md`). 6.2: the baseline
   at main's tip; a failed receipt rerun first when its tests match open
   flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, main's
   ref fast-forwarded (kind 19), and its stories on the fake GitHub. 9: the

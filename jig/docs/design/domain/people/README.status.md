@@ -1,6 +1,6 @@
 # people: status
 
-2026-11-07. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 
 Section 4's `Domain::sole_owner` is present: it reads the deployment's
 roster without allocation or mutation, including during restore, and
@@ -32,11 +32,7 @@ Section 3's browser-approved sign-in uses the clients' component's
 people before the take; the joint-client stories cover the approving
 party and an approval never taken making no sign-in.
 - **Not yet:** 3: a service's credential reissued or removed. 
-  `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
-  release; a widening funded from the amender's pool. 5: retention; a
+  the unbuilt party acts remain `acts.status.md`, 1. 5: retention; a
   delegate's question to a conversation kept with the conversation. 6:
   a chat answering its delegates' questions and asking its person by a
-  person task.  a note entry left without its index line stays in
-  the store for good: a deletion finds entries by their lines, no start
-  scans for one with none, and no read reaches it. A store holds such
-  entries where a deletion erased a project's lines alone.
+  person task.  orphan note entries remain `acts.status.md`, 2.

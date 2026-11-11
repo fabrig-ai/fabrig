@@ -17,9 +17,9 @@ boundary (smith's run.md, 8.1).
   landing branch's tip as fetched at prepare, in each change producer's
   checkout and never moves it within the hold
   (`temper/docs/design/protocol/git.md`, 4.3;
-  `temper/docs/design/domain/worker.md`, section 5). The check's base is
+  `temper/docs/design/domain/worker/checkouts.md`). The check's base is
   the merge base of that reference and `HEAD`, and `MERGE_HEAD` in a merge
-  (section 2). Without the reference it runs today's checks alone and says so.
+  (`design.md`, section 2). Without the reference it runs today's checks alone and says so.
 - **What changed, and who reads it.** The packages owning a path the
   delivery changed against its base, and their direct dependents in the
   workspace (section 3).
@@ -58,8 +58,8 @@ boundary (smith's run.md, 8.1).
   is newer and already merged into the branch, or being merged.
 - **A repair's pin is the head it repairs.** A repair, a resolution and a
   merge job name no landing branch, and the worker pins the head their
-  delivery replaces instead (`temper/docs/design/domain/worker.md`, section
-  5): the base is that head, so a repair of a goal's landing into main
+  delivery replaces instead (`temper/docs/design/domain/worker/checkouts.md`
+  ): the base is that head, so a repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
   merge and its edits change on the branch.

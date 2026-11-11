@@ -1,6 +1,6 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -124,7 +124,7 @@ created proposals, including mixed outcomes. The view's
 and mixed calls and failures after two or eight reads, with failure
 descriptions and rows retained. No known gap remains in that wording.
 
-`../README.md`, section 2 and `../tui/README.md`, sections 1 to 3 and `../tui/pages.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../README.md`, section 4.1 have no known implementation gap in the
+`../README.md`, section 2 and `../tui/README.md`, sections 1 to 3 and `../tui/pages/README.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../README.md`, section 4.1 have no known implementation gap in the
 TUI's crates, command, private directory, link file and sign-in note,
 host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
@@ -166,8 +166,7 @@ of refusals under both names.
   empty one, and the page keeps a heading.
 
 - **Not yet:** 
-  `Board { project }` with its reordering: no
-  address in `temper-client-domain`'s `address.rs`.
+  the Board address and reordering remains `../engine.status.md` (Not yet).
   2: a person with a project's role alone can read kinds 6 and 7,
   but cannot change them on the tab: jig's settings inventory requires
   a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),
@@ -180,40 +179,34 @@ of refusals under both names.
   jig before the tab can use it.
   2: Home draws neither "Show goals" nor "See the settings", so
   nothing opens the tab by them.
-  `README.md`, *Goals*: a project whose `me` lists no goal template opens no watch
-  (`temper-client-domain`'s `pages/goals.rs`, `query`), so its page draws the
-  kicker and the lede alone, with no heading and no filters, where the section
-  says "No goals yet."; a project with no tracked template has a lede that
-  stops at "landed work.", which the section has no words for.
-   Forget, on the Forges page and as the FORGE
-  request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing.
-  `README.md`, *Ready*: two endings leave nothing under "Model none yet"
-  (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
-  test holds either: a sign-in `Made` or `Renewed`, not declined, with no
-  account usable, since `accounts.md`, 2 has no words for it and no walk has ended so
-  (`../README.md`, section 5); and any ending where `me` offers no ChatGPT plan's sign-in,
-  since the function finds that way before it draws the ending's words.
-   a plan's first use, its card in the conversation. 
+  `README.md`, *Goals*: the empty Goals-page gap remains `work.status.md`, 1.
+   the Forget request remains `../forge/records.status.md` (Not yet).
+  `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
+   the plan's first-use card remains `accounts.status.md`, 2.
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
   template's grace: no such act in `temper-client-domain`. `README.md`, The welcome:
-  for a person whose role does not hold the deployment's forges, the model
-  alone deciding;
-  `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
-  refused `forges` watch as no forge, so a usable model opens Forge.
-  FORGE in "FORGE · not
-  finished" as the forge's name; `forge/connect.rs` `unfinished` prints
-  "FORGE" itself. "Go on" after a restart: the row's `app` is the forge
-  domain's memory alone (`temper-engine-domain-forge`'s `domain.rs`
-  `apps`), so a GitHub forge found unfinished after a restart offers
-  "Start over" alone.
-   the "not installed" outcome, "temper's App is not installed on
-  OWNER.", with "Install on another account": `temper-service/src/family.rs`
-  maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
-  the client wire has no not-installed reason, so ctl offers repository access
-  and Forgejo collaborator-admin recovery rather than installation recovery.
-  This gap is pinned by
-  `temper-service/src/tests/setup_github.rs`,
-  `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
-  no reason is recorded.
+  the welcome role-scope gap remains `welcome.status.md`, 1.
+  the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
+   the App-not-installed reason remains `../forge/family.status.md`, 6.
+
+- **Design departs:** 2, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
+
+- **Not yet:** 2, *The card in a chat*, and `README.md`'s `Chat { task }`: no live turn names its
+  proposal, so a live card always takes the place of one no call names, and its call stays a line of
+  its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
+  `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
+  `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
+  Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+  The `ui-proposal-card` plan keeps this gap: filling the core's turn record,
+  archived turn and call-to-proposal mapping is separate work (`../README.md`, section 5,
+  *Calls naming their proposals*). The making line supplies the card's place.
+
+- **Design departs:** 2, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
+  by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
+  direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
+  the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
+  the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
+  same, and only the client's world sends it, by the act (`../README.md`, section 5, *A Reject on a chat's card*).
