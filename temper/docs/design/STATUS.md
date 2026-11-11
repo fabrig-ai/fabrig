@@ -114,7 +114,7 @@ remains later work (`client/tui/journeys.md`, 3.1 and 11).
 The TUI's look requests stack on `tui-requests`, apart from the browser's
 `look-requests`; the same refresh script keeps either checked-out branch
 on `main` with its own lease and push target (`client/tui/journeys.md`,
-10; `client/web/journeys.md`, 7).
+10; `client/web/journeys.md`, 7; `client/web/look-requests.md`, 1 and 2).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 5; `client/web/README.md`, section 3).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
@@ -404,7 +404,7 @@ select on hover, adjacent help notes share paragraph spacing, and Plex
 stays 14px on a phone; temper/ui owns these recorded departures. Its
 render and real-key comparisons follow landing, and compilation and print
 checks establish no rendered equality (`client/pages/README.md` and `client/README.md`, 5;
-`client/web/look.md` and `client/web/gallery.md`, 2 and `client/web/README.md`, 3; `draft/look-requests.md`, 4 and 5).
+`client/web/look.md` and `client/web/gallery.md`, 2 and `client/web/README.md`, 3; `client/web/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
@@ -1046,7 +1046,7 @@ making rows can be dismissed through their project's keyed request;
 absent rows are kept and running rows refused. The browser stories keep
 twelve tests by sharing setups, with no supplied passing result for the
 repaired stories; temper/ui’s render check follows landing
-(`client/README.md`; `draft/look-requests.md`);
+(`client/README.md`; `client/web/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
@@ -1169,6 +1169,7 @@ Design documents:
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
+- [`client/web/look-requests.md`](client/web/look-requests.status.md)
 - [`client/tui/journeys.md`](client/tui/journeys.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 
