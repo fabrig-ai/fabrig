@@ -11,7 +11,11 @@ fn harness(fake: &Fake) -> f::Harness {
 fn harness_with(fake: &Fake, shared: skein_forge_connection::Shared) -> f::Harness {
     let mut settings = f::github_settings();
     settings.forges.get_mut(0).expect("forge").access = None;
-    let mut h = f::Harness::with(f::limits(), shared, settings);
+    let limits = skein_forge_connection::Limits {
+        kept_bytes: u64::from(shared.calls) * u64::from(shared.answer_bytes),
+        ..f::limits()
+    };
+    let mut h = f::Harness::with(limits, shared, settings);
     h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     f::github_account(&mut h, 1, 22, b"acme", fake.token.expose());
     f::github_repository(&mut h, f::REPO, 22);

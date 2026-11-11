@@ -490,7 +490,7 @@ pub fn answer(
                 | Select::Review(_)
                 | Select::Status(_) => return Err(a::Error::Refused),
             };
-            return raw(limits, body, range);
+            return raw(limits, body, range, crate::tally::route(request) == crate::Route::Raw);
         }
         Answer::Copied { .. }
         | Answer::Located { .. }
@@ -635,25 +635,27 @@ pub fn range(value: Option<&[u8]>) -> Result<Option<Range>, a::Error> {
     }
     Ok(Some(Range::From { first, last }))
 }
-fn raw(limits: &Limits, body: &[u8], range: Option<Range>) -> Result<Reply, a::Error> {
+fn raw(limits: &Limits, body: &[u8], range: Option<Range>, conditional: bool) -> Result<Reply, a::Error> {
     let total = skein_lib::len_u64(body.len());
+    let mut headers = List::with_capacity(2);
+    if conditional {
+        headers.push(etag(body)).expect("ETag and content range");
+    }
     let range = match range {
         Some(Range::From { .. }) if total == 0 => None,
         Some(Range::From { first, last }) => Some((first, last)),
         Some(Range::Suffix(_)) if total == 0 => {
-            return Ok(Reply {
-                status: 206,
-                headers: Box::new([skein_http::Header {
+            headers
+                .push(skein_http::Header {
                     name: bytes::copy_of(b"content-range"),
                     value: bytes::copy_of(b"bytes 0--1/0"),
-                }]),
-                body: Box::new([]),
-            });
+                })
+                .expect("content range");
+            return Ok(Reply { status: 206, headers: headers.into_boxed(), body: Box::new([]) });
         }
         Some(Range::Suffix(count)) => Some((total.saturating_sub(count), None)),
         None => None,
     };
-    let mut headers = List::with_capacity(1);
     let mut status = 200;
     let bytes = if let Some((first, last)) = range {
         if first >= total {
@@ -977,4 +979,16 @@ fn directory(limits: &Limits, select: &Select, entries: &[a::Entry]) -> Result<R
     let body =
         server::encode(&server::Answer::Entries(rows.into_boxed()), &limits.documents).or(Err(a::Error::TooLarge))?;
     Ok(Reply { status: 200, headers: Box::from([]), body })
+}
+
+fn etag(body: &[u8]) -> skein_http::Header {
+    let mut tag = Writer::new(66);
+    tag.put(b"\"").expect("tag");
+    for byte in skein_lib::sha256::digest(body) {
+        for nibble in [byte / 16, byte % 16] {
+            tag.put(&[bytes::hex_digit(nibble)]).expect("tag");
+        }
+    }
+    tag.put(b"\"").expect("tag");
+    skein_http::Header { name: bytes::copy_of(b"ETag"), value: tag.finish() }
 }

@@ -179,7 +179,11 @@ fn raw_sides_at_the_answer_bound_fit_and_one_byte_more_is_too_large() {
     for (name, body, expected) in bounded_cases() {
         let mut shared = fixtures::shared();
         shared.answer_bytes = 4096;
-        let mut h = fixtures::Harness::with(fixtures::limits(), shared, fixtures::settings());
+        let limits = skein_forge_connection::Limits {
+            kept_bytes: u64::from(shared.calls) * u64::from(shared.answer_bytes),
+            ..fixtures::limits()
+        };
+        let mut h = fixtures::Harness::with(limits, shared, fixtures::settings());
         h.connected(fixtures::FORGE);
         h.answer(fixtures::FORGE, &fixtures::user_ok());
         h.answer(fixtures::FORGE, &fixtures::settings_ok());
@@ -768,7 +772,11 @@ fn a_jobs_log_room_is_answer_bytes_less_its_steps_name() {
     shared.answer_bytes = 4096;
     let max = shared.answer_bytes;
     let log = Box::new([b'x'; 4096]);
-    let mut h = fixtures::Harness::with(fixtures::limits(), shared, fixtures::settings());
+    let limits = skein_forge_connection::Limits {
+        kept_bytes: u64::from(shared.calls) * u64::from(shared.answer_bytes),
+        ..fixtures::limits()
+    };
+    let mut h = fixtures::Harness::with(limits, shared, fixtures::settings());
     h.connected(fixtures::FORGE);
     h.answer(fixtures::FORGE, &fixtures::user_ok());
     h.answer(fixtures::FORGE, &fixtures::settings_ok());
