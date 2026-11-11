@@ -6,10 +6,6 @@ use crate::fixture;
 use crate::protection;
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn protection_fields_have_v11_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -29,7 +25,7 @@ fn protection_fields_have_v11_golden_bytes_and_round_trip() {
         let path = skein_scratch::paths::package()
             .join("../../crates/temper-protocol-store/golden/v11")
             .join(format!("protection-{name}.bin"));
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        if temper_test_env::rewrite() {
             std::fs::write(&path, &bytes).expect("write protection golden");
         }
         assert_eq!(std::fs::read(path).expect("protection golden").as_slice(), bytes.as_ref(), "{name}");
