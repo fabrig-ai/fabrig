@@ -13,6 +13,7 @@ mod replay;
 mod settle;
 mod simulation;
 mod tiers;
+mod trains;
 mod update_lost;
 mod writer;
 

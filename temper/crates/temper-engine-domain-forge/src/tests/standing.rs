@@ -92,6 +92,7 @@ fn landing(d: &mut Domain) {
                     members: Box::new([member]),
                     preparation: 0,
                     stale_proofs: 0,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
                 entries: Box::new([]),

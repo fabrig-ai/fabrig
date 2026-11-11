@@ -286,7 +286,15 @@ fn landing_fixture() -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
-        landing: policy::Landing { task, project: 5, phase, members: Box::new([]), preparation: 0, stale_proofs: 0 },
+        landing: policy::Landing {
+            task,
+            project: 5,
+            phase,
+            members: Box::new([]),
+            preparation: 0,
+            stale_proofs: 0,
+            branch: Box::from(b"main".as_slice()),
+        },
         asks: Box::new([]),
         entries: Box::new([]),
     }
@@ -298,7 +306,7 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 3]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[999]), Err(LandingRefusal::Repository));
-    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Repository));
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
     for task in 100..108 {
         d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("room");
@@ -848,21 +856,32 @@ fn across_fixture() -> Domain {
 }
 
 #[test]
-fn a_dependency_closure_is_upstream_first_and_stops_at_the_turn() {
+fn a_dependency_closure_is_upstream_first_and_stops_at_a_formed_landing() {
     let mut d = across_fixture();
     let graph = [ChangeDependencies { change: fixtures::CHANGE, pending: Box::new([OTHER_CHANGE]) }];
     assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
     assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
+    let mut third = d.changes.get(&fixtures::CHANGE).expect("change").clone();
+    third.task = 53;
+    third.change.task = 53;
+    d.changes.insert(53, third).expect("third change");
+    let graph = [
+        ChangeDependencies { change: fixtures::CHANGE, pending: Box::new([OTHER_CHANGE]) },
+        ChangeDependencies { change: OTHER_CHANGE, pending: Box::new([53]) },
+    ];
+    assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [53, OTHER_CHANGE, fixtures::CHANGE]);
+    assert_eq!(d.landing_admits(5, &[53, fixtures::CHANGE]), Err(LandingRefusal::Members));
+    let words = d.unit_words(&[53, fixtures::CHANGE]);
+    assert_eq!(words.as_ref(), b"unit of 2 changes: C53, C51: several changes in one repository land with the merge queue's batches (temper/docs/design/draft/merge-queue.md, 4)");
     member_landing(&mut d);
-    d.landing.rows.get_mut(&61).expect("landing").landing.phase = policy::Phase::Turn { at: env().wall };
-    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE]);
+    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [53, OTHER_CHANGE]);
 }
 
 #[test]
-fn an_upstream_join_and_a_member_leaving_remap_the_live_effects() {
+fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     let mut d = across_fixture();
     member_landing(&mut d);
-    let mut member = d.landing(61).expect("landing").landing.members[0].clone();
+    let mut member = d.landing(61).expect("formed landing").landing.members[0].clone();
     member.change = OTHER_CHANGE;
     member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
@@ -872,14 +891,15 @@ fn an_upstream_join_and_a_member_leaving_remap_the_live_effects() {
     d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, None, key)).expect("key room");
     d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");
     d.landing.results.insert((61, 0, 0, 5), policy::Status::Passed).expect("merge result room");
+    let before = d.landing(61).expect("formed landing").clone();
     outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
-    let row = d.landing(61).expect("joined landing");
-    assert_eq!(row.landing.members[0].change, OTHER_CHANGE);
-    assert_eq!(row.entries[0].member, 1);
-    assert_eq!(d.landing.results.get(&(61, 1, 0, 1)), Some(&policy::Status::Pending));
-    assert_eq!(d.landing.keys.get(&(61, 1, 0)), Some(&(fixtures::HEAD, None, key)));
+    outputs(&mut d, Event::OrderLanding { task: 61, changes: Box::new([OTHER_CHANGE, fixtures::CHANGE]) });
+    assert_eq!(d.landing(61), Some(&before));
+    assert_eq!(d.change(OTHER_CHANGE).expect("waiting change").change.landing, None);
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, None, key)));
     assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, None, key)));
-    assert_eq!(d.landing.results.get(&(61, 1, 0, 5)), Some(&policy::Status::Passed));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
     outputs(&mut d, Event::SettleEffects { task: OTHER_CHANGE, root: OTHER_CHANGE, ending: ReleaseEnding::Cancelled });
     let row = d.landing(61).expect("remaining landing");
     assert_eq!(row.landing.members[0].change, fixtures::CHANGE);
@@ -1126,6 +1146,37 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
 }
 
 #[test]
+fn waiting_train_order_uses_priority_age_ready_time_and_task() {
+    use temper_engine_domain_forge_change as c;
+    let mut d = landing_fixture();
+    let template = d.change(fixtures::CHANGE).expect("change").clone();
+    for (older_priority, later_priority, older, later, now, expected) in [
+        (9_i32, 0_i32, 100, 101, 102, OTHER_CHANGE),
+        (9_i32, 0_i32, 100, 131, 131, fixtures::CHANGE),
+        (0_i32, 0_i32, 100, 101, 102, fixtures::CHANGE),
+        (0_i32, 0_i32, 100, 100, 102, fixtures::CHANGE),
+    ] {
+        for (task, priority, since) in
+            [(fixtures::CHANGE, older_priority, older), (OTHER_CHANGE, later_priority, later)]
+        {
+            let mut row = template.clone();
+            row.task = task;
+            row.change.task = task;
+            row.priority = priority;
+            row.change.way = c::Way::Turn;
+            row.change.state =
+                c::State::Ready { head: fixtures::HEAD, ready_since: Wall::from_nanos(since * 1_000_000_000) };
+            row.change.ready_since = Some(Wall::from_nanos(since * 1_000_000_000));
+            d.changes.insert(task, row).expect("room");
+        }
+        let now = Wall::from_nanos(now * 1_000_000_000);
+        assert_eq!(d.first_waiting(REPO, b"main", &[], now), Some(expected));
+        let other = if expected == fixtures::CHANGE { OTHER_CHANGE } else { fixtures::CHANGE };
+        assert_eq!(d.first_waiting(REPO, b"main", &[expected], now), Some(other), "kept tasks are not candidates");
+    }
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "the test builds independent hexadecimal input expectations")]
 fn dispatch_inputs_add_only_an_opted_in_base_at_the_forges_commit_width() {
     use skein_forge::api::Input;
@@ -1145,6 +1196,33 @@ fn dispatch_inputs_add_only_an_opted_in_base_at_the_forges_commit_width() {
         let inputs = landing::inputs(candidate, key, Some(base));
         assert_eq!(inputs.as_ref(), expected.as_slice());
         assert!(inputs.len() <= skein_forge::api::INPUTS);
+    }
+}
+
+#[test]
+fn a_train_is_held_from_forming_through_a_hold_until_its_landing_ends() {
+    let mut d = landing_fixture();
+    member_landing(&mut d);
+    for (phase, free) in [
+        (policy::Phase::Waiting, false),
+        (policy::Phase::Preparing, false),
+        (policy::Phase::Proving, false),
+        (policy::Phase::Proved { at: env().wall }, false),
+        (policy::Phase::Turn { at: env().wall }, false),
+        (
+            policy::Phase::Held {
+                was: Box::new(policy::Phase::Preparing),
+                why: policy::Hold::Faults { member: 0, gate: 0 },
+            },
+            false,
+        ),
+        (policy::Phase::Landed, true),
+        (policy::Phase::Cancelled, true),
+    ] {
+        d.landing.rows.get_mut(&61).expect("landing").landing.phase = phase;
+        assert_eq!(d.train_free(REPO, b"main"), free);
+        assert!(d.train_free(REPO, b"temper/g1"));
+        assert!(d.train_free(OTHER_REPOSITORY, b"main"));
     }
 }
 

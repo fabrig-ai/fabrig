@@ -194,6 +194,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
                 entries: Box::new([]),

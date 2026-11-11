@@ -213,6 +213,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             members,
             preparation: row.landing.preparation,
             stale_proofs: row.landing.stale_proofs,
+            branch: row.landing.branch.clone(),
         },
     )
     .expect(FITS);
@@ -253,7 +254,8 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     let w::LandingRowParts { landing, asks, entries } = row.into_parts();
-    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs } = landing.into_parts();
+    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch } =
+        landing.into_parts();
     let mut decoded_members = List::with_capacity(members.len());
     for member in members.into_boxed() {
         decoded_members.push(decode_member(member)).expect(FITS);
@@ -282,6 +284,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             members: decoded_members.into_boxed(),
             preparation,
             stale_proofs,
+            branch,
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),

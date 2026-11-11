@@ -1256,6 +1256,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         }]),
                         preparation: 1,
                         stale_proofs: 3,
+                        branch: Box::from(b"temper/g1".as_slice()),
                     },
                     asks: Box::new([ask]),
                     entries: Box::new([forge::LandingEntry {
