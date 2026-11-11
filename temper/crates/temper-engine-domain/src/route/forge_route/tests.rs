@@ -4315,6 +4315,7 @@ fn follow_fixture(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
                 skips: Box::new([]),
                 parity: None,
                 questions: Box::new([]),
+                pending: None,
             }),
         },
         &mut skein_lib::Queue::uncapped(),

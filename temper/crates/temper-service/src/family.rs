@@ -56,6 +56,32 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::FollowAct(value) => {
+                    let value = value.into_parts();
+                    let act = match value.act {
+                        w::FollowAct::Start(v) => forge::follows::FollowAct::Start { after: *v.after() },
+                        w::FollowAct::Hold(v) => {
+                            let p = v.into_parts();
+                            forge::follows::FollowAct::Hold { after: p.after, reason: p.reason }
+                        }
+                        w::FollowAct::Skip(v) => {
+                            let p = v.into_parts();
+                            forge::follows::FollowAct::Skip { after: p.after, reason: p.reason }
+                        }
+                        w::FollowAct::Merge(v) => {
+                            forge::follows::FollowAct::Merge { afters: v.into_parts().afters.into_boxed() }
+                        }
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Follow { project: value.project, follow: value.follow, act },
+                    }));
+                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     let Some(forge) = making(value.forge, directories) else {
@@ -151,6 +177,7 @@ pub fn to_root(
                         w::Request::DismissMaking(_)
                         | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
+                        | w::Request::FollowAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::TryAccount(_)
@@ -850,6 +877,10 @@ pub fn answer(
             }
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
+        Some(
+            root::ApplicationAnswer::Follow(refusal)
+            | root::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Follow(refusal)),
+        ) => w::Outcome::Follow(w::FollowOutcome::new(limits, w::FollowOutcomeParts { refusal }).ok()?),
         Some(root::ApplicationAnswer::Make(answer)) => match answer {
             forge::MakeAnswer::Kept => w::Outcome::MakeKept,
             forge::MakeAnswer::Refused(why) => {

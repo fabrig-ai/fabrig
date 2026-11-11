@@ -5,6 +5,225 @@ use jig_domain_core::settings as cs;
 const SOURCE: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 3 };
 const TARGET: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 4 };
 const TICKS: u32 = 200;
+fn roles(world: &mut World, session: u64, key: u8, holdings: Box<[people::Holding]>) {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: session,
+        key: [key; 16],
+        ask: people::Ask::SetRoles { project: 2, holdings: holdings.clone() },
+    }));
+    settle(world);
+    assert_eq!(
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Roles(2)))),
+        Some(&Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: 2, holdings })))
+    );
+}
+#[test]
+fn follow_owner_and_project_owner_can_act_but_an_unrelated_member_cannot() {
+    let mut world = world_with_gate(s::FollowStart::Owner, 1000, Gate { owner: true, ..Gate::default() });
+    let a = push(&mut world, b"Fix handoff");
+    let owner = world.signed_in.take().unwrap();
+    world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(170)),
+        identity: people::Identity {
+            key: forge_top::user_key(1, 8),
+            login: b"other".as_slice().into(),
+            name: b"Other person".as_slice().into(),
+        },
+    }));
+    world.until(Until::SignedIn);
+    let other = world.signed_in.unwrap();
+    let Some(Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { person, .. }))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::SignIn(other))))
+    else {
+        panic!("other session")
+    };
+    let person = *person;
+    roles(
+        &mut world,
+        owner,
+        171,
+        Box::new([
+            people::Holding { person: 1, role: people::Role::Member },
+            people::Holding { person, role: people::Role::Owner },
+        ]),
+    );
+    assert_eq!(
+        act(&mut world, 172, FollowAct::Hold { after: a, reason: b"project owner waits".as_slice().into() }),
+        None
+    );
+    world.signed_in = Some(owner);
+    assert_eq!(
+        act(&mut world, 173, FollowAct::Hold { after: a, reason: b"follow owner waits".as_slice().into() }),
+        None
+    );
+    roles(
+        &mut world,
+        other,
+        174,
+        Box::new([
+            people::Holding { person: 1, role: people::Role::Owner },
+            people::Holding { person, role: people::Role::Member },
+        ]),
+    );
+    world.signed_in = Some(other);
+    let reason = act(&mut world, 175, FollowAct::Skip { after: a, reason: b"not mine".as_slice().into() }).unwrap();
+    assert!(
+        reason.starts_with(&forge_top::commit_text(&a))
+            && reason.ends_with(b"only the follow's owner or an owner of its project may act")
+    );
+    assert_eq!(row(&world).queue[0].state, FollowState::HeldByOwner(b"follow owner waits".as_slice().into()));
+    world.close();
+}
+use forge_top::follows::FollowAct;
+fn act(world: &mut World, key: u8, act: FollowAct) -> Option<Box<[u8]>> {
+    let before = world.follow_answers.len();
+    world.send(engine::Event::Party(engine::PartyInput::Application {
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("signed in"),
+        key: [key; 16],
+        digest: [key; 32],
+        scope: people::ApplicationScope::Project(2),
+        carried: None,
+        request: engine::Application::Follow { project: 2, follow: 1, act },
+    }));
+    settle(world);
+    assert_eq!(world.follow_answers.len(), before + 1, "act {key} answered; replies {:?}", world.web_replies);
+    world.follow_answers.last().expect("follow act answered").clone()
+}
+fn no_holds(world: &World, changes: &[u64]) {
+    for change in changes {
+        for record in world.store.rows.values() {
+            if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) =
+                record
+                && row.number == *change
+            {
+                assert!(!matches!(row.phase, tasks::Phase::Held { .. }), "change {change} held: {:?}", row.phase);
+                assert_eq!(row.hold, 0, "change {change} acquired a hold");
+            }
+        }
+    }
+}
+#[test]
+fn owner_acts_keep_the_chain_whole_and_merge_the_briefs() {
+    let mut world = world(s::FollowStart::Owner);
+    let a = push(&mut world, b"First fix");
+    let b = push(&mut world, b"Second fix");
+    let c = push(&mut world, b"Third fix");
+    let d = push(&mut world, b"Fourth fix");
+    let changes = [change(&world, a), change(&world, b), change(&world, c), change(&world, d)];
+    assert_eq!(
+        act(&mut world, 180, FollowAct::Hold { after: a, reason: b"waits for the handoff fix".as_slice().into() }),
+        None
+    );
+    assert_eq!(row(&world).queue[0].state, FollowState::HeldByOwner(b"waits for the handoff fix".as_slice().into()));
+    assert!(questions::row(&world, changes[0]).delegate.is_none());
+    no_holds(&world, &changes);
+    assert_eq!(act(&mut world, 181, FollowAct::Merge { afters: Box::new([b, c]) }), None);
+    assert_eq!(change(&world, b), changes[1]);
+    assert_eq!(
+        change(&world, c),
+        changes[1],
+        "follow {:?}; task {:?}",
+        row(&world),
+        live_task(&world, row(&world).task.unwrap())
+    );
+    assert_eq!(live_task(&world, changes[3]).waiting_on.as_ref(), &[changes[1]]);
+    no_holds(&world, &changes);
+    let spec = &live_task(&world, changes[1]).spec;
+    let b_text = String::from_utf8(forge_top::commit_text(&b).into_vec()).unwrap();
+    let c_text = String::from_utf8(forge_top::commit_text(&c).into_vec()).unwrap();
+    assert!(spec.parameters.iter().any(|p| matches!(p, tasks::Parameter::Bytes { name: 18, value } if value.as_ref() == format!("1:{b_text},{c_text}").as_bytes())));
+    let words = std::str::from_utf8(&spec.words).unwrap();
+    assert!(words.starts_with(&format!("Follow org/vsr {} and 1 more: Third fix", &c_text[..12])), "{words}");
+    assert!(
+        words.find(&format!("Port landing {b_text}")).unwrap() < words.find(&format!("Port landing {c_text}")).unwrap()
+    );
+    for _ in 0..TICKS {
+        if world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(changes[2])))) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(
+        matches!(&ended_task(&world, changes[2]).phase, tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) if reason.as_ref() == format!("merged into change {}", changes[1]).as_bytes())
+    );
+    assert_eq!(questions::row(&world, changes[1]).follows.as_ref().unwrap().commits.as_ref(), &[b, c]);
+    assert_eq!(act(&mut world, 182, FollowAct::Skip { after: d, reason: b"build only".as_slice().into() }), None);
+    assert_eq!(row(&world).skips.last().unwrap().after, d);
+    assert_eq!(row(&world).skips.last().unwrap().reason.as_ref(), b"build only");
+    assert!(!row(&world).queue.iter().any(|e| e.after == d));
+    no_holds(&world, &changes);
+    // Skipping the head rewires the surviving merged change to no dependency.
+    assert_eq!(act(&mut world, 183, FollowAct::Skip { after: a, reason: b"already ported".as_slice().into() }), None);
+    assert!(live_task(&world, changes[1]).waiting_on.is_empty());
+    no_holds(&world, &changes);
+    world.drain_cut();
+    world.restart_same();
+    world.until(Until::Ready);
+    let count = world.follow_answers.len();
+    assert_eq!(act(&mut world, 183, FollowAct::Skip { after: a, reason: b"already ported".as_slice().into() }), None);
+    assert_eq!(world.follow_answers.len(), count + 1, "the same retained answer is delivered once per request");
+    assert_eq!(row(&world).skips.len(), 2, "the repeated key never applies the skip twice");
+    world.close();
+}
+#[test]
+fn owner_hold_is_lifted_by_start_and_started_changes_refuse_hold_and_merge() {
+    let mut world = world(s::FollowStart::Owner);
+    let a = push(&mut world, b"Fix handoff");
+    let b = push(&mut world, b"Fix build");
+    let first = change(&world, a);
+    assert_eq!(
+        act(&mut world, 180, FollowAct::Hold { after: a, reason: b"waits for the handoff fix".as_slice().into() }),
+        None
+    );
+    assert!(questions::row(&world, first).delegate.is_none());
+    assert_eq!(act(&mut world, 181, FollowAct::Start { after: a }), None);
+    next_delegate(&mut world, first, 0);
+    for (key, request) in [
+        (182, FollowAct::Hold { after: a, reason: b"too late".as_slice().into() }),
+        (183, FollowAct::Merge { afters: Box::new([a, b]) }),
+    ] {
+        let reason = act(&mut world, key, request).expect("started entry refused");
+        assert!(
+            reason.starts_with(&forge_top::commit_text(&a)) && reason.ends_with(b"the change has started producing"),
+            "{}",
+            String::from_utf8_lossy(&reason)
+        );
+    }
+    world.close();
+}
+#[test]
+fn follow_acts_refuse_unknown_skipped_nonconsecutive_and_over_bound_entries() {
+    let mut world = world(s::FollowStart::Owner);
+    let a = push(&mut world, b"A");
+    let b = push(&mut world, b"B");
+    let c = push(&mut world, b"C");
+    let reason =
+        act(&mut world, 180, FollowAct::Skip { after: [0xff; 32], reason: b"unknown".as_slice().into() }).unwrap();
+    assert!(
+        reason.starts_with(&forge_top::commit_text(&[0xff; 32]))
+            && reason.ends_with(b"no queued entry has this commit; it may already be followed or skipped")
+    );
+    let reason = act(&mut world, 181, FollowAct::Merge { afters: Box::new([a, c]) }).unwrap();
+    assert!(reason.ends_with(b"merge needs consecutive entries in queue order"));
+    let merge_bound = usize::try_from(world.env.limits.forge.follow_merge).unwrap();
+    let reason =
+        act(&mut world, 182, FollowAct::Merge { afters: vec![a; merge_bound + 1].into_boxed_slice() }).unwrap();
+    assert!(reason.ends_with(b"merge needs two to forge.follow_merge entries"));
+    let length = usize::try_from(world.env.limits.forge.follow_reason_bytes).unwrap();
+    assert_eq!(act(&mut world, 183, FollowAct::Hold { after: a, reason: vec![b'x'; length].into_boxed_slice() }), None);
+    let reason =
+        act(&mut world, 184, FollowAct::Hold { after: a, reason: vec![b'x'; length + 1].into_boxed_slice() }).unwrap();
+    assert!(reason.ends_with(b"the reason exceeds forge.follow_reason_bytes"));
+    assert_eq!(act(&mut world, 185, FollowAct::Skip { after: b, reason: b"build only".as_slice().into() }), None);
+    let reason = act(&mut world, 186, FollowAct::Start { after: b }).unwrap();
+    assert!(reason.starts_with(&forge_top::commit_text(&b)) && reason.ends_with(b"this entry was skipped"));
+    no_holds(&world, &[change(&world, a), change(&world, c)]);
+    world.close();
+}
 fn settle(world: &mut World) {
     for _ in 0..20 {
         world.tick();
@@ -87,18 +306,22 @@ fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
 }
 fn world_passing(start: s::FollowStart, passes: u32) -> World {
+    world_with_gate(start, passes, Gate::default())
+}
+fn world_with_gate(start: s::FollowStart, passes: u32, gate: Gate) -> World {
     let mut world = World::configured_limits(
         true,
         true,
         false,
         1000,
-        Gate::default(),
+        gate,
         None,
         StoryLimits {
             kinds: true,
             person_executor: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
             spec_bytes: Some(2048),
+            applications: Some(24),
             inbox_messages: Some(16),
             inbox_bytes: Some(4096),
             tasks_batch: Some(8),
@@ -242,7 +465,7 @@ fn ended_task(world: &World, task: u64) -> &tasks::TaskRecord {
     let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
         world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
     else {
-        panic!("ended task {task}")
+        panic!("ended task {task}: {:?}", live_task(world, task).phase)
     };
     row
 }

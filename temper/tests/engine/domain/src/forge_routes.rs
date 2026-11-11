@@ -111,6 +111,7 @@ pub struct World {
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
+    pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
@@ -185,6 +186,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
     pub kinds: bool,
     pub questions: Option<u32>,
@@ -357,6 +359,7 @@ impl World {
             inbox_messages,
             inbox_bytes,
             forge_charter,
+            applications,
             forge_commits: _,
             kinds,
             questions,
@@ -865,6 +868,10 @@ impl World {
                 config.core.defaults.charters[0] = charter;
             }
             // A brief override carries its section count into the forge's fetch room.
+            if let Some(applications) = applications {
+                limits.people.requests = applications;
+                limits.forge.applications = applications;
+            }
             limits.forge.brief_sections =
                 limits.forge.brief_sections.max(limits.brief.briefs * limits.brief.sections * 2);
             config.kinds_stock = engine::landing_stock(
@@ -1075,6 +1082,7 @@ impl World {
             forge_calls: 0,
             forge_reads: None,
             adopted: Vec::new(),
+            follow_answers: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
@@ -1501,6 +1509,7 @@ impl World {
                 brief: Some(self.env.limits.brief),
                 forge_charter,
                 questions: Some(self.env.limits.forge.change_policy.questions),
+                applications: Some(self.env.limits.forge.applications),
                 stall: Some(self.env.limits.forge.change_policy.stall),
                 ..StoryLimits::default()
             },
@@ -1819,6 +1828,7 @@ impl World {
                     }
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
+                        Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
                         Some(engine::ApplicationAnswer::Looked(_)) => {}
                         answer => panic!("retained application answer: {answer:?}"),
                     },

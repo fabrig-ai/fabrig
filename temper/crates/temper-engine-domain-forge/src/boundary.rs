@@ -284,6 +284,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
@@ -701,6 +702,7 @@ pub struct Adopted {
 /// The connector's outcome, kept under the people child's application token.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationOutcome {
+    Follow(Option<Box<[u8]>>),
     Adopted(AdoptedRepository),
     CoreRefused(jig_domain_people::Refusal),
     ForgeRefused(AdoptionRefusal),
@@ -1506,6 +1508,20 @@ pub enum Event {
     StatusHeard {
         task: u64,
         report: Option<Box<[u8]>>,
+    },
+    FollowChangeAmended {
+        task: u64,
+        follows: ChangeFollows,
+        words: Box<[u8]>,
+    },
+    FollowAct {
+        request: Token,
+        token: Token,
+        retention: skein_lib::Duration,
+        project: u32,
+        follow: u32,
+        act: crate::follows::FollowAct,
+        authorized: bool,
     },
     Follow {
         row: crate::FollowRow,

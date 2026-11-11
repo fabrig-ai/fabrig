@@ -17,7 +17,9 @@ use temper_client_domain::{
     owner::Owner,
 };
 use temper_client_protocol_wire::{self as wire, v1 as w};
+mod acts;
 mod print;
+pub use acts::{HOLD, MERGE, SKIP, START};
 pub const LIST: Tool = Tool {
     name: b"follow list",
     line: b"List a project's follows, their lag and parity",
@@ -50,6 +52,7 @@ pub const SHOW: Tool = Tool {
 #[derive(Debug)]
 pub(crate) struct Follows {
     calls: BTreeMap<u32, Watching>,
+    acts: acts::Acts,
 }
 #[derive(Debug)]
 struct Watching {
@@ -60,17 +63,24 @@ struct Watching {
 }
 impl Follows {
     pub(crate) fn new() -> Self {
-        Self { calls: BTreeMap::new() }
+        Self { calls: BTreeMap::new(), acts: acts::Acts::new() }
+    }
+    pub(crate) fn kept_json(&mut self, json: bool) {
+        self.acts.json = json;
     }
     pub(crate) fn calls(&self) -> usize {
-        self.calls.len()
+        self.calls.len().saturating_add(self.acts.calls())
     }
 }
 pub(crate) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == LIST.name || name == SHOW.name
+    name == LIST.name || name == SHOW.name || acts::owns(call)
 }
 pub(crate) fn call(state: &mut Follows, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if acts::owns(&called.call) {
+        acts::call(&mut state.acts, client, env, called, out);
+        return;
+    }
     if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
         out.push(Out::Printed {
             number: called.number,
@@ -96,6 +106,7 @@ fn complete(state: &mut Follows, number: u32, printed: jig::Printed, out: &mut Q
     out.push(Out::Printed { number: watch.called.number, printed });
 }
 pub(crate) fn ready(state: &mut Follows, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
+    acts::ready(&mut state.acts, client, env, out);
     let Some(me) = crate::forge::me(client) else { return };
     for _ in 0..state.calls.len() {
         let mut next = None;
@@ -139,6 +150,7 @@ fn missing(watch: &Watching) -> jig::Printed {
     render::failure(&words, watch.called.json, 2)
 }
 pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {
+    acts::told(&mut state.acts, env, told, out);
     let handle = match told {
         Told::Changed { handle } | Told::Ended { handle, .. } => *handle,
         Told::Link { .. }
