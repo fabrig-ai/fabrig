@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 2, *The page*'s *Rules by path*, and *Its parts*' part
+  for it: How work runs draws no rule by path [in flight: change 873].
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the

@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 8: the forge's `ways` read gives no rules by path [in
+  flight: change 872].
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
   process and live stories. Init pins T at 16,803,810 bytes and

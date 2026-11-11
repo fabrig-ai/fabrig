@@ -2,6 +2,12 @@
 
 2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
+  `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
+  change 871].
+- **Not yet:** *A project's ways, the subject `ways`*: its rules by path
+  filled from the derivation, and the document marked at any person's
+  role change in the project [in flight: change 872].
 - **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).

@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
 
+- **Not yet:** *How work runs' look*, its *Rules by path*: no
+  `temper-how-rules`, `temper-how-table` or their tokens in `temper.css`
+  [in flight: change 873].
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the

@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
+- **Not yet:** 2: `how-rules`, `how-rules-card`, `how-team` and
+  `night-how-team` [in flight: change 873].
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
