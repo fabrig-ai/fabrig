@@ -255,6 +255,7 @@ fn card_view(
         Item::Change(task) => change(b, root, words, bindings, task),
         Item::Chat(task) => chat(b, root, words, bindings, times, task, false),
         Item::Draft(task) => chat(b, root, words, bindings, times, task, true),
+        Item::Landed(index) => landed_draft(b, root, words, bindings, times, project, index),
     }
     if !card.changes.is_empty() {
         b.open(Role::List);
@@ -392,6 +393,72 @@ fn chat(
         ]);
         linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
     }
+}
+fn landed_draft(
+    b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings,
+    times: &mut Times, project: u32, index: u32,
+) {
+    let Some(page) = root.pages().drafts() else { return };
+    let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
+    let Some(row) = panel.drafts().get(index) else { return };
+    let file = temper_client_domain::pages::goal::file_of(row.path());
+    let dir = row.path().strip_suffix(file).expect("file is the last segment");
+    let dir = if dir.is_empty() {
+        crate::accounts::words::join(&[row.name(), b"/"])
+    } else { dir.into() };
+    b.open(Role::Paragraph);
+    b.style(look::WORK_FROM);
+    text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
+    separated(b, words, file);
+    separated(b, words, &words.say(Word::WorkLandedIn, &[Hole::Name(dir)]));
+    separated(b, words, &words.say(Word::WorkReadySince, &[
+        Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at()))),
+    ]));
+    b.close();
+    if !row.title().is_empty() {
+        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+    }
+    let Some(me) = root.pages().me(root.client()) else { return };
+    let ways = super::goals::ways(me, project, words);
+    if ways.is_empty() { return; }
+    let configured = root.forge().ways(project);
+    let mut recommended = None;
+    for way in &ways {
+        if let Some(configured) = configured && configured.way == way.number {
+            recommended = Some(way);
+        }
+    }
+    let draft = work::Landed::row(row);
+    b.open(Role::Slot);
+    b.style(look::WORK_CHOICES);
+    match recommended {
+        Some(way) => {
+            let label = words.say(Word::WorkStartWay, &[Hole::Name(way.name.clone())]);
+            let project = super::project_name(Some(me), project)
+                .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
+            let small = words.say(Word::WorkProjectWay, &[Hole::Name(project)]);
+            draft_choice(b, bindings, &label, Some(&small), draft.clone(), true, true);
+            draft_choice(b, bindings, &words.say(Word::WorkAnotherWay, &[]), None, draft, false, false);
+        }
+        None => draft_choice(b, bindings, &words.say(Word::WorkStartGoal, &[]), None, draft, false, true),
+    }
+    b.close();
+}
+fn draft_choice(
+    b: &mut Builder, bindings: &mut Bindings, label: &[u8], small: Option<&[u8]>,
+    draft: work::Landed, start: bool, recommended: bool,
+) {
+    b.open(Role::Button);
+    b.style(look::WORK_CHOICE);
+    if recommended { b.style(look::WORK_RECOMMENDED); }
+    b.name(label);
+    b.bind(bindings.insert(Act::OpenLanded { draft, start }));
+    b.text(Run::Plain, label);
+    if let Some(small) = small {
+        b.text(Run::Plain, b" ");
+        text(b, Role::Text, look::WORK_WAY, small);
+    }
+    b.close();
 }
 fn chat_line(root: &Domain, task: u64) -> Option<&c::TaskLine> {
     let chats = root.pages().chats()?;

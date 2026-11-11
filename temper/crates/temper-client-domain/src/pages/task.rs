@@ -452,6 +452,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+        | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -592,6 +593,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+        | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }

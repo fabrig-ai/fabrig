@@ -14,6 +14,7 @@ pub struct StartGoal {
     pub project: u32,
     pub given: Option<Box<[u8]>>,
     pub chat: Option<u64>,
+    pub landed: Option<super::work::Landed>,
     pub draft: Box<[u8]>,
     pub name: Box<[u8]>,
     pub way: Option<u32>,
@@ -192,6 +193,7 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         project,
         given: if given { Some(draft.clone()) } else { None },
         chat,
+        landed: None,
         draft,
         name,
         way,
@@ -205,6 +207,27 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
     });
 }
 
+pub(super) fn open_landed(
+    pages: &mut Pages, env: &Env<Limits>, client: &Client, draft: super::work::Landed,
+    run: bool, out: &mut Queue<Request>,
+) {
+    if pages.start.is_some() || !draft.listed {
+        return;
+    }
+    let Some(project) = super::work_project(&pages.address) else { return };
+    open(pages, client, None, None);
+    let me = pages.me(client);
+    let Some(start) = &mut pages.start else { return };
+    let file = goal::file_of(&draft.path);
+    start.project = project;
+    start.name = file.strip_suffix(b".md").unwrap_or(file).into();
+    start.given = Some(draft.path.clone());
+    start.draft.clone_from(&draft.path);
+    start.landed = Some(draft);
+    if run {
+        start.send(env, me, &mut pages.serial, out);
+    }
+}
 impl StartGoal {
     pub(super) fn draft_field(&mut self, words: Box<[u8]>) {
         if self.given.is_some() || self.pending.is_some() {
@@ -328,6 +351,9 @@ pub(super) fn told(
     told: &Told,
     out: &mut Queue<Request>,
 ) -> bool {
+    if let Told::Answered { key, .. } = told && pages.draft_starts.remove(key) {
+        return true;
+    }
     let Some(start) = &mut pages.start else { return false };
     let Some(pending) = start.pending else { return false };
     let outcome = match told {
@@ -368,6 +394,9 @@ pub(super) fn told(
                             out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
                         }
                     }
+                    if let Some(draft) = &start.landed {
+                        mark_started(start.project, draft, *first, env, &mut pages.serial, &mut pages.draft_starts, out);
+                    }
                     out.push(Request::Show { address: Address::Task { task: *first } });
                     pages.start = None;
                     return true;
@@ -386,4 +415,21 @@ pub(super) fn told(
     }
     start.error = Some(Failure::Outcome(outcome.clone()));
     true
+}
+
+fn mark_started(
+    project: u32, draft: &super::work::Landed, goal: u64, env: &Env<Limits>,
+    serial: &mut u64, pending: &mut skein_lib::Set<Key>, out: &mut Queue<Request>,
+) {
+    use temper_client_protocol_wire::v1 as w;
+    let Ok(repository) = w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts {
+        owner: draft.owner.clone(), name: draft.name.clone(),
+    }) else { return };
+    let change = w::DraftChange::Started(w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal }).expect("goal number fits"));
+    if let Some(request) = crate::forge::drafts::ask(project, Some(repository), draft.path.clone(), change, &env.limits.forge) {
+        *serial = serial.checked_add(1).expect("page keys fit");
+        let key = Key { asker: Owner::Pages.asker(), number: *serial };
+        pending.insert(key).expect("one key per draft start");
+        out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
+    }
 }
