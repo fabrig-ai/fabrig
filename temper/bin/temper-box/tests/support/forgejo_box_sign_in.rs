@@ -122,9 +122,11 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         };
         // The setup client's live stream goes straight to the engine, not through
         // the finite-response discovery front. Its ordinary session stays private.
-        let setup_link = String::from_utf8(link.clone())
-            .expect("printed link")
-            .replacen(&format!("http://{temper}/"), &format!("http://{local}/"), 1);
+        let setup_link = String::from_utf8(link.clone()).expect("printed link").replacen(
+            &format!("http://{temper}/"),
+            &format!("http://{local}/"),
+            1,
+        );
         let signed = super::story_command::output(
             Command::new(skein_scratch::paths::binary("temper-box"))
                 .arg("ctl")
