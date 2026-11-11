@@ -31,3 +31,4 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 skein-scratch.workspace = true
+temper-test-env.workspace = true

@@ -69,12 +69,12 @@ impl Capture {
 }
 /// # Errors
 /// Refuses an old or relative git, a provisioning failure or an output containing credentials.
-#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_FORGEJO for the transcript tool's pinned forge")]
+#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_TEST_FORGEJO for the transcript tool's pinned forge")]
 pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
     if !git.is_absolute() {
         return Err("--git must be an absolute path".into());
     }
-    let binary = std::env::var_os("TEMPER_FORGEJO").ok_or("TEMPER_FORGEJO must name the pinned Forgejo")?;
+    let binary = std::env::var_os("TEMPER_TEST_FORGEJO").ok_or("TEMPER_TEST_FORGEJO must name the pinned Forgejo")?;
     let forgejo = Forgejo::from_path(Path::new(&binary)).map_err(|e| format!("{e:?}"))?;
     let mut settings = Settings::small();
     settings.actions = false;
