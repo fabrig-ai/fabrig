@@ -31,9 +31,12 @@ pub(crate) fn preparation_current(core: &Core, context: &tasks::RunContext) -> b
 pub(crate) fn preparation_offered(core: &Core, context: &tasks::RunContext) -> tasks::Reasons {
     let task = core.tasks.task(context.task).expect("preparing context names a live task");
     match task.executor {
-        tasks::Executor::Agent { .. } => {
-            offered_kinds(core.charter_of(context.task), task.instructions.is_some(), context.reasons, task.flags.ended_by == tasks::EndedBy::Standing)
-        }
+        tasks::Executor::Agent { .. } => offered_kinds(
+            core.charter_of(context.task),
+            task.instructions.is_some(),
+            context.reasons,
+            task.flags.ended_by == tasks::EndedBy::Standing,
+        ),
         tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
             tasks::Reasons::ALL
         }
@@ -64,7 +67,12 @@ pub(crate) fn preparation_facts(core: &Core, context: &tasks::RunContext) -> Opt
 }
 
 /// The task's own instructions, or its charter's followed by the parts its reasons meet.
-pub(crate) fn run_instructions(charter: &Charter, own: Option<&[u8]>, reasons: tasks::Reasons, standing: bool) -> Box<[u8]> {
+pub(crate) fn run_instructions(
+    charter: &Charter,
+    own: Option<&[u8]>,
+    reasons: tasks::Reasons,
+    standing: bool,
+) -> Box<[u8]> {
     if let Some(own) = own {
         return own.into();
     }

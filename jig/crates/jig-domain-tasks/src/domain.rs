@@ -779,7 +779,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 domain,
                 env,
                 reply_to,
-                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes, reasons, offered, session_end },
+                crate::run::Claiming {
+                    number: task,
+                    attempt,
+                    resumed,
+                    budget,
+                    account,
+                    writes,
+                    reasons,
+                    offered,
+                    session_end,
+                },
                 out,
             );
         }

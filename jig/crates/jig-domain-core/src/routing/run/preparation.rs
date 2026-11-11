@@ -173,15 +173,18 @@ pub(crate) fn workspace_prepared(
         if let Some(session) = row.session {
             if context.session_wake {
                 let model = &allowance.choice.policy.model;
-                session_end = tasks::session_end(session, tasks::SessionWake {
-                    at: env.wall,
-                    span: tasks::quiet_span(model.cache_life_ms),
-                    bytes: transcript.bytes,
-                    bound: tasks::context_bound(model.window),
-                    kinds: context.session_kinds,
-                    offered: super::parts::offered_kinds(charter, own.is_some(), session.reasons, true),
-                    resumable: resume && transcript.last.is_some(),
-                });
+                session_end = tasks::session_end(
+                    session,
+                    tasks::SessionWake {
+                        at: env.wall,
+                        span: tasks::quiet_span(model.cache_life_ms),
+                        bytes: transcript.bytes,
+                        bound: tasks::context_bound(model.window),
+                        kinds: context.session_kinds,
+                        offered: super::parts::offered_kinds(charter, own.is_some(), session.reasons, true),
+                        resumable: resume && transcript.last.is_some(),
+                    },
+                );
             }
             if session_end.is_none() {
                 reasons = session.reasons;

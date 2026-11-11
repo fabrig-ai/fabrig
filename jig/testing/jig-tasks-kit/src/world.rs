@@ -1228,6 +1228,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

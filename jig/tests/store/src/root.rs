@@ -291,6 +291,7 @@ pub fn header(commits: u64) -> core::Record {
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
         session: None,

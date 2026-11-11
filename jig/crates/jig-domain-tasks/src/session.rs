@@ -1,4 +1,4 @@
-//! A standing task's session forms (jig/docs/design/domain/tasks/standing.md, 7).
+//! A standing task's session record and ends (jig/docs/design/domain/tasks/standing.md, 5 and 7).
 use crate::Reasons;
 use skein_lib::{Duration, Queue, Wall};
 
@@ -49,7 +49,8 @@ pub fn context_bound(tokens: u32) -> u64 {
 /// at their committing decisions (jig/docs/design/domain/tasks/standing.md, 5.2).
 #[must_use]
 pub fn session_end(session: Session, wake: SessionWake) -> Option<SessionEnd> {
-    if wake.span == Duration::ZERO || wake.at.as_nanos().saturating_sub(session.last.as_nanos()) > wake.span.as_nanos() {
+    if wake.span == Duration::ZERO || wake.at.as_nanos().saturating_sub(session.last.as_nanos()) > wake.span.as_nanos()
+    {
         Some(SessionEnd::Quiet)
     } else if wake.bytes > wake.bound {
         Some(SessionEnd::Bound)
@@ -75,7 +76,9 @@ pub(crate) fn work_closed(record: &crate::TaskRecord) -> bool {
     if let Some(proposal) = &record.proposal {
         match proposal.state {
             crate::ProposalState::Pending { .. } => return false,
-            crate::ProposalState::Accepted { .. } | crate::ProposalState::Rejected { .. } | crate::ProposalState::Withdrawn => {}
+            crate::ProposalState::Accepted { .. }
+            | crate::ProposalState::Rejected { .. }
+            | crate::ProposalState::Withdrawn => {}
         }
     }
     true
