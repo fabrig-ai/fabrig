@@ -41,6 +41,7 @@ pub struct Card {
     pub pause: bool,
     pub resume: bool,
     pub now: Option<Now>,
+    pub sessions: List<super::Session>,
 }
 #[derive(Debug)]
 struct Listed {
@@ -321,6 +322,7 @@ impl Standing {
                     pause: false,
                     resume: false,
                     now: current,
+                    sessions: List::with_capacity(0),
                 }));
                 break;
             }
@@ -357,8 +359,14 @@ impl Standing {
                 pause: chat::allowed(task, c::ActKind::Stop),
                 resume: chat::allowed(task, c::ActKind::Release),
                 now: current,
+                sessions: List::with_capacity(0),
             }));
         }
+    }
+    pub(super) fn activity(&self, client: &Client) -> Option<(u64, Option<u64>)> {
+        let (task, _) = self.card?;
+        let activity = if let Some(document) = self.document(client) { Some(document.activity) } else { None };
+        Some((task, activity))
     }
     fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
         let (task, handle) = self.card?;

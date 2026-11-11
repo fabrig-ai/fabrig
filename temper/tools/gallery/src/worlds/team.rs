@@ -1,4 +1,5 @@
 //! Team's hand-made deliveries (temper/docs/design/client/web/gallery.md, 2).
+mod sessions;
 use super::{Address, Domain, List, c, doc, started};
 use crate::driver::{answer, deliver, down, step};
 use jig_client::{Down, Readable, Up, Watchable};
@@ -73,6 +74,9 @@ pub(super) fn world(name: &str) -> Domain {
                 what: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task: 52, .. }, .. }),
             } if role => {
                 answer(&mut root, read, c::ReadValue::Notes(Box::new(provers_now())), &mut out);
+            }
+            Down::Read { read, what: Readable::Jig(c::Read::Activity { task: 52, .. }) } if role => {
+                answer(&mut root, read, c::ReadValue::Activity(Box::new(sessions::page())), &mut out);
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)

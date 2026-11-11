@@ -9,6 +9,8 @@ use skein_lib::Queue;
 
 mod standing;
 pub use standing::{Card, Now, Role, StartedBy};
+pub(crate) mod sessions;
+pub use sessions::Session;
 /// The standing roles watch’s window.
 pub const ROLES: u32 = 16;
 
@@ -91,6 +93,8 @@ pub struct Parts {
     pub pause: bool,
     pub resume: bool,
     pub now: bool,
+    pub sessions: bool,
+    pub right: bool,
 }
 
 #[expect(clippy::derivable_impls, reason = "parts name each undrawn default explicitly in the step subset")]
@@ -106,6 +110,8 @@ impl Default for Parts {
             pause: false,
             resume: false,
             now: false,
+            sessions: false,
+            right: false,
         }
     }
 }
@@ -150,8 +156,12 @@ pub fn parts(facts: &Facts) -> Parts {
         pause: false,
         resume: false,
         now: false,
+        sessions: false,
+        right: false,
     };
     if let Some(detail) = detail {
+        parts.sessions = !detail.sessions.is_empty();
+        parts.right = parts.sessions;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
         if let Some(now) = &detail.now {
@@ -242,6 +252,7 @@ pub struct Team {
     reading: Reading,
     others: List<Other>,
     standing: standing::Standing,
+    sessions: sessions::Reader,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Reading {
@@ -265,6 +276,7 @@ impl Default for Team {
             reading: Reading::Idle,
             others: List::with_capacity(OTHERS),
             standing: standing::Standing::default(),
+            sessions: sessions::Reader::default(),
         }
     }
 }
@@ -277,7 +289,8 @@ impl Team {
         &mut self,
         address: &Address,
         you: u64,
-        limits: &Limits,
+        env: &skein_lib::Env<Limits>,
+        client: &Client,
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -303,8 +316,10 @@ impl Team {
             }));
         }
         let on_team = if let Address::Team { .. } = address { true } else { false };
-        self.configure_others(you, on_team, limits, next, out);
+        self.configure_others(you, on_team, &env.limits, next, out);
         self.standing.configure(project, address, next, out);
+        let wanted = if on_team { self.standing.activity(client) } else { None };
+        self.sessions.configure(wanted, env.wall, next, out);
     }
     fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
@@ -361,10 +376,20 @@ impl Team {
         for other in &self.others {
             out.push(Request::Client(jig_client::Event::Unwatch { handle: other.handle }));
         }
+        self.sessions.close(out);
         self.standing.leave(out);
         *self = Self::default();
     }
-    pub(super) fn told(&mut self, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(
+        &mut self,
+        env: &skein_lib::Env<Limits>,
+        client: &Client,
+        told: &Told,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        if self.sessions.told(env.now, env.wall, told, out) {
+            return true;
+        }
         if self.standing.told(client, told, out) {
             return true;
         }
@@ -450,6 +475,11 @@ fn other_waits(client: &Client, handle: Handle, party: u64) -> Option<Waits> {
 /// Team's page for the project, from its document and delivered waits.
 #[must_use]
 pub fn shown(root: &crate::Domain, project: u32) -> Shown {
+    shown_at(root, project, root.pages.team.sessions.wall())
+}
+/// Project the card's sessions at the view's wall, including week expiry between deliveries.
+#[must_use]
+pub fn shown_at(root: &crate::Domain, project: u32, wall: skein_lib::Wall) -> Shown {
     let state = &root.pages.team;
     if state.project != Some(project) {
         return Shown::Reading;
@@ -478,6 +508,9 @@ pub fn shown(root: &crate::Domain, project: u32) -> Shown {
         }
     };
     state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
+    if let Some(card) = &mut facts.card {
+        card.sessions = state.sessions.rows(wall);
+    }
     if state.document.is_some() {
         Shown::Read(facts)
     } else if facts.roles.is_empty() {
@@ -557,5 +590,14 @@ impl Team {
     }
     pub(super) fn toasted(&mut self, told: &Told) -> Option<super::needs::Toasted> {
         self.standing.toasted(told)
+    }
+}
+
+impl Team {
+    pub(super) fn fire(&mut self, now: skein_lib::Time, out: &mut Queue<Request>) {
+        self.sessions.fire(now, out);
+    }
+    pub(super) const fn next_deadline(&self) -> Option<skein_lib::Time> {
+        self.sessions.next_deadline()
     }
 }

@@ -1,5 +1,6 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
+mod sessions;
 use crate::{
     cards::text,
     frame::Bindings,
@@ -26,7 +27,7 @@ pub(crate) fn main(
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
-    draw(b, w, &name, &team::shown(root, project), project, bindings, times);
+    draw(b, w, &name, &team::shown_at(root, project, times.now), project, bindings, times);
 }
 
 /// The main column from what Team shows.
@@ -292,17 +293,27 @@ fn card(
         b.close();
     }
     b.close();
-    if parts.now
+    if (parts.now || parts.right)
         && let Some(facts) = facts
-        && let Some(now) = &facts.now
     {
         b.open(Role::Slot);
         b.style(look::TEAM_COLUMNS);
-        b.open(Role::Slot);
-        b.style(look::TEAM_LEFT);
-        draw_now(b, w, now, times);
-        b.close();
-        // The right column is absent until a sibling part has something to draw.
+        if parts.now
+            && let Some(now) = &facts.now
+        {
+            b.open(Role::Slot);
+            b.style(look::TEAM_LEFT);
+            draw_now(b, w, now, times);
+            b.close();
+        }
+        if parts.right {
+            b.open(Role::Slot);
+            b.style(look::TEAM_RIGHT);
+            if parts.sessions {
+                sessions::draw(b, w, &facts.sessions);
+            }
+            b.close();
+        }
         b.close();
     }
     b.close();

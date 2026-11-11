@@ -1458,6 +1458,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-right",
         b"temper-team-now",
         b"temper-team-kicker",
+        b"temper-team-sessions",
+        b"temper-team-session",
+        b"temper-team-session-time",
+        b"temper-team-session-cost",
+        b"temper-team-session-closing",
     ],
     regions: &[b"temper-link"],
 };
@@ -1945,6 +1950,12 @@ pub const TEAM_LEFT: Style = Style { owner: owner(), token: 736 };
 pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 737 };
 pub const TEAM_NOW: Style = Style { owner: owner(), token: 738 };
 pub const TEAM_KICKER: Style = Style { owner: owner(), token: 739 };
+
+pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 740 };
+pub const TEAM_SESSION: Style = Style { owner: owner(), token: 741 };
+pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 742 };
+pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 743 };
+pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 744 };
 
 #[cfg(test)]
 mod tests {

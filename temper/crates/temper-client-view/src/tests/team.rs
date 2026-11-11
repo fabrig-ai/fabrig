@@ -334,6 +334,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 paused: false,
                 pause: true,
                 resume: false,
+                sessions: List::with_capacity(0),
                 now: Some(team::Now {
                     body: b"- A finding\nIts next step.\n- Await a change".as_slice().into(),
                     changed: Some(changed),

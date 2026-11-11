@@ -115,6 +115,7 @@ fn shared_role(project: &c::Project) -> Option<c::HeldRole> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one sweep checks every Team part against independent randomized facts")]
 fn sweep(seed: u64) -> bool {
     let mut rng = Rng::new(seed);
     let mut project = random_project(&mut rng);
@@ -175,6 +176,7 @@ fn sweep(seed: u64) -> bool {
             paused: rng.chance(500),
             pause: rng.chance(500),
             resume: rng.chance(500),
+            sessions: random_sessions(&mut rng),
             now: if rng.chance(500) {
                 Some(team::Now {
                     body: if rng.chance(500) { Box::default() } else { b"- Now".as_slice().into() },
@@ -201,6 +203,12 @@ fn sweep(seed: u64) -> bool {
         detail.is_some_and(|card| card.hold.is_some() && card.paused && card.resume),
         "seed {seed}: Resume needs Release and paused alone"
     );
+    assert_eq!(
+        parts.sessions,
+        detail.is_some_and(|card| !card.sessions.is_empty()),
+        "seed {seed}: Sessions needs rows in the shown card"
+    );
+    assert_eq!(parts.right, parts.sessions, "seed {seed}: right column needs a part");
     assert_eq!(
         parts.now,
         detail.is_some_and(|card| card.now.as_ref().is_some_and(|now| !now.body.is_empty())),
@@ -235,4 +243,18 @@ fn team_parts_follow_their_rules() {
         }
     }
     assert!(shared > 0, "the sweep reaches a shared built-in role");
+}
+
+fn random_sessions(rng: &mut Rng) -> List<team::Session> {
+    let mut rows = List::with_capacity(8);
+    for _ in 0..rng.between(0, 8) {
+        rows.push(team::Session {
+            start: skein_lib::Wall::from_nanos(rng.next_u64()),
+            end: if rng.chance(500) { Some(skein_lib::Wall::from_nanos(rng.next_u64())) } else { None },
+            words: if rng.chance(500) { Some(b"Finished words".as_slice().into()) } else { None },
+            spent: rng.next_u64(),
+        })
+        .expect("eight sessions");
+    }
+    rows
 }
