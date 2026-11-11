@@ -168,6 +168,123 @@ fn a_person_reads_pauses_and_resumes_a_standing_role_on_team() {
 }
 
 #[test]
+fn a_role_card_reads_parked_and_live_sessions_from_committed_activity() {
+    use jig_client_kit::harness::Settings;
+    let (mut front, task) = super::person_task_tools::parked_role();
+    front.answer_runs = false;
+    let mut world: Clients =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
+    world.randomness(0, 0, 0);
+    let owner = world.client_with(
+        fixtures::PARTY,
+        Address::Team { project: PROJECT, role: Some(task) },
+        fixtures::domain_limits(),
+        temper_client_world::app::timed_person,
+    );
+    settle(&mut world);
+    let before = assert_committed_sessions(&mut world, owner, task);
+    assert_eq!(before.len(), 1, "a person's first parked run is one session");
+    assert!(before[0].end.is_some());
+    let tools = fixtures::agent(&mut world);
+    let call = fixtures::give(
+        &mut world,
+        tools,
+        &[b"task", b"message", task.to_string().as_bytes(), b"A change landed", b"--key", b"wake-role-sessions"],
+    );
+    let reply = fixtures::answered(&mut world, tools, call);
+    assert_eq!(reply.status, 0, "{reply:?}");
+    settle(&mut world);
+    let after = assert_committed_sessions(&mut world, owner, task);
+    assert!(after[0].end.is_none(), "the new run has no committed end");
+}
+
+fn assert_committed_sessions(
+    world: &mut Clients,
+    owner: ClientId,
+    task: u64,
+) -> Vec<temper_client_domain::pages::team::Session> {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+    use temper_client_domain::pages::team;
+    use temper_client_view::words::{Shell, TimeForm, Words};
+    use temper_engine_domain as engine;
+    let mut lines: Vec<_> = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            if let engine::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))) = record
+                && line.task == task
+            {
+                Some(line.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    lines.sort_by_key(|line| line.position);
+    let mut expected = Vec::<team::Session>::new();
+    let mut current: Option<team::Session> = None;
+    for line in lines {
+        match line.line {
+            tasks::Line::SessionEnded { .. } => {
+                if let Some(row) = current.take() {
+                    expected.push(row);
+                }
+            }
+            tasks::Line::RunBegan { .. } => {
+                let row = current.get_or_insert(team::Session { start: line.at, end: None, words: None, spent: 0 });
+                row.end = None;
+            }
+            tasks::Line::RunEnded { spent, .. } => {
+                let row = current.as_mut().expect("committed run began");
+                row.end = Some(line.at);
+                row.spent = row.spent.saturating_add(spent);
+            }
+            tasks::Line::Stood { words, .. } => {
+                let words = String::from_utf8(words.into()).expect("Stood is UTF-8");
+                current.as_mut().expect("standing run began").words =
+                    Some(words.replace('\n', " ").into_bytes().into());
+            }
+            _ => {}
+        }
+    }
+    if let Some(row) = current {
+        expected.push(row);
+    }
+    expected.reverse();
+    let shown = team::shown(world.root(owner).person(), PROJECT);
+    let facts = shown.facts().expect("Team's people read");
+    let card = facts.card.as_ref().expect("listed role's card");
+    assert_eq!(
+        card.sessions.as_slice(),
+        expected,
+        "rows follow the engine's committed boundaries and run times, not an assumed wake count"
+    );
+    let rows: Vec<_> = world
+        .tree(owner)
+        .nodes()
+        .iter()
+        .filter(|node| node.styles.as_slice().contains(&temper_client_view::look::TEAM_SESSION_TIME))
+        .collect();
+    assert_eq!(rows.len(), expected.len());
+    let text = fixtures::domain_limits().client.domain.text;
+    let words = Words::english(1, text, Shell::Browser).expect("fixture phrasebook");
+    for (row, session) in rows.into_iter().zip(&expected) {
+        let tomorrow = skein_lib::Wall::from_nanos(session.start.as_nanos() + 86_400_000_000_000);
+        let start = words.time(TimeForm::Clock, session.start, tomorrow).0;
+        let span = session
+            .end
+            .map_or_else(|| b"running".as_slice().into(), |end| words.time(TimeForm::Span, session.start, end).0);
+        let label = format!("{} · {}", String::from_utf8_lossy(&start), String::from_utf8_lossy(&span));
+        assert_eq!(row.name.as_deref(), Some(label.as_bytes()));
+    }
+    expected
+}
+
+#[test]
 fn a_person_reads_a_standing_roles_timer_and_charter_rules_on_team() {
     use jig_client_kit::harness::Settings;
     use temper_client_domain::pages::team::{self, wakes::Interest};

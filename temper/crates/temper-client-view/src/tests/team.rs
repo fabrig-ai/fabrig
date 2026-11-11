@@ -334,6 +334,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 paused: false,
                 pause: true,
                 resume: false,
+                sessions: List::with_capacity(0),
                 rules: None,
                 wakes: List::with_capacity(0),
                 wakes_cut: false,
@@ -567,6 +568,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
                 rules: Some(team::Rules { charter: 13, asked: b"Reproduce before routing.".as_slice().into() }),
                 wakes: team::wakes::rows(&subscriptions, &policy),
                 wakes_cut: true,
+                sessions: List::from_boxed(Box::new([team::Session { start: at, end: None, words: None, spent: 0 }])),
             })),
         };
         let mut bindings = Bindings::new(f::tree_limits().bindings);
@@ -616,6 +618,9 @@ fn team_draws_rules_and_wakes_in_their_columns() {
             );
         }
         assert_eq!(right.iter().filter(|n| n.styles.as_slice().contains(&look::TEAM_WAKE_ROW)).count(), 3);
+        let wakes = right.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_WAKES)).unwrap();
+        let sessions = right.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_SESSIONS)).unwrap();
+        assert!(wakes < sessions, "sessions follow what wakes the role");
         let task_link = right.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"61")).unwrap();
         assert_eq!(
             bindings.decode(task_link.binding.unwrap().token, skein_ui::Act::Press),
@@ -625,6 +630,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
         for rules in [true, false] {
             let card = facts.card.as_mut().unwrap();
             card.now = None;
+            card.sessions.clear();
             if rules {
                 card.wakes = List::with_capacity(0);
             } else {

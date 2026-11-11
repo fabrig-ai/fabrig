@@ -2614,6 +2614,12 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app:has(> .temper-rail) .temper-team-wake-class::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 1.5px; background: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-team-wake-class code { font: inherit; }
 #app:has(> .temper-rail) .temper-team-now ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-team-sessions { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+#app:has(> .temper-rail) .temper-team-sessions > ul { list-style: none; margin: 0; padding: 0; }
+#app:has(> .temper-rail) .temper-team-session { display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--gf-line); }
+#app:has(> .temper-rail) .temper-team-session-time { font: 12px/1.5 var(--gf-mono); }
+#app:has(> .temper-rail) .temper-team-session-cost { grid-column: 3; justify-self: end; font: 12px/1.5 var(--gf-mono); color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-team-session-closing { font-size: 12px; color: var(--gf-muted); }
 @media (max-width: 760px) {
   #app:has(> .temper-rail) .temper-team-card { padding: 18px; }
   #app:has(> .temper-rail) .temper-team-columns:has(> .temper-team-left):has(> .temper-team-right) { grid-template-columns: minmax(0, 1fr); }

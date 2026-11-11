@@ -466,6 +466,11 @@ pub enum Word {
     TeamStartedPerson,
     TeamStartedTask,
     TeamStartedDeployment,
+    TeamSessions,
+    TeamSessionLine,
+    TeamSessionClosing,
+    TeamSessionRunning,
+
     TeamKicker,
     TeamHeadline,
     TeamJustYou,
@@ -1820,7 +1825,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2373;
+const PHRASES: u32 = 2377;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1847,10 +1852,10 @@ const PHRASES: u32 = 2373;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4278;
+const SEGMENTS: u32 = 4286;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57091;
-const ALL: [Word; 1689] = [
+const ENGLISH_BYTES: u32 = 57216;
+const ALL: [Word; 1693] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2297,6 +2302,10 @@ const ALL: [Word; 1689] = [
     Word::TeamStartedPerson,
     Word::TeamStartedTask,
     Word::TeamStartedDeployment,
+    Word::TeamSessions,
+    Word::TeamSessionLine,
+    Word::TeamSessionClosing,
+    Word::TeamSessionRunning,
     Word::TeamKicker,
     Word::TeamHeadline,
     Word::TeamJustYou,
@@ -4034,6 +4043,11 @@ impl Word {
             Self::TeamStartedPerson => 4984,
             Self::TeamStartedTask => 4985,
             Self::TeamStartedDeployment => 4986,
+            Self::TeamSessions => 5180,
+            Self::TeamSessionLine => 5181,
+            Self::TeamSessionClosing => 5182,
+            Self::TeamSessionRunning => 5183,
+
             Self::TeamKicker => 4930,
             Self::TeamHeadline => 4931,
             Self::TeamJustYou => 4932,
@@ -7120,6 +7134,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TeamStartedPerson => (&[b"person ", b""], &[Number]),
         Word::TeamStartedTask => (&[b"task ", b""], &[Number]),
         Word::TeamStartedDeployment => (&[b"deployment ", b""], &[Number]),
+        Word::TeamSessions => (&[b"Sessions this week"], &[]),
+        Word::TeamSessionLine => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::TeamSessionClosing => (&[b"Each session starts fresh from its rules, its Now and what woke it, and ends by writing its Now."], &[]),
+        Word::TeamSessionRunning => (&[b"running"], &[]),
+
         Word::TeamKicker => (&[b"", b" \xc2\xb7 Team"], &[Name]),
         Word::TeamHeadline => (&[b"Who owns what on ", b""], &[Name]),
         Word::TeamJustYou => (&[b"Just you."], &[]),
@@ -7650,6 +7669,13 @@ impl Words {
         self.say(
             Word::TimeClock,
             &[Hole::Name(copy_of(&two_digits((minute / 60) % 24))), Hole::Name(copy_of(&two_digits(minute % 60)))],
+        )
+    }
+    /// A session always names its weekday, including today, in the person's zone.
+    pub(crate) fn session_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
+        self.say(
+            Word::TimePair,
+            &[Hole::Name(self.time_weekday(self.calendar_day(at), false)), Hole::Name(self.turn_clock(at))],
         )
     }
     fn time_weekday(&self, day: i64, full: bool) -> Box<[u8]> {

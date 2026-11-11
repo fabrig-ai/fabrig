@@ -1,4 +1,5 @@
 //! Team's plain facts and parts (temper/docs/design/client/pages/README.md, Team).
+mod sessions;
 use crate::pages::team::{self, Facts, Parts, Person, Waits};
 use jig_client::contract as c;
 use skein_lib::List;
@@ -259,6 +260,8 @@ struct Reads {
     roles: Option<(Handle, Token)>,
     nows: List<(u64, Handle)>,
     card: Option<(u64, Handle, Token)>,
+    activity: List<(Handle, c::Read)>,
+    env: skein_lib::Env<crate::Limits>,
     charters: List<(Handle, Box<[u8]>)>,
     closed: List<Handle>,
 }
@@ -344,6 +347,8 @@ fn reads_fixture() -> Reads {
         roles: None,
         nows: List::with_capacity(64),
         card: None,
+        activity: List::with_capacity(64),
+        env: fixtures::env(&fixtures::limits()),
         charters: List::with_capacity(32),
         closed: List::with_capacity(128),
     }
@@ -376,7 +381,7 @@ fn close(f: &mut Reads, handle: Handle) {
 #[expect(clippy::too_many_lines, reason = "fixture dispatch records Team reads alongside its watches")]
 fn page(f: &mut Reads, event: Event) -> Effects {
     let mut out = Queue::uncapped();
-    pages::step(&mut f.root.pages, &fixtures::env(&fixtures::limits()), &f.root.client, event, &mut out);
+    pages::step(&mut f.root.pages, &f.env, &f.root.client, event, &mut out);
     let mut effects = Effects::default();
     while let Some(request) = out.pop() {
         match request {
@@ -443,6 +448,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     client(f, jig_client::Event::Watch { handle, subject: Watchable::Jig(c::Subject::Task { task }) });
                 let token = opened_token(&opened);
                 f.card = Some((task, handle, token));
+                f.handles.insert(handle).unwrap();
             }
             Request::Client(jig_client::Event::Read {
                 handle,
@@ -452,6 +458,12 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 assert_eq!(description.unwrap().bytes(), b"now");
                 assert_eq!(after, None);
                 f.nows.push((task, handle)).unwrap();
+            }
+            Request::Client(jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(read @ c::Read::Activity { .. }),
+            }) => {
+                f.activity.push((handle, read)).unwrap();
             }
             Request::Client(jig_client::Event::Unwatch { handle }) if f.handles.remove(&handle) => {
                 effects.closed = effects.closed.checked_add(1).unwrap();
@@ -982,6 +994,7 @@ fn card(task: u64) -> team::Card {
         pause: true,
         resume: true,
         now: None,
+        sessions: List::with_capacity(0),
         rules: None,
         wakes: List::with_capacity(0),
         wakes_cut: false,

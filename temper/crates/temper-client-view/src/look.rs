@@ -1462,6 +1462,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-wakes",
         b"temper-team-wake-row",
         b"temper-team-wake-class",
+        b"temper-team-sessions",
+        b"temper-team-session",
+        b"temper-team-session-time",
+        b"temper-team-session-cost",
+        b"temper-team-session-closing",
     ],
     regions: &[b"temper-link"],
 };
@@ -1954,6 +1959,11 @@ pub const TEAM_RULES: Style = Style { owner: owner(), token: 740 };
 pub const TEAM_WAKES: Style = Style { owner: owner(), token: 741 };
 pub const TEAM_WAKE_ROW: Style = Style { owner: owner(), token: 742 };
 pub const TEAM_WAKE_CLASS: Style = Style { owner: owner(), token: 743 };
+pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 744 };
+pub const TEAM_SESSION: Style = Style { owner: owner(), token: 745 };
+pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 746 };
+pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 747 };
+pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 748 };
 
 #[cfg(test)]
 mod tests {

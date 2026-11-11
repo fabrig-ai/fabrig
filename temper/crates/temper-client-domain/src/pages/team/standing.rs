@@ -42,6 +42,7 @@ pub struct Card {
     pub pause: bool,
     pub resume: bool,
     pub now: Option<Now>,
+    pub sessions: List<super::Session>,
     pub rules: Option<super::Rules>,
     pub wakes: List<super::wakes::Row>,
     pub wakes_cut: bool,
@@ -342,6 +343,7 @@ impl Standing {
                     pause: false,
                     resume: false,
                     now: current,
+                    sessions: List::with_capacity(0),
                     rules: None,
                     wakes: List::with_capacity(0),
                     wakes_cut: false,
@@ -381,11 +383,17 @@ impl Standing {
                 pause: chat::allowed(task, c::ActKind::Stop),
                 resume: chat::allowed(task, c::ActKind::Release),
                 now: current,
+                sessions: List::with_capacity(0),
                 rules: self.rules.facts(),
                 wakes: super::wakes::rows(&task.subscriptions, &task.wake),
                 wakes_cut: task.cut,
             }));
         }
+    }
+    pub(super) fn activity(&self, client: &Client) -> Option<(u64, Option<u64>)> {
+        let (task, _) = self.card?;
+        let activity = if let Some(document) = self.document(client) { Some(document.activity) } else { None };
+        Some((task, activity))
     }
     fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
         card_document(self.card, self.chosen(), self.read, client)

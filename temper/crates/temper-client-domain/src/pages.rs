@@ -1098,7 +1098,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => {
             me_changed(pages, client, out);
-            pages.team.told(client, &Told::Changed { handle }, env.limits.forge, out);
+            pages.team.told(env, client, &Told::Changed { handle }, out);
         }
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
@@ -1176,7 +1176,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Some(me) => me.party.number,
             None => 0,
         };
-        pages.team.configure(&pages.address, you, client, &env.limits, &mut pages.next, out);
+        pages.team.configure(&pages.address, you, env, client, &mut pages.next, out);
     } else {
         pages.team.leave(out);
     }
@@ -1401,6 +1401,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     }
 }
 pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
+    pages.team.fire(env.now, out);
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
@@ -1436,7 +1437,7 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         None => None,
     };
     activity::earliest(
-        remembered,
+        activity::earliest(remembered, pages.team.next_deadline()),
         activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline())),
     )
 }
@@ -1914,7 +1915,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         pages.needs.say(toasted, env.now);
         return true;
     }
-    if pages.team.told(client, &told, env.limits.forge, out) {
+    if pages.team.told(env, client, &told, out) {
         return true;
     }
     if pages.roles.told(&told, env.limits.forge) {

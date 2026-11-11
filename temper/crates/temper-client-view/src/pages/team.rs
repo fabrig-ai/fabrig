@@ -1,5 +1,6 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
+mod sessions;
 pub(crate) mod wakes;
 use crate::{
     cards::text,
@@ -27,7 +28,7 @@ pub(crate) fn main(
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
-    draw(b, w, &name, &team::shown(root, project), project, bindings, times);
+    draw(b, w, &name, &team::shown_at(root, project, times.now), project, bindings, times);
 }
 
 /// The main column from what Team shows.
@@ -320,6 +321,9 @@ fn card(
             b.style(look::TEAM_RIGHT);
             if parts.wakes {
                 wakes::draw(b, w, facts, parts.wakes_cut, bindings, times);
+            }
+            if parts.sessions {
+                sessions::draw(b, w, &facts.sessions);
             }
             b.close();
         }
