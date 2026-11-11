@@ -90,7 +90,7 @@ temper-worker-domain                       the worker's root (worker.md)
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
   the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
-  `tools/git-transcripts/facts.txt` hold the evidence, named by fact.
+  `crates/temper-git-transcripts-tool/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
   is open. It states the contract; where the code lags or departs is

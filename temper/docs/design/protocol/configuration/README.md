@@ -852,7 +852,7 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   owner and name of its adoption; Forgejo redirects the old path, and
   git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/forge.md`,
   section 7: `moved-repository-is-a-redirect`;
-  `tools/git-transcripts/facts.txt`,
+  `crates/temper-git-transcripts-tool/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
 - **Profiles' numbers** beyond fabrig's development, which sizes
   `standard`'s work (`stock.md`): `small`'s, and each profile's machine

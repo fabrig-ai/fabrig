@@ -409,14 +409,15 @@ reprint names them whole (5.1), its recordings having passed the scan.
 
 ### 5.1 The program
 
-`temper-client-journeys` (`tools/journeys`), a program of temper's
-workspace beside the gallery (`gallery.md`):
+`temper-client-journeys` (`bin/temper-client-journeys`), an internal binary
+whose crate is `crates/temper-client-journeys-tool`, beside the gallery
+(`gallery.md`; `../../testing/tools.md`, 3–4):
 
 - `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
   FILE` takes a saved recording as the journey NAME, replacing one of
   that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
   it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
-- `cargo run -p temper-client-journeys -- --help` says what `add` takes
+- `cargo run -p temper-client-journeys -- add --help` says what `add` takes
   out and what it leaves to the person (3.8).
 - `cargo run -p temper-client-journeys` reprints every journey from its
   recording. A stale one is named with its turn and line, its print
@@ -508,8 +509,8 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `tools/journeys`' own tests:** every committed
-  journey reprinted into a scratch directory equals its directory and
+- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
+  committed journey reprinted into a scratch directory equals its directory and
   the files beside it, byte for byte; one that differs or is stale
   fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
   journey's README.
@@ -526,8 +527,8 @@ python3 -m http.server 8766
   saves, an exchange or a write in flight among them; and the check
   refusing a new walk whose acts, values, events or key marks differ.
 - **A setup, natively,** in the journey module's tests and
-  `tools/journeys`' own: a setup's lines read back, each record among
-  them, and another version, a line out of its place, a second `reload`
+  `crates/temper-client-journeys-tool`'s own: a setup's lines read back, each
+  record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
   name of its own refused; every committed setup read; and
@@ -558,6 +559,11 @@ python3 -m http.server 8766
   across deliveries among them; a length prefix of every byte before a
   key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
   the committed journeys.
+- **The binary's table,** in `bin/temper-client-journeys`' suite: help,
+  version, the internal commands' pages and argument refusals, with no build
+  or child started (`../../testing/tools.md`, 6). Its `arguments` and
+  `refusals` process tests live there too; the library and look-refresh
+  script tests stay in `crates/temper-client-journeys-tool`.
 - **The refusal, as a process:** no original's bytes on stdout or stderr,
   a failed proof's among them, and nothing written on any path; in the
   print's tests, a refused `add` leaves its root as it was.
@@ -638,8 +644,8 @@ reprint carries, since its acts are events, not controls.
 ### 8.1 Again
 
 `cargo run -p temper-client-journeys -- again NAME`, in
-`tools/journeys`. Its walk's logic is the journey module's, beside the
-recorder and the replay, natively and without io: it takes each save's
+`crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
+beside the recorder and the replay, natively and without io: it takes each save's
 bytes and answers what to do next. The program reads the saves from the
 person's downloads and drives the box and the browser, as ordinary Rust
 over skein's harness.

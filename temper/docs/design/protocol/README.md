@@ -675,7 +675,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 - **Step tests:** every codec against golden bytes, at its bounds and by
   fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
-  real git (`tools/git-transcripts`); `skein-forge`'s decoders against
+  real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
   `skein/docs/design/testing/fakes/forge.md`, section 7);
   temper's pages as skein's text shell prints them (`../client/testing.md`

@@ -1156,6 +1156,13 @@ dropped. The test set is `temper-test-env`'s table, its variables
 its `test-env` generated beside the others. The client's table is
 C3's (`cli/README.status.md`; `draft/cli.status.md`).
 
+temper's six tools and fixtures are internal binaries of `temper/bin/`,
+each with its table, help and `--version` on `skein-shell`'s front, its
+crate under `temper/crates/`, and no exception of the command line's
+checks left for them (`testing/tools.md`; `draft/cli-c8-tools.status.md`).
+Their reference documents wait for temper's other tables
+(`testing/tools.status.md`, 4.4).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -1171,6 +1178,7 @@ Design documents:
 - [`domain/worker.md`](domain/worker.status.md)
 - [`domain/agent/README.md`](domain/agent/README.status.md)
 - [`testing/README.md`](testing/README.status.md)
+- [`testing/tools.md`](testing/tools.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
 - [`protocol/configuration/README.md`](protocol/configuration/README.status.md)
 - [`protocol/credentials.md`](protocol/credentials.status.md)
@@ -1205,6 +1213,7 @@ Drafts:
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
+- [`draft/cli-c8-tools.md`](draft/cli-c8-tools.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
