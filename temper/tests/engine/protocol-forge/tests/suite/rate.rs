@@ -2,7 +2,8 @@
 //!
 //! Two-minute warmup, then a full 40-second steady cycle scaled by ninety. The shipped
 //! 1800-second stall stays outside the window. CI takes 7200 virtual seconds.
-//! Run with `TEMPER_RATE=1` to print the installation's HTTP routes and costs.
+//! Set `TEMPER_TEST_RATE` to a nonempty value to print the installation's HTTP routes and costs.
+//! An empty value is unset.
 //! Conservative phase allowance: two passes per endpoint/resource (fast and
 //! slow), scaled by ninety: at most 180*(7*N+1) requests/hour either way.
 //! The shipped 5-second listing, 20-second checks and 40-second slow reads all fit this cycle.
@@ -271,7 +272,6 @@ fn histogram(world: &Protocol, start: usize) -> BTreeMap<String, u64> {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_RATE, through temper's test table once it exists")]
 fn pending_changes_installation_requests_per_hour() {
     let mut measured = Vec::new();
     for count in 1..=3 {
@@ -329,7 +329,7 @@ fn pending_changes_installation_requests_per_hour() {
         measured.push(table);
         world.finish();
     }
-    if std::env::var_os("TEMPER_RATE").is_some() {
+    if temper_test_env::value(&temper_test_env::RATE).is_some() {
         eprintln!("requests/hour (equal to charged answer costs):     N=1     N=2     N=3");
         for kind in KINDS {
             eprintln!(
@@ -402,7 +402,6 @@ fn sharing(world: &Protocol, start: usize, bucket: u64) -> (u64, u64, u64) {
     (reads, save, calls)
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_RATE, through temper's test table once it exists")]
 fn busy(moving: bool) {
     for count in 1..=3 {
         let (mut world, mut scheduler) = configured(count, 120, 1);
@@ -446,7 +445,7 @@ fn busy(moving: bool) {
                 assert!(matches!(row.change.state, change::State::Checking { .. } | change::State::Gating { .. }));
             }
         }
-        if std::env::var_os("TEMPER_RATE").is_some() {
+        if temper_test_env::value(&temper_test_env::RATE).is_some() {
             eprintln!(
                 "moving={moving} N={count} total/h={} base/h={} save exact/1s={}/{} base_calls={} (600s)",
                 total * 6,

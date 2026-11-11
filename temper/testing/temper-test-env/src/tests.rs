@@ -43,7 +43,6 @@ fn table_is_tempers_test_set() {
         assert!(variable.name.starts_with(concat!("TEMPER", "_TEST_")));
     }
     assert!(names.windows(2).all(|pair| pair[0].as_bytes() < pair[1].as_bytes()));
-    assert!(!names.contains(&"TEMPER_TEST_CLAUDE"));
 }
 
 #[test]

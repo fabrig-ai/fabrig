@@ -96,10 +96,6 @@ impl ServiceHost {
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
         Self::with_shape(path, signals, None, false, None, None, Some(issuer))
     }
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C4: TEMPER_INTERNAL_WAIT_CHECK, through temper's test table once it exists"
-    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,
@@ -154,7 +150,7 @@ impl ServiceHost {
             restartable,
             start_failures: 0,
             failed_starts: Vec::new(),
-            wait_check: std::env::var_os("TEMPER_INTERNAL_WAIT_CHECK").is_some(),
+            wait_check: temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some(),
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,

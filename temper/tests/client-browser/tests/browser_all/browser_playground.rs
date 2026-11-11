@@ -120,14 +120,11 @@ fn download_size(directory: &Path) -> (u64, u64) {
 
 #[test]
 #[expect(clippy::result_large_err, reason = "the replay wrapper preserves the complete mismatch diagnostic")]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_TEST_PLAYGROUND, through temper's test table once it exists"
-)]
 fn story_a_walks_on_the_built_playground() {
-    let out = PathBuf::from(std::env::var_os("TEMPER_TEST_PLAYGROUND").expect("run temper/scripts/browser.sh"))
-        .canonicalize()
-        .expect("built playground");
+    let out =
+        PathBuf::from(temper_test_env::value(&temper_test_env::PLAYGROUND).expect("run temper/scripts/browser.sh"))
+            .canonicalize()
+            .expect("built playground");
     let scratch = skein_scratch::Scratch::new("browser-playground");
     let downloads = scratch.path().join("downloads");
     fs::create_dir(&downloads).expect("downloads directory");

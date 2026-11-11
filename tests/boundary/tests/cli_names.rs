@@ -70,9 +70,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "SMITH_TEST_ENVIRONMENT", until: "smith's round" },
     Exception { what: "SMITH_TEST_LIVE_GIT_REMOTE", until: "smith's round" },
     Exception { what: "SMITH_UNSET_FIXTURE", until: "smith's round" },
-    Exception { what: "TEMPER_RATE", until: "cli C4" },
-    Exception { what: "TEMPER_RECORD_RELEASE", until: "cli C4" },
-    Exception { what: "TEMPER_TEST_CLAUDE", until: "cli C4" },
 ];
 
 /// The findings no exception names, and the exceptions that name no

@@ -68,9 +68,8 @@ and invalid records are refused before any command, including in verification.
 An optional `env` names a test environment variable (uppercase ASCII with
 `_TEST_` in its name). After building the binary, set that variable to its
 absolute `target_directory/debug/BINARY` path, replacing any inherited value.
-Variable names are unique within a pair. `process-temper` sets
-`TEMPER_TEST_CLAUDE` this way for its two program-login tests, with
-`smith-fake-claude`'s `fake-claude`, the one adapter both trees run.
+Variable names are unique within a pair. For example, an entry with
+`env = "DEMO_TEST_ADAPTER"` sets that variable to the built adapter's path.
 
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
