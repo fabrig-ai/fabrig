@@ -840,6 +840,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
+            contexts: Box::new([]),
             workflows: Box::default(),
             project: PROJECT,
             home: true,
@@ -1176,6 +1177,7 @@ fn follow_value() -> settings::Follow {
 fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repository {
     forge::Repository {
         project: 2,
+        contexts: Box::new([]),
         home: false,
         provider: skein_forge::api::Repository { forge: 1, repository: number },
         host: b"forge.example".as_slice().into(),

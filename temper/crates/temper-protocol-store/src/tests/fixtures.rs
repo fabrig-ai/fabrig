@@ -266,6 +266,7 @@ pub fn named_branch() -> top::Name {
 }
 pub fn adopted(protection: top::Protection) -> top::Stored {
     top::Stored::Repository(top::Repository {
+        contexts: Box::new([]),
         workflows: Box::new([Box::from(b"ci.yml".as_slice()), Box::from(b"lint.yml".as_slice())]),
         project: 3,
         home: true,

@@ -526,7 +526,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             },
         },
         Stored::Repository(row) => {
-            let mut held = bytes(&row.host)
+            let mut held = skein_lib::len_u64(row.contexts.len())
+                .checked_mul(u64::try_from(size_of::<u32>()).ok()?)?
+                .checked_add(bytes(&row.host))?
                 .checked_add(bytes(&row.owner))?
                 .checked_add(bytes(&row.name))?
                 .checked_add(bytes(&row.prefix))?

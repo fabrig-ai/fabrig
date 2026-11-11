@@ -366,7 +366,7 @@ fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed(
                 let Some(Request::Adopted { result: Ok(_), .. }) = requests.last() else {
                     panic!("adopted is last");
                 };
-                assert_eq!(saved(&requests), !context);
+                assert!(saved(&requests), "writer facts or the additional context project are saved");
                 assert_eq!(d.repository(REPO).unwrap().workflows.as_ref(), &[Box::from(b"old.yml".as_slice())]);
             }
             Trigger::Refresh => {

@@ -26,6 +26,7 @@ pub enum RestoreSet {
     LandingAsks,
     LandingEntries,
     NameBytes,
+    ContextProjects,
 }
 
 /// The first configured bound a restored row or derived set could not fit.
@@ -238,13 +239,17 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             named_payload(l, answer)?;
             room(K::Call, Rows(K::Call), d.named_calls.len(), d.named_calls.capacity(), d.named_calls.contains_key(key))
         }
-        Stored::Repository(row) => room(
-            K::Repository,
-            Rows(K::Repository),
-            d.repositories.len(),
-            d.repositories.capacity(),
-            d.repositories.contains_key(&row.provider),
-        ),
+        Stored::Repository(row) => {
+            let contexts = count(row.contexts.len()).saturating_add(u64::from(row.role == crate::Role::Context));
+            field(K::Repository, RestoreSet::ContextProjects, contexts, u64::from(l.judge_projects))?;
+            room(
+                K::Repository,
+                Rows(K::Repository),
+                d.repositories.len(),
+                d.repositories.capacity(),
+                d.repositories.contains_key(&row.provider),
+            )
+        }
         Stored::Hold(row) => {
             room(K::Hold, Rows(K::Hold), d.holds.len(), d.holds.capacity(), d.holds.contains_key(&row.name))
         }

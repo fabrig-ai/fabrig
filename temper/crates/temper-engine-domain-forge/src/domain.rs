@@ -182,7 +182,7 @@ pub struct Domain {
     setup_pending: Map<Token, (Token, Duration)>,
     pub(crate) connect: crate::connect::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
-    pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
+    pub(crate) repositories: Map<skein_forge::api::Repository, Box<Repository>>,
     pub(crate) names: Map<u64, Box<[Name]>>,
     pub(crate) holds: Map<Name, Hold>,
     pub(crate) subscriptions: Map<(u64, Topic), Subscriber>,
@@ -1145,7 +1145,10 @@ impl Domain {
     /// Adopted repository facts used by root authority and workspace translation.
     #[must_use]
     pub fn repository(&self, provider: skein_forge::api::Repository) -> Option<&Repository> {
-        self.repositories.get(&provider)
+        match self.repositories.get(&provider) {
+            Some(row) => Some(row),
+            None => None,
+        }
     }
 
     /// The project's role on a repository (temper/docs/design/domain/forge/adoption.md, 1).
@@ -1157,19 +1160,21 @@ impl Domain {
 
     /// Resolve a deployment-wide saved repository tag within its project.
     #[must_use]
-    pub fn repository_tag(&self, project: u32, tag: u64) -> Option<&Repository> {
+    pub fn repository_tag(&self, project: u32, tag: u64) -> Option<Repository> {
         let (forge, repository) = untag(tag)?;
         let adopted = self.repository(skein_forge::api::Repository { forge, repository })?;
-        if adopted.project == project { Some(adopted) } else { None }
+        adopted.for_project(project)
     }
 
     /// All adopted repositories of this project on forges that have not ended.
     #[must_use]
-    pub fn readable_repositories(&self, project: u32) -> Box<[&Repository]> {
+    pub fn readable_repositories(&self, project: u32) -> Box<[Repository]> {
         let mut repositories = List::with_capacity(self.repositories.capacity());
         for (_, repository) in &self.repositories {
-            if repository.project == project && !self.forge_ended(repository.provider.forge) {
-                repositories.push(repository).expect("bounded adopted repositories");
+            if !self.forge_ended(repository.provider.forge)
+                && let Some(row) = repository.for_project(project)
+            {
+                repositories.push(row).expect("bounded adopted repositories");
             }
         }
         repositories.into_boxed()
@@ -1180,12 +1185,12 @@ impl Domain {
     pub fn writable_repositories(&self, project: u32) -> Box<[&Repository]> {
         let mut repositories = List::with_capacity(self.repositories.capacity());
         for (_, repository) in &self.repositories {
-            if repository.project == project
-                && repository.role != Role::Context
+            if repository.role_for(project).is_some()
+                && repository.role_for(project) != Some(Role::Context)
                 && repository.kinds.push
                 && !self.forge_ended(repository.provider.forge)
             {
-                repositories.push(repository).expect("bounded adopted repositories");
+                repositories.push(repository.as_ref()).expect("bounded adopted repositories");
             }
         }
         repositories.into_boxed()
@@ -1605,7 +1610,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::ForgetAdoption { repository, restore } => match restore {
             Some(previous) => {
-                d.repositories.insert(repository, previous.clone()).expect("restores an admitted repository");
+                d.repositories.insert(repository, Box::new(previous.clone())).expect("restores an admitted repository");
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
                 emit(out, Request::MarkedForges);
             }
@@ -1969,9 +1974,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     continue;
                 }
                 let account = match d.entries.get(&entry) {
-                    Some(row) => {
-                        crate::effect_words::account(&row.entry, d.repositories.get(&row.entry.repository), outcome)
-                    }
+                    Some(row) => crate::effect_words::account(&row.entry, d.repository(row.entry.repository), outcome),
                     None => None,
                 };
                 let mut projection = false;
@@ -4515,7 +4518,7 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
 
 fn settled_account(d: &Domain, entry: u64, outcome: skein_forge_client::Outcome) -> Option<crate::EffectAccount> {
     let row = d.entries.get(&entry)?;
-    let words = crate::effect_words::account(&row.entry, d.repositories.get(&row.entry.repository), outcome)?;
+    let words = crate::effect_words::account(&row.entry, d.repository(row.entry.repository), outcome)?;
     Some(crate::EffectAccount { entry, words })
 }
 
@@ -4827,7 +4830,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
         {
             let account = crate::effect_words::account(
                 &row.entry,
-                d.repositories.get(&row.entry.repository),
+                d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
             d.entries.remove(&number);
@@ -6552,7 +6555,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.named_calls.insert(key, answer).expect("restored named-call room checked");
         }
         Stored::Repository(row) => {
-            d.repositories.insert(row.provider, row).expect("restored repository within limits");
+            d.repositories.insert(row.provider, Box::new(row)).expect("restored repository within limits");
         }
         Stored::Hold(row) => {
             d.holds.insert(row.name.clone(), row).expect("restored hold within limits");

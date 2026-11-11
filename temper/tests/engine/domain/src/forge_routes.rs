@@ -107,6 +107,7 @@ pub struct World {
     pub fake_env: Env<fake::Config>,
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
+    located_names: BTreeMap<u32, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
@@ -1057,6 +1058,7 @@ impl World {
             fake_env,
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
+            located_names: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
             adopted: Vec::new(),
@@ -1095,6 +1097,33 @@ impl World {
             writes: Vec::new(),
             repository_writes: Vec::new(),
         }
+    }
+
+    /// A second project with the same owner and policy, before startup.
+    #[must_use]
+    pub fn with_second_project(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "project configuration precedes startup");
+        self.env.limits.authority.projects = 2;
+        self.env.limits.people.projects = 3;
+        self.env.limits.people.initial_owners = 2;
+        let first = &self.restart_config.core.seed_projects[0];
+        let second = jig_domain_core::SeedProject { number: 2, name: "Project 2".into(), policy: first.policy.clone() };
+        let mut projects = self.restart_config.core.seed_projects.into_vec();
+        projects.push(second);
+        self.restart_config.core.seed_projects = projects.into_boxed_slice();
+        let identity = self.restart_config.core.owners[0].identity.clone();
+        let mut owners = self.restart_config.core.owners.into_vec();
+        owners.push(people::InitialOwner { project: 2, identity });
+        self.restart_config.core.owners = owners.into_boxed_slice();
+        self.creating =
+            jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid two-project configuration");
+        self
     }
 
     /// Choose the settings owner's identity and admit settings kinds before the world's first input.
@@ -1674,6 +1703,8 @@ impl World {
                     let located = translate::locate_name(&op);
                     let name: &[u8] = if let Some(name) = &located {
                         name
+                    } else if let Some(name) = self.located_names.get(&repository.repository) {
+                        name
                     } else if repository == forge_world::REPO {
                         b"org/repo"
                     } else if repository == (skein_forge::api::Repository { forge: 1, repository: 4 }) {
@@ -2113,6 +2144,11 @@ impl World {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
                     };
+                    if let Ok(skein_forge::api::Answer::Located { repository }) = &result
+                        && let Some(name) = translate::locate_name(&op)
+                    {
+                        self.located_names.insert(*repository, name);
+                    }
                     let event = engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
                         skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
                     )));

@@ -166,6 +166,7 @@ fn configured() -> [Configured; 2] {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -260,7 +261,7 @@ fn opening_row() -> ChangeRow {
 
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
-    d.repositories.insert(REPO, adopted()).expect("adoption");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("adoption");
     let mut tiers = List::uncapped();
     for (name, branch) in names {
         tiers
