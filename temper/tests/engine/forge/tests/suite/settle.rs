@@ -140,7 +140,12 @@ fn a_job_end_hint_makes_pending_ci_wait_a_hinted_read() {
     });
     let t0 = world.wall();
     let until = wait(&mut world, 1);
-    assert_eq!(seconds(until, t0), 1);
+    // CI has its own commit-only settling timer; it no longer shortens the
+    // whole procedure's wait to hinted and gathers branches/pull/reviews.
+    assert_eq!(seconds(until, t0), 30);
+    world.take_calls();
+    world.run_for(1);
+    assert_eq!(world.take_calls(), [skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: head })]);
     world.status(b"temper/51", Check::Passed);
     world.run_to(until);
     assert_eq!(change_step(&mut world, 2, change::Status::Passed, Box::new([])), change::Decision::Ready);
