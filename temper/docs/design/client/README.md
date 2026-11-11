@@ -155,7 +155,8 @@ temper-client-shell-tui         the TUI's host, its seam, and its loop over the 
 └── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
 temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
-temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
+temper-client                   the deployment's client's binary, bin/temper-client: its `main` hands temper-version's line to its crate (../cli/README.md, 2)
+temper-client-shell             the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
 temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 └── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part

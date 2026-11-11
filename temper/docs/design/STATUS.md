@@ -1086,8 +1086,9 @@ and `ctl`, run by the box's code from the shells both binaries link, its
 help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
 prints its table from. Its ctl story signs in to a `temper-engine` and runs
 after landing. Its closure is held by the boundary test's row, with its five
-shared vocabulary crates as named exceptions; its
-`--version` reads a build script of its own, not `temper-version`
+shared vocabulary crates as named exceptions; its binary is a package
+under `bin/` whose crate is `temper-client-shell`, and its `--version`
+is the line `temper-version` gives, which the binary hands its crate
 (`protocol/binaries.status.md`; `client/README.status.md`, 2). The compiled
 `commands` page names each command's binary but the client's, whose table
 joins it with `draft/cli.execution.md`'s C3 (`protocol/documentation.status.md`).
@@ -1138,7 +1139,11 @@ each holds a table on skein's, reached by `Table::reach`, with its help,
 and its reference documents generated beside `cli/README.md`. The
 internal variables are renamed `TEMPER_INTERNAL_*` and the twins
 dropped; the client's table is C3's (`cli/README.status.md`;
-`draft/cli.status.md`).
+`draft/cli.status.md`). Each binary's package, the client's included,
+links `temper-version` and hands its build identity to its crate; no
+library links it, a row of the boundary test's direction rule holds it,
+and a new commit relinks the binaries and rebuilds no library or world
+below them (`release.status.md`; `draft/version-rebuilds.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -1218,6 +1223,7 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
 - [`draft/follows.md`](draft/follows.status.md)
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/surfaces.md`](draft/surfaces.status.md)
