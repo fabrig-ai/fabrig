@@ -34,6 +34,9 @@ fn facts() -> Facts {
             pause: false,
             resume: false,
             now: None,
+            rules: None,
+            wakes: List::with_capacity(0),
+            wakes_cut: false,
             sessions: List::from_boxed(Box::new([
                 team::Session { start: Wall::from_nanos(1_794_102_720_000_000_000), end: None, words: None, spent: 0 },
                 team::Session {

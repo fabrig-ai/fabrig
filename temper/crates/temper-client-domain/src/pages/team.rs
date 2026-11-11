@@ -7,7 +7,10 @@ use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, con
 use skein_lib::List;
 use skein_lib::Queue;
 
+mod rules;
 mod standing;
+pub mod wakes;
+pub use rules::{Rules, asked};
 pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) mod sessions;
 pub use sessions::Session;
@@ -94,6 +97,9 @@ pub struct Parts {
     pub resume: bool,
     pub now: bool,
     pub sessions: bool,
+    pub rules: bool,
+    pub wakes: bool,
+    pub wakes_cut: bool,
     pub right: bool,
 }
 
@@ -111,6 +117,9 @@ impl Default for Parts {
             resume: false,
             now: false,
             sessions: false,
+            rules: false,
+            wakes: false,
+            wakes_cut: false,
             right: false,
         }
     }
@@ -157,11 +166,19 @@ pub fn parts(facts: &Facts) -> Parts {
         resume: false,
         now: false,
         sessions: false,
+        rules: false,
+        wakes: false,
+        wakes_cut: false,
         right: false,
     };
     if let Some(detail) = detail {
+        if let Some(rules) = &detail.rules {
+            parts.rules = !rules.asked.is_empty();
+        }
+        parts.wakes = !detail.wakes.is_empty();
+        parts.wakes_cut = parts.wakes && detail.wakes_cut;
         parts.sessions = !detail.sessions.is_empty();
-        parts.right = parts.sessions;
+        parts.right = parts.wakes || parts.sessions;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
         if let Some(now) = &detail.now {
@@ -320,6 +337,7 @@ impl Team {
         self.standing.configure(project, address, next, out);
         let wanted = if on_team { self.standing.activity(client) } else { None };
         self.sessions.configure(wanted, env.wall, next, out);
+        self.standing.configure_rules(client, env.limits.forge, next, out);
     }
     fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
@@ -388,6 +406,9 @@ impl Team {
         out: &mut Queue<Request>,
     ) -> bool {
         if self.sessions.told(env.now, env.wall, told, out) {
+            return true;
+        }
+        if self.standing.rules_told(told, env.limits.forge) {
             return true;
         }
         if self.standing.told(client, told, out) {

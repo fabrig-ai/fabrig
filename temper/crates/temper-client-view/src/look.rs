@@ -1458,6 +1458,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-right",
         b"temper-team-now",
         b"temper-team-kicker",
+        b"temper-team-rules",
+        b"temper-team-wakes",
+        b"temper-team-wake-row",
+        b"temper-team-wake-class",
         b"temper-team-sessions",
         b"temper-team-session",
         b"temper-team-session-time",
@@ -1951,11 +1955,15 @@ pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 737 };
 pub const TEAM_NOW: Style = Style { owner: owner(), token: 738 };
 pub const TEAM_KICKER: Style = Style { owner: owner(), token: 739 };
 
-pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 740 };
-pub const TEAM_SESSION: Style = Style { owner: owner(), token: 741 };
-pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 742 };
-pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 743 };
-pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 744 };
+pub const TEAM_RULES: Style = Style { owner: owner(), token: 740 };
+pub const TEAM_WAKES: Style = Style { owner: owner(), token: 741 };
+pub const TEAM_WAKE_ROW: Style = Style { owner: owner(), token: 742 };
+pub const TEAM_WAKE_CLASS: Style = Style { owner: owner(), token: 743 };
+pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 744 };
+pub const TEAM_SESSION: Style = Style { owner: owner(), token: 745 };
+pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 746 };
+pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 747 };
+pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 748 };
 
 #[cfg(test)]
 mod tests {

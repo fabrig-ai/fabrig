@@ -31,6 +31,7 @@ pub enum StartedBy {
 }
 /// The card's read facts; sibling parts join this struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "card facts keep independent control permissions and document cut")]
 pub struct Card {
     pub task: u64,
     pub name: Box<[u8]>,
@@ -42,6 +43,9 @@ pub struct Card {
     pub resume: bool,
     pub now: Option<Now>,
     pub sessions: List<super::Session>,
+    pub rules: Option<super::Rules>,
+    pub wakes: List<super::wakes::Row>,
+    pub wakes_cut: bool,
 }
 #[derive(Debug)]
 struct Listed {
@@ -60,6 +64,7 @@ pub(super) struct Standing {
     selected: Option<u64>,
     card: Option<(u64, Handle)>,
     pending: List<(Key, task::Sending)>,
+    rules: super::rules::Reader,
 }
 impl Default for Standing {
     fn default() -> Self {
@@ -71,6 +76,7 @@ impl Default for Standing {
             selected: None,
             card: None,
             pending: List::with_capacity(2),
+            rules: super::rules::Reader::default(),
         }
     }
 }
@@ -150,6 +156,20 @@ impl Standing {
             }
         }
     }
+    pub(super) fn configure_rules(
+        &mut self,
+        client: &Client,
+        limits: crate::forge::Limits,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        // The card watch is closed on leaving Team, even while the roles watch stays open.
+        let document = card_document(self.card, self.chosen(), self.read, client);
+        self.rules.configure(document, client, limits, next, out);
+    }
+    pub(super) fn rules_told(&mut self, told: &Told, limits: crate::forge::Limits) -> bool {
+        self.rules.told(told, limits)
+    }
     fn chosen(&self) -> Option<u64> {
         for row in &self.rows {
             if Some(row.line.chip.task) == self.selected {
@@ -159,6 +179,7 @@ impl Standing {
         if let Some(row) = self.rows.get(0) { Some(row.line.chip.task) } else { None }
     }
     fn close_card(&mut self, out: &mut Queue<Request>) {
+        self.rules.leave(out);
         if let Some((_, handle)) = self.card.take() {
             unwatch(handle, out);
         }
@@ -323,6 +344,9 @@ impl Standing {
                     resume: false,
                     now: current,
                     sessions: List::with_capacity(0),
+                    rules: None,
+                    wakes: List::with_capacity(0),
+                    wakes_cut: false,
                 }));
                 break;
             }
@@ -360,6 +384,9 @@ impl Standing {
                 resume: chat::allowed(task, c::ActKind::Release),
                 now: current,
                 sessions: List::with_capacity(0),
+                rules: self.rules.facts(),
+                wakes: super::wakes::rows(&task.subscriptions, &task.wake),
+                wakes_cut: task.cut,
             }));
         }
     }
@@ -369,13 +396,9 @@ impl Standing {
         Some((task, activity))
     }
     fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
-        let (task, handle) = self.card?;
-        if Some(task) != self.chosen() || !self.read {
-            return None;
-        }
-        let Latest::Jig(c::Delivery::Task(document)) = latest(client, handle)? else { return None };
-        if document.chip.task == task { Some(document) } else { None }
+        card_document(self.card, self.chosen(), self.read, client)
     }
+
     pub(super) fn send(&mut self, client: &Client, kind: task::Sending, serial: &mut u64, out: &mut Queue<Request>) {
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -478,4 +501,13 @@ fn paused(task: &c::Task) -> bool {
         | c::HoldCategory::PoolLost { .. }
         | c::HoldCategory::Procedure => false,
     }
+}
+
+fn card_document(card: Option<(u64, Handle)>, chosen: Option<u64>, read: bool, client: &Client) -> Option<&c::Task> {
+    let (task, handle) = card?;
+    if Some(task) != chosen || !read {
+        return None;
+    }
+    let Latest::Jig(c::Delivery::Task(document)) = latest(client, handle)? else { return None };
+    if document.chip.task == task { Some(document) } else { None }
 }

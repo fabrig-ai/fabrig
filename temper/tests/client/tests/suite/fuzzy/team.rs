@@ -115,6 +115,115 @@ fn shared_role(project: &c::Project) -> Option<c::HeldRole> {
     }
 }
 
+fn random_rule(rng: &mut Rng) -> c::WakeRule {
+    use skein_lib::Duration;
+    match rng.below(4) {
+        0 => c::WakeRule::Never,
+        1 => c::WakeRule::Immediate,
+        2 => c::WakeRule::Paced { span: Duration::from_secs(rng.between(1, 7200)) },
+        _ => c::WakeRule::Batch { count: random_count(rng), age: Duration::from_secs(rng.between(1, 7200)) },
+    }
+}
+fn random_wakes(rng: &mut Rng) -> skein_lib::List<team::wakes::Row> {
+    use skein_lib::{Duration, Wall};
+    use team::wakes::{Interest, Row};
+    let policy = c::WakePolicy {
+        words: random_rule(rng),
+        notices: random_rule(rng),
+        news: random_rule(rng),
+        results: c::ResultsWake::Never,
+        questions: rng.chance(500),
+        answers: rng.chance(500),
+        timers: rng.chance(500),
+    };
+    let entries = (0..rng.between(0, 20))
+        .map(|number| c::Subscription {
+            number,
+            kind: match rng.below(3) {
+                0 => c::SubscriptionKind::Timer {
+                    at: Wall::from_nanos(rng.next_u64()),
+                    period: if rng.chance(500) { Some(Duration::from_secs(rng.between(1, 604_800))) } else { None },
+                },
+                1 => c::SubscriptionKind::Task {
+                    target: rng.between(1, 100),
+                    held: rng.chance(500),
+                    result: rng.chance(500),
+                },
+                _ => c::SubscriptionKind::Topic {
+                    connector: u16::try_from(rng.between(1, 4)).expect("bounded connector"),
+                    topic: rng.next_u64(),
+                },
+            },
+        })
+        .collect::<Vec<_>>();
+    let subscriptions = c::Subscriptions { entries: List::from_boxed(entries.clone().into_boxed_slice()) };
+    let mut seen = std::collections::BTreeSet::new();
+    let expected = entries
+        .iter()
+        .filter_map(|entry| {
+            Some(match entry.kind {
+                c::SubscriptionKind::Timer { at, period } => {
+                    Row { interest: Interest::Timer { at, period, wakes: policy.timers }, class: c::WakeRule::Never }
+                }
+                c::SubscriptionKind::Task { target, held, result } => {
+                    Row { interest: Interest::Task { target, held, result }, class: policy.notices }
+                }
+                c::SubscriptionKind::Topic { connector, .. } => {
+                    if !seen.insert(connector) {
+                        return None;
+                    }
+                    let count = u32::try_from(
+                        entries
+                            .iter()
+                            .filter(
+                                |e| matches!(e.kind, c::SubscriptionKind::Topic { connector: c, .. } if c == connector),
+                            )
+                            .count(),
+                    )
+                    .expect("bounded topics");
+                    Row { interest: Interest::Topics { connector, count }, class: policy.news }
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    let rows = team::wakes::rows(&subscriptions, &policy);
+    assert_eq!(rows.as_slice(), expected, "random subscription ordering, grouping and classes");
+    rows
+}
+fn random_rules(rng: &mut Rng) -> Option<team::Rules> {
+    use temper_client_domain::pages::roles::Read;
+    use temper_client_protocol_wire::v1 as w;
+    let state = rng.below(6);
+    let fact = w::Fact::new(
+        &w::CEILINGS,
+        w::FactParts {
+            label: if state == 3 { b"Model".as_slice() } else { b"Asked to" }.into(),
+            value: if state == 4 { b"".as_slice() } else { b"Reproduce before routing." }.into(),
+        },
+    )
+    .expect("bounded charter view");
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            name: b"Prover".as_slice().into(),
+            who: b"an agent".as_slice().into(),
+            facts: List::from_boxed(Box::new([fact])),
+        },
+    )
+    .expect("bounded charter view");
+    let view = w::View::Charter(
+        w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("bounded charter view"),
+    );
+    let read = match state {
+        0 => Read::Reading,
+        1 => Read::Unreadable,
+        _ => Read::Drawn(&view),
+    };
+    let rules = team::asked(13, read);
+    assert_eq!(rules.is_some(), state == 2 || state == 5, "random read states and Asked to presence");
+    rules
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "each seed checks independent people and standing-role facts, parts and moves"
@@ -180,6 +289,9 @@ fn sweep(seed: u64) -> bool {
             pause: rng.chance(500),
             resume: rng.chance(500),
             sessions: random_sessions(&mut rng),
+            rules: random_rules(&mut rng),
+            wakes: random_wakes(&mut rng),
+            wakes_cut: rng.chance(500),
             now: if rng.chance(500) {
                 Some(team::Now {
                     body: if rng.chance(500) { Box::default() } else { b"- Now".as_slice().into() },
@@ -211,12 +323,20 @@ fn sweep(seed: u64) -> bool {
         detail.is_some_and(|card| !card.sessions.is_empty()),
         "seed {seed}: Sessions needs rows in the shown card"
     );
-    assert_eq!(parts.right, parts.sessions, "seed {seed}: right column needs a part");
+    assert_eq!(parts.right, parts.sessions || parts.wakes, "seed {seed}: right column needs a part");
     assert_eq!(
         parts.now,
         detail.is_some_and(|card| card.now.as_ref().is_some_and(|now| !now.body.is_empty())),
         "seed {seed}: Now needs a nonempty read"
     );
+    assert_eq!(parts.rules, detail.is_some_and(|card| card.rules.is_some()), "seed {seed}: rules need Asked to read");
+    assert_eq!(parts.wakes, detail.is_some_and(|card| !card.wakes.is_empty()), "seed {seed}: wakes need subscriptions");
+    assert_eq!(
+        parts.wakes_cut,
+        parts.wakes && detail.expect("wakes need a detail").wakes_cut,
+        "seed {seed}: cut only with rows"
+    );
+    assert!(!parts.wakes || parts.right, "seed {seed}: wakes keep their right column");
     assert_eq!(
         team::parts(&facts),
         team::Parts { people: !expected.is_empty(), shared: shared_role(&project), triager: false, ..parts },

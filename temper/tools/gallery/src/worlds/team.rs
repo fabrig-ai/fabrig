@@ -22,6 +22,7 @@ const MEMBERS: u32 = 3;
 // Two questions here, one elsewhere, in the reader's standing inbox.
 const QUESTIONS: u32 = 3;
 
+#[expect(clippy::too_many_lines, reason = "one delivery loop serves Team's people and role-card reads")]
 pub(super) fn world(name: &str) -> Domain {
     let role = name == "team-role";
     let alone = name == "team-alone" || role;
@@ -77,6 +78,30 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Read { read, what: Readable::Jig(c::Read::Activity { task: 52, .. }) } if role => {
                 answer(&mut root, read, c::ReadValue::Activity(Box::new(sessions::page())), &mut out);
+            }
+            Down::Read { read, what: Readable::Family { record, .. } } if role => {
+                if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
+                    && let w::Read::View(view) = reading.read()
+                    && view.address() == b"charter 13"
+                {
+                    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: charter() })
+                        .expect("charter answer");
+                    step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Family {
+                                        family: wire::FORGE,
+                                        record: Some(wire::view_answer(&answer)),
+                                    },
+                                },
+                            },
+                        },
+                        &mut out,
+                    );
+                }
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
@@ -235,6 +260,21 @@ fn prover(reader: u64) -> c::Task {
     task.made = skein_lib::Wall::from_nanos(1_793_577_600_000_000_000);
     task.budget.numbers.spent = 21;
     task.budget.numbers.budget = 40;
+    task.wake.timers = true;
+    task.wake.news = c::WakeRule::Paced { span: skein_lib::Duration::from_secs(1800) };
+    task.wake.notices = c::WakeRule::Immediate;
+    task.subscriptions.entries = List::from_boxed(Box::new([
+        c::Subscription { number: 1, kind: c::SubscriptionKind::Topic { connector: wire::FORGE, topic: 1 } },
+        c::Subscription {
+            number: 2,
+            kind: c::SubscriptionKind::Timer {
+                at: skein_lib::Wall::from_nanos(1_794_204_000_000_000_000),
+                period: Some(skein_lib::Duration::from_secs(604_800)),
+            },
+        },
+        c::Subscription { number: 3, kind: c::SubscriptionKind::Topic { connector: wire::FORGE, topic: 2 } },
+        c::Subscription { number: 4, kind: c::SubscriptionKind::Task { target: 61, held: false, result: true } },
+    ]));
     task.acts = List::from_boxed(Box::new([c::Offered {
         act: c::ActKind::Stop,
         admission: c::Admission::Allowed,
@@ -260,4 +300,25 @@ fn provers_now() -> c::NotePage {
         before: None,
         after: None,
     }
+}
+
+fn charter() -> w::View {
+    let fact = w::Fact::new(
+        &w::CEILINGS,
+        w::FactParts {
+            label: b"Asked to".as_slice().into(),
+            value: b"Reproduce before routing: a finding gets a seed or a test first.".as_slice().into(),
+        },
+    )
+    .expect("Asked to");
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            who: b"an agent".as_slice().into(),
+            name: b"Prover".as_slice().into(),
+            facts: List::from_boxed(Box::new([fact])),
+        },
+    )
+    .expect("charter card");
+    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("charter"))
 }

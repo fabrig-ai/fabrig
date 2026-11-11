@@ -426,6 +426,37 @@ pub enum Word {
     BuildersNone,
     BuildersNoRole,
     BuildersCut,
+    TeamRules,
+    TeamChangeProposal,
+    TeamWakes,
+    TeamWakesCut,
+    WakeTimer,
+    WakeTimerKept,
+    WakeOnce,
+    WakeDaily,
+    WakeWeekly,
+    WakeTask,
+    WakeTaskHeld,
+    WakeTaskResult,
+    WakeTaskBoth,
+    WakeTaskNeither,
+    WakeForge,
+    WakeForgeTopics,
+    WakeConnector,
+    WakeAtOnce,
+    WakeNever,
+    WakeEvery,
+    WakeBatch,
+    WakeWeek,
+    WakeWeeks,
+    WakeDay,
+    WakeDays,
+    WakeHour,
+    WakeHours,
+    WakeMinute,
+    WakeMinutes,
+    WakeSecond,
+    WakeSeconds,
     TeamStanding,
     TeamRolesCut,
     TeamSpend,
@@ -1794,7 +1825,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2346;
+const PHRASES: u32 = 2377;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1821,10 +1852,10 @@ const PHRASES: u32 = 2346;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4227;
+const SEGMENTS: u32 = 4286;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56891;
-const ALL: [Word; 1662] = [
+const ENGLISH_BYTES: u32 = 57216;
+const ALL: [Word; 1693] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2231,6 +2262,37 @@ const ALL: [Word; 1662] = [
     Word::BuildersNone,
     Word::BuildersNoRole,
     Word::BuildersCut,
+    Word::TeamRules,
+    Word::TeamChangeProposal,
+    Word::TeamWakes,
+    Word::TeamWakesCut,
+    Word::WakeTimer,
+    Word::WakeTimerKept,
+    Word::WakeOnce,
+    Word::WakeDaily,
+    Word::WakeWeekly,
+    Word::WakeTask,
+    Word::WakeTaskHeld,
+    Word::WakeTaskResult,
+    Word::WakeTaskBoth,
+    Word::WakeTaskNeither,
+    Word::WakeForge,
+    Word::WakeForgeTopics,
+    Word::WakeConnector,
+    Word::WakeAtOnce,
+    Word::WakeNever,
+    Word::WakeEvery,
+    Word::WakeBatch,
+    Word::WakeWeek,
+    Word::WakeWeeks,
+    Word::WakeDay,
+    Word::WakeDays,
+    Word::WakeHour,
+    Word::WakeHours,
+    Word::WakeMinute,
+    Word::WakeMinutes,
+    Word::WakeSecond,
+    Word::WakeSeconds,
     Word::TeamStanding,
     Word::TeamRolesCut,
     Word::TeamSpend,
@@ -3941,6 +4003,37 @@ impl Word {
             Self::BuildersNone => 3478,
             Self::BuildersNoRole => 3479,
             Self::BuildersCut => 3480,
+            Self::TeamRules => 5131,
+            Self::TeamChangeProposal => 5132,
+            Self::TeamWakes => 5133,
+            Self::TeamWakesCut => 5134,
+            Self::WakeTimer => 5135,
+            Self::WakeTimerKept => 5136,
+            Self::WakeOnce => 5137,
+            Self::WakeDaily => 5138,
+            Self::WakeWeekly => 5139,
+            Self::WakeTask => 5140,
+            Self::WakeTaskHeld => 5141,
+            Self::WakeTaskResult => 5142,
+            Self::WakeTaskBoth => 5143,
+            Self::WakeTaskNeither => 5144,
+            Self::WakeForge => 5145,
+            Self::WakeForgeTopics => 5146,
+            Self::WakeConnector => 5147,
+            Self::WakeAtOnce => 5148,
+            Self::WakeNever => 5149,
+            Self::WakeEvery => 5150,
+            Self::WakeBatch => 5151,
+            Self::WakeWeek => 5152,
+            Self::WakeWeeks => 5153,
+            Self::WakeDay => 5154,
+            Self::WakeDays => 5155,
+            Self::WakeHour => 5156,
+            Self::WakeHours => 5157,
+            Self::WakeMinute => 5158,
+            Self::WakeMinutes => 5159,
+            Self::WakeSecond => 5160,
+            Self::WakeSeconds => 5161,
             Self::TeamStanding => 4978,
             Self::TeamRolesCut => 4979,
             Self::TeamSpend => 4980,
@@ -7001,6 +7094,37 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BuildersNone => (&[b"No worker is connected."], &[]),
         Word::BuildersNoRole => (&[b"Workers are seen by the deployment\xe2\x80\x99s owners."], &[]),
         Word::BuildersCut => (&[b"Some worker facts were omitted."], &[]),
+        Word::TeamRules => (&[b"Its rules \xc2\xb7 "], &[]),
+        Word::TeamChangeProposal => (&[b"change by proposal"], &[]),
+        Word::TeamWakes => (&[b"Wakes on"], &[]),
+        Word::TeamWakesCut => (&[b"Not all are shown."], &[]),
+        Word::WakeTimer => (&[b"A timer"], &[]),
+        Word::WakeTimerKept => (&[b"A timer, with its next wake"], &[]),
+        Word::WakeOnce => (&[b"once, at ", b""], &[Name]),
+        Word::WakeDaily => (&[b"daily ", b""], &[Name]),
+        Word::WakeWeekly => (&[b"", b"s ", b""], &[Name, Name]),
+        Word::WakeTask => (&[b"Task "], &[]),
+        Word::WakeTaskHeld => (&[b" held"], &[]),
+        Word::WakeTaskResult => (&[b"'s result"], &[]),
+        Word::WakeTaskBoth => (&[b" held, or its result"], &[]),
+        Word::WakeTaskNeither => (&[b""], &[]),
+        Word::WakeForge => (&[b"News from the forge"], &[]),
+        Word::WakeForgeTopics => (&[b"News from the forge, on ", b" topics"], &[Number]),
+        Word::WakeConnector => (&[b"News from connector ", b""], &[Number]),
+        Word::WakeAtOnce => (&[b"at once"], &[]),
+        Word::WakeNever => (&[b"with its next wake"], &[]),
+        Word::WakeEvery => (&[b"every ", b""], &[Name]),
+        Word::WakeBatch => (&[b"", b" at a time, or after ", b""], &[Number, Name]),
+        Word::WakeWeek => (&[b"week"], &[]),
+        Word::WakeWeeks => (&[b"", b" weeks"], &[Number]),
+        Word::WakeDay => (&[b"day"], &[]),
+        Word::WakeDays => (&[b"", b" days"], &[Number]),
+        Word::WakeHour => (&[b"hour"], &[]),
+        Word::WakeHours => (&[b"", b" hours"], &[Number]),
+        Word::WakeMinute => (&[b"minute"], &[]),
+        Word::WakeMinutes => (&[b"", b" minutes"], &[Number]),
+        Word::WakeSecond => (&[b"second"], &[]),
+        Word::WakeSeconds => (&[b"", b" seconds"], &[Number]),
         Word::TeamStanding => (&[b"Standing roles"], &[]),
         Word::TeamRolesCut => (&[b"Only the first 16 are shown."], &[]),
         Word::TeamSpend => (&[b"", b" of ", b""], &[Number, Number]),
@@ -7471,6 +7595,29 @@ impl Words {
         }
         let hours = minutes.checked_sub(remainder).expect("whole hours precede minutes");
         self.say(Word::PublicTimeParts, &[Hole::Name(self.looked_span(hours)), Hole::Name(self.looked_span(remainder))])
+    }
+    /// Whole wake spans use the largest exact unit (client/pages/team.md, 1).
+    pub(crate) fn wake_span(&self, span: skein_lib::Duration) -> Box<[u8]> {
+        let nanos = span.as_nanos();
+        for (unit, one, many) in [
+            (604_800_000_000_000, Word::WakeWeek, Word::WakeWeeks),
+            (DAY, Word::WakeDay, Word::WakeDays),
+            (3_600_000_000_000, Word::WakeHour, Word::WakeHours),
+            (MINUTE, Word::WakeMinute, Word::WakeMinutes),
+            (1_000_000_000, Word::WakeSecond, Word::WakeSeconds),
+        ] {
+            if nanos != 0 && nanos.is_multiple_of(unit) {
+                let count = nanos.checked_div(unit).expect("wake units are nonzero");
+                return if count == 1 { self.say(one, &[]) } else { self.say(many, &[Hole::Number(count)]) };
+            }
+        }
+        self.say(Word::WakeSeconds, &[Hole::Number(nanos.checked_div(1_000_000_000).expect("second is nonzero"))])
+    }
+    pub(crate) fn wake_weekly(&self, at: skein_lib::Wall) -> Box<[u8]> {
+        self.say(
+            Word::WakeWeekly,
+            &[Hole::Name(self.time_weekday(self.calendar_day(at), true)), Hole::Name(self.turn_clock(at))],
+        )
     }
     pub(crate) fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {
