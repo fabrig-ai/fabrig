@@ -1,6 +1,7 @@
 //! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
 use skein_codegen::{generate, parse};
 use std::fs;
+mod drafts;
 
 #[expect(
     clippy::disallowed_methods,
@@ -10,7 +11,10 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
-    let output = generate(&parse(&source).expect("schema valid"));
+    let mut output = generate(&parse(&source).expect("schema valid"));
+    if crate_name == "temper-client-protocol-wire" && family == "client-wire" {
+        output.goldens.extend(drafts::goldens());
+    }
     let code_name = if family == "public" { format!("public_{version}.rs") } else { format!("{version}.rs") };
     let code = root.join("src/generated").join(code_name);
     let goldens = match family {

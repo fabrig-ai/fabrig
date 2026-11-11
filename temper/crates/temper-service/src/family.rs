@@ -56,6 +56,10 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                // The engine keeps no landed drafts yet (temper/docs/design/domain/forge/drafts.status.md).
+                w::Request::SetDraft(_) => {
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     let Some(forge) = making(value.forge, directories) else {
@@ -153,6 +157,7 @@ pub fn to_root(
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
+                        | w::Request::SetDraft(_)
                         | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
@@ -495,7 +500,8 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    // The engine keeps no landed drafts yet (temper/docs/design/domain/forge/drafts.status.md).
+                    w::Watch::Drafts(_) | w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
