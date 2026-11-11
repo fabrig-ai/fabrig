@@ -1,6 +1,9 @@
 //! A live run's twin (testing/fakes.md, 1), read after a clean stop.
+mod cli;
 mod document;
 mod frames;
+
+pub use cli::{TABLE, main};
 
 use std::path::PathBuf;
 

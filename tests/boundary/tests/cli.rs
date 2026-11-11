@@ -55,7 +55,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
     Exception { what: "temper-stage-one temper-stage-one", until: "cli C8" },
-    Exception { what: "temper-twin twin", until: "cli C8" },
 ];
 const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },
@@ -79,7 +78,6 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
-    Exception { what: "temper-twin twin", until: "cli C8" },
 ];
 const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "Cargo.toml: temper-protocol-records", until: "cli C5" },
@@ -237,7 +235,7 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/tests/system/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tools/journeys/Cargo.toml: temper-client-shell-tui", until: "cli C5" },
     Exception { what: "temper/tools/stage-one/Cargo.toml: serde", until: "cli C5" },
-    Exception { what: "temper/tools/twin/Cargo.toml: serde_json", until: "cli C5" },
+    Exception { what: "temper/crates/temper-twin-tool/Cargo.toml: serde_json", until: "cli C5" },
 ];
 
 /// The findings no exception names, and the exceptions that name no

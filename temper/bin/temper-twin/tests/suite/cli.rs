@@ -1,4 +1,4 @@
-//! The binary writes only validated twins and prints one-line refusals.
+//! The binary writes only validated twins (temper/docs/design/testing/fakes.md, 1).
 use serde_json::json;
 use skein_scratch::Scratch;
 use std::{path::Path, process::Command};
@@ -22,7 +22,7 @@ fn a_conversion_refusal_exits_two_without_opening_the_output() {
     let scratch = Scratch::new("twin-cli-refusal");
     let base = base(&scratch);
     let out = scratch.path().join("out.json");
-    let result = Command::new(env!("CARGO_BIN_EXE_twin"))
+    let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
         .arg("--data")
         .arg(scratch.path())
         .arg("--base")
@@ -31,7 +31,7 @@ fn a_conversion_refusal_exits_two_without_opening_the_output() {
         .arg(&out)
         .args(["--cue", "9=missing task"])
         .output()
-        .expect("run twin");
+        .expect("run temper-twin");
     assert_eq!(result.status.code(), Some(2));
     assert!(!out.exists());
     assert!(result.stderr.starts_with(b"read transcript:"));
@@ -45,12 +45,12 @@ fn the_cli_reports_tasks_and_replacement_counts() {
     let directory = scratch.path().join("transcripts/0000000000000000");
     std::fs::create_dir_all(&directory).expect("task directory");
     std::fs::copy(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/0000000000000005"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/temper-twin-tool/tests/fixtures/0000000000000005"),
         directory.join("0000000000000005"),
     )
     .expect("reviewer frames");
     let out = scratch.path().join("out.json");
-    let result = Command::new(env!("CARGO_BIN_EXE_twin"))
+    let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
         .arg("--data")
         .arg(scratch.path())
         .arg("--base")
@@ -59,7 +59,7 @@ fn the_cli_reports_tasks_and_replacement_counts() {
         .arg(&out)
         .args(["--cue", "5=Review this change at the named head", "--replace", "Checked=Reviewed"])
         .output()
-        .expect("run twin");
+        .expect("run temper-twin");
     assert_eq!(result.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&result.stderr));
     assert_eq!(result.stdout, b"task 5: 1 turns\ntask 5: 0 opaque blocks dropped\nChecked: 1\n");
     assert!(temper_fake::llm::Document::decode(&std::fs::read(out).expect("twin document")).is_ok());

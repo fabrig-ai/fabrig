@@ -7,7 +7,7 @@ use skein_lib::{List, Writer};
 use skein_scratch::Scratch;
 use smith_transcript::{self as smith, Block, Message, MessageParts, Role, Turn, TurnParts};
 use std::path::{Path, PathBuf};
-use temper_twin::{Input, Refusal, Replace, Take, Unheld, twin};
+use temper_twin_tool::{Input, Refusal, Replace, Take, Unheld, twin};
 
 const CHAT: u64 = 1;
 const WORK: u64 = 2;

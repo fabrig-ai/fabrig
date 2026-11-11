@@ -1,11 +1,12 @@
 # A stopped run's twin
 
-`twin` turns the selected tasks' transcripts from a cleanly stopped deployment
-into a `temper fake llm --document` document (testing/fakes.md, 1).
+`temper-twin` turns the selected tasks' transcripts from a cleanly stopped deployment
+into a `temper fake llm --document` document (temper/docs/design/testing/fakes.md, 1).
+The binary is in `temper/bin/temper-twin`; its crate is `temper-twin-tool`.
 It is a developer tool, never shipped or published.
 
 ```sh
-env TEMPER_BUNDLE=none cargo run -p temper-twin --bin twin -- \
+env TEMPER_BUNDLE=none cargo run -p temper-twin --bin temper-twin -- \
   --data /absolute/data/deployment --base /absolute/base.json \
   --out /absolute/twin.json \
   --cue '1=Add CSV export to widget' \
@@ -40,8 +41,9 @@ normal compact JSON encoding when it serves them. `--replace OLD=NEW` applies
 literal, non-overlapping byte substitutions to arguments and assistant text, in option
 order, counting occurrences per option. An empty OLD or a replacement that
 produces invalid object JSON is refused. Reports list turns per task and
-occurrences per replacement and opaque blocks dropped per task. A refusal
-prints one line and exits 2; no output is opened on a conversion refusal.
+occurrences per replacement and opaque blocks dropped per task. An argument refusal
+prints its reason and usage and exits 2. A conversion refusal prints one line
+and exits 2; no output is opened on a conversion refusal.
 
 The bounds are the fake's: sixteen scripts, sixteen turns per script, sixteen lines
 per turn, 256-byte nonempty cues, 64 KiB answers, 256 KiB total scripts and
@@ -73,7 +75,7 @@ Task, question and pull numbers and fake-git identities recur. The scripts'
 forge reads infer their repository; no grant carries a listener address.
 
 ```sh
-env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin
+env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin-tool -p temper-twin
 env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run \
   -p temper-real-loop-world --profile fuzzy \
   --test suite -E 'test(fuzzy::green_light::)'
