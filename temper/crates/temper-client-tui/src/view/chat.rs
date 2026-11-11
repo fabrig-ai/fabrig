@@ -1,6 +1,6 @@
 //! The chat's ordered conversation (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages.md).
 use super::{
-    Binds, foot,
+    Binds, foot, pane,
     printed::{self, Printed},
     text,
 };
@@ -24,6 +24,7 @@ pub(crate) struct Chat {
     pub to_end: u64,
     pub entries: Box<[Entry]>,
     pub notes: foot::Notes,
+    pub pane: Option<pane::Pane>,
 }
 #[derive(Debug)]
 pub(crate) enum Entry {
@@ -42,9 +43,10 @@ pub(crate) enum Piece {
     View(Printed),
 }
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Chat {
-    let mut part = Chat { to_end: 0, entries: Box::default(), notes: foot::read_notes(root, tui, words) };
+    let mut part = Chat { to_end: 0, entries: Box::default(), notes: foot::read_notes(root, tui, words), pane: None };
     if let Some(chat) = root.pages().chat() {
         part.to_end = chat.to_end();
+        part.pane = pane::read(chat, tui.columns());
         part.entries = read::entries(root, words);
     }
     part
@@ -174,6 +176,13 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
 }
 pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Binds) {
     b.open(Role::Main);
+    if let Some(pane) = &part.pane
+        && pane.mode == temper_client_domain::pages::chat::document::Mode::Draft
+    {
+        pane::draw(b, pane, words);
+        b.close();
+        return;
+    }
     b.open(Role::Log);
     b.end_request(part.to_end);
     b.open(Role::List);
@@ -184,5 +193,10 @@ pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Bin
     b.close();
     b.close();
     foot::draw_notes(b, &part.notes, words);
+    if let Some(pane) = &part.pane
+        && pane.mode == temper_client_domain::pages::chat::document::Mode::Split
+    {
+        pane::draw(b, pane, words);
+    }
     b.close();
 }

@@ -110,6 +110,7 @@ pub struct Host {
     boxed: bool,
     focus: Focus,
     frame: Frame,
+    draft_shown: bool,
     mapping: jig_client_protocol_http::Mapping,
     credential: Option<Secret>,
     signing: Set<Token>,
@@ -150,6 +151,7 @@ impl Host {
             boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
+            draft_shown: false,
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
@@ -201,7 +203,11 @@ impl Host {
                 }
             }
             Report::Key(key) => {
-                if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
+                if key == Key::Control(16) {
+                    if let Some(event) = tui::pane_key(&self.view) {
+                        self.event(event, &mut duties);
+                    }
+                } else if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
                     self.tell(Told::Walk { by_key: true });
                 } else if let Some(event) = self.arrow(&key) {
                     self.event(event, &mut duties);
@@ -999,6 +1005,14 @@ impl Host {
 
     pub fn frame(&mut self) -> &Frame {
         if self.state.is_some() {
+            let draft = self.view.pane_mode() == Some(root::pages::chat::document::Mode::Draft);
+            if draft != self.draft_shown {
+                self.focus.follow = !draft;
+                if draft {
+                    self.focus.scroll = 0;
+                }
+                self.draft_shown = draft;
+            }
             skein_ui_screen::render(self.view.tree(), &self.theme, self.size, &mut self.focus, &mut self.frame);
         } else {
             self.frame.clear(self.size, Cell::BLANK);
@@ -1013,6 +1027,9 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Control(16) {
+            return tui::pane_key(&self.view);
+        }
         if *key == Key::Char('n')
             && let Some(event) = tui::walk_key(&self.view)
         {

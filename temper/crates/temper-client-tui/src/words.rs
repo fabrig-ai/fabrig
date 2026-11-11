@@ -138,8 +138,17 @@ pub enum Word {
     Drafter,
     GoalHead,
     ProposedNotice,
+    PaneWriting,
+    PaneEmpty,
+    PaneNew,
+    PaneFolded,
+    PaneHalf,
+    PaneAll,
+    PaneOpens,
+    PaneWidens,
+    PaneFolds,
 }
-pub(crate) const ALL: [Word; 128] = [
+pub(crate) const ALL: [Word; 137] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -268,6 +277,15 @@ pub(crate) const ALL: [Word; 128] = [
     Word::Drafter,
     Word::GoalHead,
     Word::ProposedNotice,
+    Word::PaneWriting,
+    Word::PaneEmpty,
+    Word::PaneNew,
+    Word::PaneFolded,
+    Word::PaneHalf,
+    Word::PaneAll,
+    Word::PaneOpens,
+    Word::PaneWidens,
+    Word::PaneFolds,
 ];
 
 #[derive(Clone, Copy)]
@@ -453,6 +471,15 @@ impl Word {
             Self::Drafter => 128,
             Self::GoalHead => 129,
             Self::ProposedNotice => 130,
+            Self::PaneWriting => 131,
+            Self::PaneEmpty => 132,
+            Self::PaneNew => 133,
+            Self::PaneFolded => 134,
+            Self::PaneHalf => 135,
+            Self::PaneAll => 136,
+            Self::PaneOpens => 137,
+            Self::PaneWidens => 138,
+            Self::PaneFolds => 139,
         }
     }
     const fn id(self) -> PhraseId {
@@ -465,6 +492,16 @@ impl Word {
             Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
             Self::KindSession => (&[b", a design session"], &[]),
             Self::Drafter => (&[b"drafter"], &[]),
+            Self::PaneWriting => (&[b" \xc2\xb7 writing"], &[]),
+            Self::PaneEmpty => (&[b"The draft appears here as you write it together."], &[]),
+            Self::PaneNew => (&[b"  new"], &[]),
+            Self::PaneFolded => (&[b"pane: folded"], &[]),
+            Self::PaneHalf => (&[b"pane: half"], &[]),
+            Self::PaneAll => (&[b"pane: all"], &[]),
+            Self::PaneOpens => (&[b"Ctrl-P opens"], &[]),
+            Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
+            Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
+
             Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
             Self::ProposedNotice => (&[b"Proposed: the goal starts once it is accepted."], &[]),
             Self::KindChat => (&[b", a chat"], &[]),

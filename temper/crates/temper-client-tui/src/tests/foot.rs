@@ -344,6 +344,7 @@ fn draw(part: foot::Foot) -> crate::View {
     let (root, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let body = if part.rule.is_some() {
         view::Body::Chat(view::chat::Chat {
+            pane: None,
             to_end: 0,
             entries: Box::default(),
             notes: foot::read_notes(&root, &Tui::new(f::ADDRESS), &f::words()),
@@ -885,6 +886,80 @@ fn quiet_states() {
             "{name}"
         );
         assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
+    }
+    for (name, mode, columns, paused, left, right) in [
+        (
+            "folded",
+            d::pages::chat::document::Mode::Chat,
+            110,
+            false,
+            "Demo · model · high · ● Live",
+            "pane: folded · Ctrl-P opens · 1 needs you",
+        ),
+        (
+            "half",
+            d::pages::chat::document::Mode::Split,
+            110,
+            false,
+            "Demo · model · high · ● Live",
+            "pane: half · Ctrl-P widens · 1 needs you",
+        ),
+        (
+            "all",
+            d::pages::chat::document::Mode::Draft,
+            110,
+            false,
+            "Demo · model · high · ● Live",
+            "pane: all · Ctrl-P folds · 1 needs you",
+        ),
+        (
+            "paused pane",
+            d::pages::chat::document::Mode::Split,
+            150,
+            true,
+            "Demo · model · high · ● Live",
+            "paused · a message resumes it · pane: half · Ctrl-P widens · 1 needs you",
+        ),
+        (
+            "drop key before model",
+            d::pages::chat::document::Mode::Split,
+            65,
+            false,
+            "Demo · model · high · ● Live",
+            "pane: half · 1 needs you",
+        ),
+        (
+            "drop model next",
+            d::pages::chat::document::Mode::Split,
+            40,
+            false,
+            "Demo · ● Live",
+            "pane: half · 1 needs you",
+        ),
+    ] {
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.pane = Some(mode);
+        part.launchpad = false;
+        part.columns = columns;
+        part.paused = paused;
+        part.needs = d::pages::needs::Count { count: 1, cut: false };
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
+        assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(
+                    |node| node.styles.as_slice() == [look::HINT] && f::text(tree, node).as_ref() == " · ".as_bytes()
+                )
+                .count(),
+            usize::from(columns > 65),
+            "{name}: pane separator is a hint"
+        );
     }
     front_quiet(&root, &words);
     let no_picker = root_state(true, false, false, false, false, TaskState::Idle);

@@ -162,6 +162,13 @@ pub fn theme(scheme: Scheme, background: Option<Rgb>) -> Theme {
             region(look::WORKING, Place::Bottom, Arrange::Lines, 0, None),
             region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: true, sides: false, ..border })),
             region(look::LIST, Place::Bottom, Arrange::Lines, 0, None),
+            region(
+                look::PANE,
+                Place::Side { percent: 50 },
+                Arrange::Lines,
+                1,
+                Some(Border { title: false, sides: false, ..border }),
+            ),
         ]),
         styles: styles(dim, faint, accent, good, back),
         glyphs: Glyphs { focus: '❯', mask: '•' },
