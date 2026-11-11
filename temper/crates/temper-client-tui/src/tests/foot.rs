@@ -2060,6 +2060,7 @@ fn walk_review(root: &mut Domain) {
                     sets: Box::new([]),
                     whole: true,
                     yours: d::forge::approvals::Yours::Counts,
+                    size: None,
                 }]),
             },
         }),

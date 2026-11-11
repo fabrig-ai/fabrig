@@ -748,6 +748,67 @@ fn check_cards(world: &World, open: &[c::ObjectKey], count: u32) {
     }
 }
 
+fn check_approval_sizes(world: &mut World, view: &mut temper_client_view::View) {
+    use temper_client_view::look;
+    let inbox = world.root.pages().inbox().expect("density inbox");
+    let visible = match *world.root.pages().address() {
+        Address::Inbox { .. } => {
+            world.root.pages().needs().shown(inbox, world.root.forge().approvals()).into_iter().collect::<Vec<_>>()
+        }
+        Address::Home { project } if home::facts(&world.root, project, world.env.wall).to_begin() => Vec::new(),
+        Address::AllHome | Address::Home { .. } => {
+            world.root.pages().needs().needs(inbox, world.root.forge().approvals()).iter().copied().take(3).collect()
+        }
+        _ => unreachable!("density pages"),
+    };
+    let expected: Vec<_> = visible
+        .iter()
+        .filter_map(|need| match need {
+            needs::Need::Approval(row) => Some(row.size),
+            needs::Need::Card(_) => None,
+        })
+        .collect();
+    if expected.is_empty() {
+        return;
+    }
+    temper_client_view::build(view, &world.root, world.env.wall, &mut Queue::uncapped());
+    let nodes = view.tree().nodes();
+    let cards: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(start, node)| {
+            if !node.styles.as_slice().contains(&look::NEED_CARD) && !node.styles.as_slice().contains(&look::ASK) {
+                return None;
+            }
+            let card = &nodes[start..start + usize::try_from(node.size).expect("card span")];
+            card.iter().any(|n| n.name.as_deref() == Some(b"Approve A change on GitHub".as_slice())).then_some(card)
+        })
+        .collect();
+    assert_eq!(cards.len(), expected.len(), "each visible approval has a card");
+    for (card, size) in cards.into_iter().zip(expected) {
+        let chips: Vec<_> =
+            card.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::CHIPS)).collect();
+        assert_eq!(chips.len(), usize::from(size.is_some()), "exactly one chips row with a size, none without");
+        if let Some(size) = size {
+            world.observed.insert(if size.cut { "approval with cut size" } else { "approval with size" });
+            let (start, row) = chips[0];
+            let row = &card[start..start + usize::try_from(row.size).expect("chips span")];
+            let actual: Vec<_> = row.iter().flat_map(|n| n.text.iter()).flat_map(|r| r.text.iter().copied()).collect();
+            let count = |n| format!("{n}{}", if size.cut && n == u32::MAX { "+" } else { "" });
+            let expected = format!(
+                "+{} -{} in {} {}",
+                count(size.additions),
+                count(size.deletions),
+                count(size.files),
+                if size.files == 1 { "file" } else { "files" }
+            );
+            assert_eq!(actual, expected.as_bytes(), "approval's size words");
+        } else {
+            world.observed.insert("approval without size");
+        }
+    }
+}
+
 fn check_settings(before: &[c::ObjectKey], after: &[c::ObjectKey], approvals: &[w::ApprovalRow]) {
     assert_eq!(before, after, "a settings revision keeps the open set and its order");
     for row in approvals {
@@ -816,7 +877,7 @@ fn generate(seed: u64) -> World {
     world.dismissals();
     world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();
     world.inbox();
-    world.approvals = vec![approval(1)];
+    world.approvals = vec![approval(1, &mut world.rng)];
     world.approval_rows();
     assert!(world.open().contains(&c::ObjectKey::Task(201)), "approval asked under You approve is open");
     world.settings(1);
@@ -829,8 +890,10 @@ fn generate(seed: u64) -> World {
     world
 }
 
-fn sweep(seed: u64) -> BTreeSet<&'static str> {
+fn sweep(seed: u64, words: &temper_client_view::words::Words) -> BTreeSet<&'static str> {
     let mut world = generate(seed);
+    let bounds = fixtures::view_bounds(&world.env.limits, words);
+    let mut view = temper_client_view::View::new(&bounds, &world.env.limits, words.clone(), fixtures::FORGE);
     world.observed.insert(match world.projects {
         1 => "one project",
         2 => "two projects",
@@ -870,7 +933,12 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
                 world.inbox();
             }
             7 => {
-                world.approvals = (1..=world.projects).filter(|_| world.rng.below(2) == 0).map(approval).collect();
+                world.approvals.clear();
+                for project in 1..=world.projects {
+                    if world.rng.below(2) == 0 {
+                        world.approvals.push(approval(project, &mut world.rng));
+                    }
+                }
                 world.approval_rows();
             }
             8 => world.settings(project),
@@ -905,15 +973,19 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
             _ => unreachable!("fifteen generator moves"),
         }
         world.drain();
+        check_approval_sizes(&mut world, &mut view);
     }
     world.observed
 }
 
 #[test]
 fn random_facts_and_settings_keep_each_part_and_card() {
+    let words =
+        temper_client_view::words::Words::english(fixtures::FORGE, 512, temper_client_view::words::Shell::Browser)
+            .expect("density words");
     let mut observed = BTreeSet::new();
     for seed in REPLAY.map_or(1..=SEEDS, |seed| seed..=seed) {
-        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed)));
+        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed, &words)));
         assert!(outcome.is_ok(), "density seed {seed}; replay with REPLAY = Some({seed})");
         observed.extend(outcome.expect("seed completed"));
     }
@@ -942,6 +1014,9 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "expired decisions",
             "an Only you item",
             "no Only you item",
+            "approval without size",
+            "approval with size",
+            "approval with cut size",
         ] {
             assert!(observed.contains(state), "density sweep did not reach {state}");
         }
@@ -1028,7 +1103,31 @@ fn entry(task: u64, project: u32) -> c::InboxEntry {
         projects: List::with_capacity(0),
     }
 }
-fn approval(project: u32) -> w::ApprovalRow {
+fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
+    let size = match rng.below(3) {
+        0 => None,
+        kind => {
+            let mut counts = [0; 3];
+            for count in &mut counts {
+                *count = u32::try_from(rng.between(0, 1000)).expect("small size");
+            }
+            if kind == 2 {
+                counts[usize::try_from(rng.below(3)).expect("three counts")] = u32::MAX;
+            }
+            Some(
+                w::ApprovalSize::new(
+                    &w::CEILINGS,
+                    w::ApprovalSizeParts {
+                        files: counts[0],
+                        additions: counts[1],
+                        deletions: counts[2],
+                        cut: kind == 2,
+                    },
+                )
+                .expect("size"),
+            )
+        }
+    };
     w::ApprovalRow::new(
         &w::CEILINGS,
         w::ApprovalRowParts {
@@ -1051,6 +1150,7 @@ fn approval(project: u32) -> w::ApprovalRow {
             sets: List::with_capacity(0),
             whole: true,
             yours: w::ApprovalYours::Counts,
+            size,
         },
     )
     .expect("bounded density fixture")

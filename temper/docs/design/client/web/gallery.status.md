@@ -100,3 +100,5 @@ and the browser tier's public story expects "temper" and "Sign in" on
 every page (`public.md`, 4), with no passing run supplied here. No focused test
 reads the rules, whose effect is rendered; that comparison is `README.md`, section 3
 's, after landing.
+
+- **Not yet:** 2: `home-step-pair`'s and `needs-approval-first`'s sizes [in flight: change 535].

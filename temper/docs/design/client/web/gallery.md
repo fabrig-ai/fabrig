@@ -98,14 +98,14 @@ from the engine's own answers, is where the look is tuned.
 | `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`../pages/README.md`, *Away*, *On All projects*) |
 | `all-home-away-on` | `all-home-away` after a press, each answer Away: the switch "Away until 08:00", pressed, and the toast "Away turned on for 2 projects: agents decide within their limits." |
 | `night-all-home` | `all-home` by night |
-| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../../draft/surfaces.md`, 12, Pair) |
+| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗", its size "+142 -18 in 4 files" under its question as `pair/home.html` draws it, and a question (`../../draft/surfaces.md`, 12, Pair) |
 | `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
 | `home-step-stock` | a project's Home with a brief and Decided for you, no need (12, Stock) |
 | `home-step-scale` | a project's Home with a question and a funds card (12, At scale) |
 | `needs-list` | Needs you across two projects, three open: the first open, the others closed rows; Decided for you under them; the whole story's `needs.html`, and `phone-need.html` at a phone's width |
 | `needs-list-second` | `needs-list` with its second row opened |
 | `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
-| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first |
+| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first, its size under its context as `pair/needs.html`'s second card draws it, "+142 -18 in 4 files" |
 | `night-needs` | `needs-list` by night |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
