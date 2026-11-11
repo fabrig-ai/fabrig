@@ -171,6 +171,22 @@ pub(crate) fn ancestors(domain: &Domain, commit: u64) -> Set<u64> {
     found
 }
 
+/// The first merge on the ancestry path from `head` to `tip`, or `head`
+/// for a fast-forward (testing/fakes/forge.md, 2.3). Commit names grow in
+/// creation order, so parents precede children even on converging paths.
+fn manual_merge_commit(domain: &Domain, head: u64, tip: u64) -> Option<u64> {
+    if !is_ancestor(domain, head, tip) {
+        return None;
+    }
+    for &commit in &ancestors(domain, tip) {
+        let object = domain.commits.get(&commit).expect("a commit of the store");
+        if commit != head && object.merge_parent.is_some() && is_ancestor(domain, head, commit) {
+            return Some(commit);
+        }
+    }
+    Some(head)
+}
+
 /// What git asks of the repository `id`, as `user`.
 pub(crate) fn serve(
     domain: &mut Domain,
@@ -392,4 +408,17 @@ pub(crate) fn moved(
         hooks::notify(domain, env, id, Hook::item(Change::Pull, number, by));
     }
     ci::start(domain, env, id, to, by);
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    if repository.manual_merges.autodetect_manual_merge {
+        for &number in &affected {
+            let repository = domain.repositories.get(id).expect("a repository of the forge");
+            let item = repository.items.get(&number).expect("an affected pull");
+            let pull = item.pull.as_ref().expect("a pull request");
+            if *pull.base == *branch
+                && let Some(commit) = manual_merge_commit(domain, pull.commit, to)
+            {
+                crate::pulls::mark_merged(domain, env, id, number, commit, by);
+            }
+        }
+    }
 }

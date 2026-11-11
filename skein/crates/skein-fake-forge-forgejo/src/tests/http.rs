@@ -156,6 +156,49 @@ fn a_merge_answers_200_with_no_body() {
     assert_eq!(h.domain_calls(), 1);
 }
 #[test]
+fn a_manual_merge_body_reaches_the_domains_record_without_moving_a_branch() {
+    let mut h = Harness::new(fixtures::config());
+    let head = h.push(b"work");
+    let a::Answer::Created(number) = h
+        .call(
+            fixtures::PERSON,
+            Op::Write(Write::OpenPull {
+                title: boxed(b"pull"),
+                body: boxed(b"body"),
+                head: boxed(b"work"),
+                base: boxed(b"main"),
+                opens_empty: false,
+            }),
+        )
+        .expect("pull")
+    else {
+        panic!("created pull")
+    };
+    assert_eq!((number, head), (1, 2));
+    h.call(fixtures::ADMIN, Op::Git(a::Git::Push { branch: boxed(b"main"), commit: head, expected: None }))
+        .expect("base contains head");
+    skein_fake_forge_domain::manual_merges(
+        &mut h.domain,
+        b"org/repo",
+        a::ManualMerges { allow_manual_merge: true, ..a::ManualMerges::OFF },
+    );
+    h.send(&Request::Merge {
+        at: fixtures::at(),
+        number,
+        style: skein_forge::forgejo::document::MergeStyle::ManuallyMerged,
+        head: crate::routes::object(1),
+    });
+    assert_eq!(h.status(), 200);
+    assert!(h.body().is_empty());
+    assert_eq!(h.domain.branch(b"org/repo", b"main"), Some(head));
+    assert_eq!(h.domain.branch(b"org/repo", b"work"), Some(head));
+    let a::Answer::Pull(pull) = h.call(fixtures::PERSON, Op::Read(Read::Pull { number })).expect("merged pull") else {
+        panic!("pull")
+    };
+    assert_eq!((pull.state, pull.merged), (a::State::Closed, Some(1)));
+}
+
+#[test]
 fn requests_are_counted_by_route_user_and_total() {
     let mut h = Harness::new(fixtures::config());
     h.ask(b"GET", b"/api/v1/user", b"");

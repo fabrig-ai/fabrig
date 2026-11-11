@@ -541,6 +541,7 @@ fn decoded(
     if let Request::Merge { style, .. } = &request
         && *style != document::MergeStyle::Squash
         && *style != document::MergeStyle::FastForwardOnly
+        && *style != document::MergeStyle::ManuallyMerged
     {
         respond(server, &env.limits, response::failure(&env.limits, errors::refusal(Refusal::MergeStyle)));
         return;

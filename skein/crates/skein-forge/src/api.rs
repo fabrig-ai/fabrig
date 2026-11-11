@@ -591,6 +591,7 @@ pub struct Collaborator {
 pub enum MergeHow {
     Style,
     FastForwardOnly,
+    Recorded { commit: Commit },
 }
 /// How an update brings a branch up to its base (forge/README.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
