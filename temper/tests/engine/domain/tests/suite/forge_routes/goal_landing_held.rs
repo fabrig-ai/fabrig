@@ -17,6 +17,14 @@ fn world() -> World {
 }
 
 fn world_with_brief(brief: Option<engine::BriefLimits>) -> World {
+    world_with_settings(brief, None)
+}
+
+pub(super) fn world_with_bound(bound: Option<Duration>) -> World {
+    world_with_settings(None, bound)
+}
+
+fn world_with_settings(brief: Option<engine::BriefLimits>, bound: Option<Duration>) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -25,7 +33,8 @@ fn world_with_brief(brief: Option<engine::BriefLimits>) -> World {
         Gate::default(),
         None,
         StoryLimits { brief, ..StoryLimits::default() },
-    );
+    )
+    .with_check_timeout(bound);
     world.env.limits.forge.change_policy.repairs = REPAIRS;
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([

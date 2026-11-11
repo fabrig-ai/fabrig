@@ -2328,6 +2328,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             .insert(
                 5,
                 crate::translate::ProjectLanding {
+                    check_timeout: None,
                     close_job: None,
                     merge_job: None,
                     by: crate::translate::Way::Queue,

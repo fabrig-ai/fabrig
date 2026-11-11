@@ -5,6 +5,7 @@ use temper_engine_domain as engine;
 
 fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::Assignment {
     engine::Assignment {
+        check_timeout: None,
         task: 1,
         attempt: 1,
         conversation: 1,

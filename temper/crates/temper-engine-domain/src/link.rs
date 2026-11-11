@@ -402,6 +402,7 @@ pub(crate) fn take_sections(domain: &mut Domain, task: u64) -> Option<Box<[crate
 pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> crate::Assignment {
     let parts = domain.assignment_parts.remove(&assignment.task).expect("prepared temper assignment parts");
     crate::Assignment {
+        check_timeout: crate::route::forge_route::check_timeout(domain, assignment.task),
         task: assignment.task,
         attempt: assignment.attempt,
         conversation: assignment.conversation,
