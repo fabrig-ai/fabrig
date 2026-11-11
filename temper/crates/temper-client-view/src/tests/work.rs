@@ -508,7 +508,7 @@ fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
 fn subtree_text(tree: &Tree, node: &skein_ui::Node) -> Box<[u8]> {
     let mut text = List::uncapped(); let mut taking = false; let mut left = node.size;
     for next in tree.nodes() {
-        if next.id == node.id { taking = true; }
+        if core::ptr::eq(next, node) { taking = true; }
         if taking && left > 0 {
             for run in &next.text { for byte in &run.text { text.push(*byte).unwrap(); } }
             left = left.checked_sub(1).unwrap();
@@ -523,8 +523,8 @@ fn landed_cards_draw_clock_provenance_and_the_three_choice_cases_in_both_shells(
     for words in [f::browser_words(), f::words()] {
         for LandedChoices { configured, tracked, labels } in [
             LandedChoices { configured: Some(jig_client::shapes::GOAL), tracked: true, labels: &[b"Start a goal: Task by task", b"Another way"] },
-            LandedChoices { configured: Some(99), tracked: true, labels: &["Start a goal…".as_bytes()] },
-            LandedChoices { configured: None, tracked: true, labels: &["Start a goal…".as_bytes()] },
+            LandedChoices { configured: Some(99), tracked: true, labels: &[b"Start a goal\xe2\x80\xa6"] },
+            LandedChoices { configured: None, tracked: true, labels: &[b"Start a goal\xe2\x80\xa6"] },
             LandedChoices { configured: Some(jig_client::shapes::GOAL), tracked: false, labels: &[] },
         ] {
             let ways = match configured { Some(way) => Some(Ways { way, ..Ways::STOCK }), None => None };

@@ -549,12 +549,12 @@ fn a_proposed_goal_from_a_landed_draft_does_not_mark_it_started() {
 fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
     use jig_client::{Down, Readable, Readout, Up};
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let mut limits = fixtures::limits(); limits.client.domain.text = TEXT;
+    let mut limits = fixtures::limits(); limits.client.domain.text = TEXT; limits.client.domain.long_text = TEXT; limits.client.domain.turn_text = TEXT;
     limits.client.domain.handles = 64; limits.client.domain.reads = 32; limits.client.exchanges = 32;
     let mut root = crate::unlinked(&limits, fixtures::SEED); let watch = fixtures::start(&mut root, List::uncapped());
     let mut frame = me(); let templates = &mut frame.projects.get_mut(0).unwrap().templates;
-    let mut preferred = templates.get(0).unwrap().clone(); preferred.number = 9; preferred.label = 9; templates.push(preferred).unwrap();
-    let out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(frame))); let mut setting = None;
+    let mut preferred = templates.get(0).unwrap().clone(); preferred.number = 9; preferred.label = 9; *templates = List::from_boxed(Box::new([templates.get(0).unwrap().clone(), preferred]));
+    let out = root_event(&mut root, &limits, crate::Event::Client { event: jig_client::Event::Up { up: Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame))) } } }); let mut setting = None;
     for request in &out {
         if let crate::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } } } = request
             && let w::Read::Setting(key) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() && key.kind() == 7 { setting = Some(*read); }
@@ -562,11 +562,11 @@ fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
     let ways = w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals: true, changes: true, way: 9 }).unwrap();
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).unwrap()); ways.encode(&mut writer).unwrap();
     let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap();
-    super::welcome::event(&mut root, crate::Event::Client { event: jig_client::Event::Up { up: Up::ReadDone {
+    root_event(&mut root, &limits, crate::Event::Client { event: jig_client::Event::Up { up: Up::ReadDone {
         read: setting.unwrap(), result: Readout::Family { family: wire::FORGE, record: Some(wire::setting_answer(&answer)) },
     }}});
-    super::welcome::event(&mut root, crate::Event::Went { place: crate::Place::Address(Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All }) });
-    let out = super::welcome::event(&mut root, crate::Event::Act { action: crate::Action::Pages(Act::OpenLanded { draft: landed(), start: true }) });
+    root_event(&mut root, &limits, crate::Event::Went { place: crate::Place::Address(Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All }) });
+    let out = root_event(&mut root, &limits, crate::Event::Act { action: crate::Action::Pages(Act::OpenLanded { draft: landed(), start: true }) });
     let start = root.pages().start().unwrap(); assert_eq!(start.way, Some(9)); assert!(start.pending.is_some()); let mut sent = false;
     for request in &out {
         if let crate::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } } } = request {
@@ -574,4 +574,8 @@ fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
         }
     }
     assert!(sent);
+}
+
+fn root_event(root: &mut crate::Domain, limits: &crate::Limits, event: crate::Event) -> Queue<crate::Request> {
+    let mut out = Queue::uncapped(); crate::step(root, &fixtures::env(limits), event, &mut out); out
 }
