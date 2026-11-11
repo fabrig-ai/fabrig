@@ -1,7 +1,9 @@
 # look: status
 
-2026-11-10. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
 
+- **Not yet:** *Team's look*: People's head's shared role at its right,
+  as `.shead span` [in flight: change 312]
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the

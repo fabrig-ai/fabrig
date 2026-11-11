@@ -1,7 +1,10 @@
 # gallery: status
 
-2026-11-10. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
+- **Not yet:** 2: `team` with both people owners, "owners of shop" and
+  the line's count in words, and `team-alone` with "Owner"
+  [in flight: change 312]
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
