@@ -701,7 +701,7 @@ fn connected_github_with_two_installations() -> skein_forge_kit::joint::Joint {
     let mut world = Joint::github(
         11,
         0,
-        fixtures::limits(),
+        fixtures::protocol_limits(),
         fixtures::github_settings(),
         fixtures::protocol_shared(),
         joint::checks(1000),

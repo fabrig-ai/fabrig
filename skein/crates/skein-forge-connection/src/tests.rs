@@ -77,6 +77,26 @@ fn limits_that_disagree_with_the_client_name_both_limits() {
     let rows = [
         ("connections", Limits { connections: 3, ..l }, s, Unusable::Connections { connections: 3, calls: 2 }),
         (
+            "kept below",
+            Limits { kept_bytes: l.kept_bytes.checked_sub(1).expect("below bound"), ..l },
+            s,
+            Unusable::KeptBytes {
+                kept_bytes: l.kept_bytes.checked_sub(1).expect("below bound"),
+                calls: s.calls,
+                answer_bytes: s.answer_bytes,
+            },
+        ),
+        (
+            "kept above",
+            Limits { kept_bytes: l.kept_bytes.checked_add(1).expect("above bound"), ..l },
+            s,
+            Unusable::KeptBytes {
+                kept_bytes: l.kept_bytes.checked_add(1).expect("above bound"),
+                calls: s.calls,
+                answer_bytes: s.answer_bytes,
+            },
+        ),
+        (
             "deadline",
             Limits { deadline: Duration::from_secs(11), ..l },
             s,
@@ -85,7 +105,17 @@ fn limits_that_disagree_with_the_client_name_both_limits() {
         ("body", Limits { body_bytes: 1041, ..l }, s, Unusable::BodyBytes { body_bytes: 1041, needed: 1042 }),
         ("name", Limits { string_bytes: 127, ..l }, s, Unusable::StringBytes { string_bytes: 127, name_bytes: 128 }),
         ("repositories", Limits { repositories: 3, ..l }, s, Unusable::Repositories { repositories: 3, forge: 2 }),
-        ("answer", l, short_answer, Unusable::PageSize { listing: Listing::Items }),
+        (
+            "answer",
+            Limits {
+                kept_bytes: u64::from(short_answer.calls)
+                    .checked_mul(u64::from(short_answer.answer_bytes))
+                    .expect("answer room"),
+                ..l
+            },
+            short_answer,
+            Unusable::PageSize { listing: Listing::Items },
+        ),
     ];
     for (name, limits, shared, expected) in rows {
         assert_eq!(limits::check(&limits, &shared, &fixtures::settings()), Err(expected), "{name}");

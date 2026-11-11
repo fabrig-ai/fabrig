@@ -156,6 +156,9 @@ pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
         delivery_bytes: 1_048_576,
         renew_before: Duration::from_secs(10 * 60),
         connections: forge.client.calls,
+        kept_bytes: u64::from(forge.client.calls)
+            .checked_mul(u64::from(forge.client.answer_bytes))
+            .expect("two u32 limits fit u64"),
         head_bytes: 16_384,
         headers: 64,
         body_bytes_in: 16_777_216,
@@ -342,6 +345,9 @@ impl Layer {
 pub fn problems(unusable: skein_forge_connection::Unusable, found: &mut Problems) {
     use skein_forge_connection::limits::{Stacked, Unusable};
     let names: &[&[u8]] = match unusable {
+        Unusable::KeptBytes { .. } => {
+            &[b"forge_component.kept_bytes", b"forge.client.calls", b"forge.client.answer_bytes"]
+        }
         Unusable::Connections { .. } => &[b"forge_component.connections", b"forge.client.calls"],
         Unusable::Deadline { .. } => &[b"forge_component.deadline_ms", b"forge.client.lifetime_ms"],
         Unusable::BodyBytes { .. } => &[b"forge_component.body_bytes", b"forge.client.op_bytes"],

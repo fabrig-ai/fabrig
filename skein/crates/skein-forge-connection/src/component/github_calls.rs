@@ -329,7 +329,8 @@ impl Common {
 
             let c = self.connection_slab.get_mut(connection).expect("connection");
             let waiting = self.waiting.get_mut(id).expect("call");
-            github.exchange.pump(c, env, io);
+            github.exchange.pump(c, env, io, &mut self.kept);
+            waiting.free = waiting.free.checked_add(c.take_free()).expect("bounded exchanges");
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
@@ -393,8 +394,17 @@ impl Common {
         route.token_revision = row.token_revision;
         route.status = None;
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
+        c.identity = Some(route.selected.id);
         c.until(Some(deadline));
-        match github.exchange.start(c, env, &base.forge, &self.owner.user_agent, exchange, authorization) {
+        match github.exchange.start(
+            c,
+            env,
+            &base.forge,
+            &self.owner.user_agent,
+            exchange,
+            authorization,
+            &mut self.kept,
+        ) {
             Ok(()) => {}
             Err(_) => return Err(api::Error::Refused),
         }

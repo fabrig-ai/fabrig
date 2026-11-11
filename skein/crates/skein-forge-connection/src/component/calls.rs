@@ -183,7 +183,15 @@ impl Common {
                     )
                     .expect("checked credential length");
                     c.until(Some(deadline));
-                    match forgejo.exchange.start(c, env, forge, &self.owner.user_agent, request, authorization) {
+                    match forgejo.exchange.start(
+                        c,
+                        env,
+                        forge,
+                        &self.owner.user_agent,
+                        request,
+                        authorization,
+                        &mut self.kept,
+                    ) {
                         Ok(()) => {
                             forgejo.exchange.keep_after(plan.after());
                         }
@@ -196,7 +204,8 @@ impl Common {
                 }
             }
             let waiting = self.waiting.get_mut(id).expect("indexed call");
-            forgejo.exchange.pump(c, env, io);
+            forgejo.exchange.pump(c, env, io, &mut self.kept);
+            waiting.free = waiting.free.checked_add(c.take_free()).expect("bounded exchanges");
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
@@ -439,7 +448,7 @@ impl Component {
         }
         for (_, id) in &self.common.connections {
             let c = self.common.connection_slab.get_mut(*id).expect("indexed connection");
-            if c.drain_redirect(env, io) {
+            if c.drain_redirect(env, io, &mut self.common.kept) {
                 self.common.wake = Some(env.now);
             }
             if self.common.lifecycle != Lifecycle::Live
@@ -448,7 +457,7 @@ impl Component {
             {
                 c.close(env, c.in_flight(), io);
                 if c.link.has_work() {
-                    c.drain(env, io);
+                    c.drain(env, io, &mut self.common.kept);
                 }
                 if c.link.has_work() {
                     self.common.wake = Some(env.now);
