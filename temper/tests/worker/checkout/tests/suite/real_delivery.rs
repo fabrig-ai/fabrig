@@ -128,9 +128,7 @@ impl World {
                     } else {
                         Box::default()
                     };
-                    let kind = if matches!(command, invocation::Command::DeliveryMode { .. }) {
-                        None
-                    } else if matches!(command, invocation::Command::SnapshotFetch { .. }) {
+                    let kind = if matches!(command, invocation::Command::SnapshotFetch { .. }) {
                         Some(git::Kind::Fetch)
                     } else {
                         Some(op.kind())
@@ -229,13 +227,6 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             panic!("prepared")
         };
         let directory = format!("workspaces/{}/specimen", workspace.raw());
-        let mode = Command::new("/usr/bin/git")
-            .env_clear()
-            .current_dir(world.root.join(&directory))
-            .args(["config", "--local", "--bool", "--get", "temper.designDelivery"])
-            .output()
-            .expect("mode");
-        assert_eq!(mode.stdout, if design { b"true\n".as_slice() } else { b"false\n".as_slice() });
         for index in 0..=LIMITS.conflicts {
             fs::write(
                 world.root.join(&directory).join(format!("design{index}.md")),

@@ -605,16 +605,19 @@ runs as contained processes and whose output it parses.
   creates no branch but by pushing a run's change, and branches temper
   needs before then are made by the engine, as effects (forge/branches.md
   ).
-- **The landing pin.** Prepare fetches a writable item's landing branch
-  (4.1), after its start, on the same remote into `refs/temper/landing`
-  (`../protocol/git.md`, 4.3). This covers every producer start, including
-  saved or resumed work, and a goal's later run. A missing branch fails
-  prepare. An ordinary delivery freezes this tip for its hold, so every
-  check uses the same base (`tools/pre-pr/design.md`, 2). A design delivery
-  refreshes it when taking the goal tip, so a later delivery after a merge
-  judges only its own paths. A new hold overwrites any cached pin. The pin
-  changes neither the checkout start nor ownership, drift admission or the
-  saved-work baseline.
+- **The landing pin.** A repository whose item names a landing branch
+  (4.1) has it fetched once per hold, during prepare, after its start is
+  fetched, on the same remote, into
+  `refs/temper/landing` (`../protocol/git.md`, 4.3): every start of a
+  change's producer, a saved or resumed one's included, and a goal's later
+  run. That tip is frozen for the hold: no later operation of the hold
+  moves the reference, so the project's checks take the same base at every
+  delivery and at finish (`tools/pre-pr/design.md`, section 2). A missing
+  landing branch fails preparation. The next hold fetches it afresh, so
+  the landing tip may move between attempts; a pin a cached checkout kept
+  from an earlier hold is overwritten, never read. The pin changes neither
+  the checkout start nor ownership, drift admission or the saved-work
+  baseline.
 - **An existing producer branch** compares with the pinned tip: it is the
   frozen comparison for existing work below, only for an inherited
   producer that starts on its push branch.
@@ -686,13 +689,11 @@ runs as contained processes and whose output it parses.
   delivery head when none was supplied; for other starts without one,
   a rewind of the branch to an ancestor goes unseen (section 12).
 - **A design delivery.** A repository naming the same push and landing
-  branch is a goal's design delivery (`forge/branches.md`, 3). Prepare
-  selects documentation checks (`../protocol/git.md`, 4.3): citations on
-  changed Markdown files and the design size limit where enforced. Code
-  checks are skipped; unchanged paths and inherited reds cannot refuse it.
-  Ordinary deliveries keep their checks. The checked tree is committed,
-  then the goal tip fetched, refreshing the documentation base. If the
-  commit lacks that tip, it is merged: a clean merge is committed with two
+  branch is a goal's design delivery (`forge/branches.md`, 3). It runs
+  the repository's `.temper/pre-pr` as any delivery does (smith's
+  `domain/run.md`, 8.1); a failed check refuses it. The checked tree is
+  committed, then the goal tip fetched. If the commit lacks that tip, it is
+  merged: a clean merge is committed with two
   parents (delivery commit and tip), the repository's identity as author
   and title `Merge <branch>`; a conflict stays in progress, its files
   marked and named in the refusal, for the run to settle and deliver again,

@@ -129,8 +129,6 @@ pub enum Into {
     Fetched,
     /// The landing pin, written once during prepare.
     Landing,
-    /// The landing pin of a design writer; selects documentation checks.
-    Design,
 }
 
 /// Delivery reads HEAD and `MERGE_HEAD` before committing, preserving a local

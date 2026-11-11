@@ -76,42 +76,11 @@ fn standard_rows() {
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&fetch,Command::Fetch { into: git::Into::Fetched,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
-        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",Next::Run(Command::DeliveryMode { design:false, commit:fixtures::COMMIT })),
+        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
         (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
     ];
     for (op, ran, code, stdout, next) in rows {
         assert_eq!(sequence::after(op, &ran, code, stdout, b"", 0, &fixtures::checkout()), next, "{ran:?}: {code}");
-    }
-}
-
-#[test]
-fn landing_fetches_select_checks_before_returning_the_pin() {
-    for (into, design) in [(git::Into::Landing, false), (git::Into::Design, true)] {
-        let op = git::Op::Fetch {
-            at: fixtures::at(),
-            remote: fixtures::REMOTE.into(),
-            want: git::Want::Default,
-            into,
-            identity: 1,
-            account: None,
-        };
-        let command =
-            Command::Fetch { remote: fixtures::REMOTE.into(), source: crate::invocation::Source::Default, into };
-        let setting = Command::DeliveryMode { design, commit: fixtures::COMMIT };
-        assert_eq!(sequence::after(&op, &command, 0,
-            b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",
-            b"", 0, &fixtures::checkout()), Next::Run(setting.clone()));
-        assert_eq!(
-            sequence::after(&op, &setting, 0, b"", b"", 0, &fixtures::checkout()),
-            Next::End(git::Done::Fetched { commit: fixtures::COMMIT })
-        );
-        assert_eq!(
-            sequence::after(&op, &setting, 128, b"", b"fatal: config is locked\n", 2, &fixtures::checkout()),
-            Next::End(git::Done::FailedWithOutput {
-                fault: git::Fault::Broken,
-                diagnostic: git::PushDiagnostic::new(b"fatal: config is locked\n", 2)
-            })
-        );
     }
 }
 

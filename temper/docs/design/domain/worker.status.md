@@ -1,8 +1,10 @@
 # worker: status
 
 2026-11-11. Where temper's code lags or departs from [worker.md](worker.md).
-Section 5's delivery retains the checkout's ancestry through the git
-snapshot operation (`../protocol/git.md`, 4.7): staged and committed merges
+Section 5's design delivery has no known gap in running the repository's
+`.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
+for the hold. Section 5's delivery retains the checkout's ancestry through
+the git snapshot operation (`../protocol/git.md`, 4.7): staged and committed merges
 keep their second parent, checked against the remote, and an unchanged
 local commit is delivered intact. The checkout step test holds the request's
 remote and account; the git protocol's snapshot tests hold its invocations

@@ -36,7 +36,6 @@ pub enum Command {
     Origin { directory: Box<[u8]> },
     Clone { remote: Box<[u8]>, directory: Box<[u8]> },
     Fetch { remote: Box<[u8]>, source: Source, into: git::Into },
-    DeliveryMode { design: bool, commit: git::Commit },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
     CheckOut { commit: git::Commit },
     Clean,
@@ -92,7 +91,6 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Origin { .. }
-        | Command::DeliveryMode { .. }
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
@@ -223,10 +221,6 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             let spec = joined(&[&hex(*commit), b":refs/heads/", branch]);
             words(&mut out, &[b"push", b"--porcelain", &lease, b"--", remote, &spec]);
         }
-        Command::DeliveryMode { design, .. } => words(
-            &mut out,
-            &[b"config", b"--local", b"temper.designDelivery", if *design { b"true" } else { b"false" }],
-        ),
         Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
         Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
@@ -402,6 +396,6 @@ pub fn place(at: &git::Place) -> Box<[u8]> {
 pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     match into {
         git::Into::Fetched => b"refs/temper/fetched",
-        git::Into::Landing | git::Into::Design => b"refs/temper/landing",
+        git::Into::Landing => b"refs/temper/landing",
     }
 }

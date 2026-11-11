@@ -285,7 +285,7 @@ fn run(
             at,
             remote: spec.remote.clone(),
             want: Want::Branch { branch: super::branch_of(spec, &push.to) },
-            into: Into::Design,
+            into: Into::Fetched,
             identity: spec.identity,
             account: spec.account,
         },

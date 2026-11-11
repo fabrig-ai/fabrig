@@ -37,6 +37,8 @@ mod agreement;
 #[cfg(test)]
 mod chat;
 pub mod close_job;
+#[cfg(test)]
+mod design_delivery;
 mod link;
 mod long_chat;
 pub mod merge_job;

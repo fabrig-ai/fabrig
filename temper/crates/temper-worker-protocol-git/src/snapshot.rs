@@ -94,7 +94,6 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::SnapshotFetch { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
-        | Command::DeliveryMode { .. }
         | Command::Version
         | Command::Origin { .. }
         | Command::Clone { .. }

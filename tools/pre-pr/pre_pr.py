@@ -413,9 +413,6 @@ def main():
     lints, tests = [], []
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
-        design = git(['config', '--local', '--bool', '--get', 'temper.designDelivery'], root, env)
-        if design.returncode == 0 and design.stdout.strip() == b'true':
-            return documentation(root, env, base_id, tree_id)
         cache = git_dir / 'pre-pr-passed'
         record = f'{tree_id} {base_id or "-"}'
         if cache.exists() and cache.read_text().strip() == record:
@@ -469,25 +466,6 @@ def main():
             temporary.write_text(record + '\n')
             temporary.replace(cache)
         return verdict
-
-
-def documentation(root, env, base_id, tree_id):
-    """A design writer judges only its own Markdown; never runs code checks."""
-    if not base_id:
-        print('pre-pr: documentation refused: no landing pin', flush=True)
-        return 1
-    diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
-    if diff.returncode:
-        sys.stderr.buffer.write(diff.stderr)
-        return 1
-    for path in diff.stdout.split(b'\0'):
-        if path and not path.endswith(b'.md'):
-            print(f'pre-pr: documentation refused: {os.fsdecode(path)} is not Markdown', flush=True)
-            return 1
-    code, _ = timed('documentation', lambda: run(
-        ['python3', '-I', '-B', 'tools/citations/citations.py', '--base', base_id,
-         '--head', tree_id, '--changed'], root, env, stdout=True))
-    return code
 
 
 if __name__ == '__main__':

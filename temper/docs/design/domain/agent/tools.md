@@ -27,9 +27,8 @@
   inspects alone. It delivers straight to its goal branch, a design
   writer of it (`../forge/branches.md`, 3), with a `title` and a `body` as a
   change's delivery has them, at any point in its run and as often as it
-  likes. The project's citation checker judges its changed Markdown files,
-  with the design size limit where enforced; code checks do not run and a
-  red base cannot refuse it (`README.md`, section 5). A design delivery carries Markdown alone, takes
+  likes, and the project's checks run at it (`README.md`, section 5; smith's
+  `domain/run.md`, 8.1). A design delivery carries Markdown alone, takes
   the goal branch's moved tip first and is never stale (`README.md`, section 5); code
   goes through `change`. Delivering isn't finishing: it has no change
   among its outcomes, its `finish` offers a report and a failure, and it

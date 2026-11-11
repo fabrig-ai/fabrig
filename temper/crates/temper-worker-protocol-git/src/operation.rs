@@ -136,7 +136,6 @@ impl Operation {
     fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
         match self.command {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
-            Command::DeliveryMode { .. } => None,
             Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotReachable { .. }
@@ -168,7 +167,6 @@ impl Operation {
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
-            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
@@ -262,7 +260,6 @@ impl Operation {
             | Command::SnapshotFetch { .. }
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
-            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Origin { .. }
             | Command::Clone { .. }
@@ -306,7 +303,6 @@ impl Operation {
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
-            | Command::DeliveryMode { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }

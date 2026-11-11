@@ -86,10 +86,6 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             write_index(checkout, at, transport.tree(count(*commit)));
             Answer::success(Vec::new())
         }
-        Command::DeliveryMode { design, .. } => {
-            checkout.write(&path(at, b".git/temper-design-delivery"), if *design { b"true" } else { b"false" });
-            Answer::success(Vec::new())
-        }
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
             let directory = path(at, directory);
@@ -355,7 +351,7 @@ fn fetch(
 ) -> Answer {
     let reference = match into {
         Into::Fetched => b"refs/temper/fetched".as_slice(),
-        Into::Landing | temper_worker_domain_checkout::git::Into::Design => b"refs/temper/landing".as_slice(),
+        Into::Landing => b"refs/temper/landing".as_slice(),
     };
     let target = path(at, &[b".git/".as_slice(), reference].concat());
     let previous = checkout.content(&target).map_or(0, count_bytes);

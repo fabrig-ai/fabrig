@@ -20,18 +20,6 @@ boundary (smith's run.md, 8.1).
   `temper/docs/design/domain/worker.md`, section 5). The check's base is
   the merge base of that reference and `HEAD`, and `MERGE_HEAD` in a merge
   (section 2). Without the reference it runs today's checks alone and says so.
-- **Design writers judge documentation alone.** Prepare records
-  `temper.designDelivery=true` in the repository's local git config when
-  its push branch is also its landing branch; ordinary prepare writes
-  `false`. In design mode the entry point skips every code check below,
-  admits Markdown paths alone, and runs the citation checker with
-  `--base <base> --head <snapshot-tree> --changed`. Only citations in the
-  changed files and their design sizes are judged; targets resolve against
-  the complete snapshot. An inherited broken citation or an unchanged
-  oversized document cannot refuse it. The tree's size policy remains
-  `tools/citations/sized.txt`'s, and new broken citations and growth past
-  the limit refuse it. The ordinary success cache grants no design-mode
-  pass. A missing landing pin refuses the design check.
 - **What changed, and who reads it.** The packages owning a path the
   delivery changed against its base, and their direct dependents in the
   workspace (section 3).
@@ -57,10 +45,6 @@ boundary (smith's run.md, 8.1).
   HEAD MERGE_HEAD`, git's merge base of the reference with a hypothetical
   merge of `HEAD` and `MERGE_HEAD`. Where git gives several, the first it
   prints.
-- **A design writer's pin** is refreshed when its delivery takes the goal
-  tip (`temper/docs/design/domain/worker.md`, 5). A later delivery after a
-  clean merge or a conflict therefore judges its own paths against that
-  tip; inherited code and documentation in the merge are its base.
 - **So the base is where the change starts on its landing branch:** the
   commit its branch started from, or the landing branch's tip when that
   is newer and already merged into the branch, or being merged.

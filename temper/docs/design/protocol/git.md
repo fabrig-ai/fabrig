@@ -270,28 +270,17 @@ git fetch --porcelain --verbose --no-tags --no-write-fetch-head --no-recurse-sub
 where `<source>` is `refs/heads/<branch>` for `Want::Branch`, the commit's
 full id for `Want::Commit`, and `HEAD`, the forge's default branch, for
 `Want::Default`; and `<into>` is `refs/temper/fetched` for `Into::Fetched`
-and `refs/temper/landing` for `Into::Landing` or `Into::Design`.
+and `refs/temper/landing` for `Into::Landing`.
 
 - **Exit 0 and one porcelain line** `<flag> <old-id> <new-id> <into>`,
   its flag one of space, `+`, `*` or `=`: `Fetched { commit: <new-id> }`.
   `--verbose` makes git print the line when the reference was already
   there. A line naming another reference is `Broken`.
-- **The prepared check selection.** Before returning a landing pin,
-  `Into::Design` runs `git config --local temper.designDelivery true`;
-  `Into::Landing` runs the same command with `false`. Exit 0 returns the
-  fetched commit; otherwise the operation fails with git's stderr tail.
-  The selection belongs to the repository, including in a workspace with
-  both kinds of delivery, and is replaced on every prepare, including a
-  reused checkout. A design writer's repository entry point uses it to
-  run documentation checks alone (`tools/pre-pr/design.md`, 1).
 - **`refs/temper/fetched`** keeps what was fetched reachable, and is moved
   freely (`+`) by the next fetch.
 - **`refs/temper/landing`** is the landing pin: the landing branch's tip as
   prepare fetched it, which the project's checks take their base from
-  (`tools/pre-pr/design.md`, section 2). A design delivery refreshes this
-  pin when it takes the goal tip, so a later delivery judges its own paths
-  against that tip, including after a conflict. For ordinary deliveries,
-  only prepare's one landing fetch
+  (`tools/pre-pr/design.md`, section 2). Only prepare's one landing fetch
   writes it (`../domain/worker.md`, section 5), forced (`+`), since a
   cached checkout's pin from an earlier hold may be anywhere; no other
   operation names it, so it stays where prepare put it for the hold.

@@ -85,7 +85,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::CommitTree { .. } => Some(temper_worker_domain_checkout::git::Kind::Commit),
         Command::CheckOut { .. } | Command::Clean => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
         Command::Merge { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
-        Command::DeliveryMode { .. } | Command::Version => None,
+        Command::Version => None,
         Command::Origin { .. } => Some(temper_worker_domain_checkout::git::Kind::Look),
     };
     let identity = Identity {
@@ -101,20 +101,6 @@ fn spawn(command: &Command) -> k::Spawn {
         root: Fd::new(1),
         dir: b"repo".as_slice().into(),
         pipes: Box::new([]),
-    }
-}
-
-#[test]
-fn a_repeated_delivery_mode_updates_the_existing_repository_config() {
-    let mut disk = Disk::new(&files(REMOTE));
-    let mut net = Net::new(vec![]);
-    for design in [true, true, false] {
-        let answer = disk.run(spawn(&Command::DeliveryMode { design, commit: commit(BASE) }), &mut net, b"");
-        assert_eq!(answer.exit, 0, "{}", String::from_utf8_lossy(&answer.stderr));
-        assert_eq!(
-            disk.read(b"repo/.git/temper-design-delivery"),
-            Some(if design { b"true".to_vec() } else { b"false".to_vec() })
-        );
     }
 }
 fn files(remote: &[u8]) -> Vec<(Vec<u8>, Vec<u8>)> {
