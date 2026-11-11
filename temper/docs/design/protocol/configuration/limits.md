@@ -158,6 +158,36 @@
     lifetime; its body bound holds the forge client's largest write and
     a key's marker; every listing's page size is at least 1 (../forge/README.md,
     section 6);
+  - the checkout's capacity, whole: `checkout.conflicts`,
+    `checkout.path_bytes` and `checkout.repositories` feed every bound
+    that carries a merge's conflicted paths, and the start derives each
+    from them before any of its other checks returns:
+    `git_component.stdout_bytes`, at least `checkout.conflicts *
+    (checkout.path_bytes + 1)` (../git.md, section 8); the agent's
+    conflicts and conflict path bytes, at least the checkout's (the
+    worker's, below), within smith's channel ceilings, 1,024 conflicts
+    of 4,096 bytes; the worker wire's saved work, `Saved`'s encoded
+    bound, within jig's ceiling for it, 16 MiB (../channel.md, section
+    8); and the largest answer a run's saved work makes, a frame with
+    its header, within each link's room, the engine's and each worker's
+    `io.output`. A configuration one of them does not hold is refused
+    once, naming every one that falls short, a line each, as the start's
+    other refusals name that bound, after a first line naming the
+    checkout's values they follow:
+
+    ```
+    checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them
+    git_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes
+    engine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401196 bytes
+    workers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401196 bytes
+    ```
+
+    Both profiles hold 512 conflicts of 255 bytes in 2 repositories
+    (`stock.md`), and an operator may raise `checkout.conflicts` to
+    1,024, temper's payload ceiling, at those path bytes, with
+    `git_component.stdout_bytes` alone raised with it, which this
+    refusal names; nothing derived from the checkout's values refuses
+    on its own;
   - the git component's: each rule of ../git.md, section 8 (its operations
     at least the checkout's workspaces, its output caps at least what
     it parses and the diagnostic it keeps);

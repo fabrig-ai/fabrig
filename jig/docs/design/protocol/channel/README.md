@@ -742,6 +742,11 @@ and resends what it must after the next hello.
 
 ## 10. Limits and the worst case
 
+- **The application's parts' ceilings** are the schema's, and sized so
+  that the application's own limits and the room bind first: a run's
+  saved work at most 16 MiB, which an application's limits make grow
+  (temper's with a merge's conflicted paths), and its left work at most
+  64 KiB. The sizes below take the application's figures within them.
 - **`jig-protocol-worker-wire`'s sizes** are a plain struct of numbers,
   each taken from the domains' limits by the components that use them: the
   largest charter, transcript (the resume limit, which bounds a current

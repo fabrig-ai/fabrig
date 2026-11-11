@@ -122,7 +122,12 @@ of domain/host.md, section 2.
   - where it sits on the agent's file system;
   - whether it may be written;
   - whether it is a git repository;
-  - for a merge in progress, the files left in conflict;
+  - for a merge in progress, the files left in conflict: at most 1,024
+    in a directory, each path at most 4,096 bytes, the schema's
+    ceilings, so a host's merge of a few hundred conflicted paths starts
+    whole; a run takes as many as its run limits' `conflicts` and
+    `conflict_path_bytes` give (`limits.md`), which the host's own bounds
+    on a checkout's conflicts must fit;
 - **the transcript,** if the run resumes: its turns' bytes, in order, as
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.
