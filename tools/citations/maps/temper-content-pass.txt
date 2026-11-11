@@ -1,0 +1,154 @@
+# temper content pass, 2026-11-11.
+# No numbered section changes. These are the brief's by-hand unnumbered-item
+# moves, not executable move.py section directives. Existing source sections
+# retain citations, so incoming section citations still reach each question.
+# item N: SOURCE SECTION [label] -> DESTINATION SECTION
+# item 1: temper/docs/design/domain/agent/README.md 8 [Proposal-form diagnostics] -> temper/docs/design/domain/agent/tools.md 3
+# item 2: temper/docs/design/domain/agent/README.md 8 [A charter where the process has no local agent.] -> temper/docs/design/domain/agent/tools.md 3
+# item 3: temper/docs/design/domain/agent/README.md 8 [A collaborator's login in `read_collaborators`] -> temper/docs/design/domain/agent/tools.md 3
+# item 4: temper/docs/design/domain/agent/README.md 8 [`read_permission`'s login held to the settings family] -> temper/docs/design/domain/agent/tools.md 3
+# item 5: temper/docs/design/domain/agent/README.md 8 [Which host tools a charter offers.] -> temper/docs/design/domain/agent/tools.md 3
+# item 6: temper/docs/design/domain/agent/README.md 8 [Who may name a plan's members of `change`:] -> temper/docs/design/domain/agent/tools.md 3
+# item 7: temper/docs/design/domain/agent/README.md 8 [A change's foremen's LLM choice] -> temper/docs/design/domain/agent/tools.md 3
+# item 8: temper/docs/design/domain/agent/README.md 8 [A cancel's grace:] -> temper/docs/design/domain/agent/tools.md 3
+# item 9: temper/docs/design/domain/agent/README.md 8 [A change produced by a job of any kind.] -> temper/docs/design/domain/agent/tools.md 3
+# item 10: temper/docs/design/domain/agent/README.md 8 [A permission for its own requester alone] -> temper/docs/design/domain/agent/agents.md 5
+# item 11: temper/docs/design/domain/agent/README.md 8 [Constraining models in settings reads and proposals] -> temper/docs/design/domain/agent/agents.md 5
+# item 12: temper/docs/design/domain/agent/README.md 8 [The person's forge identity in a chat's brief,] -> temper/docs/design/domain/agent/agents.md 5
+# item 13: temper/docs/design/domain/agent/README.md 8 [A person known by a login alone] -> temper/docs/design/domain/agent/agents.md 5
+# item 14: temper/docs/design/domain/agent/README.md 8 [What sizes temper's own way] -> temper/docs/design/domain/agent/agents.md 5
+# item 15: temper/docs/design/domain/agent/README.md 8 [QA in temper's own way] -> temper/docs/design/domain/agent/agents.md 5
+# item 16: temper/docs/design/domain/agent/README.md 8 [Ask temper woken by a landing] -> temper/docs/design/domain/agent/agents.md 5
+# item 17: temper/docs/design/domain/agent/README.md 8 [A goal's question kept with its chat] -> temper/docs/design/domain/agent/agents.md 5
+# item 18: temper/docs/design/domain/agent/README.md 8 [Who else writes a question's line form] -> temper/docs/design/domain/agent/agents.md 5
+# item 19: temper/docs/design/domain/agent/README.md 8 [A direct change result's rendering room] -> temper/docs/design/domain/agent/charter.md 6
+# item 20: temper/docs/design/domain/agent/README.md 8 [A `see` answer by its worker's reply bound] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 21: temper/docs/design/domain/agent/README.md 8 [A document moved within one call] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 22: temper/docs/design/domain/agent/README.md 8 [Parts of a settings proposal across a restart] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 23: temper/docs/design/domain/agent/README.md 8 [How the settings' addresses read] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 24: temper/docs/design/domain/agent/README.md 8 [A revision's values of temper's kinds through `see`] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 25: temper/docs/design/domain/agent/README.md 8 [A project's own policy through `see`] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 26: temper/docs/design/domain/forge/README.md 11 [A workflow that runs on no pull request] -> temper/docs/design/domain/forge/adoption.md 8
+# item 27: temper/docs/design/domain/forge/README.md 11 [What a refused copy leaves] -> temper/docs/design/domain/forge/adoption.md 8
+# item 28: temper/docs/design/domain/forge/README.md 11 [A merge style per repository,] -> temper/docs/design/domain/forge/adoption.md 8
+# item 29: temper/docs/design/domain/forge/README.md 11 [A change whose forge is not connected,] -> temper/docs/design/domain/forge/adoption.md 8
+# item 30: temper/docs/design/domain/forge/README.md 11 [`Forbidden` and `Missing` taken as access lacking] -> temper/docs/design/domain/forge/adoption.md 8
+# item 31: temper/docs/design/domain/forge/README.md 11 [Signed commits required] -> temper/docs/design/domain/forge/adoption.md 8
+# item 32: temper/docs/design/domain/forge/README.md 11 [Connecting a forge as another user] -> temper/docs/design/domain/forge/adoption.md 8
+# item 33: temper/docs/design/domain/forge/README.md 11 [Saved branches outside the task's saved set] -> temper/docs/design/domain/forge/branches.md 4
+# item 34: temper/docs/design/domain/forge/README.md 11 [The connector's own retries] -> temper/docs/design/domain/forge/keeping-up.md 6
+# item 35: temper/docs/design/domain/forge/README.md 11 [Which checks are CI on GitHub, without required checks:] -> temper/docs/design/domain/forge/keeping-up.md 6
+# item 36: temper/docs/design/domain/forge/README.md 11 ["The brief on Home" in Settings] -> temper/docs/design/domain/forge/attention.md 7
+# item 37: temper/docs/design/domain/forge/README.md 11 [A status run's kept row] -> temper/docs/design/domain/forge/attention.md 7
+# item 38: temper/docs/design/domain/forge/README.md 11 [A stock project's room, shared] -> temper/docs/design/domain/forge/attention.md 7
+# item 39: temper/docs/design/domain/forge/README.md 11 [What lands on a goal's branch and then on main] -> temper/docs/design/domain/forge/attention.md 7
+# item 40: temper/docs/design/domain/forge/README.md 11 [What ends the Away switch] -> temper/docs/design/domain/forge/attention.md 7
+# item 41: temper/docs/design/domain/forge/README.md 11 [The classes per person] -> temper/docs/design/domain/forge/attention.md 7
+# item 42: temper/docs/design/domain/forge/README.md 11 [What code decides, listed] -> temper/docs/design/domain/forge/attention.md 7
+# item 43: temper/docs/design/domain/forge/README.md 11 [A queue's throughput:] -> temper/docs/design/domain/forge/queues.md 2
+# item 44: temper/docs/design/domain/forge/README.md 11 [A repair of the branch's own CI at a tip since passed] -> temper/docs/design/domain/forge/queues.md 2
+# item 45: temper/docs/design/domain/forge/README.md 11 [Several changes in a forge's merge queue] -> temper/docs/design/domain/forge/queues.md 2
+# item 46: temper/docs/design/domain/forge/README.md 11 [The update before entering a forge's merge queue] -> temper/docs/design/domain/forge/queues.md 2
+# item 47: temper/docs/design/domain/forge/README.md 11 [Taking a change out of a forge's merge queue] -> temper/docs/design/domain/forge/queues.md 2
+# item 48: temper/docs/design/domain/forge/README.md 11 [A gate's live run past the stall] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 49: temper/docs/design/domain/forge/README.md 11 [A green head no wake reaches] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 50: temper/docs/design/domain/forge/README.md 11 [A retry before the read] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 51: temper/docs/design/domain/forge/README.md 11 [A hold at gating at a green head] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 52: temper/docs/design/domain/forge/README.md 11 [A repair held for its brief] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 53: temper/docs/design/domain/forge/README.md 11 [A forge out of reach or not connected] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 54: temper/docs/design/domain/forge/README.md 11 [A failing check's repair brief:] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 55: temper/docs/design/domain/forge/README.md 11 [What failed on a queue's group] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 56: temper/docs/design/domain/forge/README.md 11 [A refused `message` keeps no record] -> temper/docs/design/domain/forge/change/questions.md 3
+# item 57: temper/docs/design/domain/forge/README.md 11 [A passed-up question whose asker ends] -> temper/docs/design/domain/forge/change/questions.md 3
+# item 58: temper/docs/design/domain/forge/README.md 11 [A report's head past a merge] -> temper/docs/design/domain/forge/change/questions.md 3
+# item 59: temper/docs/design/protocol/configuration/README.md 9 [A landing branch with another name than `main`] -> temper/docs/design/protocol/configuration/stock.md 1
+# item 60: temper/docs/design/protocol/configuration/README.md 9 [A chat checking the forge before declaring a repository absent] -> temper/docs/design/protocol/configuration/stock.md 1
+# item 61: temper/docs/design/protocol/configuration/README.md 9 [The reference's later runs] -> temper/docs/design/protocol/configuration/reference.md 1
+# item 62: temper/docs/design/protocol/configuration/README.md 9 [The checks' deadline] -> temper/docs/design/protocol/configuration/reference.md 1
+# item 63: temper/docs/design/protocol/configuration/README.md 9 [Who writes the case's workflows] -> temper/docs/design/protocol/configuration/reference.md 1
+# item 64: temper/docs/design/protocol/configuration/README.md 9 [Settings refusal positions] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 65: temper/docs/design/protocol/configuration/README.md 9 [A reference call of 128 KB] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 66: temper/docs/design/protocol/configuration/README.md 9 [Large arguments through a real program] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 67: temper/docs/design/protocol/configuration/README.md 9 [A real provider's list] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 68: temper/docs/design/protocol/configuration/README.md 9 [A Claude-only box on the small profile.] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 69: temper/docs/design/protocol/configuration/README.md 9 [A message, a report or a person's spec past what a box takes] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 70: temper/docs/design/protocol/configuration/README.md 9 [A brief past the host part's room] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 71: temper/docs/design/protocol/configuration/README.md 9 [Requirements an application fixes] -> temper/docs/design/protocol/configuration/settings.md 9
+# item 72: temper/docs/design/protocol/configuration/README.md 9 [The real-browser check of watch sizing.] -> temper/docs/design/protocol/configuration/limits.md 1
+# item 73: temper/docs/design/protocol/configuration/README.md 9 [A party's fair share of the watch rooms.] -> temper/docs/design/protocol/configuration/limits.md 1
+# item 74: temper/docs/design/protocol/configuration/README.md 9 [`views.`'s other names.] -> temper/docs/design/protocol/configuration/limits.md 1
+# item 75: temper/docs/design/protocol/configuration/README.md 9 [Profiles' numbers] -> temper/docs/design/protocol/configuration/limits.md 1
+# item 76: temper/docs/design/protocol/configuration/README.md 9 [The rest of an assignment's transcript and of a person's read.] -> temper/docs/design/protocol/configuration/limits.md 1
+# item 77: temper/docs/design/protocol/configuration/README.md 9 [A configuration directory moved or copied.] -> temper/docs/design/protocol/configuration/directories.md 2
+# item 78: temper/docs/design/protocol/setup/README.md 9 [Repeated admission during fake-box preparation] -> temper/docs/design/protocol/setup/box.md 7
+# item 79: temper/docs/design/protocol/setup/README.md 9 [A box killed outright on macOS] -> temper/docs/design/protocol/setup/box.md 7
+# item 80: temper/docs/design/protocol/setup/README.md 9 [A box started in the background of a terminal] -> temper/docs/design/protocol/setup/box.md 7
+# item 81: temper/docs/design/protocol/setup/README.md 9 [The terminal after a front killed outright] -> temper/docs/design/protocol/setup/box.md 7
+# item 82: temper/docs/design/protocol/setup/README.md 9 [The fake box's retained ports under concurrent stories] -> temper/docs/design/protocol/setup/box.md 7
+# item 83: temper/docs/design/protocol/setup/README.md 9 [A fake fetch for the fake box,] -> temper/docs/design/protocol/setup/box.md 7
+# item 84: temper/docs/design/protocol/setup/README.md 9 [The other fake peers' refused connections] -> temper/docs/design/protocol/setup/box.md 7
+# item 85: temper/docs/design/protocol/setup/README.md 10 [The time of day on the terminal's error lines] -> temper/docs/design/protocol/setup/box.md 7
+# item 86: temper/docs/design/protocol/setup/README.md 9 [A start holding the engine's documents to temper's clients] -> temper/docs/design/protocol/setup/init.md 4
+# item 87: temper/docs/design/protocol/setup/README.md 9 [The deployment's own UX:] -> temper/docs/design/protocol/setup/init.md 4
+# item 88: temper/docs/design/protocol/setup/README.md 9 [Flags of their own] -> temper/docs/design/protocol/setup/init.md 4
+# item 89: temper/docs/design/protocol/setup/README.md 9 [An owned forge made managed] -> temper/docs/design/protocol/setup/owned.md 10
+# item 90: temper/docs/design/protocol/setup/README.md 9 [A lock and an exec in skein's shell,] -> temper/docs/design/protocol/setup/owned.md 10
+# item 91: temper/docs/design/protocol/setup/README.md 9 [A copy of a bottle of temper's own] -> temper/docs/design/protocol/setup/owned.md 10
+# item 92: temper/docs/design/protocol/setup/README.md 9 [The person's `claude` installed after init] -> temper/docs/design/protocol/setup/owned.md 10
+# item 93: temper/docs/design/protocol/setup/README.md 9 [Reading a runner's row] -> temper/docs/design/protocol/setup/owned.md 10
+# item 94: temper/docs/design/protocol/setup/README.md 10 [Overrides of `app.ini`.] -> temper/docs/design/protocol/setup/owned.md 10
+# item 95: temper/docs/design/protocol/setup/README.md 10 [Backups beyond an upgrade's.] -> temper/docs/design/protocol/setup/owned.md 10
+# item 96: temper/docs/design/protocol/setup/README.md 9 [A story of Reconcile over TLS.] -> temper/docs/design/protocol/setup/reconcile.md 7
+# item 97: temper/docs/design/protocol/setup/README.md 9 [A secret drawn at a reconcile with no repository,] -> temper/docs/design/protocol/setup/reconcile.md 7
+# item 98: temper/docs/design/protocol/setup/README.md 9 [An adopted row's kinds after the forge changes] -> temper/docs/design/protocol/setup/reconcile.md 7
+# item 99: temper/docs/design/protocol/setup/README.md 10 [A managed forge whose host list refuses the listener.] -> temper/docs/design/protocol/setup/reconcile.md 7
+# item 100: temper/docs/design/client/forge/README.md 8 [A repository link in a folded forge row] -> temper/docs/design/client/forge/deployment.md 1
+# item 101: temper/docs/design/client/forge/README.md 8 [A secret text area for the pasted key] -> temper/docs/design/client/forge/deployment.md 1
+# item 102: temper/docs/design/client/forge/README.md 8 [An App of one's own, offered again] -> temper/docs/design/client/forge/deployment.md 1
+# item 103: temper/docs/design/client/forge/README.md 8 [A connect's stop told from the one before it] -> temper/docs/design/client/forge/deployment.md 1
+# item 104: temper/docs/design/client/forge/README.md 8 [A browser on another machine] -> temper/docs/design/client/forge/deployment.md 1
+# item 105: temper/docs/design/client/forge/README.md 8 [Mending a stopped managed or owned forge.] -> temper/docs/design/client/forge/deployment.md 1
+# item 106: temper/docs/design/client/forge/README.md 8 [The picker's pages kept.] -> temper/docs/design/client/forge/repositories.md 5
+# item 107: temper/docs/design/client/forge/family.md 8 [A repository's role, health and landing rules on the Repositories
+  tab] -> temper/docs/design/client/forge/repositories.md 5
+# item 108: temper/docs/design/client/forge/family.md 8 [A connect's end told:] -> temper/docs/design/client/forge/deployment.md 1
+# item 109: temper/docs/design/client/web/README.md 3 [A filter row while its project's ways arrive] -> temper/docs/design/client/web/testing.md 7
+# item 110: temper/docs/design/client/web/README.md 3 [A phone's width in a test] -> temper/docs/design/client/web/testing.md 7
+# item 111: temper/docs/design/client/web/README.md 3 [A chat's way to the Closed filter] -> temper/docs/design/client/web/testing.md 7
+# item 112: temper/docs/design/client/web/README.md 3 [The box's pace in the tier] -> temper/docs/design/client/web/testing.md 7
+# item 113: temper/docs/design/client/web/README.md 3 [A wait's CPU in the tier] -> temper/docs/design/client/web/testing.md 7
+# item 114: temper/docs/design/client/web/README.md 3 [The remaining browser cost] -> temper/docs/design/client/web/testing.md 7
+# item 115: temper/docs/design/client/web/README.md 3 [Merged stories after landing] -> temper/docs/design/client/web/testing.md 7
+# item 116: temper/docs/design/client/web/README.md 3 [Reading's test past its run's forty seconds] -> temper/docs/design/client/web/testing.md 7
+# item 117: temper/docs/design/client/web/README.md 3 [A long chat at the person's whole bound] -> temper/docs/design/client/web/testing.md 7
+# item 118: temper/docs/design/client/web/README.md 3 [A public page's plain text in one query] -> temper/docs/design/client/web/testing.md 7
+# item 119: temper/docs/design/client/web/README.md 3 [Every wrapped text fragment] -> temper/docs/design/client/web/testing.md 7
+# item 120: temper/docs/design/client/web/README.md 3 [A public page changing during measurement] -> temper/docs/design/client/web/testing.md 7
+# item 121: temper/docs/design/client/web/README.md 3 [Expected browser errors scoped to an act] -> temper/docs/design/client/web/testing.md 7
+# item 122: temper/docs/design/client/web/README.md 3 [A compile cache across the tier's tests] -> temper/docs/design/client/web/testing.md 7
+# item 123: temper/docs/design/domain/agent/README.md 8 [Ask temper before M3b] -> temper/docs/design/domain/agent/ask-temper.md 5
+# item 124: temper/docs/design/domain/agent/README.md 8 [Ask temper changing the catalogue] -> temper/docs/design/domain/agent/agents.md 5
+# item 125: temper/docs/design/domain/agent/README.md 8 [A real model asking its person] -> temper/docs/design/domain/agent/agents.md 5
+# item 126: temper/docs/design/domain/agent/README.md 8 [A real model revising a proposal] -> temper/docs/design/domain/agent/agents.md 5
+# item 127: temper/docs/design/domain/agent/README.md 8 [A goal as the designer] -> temper/docs/design/domain/agent/agents.md 5
+# item 128: temper/docs/design/domain/agent/README.md 8 [A real chat choosing `change`] -> temper/docs/design/domain/agent/tools.md 3
+# item 129: temper/docs/design/domain/forge/README.md 11 [A closer's stops on a goal's path] -> temper/docs/design/domain/forge/change/branch-path.md 1
+# item 130: temper/docs/design/domain/forge/README.md 11 [A close-out's own charter] -> temper/docs/design/domain/forge/change/branch-path.md 1
+# item 131: temper/docs/design/domain/forge/README.md 11 [Project-scoped rules on a real forge] -> temper/docs/design/domain/forge/change/gates.md 4
+# item 132: temper/docs/design/domain/forge/README.md 11 [A clean update's other words] -> temper/docs/design/domain/forge/change/repairs.md 1
+# item 133: temper/docs/design/domain/forge/README.md 11 [A resource refused as forbidden:] -> temper/docs/design/domain/forge/keeping-up.md 6
+# item 134: temper/docs/design/domain/forge/README.md 11 [A forge's run on a head replaced] -> temper/docs/design/domain/forge/change/README.md 7
+# item 135: temper/docs/design/domain/forge/README.md 11 [An early update against the bound] -> temper/docs/design/domain/forge/change/README.md 7
+# item 136: temper/docs/design/protocol/configuration/README.md 9 [Ask temper's real-model walk] -> temper/docs/design/protocol/configuration/stock.md 1
+# item 137: temper/docs/design/protocol/configuration/README.md 9 [A page refused busy.] -> temper/docs/design/client/pages/README.md 3
+# item 138: temper/docs/design/protocol/configuration/README.md 9 [A kept GitHub forge whose base ends in `/`.] -> temper/docs/design/protocol/forge/engine.md 9
+# item 139: temper/docs/design/protocol/setup/README.md 9 [Four agents on a laptop] -> temper/docs/design/protocol/setup/init.md 4
+# item 140: temper/docs/design/protocol/setup/README.md 9 [Discovering models per account] -> temper/docs/design/protocol/setup/init.md 4
+# item 141: temper/docs/design/protocol/setup/README.md 9 [The LLM providers out of the document,] -> temper/docs/design/protocol/setup/init.md 4
+# item 142: temper/docs/design/protocol/setup/README.md 10 [Good defaults for a person's real work:] -> temper/docs/design/protocol/setup/init.md 4
+# item 143: temper/docs/design/protocol/setup/README.md 10 [A task's text past what the clients receive] -> temper/docs/design/protocol/setup/init.md 4
+# item 144: temper/docs/design/protocol/setup/README.md 9 [A handover made by a Forgejo's own restart] -> temper/docs/design/protocol/setup/owned.md 10
+# item 145: temper/docs/design/protocol/setup/README.md 9 [A launchd agent for the box] -> temper/docs/design/protocol/setup/box.md 7
+# item 146: temper/docs/design/protocol/setup/README.md 10 [Two deployments on one managed forge.] -> temper/docs/design/protocol/setup/reconcile.md 7
+# item 147: temper/docs/design/protocol/setup/README.md 9 [A Forgejo's own links at its `web`] -> temper/docs/design/client/forge/served.md 3
+# item 148: temper/docs/design/client/web/README.md 3 [A failed link with a live cookie] -> temper/docs/design/client/README.md 5.8 (existing item retained)

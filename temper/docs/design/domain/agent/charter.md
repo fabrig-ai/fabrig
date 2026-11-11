@@ -188,3 +188,13 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   Cancellation after the grace keeps its existing meaning; only the
   person's Close, or a cancel, ends the chat. Goals and every delegate
   run Finite and end by their results.
+
+## 6. Open questions
+
+- **A direct change result's rendering room** (`charter.md`, 3): the landing procedure
+  reserves 59 bytes for its result's label and sender before fitting its
+  report. A task made directly by `delegate` with a Change contract has
+  no such reserve, so its result at the contract's bound can be refused
+  by a live requester's receiving bound. Default: keep the durable result
+  whole and read it through `read_task`; the rendering allowance remains
+  jig's `domain/hosts/README.md`, section 10's question.

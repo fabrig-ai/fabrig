@@ -312,3 +312,23 @@ which is what a person's approval asks of it.
   such a rule stops their mistakes, not one trying to get past it, and the
   client says so (`../../../client/pages/settings.md`, 2; `../../../draft/forge-identity.md`,
   section 6).
+
+## 3. Open questions
+
+- **A refused `message` keeps no record** (`questions.md`, 1): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`../../routing.md`, 2). So a call asked again decides again, from the change as
+  it then stands. Default: so.
+
+- **A passed-up question whose asker ends** (`questions.md`, 1): its requester hears of the
+  end when it answers, not before, since saying so once at the end would need a
+  stored mark beside where the question stands. One that never answers hears
+  nothing of it, and the question stays until the change ends. Default: so; it
+  did reach someone.
+
+- **A report's head past a merge** (`questions.md`, 1): a next producer's start that merges a
+  tip it lacks makes a new head before its run if clean, or at its first push or
+  save once its conflicts are settled. A report written before that merge names
+  an older head; a contained tip makes no new one. Default: so; the head delivered
+  names what is on the branch (`../../agent/README.md`, section 5).

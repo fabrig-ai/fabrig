@@ -1,0 +1,316 @@
+`--cache cache`: temper/docs/design/cli/temper-box-args.md:77; temper/docs/design/cli/temper-engine-args.md:47; temper/docs/design/cli/temper-worker-args.md:48
+`--config config`: temper/docs/design/cli/temper-box-args.md:63; temper/docs/design/cli/temper-engine-args.md:33; temper/docs/design/cli/temper-worker-args.md:34
+`--data data`: temper/docs/design/cli/temper-box-args.md:70; temper/docs/design/cli/temper-engine-args.md:40; temper/docs/design/cli/temper-worker-args.md:41
+`temper-agent`: temper/docs/design/cli/README.md:304; temper/docs/design/cli/temper-agent-args.md:17
+`temper-box init`: temper/docs/design/cli/temper-box-args.md:16; temper/docs/design/protocol/setup/init.md:336
+`temper-engine`: temper/docs/design/cli/README.md:232; temper/docs/design/protocol/binaries.md:336
+`temper_job`: temper/docs/design/cli/temper-box-env.md:7; temper/docs/design/cli/temper-worker-env.md:7
+a chat: temper/docs/design/client/README.md:769; temper/docs/design/client/pages/README.md:67; temper/docs/design/client/tui/pages/chat.md:3
+a page: temper/docs/design/client/tui/journeys.md:350; temper/docs/design/client/web/journeys.md:451; temper/docs/design/protocol/documentation.md:38
+a repository made or copied: temper/docs/design/domain/forge/adoption.md:513; temper/docs/design/protocol/setup/owned.md:765
+access at adoption: temper/docs/design/domain/forge/adoption.md:387; temper/docs/design/protocol/setup/reconcile.md:156
+again: temper/docs/design/client/tui/journeys.md:454; temper/docs/design/client/web/journeys.md:643
+bounded: temper/docs/design/client/ctl/results.md:431; temper/docs/design/playground.md:261
+conventions: temper/docs/design/README.md:217; temper/docs/design/domain/README.md:76; temper/docs/design/domain/agent/charter.md:100; temper/docs/design/protocol/forge/README.md:107
+drift: temper/docs/design/client/forge/README.md:372; temper/docs/design/domain/forge/change/README.md:361
+each operation: temper/docs/design/protocol/forge/README.md:111; temper/docs/design/protocol/git.md:194
+editing the look: temper/docs/design/client/tui/journeys.md:547; temper/docs/design/client/web/journeys.md:568
+failures: temper/docs/design/domain/worker/README.md:343; temper/docs/design/protocol/forge/README.md:119
+in one page: temper/docs/design/README.md:13; temper/docs/design/cli/README.md:14; temper/docs/design/client/README.md:22; temper/docs/design/client/ctl/README.md:12; temper/docs/design/client/forge/README.md:21; temper/docs/design/client/tui/journeys.md:15; temper/docs/design/client/web/README.md:13; temper/docs/design/client/web/journeys.md:15; temper/docs/design/client/web/mockups/README.md:9; temper/docs/design/domain/after-landing.md:14; temper/docs/design/domain/agent/README.md:14; temper/docs/design/domain/findings.md:13; temper/docs/design/domain/forge/README.md:14; temper/docs/design/domain/landing.md:14; temper/docs/design/domain/root.md:14; temper/docs/design/domain/trial.md:8; temper/docs/design/domain/worker/README.md:17; temper/docs/design/playground.md:13; temper/docs/design/protocol/README.md:15; temper/docs/design/protocol/channel.md:12; temper/docs/design/protocol/configuration/README.md:16; temper/docs/design/protocol/credentials.md:18; temper/docs/design/protocol/documentation.md:11; temper/docs/design/protocol/forge/README.md:21; temper/docs/design/protocol/git.md:14; temper/docs/design/protocol/llm.md:14; temper/docs/design/protocol/setup/README.md:27; temper/docs/design/protocol/sign-in.md:14; temper/docs/design/protocol/store.md:13; temper/docs/design/protocol/tooling.md:12; temper/docs/design/release.md:11; temper/docs/design/testing/README.md:12
+internal: temper/docs/design/cli/common-env.md:122; temper/docs/design/cli/temper-agent-args.md:15; temper/docs/design/cli/temper-agent-env.md:7; temper/docs/design/cli/temper-box-args.md:90; temper/docs/design/cli/temper-box-env.md:72; temper/docs/design/cli/temper-engine-args.md:54; temper/docs/design/cli/temper-engine-env.md:7; temper/docs/design/cli/temper-worker-args.md:55; temper/docs/design/cli/temper-worker-env.md:15
+its shape: temper/docs/design/client/ctl/README.md:250; temper/docs/design/client/view.md:3
+its tests: temper/docs/design/client/tui/journeys.md:388; temper/docs/design/client/web/gallery.md:480; temper/docs/design/client/web/journeys.md:501; temper/docs/design/client/web/public.md:129; temper/docs/design/protocol/cluster.md:248
+its way to landing: temper/docs/design/client/forge/README.md:86; temper/docs/design/domain/forge/change/README.md:181
+later: temper/docs/design/client/ctl/README.md:627; temper/docs/design/domain/after-landing.md:553; temper/docs/design/domain/trial.md:203; temper/docs/design/playground.md:374; temper/docs/design/protocol/cluster.md:324; temper/docs/design/protocol/setup/README.md:536; temper/docs/design/testing/README.md:611
+limits: temper/docs/design/client/view.md:455; temper/docs/design/protocol/channel.md:342
+marks: temper/docs/design/client/tui/journeys.md:203; temper/docs/design/client/web/journeys.md:204
+names: temper/docs/design/domain/README.md:101; temper/docs/design/protocol/README.md:117
+open questions: temper/docs/design/README.md:241; temper/docs/design/cli/README.md:429; temper/docs/design/client/README.md:765; temper/docs/design/client/ctl/README.md:773; temper/docs/design/client/forge/README.md:439; temper/docs/design/client/forge/family.md:355; temper/docs/design/client/line.md:255; temper/docs/design/client/pages/README.md:232; temper/docs/design/client/pages/accounts.md:551; temper/docs/design/client/pages/ask-temper.md:155; temper/docs/design/client/pages/chat/composer.md:140; temper/docs/design/client/pages/chat/conversation.md:415; temper/docs/design/client/pages/chat/document.md:118; temper/docs/design/client/pages/chat/terminal.md:165; temper/docs/design/client/pages/chats.md:56; temper/docs/design/client/pages/goal.md:313; temper/docs/design/client/pages/home.md:520; temper/docs/design/client/pages/needs-you.md:458; temper/docs/design/client/pages/settings.md:673; temper/docs/design/client/pages/task.md:461; temper/docs/design/client/pages/team.md:92; temper/docs/design/client/pages/welcome.md:655; temper/docs/design/client/pages/work.md:190; temper/docs/design/client/tui/README.md:445; temper/docs/design/client/tui/journeys.md:570; temper/docs/design/client/view.md:708; temper/docs/design/client/web/README.md:632; temper/docs/design/client/web/journeys.md:860; temper/docs/design/domain/after-landing.md:541; temper/docs/design/domain/agent/README.md:228; temper/docs/design/domain/findings.md:210; temper/docs/design/domain/forge/README.md:674; temper/docs/design/domain/landing.md:702; temper/docs/design/domain/root.md:943; temper/docs/design/domain/worker/README.md:623; temper/docs/design/domain/worker/checkouts.md:221; temper/docs/design/playground.md:350; temper/docs/design/protocol/README.md:711; temper/docs/design/protocol/channel.md:445; temper/docs/design/protocol/configuration/README.md:709; temper/docs/design/protocol/credentials.md:740; temper/docs/design/protocol/documentation.md:195; temper/docs/design/protocol/forge/README.md:640; temper/docs/design/protocol/git.md:784; temper/docs/design/protocol/llm.md:248; temper/docs/design/protocol/setup/README.md:767; temper/docs/design/protocol/sign-in.md:515; temper/docs/design/protocol/store.md:419; temper/docs/design/protocol/tooling.md:205; temper/docs/design/release.md:218; temper/docs/design/testing/README.md:562
+opening them: temper/docs/design/client/tui/journeys.md:383; temper/docs/design/client/web/journeys.md:488; temper/docs/design/client/web/mockups/README.md:45
+public: temper/docs/design/cli/common-env.md:5; temper/docs/design/cli/temper-agent-args.md:5; temper/docs/design/cli/temper-agent-env.md:5; temper/docs/design/cli/temper-box-args.md:5; temper/docs/design/cli/temper-box-env.md:5; temper/docs/design/cli/temper-engine-args.md:5; temper/docs/design/cli/temper-engine-env.md:5; temper/docs/design/cli/temper-worker-args.md:5; temper/docs/design/cli/temper-worker-env.md:5
+reading order: temper/docs/design/domain/README.md:11; temper/docs/design/protocol/README.md:81
+restart: temper/docs/design/domain/forge/README.md:528; temper/docs/design/domain/landing.md:658; temper/docs/design/domain/root.md:659
+run as `claude`: temper/docs/design/cli/temper-agent-args.md:45; temper/docs/design/cli/temper-box-args.md:234
+settings: temper/docs/design/domain/after-landing.md:491; temper/docs/design/domain/landing.md:576; temper/docs/design/domain/routing.md:186
+signing in: temper/docs/design/client/README.md:777; temper/docs/design/client/tui/pages/sign-in.md:3; temper/docs/design/client/web/README.md:410
+step tests: temper/docs/design/client/ctl/testing.md:3; temper/docs/design/protocol/setup/testing.md:7
+structure: temper/docs/design/domain/README.md:44; temper/docs/design/domain/forge/README.md:157; temper/docs/design/domain/landing.md:55; temper/docs/design/domain/worker/README.md:129
+testing: temper/docs/design/playground.md:287; temper/docs/design/protocol/README.md:670; temper/docs/design/protocol/channel.md:411; temper/docs/design/protocol/credentials.md:682; temper/docs/design/protocol/documentation.md:183; temper/docs/design/protocol/forge/README.md:436; temper/docs/design/protocol/git.md:727; temper/docs/design/protocol/llm.md:214; temper/docs/design/protocol/openid-provider.md:246; temper/docs/design/protocol/sign-in.md:488; temper/docs/design/protocol/store.md:393
+the box: temper/docs/design/client/ctl/README.md:467; temper/docs/design/testing/checks.md:370
+the check: temper/docs/design/client/tui/journeys.md:225; temper/docs/design/client/web/journeys.md:381
+the configuration: temper/docs/design/protocol/openid-provider.md:195; temper/docs/design/protocol/sign-in.md:235
+the crates: temper/docs/design/client/ctl/README.md:100; temper/docs/design/playground.md:82; temper/docs/design/protocol/setup/README.md:418
+the file: temper/docs/design/client/tui/journeys.md:102; temper/docs/design/client/web/journeys.md:142; temper/docs/design/release.md:44
+the first replay's proof: temper/docs/design/client/tui/journeys.md:237; temper/docs/design/client/web/journeys.md:395
+the journeys: temper/docs/design/client/tui/journeys.md:537; temper/docs/design/client/web/journeys.md:753
+the page: temper/docs/design/client/pages/accounts.md:3; temper/docs/design/client/pages/ask-temper.md:3; temper/docs/design/client/pages/chats.md:3; temper/docs/design/client/pages/goal.md:3; temper/docs/design/client/pages/home.md:3; temper/docs/design/client/pages/needs-you.md:3; temper/docs/design/client/pages/settings.md:3; temper/docs/design/client/pages/task.md:3; temper/docs/design/client/pages/team.md:3; temper/docs/design/client/pages/welcome.md:3; temper/docs/design/client/pages/work.md:3; temper/docs/design/playground.md:201
+the print: temper/docs/design/client/tui/journeys.md:311; temper/docs/design/client/web/journeys.md:408
+the process tier: temper/docs/design/client/ctl/testing.md:225; temper/docs/design/protocol/setup/testing.md:291
+the program: temper/docs/design/client/tui/journeys.md:313; temper/docs/design/client/web/journeys.md:410
+the recorder: temper/docs/design/client/tui/journeys.md:69; temper/docs/design/client/web/journeys.md:105
+the recording: temper/docs/design/client/tui/journeys.md:67; temper/docs/design/client/web/journeys.md:103
+the routes: temper/docs/design/protocol/openid-provider.md:32; temper/docs/design/protocol/sign-in.md:290
+the world: temper/docs/design/domain/after-landing.md:502; temper/docs/design/domain/agent/README.md:201; temper/docs/design/domain/findings.md:218; temper/docs/design/domain/forge/README.md:583; temper/docs/design/domain/landing.md:669; temper/docs/design/domain/root.md:879; temper/docs/design/domain/worker/README.md:565; temper/docs/design/playground.md:115
+through the shipped host: temper/docs/design/client/tui/journeys.md:215; temper/docs/design/client/web/journeys.md:371
+translation: temper/docs/design/domain/root.md:361; temper/docs/design/protocol/channel.md:298
+what it shows: temper/docs/design/client/forge/README.md:133; temper/docs/design/client/web/public.md:58
+what it writes: temper/docs/design/client/tui/journeys.md:330; temper/docs/design/client/web/journeys.md:430
+what the forge shows: temper/docs/design/domain/after-landing.md:378; temper/docs/design/domain/landing.md:495
+
+BOLD
+"not listed": temper/docs/design/client/ctl/areas.md:456; temper/docs/design/domain/forge/adoption.md:441
+`--version`: temper/docs/design/cli/README.md:161; temper/docs/design/protocol/binaries.md:298; temper/docs/design/release.md:66
+`application.demo`,: temper/docs/design/protocol/setup/init.md:119; temper/docs/design/protocol/setup/init.md:634; temper/docs/design/protocol/setup/playground.md:147
+`connectmodel`: temper/docs/design/client/pages/accounts.md:72; temper/docs/design/client/view.md:206
+`copying`: temper/docs/design/domain/forge/adoption.md:553; temper/docs/design/protocol/setup/owned.md:779
+`landing`: temper/docs/design/domain/agent/tools.md:496; temper/docs/design/protocol/configuration/engine.md:45
+`name`: temper/docs/design/domain/agent/tools.md:520; temper/docs/design/protocol/openid-provider.md:145
+`reachable`: temper/docs/design/protocol/forge/engine.md:490; temper/docs/design/protocol/setup/reconcile.md:88
+`repairs`: temper/docs/design/domain/after-landing.md:310; temper/docs/design/domain/agent/tools.md:588
+`replace`: temper/docs/design/client/forge/records.md:204; temper/docs/design/protocol/forge/engine.md:311
+`temper box`,: temper/docs/design/protocol/setup/testing.md:321; temper/docs/design/testing/process-tier.md:185
+`temper ctl directory ...`: temper/docs/design/protocol/binaries.md:180; temper/docs/design/protocol/configuration/README.md:559
+`temper-box init`: temper/docs/design/protocol/binaries.md:149; temper/docs/design/protocol/setup/init.md:125
+`temper-box init` for the cluster's shapes: temper/docs/design/protocol/README.md:776; temper/docs/design/protocol/cluster.md:346
+`temper-box internal agent agent.json`: temper/docs/design/protocol/binaries.md:152; temper/docs/design/protocol/configuration/README.md:566
+`temper-box open directory link_or_address`: temper/docs/design/protocol/binaries.md:178; temper/docs/design/protocol/configuration/README.md:556
+`temper-box program-login [directories] name`: temper/docs/design/protocol/configuration/README.md:561; temper/docs/design/protocol/credentials.md:399
+`temper-box serve`: temper/docs/design/protocol/binaries.md:93; temper/docs/design/protocol/setup/playground.md:503
+a bare file name: temper/docs/design/README.md:219; temper/docs/design/domain/README.md:78
+a base with heads merged in: temper/docs/design/domain/worker/README.md:242; temper/docs/design/domain/worker/checkouts.md:68
+a change's panel: temper/docs/design/client/engine.md:241; temper/docs/design/domain/landing.md:654
+a chat's document: temper/docs/design/client/pages/chat/document.md:5; temper/docs/design/client/web/look.md:322
+a chat's terminal: temper/docs/design/client/pages/chat/terminal.md:5; temper/docs/design/client/web/look.md:330
+a conflict: temper/docs/design/domain/forge/README.md:461; temper/docs/design/domain/landing.md:228; temper/docs/design/domain/landing.md:692
+a failure: temper/docs/design/cli/README.md:143; temper/docs/design/playground.md:219
+a forge removed: temper/docs/design/domain/forge/adoption.md:575; temper/docs/design/protocol/forge/engine.md:333
+a fresh fake box: temper/docs/design/client/tui/journeys.md:463; temper/docs/design/client/web/journeys.md:664
+a journey's directory,: temper/docs/design/client/tui/journeys.md:334; temper/docs/design/client/web/journeys.md:434
+a key: temper/docs/design/client/tui/README.md:267; temper/docs/design/client/tui/journeys.md:152; temper/docs/design/protocol/credentials.md:366
+a landing temper did not make: temper/docs/design/domain/after-landing.md:521; temper/docs/design/domain/forge/README.md:369
+a merge in progress: temper/docs/design/domain/worker/README.md:241; temper/docs/design/domain/worker/checkouts.md:82
+a new recording's noise: temper/docs/design/client/tui/journeys.md:607; temper/docs/design/client/web/journeys.md:954
+a party's fair share of the watch rooms: temper/docs/design/domain/root.md:953; temper/docs/design/protocol/configuration/README.md:796
+a person's approval as a rule: temper/docs/design/README.md:246; temper/docs/design/domain/forge/README.md:776
+a present handover is always taken over: temper/docs/design/protocol/configuration/README.md:411; temper/docs/design/protocol/setup/owned.md:299
+a program's login: temper/docs/design/client/ctl/testing.md:154; temper/docs/design/protocol/credentials.md:368
+a purpose of its own,: temper/docs/design/domain/after-landing.md:437; temper/docs/design/domain/landing.md:542
+a refusal: temper/docs/design/client/pages/remembered.md:39; temper/docs/design/client/tui/journeys.md:305; temper/docs/design/client/web/journeys.md:333; temper/docs/design/domain/agent/ask-temper.md:165; temper/docs/design/domain/agent/ask-temper.md:171
+a repair: temper/docs/design/domain/after-landing.md:519; temper/docs/design/domain/forge/change/repairs.md:3
+a restart: temper/docs/design/domain/landing.md:694; temper/docs/design/protocol/credentials.md:290
+a row: temper/docs/design/client/pages/work.md:154; temper/docs/design/client/web/public.md:73
+a run's end: temper/docs/design/domain/agent/ask-temper.md:250; temper/docs/design/protocol/setup/reconcile.md:43
+a run's live text: temper/docs/design/client/web/look.md:576; temper/docs/design/protocol/llm.md:254; temper/docs/design/testing/checks.md:170
+a sign-in: temper/docs/design/client/ctl/testing.md:149; temper/docs/design/client/pages/accounts.md:471; temper/docs/design/testing/real-loop.md:204
+a turn too large for a page: temper/docs/design/client/ctl/tools.md:165; temper/docs/design/client/pages/chat/conversation.md:452
+absent: temper/docs/design/cli/common-env.md:12; temper/docs/design/cli/common-env.md:22; temper/docs/design/cli/common-env.md:32; temper/docs/design/cli/common-env.md:42; temper/docs/design/cli/common-env.md:51; temper/docs/design/cli/common-env.md:60; temper/docs/design/cli/common-env.md:69; temper/docs/design/cli/common-env.md:78; temper/docs/design/cli/common-env.md:87; temper/docs/design/cli/common-env.md:97; temper/docs/design/cli/common-env.md:107; temper/docs/design/cli/common-env.md:117; temper/docs/design/cli/common-env.md:129; temper/docs/design/cli/common-env.md:138; temper/docs/design/cli/common-env.md:148; temper/docs/design/cli/common-env.md:157; temper/docs/design/cli/common-env.md:167; temper/docs/design/cli/common-env.md:177; temper/docs/design/cli/common-env.md:187; temper/docs/design/cli/temper-box-env.md:12; temper/docs/design/cli/temper-box-env.md:20; temper/docs/design/cli/temper-box-env.md:28; temper/docs/design/cli/temper-box-env.md:36; temper/docs/design/cli/temper-box-env.md:44; temper/docs/design/cli/temper-box-env.md:52; temper/docs/design/cli/temper-box-env.md:60; temper/docs/design/cli/temper-box-env.md:68; temper/docs/design/cli/temper-box-env.md:79; temper/docs/design/cli/temper-worker-env.md:12
+acts: temper/docs/design/client/web/mockups/README.md:68; temper/docs/design/domain/landing.md:655
+adoption picks from what temper can reach: temper/docs/design/client/forge/README.md:65; temper/docs/design/domain/forge/README.md:62
+an account's move: temper/docs/design/client/ctl/README.md:236; temper/docs/design/client/ctl/results.md:410
+an account's uses: temper/docs/design/client/ctl/README.md:714; temper/docs/design/client/ctl/README.md:785; temper/docs/design/client/ctl/areas.md:281
+an ended row: temper/docs/design/client/pages/goal.md:200; temper/docs/design/client/web/public.md:79
+another party's kept work: temper/docs/design/client/README.md:358; temper/docs/design/client/line.md:165
+arguments: temper/docs/design/cli/temper-agent-args.md:12; temper/docs/design/cli/temper-agent-args.md:22; temper/docs/design/cli/temper-agent-args.md:29; temper/docs/design/cli/temper-agent-args.md:36; temper/docs/design/cli/temper-agent-args.md:43; temper/docs/design/cli/temper-box-args.md:12; temper/docs/design/cli/temper-box-args.md:21; temper/docs/design/cli/temper-box-args.md:42; temper/docs/design/cli/temper-box-args.md:51; temper/docs/design/cli/temper-box-args.md:60; temper/docs/design/cli/temper-box-args.md:97; temper/docs/design/cli/temper-box-args.md:105; temper/docs/design/cli/temper-box-args.md:113; temper/docs/design/cli/temper-box-args.md:121; temper/docs/design/cli/temper-box-args.md:129; temper/docs/design/cli/temper-box-args.md:137; temper/docs/design/cli/temper-box-args.md:145; temper/docs/design/cli/temper-box-args.md:153; temper/docs/design/cli/temper-box-args.md:161; temper/docs/design/cli/temper-box-args.md:168; temper/docs/design/cli/temper-box-args.md:175; temper/docs/design/cli/temper-box-args.md:183; temper/docs/design/cli/temper-box-args.md:190; temper/docs/design/cli/temper-box-args.md:197; temper/docs/design/cli/temper-box-args.md:205; temper/docs/design/cli/temper-box-args.md:213; temper/docs/design/cli/temper-engine-args.md:12; temper/docs/design/cli/temper-engine-args.md:29; temper/docs/design/cli/temper-engine-args.md:61; temper/docs/design/cli/temper-engine-args.md:69; temper/docs/design/cli/temper-engine-args.md:77; temper/docs/design/cli/temper-engine-args.md:85; temper/docs/design/cli/temper-engine-args.md:93; temper/docs/design/cli/temper-engine-args.md:101; temper/docs/design/cli/temper-engine-args.md:109; temper/docs/design/cli/temper-worker-args.md:12; temper/docs/design/cli/temper-worker-args.md:21; temper/docs/design/cli/temper-worker-args.md:30
+at each start,: temper/docs/design/domain/routing.md:260; temper/docs/design/protocol/setup/reconcile.md:32; temper/docs/design/protocol/setup/reconcile.md:181
+at scale, with standing roles: temper/docs/design/client/tui/whole-story/README.md:9; temper/docs/design/client/web/whole-story/README.md:20
+beside the journeys: temper/docs/design/client/tui/journeys.md:338; temper/docs/design/client/web/journeys.md:439
+bounded: temper/docs/design/client/forge/README.md:657; temper/docs/design/domain/agent/ask-temper.md:133; temper/docs/design/domain/forge/change/questions.md:58; temper/docs/design/domain/landing.md:566; temper/docs/design/domain/root.md:728; temper/docs/design/domain/routing.md:279; temper/docs/design/protocol/forge/README.md:195
+bounds: temper/docs/design/client/forge/records.md:648; temper/docs/design/protocol/cluster.md:230; temper/docs/design/protocol/configuration/engine.md:144
+budget: temper/docs/design/domain/agent/charter.md:138; temper/docs/design/testing/README.md:336; temper/docs/design/testing/live-tier.md:150
+cancel: temper/docs/design/client/forge/README.md:177; temper/docs/design/protocol/git.md:680
+checked: temper/docs/design/client/ctl/testing.md:273; temper/docs/design/protocol/setup/README.md:402; temper/docs/design/protocol/setup/box.md:564; temper/docs/design/protocol/setup/init.md:459; temper/docs/design/testing/fakes.md:356
+checks follow content: temper/docs/design/testing/README.md:40; temper/docs/design/testing/fakes.md:370
+checks without an llm: temper/docs/design/domain/forge/README.md:772; temper/docs/design/domain/worker/README.md:628
+close,: temper/docs/design/client/pages/task.md:385; temper/docs/design/domain/forge/branches.md:193
+closing: temper/docs/design/client/line.md:179; temper/docs/design/client/tui/README.md:419
+code cites a section: temper/docs/design/README.md:224; temper/docs/design/domain/README.md:90
+completion: temper/docs/design/client/forge/deployment.md:389; temper/docs/design/client/pages/accounts.md:276
+credentials: temper/docs/design/protocol/README.md:305; temper/docs/design/testing/live-tier.md:249; temper/docs/design/testing/process-tier.md:239
+default: temper/docs/design/cli/temper-box-args.md:66; temper/docs/design/cli/temper-box-args.md:73; temper/docs/design/cli/temper-box-args.md:80; temper/docs/design/cli/temper-box-args.md:87; temper/docs/design/cli/temper-box-args.md:293; temper/docs/design/cli/temper-engine-args.md:36; temper/docs/design/cli/temper-engine-args.md:43; temper/docs/design/cli/temper-engine-args.md:50; temper/docs/design/cli/temper-worker-args.md:37; temper/docs/design/cli/temper-worker-args.md:44; temper/docs/design/cli/temper-worker-args.md:51
+details: temper/docs/design/client/forge/deployment.md:177; temper/docs/design/client/pages/accounts.md:256
+directory: temper/docs/design/client/ctl/README.md:264; temper/docs/design/client/line.md:5
+done: temper/docs/design/client/tui/journeys.md:565; temper/docs/design/client/web/journeys.md:605
+down,: temper/docs/design/protocol/channel.md:20; temper/docs/design/protocol/channel.md:25; temper/docs/design/protocol/forge/engine.md:467
+each document: temper/docs/design/README.md:236; temper/docs/design/domain/README.md:96
+each iteration: temper/docs/design/client/line.md:61; temper/docs/design/client/tui/README.md:403
+each report's duties,: temper/docs/design/client/tui/journeys.md:227; temper/docs/design/client/web/journeys.md:383
+effects: temper/docs/design/domain/after-landing.md:433; temper/docs/design/domain/findings.md:190; temper/docs/design/domain/forge/README.md:103
+exit status: temper/docs/design/client/line.md:26; temper/docs/design/client/tui/README.md:43; temper/docs/design/protocol/binaries.md:247
+faults: temper/docs/design/domain/after-landing.md:150; temper/docs/design/testing/README.md:320
+files: temper/docs/design/domain/worker/README.md:560; temper/docs/design/testing/fakes.md:225
+flags: temper/docs/design/cli/temper-box-args.md:13; temper/docs/design/cli/temper-box-args.md:22; temper/docs/design/cli/temper-box-args.md:43; temper/docs/design/cli/temper-box-args.md:52; temper/docs/design/cli/temper-box-args.md:176; temper/docs/design/cli/temper-box-args.md:198; temper/docs/design/cli/temper-box-args.md:206; temper/docs/design/cli/temper-box-args.md:220; temper/docs/design/cli/temper-engine-args.md:13; temper/docs/design/cli/temper-engine-args.md:21; temper/docs/design/cli/temper-engine-args.md:30; temper/docs/design/cli/temper-worker-args.md:13; temper/docs/design/cli/temper-worker-args.md:22; temper/docs/design/cli/temper-worker-args.md:31
+forge: temper/docs/design/client/forge/family.md:116; temper/docs/design/protocol/openid-provider.md:105; temper/docs/design/protocol/openid-provider.md:110
+forge/readme.md: temper/docs/design/domain/README.md:21; temper/docs/design/protocol/README.md:98
+form: temper/docs/design/cli/common-env.md:11; temper/docs/design/cli/common-env.md:21; temper/docs/design/cli/common-env.md:31; temper/docs/design/cli/common-env.md:41; temper/docs/design/cli/common-env.md:50; temper/docs/design/cli/common-env.md:59; temper/docs/design/cli/common-env.md:68; temper/docs/design/cli/common-env.md:77; temper/docs/design/cli/common-env.md:86; temper/docs/design/cli/common-env.md:96; temper/docs/design/cli/common-env.md:106; temper/docs/design/cli/common-env.md:116; temper/docs/design/cli/common-env.md:128; temper/docs/design/cli/common-env.md:137; temper/docs/design/cli/common-env.md:147; temper/docs/design/cli/common-env.md:156; temper/docs/design/cli/common-env.md:166; temper/docs/design/cli/common-env.md:176; temper/docs/design/cli/common-env.md:186; temper/docs/design/cli/temper-box-env.md:11; temper/docs/design/cli/temper-box-env.md:19; temper/docs/design/cli/temper-box-env.md:27; temper/docs/design/cli/temper-box-env.md:35; temper/docs/design/cli/temper-box-env.md:43; temper/docs/design/cli/temper-box-env.md:51; temper/docs/design/cli/temper-box-env.md:59; temper/docs/design/cli/temper-box-env.md:67; temper/docs/design/cli/temper-box-env.md:78; temper/docs/design/cli/temper-worker-env.md:11
+forms: temper/docs/design/cli/temper-agent-args.md:10; temper/docs/design/cli/temper-agent-args.md:20; temper/docs/design/cli/temper-agent-args.md:27; temper/docs/design/cli/temper-agent-args.md:34; temper/docs/design/cli/temper-agent-args.md:41; temper/docs/design/cli/temper-agent-args.md:48; temper/docs/design/cli/temper-box-args.md:10; temper/docs/design/cli/temper-box-args.md:19; temper/docs/design/cli/temper-box-args.md:40; temper/docs/design/cli/temper-box-args.md:49; temper/docs/design/cli/temper-box-args.md:58; temper/docs/design/cli/temper-box-args.md:95; temper/docs/design/cli/temper-box-args.md:103; temper/docs/design/cli/temper-box-args.md:111; temper/docs/design/cli/temper-box-args.md:119; temper/docs/design/cli/temper-box-args.md:127; temper/docs/design/cli/temper-box-args.md:135; temper/docs/design/cli/temper-box-args.md:143; temper/docs/design/cli/temper-box-args.md:151; temper/docs/design/cli/temper-box-args.md:159; temper/docs/design/cli/temper-box-args.md:166; temper/docs/design/cli/temper-box-args.md:173; temper/docs/design/cli/temper-box-args.md:181; temper/docs/design/cli/temper-box-args.md:188; temper/docs/design/cli/temper-box-args.md:195; temper/docs/design/cli/temper-box-args.md:203; temper/docs/design/cli/temper-box-args.md:211; temper/docs/design/cli/temper-box-args.md:218; temper/docs/design/cli/temper-box-args.md:225; temper/docs/design/cli/temper-box-args.md:231; temper/docs/design/cli/temper-box-args.md:237; temper/docs/design/cli/temper-box-args.md:243; temper/docs/design/cli/temper-box-args.md:249; temper/docs/design/cli/temper-box-args.md:255; temper/docs/design/cli/temper-engine-args.md:10; temper/docs/design/cli/temper-engine-args.md:19; temper/docs/design/cli/temper-engine-args.md:27; temper/docs/design/cli/temper-engine-args.md:59; temper/docs/design/cli/temper-engine-args.md:67; temper/docs/design/cli/temper-engine-args.md:75; temper/docs/design/cli/temper-engine-args.md:83; temper/docs/design/cli/temper-engine-args.md:91; temper/docs/design/cli/temper-engine-args.md:99; temper/docs/design/cli/temper-engine-args.md:107; temper/docs/design/cli/temper-worker-args.md:10; temper/docs/design/cli/temper-worker-args.md:19; temper/docs/design/cli/temper-worker-args.md:28
+future: temper/docs/design/client/web/mockups/README.md:60; temper/docs/design/client/web/mockups/README.md:88; temper/docs/design/client/web/mockups/README.md:90; temper/docs/design/client/web/mockups/audit.md:54
+fuzzy tests: temper/docs/design/client/web/public.md:142; temper/docs/design/testing/checks.md:56
+generated: temper/docs/design/cli/README.md:33; temper/docs/design/client/tui/journeys.md:341; temper/docs/design/client/web/journeys.md:444
+generations: temper/docs/design/protocol/channel.md:264; temper/docs/design/protocol/credentials.md:513; temper/docs/design/protocol/forge/README.md:501
+generations across starts: temper/docs/design/protocol/credentials.md:750; temper/docs/design/protocol/forge/README.md:675
+github: temper/docs/design/domain/forge/adoption.md:431; temper/docs/design/protocol/credentials.md:600; temper/docs/design/protocol/setup/README.md:111
+grants: temper/docs/design/domain/root.md:501; temper/docs/design/domain/worker/README.md:295
+in order: temper/docs/design/protocol/forge/engine.md:433; temper/docs/design/protocol/setup/box.md:210
+in the store: temper/docs/design/domain/after-landing.md:448; temper/docs/design/domain/findings.md:202
+internal hand-offs are uncapped: temper/docs/design/client/README.md:300; temper/docs/design/client/ctl/README.md:141
+its acts: temper/docs/design/client/forge/README.md:310; temper/docs/design/client/pages/settings.md:428; temper/docs/design/protocol/setup/init.md:579
+its address,: temper/docs/design/client/forge/README.md:321; temper/docs/design/client/pages/remembered.md:8
+its answer,: temper/docs/design/domain/agent/ask-temper.md:277; temper/docs/design/protocol/documentation.md:167
+its bounds: temper/docs/design/client/forge/README.md:161; temper/docs/design/client/tui/journeys.md:445; temper/docs/design/client/web/gallery.md:75; temper/docs/design/client/web/journeys.md:743; temper/docs/design/domain/forge/change/README.md:55; temper/docs/design/testing/live-tier.md:329
+its calls: temper/docs/design/domain/agent/ask-temper.md:309; temper/docs/design/testing/fakes.md:306
+its code: temper/docs/design/protocol/setup/init.md:451; temper/docs/design/protocol/setup/owned.md:448; temper/docs/design/protocol/setup/owned.md:712; temper/docs/design/protocol/setup/owned.md:761; temper/docs/design/protocol/setup/playground.md:604
+its directories: temper/docs/design/protocol/setup/init.md:355; temper/docs/design/protocol/setup/testing.md:302
+its environment: temper/docs/design/protocol/setup/box.md:510; temper/docs/design/protocol/tooling.md:41
+its foot: temper/docs/design/client/forge/family.md:118; temper/docs/design/client/tui/box.md:168
+its gates: temper/docs/design/client/forge/README.md:147; temper/docs/design/domain/forge/change/README.md:30
+its head: temper/docs/design/client/forge/family.md:88; temper/docs/design/protocol/documentation.md:43
+its hold,: temper/docs/design/client/forge/README.md:208; temper/docs/design/client/pages/task.md:221
+its input: temper/docs/design/domain/agent/agents.md:91; temper/docs/design/testing/fakes.md:76
+its instructions,: temper/docs/design/client/ctl/results.md:136; temper/docs/design/domain/agent/ask-temper.md:18
+its limits: temper/docs/design/domain/worker/README.md:467; temper/docs/design/protocol/setup/init.md:625
+its look: temper/docs/design/client/pages/remembered.md:49; temper/docs/design/client/web/README.md:76
+its orders, stated: temper/docs/design/domain/root.md:191; temper/docs/design/domain/worker/README.md:208
+its pages: temper/docs/design/client/tui/README.md:289; temper/docs/design/client/tui/box.md:76
+its pages,: temper/docs/design/client/README.md:33; temper/docs/design/client/web/README.md:79
+its records: temper/docs/design/protocol/setup/github.md:32; temper/docs/design/protocol/setup/playground.md:22
+its referee: temper/docs/design/testing/README.md:326; temper/docs/design/testing/fakes.md:172; temper/docs/design/testing/live-tier.md:144; temper/docs/design/testing/process-tier.md:232
+its result,: temper/docs/design/client/forge/README.md:199; temper/docs/design/client/pages/task.md:97
+its row,: temper/docs/design/domain/forge/attention.md:189; temper/docs/design/protocol/sign-in.md:404
+its rows: temper/docs/design/client/pages/settings.md:384; temper/docs/design/domain/forge/attention.md:16
+its state: temper/docs/design/client/view.md:8; temper/docs/design/client/view.md:449; temper/docs/design/domain/forge/adoption.md:541; temper/docs/design/domain/root.md:80
+its subject: temper/docs/design/client/ctl/tools.md:455; temper/docs/design/client/forge/served.md:193; temper/docs/design/domain/forge/change/README.md:474
+its tests: temper/docs/design/client/pages/remembered.md:56; temper/docs/design/domain/agent/agents.md:217; temper/docs/design/domain/agent/ask-temper.md:45; temper/docs/design/domain/agent/ask-temper.md:191; temper/docs/design/domain/agent/ask-temper.md:293; temper/docs/design/domain/agent/ask-temper.md:367; temper/docs/design/domain/agent/ask-temper.md:432; temper/docs/design/protocol/README.md:415; temper/docs/design/protocol/README.md:469; temper/docs/design/protocol/binaries.md:518; temper/docs/design/testing/fakes.md:129
+its time: temper/docs/design/client/web/gallery.md:71; temper/docs/design/protocol/tooling.md:45
+its tokens,: temper/docs/design/client/tui/box.md:324; temper/docs/design/client/tui/theme.md:58
+its words: temper/docs/design/client/tui/pages/README.md:39; temper/docs/design/domain/agent/agents.md:440
+its words,: temper/docs/design/client/tui/box.md:321; temper/docs/design/domain/forge/attention.md:166; temper/docs/design/protocol/setup/playground.md:186
+jig's documents: temper/docs/design/README.md:227; temper/docs/design/domain/README.md:82
+jig's example guards, as they are: temper/docs/design/client/engine.md:51; temper/docs/design/client/web/README.md:209
+journeys: temper/docs/design/client/web/README.md:65; temper/docs/design/client/web/mockups/README.md:113
+kept work dropped: temper/docs/design/client/README.md:365; temper/docs/design/client/line.md:172
+landed: temper/docs/design/domain/forge/change/README.md:320; temper/docs/design/domain/forge/queues.md:88; temper/docs/design/domain/landing.md:107
+llm accounts are jig's,: temper/docs/design/domain/agent/README.md:77; temper/docs/design/protocol/credentials.md:25
+llm accounts' stories: temper/docs/design/protocol/credentials.md:731; temper/docs/design/testing/real-loop.md:201
+marked: temper/docs/design/domain/forge/change/README.md:464; temper/docs/design/domain/forge/change/questions.md:300
+marks: temper/docs/design/client/forge/repositories.md:62; temper/docs/design/domain/findings.md:161
+memory: temper/docs/design/protocol/channel.md:407; temper/docs/design/protocol/configuration/settings.md:593; temper/docs/design/protocol/git.md:715
+never landed: temper/docs/design/client/tui/journeys.md:562; temper/docs/design/client/web/journeys.md:602
+no retries below the domain: temper/docs/design/protocol/README.md:63; temper/docs/design/protocol/components.md:125
+no secret: temper/docs/design/client/web/journeys.md:750; temper/docs/design/protocol/forge/README.md:278
+no single sign-out: temper/docs/design/protocol/openid-provider.md:190; temper/docs/design/protocol/sign-in.md:61
+not drawn: temper/docs/design/client/pages/goal.md:268; temper/docs/design/client/pages/welcome.md:652
+not here: temper/docs/design/client/web/testing.md:129; temper/docs/design/protocol/setup/README.md:135
+notes: temper/docs/design/cli/common-env.md:89; temper/docs/design/cli/common-env.md:99; temper/docs/design/cli/common-env.md:109; temper/docs/design/cli/common-env.md:119; temper/docs/design/cli/common-env.md:140; temper/docs/design/cli/common-env.md:159; temper/docs/design/cli/common-env.md:169; temper/docs/design/cli/common-env.md:179; temper/docs/design/cli/common-env.md:189; temper/docs/design/cli/temper-agent-args.md:13; temper/docs/design/cli/temper-box-args.md:14; temper/docs/design/cli/temper-box-args.md:23; temper/docs/design/cli/temper-box-args.md:44; temper/docs/design/cli/temper-box-args.md:53; temper/docs/design/cli/temper-box-args.md:61; temper/docs/design/cli/temper-box-args.md:98; temper/docs/design/cli/temper-box-args.md:106; temper/docs/design/cli/temper-box-args.md:114; temper/docs/design/cli/temper-box-args.md:122; temper/docs/design/cli/temper-box-args.md:130; temper/docs/design/cli/temper-box-args.md:138; temper/docs/design/cli/temper-box-args.md:146; temper/docs/design/cli/temper-box-args.md:154; temper/docs/design/cli/temper-box-args.md:262; temper/docs/design/cli/temper-box-args.md:268; temper/docs/design/cli/temper-box-env.md:70; temper/docs/design/cli/temper-box-env.md:81; temper/docs/design/cli/temper-engine-args.md:14; temper/docs/design/cli/temper-engine-args.md:22; temper/docs/design/cli/temper-engine-args.md:31; temper/docs/design/cli/temper-engine-args.md:62; temper/docs/design/cli/temper-engine-args.md:70; temper/docs/design/cli/temper-engine-args.md:78; temper/docs/design/cli/temper-engine-args.md:86; temper/docs/design/cli/temper-engine-args.md:94; temper/docs/design/cli/temper-engine-args.md:102; temper/docs/design/cli/temper-worker-args.md:14; temper/docs/design/cli/temper-worker-args.md:23; temper/docs/design/cli/temper-worker-args.md:32
+nothing else: temper/docs/design/protocol/configuration/settings.md:690; temper/docs/design/protocol/setup/init.md:446
+nothing else is read: temper/docs/design/domain/findings.md:72; temper/docs/design/protocol/store.md:360
+on github,: temper/docs/design/domain/forge/adoption.md:478; temper/docs/design/domain/landing.md:241; temper/docs/design/domain/landing.md:438
+on macos: temper/docs/design/protocol/setup/box.md:38; temper/docs/design/protocol/setup/owned.md:457
+on the print: temper/docs/design/client/tui/journeys.md:551; temper/docs/design/client/web/journeys.md:570
+on the worker,: temper/docs/design/domain/worker/jobs.md:113; temper/docs/design/protocol/credentials.md:377; temper/docs/design/protocol/credentials.md:552
+one file: temper/docs/design/client/web/README.md:490; temper/docs/design/protocol/documentation.md:40
+one host on skein's loop: temper/docs/design/client/line.md:44; temper/docs/design/client/tui/README.md:376
+one percentage for both binaries: temper/docs/design/client/forge/README.md:494; temper/docs/design/protocol/setup/README.md:709
+one seam, the host's: temper/docs/design/client/tui/journeys.md:17; temper/docs/design/client/web/journeys.md:22
+one translation: temper/docs/design/domain/agent/README.md:34; temper/docs/design/protocol/llm.md:39
+only you: temper/docs/design/client/pages/accounts.md:457; temper/docs/design/client/pages/home.md:426; temper/docs/design/client/pages/needs-you.md:208; temper/docs/design/client/pages/needs-you.md:414; temper/docs/design/client/web/gallery.md:325
+other account-act refusal reasons: temper/docs/design/client/ctl/README.md:629; temper/docs/design/client/pages/accounts.md:553
+out of date: temper/docs/design/client/forge/family.md:226; temper/docs/design/client/line.md:168
+outcomes: temper/docs/design/protocol/forge/engine.md:496; temper/docs/design/protocol/setup/reconcile.md:101
+pasted values: temper/docs/design/protocol/forge/README.md:504; temper/docs/design/protocol/forge/engine.md:519
+prepare: temper/docs/design/domain/landing.md:27; temper/docs/design/domain/worker/checkouts.md:29
+pressed,: temper/docs/design/client/pages/chat/conversation.md:395; temper/docs/design/client/tui/pages/README.md:310
+processes: temper/docs/design/protocol/git.md:719; temper/docs/design/testing/fakes.md:228
+read from the forge: temper/docs/design/domain/landing.md:318; temper/docs/design/protocol/configuration/settings.md:224
+reading back: temper/docs/design/client/tui/pages/chat.md:166; temper/docs/design/client/web/testing.md:64; temper/docs/design/client/web/testing.md:358
+reads: temper/docs/design/cli/common-env.md:10; temper/docs/design/cli/common-env.md:20; temper/docs/design/cli/common-env.md:30; temper/docs/design/cli/common-env.md:40; temper/docs/design/cli/common-env.md:49; temper/docs/design/cli/common-env.md:58; temper/docs/design/cli/common-env.md:67; temper/docs/design/cli/common-env.md:76; temper/docs/design/cli/common-env.md:85; temper/docs/design/cli/common-env.md:95; temper/docs/design/cli/common-env.md:105; temper/docs/design/cli/common-env.md:115; temper/docs/design/cli/common-env.md:127; temper/docs/design/cli/common-env.md:136; temper/docs/design/cli/common-env.md:146; temper/docs/design/cli/common-env.md:155; temper/docs/design/cli/common-env.md:165; temper/docs/design/cli/common-env.md:175; temper/docs/design/cli/common-env.md:185; temper/docs/design/cli/temper-box-env.md:18; temper/docs/design/cli/temper-box-env.md:26; temper/docs/design/cli/temper-box-env.md:34; temper/docs/design/cli/temper-box-env.md:42; temper/docs/design/cli/temper-box-env.md:50; temper/docs/design/cli/temper-box-env.md:58; temper/docs/design/cli/temper-box-env.md:66; temper/docs/design/cli/temper-box-env.md:77; temper/docs/design/domain/after-landing.md:444
+ready: temper/docs/design/domain/landing.md:90; temper/docs/design/domain/landing.md:162; temper/docs/design/protocol/cluster.md:169
+recorded again by a command: temper/docs/design/client/tui/journeys.md:43; temper/docs/design/client/web/journeys.md:37
+refused: temper/docs/design/client/tui/pages/sign-in.md:41; temper/docs/design/domain/worker/README.md:347; temper/docs/design/protocol/configuration/settings.md:352
+refused,: temper/docs/design/domain/forge/adoption.md:569; temper/docs/design/protocol/setup/init.md:350
+replaced: temper/docs/design/protocol/credentials.md:585; temper/docs/design/protocol/setup/README.md:302
+replayed, it must ask what it asked,: temper/docs/design/client/tui/journeys.md:30; temper/docs/design/client/web/journeys.md:31
+requests stack: temper/docs/design/client/tui/journeys.md:555; temper/docs/design/client/web/journeys.md:580
+rows of a forge with no record: temper/docs/design/protocol/credentials.md:202; temper/docs/design/protocol/credentials.md:771; temper/docs/design/protocol/forge/README.md:672; temper/docs/design/protocol/forge/engine.md:197
+saved work: temper/docs/design/domain/root.md:592; temper/docs/design/domain/worker/checkouts.md:187
+saving: temper/docs/design/domain/root.md:497; temper/docs/design/domain/worker/README.md:267; temper/docs/design/protocol/channel.md:144
+set: temper/docs/design/cli/common-env.md:9; temper/docs/design/cli/common-env.md:19; temper/docs/design/cli/common-env.md:29; temper/docs/design/cli/common-env.md:39; temper/docs/design/cli/common-env.md:48; temper/docs/design/cli/common-env.md:57; temper/docs/design/cli/common-env.md:66; temper/docs/design/cli/common-env.md:75; temper/docs/design/cli/common-env.md:84; temper/docs/design/cli/common-env.md:94; temper/docs/design/cli/common-env.md:104; temper/docs/design/cli/common-env.md:114; temper/docs/design/cli/common-env.md:126; temper/docs/design/cli/common-env.md:135; temper/docs/design/cli/common-env.md:145; temper/docs/design/cli/common-env.md:154; temper/docs/design/cli/common-env.md:164; temper/docs/design/cli/common-env.md:174; temper/docs/design/cli/common-env.md:184; temper/docs/design/cli/temper-agent-args.md:9; temper/docs/design/cli/temper-agent-args.md:19; temper/docs/design/cli/temper-agent-args.md:26; temper/docs/design/cli/temper-agent-args.md:33; temper/docs/design/cli/temper-agent-args.md:40; temper/docs/design/cli/temper-agent-args.md:47; temper/docs/design/cli/temper-box-args.md:9; temper/docs/design/cli/temper-box-args.md:18; temper/docs/design/cli/temper-box-args.md:39; temper/docs/design/cli/temper-box-args.md:48; temper/docs/design/cli/temper-box-args.md:57; temper/docs/design/cli/temper-box-args.md:65; temper/docs/design/cli/temper-box-args.md:72; temper/docs/design/cli/temper-box-args.md:79; temper/docs/design/cli/temper-box-args.md:86; temper/docs/design/cli/temper-box-args.md:94; temper/docs/design/cli/temper-box-args.md:102; temper/docs/design/cli/temper-box-args.md:110; temper/docs/design/cli/temper-box-args.md:118; temper/docs/design/cli/temper-box-args.md:126; temper/docs/design/cli/temper-box-args.md:134; temper/docs/design/cli/temper-box-args.md:142; temper/docs/design/cli/temper-box-args.md:150; temper/docs/design/cli/temper-box-args.md:158; temper/docs/design/cli/temper-box-args.md:165; temper/docs/design/cli/temper-box-args.md:172; temper/docs/design/cli/temper-box-args.md:180; temper/docs/design/cli/temper-box-args.md:187; temper/docs/design/cli/temper-box-args.md:194; temper/docs/design/cli/temper-box-args.md:202; temper/docs/design/cli/temper-box-args.md:210; temper/docs/design/cli/temper-box-args.md:217; temper/docs/design/cli/temper-box-args.md:224; temper/docs/design/cli/temper-box-args.md:230; temper/docs/design/cli/temper-box-args.md:236; temper/docs/design/cli/temper-box-args.md:242; temper/docs/design/cli/temper-box-args.md:248; temper/docs/design/cli/temper-box-args.md:254; temper/docs/design/cli/temper-box-args.md:260; temper/docs/design/cli/temper-box-args.md:266; temper/docs/design/cli/temper-box-args.md:272; temper/docs/design/cli/temper-box-args.md:277; temper/docs/design/cli/temper-box-args.md:282; temper/docs/design/cli/temper-box-args.md:287; temper/docs/design/cli/temper-box-args.md:292; temper/docs/design/cli/temper-box-args.md:298; temper/docs/design/cli/temper-box-env.md:9; temper/docs/design/cli/temper-box-env.md:17; temper/docs/design/cli/temper-box-env.md:25; temper/docs/design/cli/temper-box-env.md:33; temper/docs/design/cli/temper-box-env.md:41; temper/docs/design/cli/temper-box-env.md:49; temper/docs/design/cli/temper-box-env.md:57; temper/docs/design/cli/temper-box-env.md:65; temper/docs/design/cli/temper-box-env.md:76; temper/docs/design/cli/temper-engine-args.md:9; temper/docs/design/cli/temper-engine-args.md:18; temper/docs/design/cli/temper-engine-args.md:26; temper/docs/design/cli/temper-engine-args.md:35; temper/docs/design/cli/temper-engine-args.md:42; temper/docs/design/cli/temper-engine-args.md:49; temper/docs/design/cli/temper-engine-args.md:58; temper/docs/design/cli/temper-engine-args.md:66; temper/docs/design/cli/temper-engine-args.md:74; temper/docs/design/cli/temper-engine-args.md:82; temper/docs/design/cli/temper-engine-args.md:90; temper/docs/design/cli/temper-engine-args.md:98; temper/docs/design/cli/temper-engine-args.md:106; temper/docs/design/cli/temper-worker-args.md:9; temper/docs/design/cli/temper-worker-args.md:18; temper/docs/design/cli/temper-worker-args.md:27; temper/docs/design/cli/temper-worker-args.md:36; temper/docs/design/cli/temper-worker-args.md:43; temper/docs/design/cli/temper-worker-args.md:50; temper/docs/design/cli/temper-worker-env.md:9
+sets: temper/docs/design/cli/temper-box-env.md:10; temper/docs/design/cli/temper-worker-env.md:10
+several parties: temper/docs/design/client/ctl/README.md:439; temper/docs/design/client/ctl/areas.md:103
+signed in: temper/docs/design/client/tui/pages/sign-in.md:71; temper/docs/design/protocol/credentials.md:338
+signed in by the printed link,: temper/docs/design/client/web/README.md:50; temper/docs/design/testing/real-loop.md:295
+signing in: temper/docs/design/client/web/README.md:82; temper/docs/design/client/web/testing.md:314
+signing out: temper/docs/design/client/line.md:151; temper/docs/design/client/pages/accounts.md:525
+smith's documents: temper/docs/design/README.md:232; temper/docs/design/domain/README.md:86
+stale: temper/docs/design/client/pages/settings.md:649; temper/docs/design/client/tui/journeys.md:231; temper/docs/design/client/web/journeys.md:388
+standalone first: temper/docs/design/README.md:127; temper/docs/design/protocol/README.md:44
+start: temper/docs/design/client/pages/goal.md:278; temper/docs/design/protocol/sign-in.md:301
+started: temper/docs/design/client/ctl/README.md:473; temper/docs/design/domain/agent/ask-temper.md:41
+states: temper/docs/design/protocol/forge/engine.md:550; temper/docs/design/protocol/setup/github.md:102
+step code under the subset: temper/docs/design/client/README.md:242; temper/docs/design/client/ctl/README.md:152
+step tests: temper/docs/design/client/testing.md:18; temper/docs/design/client/web/public.md:131; temper/docs/design/protocol/README.md:675; temper/docs/design/protocol/forge/README.md:441; temper/docs/design/protocol/git.md:732; temper/docs/design/protocol/openid-provider.md:267; temper/docs/design/protocol/sign-in.md:502; temper/docs/design/protocol/store.md:397
+tested at every tier: temper/docs/design/README.md:58; temper/docs/design/protocol/README.md:74
+the accounts page: temper/docs/design/client/pages/accounts.md:5; temper/docs/design/client/view.md:199
+the box's lines,: temper/docs/design/client/tui/box.md:53; temper/docs/design/protocol/forge/engine.md:617; temper/docs/design/protocol/setup/box.md:809
+the check, then `add`: temper/docs/design/client/tui/journeys.md:448; temper/docs/design/client/web/journeys.md:696
+the claims: temper/docs/design/protocol/openid-provider.md:323; temper/docs/design/protocol/sign-in.md:333
+the clients' listener: temper/docs/design/client/engine.md:6; temper/docs/design/playground.md:138; temper/docs/design/protocol/README.md:249
+the clients' listener at a fixed address,: temper/docs/design/protocol/setup/github.md:38; temper/docs/design/protocol/setup/init.md:112
+the composed system world: temper/docs/design/protocol/channel.md:336; temper/docs/design/testing/fakes.md:411
+the composer,: temper/docs/design/client/pages/goal.md:141; temper/docs/design/client/pages/task.md:342; temper/docs/design/client/pages/task.md:371
+the configuration: temper/docs/design/protocol/setup/testing.md:36; temper/docs/design/testing/real-loop.md:349
+the connect-flows comparison: temper/docs/design/client/forge/README.md:497; temper/docs/design/client/pages/README.md:260; temper/docs/design/client/web/journeys.md:923
+the conversation,: temper/docs/design/client/pages/task.md:86; temper/docs/design/client/tui/pages/chat.md:62
+the document: temper/docs/design/client/tui/journeys.md:352; temper/docs/design/client/web/journeys.md:457
+the document keeps the machine's: temper/docs/design/protocol/configuration/README.md:46; temper/docs/design/protocol/setup/init.md:16
+the engine never reads a repository: temper/docs/design/domain/agent/README.md:55; temper/docs/design/domain/worker/README.md:71
+the forge as people's sign-in provider: temper/docs/design/client/README.md:791; temper/docs/design/protocol/setup/README.md:693
+the forge component,: temper/docs/design/protocol/README.md:185; temper/docs/design/protocol/forge/engine.md:30
+the forges' page: temper/docs/design/client/forge/pages.md:7; temper/docs/design/client/view.md:184
+the frame: temper/docs/design/client/tui/README.md:282; temper/docs/design/playground.md:214
+the header,: temper/docs/design/client/pages/goal.md:45; temper/docs/design/client/pages/goal.md:160; temper/docs/design/client/tui/box.md:190; temper/docs/design/client/tui/pages/launchpad.md:60
+the link's state: temper/docs/design/client/line.md:149; temper/docs/design/client/tui/pages/README.md:55
+the look: temper/docs/design/client/pages/goal.md:156; temper/docs/design/client/pages/goal.md:311; temper/docs/design/client/pages/task.md:135; temper/docs/design/client/pages/task.md:455; temper/docs/design/client/tui/README.md:311; temper/docs/design/client/view.md:157; temper/docs/design/client/view.md:641; temper/docs/design/client/web/mockups/README.md:120; temper/docs/design/client/web/public.md:69
+the one-process world: temper/docs/design/client/testing.md:332; temper/docs/design/domain/worker/README.md:611; temper/docs/design/protocol/store.md:411
+the picker: temper/docs/design/client/forge/family.md:163; temper/docs/design/client/forge/repositories.md:33
+the pin: temper/docs/design/protocol/forge/README.md:560; temper/docs/design/protocol/setup/owned.md:508
+the print: temper/docs/design/client/tui/journeys.md:410; temper/docs/design/client/web/gallery.md:494
+the printed link: temper/docs/design/client/README.md:565; temper/docs/design/playground.md:133
+the printed link,: temper/docs/design/client/tui/journeys.md:513; temper/docs/design/client/web/README.md:412
+the process tier: temper/docs/design/client/testing.md:344; temper/docs/design/protocol/forge/README.md:565; temper/docs/design/protocol/git.md:780; temper/docs/design/protocol/setup/README.md:533; temper/docs/design/protocol/setup/box.md:611; temper/docs/design/testing/checks.md:33
+the project's own repositories in the picker: temper/docs/design/client/forge/README.md:539; temper/docs/design/client/forge/family.md:398
+the quiet line,: temper/docs/design/client/tui/box.md:201; temper/docs/design/client/tui/pages/README.md:142; temper/docs/design/client/tui/pages/design-session.md:186
+the reports: temper/docs/design/client/tui/README.md:229; temper/docs/design/client/web/journeys.md:168
+the repository sheet: temper/docs/design/client/web/look.md:106; temper/docs/design/client/web/testing.md:367
+the scripted model, the playground's alone: temper/docs/design/client/forge/family.md:320; temper/docs/design/protocol/setup/playground.md:85
+the seam: temper/docs/design/client/tui/box.md:49; temper/docs/design/client/tui/journeys.md:394; temper/docs/design/client/web/journeys.md:75
+the small store: temper/docs/design/client/README.md:602; temper/docs/design/client/web/README.md:146
+the stories: temper/docs/design/testing/live-tier.md:60; temper/docs/design/testing/real-loop.md:391
+the story: temper/docs/design/client/web/testing.md:106; temper/docs/design/testing/live-tier.md:212
+the table: temper/docs/design/client/ctl/testing.md:5; temper/docs/design/protocol/documentation.md:101
+the terminal: temper/docs/design/client/pages/chat/conversation.md:300; temper/docs/design/client/pages/goal.md:148; temper/docs/design/client/pages/remembered.md:54; temper/docs/design/client/pages/settings.md:466
+the tui's later passes: temper/docs/design/client/tui/README.md:447; temper/docs/design/protocol/README.md:721
+the value's codec,: temper/docs/design/protocol/credentials.md:539; temper/docs/design/protocol/forge/engine.md:451
+the view's tests: temper/docs/design/protocol/openid-provider.md:263; temper/docs/design/protocol/sign-in.md:506
+the webhooks' listener,: temper/docs/design/protocol/README.md:219; temper/docs/design/protocol/setup/init.md:524
+the welcome: temper/docs/design/client/pages/welcome.md:5; temper/docs/design/client/pages/welcome.md:603; temper/docs/design/client/tui/box.md:81
+their cost: temper/docs/design/client/tui/journeys.md:423; temper/docs/design/client/web/gallery.md:497; temper/docs/design/client/web/journeys.md:564
+time and the seed: temper/docs/design/client/line.md:55; temper/docs/design/client/tui/README.md:418
+twin: temper/docs/design/cli/temper-box-args.md:67; temper/docs/design/cli/temper-box-args.md:74; temper/docs/design/cli/temper-box-args.md:81; temper/docs/design/cli/temper-engine-args.md:37; temper/docs/design/cli/temper-engine-args.md:44; temper/docs/design/cli/temper-engine-args.md:51; temper/docs/design/cli/temper-worker-args.md:38; temper/docs/design/cli/temper-worker-args.md:45; temper/docs/design/cli/temper-worker-args.md:52
+two keys,: temper/docs/design/client/tui/journeys.md:77; temper/docs/design/client/web/journeys.md:122
+two standing requirements: temper/docs/design/domain/forge/change/gates.md:246; temper/docs/design/protocol/configuration/settings.md:310
+typing marks nothing: temper/docs/design/client/tui/journeys.md:188; temper/docs/design/client/web/journeys.md:211
+unknown: temper/docs/design/client/web/public.md:46; temper/docs/design/domain/agent/ask-temper.md:162
+up,: temper/docs/design/protocol/channel.md:22; temper/docs/design/protocol/forge/engine.md:467
+updates are lazy and mechanical: temper/docs/design/domain/README.md:156; temper/docs/design/domain/forge/README.md:67
+what forgejo settles after it delivers: temper/docs/design/domain/forge/keeping-up.md:188; temper/docs/design/protocol/forge/README.md:246
+what it does: temper/docs/design/protocol/tooling.md:109; temper/docs/design/protocol/tooling.md:166; temper/docs/design/testing/fakes.md:277
+what it hears: temper/docs/design/client/tui/journeys.md:71; temper/docs/design/client/web/journeys.md:111
+what it reads and starts: temper/docs/design/client/tui/journeys.md:492; temper/docs/design/client/web/journeys.md:704
+what runs: temper/docs/design/domain/trial.md:10; temper/docs/design/playground.md:117; temper/docs/design/testing/live-tier.md:15; temper/docs/design/testing/live-tier.md:166; temper/docs/design/testing/live-tier.md:278; temper/docs/design/testing/process-tier.md:99; temper/docs/design/testing/real-loop.md:12
+when: temper/docs/design/client/tui/box.md:110; temper/docs/design/client/tui/pages/sign-in.md:58; temper/docs/design/domain/agent/agents.md:438; temper/docs/design/domain/forge/attention.md:135; temper/docs/design/domain/forge/change/questions.md:188; temper/docs/design/protocol/setup/box.md:752
+where: temper/docs/design/client/tui/README.md:69; temper/docs/design/client/tui/box.md:186; temper/docs/design/client/tui/journeys.md:280; temper/docs/design/client/web/journeys.md:265; temper/docs/design/protocol/credentials.md:107
+where it is decided: temper/docs/design/client/pages/goal.md:145; temper/docs/design/client/pages/task.md:125; temper/docs/design/client/pages/task.md:289; temper/docs/design/client/pages/task.md:444; temper/docs/design/client/view.md:645
+where it lives: temper/docs/design/protocol/documentation.md:60; temper/docs/design/protocol/setup/box.md:868
+where temper may not merge,: temper/docs/design/client/forge/README.md:434; temper/docs/design/domain/forge/queues.md:58
+who may: temper/docs/design/client/ctl/areas.md:404; temper/docs/design/client/engine.md:139
+words: temper/docs/design/client/ctl/README.md:149; temper/docs/design/client/view.md:166

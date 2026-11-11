@@ -382,3 +382,12 @@ fast-forward never forced. Its repository's other writes are as before.
   producer delivers its change's branch, and its design reaches g by
   that change's pull request, as any change's does. A push to g from
   anywhere but a design writer holds as drift (`change/README.md`, 3).
+
+## 4. Open questions
+
+- **Saved branches outside the task's saved set** (`README.md`, 11): a terminal the
+  engine never heard, a repository no longer in the set, or full holds at
+  close can leave a branch on the forge. Finding these needs a branch
+  inventory beyond the set a next attempt resumes from. Default: manual
+  deletion or deployment retention; a failed descendant's known saved
+  work stays with its root until that root closes.

@@ -552,3 +552,49 @@ the browser's tab goes: the root asks its shell to leave
 for it once, from the answer, never from its state, and the page shows it as an external
 link meanwhile. The terminal prints it and opens nothing (`../line.md`,
 5).
+
+## 1. Open questions
+
+- **A repository link in a folded forge row** (`deployment.md`): the summary stays
+  words and the link lives in the body's Repositories. Offering it while
+  folded needs a row whose navigation and disclosure are separate controls.
+  Default: the body's link, as the `ui-repo-link` cut decided.
+
+- **A secret text area for the pasted key** (`deployment.md`). Default: the key is
+  a masked one-line field, its armour's line feeds restored by the
+  client; a text area skein can mark secret (spellcheck and
+  autocomplete off, its text masked) would keep the PEM's lines as
+  GitHub gives them and retire the restore. A change to skein's
+  builder and page, not temper's.
+
+- **An App of one's own, offered again** (`deployment.md`). Default: GitHub's card
+  offers Connect GitHub alone, and the own App's Details are reached by
+  their address; a link returns to the card once v0.1.0's successor
+  supports the own App officially.
+
+- **A connect's stop told from the one before it** (`deployment.md`). Default: the
+  stop that empties a connected Forgejo's tokens again is their sent
+  connect's own, its forge's row stopped where the connect last saw it
+  not stopped, or stopped with other `ended` words (`records.md`);
+  that stop, the row connected or an answer that starts no connect
+  ends what the connect watches, and another forge's row empties
+  nothing. A second connect whose stop has the first's connection and
+  words, with no row delivered between, is not told from it and
+  empties nothing more, its fields emptied at its send and its answer;
+  a request's id on the row would tell them apart, a change to the
+  forges records.
+
+- **A browser on another machine** for GitHub's connect. Default: the
+  link names the clients' listener's fixed address, and the person
+  opens it where that address reaches (in standalone, the engine's
+  machine) or forwards the port themselves; temper makes no tunnel.
+
+- **Mending a stopped managed or owned forge.** Default: Replace is
+  offered for what a person pasted (a GitHub App's key, a connected
+  Forgejo's tokens); a managed forge is mended by connecting as its
+  admin again, reconcile making the bot's tokens anew for the same
+  user; an owned one by its preparation and a restart.
+
+- **A connect's end told:** the forges' page reads how a connect ended
+  on the deployment's part. Default: that read, watched while the page
+  is open; no notice in the inbox.
