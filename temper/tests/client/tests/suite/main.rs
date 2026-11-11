@@ -22,6 +22,7 @@ mod composer;
 mod connect_forge;
 mod connect_model;
 mod dismissed;
+mod follows;
 mod forges;
 mod hold_commands;
 mod inbox;

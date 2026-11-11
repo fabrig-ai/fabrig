@@ -216,6 +216,21 @@ pub fn answer(record: &v1::Answer) -> Box<[u8]> {
 #[cfg(test)]
 mod tests;
 
+/// Encode a project's follows (temper/docs/design/domain/forge/follows.md, 7).
+#[must_use]
+pub fn follows_panel(record: &v1::FollowsPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete follows document.
+#[must_use]
+pub fn decode_follows_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FollowsPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::FollowsPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode which of the family's reads is requested.
 #[must_use]
 pub fn reading(record: &v1::Reading) -> Box<[u8]> {

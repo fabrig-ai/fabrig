@@ -450,6 +450,11 @@ pub fn to_root(
                             subject: Token::new(subject.task()),
                         }
                     }
+                    w::Watch::Follows(subject) => jig_domain_core::documents::Watched::Application {
+                        scope,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::follows_subject(subject.project())),
+                    },
                     w::Watch::Landings(subject) => jig_domain_core::documents::Watched::Application {
                         scope,
                         connector: wire::FORGE,
@@ -1411,12 +1416,106 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
     Some(wire::project_status(&document))
 }
 
+fn follow_state(value: forge::FollowState, limits: &w::Limits) -> Option<w::FollowState> {
+    Some(match value {
+        forge::FollowState::NotMade => w::FollowState::NotMade,
+        forge::FollowState::WaitsWord => w::FollowState::WaitsWord,
+        forge::FollowState::Producing => w::FollowState::Producing,
+        forge::FollowState::WaitsFor(change) => {
+            w::FollowState::WaitsFor(w::FollowWait::new(limits, w::FollowWaitParts { change }).ok()?)
+        }
+        forge::FollowState::HeldByOwner(words) => {
+            w::FollowState::HeldByOwner(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+        forge::FollowState::Held(words) => {
+            w::FollowState::Held(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+        forge::FollowState::Ended(words) => {
+            w::FollowState::Ended(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+    })
+}
+fn follows_document(value: forge::FollowsView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut follows = List::with_capacity(limits.follows_panel_follows);
+    for row in value.follows {
+        let mut entries = List::with_capacity(limits.follow_view_entries);
+        for entry in row.entries {
+            entries
+                .push(
+                    w::FollowEntry::new(
+                        limits,
+                        w::FollowEntryParts {
+                            after: entry.after,
+                            change: entry.change,
+                            state: follow_state(entry.state, limits)?,
+                        },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
+        let mut skips = List::with_capacity(limits.follow_view_skips);
+        for skip in row.skips {
+            skips
+                .push(w::FollowSkip::new(limits, w::FollowSkipParts { after: skip.after, reason: skip.reason }).ok()?)
+                .ok()?;
+        }
+        let parity = match row.parity {
+            Some(parity) => Some(
+                w::FollowParity::new(
+                    limits,
+                    w::FollowParityParts {
+                        source: parity.source,
+                        head: parity.head,
+                        run: parity.run,
+                        verdict: match parity.verdict {
+                            forge::FollowVerdict::Passed => w::FollowVerdict::Passed,
+                            forge::FollowVerdict::Failing(count) => w::FollowVerdict::Failing(
+                                w::FollowFailing::new(limits, w::FollowFailingParts { count }).ok()?,
+                            ),
+                            forge::FollowVerdict::Many => w::FollowVerdict::Many,
+                        },
+                    },
+                )
+                .ok()?,
+            ),
+            None => None,
+        };
+        follows
+            .push(
+                w::FollowView::new(
+                    limits,
+                    w::FollowViewParts {
+                        number: row.number,
+                        setting: forge::settings::follow_record(&row.setting)?,
+                        source: row.source,
+                        source_branch: row.source_branch,
+                        target: row.target,
+                        target_branch: row.target_branch,
+                        task: row.task,
+                        stopped: row.stopped,
+                        lag: row.lag,
+                        entries,
+                        skips,
+                        parity,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(wire::follows_panel(
+        &w::FollowsPanel::new(limits, w::FollowsPanelParts { project: value.project, follows }).ok()?,
+    ))
+}
+
 /// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive encoding map for forge documents")]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
+        forge::Document::Follows(value) => follows_document(value, limits),
         forge::Document::Dismissals(rows) => {
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {

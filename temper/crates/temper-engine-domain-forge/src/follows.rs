@@ -111,6 +111,7 @@ impl Domain {
 }
 fn save(row: &FollowRow, out: &mut Queue<Request>) {
     out.push(Request::Save { read_afresh: None, release: None, record: Stored::Follow(row.clone()) });
+    out.push(Request::Marked { tasks: Box::new([crate::follows_subject(row.project)]) });
 }
 /// Remove followed entries; resume admits the next range once there is room.
 pub fn followed(d: &mut Domain, project: u32, follow: u32, afters: &[Commit], out: &mut Queue<Request>) {
@@ -127,7 +128,9 @@ pub fn followed(d: &mut Domain, project: u32, follow: u32, afters: &[Commit], ou
 pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Request>) {
     let key = (project, follow);
     if let Some(setting) = d.follow(project, follow) {
-        if !d.follow_rows.contains_key(&key) {
+        if d.follow_rows.contains_key(&key) {
+            out.push(Request::Marked { tasks: Box::new([crate::follows_subject(project)]) });
+        } else {
             let row = FollowRow {
                 project,
                 follow,
@@ -158,6 +161,7 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
             d.follow_reads.remove(&owner);
         }
         out.push(Request::Erase { key: Key::Follow { project, follow } });
+        out.push(Request::Marked { tasks: Box::new([crate::follows_subject(project)]) });
     }
     d.tier_ops.dirty = true;
 }
