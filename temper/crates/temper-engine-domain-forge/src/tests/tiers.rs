@@ -396,9 +396,12 @@ fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
             };
             assert_eq!(workflow.as_ref(), b"tier.yml");
         } else {
-            assert_eq!(choice(&out), Some(&TierDecision::Held {
-                words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
-            }));
+            assert_eq!(
+                choice(&out),
+                Some(&TierDecision::Held {
+                    words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+                })
+            );
         }
     }
     let words = d.tier_execution_words(TIER_TASK).unwrap();
@@ -411,9 +414,37 @@ fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
     assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
     made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Success, None);
-    assert_eq!(choice(&finish(&mut d)), Some(&TierDecision::Done {
-        words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into(),
-    }));
+    assert_eq!(
+        choice(&finish(&mut d)),
+        Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
+    );
+}
+#[test]
+fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
+    let mut d = dispatching();
+    for fault in 0..RETRIES {
+        let entry = DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        tier_step(&mut d, entry + 1, false);
+    }
+    outcome(&mut d, DISPATCH + u64::from(RETRIES), skein_forge_client::Outcome::Failed(api::Error::Missing));
+    let saved = row(&d).clone();
+    assert_eq!(saved.flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
+    assert_eq!(saved.held, None, "the third refusal is saved before the step holds the task");
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    let out = tier_step(&mut cold, RELEASE + 3, false);
+    let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
+    assert_eq!(
+        choice(&out),
+        Some(&TierDecision::Held {
+            words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+        })
+    );
+    let words = cold.tier_execution_words(TIER_TASK).unwrap();
+    assert!(skein_lib::bytes::find(&words, &join_words(&[b"; ", kind, b"\n"])).is_some());
 }
 #[test]
 fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
@@ -426,7 +457,9 @@ fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
                 panic!("retry the failed job")
             };
             DISPATCH + 1
-        } else { DISPATCH };
+        } else {
+            DISPATCH
+        };
         let error = if rerun { api::Error::Missing } else { api::Error::Refused };
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(error));
         assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::Lost));

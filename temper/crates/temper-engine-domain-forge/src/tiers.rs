@@ -834,7 +834,11 @@ fn held(d: &Domain, row: &TierRow, out: &mut Queue<Request>) {
         b" held after ",
         skein_lib::Decimal::of(u64::from(run.faults)).as_bytes(),
         b" runner faults, last: ",
-        &fault_words(run, &configured(d, row).expect("configured tier").workflow, row.held.unwrap_or(landing::Fault::Lost)),
+        &fault_words(
+            run,
+            &configured(d, row).expect("configured tier").workflow,
+            row.held.unwrap_or(landing::Fault::Lost),
+        ),
     ]);
     decision(row.task.expect("tier task"), crate::TierDecision::Held { words }, None, out);
 }
@@ -1353,7 +1357,10 @@ fn branch_write(write: &Write) -> Option<(&[u8], bool)> {
         | Write::Status { .. } => None,
     }
 }
-#[expect(clippy::too_many_lines, reason = "a tier effect answers its branch or its flight, classifying dispatch refusals")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "a tier effect answers its branch or its flight, classifying dispatch refusals"
+)]
 pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
     use skein_forge_client::Outcome;
     let made_branch = match outcome {

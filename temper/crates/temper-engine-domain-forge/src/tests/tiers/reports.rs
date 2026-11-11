@@ -368,9 +368,12 @@ fn a_missing_probe_workflow_names_the_probes_commit_when_held() {
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
         let out = tier_step(&mut d, entry + 1, false);
         if fault == RETRIES {
-            assert_eq!(choice(&out), Some(&TierDecision::Held {
-                words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
-            }));
+            assert_eq!(
+                choice(&out),
+                Some(&TierDecision::Held {
+                    words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+                })
+            );
         }
     }
     let words = d.tier_execution_words(TIER_TASK).unwrap();

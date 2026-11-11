@@ -95,7 +95,10 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
             | policy::Verdict::Passed
             | policy::Verdict::Failed
             | policy::Verdict::Fault(
-                policy::Fault::Cancelled | policy::Fault::OtherCommit | policy::Fault::Lost | policy::Fault::MissingWorkflow,
+                policy::Fault::Cancelled
+                | policy::Fault::OtherCommit
+                | policy::Fault::Lost
+                | policy::Fault::MissingWorkflow,
             ),
         )
         | None => {}
