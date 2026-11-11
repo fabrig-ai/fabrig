@@ -584,7 +584,7 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         documents: _,
         views: _,
     } = limits;
-    let jig_domain_core::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes, preferences } =
+    let jig_domain_core::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes, preferences, now } =
         brief_core_budgets;
     match name {
         b"settings.proposals" => {
@@ -630,6 +630,7 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         b"brief_core_budgets.plan" => *plan = count(value)?,
         b"brief_core_budgets.notes" => *notes = count(value)?,
         b"brief_core_budgets.preferences" => *preferences = count(value)?,
+        b"brief_core_budgets.now" => *now = count(value)?,
         _ => return Err(What::Override),
     }
     Ok(())

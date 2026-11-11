@@ -216,6 +216,7 @@ pub(crate) fn limits() -> Limits {
             plan: 128,
             notes: 64,
             preferences: 64,
+            now: 64,
         },
         accounts: accounts::Limits {
             accounts: 1,

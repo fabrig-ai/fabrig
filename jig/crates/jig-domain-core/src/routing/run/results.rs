@@ -28,6 +28,7 @@ pub(crate) enum ReadFor {
 
 pub(crate) fn clear(core: &mut Core, task: u64) {
     super::preferences::clear(core, task);
+    super::now::clear(core, task);
     // Several calls can wait for one run; remove all of its reads.
     for _ in 0..core.flight_tasks_capacity {
         let mut request = None;
