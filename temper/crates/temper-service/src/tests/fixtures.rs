@@ -95,6 +95,7 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
             endpoint: 1,
             program: None,
             name: b"small".as_slice().into(),
+            cache_life_ms: 0,
             window: 8192,
             output: 1024,
             input_price: 1,
@@ -208,6 +209,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        session: None,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

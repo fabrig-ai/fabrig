@@ -168,6 +168,8 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
         | t::Line::RunEnded { .. }
         | t::Line::Turn { .. }
         | t::Line::Decided { .. }
+        | t::Line::Stood { .. }
+        | t::Line::SessionEnded { .. }
         | t::Line::Kept { .. }
         | t::Line::Milestone { .. } => {
             return Err(w::Problem { path: w::Path::EndedValueQuestionAnswer, reason: skein_codec::Reason::Tag });

@@ -30,6 +30,7 @@ mod repin_order;
 mod replay;
 mod restart;
 mod restore_open;
+mod standing;
 mod started_from;
 mod verdict_fields;
 

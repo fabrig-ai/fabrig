@@ -220,7 +220,7 @@ fn owner(root: &Domain, chat: &Chat, line: &c::Activity, words: &Words) -> Optio
             }
             Some(Entry::Agent { words: words.view().say(Word::DecisionMade, &[]), growing: false })
         }
-        c::Activity::Kept { .. } => {
+        c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
             Some(Entry::Agent { words: words.view().say(Word::DependencyParked, &[]), growing: false })
         }
         c::Activity::Turn { .. } => {
@@ -263,6 +263,8 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
                 c::Activity::Heard(_)
                 | c::Activity::Notified { .. }
                 | c::Activity::Decided { .. }
+                | c::Activity::Stood { .. }
+                | c::Activity::SessionEnded { .. }
                 | c::Activity::Kept { .. }
                 | c::Activity::RunBegan { .. }
                 | c::Activity::RunEnded { .. }

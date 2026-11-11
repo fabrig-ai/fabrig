@@ -126,6 +126,8 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Recor
         | tasks::Line::RunBegan { .. }
         | tasks::Line::Decided { .. }
         | tasks::Line::Milestone { .. }
+        | tasks::Line::Stood { .. }
+        | tasks::Line::SessionEnded { .. }
         | tasks::Line::Kept { .. } => return,
     };
     route(domain, env, event);

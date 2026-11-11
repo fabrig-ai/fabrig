@@ -184,6 +184,8 @@ fn retained_words(line: &tasks::Line) -> Option<(u64, &[u8])> {
         | tasks::Line::RunEnded { .. }
         | tasks::Line::Turn { .. }
         | tasks::Line::Decided { .. }
+        | tasks::Line::Stood { .. }
+        | tasks::Line::SessionEnded { .. }
         | tasks::Line::Kept { .. }
         | tasks::Line::Milestone { .. } => None,
     }

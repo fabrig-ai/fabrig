@@ -22,6 +22,7 @@ fn catalogue() -> Box<[CatalogueModel]> {
         endpoint: 1,
         program: None,
         name: b"careful".as_slice().into(),
+        cache_life_ms: 0,
         window: 200_000,
         output: 32_000,
         input_price: 3,

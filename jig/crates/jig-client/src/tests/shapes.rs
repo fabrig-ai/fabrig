@@ -479,16 +479,22 @@ fn resolved_defaults_belong_to_the_project_and_template() {
 
 #[test]
 fn a_filled_template_carries_its_closer() {
-    let mut me = me();
-    let project = shape_project(&mut me);
-    let mut template = project.templates.get(1).unwrap().clone();
-    template.executor = TemplateExecutor::Charter(1);
-    template.flags.conversation = false;
-    template.flags.ended_by = EndedBy::Closer(Closer { connector: 1, code: 6 });
-    let expected = template.flags;
-    let number = template.number;
-    *project.templates.get_mut(1).unwrap() = template;
-    let Judged::Propose { ask, .. } = set_goal_from(&me, PROJECT, number, draft(), words()) else { panic!("proposed") };
-    let Ask::Propose { action: ProposeAction::Batch { tasks }, .. } = ask else { panic!("batch") };
-    assert_eq!(tasks.get(0).unwrap().flags, expected);
+    for ended_by in [EndedBy::Closer(Closer { connector: 1, code: 6 }), EndedBy::Standing] {
+        let mut me = me();
+        let project = shape_project(&mut me);
+        let mut template = project.templates.get(1).unwrap().clone();
+        template.executor = TemplateExecutor::Charter(1);
+        template.flags.conversation = false;
+        template.tracked = None;
+        template.flags.ended_by = ended_by;
+        let expected = template.flags;
+        let number = template.number;
+        *project.templates.get_mut(1).unwrap() = template;
+        let Judged::Propose { ask, .. } = set_goal_from(&me, PROJECT, number, draft(), words()) else {
+            panic!("proposed")
+        };
+        let Ask::Propose { action: ProposeAction::Batch { tasks }, .. } = ask else { panic!("batch") };
+        assert_eq!(tasks.get(0).unwrap().flags, expected);
+        assert_eq!(tasks.get(0).unwrap().tracked, None);
+    }
 }

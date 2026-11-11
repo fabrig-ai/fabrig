@@ -452,3 +452,23 @@ fn a_providers_endpoint_must_name_one_of_its_endpoints() {
     assert_eq!(problems.past, 0);
     assert_eq!(fixtures::engine(fixtures::ENGINE_SMALL).unwrap().llm.providers[0].endpoint, None);
 }
+
+#[test]
+fn cache_life_is_optional_and_keeps_a_u32_millisecond_count() {
+    assert_eq!(model(fixtures::ENGINE_SMALL).cache_life_ms, 0);
+    for (member, expected) in [
+        (br#""output": 1024, "cache_life_ms": 0,"#.as_slice(), 0),
+        (br#""output": 1024, "cache_life_ms": 300000,"#, 300_000),
+        (br#""output": 1024, "cache_life_ms": 4294967295,"#, u32::MAX),
+    ] {
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""output": 1024,"#, member);
+        let engine = fixtures::engine(&bytes).expect("cache life count");
+        assert_eq!(engine.llm.models[0].model.cache_life_ms, expected);
+        assert_eq!(engine.charters[0].policy.model.cache_life_ms, expected);
+    }
+    for member in
+        [br#""output": 1024, "cache_life_ms": -1,"#.as_slice(), br#""output": 1024, "cache_life_ms": 4294967296,"#]
+    {
+        fixtures::refuses(br#""output": 1024,"#, member, model_path(b"cache_life_ms"), What::Bound);
+    }
+}

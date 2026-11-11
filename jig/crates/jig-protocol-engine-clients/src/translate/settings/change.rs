@@ -87,6 +87,7 @@ fn model(value: w::SettingModel) -> c::Model {
         endpoint: v.endpoint,
         program: v.program,
         name: v.name,
+        cache_life_ms: 0,
         window: v.window,
         output: v.output,
         input_price: v.input_price,
@@ -332,6 +333,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
             ended_by: match flags.ended_by {
                 w::EndedBy::Result => t::EndedBy::Result,
                 w::EndedBy::Requester => t::EndedBy::Requester,
+                w::EndedBy::Standing => t::EndedBy::Standing,
                 w::EndedBy::Closer(closer) => {
                     t::EndedBy::Closer(t::Closer { connector: closer.connector(), code: closer.code() })
                 }
