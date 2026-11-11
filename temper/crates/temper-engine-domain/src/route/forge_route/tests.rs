@@ -1543,10 +1543,9 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
     // An old store, or a restart between saving the pull and saving its names.
     let mut row = change_row(Some(23));
     row.change.last_head = Some([1; 32]);
-    for record in [
-        forge::Stored::Change(Box::new(row)),
-        forge::Stored::Names { task: 7, resources: change_names(None) },
-    ] {
+    for record in
+        [forge::Stored::Change(Box::new(row)), forge::Stored::Names { task: 7, resources: change_names(None) }]
+    {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
     }
     forge::step(
