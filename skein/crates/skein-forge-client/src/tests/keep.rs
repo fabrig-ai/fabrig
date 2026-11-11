@@ -116,7 +116,7 @@ fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() 
         for _ in 0_u32..8 {
             let Some(read) = h.send() else { break };
             let answer = if let Op::Read(Read::Items { .. }) = read.op {
-                Answer::Items { items: Box::new([]), more: false, now: at(second) }
+                Answer::Items { cut: false, items: Box::new([]), more: false, now: at(second) }
             } else if let Op::Read(Read::Item { .. }) = read.op {
                 Answer::Item { item: summary(), comments: Box::new([]), more: false }
             } else {
