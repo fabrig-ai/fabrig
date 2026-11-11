@@ -14,7 +14,6 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         || path.ends_with("temper-engine/src/main.rs")
         || path.ends_with("temper-agent/src/main.rs")
         || path.ends_with("temper-worker-shell/src/binary.rs")
-        || path.ends_with("temper-twin-tool/src/cli.rs")
     {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
     } else if path.ends_with("temper-service-shell/src/lib.rs") {
@@ -71,11 +70,33 @@ fn scan(directory: &Path) {
         }
     }
 }
+// The internal tools spawn builds, browsers and git outside setup's process boundary
+// (temper/docs/design/testing/tools.md, 5); every other crate stays scanned.
+const TOOL_CRATES: &[&str] = &[
+    "temper-client-gallery-tool",
+    "temper-client-journeys-tool",
+    "temper-git-transcripts-tool",
+    "temper-playground-serve-tool",
+    "temper-stage-one-tool",
+    "temper-twin-tool",
+];
+fn tool_crate(path: &Path) -> bool {
+    path.file_name().is_some_and(|name| TOOL_CRATES.iter().any(|tool| name == *tool))
+}
+#[test]
+fn tools_are_skipped_by_name_not_suffix() {
+    assert!(tool_crate(Path::new("temper-client-gallery-tool")));
+    assert!(!tool_crate(Path::new("another-tool")));
+}
 #[test]
 fn process_and_file_locks_stay_in_their_declared_modules() {
     let crates = skein_scratch::paths::tree().join("crates");
     for entry in fs::read_dir(crates).expect("crates") {
-        let source = entry.expect("crate").path().join("src");
+        let path = entry.expect("crate").path();
+        if tool_crate(&path) {
+            continue;
+        }
+        let source = path.join("src");
         if source.is_dir() {
             scan(&source);
         }
@@ -103,7 +124,6 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
         "temper-engine/src/main.rs",
         "temper-agent/src/main.rs",
         "temper-worker-shell/src/binary.rs",
-        "temper-twin-tool/src/cli.rs",
     ] {
         for (source, expected) in [
             ("use std::process::ExitCode;", false),
