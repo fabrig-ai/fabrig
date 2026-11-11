@@ -112,12 +112,12 @@
     its last activity in the clock form; then its chat's title; then "Open
     the draft", to its `Chat`.
   - **A landed draft's card** (`../../domain/forge/drafts.md`), as
-    `work.html`'s `witness-catch-up.md`: its from line, the tag "draft" in
-    the person's colour, then, joined by " · ", FILE, its path's last
-    segment; "landed in DIR", DIR its path less that segment, ending `/`, or
-    at the repository's root its repository's name and `/`; and "ready since
-    CLOCK", its `at` in the clock form: "witness-catch-up.md · landed in
-    docs/ · ready since Friday 14:10". Then its title, when it has one. Then,
+    `work.html`'s witness catch-up: its from line, the tag "draft" in the
+    person's colour, then, joined by " · ", FILE, its path's last segment;
+    "landed in DIR", DIR its path less that segment, ending `/`, or at the
+    repository's root its repository's name and `/`; and "ready since
+    CLOCK", its `at` in the clock form: "FILE · landed in docs/ · ready
+    since Friday 14:10". Then its title, when it has one. Then,
     while the project has a tracked template (*Ways*), its choices, the
     mockup's `.choices`:
     - while kind 7's `way` (`settings.md`, 2) is one of them, "Start a goal:
