@@ -102,6 +102,28 @@ fn programmatic_page_targets_do_not_draw_control_focus_rings() {
     assert!(rule.contains("outline: none;"), "page focus target: {rule}");
 }
 
+#[test]
+fn phone_home_size_is_muted_without_chip_ground_or_files() {
+    let css = include_str!("../../temper.css");
+    let phone = css
+        .split("@media (max-width: 760px) {")
+        .skip(1)
+        .map(|block| block.split("\n}").next().unwrap())
+        .find(|block| block.contains("#app > .temper-home .temper-size-files"))
+        .expect("Home's phone size rule");
+    let (_, rule) = phone.split_once("#app > .temper-home .temper-chips .temper-chip {").expect("phone chip");
+    let (rule, _) = rule.split_once('}').unwrap();
+    for declaration in ["padding: 0;", "border: 0;", "background: none;", "font-size: 13px;", "color: var(--gf-muted);"]
+    {
+        assert!(rule.contains(declaration), "phone size: {declaration}: {rule}");
+    }
+    assert!(phone.contains("#app > .temper-home .temper-size-files { display: none; }"));
+    assert!(!phone.contains(".temper-needs"), "Needs you keeps its chip and files");
+    let (_, chip) = css.split_once(".temper-needs .temper-chip {").unwrap();
+    let (chip, _) = chip.split_once('}').unwrap();
+    assert!(chip.contains("border: 1px solid var(--gf-line);") && chip.contains("background: var(--gf-surface);"));
+}
+
 mod welcome_copy;
 
 #[test]

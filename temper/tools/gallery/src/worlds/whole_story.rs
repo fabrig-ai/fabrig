@@ -220,6 +220,13 @@ fn approvals(name: &str) -> Box<[u8]> {
                         behind: 0,
                         whole: true,
                         yours: w::ApprovalYours::Counts,
+                        size: Some(
+                            w::ApprovalSize::new(
+                                &w::CEILINGS,
+                                w::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false },
+                            )
+                            .expect("Pair approval size"),
+                        ),
                     },
                 )
                 .expect("Pair approval"),

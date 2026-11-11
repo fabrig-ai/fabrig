@@ -357,6 +357,7 @@ fn approval(
     for line in &super::approval::sentences(row, w) {
         ask::text(b, Role::Paragraph, line, look::ASK_CONTEXT);
     }
+    super::approval::size(b, row, w);
     b.open(Role::Slot);
     b.style(look::ASK_CHOICES);
     if row.yours == temper_client_domain::forge::approvals::Yours::Counts

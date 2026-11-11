@@ -267,6 +267,13 @@ The client holds the resources the owner names, and nothing else.
   per absence, and once more after a restart at its first absent read.
   The owner treats that notice as before the restart. Other errors
   report `Changed` and are kept or read again as 4.2 says.
+- **A pull request's size is not news.** A pull request read that
+  differs from the kept one only in its `size` (README.md, section 3.6)
+  reports nothing, and the kept pull takes the read's size. The size
+  moves only with the head or the base the pull request names, which
+  are news themselves, and an owner may keep no size, so a restart
+  would otherwise report every pull request again. Each `Changed` for a
+  pull request carries the size its read gave.
 - **Settling.** Forgejo answers a pull request not mergeable while it
   checks, and orders a job's end and its commit status nowhere (forgejo.md,
   section 2). Both settle within `settle`, which the client checks only

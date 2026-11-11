@@ -1810,6 +1810,7 @@ fn walk_review(root: &mut Domain) {
                     behind: 0,
                     whole: true,
                     yours: d::forge::approvals::Yours::Counts,
+                    size: None,
                 }]),
             },
         }),
