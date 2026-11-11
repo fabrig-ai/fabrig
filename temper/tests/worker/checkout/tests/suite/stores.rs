@@ -73,7 +73,7 @@ fn a_saved_start_fetches_only_the_saved_commit_the_store_lacked() {
     world.run(ITERATIONS);
     ready(&world, saver);
     let Landing::Landed { commit, .. } = world.client(saver).landings[0].1[0] else { panic!("saved edit") };
-    let saved = temper_worker_checkout_world::translate::fake(commit);
+    let tip = temper_worker_checkout_world::translate::fake(commit);
     let makes = world.told().0.makes;
     world.write_disk(b"ws/0/r0/UNTRACKED", b"discard me");
     let resumer = world.submit(world.now(), Plan { start: Some(Pick::Saved), ..plan(0) });
@@ -81,8 +81,8 @@ fn a_saved_start_fetches_only_the_saved_commit_the_store_lacked() {
     ready(&world, resumer);
     assert_eq!(world.told().0.makes, makes + 1);
     assert_eq!(world.client(resumer).start, world.client(saver).left);
-    exact_tree(&world, resumer, saved);
-    assert_eq!(imported(&world, resumer), BTreeSet::from([saved]), "only the saved commit was not fetched before");
+    exact_tree(&world, resumer, tip);
+    assert_eq!(imported(&world, resumer), BTreeSet::from([tip]), "only the saved commit was not fetched before");
 }
 #[test]
 fn a_reused_workspace_fetches_only_new_commits_and_nothing_when_unchanged() {

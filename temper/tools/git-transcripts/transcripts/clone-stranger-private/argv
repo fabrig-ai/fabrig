@@ -25,11 +25,12 @@ rerere.enabled=false
 merge.conflictStyle=merge
 -c
 submodule.recurse=false
-clone
---no-checkout
+fetch
+--porcelain
+--verbose
 --no-tags
---origin
-origin
+--no-write-fetch-head
+--no-recurse-submodules
 --
 http://127.0.0.1:3000/fixture/private.git
-private
++HEAD:refs/temper/1/fetched

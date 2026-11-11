@@ -131,7 +131,7 @@ impl Task {
     pub fn store(store: Token, aside: Option<Token>, dirs: &mut Directories) -> Task {
         Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, dirs)) }
     }
-    pub fn install(store: Token, directory: Box<[u8]>, done: git::Done) -> Task {
+    pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
         Task { pending: Token::new(0), phase: Phase::Store(Store::install(store, directory, done)) }
     }
     pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>) -> Task {

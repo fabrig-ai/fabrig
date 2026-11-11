@@ -14,7 +14,7 @@ pub enum Next {
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
     Store,
-    InstallStore { directory: Box<[u8]>, done: git::Done },
+    InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
     Alternates,
     Scan { files: Box<[Box<[u8]>]> },
     End(git::Done),
@@ -105,7 +105,7 @@ pub fn after(
             let done = if code == 0 { git::Done::Succeeded } else {
                 git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::new(tail, cut) }
             };
-            return Next::InstallStore { directory: directory.clone(), done };
+            return Next::InstallStore { directory: directory.clone(), done: Box::new(done) };
         }
         Command::Clone { .. } if code == 0 => return Next::Alternates,
         Command::Remote { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),

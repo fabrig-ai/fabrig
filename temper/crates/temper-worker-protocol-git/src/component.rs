@@ -266,7 +266,7 @@ impl Component {
             Next::End(done) => {
                 let operation = self.slots.get(id).expect("live operation");
                 if let Command::Store { directory } = &operation.command {
-                    Next::InstallStore { directory: directory.clone(), done }
+                    Next::InstallStore { directory: directory.clone(), done: Box::new(done) }
                 } else { Next::End(done) }
             }
             Next::Snapshot { parent, merging } => {
@@ -326,7 +326,7 @@ impl Component {
             Next::InstallStore { directory, done } => {
                 let operation = self.slots.get_mut(id).expect("live index");
                 let Some(git::Op::Store { store, .. }) = &operation.op else { unreachable!("Store sequence") };
-                let task = Task::install(*store, directory, done);
+                let task = Task::install(*store, &directory, done);
                 operation.command = Command::Version;
                 self.file_start(id, task, out);
             }

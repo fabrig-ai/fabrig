@@ -395,6 +395,7 @@ impl World {
             self.domain.reuse_workspaces();
         } else {
             self.disk.remove(b"ws");
+            self.disk.remove(b"stores");
         }
         self.stage = Stage::uncapped(self.settings.checkout);
         self.holds.clear();
@@ -1045,11 +1046,12 @@ impl World {
         if let Some(identity) = translate::identity(&op) {
             assert_eq!(identity, IDENTITY, "an operation acts as its repository's identity");
         }
-        let workspace = translate::workspace(&op);
-        if let Some(holder) = self.held_by.insert(workspace, owner) {
-            assert_eq!(holder, owner, "a workspace is held by one hold at a time, and evicted only when idle");
+        if let Some(workspace) = translate::workspace(&op) {
+            if let Some(holder) = self.held_by.insert(workspace, owner) {
+                assert_eq!(holder, owner, "a workspace is held by one hold at a time, and evicted only when idle");
+            }
+            self.workspaces.insert(workspace);
         }
-        self.workspaces.insert(workspace);
         let verifies = self.attempt(owner, client.operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
         let mut ends = self.now.saturating_add(span.draw(&mut self.rng));
@@ -1094,7 +1096,8 @@ impl World {
                 assert_eq!(attempt.verified, Verified::Not, "a push is verified once");
                 Some(remote.to_vec())
             }
-            Op::Fetch { .. }
+            Op::Store { .. }
+            | Op::Fetch { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
@@ -1176,11 +1179,13 @@ impl World {
         // As it takes effect: its hold still holds its workspace, and its
         // client still waits for the operation it is part of.
         let workspace = translate::workspace(&op);
-        assert_eq!(self.held_by.get(&workspace), Some(&owner), "an operation runs in a workspace its hold holds");
+        if let Some(workspace) = workspace {
+            assert_eq!(self.held_by.get(&workspace), Some(&owner), "an operation runs in a workspace its hold holds");
+        }
         let client = self.clients.get(self.holds.get(&owner).expect("a hold's")).expect("a hold's client");
         assert!(client.release != Release::Done, "nothing touches a workspace once its hold is released");
         assert!(client.operation.is_some(), "nothing touches a workspace once its client has heard the end");
-        if op.kind() == Kind::Make && self.disk.exists(&translate::dir(workspace)) {
+        if op.kind() == Kind::Make && self.disk.exists(&translate::dir(workspace.expect("Make has a workspace"))) {
             self.stats.made_over += 1;
         }
         let remote = translate::remote(&op).map(<[u8]>::to_vec);
@@ -1201,7 +1206,8 @@ impl World {
                 let tree = self.disk.tree(&path);
                 Some((at.repository.to_vec(), path, tree))
             }
-            Op::Make { .. }
+            Op::Store { .. }
+            | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1306,7 +1312,8 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Fetch
+                    Kind::Store
+                    | Kind::Fetch
                     | Kind::Create
                     | Kind::CheckOut
                     | Kind::Commit
@@ -1444,7 +1451,7 @@ fn describe_request(request: &Request) -> String {
                 "io {} {:?} {:?} by {}",
                 owner.raw(),
                 op.kind(),
-                translate::workspace(op).raw(),
+                translate::workspace(op).map_or(0, Token::raw),
                 deadline.as_nanos()
             )
         }

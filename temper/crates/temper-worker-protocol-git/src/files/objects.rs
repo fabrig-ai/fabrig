@@ -8,7 +8,7 @@ use temper_worker_domain_checkout::git;
 fn broken() -> Action { Action::Operation(Next::End(git::Done::Failed { fault: git::Fault::Broken })) }
 fn name(token: Token) -> Box<[u8]> { Box::from(Decimal::of(token.raw()).as_bytes()) }
 #[derive(Debug)]
-pub(super) struct Make {
+pub(crate) struct Make {
     workspace: Box<[u8]>, stores: Box<[Token]>, index: usize, phase: MakePhase, fd: Option<Fd>, failed: bool,
 }
 #[derive(Debug)]
@@ -62,7 +62,7 @@ impl Make {
     }
 }
 #[derive(Debug)]
-pub(super) struct Store { store: Token, temporary: Box<[u8]>, phase: StorePhase, done: git::Done }
+pub(crate) struct Store { token: Token, temporary: Box<[u8]>, phase: StorePhase, done: Box<git::Done> }
 #[derive(Debug)]
 enum StorePhase { Aside(Token), Create, Install, Discard }
 impl Store {
@@ -70,18 +70,18 @@ impl Store {
         let temporary = invocation::joined(&[b"new-", Decimal::of(dirs.serial).as_bytes()]);
         dirs.serial = dirs.serial.checked_add(1).expect("serial lifetime");
         let phase = match aside { Some(aside) => StorePhase::Aside(aside), None => StorePhase::Create };
-        Self { store, temporary, phase, done: git::Done::Succeeded }
+        Self { token: store, temporary, phase, done: Box::new(git::Done::Succeeded) }
     }
-    pub fn install(store: Token, directory: Box<[u8]>, done: git::Done) -> Self {
-        let phase = if done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
-        Self { store, temporary: Box::from(directory.strip_prefix(b"stores/").expect("store invocation directory")), phase, done }
+    pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Self {
+        let phase = if *done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
+        Self { token: store, temporary: Box::from(directory.strip_prefix(b"stores/").expect("store invocation directory")), phase, done }
     }
     pub fn first(&self, dirs: &mut Directories) -> Action {
         let stores = dirs.stores.expect("layout");
         Action::Run(match self.phase {
             StorePhase::Aside(aside) => dirs.rename(stores, name(aside)),
             StorePhase::Create => mkdir(stores, &self.temporary),
-            StorePhase::Install => Op::Rename { from_dir: stores, from: self.temporary.clone(), to_dir: stores, to: name(self.store), no_replace: true },
+            StorePhase::Install => Op::Rename { from_dir: stores, from: self.temporary.clone(), to_dir: stores, to: name(self.token), no_replace: true },
             StorePhase::Discard => dirs.rename(stores, self.temporary.clone()),
         })
     }
@@ -96,7 +96,7 @@ impl Store {
             StorePhase::Create => {
                 if result.is_err() { return broken(); }
                 if stop {
-                    self.done = git::Done::Failed { fault: git::Fault::Broken };
+                    *self.done = git::Done::Failed { fault: git::Fault::Broken };
                     self.phase = StorePhase::Discard;
                     return self.first(dirs);
                 }
@@ -104,19 +104,19 @@ impl Store {
             }
             StorePhase::Install => {
                 if result.is_ok() { return Action::Operation(Next::End(git::Done::Succeeded)); }
-                if result != Err(Error::Exists) { self.done = git::Done::Failed { fault: git::Fault::Broken }; }
+                if result != Err(Error::Exists) { *self.done = git::Done::Failed { fault: git::Fault::Broken }; }
                 self.phase = StorePhase::Discard;
                 self.first(dirs)
             }
             StorePhase::Discard => {
                 if result.is_err() { return broken(); }
-                Action::Operation(Next::End(self.done.clone()))
+                Action::Operation(Next::End(*self.done.clone()))
             }
         }
     }
 }
 #[derive(Debug)]
-pub(super) struct Alternates {
+pub(crate) struct Alternates {
     path: Box<[u8]>, bytes: Box<[u8]>, remote: Box<[u8]>, fd: Option<Fd>, written: u32, closing: bool, failed: bool,
 }
 impl Alternates {

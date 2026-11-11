@@ -89,6 +89,8 @@ impl Operation {
             }
         };
         let kind = self.environment_kind(kind);
+        let mut credentials = true;
+        if let Command::UpdateRef { .. } = self.command { credentials = false; }
         let mut pipes = skein_lib::List::with_capacity(3);
         if self.is_commit_tree() {
             pipes.push(kernel::Pipe { child: 0, way: kernel::Way::In, parent: None }).expect("three pipes");
@@ -103,7 +105,7 @@ impl Operation {
                 spawn: kernel::Spawn {
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
                     args: invocation::arguments(&self.command),
-                    env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), !is_update(&self.command)),
+                    env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), credentials),
                     root: settings.root,
                     dir: directory,
                     pipes: pipes.into_boxed(),
@@ -594,9 +596,6 @@ impl Child {
     }
 }
 
-fn is_update(command: &Command) -> bool {
-    if let Command::UpdateRef { .. } = command { true } else { false }
-}
 fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
     if let Command::Store { directory } = command { return directory.clone(); }
     match op {
