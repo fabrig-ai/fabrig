@@ -200,6 +200,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
     status_rows(rng, bounds);
     away_rows(rng, bounds);
+    draft_row(rng, bounds);
     setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
@@ -552,4 +553,13 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
         row_and_key(&forge::Stored::Decided(row), rng, bounds);
     }
+}
+
+fn draft_row(rng: &mut Rng, bounds: &Bounds) {
+    let row = forge::Stored::LandedDraft(forge::LandedDraft {
+        repository: skein_forge::api::Repository { forge: u16::try_from(rng.below(65_536)).expect("u16"), repository: u32::try_from(rng.below(4_294_967_296)).expect("u32") },
+        path: format!("docs/{}.md", rng.next_u64()).into_bytes().into(), project: u32::try_from(rng.below(4_294_967_296)).expect("u32"), branch: temper_codecs_world::drawn(rng, 1024).into(),
+        commit: std::array::from_fn(|_| u8::try_from(rng.below(256)).expect("one byte")), title: temper_codecs_world::drawn(rng, 200).into(), writer: rng.next_u64(), at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        chat: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) }, goal: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) }, ready: rng.below(2) == 0,
+    }); row_and_key(&row, rng, bounds);
 }
