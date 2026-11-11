@@ -43,6 +43,7 @@ forge and job completions; they establish no deployment outcome.
 - **Not yet:** 1, quiet on the forge, and `keeping-up.md`, 2: no fresh read is shared, and the landing's waits and the tiers' flights poll every `poll`, not at `poll_at` [in flight: change 160].
 - **Not yet:** 1, quiet on the forge: review and pull-file pages are sized for their largest row [in flight: change 161].
 - **Not yet:** 1, quiet on the forge: no read is conditional [in flight: change 155].
+- **Not yet:** 5.3: goal overlap reads a pull request's files with both sides, for their paths alone (`temper-engine-domain-forge/src/topics.rs`) [in flight: change 436].
 - **Not yet:** `change/branch-path.md`, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts, is no role, and a
   role's `who` says when it runs alone, not what it does, its charter's

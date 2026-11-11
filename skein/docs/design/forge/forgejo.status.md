@@ -5,6 +5,7 @@
 - **Not yet:** 1.1 to 1.3: `Reviews`, `PullFiles` and a `Remarks` slice sized for real rows and cut at the answer's bytes, read on with `skip`: each holds as many of its listing's largest rows as `answer_bytes` holds (`skein-forge-connection/src/limits.rs`, `page_size`) [in flight: change 161].
 - **Not yet:** 1.2: `Read::Pull`'s `ci`; `PullFor`'s status read (`plans/reads/done.rs`, `pull_status`) [in flight: change 158].
 - **Not yet:** 1.2, 1.4: `Settings` read with a row kept; `PullFor`'s and Actions' `404`s drop the row; a write's `401` or `403` keeps it (`plans/reads.rs`, `plans/failure.rs`, `plans/actions.rs`) [in flight: change 159].
+- **Not yet:** 1.2: `Read::PullFiles` without `sides`: every page reads both sides (`plans/contents.rs`) [in flight: change 436].
 
 - **Not yet:** 2: no conformance fact records a `style=merge` update of a
   head already holding its base, or what a rebase's push does to a push
