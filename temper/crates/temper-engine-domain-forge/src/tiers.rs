@@ -1,7 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{
-    Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, Topic, What,
-};
+use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -9,7 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 mod goals;
-mod parts;
+pub(crate) mod parts;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -635,87 +633,18 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
         part_inputs(commit, key, tests),
     );
     if let Some(flight) = &row.flight {
-        follow.entry = flight.entry;
-        follow.start = flight.start;
-        follow.since = flight.since;
-        follow.waiting = flight.waiting;
-        if let Some(id) = flight.run {
-            follow.run = Some(api::Run {
-                id,
-                number: 0,
-                workflow: follow.workflow.clone(),
-                commit,
-                event: api::Event::Dispatch,
-                actor: d.writers.get(&row.repository.forge).copied().unwrap_or(0),
-                state: api::RunState::Running,
-                conclusion: None,
-                url: Box::new([]),
-                created: flight.start.unwrap_or(Time::ZERO),
-                jobs: Box::new([]),
-            });
-        }
-        follow.writes = Box::new([]);
-        let mut writes = List::with_capacity(u32::try_from(flight.pending.len()).expect("pending jobs"));
-        for attempt in &flight.pending {
-            writes.push(Write::Rerun { attempt: *attempt }).expect("pending jobs");
-        }
-        follow.writes = writes.into_boxed();
-        // An empty, unsent flight is a fresh dispatch; a sent one is followed.
-        if flight.start.is_none() && !flight.waiting && flight.pending.is_empty() && flight.fault.is_none() {
-            follow.writes = Box::new([Write::Dispatch {
-                workflow: follow.workflow.clone(),
-                branch: follow.branch.clone(),
-                inputs: follow.inputs.clone(),
-            }]);
-        }
-        if let Some(report) = &flight.report {
-            let run = follow.run.as_mut().expect("failed workflow identity");
-            run.number = report.number;
-            run.url.clone_from(&report.url);
-            run.state = api::RunState::Completed;
-            run.conclusion = Some(api::Conclusion::Failure);
-            follow.outcome = Some(landing::Verdict::Failed);
-        }
-        if let Some(fault) = flight.fault {
-            follow.outcome = Some(landing::Verdict::Fault(fault));
-        }
+        follow.restore(flight, d.writers.get(&row.repository.forge).copied().unwrap_or(0));
     }
     follow
 }
 fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
-    let mut pending = List::with_capacity(u32::try_from(follow.writes.len()).expect("pending writes"));
-    for write in &follow.writes {
-        if let Write::Rerun { attempt } = write {
-            pending.push(*attempt).expect("pending jobs");
-        }
-    }
-    row.flight = Some(TierFlight {
-        entry: follow.entry,
-        start: follow.start,
-        since: follow.since,
-        waiting: follow.waiting,
-        next: match &row.flight {
-            Some(flight) => flight.next,
-            None => None,
-        },
-        run: match &follow.run {
-            Some(run) => Some(run.id),
-            None => None,
-        },
-        pending: pending.into_boxed(),
-        report: match follow.outcome {
-            Some(landing::Verdict::Failed) => {
-                let run = follow.run.as_ref().expect("failed workflow");
-                Some(crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() })
-            }
-            Some(landing::Verdict::Fault(_) | landing::Verdict::Passed | landing::Verdict::Running) | None => None,
-        },
-        fault: match follow.outcome {
-            Some(landing::Verdict::Fault(fault)) => Some(fault),
-            Some(landing::Verdict::Failed | landing::Verdict::Passed | landing::Verdict::Running) | None => None,
-        },
-    });
+    let next = match &row.flight {
+        Some(flight) => flight.next,
+        None => None,
+    };
+    row.flight = Some(follow.progress(next));
 }
+
 fn fault_words(fault: landing::Fault) -> &'static [u8] {
     match fault {
         landing::Fault::SetUp => b"set-up",

@@ -233,7 +233,11 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     for (kind, limit) in [
         (K::Making, LIMITS.makings),
         (K::Landing, LIMITS.landings),
-        (K::Receipt, LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) * LIMITS.receipts_per_gate),
+        (
+            K::Receipt,
+            (LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) + LIMITS.judge_projects * LIMITS.follows)
+                * LIMITS.receipts_per_gate,
+        ),
         (K::Tier, LIMITS.repositories * LIMITS.tiers.tiers),
         (K::Verification, LIMITS.changes),
         (K::LandingLog, LIMITS.repositories),
@@ -896,7 +900,8 @@ fn receipts_keep_tier_room_when_no_gates_are_configured() {
         false,
     )
     .unwrap();
-    let capacity = LIMITS.repositories * LIMITS.tiers.tiers * LIMITS.receipts_per_gate;
+    let capacity =
+        (LIMITS.repositories * LIMITS.tiers.tiers + LIMITS.judge_projects * LIMITS.follows) * LIMITS.receipts_per_gate;
     let env = Env { limits, ..env() };
     let mut out = Queue::uncapped();
     d.restore_begin(Wall::EPOCH);

@@ -60,7 +60,10 @@ fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?)
 }
 fn receipt_slots(l: &Limits) -> Option<u32> {
-    l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)
+    l.repositories
+        .checked_mul(l.gates.checked_add(l.tiers.tiers)?)?
+        .checked_add(l.judge_projects.checked_mul(l.follows)?)?
+        .checked_mul(l.receipts_per_gate)
 }
 // Landing row indices and retained table counts must fit before construction.
 pub(crate) fn valid(l: &Limits) -> bool {
