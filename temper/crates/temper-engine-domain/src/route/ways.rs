@@ -21,7 +21,7 @@ pub(crate) fn inputs(
     let repositories = domain.forge.readable_repositories(project);
     let repository = match repository.or(domain.forge.home(project)) {
         Some(home) => Some(home),
-        None => repositories.first().copied(),
+        None => repositories.first(),
     };
     let landing = match repository {
         Some(repository) => repository.settings.default_branch.clone(),

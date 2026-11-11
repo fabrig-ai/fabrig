@@ -22,7 +22,7 @@ record Settings { default_branch: bytes 1048576 merge: bool squash: bool rebase:
 enum Role { owned, adopted, fork, context }
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
 enum RepositoryProtection { unknown, absent, rule: Protection }
-record Adopted { project: u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 }
+record Adopted { project: u32 contexts: list 65536 u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 }
 # 04.2: family 3, Hold.
 record RunWriter { task: u64 attempt: u64 }
 enum Writer { run: RunWriter, lost: RunWriter, entry: Number }

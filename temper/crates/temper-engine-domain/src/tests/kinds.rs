@@ -840,6 +840,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
+            contexts: Box::new([]),
             workflows: Box::default(),
             project: PROJECT,
             home: true,

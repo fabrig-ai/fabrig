@@ -23,6 +23,8 @@ use temper_engine_forge_world::{self as forge_world, translate};
 #[path = "forge_routes/approval_identity.rs"]
 pub(super) mod approval_identity;
 
+#[path = "forge_routes/context_projects.rs"]
+mod context_projects;
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
 #[path = "forge_routes/resource_admission.rs"]

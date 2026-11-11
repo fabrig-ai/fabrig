@@ -108,6 +108,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         adopted_name: forge.name_bytes,
         adopted_prefix: forge.name_bytes,
         adopted_checks: forge.change_policy.gates,
+        adopted_contexts: forge.judge_projects,
         retargeted_before: forge.name_bytes,
         retargeted_after: forge.name_bytes,
         names_resources: forge.resources_per_task,

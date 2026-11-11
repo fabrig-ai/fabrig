@@ -25,6 +25,7 @@ pub enum Start {
 /// Root-translated identities and branch names for one repository.
 #[derive(Clone, Debug)]
 pub struct Seed {
+    pub project: u32,
     /// The run may write its goal's design (temper/docs/design/domain/forge/branches.md, 3).
     pub modify: bool,
     pub task: u64,
@@ -59,10 +60,7 @@ impl Domain {
     pub fn context_repositories(&self, project: u32, limit: u32) -> Option<Box<[api::Repository]>> {
         let mut selected = List::with_capacity(limit);
         for (_, repository) in &self.repositories {
-            if repository.project == project
-                && repository.role == Role::Context
-                && !self.forge_ended(repository.provider.forge)
-            {
+            if repository.role_for(project) == Some(Role::Context) && !self.forge_ended(repository.provider.forge) {
                 selected.push(repository.provider).ok()?;
             }
         }
@@ -110,7 +108,8 @@ impl Domain {
         reason = "one workspace item selects its start, destination and byte size together"
     )]
     pub fn workspace_item(&self, seed: Seed) -> Option<Item> {
-        let repository = self.repository(seed.repository)?;
+        let row = self.repository(seed.repository)?.for_project(seed.project)?;
+        let repository = &row;
         let inherited = match seed.parent {
             Some(parent) => match self.change(parent) {
                 Some(row) if row.repository == seed.repository => match row.delegate {

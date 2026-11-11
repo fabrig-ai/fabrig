@@ -1,5 +1,6 @@
 //! Forge removal (temper/docs/design/domain/forge/adoption.md, 1).
 use crate::{Answered, Domain, ForgeRefusal, ForgeState, Key, Mode, RemoveAnswer, Request, forges};
+use alloc::boxed::Box;
 use jig_domain_people::Role;
 use skein_lib::{List, Queue, Token};
 
@@ -62,6 +63,21 @@ pub(crate) fn begin(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> boo
         out.push(Request::Erase { key: Key::Writer(forge) });
     }
     crate::domain::retire_forge(d, forge);
+    let mut shared = List::with_capacity(d.repositories.capacity());
+    for (provider, row) in &d.repositories {
+        if provider.forge == forge && !row.contexts.is_empty() {
+            shared.push(*provider).expect("bounded adopted repositories");
+        }
+    }
+    for provider in &shared {
+        let row = d.repositories.get_mut(provider).expect("selected repository");
+        row.contexts = Box::default();
+        out.push(Request::Save {
+            record: crate::Stored::Repository(row.as_ref().clone()),
+            read_afresh: None,
+            release: None,
+        });
+    }
     out.push(Request::MarkedForges);
     true
 }

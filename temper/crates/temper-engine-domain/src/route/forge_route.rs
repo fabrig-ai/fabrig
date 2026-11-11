@@ -1193,14 +1193,14 @@ fn implicit_task_holdings(
         }
         let repository = repository.ok_or(None)?;
         if let Some(base) = base {
-            check_landing_holder(domain, env, repository, base, parent)?;
+            check_landing_holder(domain, env, &repository, base, parent)?;
         }
         if requester_branch {
             return Ok(Box::new([]));
         }
         let branch = match chosen {
             Some(branch) => branch,
-            None => tree_branch(repository, root, b'c', number, None, env.limits.forge.name_bytes).ok_or(None)?,
+            None => tree_branch(&repository, root, b'c', number, None, env.limits.forge.name_bytes).ok_or(None)?,
         };
         let name = forge::Name {
             forge: repository.provider.forge,
@@ -1219,7 +1219,7 @@ fn implicit_task_holdings(
             && *connector == domain.config.forge_connector
         {
             let repository = domain.forge.repository_tag(project, *resource).ok_or(None)?;
-            include_repository(&mut selected, repository).ok_or(None)?;
+            include_repository(&mut selected, &repository).ok_or(None)?;
         }
     }
     let mut holdings = List::with_capacity(env.limits.tasks.holdings);
@@ -1770,13 +1770,13 @@ fn tracked_ancestor(domain: &Domain, requester: tasks::Party) -> Option<u64> {
     None
 }
 
-fn include_repository<'a>(selected: &mut List<&'a forge::Repository>, repository: &'a forge::Repository) -> Option<()> {
+fn include_repository(selected: &mut List<forge::Repository>, repository: &forge::Repository) -> Option<()> {
     for prior in selected.as_slice() {
         if prior.provider == repository.provider {
             return Some(());
         }
     }
-    selected.push(repository).ok()
+    selected.push(repository.clone()).ok()
 }
 
 /// An older task can read a newly adopted repository without acquiring its run branch.
@@ -1859,10 +1859,7 @@ pub(crate) fn run_workspace(
                     if *connector == domain.config.forge_connector =>
                 {
                     let repository = domain.forge.repository_tag(context.project, *resource)?;
-                    if repository.project != context.project {
-                        return None;
-                    }
-                    include_repository(&mut selected, repository)?;
+                    include_repository(&mut selected, &repository)?;
                 }
                 tasks::Parameter::Resource { .. }
                 | tasks::Parameter::Number { .. }
@@ -1876,14 +1873,14 @@ pub(crate) fn run_workspace(
                 }
                 continue;
             };
-            include_repository(&mut selected, repository)?;
+            include_repository(&mut selected, &repository)?;
         }
     }
     let context_repositories =
         domain.forge.context_repositories(context.project, env.limits.forge.resources_per_task)?;
     for provider in &context_repositories {
-        let repository = domain.forge.repository(*provider)?;
-        include_repository(&mut selected, repository)?;
+        let repository = domain.forge.repository(*provider)?.for_project(context.project)?;
+        include_repository(&mut selected, &repository)?;
     }
     let mut workspace_bytes = 0_u64;
     let mut repositories = List::with_capacity(env.limits.forge.resources_per_task);
@@ -1898,6 +1895,7 @@ pub(crate) fn run_workspace(
         let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
         let saved_branch = if saved { Some(save.clone()) } else { None };
         let mut seed = forge::items::Seed {
+            project: context.project,
             modify,
             task: context.task,
             parent,
@@ -2863,7 +2861,7 @@ pub(crate) fn named_repository(
             if chosen.is_some() {
                 return Err(tasks::Refusal::Unknown);
             }
-            chosen = Some(*repository);
+            chosen = Some(repository);
         }
     }
     match chosen {
