@@ -7,6 +7,11 @@ use std::{fmt::Write, net::ToSocketAddrs, os::unix::ffi::OsStrExt, path::Path};
 use temper_forge_setup_shell::process as forge_exec;
 pub use temper_shell::directories;
 
+mod binary;
+pub mod commands;
+pub use binary::main;
+pub use commands::ENGINE;
+
 pub mod forge;
 pub mod forge_sign_in;
 pub mod serve;

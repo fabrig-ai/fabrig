@@ -52,7 +52,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
     Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
-    Exception { what: "temper-engine temper-engine", until: "cli C2" },
     Exception { what: "temper-stage-one temper-stage-one", until: "cli C8" },
     Exception { what: "temper-twin twin", until: "cli C8" },
 ];
@@ -76,7 +75,6 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench test-peer", until: "smith's round" },
     Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
-    Exception { what: "temper-engine temper-engine", until: "cli C2" },
     Exception { what: "temper-twin twin", until: "cli C8" },
 ];
 const FEATURE_EXCEPTIONS: &[Exception] = &[

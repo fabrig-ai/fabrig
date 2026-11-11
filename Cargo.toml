@@ -311,7 +311,7 @@ members = [
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
-    "temper/crates/temper-engine",
+    "temper/bin/temper-engine",
     "temper/crates/temper-engine-domain-forge-change",
     "temper/crates/temper-engine-domain-forge-closer",
     "temper/crates/temper-engine-domain-forge-landing",
