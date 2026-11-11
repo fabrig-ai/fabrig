@@ -97,9 +97,17 @@ pub fn response_events(h: &f::Harness, request: &Request, response: Response) ->
     events
 }
 pub fn read(h: &mut f::Harness, token: &Secret, read: api::Read) -> Result<api::Answer, api::Error> {
+    read_bounded(h, token, read, bounds())
+}
+pub fn read_bounded(
+    h: &mut f::Harness,
+    token: &Secret,
+    read: api::Read,
+    bounds: Bounds,
+) -> Result<api::Answer, api::Error> {
     let mut plan = Plan::new(api::Repository { forge: 1, repository: 2 }, read);
     let mut tables = Tables::new(4, 8);
-    let mut step = plan.begin(bounds(), b"example-app", &mut tables).expect("begin read plan");
+    let mut step = plan.begin(bounds, b"example-app", &mut tables).expect("begin read plan");
     for _exchange in 0..64_u32 {
         let exchange = match step {
             Step::Done(result) => return result,
@@ -109,7 +117,7 @@ pub fn read(h: &mut f::Harness, token: &Secret, read: api::Read) -> Result<api::
         let events = exchange_events(h, &exchange, token);
         let mut next = None;
         for event in events.into_boxed() {
-            next = plan.heard(event, bounds(), b"example-app", &mut tables).expect("ordered exchange");
+            next = plan.heard(event, bounds, b"example-app", &mut tables).expect("ordered exchange");
             if next.is_some() {
                 break;
             }

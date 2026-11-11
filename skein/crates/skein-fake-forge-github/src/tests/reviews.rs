@@ -39,6 +39,16 @@ fn github_fake_reviews_drive_the_plans_across_pages_and_skip_pending() {
             assert_eq!(review.provenance, api::Provenance::Original);
         }
     }
+    // A review fills the answer: resume the cut on the same wire page, then pass pending.
+    let bounds = skein_forge::github::plans::plan::Bounds { answer_bytes: 139, ..r::bounds() };
+    for (page, skip, index, cut, more) in [(1, 0, 0, true, true), (1, 1, 1, false, true), (2, 0, 2, false, false)] {
+        let answer = r::read_bounded(&mut h, &token, api::Read::Reviews { number, page, skip }, bounds).unwrap();
+        assert_eq!(skein_forge::measure::answer(&answer), Some(u64::from(bounds.answer_bytes)));
+        let api::Answer::Reviews { reviews, cut: actual_cut, more: actual_more } = answer else { panic!("reviews") };
+        assert_eq!((actual_cut, actual_more), (cut, more));
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews.first().unwrap().id, *ids.get(index).unwrap());
+    }
     let api::Answer::Remarks { remarks, more, .. } =
         r::read(&mut h, &token, api::Read::Remarks { number, review: *ids.get(0).unwrap(), page: 1, skip: 0 }).unwrap()
     else {

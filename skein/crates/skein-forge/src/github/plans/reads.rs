@@ -94,6 +94,7 @@ pub struct Plan {
     request: Option<Exchange>,
     rows: List<Box<[u8]>>,
     size: u64,
+    cut: bool,
     count: u32,
     page: u32,
     limit: u32,
@@ -149,6 +150,7 @@ impl Plan {
             request: None,
             rows: List::with_capacity(0),
             size: 0,
+            cut: false,
             count: 0,
             page: 1,
             limit: 0,
@@ -204,14 +206,12 @@ impl Plan {
                 self.raw_cap = room.min(*max_bytes);
             }
             Read::Reviews { .. } => {
-                let capacity = size::capacity(bounds, crate::measure::REVIEW_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
-                self.reviews = List::with_capacity(capacity);
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
+                self.reviews = List::with_capacity(self.limit);
             }
             Read::Remarks { .. } => {
-                let capacity = size::capacity(bounds, crate::measure::REMARK_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
-                self.remarks = List::with_capacity(capacity);
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
+                self.remarks = List::with_capacity(self.limit);
             }
             Read::Collaborators { .. } => {
                 let capacity = size::capacity(bounds, crate::measure::COLLABORATOR_BYTES)?;

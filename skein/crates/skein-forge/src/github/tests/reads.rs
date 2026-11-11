@@ -52,6 +52,147 @@ fn github_commit_ranges_are_paged_without_files() {
 fn bounds() -> Bounds {
     Bounds { inner: 8, page_size: 4, rows: 4, answer_bytes: ROOM, body_bytes: 128 }
 }
+#[derive(Clone, Copy, Debug)]
+enum RealRows {
+    Items,
+    Reviews,
+    Remarks,
+}
+impl RealRows {
+    fn read(self, skip: u32) -> api::Read {
+        match self {
+            Self::Items => api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None, single: false },
+            Self::Reviews => api::Read::Reviews { number: 3, page: 1, skip },
+            Self::Remarks => api::Read::Remarks { number: 3, review: 4, page: 1, skip },
+        }
+    }
+    fn page(self, lengths: &[u8]) -> (Kind, Box<[u8]>) {
+        let mut out = Writer::new(4096);
+        let mut issues = skein_lib::List::with_capacity(4);
+        let mut reviews = skein_lib::List::with_capacity(4);
+        let mut remarks = skein_lib::List::with_capacity(4);
+        for (index, length) in lengths.iter().enumerate() {
+            let id = u64::try_from(index).unwrap().saturating_add(1);
+            let body = crate::text::Body::Kept(Box::from(&[b'x'; 128][..usize::from(*length)]));
+            match self {
+                Self::Items => issues
+                    .push(document::Issue {
+                        number: match id {
+                            1 => 2,
+                            2 => 1,
+                            number => number,
+                        },
+                        pull: false,
+                        merged: false,
+                        state: api::State::Open,
+                        author: USER,
+                        labels: Box::new([]),
+                        updated_at: fixtures::wall(),
+                        title: Box::from(*b"t"),
+                        body,
+                    })
+                    .unwrap(),
+                Self::Reviews => reviews.push(document::Review { body, ..review(id) }).unwrap(),
+                Self::Remarks => remarks.push(document::Remark { body, path: Box::from(*b"p"), ..remark(id) }).unwrap(),
+            }
+        }
+        let kind = match self {
+            Self::Items => {
+                server::issues(issues.as_slice(), &mut out).unwrap();
+                Kind::IssueRows
+            }
+            Self::Reviews => {
+                server::reviews(reviews.as_slice(), &mut out).unwrap();
+                Kind::ReviewRows
+            }
+            Self::Remarks => {
+                server::remarks(remarks.as_slice(), &mut out).unwrap();
+                Kind::RemarkRows
+            }
+        };
+        (kind, bytes(out))
+    }
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the table checks only the three real-row answers")]
+fn github_items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
+    for (listing, width, large) in
+        [(RealRows::Items, 130_u32, 128), (RealRows::Reviews, 129, 128), (RealRows::Remarks, 66, 64)]
+    {
+        // The third row overflows, but the smaller fourth would fit: keep only the prefix.
+        for (lengths, room, skip, next, expected, cut) in [
+            (&[1, 1][..], width * 2, 0, false, &[1, 2][..], false),
+            (&[1, 1][..], width * 2, 0, true, &[1, 2][..], false),
+            (&[1, 1, 1, 1][..], width * 4, 0, false, &[1, 2, 3, 4][..], false),
+            (&[1, 1, large, 1][..], width * 3, 0, false, &[1, 2][..], true),
+            (&[1, 1, large, 1][..], width * 3, 2, false, &[3, 4][..], false),
+            (&[1][..], width - 1, 0, false, &[][..], false),
+        ] {
+            if let RealRows::Items = listing
+                && skip != 0
+            {
+                continue;
+            }
+            let (kind, wire) = listing.page(lengths);
+            let cap = Bounds { page_size: 4, rows: 4, answer_bytes: room, ..bounds() };
+            let mut call = Call::new(listing.read(skip), cap, true);
+            let Step::Send(exchange) = call.begin().unwrap() else { panic!("listing request") };
+            let (rows, document) = fixtures::decode_with(exchange.decoder(&limits()).unwrap(), &wire, 1, &limits());
+            assert_eq!(crate::github::decode::kind(&exchange.request), Some(kind));
+            let mut head = Head::new();
+            head.next = next;
+            head.date = Some(fixtures::wall());
+            call.heard(Heard::Head { status: 200, head }).unwrap();
+            let mut result = Ok(None);
+            for row in rows.into_boxed() {
+                result = call.heard(Heard::Row(row));
+                if result != Ok(None) {
+                    break;
+                }
+            }
+            if expected.is_empty() {
+                assert_eq!(
+                    result,
+                    ended(Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(room),
+                        u64::from(width)
+                    )))),
+                    "{listing:?}"
+                );
+                continue;
+            }
+            assert_eq!(result, Ok(None), "{listing:?}: whole prefix");
+            let Ok(Some(Step::Done(Ok(answer)))) = call.done(document.unwrap()) else { panic!("whole prefix") };
+            let mut ids = skein_lib::List::with_capacity(4);
+            let (more, actual_cut) = match answer {
+                api::Answer::Items { items, more, cut, .. } => {
+                    for row in items {
+                        ids.push(row.number).unwrap();
+                    }
+                    (more, cut)
+                }
+                api::Answer::Reviews { reviews, more, cut } => {
+                    for row in reviews {
+                        ids.push(row.id).unwrap();
+                    }
+                    (more, cut)
+                }
+                api::Answer::Remarks { remarks, more, cut } => {
+                    for row in remarks {
+                        ids.push(row.id).unwrap();
+                    }
+                    (more, cut)
+                }
+                value => panic!("listing: {value:?}"),
+            };
+            assert_eq!(ids.as_slice(), expected, "{listing:?}");
+            assert_eq!((actual_cut, more), (cut, next || cut), "{listing:?}");
+        }
+    }
+}
+
 fn owner() -> Box<[u8]> {
     Box::from(*b"acme")
 }
@@ -414,7 +555,11 @@ fn github_remarks_page_and_long_body() {
     long.body = crate::text::Body::Long(129);
     document(Kind::RemarkRows, &bytes(out), Document::Rows, &[Row::Remark(long.clone())]);
     for (more, skip) in [(false, 0), (true, 0), (false, 1), (true, 1)] {
-        let mut call = Call::new(api::Read::Remarks { number: 3, review: 4, page: 2, skip }, bounds(), true);
+        let mut call = Call::new(
+            api::Read::Remarks { number: 3, review: 4, page: 2, skip },
+            Bounds { answer_bytes: 71, ..bounds() },
+            true,
+        );
         call.begin().unwrap();
         call.head(more);
         if skip != 0 {
@@ -578,11 +723,15 @@ fn github_reviews_marker_revision_and_long_body() {
 }
 #[test]
 fn github_reviews_page_bounds_and_failures() {
+    let mut call = Call::new(reviews_read(), Bounds { page_size: 16, rows: 16, answer_bytes: 512, ..bounds() }, true);
+    assert_eq!(
+        call.begin(),
+        Ok(Step::send(Request::Reviews { owner: owner(), name: name(), number: 3, page: 2, per_page: 16 }))
+    );
     for more in [false, true] {
         for skip in [0, 1] {
             let read = api::Read::Reviews { number: 3, page: 2, skip };
-            let mut call =
-                Call::new(read, Bounds { answer_bytes: if skip == 0 { 133 } else { 266 }, ..bounds() }, true);
+            let mut call = Call::new(read, Bounds { answer_bytes: 133, ..bounds() }, true);
             call.begin().unwrap();
             call.head(more);
             if skip != 0 {
