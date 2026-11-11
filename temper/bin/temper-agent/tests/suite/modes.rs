@@ -9,11 +9,14 @@ use std::{
     },
     path::{Path, PathBuf},
 };
-use temper_agent::{COMMANDS, LIST, NAME};
-use temper_shell::{
-    commands,
-    help::{self, Request},
-};
+use temper_agent_shell::AGENT;
+
+fn command_help(words: &'static [&'static str]) -> Vec<u8> {
+    let command = AGENT.commands.iter().find(|command| command.reach == skein_shell::Reach::Words(words)).expect("command");
+    let page = AGENT.command_help(command);
+    assert_eq!(page.split("\n\n").next().expect("notice").split_whitespace().collect::<Vec<_>>().join(" "), "internal: not part of temper-agent's public command line; it may change without notice.");
+    page.into_bytes()
+}
 
 const RELAY_USAGE: &str =
     "smith-agent: usage: smith-agent --mcp-relay 127.0.0.1:PORT, its secret in SMITH_MCP_SECRET\n";
@@ -64,23 +67,31 @@ fn launcher(directory: &Path, right_size: bool) -> PathBuf {
 
 #[test]
 fn the_binary_runs_every_mode_as_temper_does() {
+    let page = AGENT.help();
+    let sections: Vec<_> = page.split("\n\n").collect();
+    assert_eq!(AGENT.commands.iter().filter(|command| command.set == skein_shell::Set::Public).map(|command| command.reach).collect::<Vec<_>>(), [skein_shell::Reach::Words(&["help"])]);
+    assert!(AGENT.settings.is_empty());
+    assert_eq!(sections.iter().find(|section| section.starts_with("flags:")), Some(&"flags:\n  -h, --help                         Print this.\n  --version                          Print the name, version and commit."));
     let scratch = skein_scratch::Scratch::new("agent-modes");
     let missing = scratch.path().join("missing.json");
     let document = scratch.path().join("agent.json");
     fs::write(&document, DOCUMENT).expect("plaintext loopback document");
     let absent = format!("configuration metadata: {}: file absent\n", missing.display());
     for (case, invocation, mut arguments, code, stdout, stderr) in [
-        ("version", Invocation::Binary, arguments(&["--version"]), 0, temper_agent::version().into_bytes(), Errors::Exact(String::new())),
-        ("overview", Invocation::Binary, arguments(&["--help"]), 0, commands::help(NAME, &COMMANDS).into_bytes(), Errors::Exact(String::new())),
-        ("list help", Invocation::Binary, arguments(&["--list", "--help"]), 0, commands::row(NAME, &LIST).into_bytes(), Errors::Exact(String::new())),
-        ("help index", Invocation::Binary, arguments(&["help"]), 0, help::answer(NAME, &Request::Index).expect("index").into_bytes(), Errors::Exact(String::new())),
-        ("no command", Invocation::Binary, vec![], 1, vec![], Errors::Exact("temper-agent: no command; temper-agent --help lists them\n".into())),
-        ("unknown", Invocation::Binary, arguments(&["-x"]), 1, vec![], Errors::Exact("temper-agent: no command -x; temper-agent --help lists them\n".into())),
-        ("version extra", Invocation::Binary, arguments(&["--version", "extra"]), 1, vec![], Errors::Exact("temper-agent: no command --version; temper-agent --help lists them\n".into())),
-        ("run extra", Invocation::Binary, arguments(&["a.json", "b.json"]), 1, vec![], Errors::Exact("temper-agent: invalid arguments\nusage: temper-agent AGENT.json\n".into())),
-        ("list missing argument", Invocation::Binary, arguments(&["--list"]), 1, vec![], Errors::Exact("temper-agent --list: invalid arguments\nusage: temper-agent --list AGENT.json\n".into())),
+        ("version", Invocation::Binary, arguments(&["--version"]), 0, AGENT.version_line().into_bytes(), Errors::Exact(String::new())),
+        ("overview", Invocation::Binary, arguments(&["--help"]), 0, AGENT.help().into_bytes(), Errors::Exact(String::new())),
+        ("list help", Invocation::Binary, arguments(&["--list", "--help"]), 0, command_help(&["--list"]), Errors::Exact(String::new())),
+        ("short overview", Invocation::Binary, arguments(&["-h"]), 0, AGENT.help().into_bytes(), Errors::Exact(String::new())),
+        ("help overview", Invocation::Binary, arguments(&["help"]), 0, AGENT.help().into_bytes(), Errors::Exact(String::new())),
+        ("commands page", Invocation::Binary, arguments(&["help", "commands"]), 0, temper_shell::table::commands_page(&AGENT).into_bytes(), Errors::Exact(String::new())),
+        ("no command", Invocation::Binary, vec![], 2, vec![], Errors::Exact("temper-agent: no command; temper-agent --help lists them\n".into())),
+        ("unknown", Invocation::Binary, arguments(&["--frob"]), 2, vec![], Errors::Exact("temper-agent: no command --frob; temper-agent --help lists them\n".into())),
+        ("version extra", Invocation::Binary, arguments(&["--version", "extra"]), 2, vec![], Errors::Exact("temper-agent: no command --version; temper-agent --help lists them\n".into())),
+        ("run extra", Invocation::Binary, arguments(&["a.json", "b.json"]), 2, vec![], Errors::Exact("temper-agent: invalid arguments\nusage: temper-agent AGENT.json\n".into())),
+        ("list missing argument", Invocation::Binary, arguments(&["--list"]), 2, vec![], Errors::Exact("temper-agent --list: invalid arguments\nusage: temper-agent --list AGENT.json\n".into())),
         ("relay usage", Invocation::Binary, arguments(&["--mcp-relay"]), 1, vec![], Errors::Exact(RELAY_USAGE.into())),
-        ("relay help", Invocation::Binary, arguments(&["--mcp-relay", "--help"]), 1, vec![], Errors::Exact(RELAY_USAGE.into())),
+        ("relay help", Invocation::Binary, arguments(&["--mcp-relay", "--help"]), 0, command_help(&["--mcp-relay"]), Errors::Exact(String::new())),
+        ("child help", Invocation::Binary, arguments(&["--program-child", "--help"]), 0, command_help(&["--program-child"]), Errors::Exact(String::new())),
         ("child refused", Invocation::Binary, arguments(&["--program-child"]), 1, vec![], Errors::Exact("smith-agent: program child: missing parent\n".into())),
         ("signed in", Invocation::Program(Status::Usable), vec![], 0, b"{\"loggedIn\":true,\"authMethod\":\"claude.ai\"}\n".to_vec(), Errors::Exact(String::new())),
         ("not signed in", Invocation::Program(Status::NotSignedIn), vec![], 1, b"{\"loggedIn\":false}\n".to_vec(), Errors::Exact(String::new())),

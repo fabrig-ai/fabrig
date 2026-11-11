@@ -4897,12 +4897,21 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-forge",
- "skein-io",
  "skein-scratch",
  "skein-shell",
- "smith-agent-shell",
  "smith-protocol-program",
+ "temper-agent-shell",
  "temper-fetch",
+ "temper-shell",
+]
+
+[[package]]
+name = "temper-agent-shell"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-shell",
+ "smith-agent-shell",
  "temper-launcher",
  "temper-shell",
  "temper-version",
@@ -5042,6 +5051,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-host-domain",
  "smith-local-domain",
+ "temper-agent-shell",
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-shell-cli",
