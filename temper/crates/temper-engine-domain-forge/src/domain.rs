@@ -7281,7 +7281,12 @@ impl Domain {
             }
             RecordKind::Follow => {
                 for ((project, follow), row) in &self.follow_rows {
-                    if need.repository(row.source) || match row.task { Some(task) => need.task(task, Some(row.source.forge)), None => false } {
+                    if need.repository(row.source)
+                        || match row.task {
+                            Some(task) => need.task(task, Some(row.source.forge)),
+                            None => false,
+                        }
+                    {
                         return Key::Follow { project: *project, follow: *follow };
                     }
                 }

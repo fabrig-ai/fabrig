@@ -94,8 +94,13 @@ pub(crate) fn name(repository: Repository, branch: &[u8]) -> Name {
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
     let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
-    let mut names =
-        List::with_capacity(capacity.checked_add(d.subscriptions.capacity()).expect("subscription watches").checked_add(d.follow_rows.capacity()).expect("follow watches"));
+    let mut names = List::with_capacity(
+        capacity
+            .checked_add(d.subscriptions.capacity())
+            .expect("subscription watches")
+            .checked_add(d.follow_rows.capacity())
+            .expect("follow watches"),
+    );
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;

@@ -59,13 +59,15 @@ mod effect_words;
 mod forge_user;
 mod forges;
 pub use forge_user::{FORGE_PROVIDER, key_user, user_key};
+pub mod follows;
 mod gates;
 mod held;
 pub mod items;
 mod judge;
 mod kinds;
-pub mod follows;
-pub use follows::{FollowRow, FollowEntry, FollowCommit, FollowState, FollowSkip, FollowParity, FollowVerdict, FollowLag, followed};
+pub use follows::{
+    FollowCommit, FollowEntry, FollowLag, FollowParity, FollowRow, FollowSkip, FollowState, FollowVerdict, followed,
+};
 mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;

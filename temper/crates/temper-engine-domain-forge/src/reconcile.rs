@@ -162,7 +162,9 @@ impl Reconciliation {
             }
             Stored::Follow(row) => {
                 self.repository(RecordKind::Follow, row.source)?;
-                if let Some(task) = row.task { self.task(RecordKind::Follow, task, Some(row.source.forge))?; }
+                if let Some(task) = row.task {
+                    self.task(RecordKind::Follow, task, Some(row.source.forge))?;
+                }
                 Ok(())
             }
             Stored::Tier(row) => {

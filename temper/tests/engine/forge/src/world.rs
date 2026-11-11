@@ -1382,7 +1382,13 @@ impl World {
                             result,
                         }),
                     );
-                    if matches!(pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) && let Some(held) = &mut self.held_compares { held.push(event); } else { self.to_top.push(event); }
+                    if matches!(pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
+                        && let Some(held) = &mut self.held_compares
+                    {
+                        held.push(event);
+                    } else {
+                        self.to_top.push(event);
+                    }
                 }
                 hook @ forge::Request::Hook { .. } => self.hear(&hook),
             }
