@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue};
+use skein_lib::{Env, List, Queue};
 
 /// The saved answer names the authenticated asker, even if they left the roster
 /// in this save. The continuation crosses the roles decision's commit barrier.
@@ -69,7 +69,49 @@ fn orphan(domain: &Domain, task: u64, project: u32) -> bool {
     }
 }
 
-/// Jig owns admission and the atomic funding and question transfer. A refused
+fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks::Operation>> {
+    let row = domain.core.tasks.task(task)?;
+    let tasks::Party::Person(previous) = row.requester else { return None };
+    let delegates = row.delegates.clone();
+    let mut operations = List::uncapped();
+    operations.push(tasks::Operation::Move(tasks::Move { task, reason: Box::new([]) })).expect("uncapped operations");
+    for delegate in delegates {
+        let Some(row) = domain.core.tasks.task(delegate) else { continue };
+        if row.executor != tasks::Executor::Person(tasks::PersonAddress::Person(previous)) {
+            continue;
+        }
+        match row.phase {
+            tasks::Phase::Waiting
+            | tasks::Phase::Active(_)
+            | tasks::Phase::Held { was: tasks::Was::Waiting | tasks::Was::Active(_), .. } => {}
+            tasks::Phase::Closing(_)
+            | tasks::Phase::Held { was: tasks::Was::Closing(_), .. }
+            | tasks::Phase::Ended(_) => continue,
+        }
+        let revision = row.revisions.person;
+        let message = core::fresh(&mut domain.core.counters, core::Family::Message)?;
+        operations.push(tasks::Operation::Amend(tasks::Amend {
+            task: delegate,
+            message,
+            stop_run: false,
+            amendment: Box::new(tasks::Amendment {
+                addressed: Some(tasks::AddressChange { revision, address: tasks::PersonAddress::Person(person) }),
+                tracked: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: Box::new([]),
+            }),
+        })).expect("uncapped operations");
+    }
+    Some(operations)
+}
+
+/// Jig owns admission and the atomic funding and person-task address transfer. A refused
 /// move leaves the task for the next roles save or project period.
 pub(crate) fn move_roles(domain: &mut Domain, project: u32, preferred: Option<u64>) {
     let Some(person) = owner(domain, project, preferred) else { return };
@@ -79,13 +121,16 @@ pub(crate) fn move_roles(domain: &mut Domain, project: u32, preferred: Option<u6
     let period_budget = funding.numbers.budget;
     for task in domain.core.tasks.view_tasks() {
         if orphan(domain, task.number, project) {
-            domain.work.push(Work::Tasks(tasks::Event::Move {
+            let Some(operations) = operations(domain, task.number, person) else { continue };
+            // The root supplies the new person's funding context, as Move does.
+            domain.work.push(Work::Tasks(tasks::Event::Compound {
                 reply_to: super::internal(u64::MAX),
-                person,
+                by: tasks::Party::Person(person),
+                project,
                 period,
                 pool_budget: pool.budget,
                 period_budget,
-                operation: tasks::Move { task: task.number, reason: Box::new([]) },
+                operations,
             }));
         }
     }
