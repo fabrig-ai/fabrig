@@ -136,20 +136,27 @@ fn tier_step(d: &mut Domain, entry: u64, released: bool) -> Box<[Request]> {
     )
 }
 fn made(d: &mut Domain, entry: u64, made: skein_forge_client::Made) {
+    outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false });
+}
+fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome) {
     if let Some(kept) = d.entries.get_mut(&entry) {
         kept.entry.start = Some(skein_forge_client::Position { at: env().now, comment: 0, review: 0, review_page: 1 });
     }
     let mut out = Queue::uncapped();
-    crate::tiers::outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false }, &mut out);
+    crate::tiers::outcome(d, entry, outcome, &mut out);
     d.entries.remove(&entry);
 }
-fn dispatched() -> Domain {
+fn dispatching() -> Domain {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
     tier_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
     tier_step(&mut d, DISPATCH, false);
+    d
+}
+fn dispatched() -> Domain {
+    let mut d = dispatching();
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     d
 }
@@ -215,6 +222,9 @@ fn requests(out: &[Request]) -> Vec<(u64, api::Commit)> {
             _ => None,
         })
         .collect()
+}
+fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
+    parts.concat().into_boxed_slice()
 }
 fn choice(out: &[Request]) -> Option<&TierDecision> {
     out.iter().find_map(|request| match request {
@@ -369,6 +379,95 @@ fn exhausted_faults_hold_until_released_then_run_green() {
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
     );
+}
+#[test]
+fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
+    let mut d = dispatching();
+    let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
+    for fault in 0..=RETRIES {
+        let entry = DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
+        let out = tier_step(&mut d, entry + 1, false);
+        assert_eq!(row(&d).record.run.as_ref().unwrap().faults, fault + 1);
+        if fault < RETRIES {
+            let api::Write::Dispatch { workflow, .. } = &d.entries.get(&(entry + 1)).unwrap().entry.effect.write else {
+                panic!("a missing workflow dispatches again")
+            };
+            assert_eq!(workflow.as_ref(), b"tier.yml");
+        } else {
+            assert_eq!(
+                choice(&out),
+                Some(&TierDecision::Held {
+                    words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+                })
+            );
+        }
+    }
+    let words = d.tier_execution_words(TIER_TASK).unwrap();
+    let line = join_words(&[
+        b"Runner fault: Judged run: commit 0404040404040404040404040404040404040404040404040404040404040404, branch temper/tier/browser.1; ",
+        kind, b"\n",
+    ]);
+    assert_eq!(skein_lib::bytes::count(&words, &line, 4), 3);
+    tier_step(&mut d, RELEASE + 4, true);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
+    made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    assert_eq!(
+        choice(&finish(&mut d)),
+        Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
+    );
+}
+#[test]
+fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
+    let mut d = dispatching();
+    for fault in 0..RETRIES {
+        let entry = DISPATCH + u64::from(fault);
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
+        tier_step(&mut d, entry + 1, false);
+    }
+    outcome(&mut d, DISPATCH + u64::from(RETRIES), skein_forge_client::Outcome::Failed(api::Error::Missing));
+    let saved = row(&d).clone();
+    assert_eq!(saved.flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
+    assert_eq!(saved.held, None, "the third refusal is saved before the step holds the task");
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    let out = tier_step(&mut cold, RELEASE + 3, false);
+    let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
+    assert_eq!(
+        choice(&out),
+        Some(&TierDecision::Held {
+            words: join_words(&[b"Tier browser run 1 held after 3 runner faults, last: ", kind]),
+        })
+    );
+    let words = cold.tier_execution_words(TIER_TASK).unwrap();
+    assert!(skein_lib::bytes::find(&words, &join_words(&[b"; ", kind, b"\n"])).is_some());
+}
+#[test]
+fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
+    for rerun in [false, true] {
+        let mut d = if rerun { dispatched() } else { dispatching() };
+        let entry = if rerun {
+            completed(&mut d, api::Conclusion::Failure, Some(0));
+            tier_step(&mut d, DISPATCH + 1, false);
+            let api::Write::Rerun { .. } = d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write else {
+                panic!("retry the failed job")
+            };
+            DISPATCH + 1
+        } else {
+            DISPATCH
+        };
+        let error = if rerun { api::Error::Missing } else { api::Error::Refused };
+        outcome(&mut d, entry, skein_forge_client::Outcome::Failed(error));
+        assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::Lost));
+        tier_step(&mut d, entry + 1, false);
+        let words = d.tier_execution_words(TIER_TASK).unwrap();
+        assert!(skein_lib::bytes::find(&words, b"; lost\n").is_some());
+        assert!(skein_lib::bytes::find(&words, b"not found at").is_none());
+    }
 }
 #[test]
 fn branch_no_tier_follows_starts_no_run() {
