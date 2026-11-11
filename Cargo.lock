@@ -6481,6 +6481,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-test-env"
+version = "0.0.0"
+dependencies = [
+ "skein-shell",
+]
+
+[[package]]
 name = "temper-twin"
 version = "0.0.0"
 dependencies = [

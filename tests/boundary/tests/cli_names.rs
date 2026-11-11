@@ -96,9 +96,7 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "TEMPER_RATE", until: "cli C4" },
     Exception { what: "TEMPER_RECORD_RELEASE", until: "cli C4" },
     Exception { what: "TEMPER_SITTING_WAIT_SECS", until: "cli C4" },
-    Exception { what: "TEMPER_TEST_BUNDLE", until: "cli C4" },
     Exception { what: "TEMPER_TEST_CLAUDE", until: "cli C4" },
-    Exception { what: "TEMPER_TEST_PLAYGROUND", until: "cli C4" },
     Exception { what: "TEMPER_WRAPPER", until: "cli C4" },
 ];
 
