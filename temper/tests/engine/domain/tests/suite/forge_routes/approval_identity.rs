@@ -1032,6 +1032,13 @@ fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
     assert_eq!((&*row.owner, &*row.name), (b"org".as_slice(), b"repo".as_slice()));
     assert_eq!(Some(row.pull), light_rules::change_row(&world, change).pull);
     assert_eq!((row.required, row.counted, row.yours, row.whole), (1, 0, engine::YourReview::Counts, true));
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number: row.pull })) else {
+        panic!("waiting pull request")
+    };
+    let kept = light_rules::change_row(&world, change);
+    assert_eq!(kept.change.last_head, Some(forge_world::translate::commit(pull.commit)));
+    assert_eq!(pull.size, raw::Size { files: 1, additions: 1, deletions: 0 });
+    assert_eq!(row.size, Some(engine::ApprovalSize { files: 1, additions: 1, deletions: 0, cut: false }));
     sign_in_other_project(&mut world);
     let other_watcher = Token::new(171);
     watch_approvals(&mut world, other_watcher);

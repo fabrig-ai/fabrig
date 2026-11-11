@@ -128,3 +128,6 @@ Linux and macOS, is `../README.md`, section 5's after-landing work, owned by tem
   (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper-box` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no
   reason is recorded. Seen by reading.
+
+- **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
+- **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].

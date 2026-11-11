@@ -1841,6 +1841,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-approval-first",
         heading: "Three things need you.",
         parts: &[
+            Part::StyledText { style: temper_client_view::look::CHIPS, text: &["+142 -18", " in 4 files"] },
             Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on GitHub" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Text { text: "oldest first" },
@@ -2217,6 +2218,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-step-pair",
         heading: "One change landed today. Three things need you.",
         parts: &[
+            Part::StyledText { style: temper_client_view::look::CHIPS, text: &["+142 -18", " in 4 files"] },
             Part::Named { role: Role::Paragraph, name: "Written by the status agent at 19:12" },
             Part::Text {
                 text: "Monthly totals by category and dark mode are both checked by CI; nothing reaches main until you approve. The budget alerts change asks whether alerts go by email. The CSV import fix you approved this afternoon landed at 16:20.",

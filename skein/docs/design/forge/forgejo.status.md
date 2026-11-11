@@ -36,3 +36,5 @@ The client world's late copies read
   rebase's concurrent-push behaviour. The connector world checks a dropped
   push by an explicit branch rewrite; the design takes the forced push at
   its worst until the real forge's behaviour is recorded.
+
+- **Not yet:** 1.2: `Read::Pull`'s `size`, from `changed_files`, `additions` and `deletions` [in flight: change 532].

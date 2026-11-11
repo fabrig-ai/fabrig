@@ -61,6 +61,7 @@ fn a_pull_seen_merged_is_logged() {
         ci: skein_forge::api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     };
     let mut out = Queue::uncapped();
     let pending = PendingStep {
