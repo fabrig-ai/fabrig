@@ -4487,13 +4487,27 @@ fn wait_change_decision(
     ProcedureStep::new(StepEnd::Wait)
 }
 
-// A landed change waits for its live delegates' terminals before offering its
-// result, so their completion wakes an idle procedure rather than a refused step.
+// A completed change cancels its live delegates, then waits for their terminals
+// before offering its result; their terminals wake the waiting procedure.
 fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
     match domain.core.tasks.task(task) {
         Some(row) => !row.delegates.is_empty(),
         None => false,
     }
+}
+
+fn cancel_completed_change(domain: &Domain, env: &Env<Limits>, task: u64, reason: &[u8]) -> ProcedureStep {
+    let mut cancels = List::with_capacity(env.limits.tasks.delegates);
+    if let Some(row) = domain.core.tasks.task(task) {
+        for delegate in &row.delegates {
+            if !change_cancelled(domain, *delegate) {
+                cancels
+                    .push(jig_domain_core::StepCancel { task: *delegate, reason: reason.into(), grace: None })
+                    .expect("live delegates bound the completed change's cancels");
+            }
+        }
+    }
+    ProcedureStep { cancels: cancels.into_boxed(), ..ProcedureStep::new(StepEnd::Wait) }
 }
 
 // The deployment cancels the procedure through its task control path
@@ -4682,9 +4696,13 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     let decision = match choice {
         forge_change::Decision::Finish { .. } if change_has_live_delegates(domain, task) => {
             domain.forge.wait_change(&super::environment_forge(env), task, None);
-            ProcedureStep::new(StepEnd::Wait)
+            cancel_completed_change(domain, env, task, b"its change landed")
         }
         forge_change::Decision::Finish { merge } => finish_change_step(domain, env, task, &merge),
+        forge_change::Decision::NoChange if change_has_live_delegates(domain, task) => {
+            domain.forge.wait_change(&super::environment_forge(env), task, None);
+            cancel_completed_change(domain, env, task, b"its change ended")
+        }
         forge_change::Decision::NoChange => {
             let row = domain.forge.change(task).expect("completed no-change row");
             let forge_change::State::NoChange { words } = &row.change.state else {
