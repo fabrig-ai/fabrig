@@ -23,6 +23,7 @@ fn goal_world(command: bool, kind: bool, control: bool) -> (World, engine::Assig
         StoryLimits { merge_kind: true, merge_authority: kind, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

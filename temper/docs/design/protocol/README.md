@@ -367,7 +367,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the
-  work it saved last (`../domain/worker.md`, 4.2 and 5). After a crash,
+  work it saved last (`../domain/worker/README.md`, 4.2 and `../domain/worker/checkouts.md`). After a crash,
   the next start settles them at once, lost or not started (jig's
   `domain/engine/restart.md`; `../domain/root.md`, 8.1). Job claims
   remain for restart recovery even after a drain, since their effects

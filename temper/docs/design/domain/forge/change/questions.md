@@ -199,12 +199,12 @@ early, by these rules:
   count.
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those heads merged into it, one by one in the order
-  of the change's dependencies (`../../worker.md`, section 5). The change
+  of the change's dependencies (`../../worker/checkouts.md`). The change
   keeps each head it started from, with its dependency, and marks those
   dependencies started from (jig's `domain/connectors.md`, 6.1).
 - **A conflict refuses it.** A head that does not merge cleanly fails
-  the producer's preparation as a conflict naming it (`../../worker.md`,
-  section 5). The change cancels that producer, its early start spent,
+  the producer's preparation as a conflict naming it (`../../worker/checkouts.md`
+  ). The change cancels that producer, its early start spent,
   and waits for its dependencies to be done; nothing is held or
   escalated, and its marks stay.
 - **Once.** A change starts its producer early at most once. An early
@@ -216,7 +216,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker.md`, 4.1 and section 5). A clean merge is
+  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
@@ -242,15 +242,16 @@ early, by these rules:
 ## 2. Waiting on a person's approval
 
 A change whose merge waits on a person's approval on the forge (`gates.md`, 2,
-requirement 4) shows under Needs you to whoever's review it waits on, with
+requirement 4), or whose step's facts show one short, shows under Needs you to whoever's review it waits on, with
 its link (`../../../client/forge/README.md`, 4.1). It is a read, neither a task nor a
 hold (`../../../draft/forge-identity.md`, section 8): a person task would ask for
 an authority widened down the tree, to agents too, couldn't be opened by a
 change made before its rule, and would need a stored number, a delegate slot
 and a task per head; a hold escalates to the goal above first, wakes an
-agent to no purpose and offers a Release that does nothing here. The read
-leaves the landing branch held by the change first in line (`../queues.md`),
-which is what a person's approval asks of it.
+agent to no purpose and offers a Release that does nothing here. A change
+it shows is out of its branch's queue meanwhile (`../queues.md`), so the
+rest of the branch lands while a sign-off waits a night
+(`../../../draft/what-reaches-you.md`, section 7).
 
 - **The subject `approvals`:** one number, `APPROVALS_SUBJECT`, `(1 << 62) |
   (1 << 37)`, outside the task numbers as `TRIALS_SUBJECT` is (`../../trial.md`,
@@ -262,19 +263,21 @@ which is what a person's approval asks of it.
   watcher's role itself. One subject serves the deployment, as `dismissed`
   does (`../attention.md`, 1). It stores nothing.
 - **The forge's part:** each live change, in a project that lands by queue or
-  by turn, in state `First` or `Landing`, with a pull request, whose review
+  by turn, in state `Queued`, `First` or `Landing`, with a pull request, whose review
   facts (`gates.md`, 2) are at its last head, with an approval of an enforcing rule
-  covering its landing branch still short and none refused, each judged as its
+  covering it, by its branch and the path sets it touches at that head
+  (`gates.md`, 2, the kept `Touched`), still short and none refused, each judged as its
   panel judges them (`README.md`, 5). Of each: its task, project and forge; its
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
-  how many changes wait behind it in its landing branch's order (`../queues.md`),
-  counted as its panel counts those ahead (`README.md`, 5); and its short approvals, each
-  its scope, rule, role, required count and the people counted. Reviews read
+  and its short approvals, each its scope, rule, role, required count, the
+  people counted, and `sets`, the sets of its rule the change touches
+  there, bit `n − 1` for set `n`, none for a rule naming no set. No change
+  waits behind one it shows, which is out of its queue (`../queues.md`), so a
+  row counts none. Reviews read
   in part make a row as a whole read does. A change with no facts at its last
-  head has none: one not yet judged at its merge, one that left the queue or
-  was held, and every change after a restart until its next step judges its
-  merge again.
+  head has none: one not yet judged, one that was held, and every change
+  after a restart until its next step's facts are kept.
 - **The root's part:** of those, the changes in a project where the watcher
   holds a role. The row's approval is the first short one whose role is the
   watcher's, else, for an owner of the project, the first short one; a
@@ -292,7 +295,12 @@ which is what a person's approval asks of it.
   - otherwise *counts*.
 
   It names, too, the goal the change was made under, the outermost goal
-  above its task, if any, for that goal's page to show it.
+  above its task, if any, for that goal's page to show it, and, for the
+  row's approval, `sets`: each set of its rule the change touches, by
+  number in order, `ApprovalSet { number, name }`, its name the project's
+  classes' as the forge holds them (`../attention.md`, 6), empty for a number
+  the classes hold no set at; none for a rule naming no set. The client
+  says them on the card (`../../../client/forge/README.md`, 4.1).
 - **Its rows,** oldest first by when their facts were first kept, then by
   task: at most 32, and as many as one whole delivery holds at the largest
   row, as the trials' are bounded (`../../trial.md`, section 6); `more` counts the
@@ -312,3 +320,23 @@ which is what a person's approval asks of it.
   such a rule stops their mistakes, not one trying to get past it, and the
   client says so (`../../../client/pages/settings.md`, 2; `../../../draft/forge-identity.md`,
   section 6).
+
+## 3. Open questions
+
+- **A refused `message` keeps no record** (`questions.md`, 1): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`../../routing.md`, 2). So a call asked again decides again, from the change as
+  it then stands. Default: so.
+
+- **A passed-up question whose asker ends** (`questions.md`, 1): its requester hears of the
+  end when it answers, not before, since saying so once at the end would need a
+  stored mark beside where the question stands. One that never answers hears
+  nothing of it, and the question stays until the change ends. Default: so; it
+  did reach someone.
+
+- **A report's head past a merge** (`questions.md`, 1): a next producer's start that merges a
+  tip it lacks makes a new head before its run if clean, or at its first push or
+  save once its conflicts are settled. A report written before that merge names
+  an older head; a contained tip makes no new one. Default: so; the head delivered
+  names what is on the branch (`../../agent/README.md`, section 5).

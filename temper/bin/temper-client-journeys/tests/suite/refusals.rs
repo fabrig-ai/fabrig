@@ -53,7 +53,7 @@ fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]],
     let scratch = Scratch::new("journeys-process-refusal");
     let file = scratch.path().join("recording");
     fs::write(&file, recording).expect("scratch recording");
-    let journeys = paths::tree().join("docs/design/client/journeys");
+    let journeys = paths::tree().join("docs/design/client/web/journeys");
     let tool = paths::tree().join("crates/temper-client-journeys-tool");
     let tui = paths::tree().join("docs/design/client/tui/journeys");
     let before = (listing(&journeys), listing(&tool), listing(&tui));

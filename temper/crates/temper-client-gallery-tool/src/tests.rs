@@ -1944,10 +1944,19 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on Forgejo" },
             Part::Text { text: "This project's landing rule 1 asks for one approval by an owner." },
-            Part::Text { text: "2 more changes wait behind this one." },
             Part::Named { role: Role::Link, name: "Review on Forgejo ↗" },
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "needs-approval-path",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on Forgejo" },
+            Part::Text { text: "Signs off changes to vsr's protocol core." },
+            Part::Named { role: Role::Link, name: "Sign off on Forgejo ↗" },
+            Part::Named { role: Role::Button, name: "Open" },
         ],
     },
     Holds {
@@ -2231,7 +2240,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "A task ran out of turns on the coupon rules." },
             Part::Text { text: "Split it in two." },
             Part::Absent { role: Role::Link, name: "Sign off on Forgejo ↗" },
-            // Sign-offs by path and who can still sign have no client read.
+            // These approvals name no set; who can still sign has no client read.
         ],
     },
     Holds {

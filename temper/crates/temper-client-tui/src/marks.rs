@@ -1,4 +1,4 @@
-//! The last turn's changed sections (temper/docs/design/client/tui/pages.md, A design session, The draft).
+//! The last turn's changed sections (temper/docs/design/client/tui/pages/design-session.md, 1, The draft).
 use alloc::boxed::Box;
 use skein_lib::List;
 use temper_client_domain::pages::chat::document::{self, NoteChange};

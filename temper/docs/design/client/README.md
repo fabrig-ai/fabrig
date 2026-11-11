@@ -12,11 +12,11 @@ API jig's `client/domain/contract/README.md` and its protocol jig's
 `protocol/client/README.md`: this document takes them as given and cites them.
 The forge's parts of the client are `forge/README.md`, the browser `web/README.md`,
 and the agents' tools, `temper ctl`, `ctl/README.md`. temper is the source
-of truth for what it draws; the mockups (`mockups/`) design what it
+of truth for what it draws; the mockups (`web/mockups/`) design what it
 does not draw yet: their look, their parts and their order, their
 words and where each act leads. This document holds what each page
 reads, watches and does, and cites them for the rest
-(`mockups/README.md`, section 1). What is still open is listed in
+(`web/mockups/README.md`, section 1). What is still open is listed in
 section 5.
 
 ## 1. In one page
@@ -201,7 +201,7 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
     terminal (`testing.md`);
   - `limits`: the client's limits and their sum.
 - **`temper-client-tui`** holds, as modules: `state`, the TUI's own
-  state beside the client root (`tui/pages.md`); `event`, what its view makes of a
+  state beside the client root (`tui/pages/README.md`); `event`, what its view makes of a
   person's acts; `words`, its own phrases; `view`, its pages as
   skein-ui's tree, with a module of its own for each part of a screen
   (`view::launchpad`, `view::foot`, `view::chat`); `look`, its owner and
@@ -210,11 +210,11 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
   skein-lib, `jig-client`, `temper-client-domain` and
   `temper-client-view`, whose words it says where it says what the view
   says, through the view's shared surface, `temper_client_view::shared`
-  (`tui/pages.md`), and links no io.
+  (`tui/pages/README.md`), and links no io.
 - **`temper_client_view::shared`** is what the browser's terminal says
   that the TUI says too, as words and data with no tree: functions of
   the root and the view's words, each one the browser's view itself
-  builds from, so that the two say the same thing alike (`tui/pages.md`, *Its
+  builds from, so that the two say the same thing alike (`tui/pages/README.md`, *Its
   words*). The view's builders and bindings stay its own.
 - **`temper-client-shell-tui`** holds, as modules: `host`, the TUI's
   one seam (`tui/README.md`, 3); `run`, its loop (`tui/README.md`, 4); `limits`, the client's
@@ -656,7 +656,7 @@ was answered with. A box enables it beside the printed link
     root's shown count moves with it.
 - **The TUI's flow,** on the TUI's sign-in screen (`../draft/tui.md`,
   4.1), its host and its view, the TUI's crates:
-  - *It asks* once each time its sign-in screen opens signed out (`tui/pages.md`:
+  - *It asks* once each time its sign-in screen opens signed out (`tui/pages/README.md`:
     at its start with no credential kept, and again after a sign-out or
     a kept credential the engine refused), while the root holds no ask:
     the host steps `Event::AskApproval`. A held credential's sign-in in
@@ -702,7 +702,7 @@ was answered with. A box enables it beside the printed link
     ```
 
     "The code expires in SPAN." is `view.md`, 6's *span* to the ask's expiry,
-    with its tick. On the screen, "Sign in this terminal" is `tui/pages.md`'s
+    with its tick. On the screen, "Sign in this terminal" is `tui/pages/README.md`'s
     first line, "Sign in this terminal to HOST:PORT", said once; the
     approval's lines follow it, then the paste's, "Paste the link temper
     printed, then Enter." and its field.
@@ -719,7 +719,7 @@ was answered with. A box enables it beside the printed link
     approval has ended or was not asked, or a pasted link has replaced
     it, asks again (`may_ask_again`), and its line says "Press Enter to
     ask again." The field has the focus on this screen and takes every
-    character, `q` and `a` among them (`tui/pages.md`), so no letter can be the
+    character, `q` and `a` among them (`tui/pages/README.md`), so no letter can be the
     key. While an approval waits, Enter in the empty field is the
     paste's "not a link" refusal, as before.
   - *A pasted link, sent,* replaces the approval's take (jig-client's
@@ -747,11 +747,11 @@ was answered with. A box enables it beside the printed link
     (`../draft/tui.md`, 4.1), as `temper-box open` keeps a link's (section
     4), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (`pages/README.md`).
-  - *Not asked while the TUI signs in from the engine's link* (`tui/pages.md`):
+  - *Not asked while the TUI signs in from the engine's link* (`tui/pages/README.md`):
     the approval is asked when that ends with the TUI signed out, as the
     sign-in screen opens.
   - *The browser's way in beside the TUI's link:* a TUI signed in from
-    the engine's link (`tui/pages.md`) spends the engine's local link, never the
+    the engine's link (`tui/pages/README.md`) spends the engine's local link, never the
     printed link (`tui/README.md`, 2; jig's `protocol/client/sign-in.md`, *The local
     link*), so the link the box's terminal shows stays live for the
     browser, before the TUI signs in or after it. That link is the

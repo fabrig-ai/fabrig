@@ -1970,7 +1970,7 @@ pub(super) fn approval_row() -> d::forge::approvals::Row {
         role: 1,
         required: 1,
         counted: 0,
-        behind: 0,
+        sets: Box::new([]),
         whole: true,
         yours: d::forge::approvals::Yours::Counts,
     }
@@ -1991,8 +1991,20 @@ pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row],
 fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
     use d::forge::{approvals::Yours, forges::Kind};
     let rule = "This project's landing rule 1 asks for one approval by a maintainer.";
-    for (kind, scope, rule_number, role, required, counted, behind, whole, yours, address, expected) in [
-        (Kind::Forgejo, 1, 1, 1, 1, 0, 0, true, Yours::Counts, "https://forge.example/files", [rule].as_slice()),
+    for (kind, scope, rule_number, role, required, counted, sets, whole, yours, address, expected) in [
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "vsr's protocol core")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            [rule, "Signs off changes to vsr's protocol core."].as_slice(),
+        ),
         (
             Kind::GitHub,
             0,
@@ -2000,14 +2012,11 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             0,
             2,
             1,
-            3,
+            [].as_slice(),
             true,
             Yours::Counts,
             "https://github.com/work/hello/pull/24/files",
-            &[
-                "The deployment's landing rule 2 asks for 2 approvals by owners; 1 so far.",
-                "3 more changes wait behind this one.",
-            ],
+            &["The deployment's landing rule 2 asks for 2 approvals by owners; 1 so far."],
         ),
         (
             Kind::Forgejo,
@@ -2016,13 +2025,13 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            1,
+            [(1, "A"), (3, "B")].as_slice(),
             false,
             Yours::Counts,
             "https://forge.example/files",
             &[
                 rule,
-                "1 more change waits behind this one.",
+                "Signs off changes to A and B.",
                 "There are too many reviews to read them all, so one may already count.",
             ],
         ),
@@ -2033,11 +2042,15 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [(1, "A")].as_slice(),
             true,
             Yours::NoAccount,
             "https://forge.example/files",
-            &[rule, "temper knows no Forgejo account of yours, so your review wouldn't count."],
+            &[
+                rule,
+                "Signs off changes to A.",
+                "temper knows no Forgejo account of yours, so your review wouldn't count.",
+            ],
         ),
         (
             Kind::GitHub,
@@ -2046,7 +2059,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::NoAccount,
             "https://github.com/files",
@@ -2059,7 +2072,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::TooFew,
             "https://forge.example/files",
@@ -2075,7 +2088,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::OtherRole,
             "https://forge.example/files",
@@ -2088,7 +2101,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             2,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "",
@@ -2101,7 +2114,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             3,
             2,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "javascript:alert(1)",
@@ -2114,7 +2127,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             8,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::OtherRole,
             "https://forge.example/files",
@@ -2130,11 +2143,74 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             8,
             2,
             1,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "https://forge.example/files",
             &["This project's landing rule 1 asks for 2 approvals by people with role 8; 1 so far."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "A"), (2, "B"), (3, "C")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[rule, "Signs off changes to A, B and C."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(4, "")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[rule, "Signs off changes to path set 4."],
+        ),
+        (
+            Kind::GitHub,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "A")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://github.com/files",
+            &[rule, "Signs off changes to A."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [
+                (1, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"),
+                (2, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"),
+                (3, "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
+                (4, "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
+                (5, "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"),
+                (6, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
+            ]
+            .as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[
+                rule,
+                "Signs off changes to AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD, EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE and FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.",
+            ],
         ),
     ] {
         let row = d::forge::approvals::Row {
@@ -2144,7 +2220,13 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             role,
             required,
             counted,
-            behind,
+            sets: sets
+                .iter()
+                .map(|(number, name)| d::forge::approvals::ApprovalSet {
+                    number: *number,
+                    name: name.as_bytes().into(),
+                })
+                .collect(),
             whole,
             yours,
             address: address.as_bytes().into(),
@@ -2153,9 +2235,11 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
         let mut root = kinds(&[]);
         approvals(&mut root, core::slice::from_ref(&row), 0);
         let mut view = f::browser_page_view(&root);
-        let (question, review) = match kind {
-            Kind::Forgejo => ("Approve A change on Forgejo", "Review on Forgejo ↗"),
-            Kind::GitHub => ("Approve A change on GitHub", "Review on GitHub ↗"),
+        let (question, review) = match (kind, sets.is_empty()) {
+            (Kind::Forgejo, true) => ("Approve A change on Forgejo", "Review on Forgejo ↗"),
+            (Kind::Forgejo, false) => ("Approve A change on Forgejo", "Sign off on Forgejo ↗"),
+            (Kind::GitHub, true) => ("Approve A change on GitHub", "Review on GitHub ↗"),
+            (Kind::GitHub, false) => ("Approve A change on GitHub", "Sign off on GitHub ↗"),
         };
         let heading = f::find(view.tree(), Role::Heading { level: 1 }, question.as_bytes()).unwrap();
         assert!(view.tree().find(heading).unwrap().styles.as_slice().contains(&look::FLOW_Q));
@@ -2164,6 +2248,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             .filter(|node| node.role == Role::Paragraph && node.styles.as_slice().contains(&look::ASK_CONTEXT))
             .map(|node| node.name.as_deref().unwrap())
             .collect();
+        assert!(context.iter().all(|line| !String::from_utf8_lossy(line).contains("wait behind")));
         assert_eq!(context, expected.iter().map(|line| line.as_bytes()).collect::<Vec<_>>());
         let primary = f::find(view.tree(), Role::Link, review.as_bytes());
         if yours == Yours::Counts && skein_ui::markdown::safe_url(address.as_bytes()) {
@@ -2172,6 +2257,17 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             assert_eq!(node.external.as_deref(), Some(address.as_bytes()));
         } else {
             assert!(primary.is_none(), "{yours:?}: no review that cannot count");
+        }
+        let prompts = crate::shared::need_prompts(&root, &f::browser_words());
+        assert_eq!(prompts.len(), 1);
+        match &prompts[0].act {
+            crate::shared::NeedAct::Review { words, address: target } => {
+                assert!(primary.is_some());
+                assert_eq!(words.as_ref(), review.as_bytes());
+                assert_eq!(target.as_ref(), address.as_bytes());
+            }
+            crate::shared::NeedAct::Web => assert!(primary.is_none()),
+            crate::shared::NeedAct::Answer(_) => panic!("an approval is answered on the forge"),
         }
         assert_eq!(
             press(&mut view, b"Open"),

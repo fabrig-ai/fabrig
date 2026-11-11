@@ -21,7 +21,7 @@ pub mod tui_again;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
 pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
 /// Where the journeys live, by the manifest's path (client/web/journeys.md, 5.1).
-pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/journeys");
+pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/web/journeys");
 
 #[derive(Debug)]
 pub enum Refusal {
@@ -79,7 +79,7 @@ pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -
     if !named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
-    add_to(journeys, &journeys.with_file_name("tui").join("journeys"), name, recording, given)
+    add_to(journeys, &journeys.with_file_name("..").join("tui/journeys"), name, recording, given)
 }
 
 /// Dispatch a recording by its first fact after clocks, keeping names unique

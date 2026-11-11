@@ -4217,7 +4217,7 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             role: 1,
             required: 2,
             counted: 1,
-            behind: 3,
+            sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
         })
@@ -4242,7 +4242,10 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.title(), row.title.as_ref());
         assert_eq!(actual.since(), row.since.as_nanos());
         assert_eq!((actual.scope(), actual.rule(), actual.role()), (row.scope, row.rule, row.role));
-        assert_eq!((actual.required(), actual.counted(), actual.behind()), (row.required, row.counted, row.behind));
+        assert_eq!((actual.required(), actual.counted()), (row.required, row.counted));
+        assert_eq!(actual.sets().len(), 1);
+        assert_eq!(actual.sets().as_slice()[0].number(), row.sets[0].number);
+        assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
     }

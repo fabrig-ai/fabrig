@@ -790,3 +790,49 @@ Then `temper-box serve`, and the printed command, once, on Forgejo's host.
 - **Adopting** (`../../domain/forge/adoption.md`, 5) is asked by the same pull: a
   row `Made` or `Adopting` with no act in flight, on a connected forge,
   is given to the connector to act.
+
+## 10. Open questions
+
+- **An owned forge made managed** (`README.md`, section 2): an act that makes an
+  owned forge's record managed, after which temper stops running
+  Forgejo, its directory's `forgejo/` is a stock work path a person
+  runs, and its `AdminToken` record, taken over (`owned.md`, 5), stays valid.
+
+- **A lock and an exec in skein's shell,** onto which `owned.md`, 4's module and
+  Claude Code's lock and launcher (`owned.md`, 6) move once skein's shell offers an
+  exec and a lock held across it, which skein's `Lock` is not (skein's
+  `runtime/io/files.md`). A second service that execs is what would ask
+  skein for them.
+
+- **A copy of a bottle of temper's own** (`owned.md`, 6), only if a pinned bottle
+  leaves `ghcr.io` while a released temper still pins it: until then
+  the refusal, `mirror` and a binary given by path answer it, and a copy
+  temper hosts is GPL code it distributes, its source to keep beside it
+  (`../../draft/macos.md`, section 7).
+
+- **The person's `claude` installed after init** (`owned.md`, 6, `init.md`, 2): taken in
+  place of the fetched build, or not; for now init's choice holds until
+  the box is made again (`../../draft/claude-provider.md`, 6).
+
+- **Reading a runner's row** (`owned.md`, 3): a preparation goes by
+  `runner/config.yaml`, since Forgejo's command line cannot read the
+  row. So a row a person removed stays gone until that file is removed
+  before a start, which no help page says until one covers removing a
+  runner, and `register`, where a preparation still runs it, leaves a
+  runner still running elsewhere on a raw row until it starts again.
+  Noticing either needs a reader with Forgejo running, at
+  `GET /api/v1/admin/actions/runners` as `testing.md`, 3's facts read it, which
+  the preparation is not.
+
+- **Overrides of `app.ini`.** Default: none; the settings are temper's.
+
+- **Backups beyond an upgrade's.** Default: the person's, of the forge's
+  directory and the store, with the box stopped.
+
+- **A handover made by a Forgejo's own restart** (`owned.md`, 5, `box.md`, 1): a Forgejo
+  step that exits under a running serve runs its preparation again,
+  which makes a new handover, and no `started` reaches serve for it, so
+  the file stays until serve's next start. It needs the box to tell
+  serve of that restart, and serve to take a handover on a forge it
+  holds connected. `owned.md`, section 5's second read handles serve's own start
+  alone.

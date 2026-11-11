@@ -298,8 +298,12 @@ its own:
     another; where it asks for more, " asks for P approvals by ROLES; C so
     far.", ROLES "owners", "maintainers", "members", "observers" or "people
     with role R", P and C in digits;
-  - "1 more change waits behind this one." or "N more changes wait behind
-    this one.", while any does;
+  - for a rule by path, the row's `sets` (`../../domain/forge/change/questions.md`,
+    2): "Signs off changes to NAME.", NAME each set's name, joined "A and
+    B" or "A, B and C", "path set N" for one with no name, so "Signs off
+    changes to vsr's protocol core." (`../../draft/what-reaches-you.md`,
+    section 7); none for a rule naming no set. Nothing waits behind such a
+    change, which is out of its queue, so the card counts none;
   - "There are too many reviews to read them all, so one may already count.",
     where its reviews weren't read whole;
   - where the viewer's review wouldn't count, why. Too few: "Fewer people can
@@ -308,7 +312,9 @@ its own:
     yours, so your review wouldn't count.", "GitHub" on GitHub. Another role:
     "It waits for a review by ROLE; yours wouldn't count.", ROLE as above.
 - **Its acts:** where the viewer's review would count and the card has an
-  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", in
+  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", or,
+  for a row with `sets`, "Sign off on Forgejo ↗" or "Sign off on GitHub ↗"
+  (`../../draft/what-reaches-you.md`, section 7), in
   `.choices`, a link opening the review in a new tab; otherwise no primary, so
   an owner still sees a wait nobody can end and is never sent to a review that
   would come back unknown. Then the pair: "Open", to the change's `Task { task
@@ -444,10 +450,7 @@ above:
   Forgejo card and files-page link in `../../testing/checks.md`, 3 of that document, with client
   and view tables for both kinds and the reasons for no review link.
   Those checks establish no rendered comparison or real review.
-- **A repository link in a folded forge row** (`deployment.md`): the summary stays
-  words and the link lives in the body's Repositories. Offering it while
-  folded needs a row whose navigation and disclosure are separate controls.
-  Default: the body's link, as the `ui-repo-link` cut decided.
+- A repository link in a folded forge row: `deployment.md`, section 1.
 - **A visitor's links to the forge** (9.3): a commit, a pull request or a
   run linked where its repository is known public. Default: none. The
   forge's state would have to keep whether a repository is private, and
@@ -485,12 +488,7 @@ above:
 - **A person's approval as a rule,** posted on the forge as the person
   (`../../README.md`, section 8), which the approval's card would then
   say.
-- **A secret text area for the pasted key** (`deployment.md`). Default: the key is
-  a masked one-line field, its armour's line feeds restored by the
-  client; a text area skein can mark secret (spellcheck and
-  autocomplete off, its text masked) would keep the PEM's lines as
-  GitHub gives them and retire the restore. A change to skein's
-  builder and page, not temper's.
+- A secret text area for the pasted key: `deployment.md`, section 1.
 - **One percentage for both binaries** (`deployment.md`). Default: each binary says
   its own, so the bar starts again for the runner, until their sizes
   are pinned beside their digests (`../../protocol/setup/README.md`, section 9).
@@ -505,37 +503,11 @@ above:
   margins, empty search and More summary, and the connect actions' type.
   Settings' shared H1 and the open project menu row keep their frame's
   design, as the repair request leaves them.
-- **An App of one's own, offered again** (`deployment.md`). Default: GitHub's card
-  offers Connect GitHub alone, and the own App's Details are reached by
-  their address; a link returns to the card once v0.1.0's successor
-  supports the own App officially.
-- **A connect's stop told from the one before it** (`deployment.md`). Default: the
-  stop that empties a connected Forgejo's tokens again is their sent
-  connect's own, its forge's row stopped where the connect last saw it
-  not stopped, or stopped with other `ended` words (`records.md`);
-  that stop, the row connected or an answer that starts no connect
-  ends what the connect watches, and another forge's row empties
-  nothing. A second connect whose stop has the first's connection and
-  words, with no row delivered between, is not told from it and
-  empties nothing more, its fields emptied at its send and its answer;
-  a request's id on the row would tell them apart, a change to the
-  forges records.
-- **A browser on another machine** for GitHub's connect. Default: the
-  link names the clients' listener's fixed address, and the person
-  opens it where that address reaches (in standalone, the engine's
-  machine) or forwards the port themselves; temper makes no tunnel.
-- **Mending a stopped managed or owned forge.** Default: Replace is
-  offered for what a person pasted (a GitHub App's key, a connected
-  Forgejo's tokens); a managed forge is mended by connecting as its
-  admin again, reconcile making the bot's tokens anew for the same
-  user; an owned one by its preparation and a restart.
-- **The picker's pages kept.** Default: none; each page is a fresh read
-  of the forge through the setup host's `Reachable` plan, asked by
-  number, so a
-  repository added or removed between two pages can move a row across
-  them, seen twice or missed until the list is read again from its
-  first page. A scroll or search beyond a full last page gets an empty
-  answer and ends the reading.
+- An App of one's own, offered again: `deployment.md`, section 1.
+- A connect's stop told from the one before it: `deployment.md`, section 1.
+- A browser on another machine: `deployment.md`, section 1.
+- Mending a stopped managed or owned forge: `deployment.md`, section 1.
+- The picker's pages kept: `repositories.md`, section 5.
 - **The project's own repositories in the picker:** `Reachable` names no
   project, so the engine lists them. The client joins its project’s
   repositories to mark “In PROJECT” and disable their checkboxes (`repositories.md`, 1).

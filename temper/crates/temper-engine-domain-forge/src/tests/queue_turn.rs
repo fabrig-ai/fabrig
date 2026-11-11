@@ -85,6 +85,8 @@ fn pending(task: u64) -> PendingStep {
         contains_catch_up: change::Status::Unknown,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     }
 }
