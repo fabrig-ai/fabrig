@@ -270,7 +270,14 @@ and no policy. Every type is a plain value.
   is not an admin gets `Forbidden` (`forgejo.md`, 1.2).
 - **`Merge { number, head, how }`** merges in the repository's own style
   (`Style`), or `FastForwardOnly`: the base moved to exactly the head,
-  refused (`Conflict`) when the head does not contain the base's tip.
+  refused (`Conflict`) when the head does not contain the base's tip;
+  or `Recorded { commit }`, last: nothing moves, and the pull request is
+  recorded merged at `commit`, which its base must already contain,
+  for an owner that landed the pull request's change by a commit of its
+  own (temper's squash, temper's `domain/landing.md`, section 8). It
+  answers `Merged` at `commit`; a commit the base does not contain, or
+  a repository that allows no such record, is `Refused`, and a dialect
+  whose forge records none answers `Refused` too.
   **`Update { number, style }`** brings a pull request's branch up to
   its base by a merge of the base into it (`Merge`), or by a rebase of
   its commits onto the base (`Rebase`), which rewrites the branch.

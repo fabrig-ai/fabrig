@@ -166,6 +166,12 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
   base's tip and refuses a conflict, as a merge update does.
+- **A merge recorded at a commit** (`Merge` with `how` `Recorded {
+  commit }`) moves nothing: an open pull request whose base contains
+  `commit` reads merged at it, its head and branch as they were; one
+  whose base lacks it, or a repository whose settings allow no manual
+  merge, is refused (`Refused`). A record repeated at the same commit on
+  a pull request it merged answers `Merged` again.
 - **Trees:** every commit's tree is read through `Read::Tree`, its
   entries in name order, paged.
 - **A run's report:** a workflow may name failing tests by id (`fails:

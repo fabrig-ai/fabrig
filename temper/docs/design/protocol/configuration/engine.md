@@ -101,6 +101,15 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
+- **The trains' way of combining,** beside `by`: `combine`,
+  `{"main": "merge" | "squash", "other": "merge" | "squash"}`, how a
+  train under `turn` combines its member onto the candidate, `main` for
+  the trains into a repository's main and `other` for those into any
+  other branch; a member absent, or `combine` absent, takes its stock,
+  `merge` for `main` and `squash` for `other`
+  (`../../domain/landing.md`, 5.2 and 13.1). Another value refuses the
+  start at its member, `application.landing.projects[i].combine.main`
+  or `.other`.
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
   milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
   absent: how long a gate's run may be in flight before it holds its

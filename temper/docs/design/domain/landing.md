@@ -33,9 +33,12 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
   requested by the deployment on the project's behalf. Its member's
   change task waits on it, and its goal hears each step as news.
 - **Prepare** (section 5) is a job on a worker: the train's tip with
-  the member's head merged onto it, no fast-forward, pushed to a branch
-  the landing holds. The member's own branch is never rewritten. A
-  conflict sends the member to a resolution, and it leaves.
+  the member's head combined onto it by the train's `combine` (13.1), a
+  merge with no fast-forward (stock into a repository's main) or a
+  squash, one commit with that merge's tree (stock into any other
+  branch, a goal's), pushed to a branch the landing holds. The member's
+  own branch is never rewritten. A conflict sends the member to a
+  resolution, and it leaves.
 - **Receipts by key** (section 6). A key is what a gate's result
   depends on: the candidate's tree without the paths the gate ignores,
   with the gate's definition, and the base's tree for a gate that reads
@@ -49,8 +52,9 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
   candidate, its prefix (section 3).
 - **The turn** (section 8): the train's tip and the member's head read
   afresh, then the landing's own pull request merged fast-forward only
-  at the candidate. The branch then contains the member's head: the
-  member has landed, its landed commit the merge that brought it. No
+  at the candidate. The branch then contains the member's head, merged,
+  or its squash commit: the member has landed, its landed commit the
+  one that brought it. No
   gate runs inside the turn, and the branch is never gated again: its
   commit is the gated one.
 - **A member leaves** before the turn on a conflict, a moved head, a
@@ -59,8 +63,9 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
 - **The forge shows it** (section 10): the landing's pull request, each
   gate's receipt as a commit status, `temper/gate/<name>`, on the
   candidate, which the fast-forward carries onto the branch, and the
-  member's pull request merged by the forge's detection of a manual
-  merge.
+  member's pull request merged: a merged member's by the forge's
+  detection of a manual merge, a squashed member's recorded merged at
+  its squash commit by the landing.
 
 ## 2. Structure
 
@@ -86,6 +91,7 @@ temper-engine-domain-forge              the top: landings' and receipts' states,
   | dispatch, retry, post | a gate's run, its rerun, its status on the candidate (7.1, 7.4, section 10) |
   | judge | asks the member's change for its judgement gates at its prefix (section 3) |
   | merge | merges the landing's pull request, fast-forward only, at the candidate (section 8) |
+  | record | records a squashed member's pull request merged at its prefix (section 8) |
   | landed | tells the member's change it landed, at its prefix (section 3) |
   | leave | records why the member left and asks its change for what follows: a resolution, a repair, or nothing (4.3) |
   | close | closes the round's pull request and deletes the landing's branch: the round ends unlanded (5.1) |
@@ -130,8 +136,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   candidate, while the test gates run beside them. A verdict whose
   freshness is `clean` (`forge/change/gates.md`, 1), given at the
   change's head or a head its clean updates led through, counts at the
-  prefix: temper's merge settled no conflict, so the member's diff is
-  unchanged. An `exact` verdict, and a check's, is asked again at the
+  prefix: temper's merge, or the squash that stands for it, settled no
+  conflict, so the member's diff is unchanged. An `exact` verdict, and a check's, is asked again at the
   prefix, on the landing's pull request: the review's brief names that
   pull request, the landing's branch, the train's branch as its base and
   the prefix as its head (`forge/change/gates.md`, 1). The landing waits
@@ -151,11 +157,14 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   it as drift (`forge/change/README.md`, 3), and a cancel ends it; in
   each the member leaves (4.3).
 - **Landed** when its landing's turn has made the train's branch
-  contain its head. Its landed commit is its prefix, the merge that
-  brought its head, which the landing tells it; it reads no pull request
-  merged for it. Its pull request reads merged by the forge's
-  detection of a manual merge (section 10). It then verifies, and ends
-  at cleared (`after-landing.md`, section 6).
+  contain its prefix: its head, merged, or its squash commit. Its landed
+  commit is its prefix, the commit that brought it, which the landing
+  tells it; it reads no pull request merged for it. Its pull request
+  reads merged, by the forge's detection of a manual merge, or recorded
+  so by the landing for a squashed member (section 8). A squashed
+  member's branch is done once it lands: later work on its goal starts
+  from the goal's branch. It then verifies, and ends at cleared
+  (`after-landing.md`, section 6).
 
 ## 4. A landing
 
@@ -221,7 +230,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   with nothing landed, its train frees at once, and the member's change,
   once ready again, is first in line by its kept time. Cancelled, by a
   person's act on the landing task, its member is left ready and in no
-  landing, and the train forms again.
+  landing, unless it is recorded landed (section 8), and the train forms
+  again.
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its member's goal hearing it:
   - the prepare job failed past its tries (5.2), `prepare job: WHY`;
@@ -265,8 +275,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 ### 5.1 Rounds
 
 - **A round** is one candidate: its base, the train's tip read afresh
-  as it starts; the member's head, read afresh; the candidate, the
-  prefix the prepare job pushed; and its pull request. The landing's
+  as it starts; the member's head, read afresh; the train's upstream's
+  tip, read afresh, where the train has an upstream (5.2); the
+  candidate, the prefix the prepare job pushed, and how it combined the
+  member, merged or squashed; and its pull request. The landing's
   rounds are counted from 1.
 - **The landing's branch:** `temper/<root>/l<task>`, the landing's task
   (`forge/branches.md`), held by the landing from its making. The round's
@@ -292,14 +304,38 @@ The default, for a project with no prepare command:
   landing, so that its push is made under the landing's hold on its
   branch (jig's `domain/tasks/holds.md`, 1): the train's repository
   checked out at the round's base, by its commit; the member's head
-  merged onto it, no fast-forward, the base as the first parent, the
-  head as the second, committed with the member's title and change in
-  its message; that commit pushed to the landing's branch, expecting it
-  new. temper's own prepare runs no command of the project's.
+  combined onto it by the train's `combine` (13.1); that commit pushed
+  to the landing's branch, expecting it new. temper's own prepare runs
+  no command of the project's. The two ways, with the messages
+  `../protocol/tooling.md`, 4 gives:
+  - **merge:** the head merged, no fast-forward, the base as the first
+    parent and the head as the second, committed with the member's
+    merge message, its title and change;
+  - **squash:** the same merge, its tree committed as one commit whose
+    only parent is the base, with the member's squash message: its
+    title, then its change, pull request and head as trailers. A squash
+    whose tree is the base's is still a commit.
+- **Why merge or squash** is `../draft/merge-queue.md`, 5.3: a goal's
+  branch goes on after it lands, and merges onto main; a change into a
+  goal's branch ends when it lands, and squashes. A squash meets the
+  conflicts its merge would, and has its tree, so its keys (6.1).
+- **A member that brings its upstream's commits is merged** whatever
+  `combine` says: one whose head holds a commit the round's base lacks
+  and the train's upstream holds, as a catch-up of main made as a
+  change into a goal's branch does, so that those commits stay the
+  upstream's. A train's upstream is the branch its own branch was made
+  from and lands into, a goal's own branch's base (`forge/branches.md`,
+  1); a train into a repository's main, or into a branch no goal holds,
+  has none. The job tells, from the upstream's tip the round read
+  (5.1), given in its request (`worker.md`, 4.4).
 - **Its outcome:** the engine reads the landing's branch afresh once the
-  job has ended. A tip that contains the base and the member's head is
-  the round's candidate. With none, the job's result names the conflict:
-  the member leaves (4.3), and its change resolves (section 3).
+  job has ended. Its tip is the round's candidate when it contains the
+  base and either contains the member's head, merged, or is a squash of
+  it: its one commit above the base (skein's `Read::Commits`) has the
+  base as its only parent and names the member's head in its
+  `Temper-Head` trailer. The round keeps which. With none, the job's
+  result names the conflict: the member leaves (4.3), and its change
+  resolves (section 3).
 - **A job's own failure** (a preparation that fails, a push refused, a
   deadline passed) is the project's, not the member's: jig tries it
   again within the job's tries, then holds it, and the landing holds,
@@ -484,13 +520,27 @@ The default, for a project with no prepare command:
   test gates by receipt at the candidate, a gate's verdict counts at the
   member's prefix as section 3 says, and an approval counts the
   member's pull request's reviews at the heads it counts at, the prefix
-  being a clean merge of the member's head).
-- **The member lands:** once the branch's tip, read back, is the
-  candidate, its change is told it landed, at its prefix; its pull
-  request reads merged by the forge's detection (section 10). The merge
-  is the landing task's effect, but the landed commit is its member
-  change's: the change lands, and its goal hears its own change's
-  landing, as under `queue`.
+  being a clean merge of the member's head, or a squash with that
+  merge's tree).
+- **The member lands** once the branch's tip, read back, is the
+  candidate: the landing's state records it landed at its prefix, then
+  its pull request reads merged, then its change is told it landed, at
+  its prefix. The merge is the landing task's effect, but the landed
+  commit is its member change's: the change lands, and its goal hears
+  its own change's landing, as under `queue`.
+- **Its pull request reads merged:** a merged member's by the forge's
+  detection (section 10), with nothing written. A squashed member's
+  head is in no branch, so the landing records its pull request merged
+  at the prefix, the merge (kind 4) recorded at a commit its base
+  already holds (skein's `Write::Merge` with `how` `Recorded { commit
+  }`; Forgejo's `manually-merged`), before its change is told, since a
+  change's branch deleted as it closes would close its pull request
+  unmerged. A record refused holds the landing, `turn: record of #N:
+  WHY`, its member recorded landed; a release records it again. A
+  landing cancelled once its member is recorded landed tells the change
+  it landed, its pull request as it stands. On GitHub, which records no
+  manual merge, the landing closes a squashed member's pull request
+  instead (kind 12).
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
   agent's. A merge refused or uncertain is settled as `forge/README.md`,
   section 4 settles any merge: a fast-forward-only merge raced by a
@@ -554,10 +604,13 @@ The default, for a project with no prepare command:
   when a receipt held with no run. A fast-forward makes the branch's
   commit the candidate, so the branch shows the statuses that proved
   it, and protection may require them.
-- **The member's pull request is marked merged** by the forge's
+- **A merged member's pull request is marked merged** by the forge's
   detection of a manual merge (Forgejo's "autodetect manual merge",
   which adoption reads, 13.2): its head is in the branch, its merge
   commit the prefix. temper writes nothing to it at the turn.
+- **A squashed member's is recorded merged** by the landing at its
+  squash commit (section 8), Forgejo's "manually merged" with that
+  commit, which needs the repository to allow a manual merge (13.2).
 
 ## 11. Effects and kinds
 
@@ -570,13 +623,17 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
 | 17 | rerun a job | a transition: the job's next attempt | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named |
 
 - **Two change their parameters:** the merge (kind 4) carries how it
-  merges, the repository's style or fast-forward only; the update
-  (kind 11), merge or rebase.
+  merges, the repository's style, fast-forward only, or recorded at a
+  commit its base already holds (a squashed member's pull request,
+  section 8), the last a new variant at the end, found again after an
+  uncertain failure by its pull request read merged at that commit; the
+  update (kind 11), merge or rebase.
 - **The landing's own effects** are its dispatches, reruns, statuses
-  and merge (kinds 16, 17, 6 and 4) on its train's repository, and its
-  round's pull request's opening and closing (kinds 3 and 12) and its
-  branch's deletion as a round ends unlanded (kind 15, on its own held
-  branch). The prepare job's push is the worker's, under the landing's
+  and merge (kinds 16, 17, 6 and 4) on its train's repository, a
+  squashed member's record (kind 4) or, on GitHub, its closing (kind
+  12), and its round's pull request's opening and closing (kinds 3 and
+  12) and its branch's deletion as a round ends unlanded (kind 15, on
+  its own held branch). The prepare job's push is the worker's, under the landing's
   hold; the branch is released as the landing closes, by the release a
   change's branch takes (`forge/branches.md`).
 - **The landing rules govern kind 19 as they govern kind 4,** the merge
@@ -595,7 +652,8 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
 - **A purpose of its own,** tag 6 in `forge/README.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
   operation (1: a dispatch, a rerun, a pending status, a verdict's
-  status, an opening, a closing, a deletion, the merge), the round,
+  status, an opening, a closing, a deletion, the merge, then, new at the
+  end, a squashed member's record), the round,
   counted from 1 in the landing (2), and the try within it (2), 18
   bytes with the tag. A baseline's dispatch is its gate's, tag 7: the
   repository (16), the gate (2) and the first eight bytes of the key
@@ -605,8 +663,10 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
 
 - **`Landing`,** keyed by its task: its project, phase, train's branch,
   member (its repository, change task, pull request, the head and the
-  base of its round, the candidate, each gate's key and state, its
-  landed commit, or why it left), its round, counted from 1, the
+  base of its round, the upstream's tip it read, the candidate and how
+  it combined the member, each gate's key and state, its landed commit
+  and whether its pull request's record is made, or why it left), its
+  round, counted from 1, the
   round's pull request, its stale rounds and its faults per key, and,
   held, its cause.
 - **`Receipt`,** keyed by the project, the repository, the gate and the
@@ -646,6 +706,7 @@ Kind 4's members, each with its default and the section it serves:
 | Member | Default | Serves |
 |---|---|---|
 | `by`: `queue` or `turn` | `queue` | section 1 |
+| `combine`: how a train combines its member (5.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | 5.2, 8 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
 | `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/README.md`, 6 |
 | `dependencies_join` | yes | 4.1 |
@@ -656,7 +717,7 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **Until both kinds are settings** on jig's application settings (jig's
-  `domain/engine/settings.md`, 5), a project's `by`, its `tier_retries` and
+  `domain/engine/settings.md`, 5), a project's `by`, its `combine`, its `tier_retries` and
   `verification_bound` (`verification_bound_ms` there), its
   `gate_timeout` (`gate_timeout_ms` there), its
   `merge_job`, and its repositories' gates and tiers are
@@ -688,7 +749,10 @@ Kind 4's members, each with its default and the section it serves:
   `workflow_dispatch` alone among its triggers, or said otherwise in
   words; whether the forge marks a pull request merged once its base
   holds its head (Forgejo's "autodetect manual merge"), which lands a
-  member's pull request (section 10); and whether the branch's rules
+  merged member's pull request (section 10); where one of the project's
+  trains squashes, whether the forge lets a pull request be recorded
+  merged by hand (Forgejo's "allow manual merge"), which a squashed
+  member's record needs (section 8); and whether the branch's rules
   admit the landing's pull request with the gates' statuses on the
   candidate.
 
@@ -698,7 +762,7 @@ Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 
 | Tool | What it answers or does |
 |---|---|
-| `landing show LANDING` | a landing: its train, its round and its branch, its pull request, its member with the head and base of its round, its candidate, each gate's key, receipt or run, its judgement, its step, its stale rounds and faults, and, ended, what landed or why it left |
+| `landing show LANDING` | a landing: its train, its round and its branch, its pull request, its member with the head and base of its round, its candidate and how it combined the member, each gate's key, receipt or run, its judgement, its step, its stale rounds and faults, and, ended, what landed or why it left |
 | `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases; the live ones first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
 
@@ -729,15 +793,18 @@ documents for another task or project remain errors.
   proving, its runs are found again; the round's pull request, its
   opening uncertain, is found by its branches; judging, the change's
   state carries it; in its turn, its merge settles as `forge/README.md`'s merges
-  settle, and a member found landed is landed, recorded once; ended, its
+  settle, and a member found landed is landed, recorded once; a
+  squashed member's record, uncertain, is found by its pull request
+  read merged at the prefix, and made where it is not; ended, its
   release goes on.
 - **Forming** is judged again for every train (section 9).
 
 ## 16. The world
 
 Stories in the forge's world (`forge/README.md`, section 10; `../testing/fakes.md`,
-2), the fake forge running dispatched workflows and detecting manual
-merges (skein's `testing/fakes/forge.md`), and the engine's domain
+2), the fake forge running dispatched workflows, detecting manual
+merges and recording one at a commit (skein's `testing/fakes/forge.md`,
+2.3), and the engine's domain
 stories, with the prepare job's outcome given as a worker gives it. The
 forge's world holds:
 
@@ -751,6 +818,11 @@ forge's world holds:
   refused, naming them;
 - **a lost prepare job** is found by its branch, or made again, and the
   landing goes on, no one asked;
+- **combining:** a merge train and a squash train over the same member
+  give the same tree and keys; a squash commit's single parent, message
+  and trailers; a member bringing its train's upstream's commits merged
+  under `squash`; a squashed member's pull request recorded merged at
+  its commit, and a refused record holding the landing;
 - **a documentation change** whose every gate ignores its paths lands
   on its receipts, with no run;
 - **a tree is never gated twice:** a later landing reaching a key

@@ -446,7 +446,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 
 | Kind | What it runs | Its spec | Its result |
 |---|---|---|---|
-| 1, prepare | a landing's candidate for one repository (`landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base, its members' heads in order with their messages, the upstream candidates and the pins between them, the command and the home's revision | the members merged, or the conflict's member and files; each gate's key, when the project's key command is named |
+| 1, prepare | a landing's candidate for one repository (`landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base, the train's `combine` and its upstream's tip, its members' heads in order with their messages, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge/change/repairs.md`) | the command, the head and the base | the files settled, and those left |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`forge/branches.md`, 2) | the command and the close request | the files settled |
@@ -534,16 +534,28 @@ smith's agent processes, and declares in its hello the kinds it runs:
   writable, prepared as a base with heads merged in (section 5) but
   from the round's base by its commit, not a branch's tip: the base
   checked out, the member's head fetched by its commit and merged with no
-  fast-forward, a head the base contains still a merge, committed at
-  once with two parents, the base and the head, the repository's
-  identity as its author, and the member's `message` from the request as
-  its message. A head that does not merge cleanly is no failure: the
-  job ends with exit 3's result, `{"conflict": {"member": N, "with":
-  "branch", "files": [PATH]}}`, the files as the merge names them, cut
-  to the result's bound and marked `"cut": true` when cut, and nothing
-  is pushed. A clean merge ends with exit 0's result, `{"merged": [N]}`,
-  and delivers its commit to the writable branch, the landing's,
-  expecting it new (above). A request of more than one member is
+  fast-forward (`../protocol/git.md`, 4.6), a head the base contains
+  still a merge, and, where the request names the train's upstream, its
+  tip fetched by its commit beside them. The merge is committed at once
+  (`../protocol/git.md`, 4.7) by the request's `combine`, the
+  repository's identity as its author:
+  - **`merge`,** or **`squash` for a member that brings its upstream's
+    commits** (`landing.md`, 5.2), which `Brings` (`../protocol/git.md`,
+    4.9) tells of the head, the base and the upstream's tip: two
+    parents, the base and the head, and the member's `message` from the
+    request as its message;
+  - **`squash`** otherwise: the same tree, one parent, the base, and the
+    member's `squash` message, committed even when the tree is the
+    base's (`always`).
+
+  A head that does not merge cleanly is no failure, whatever `combine`
+  says: the job ends with exit 3's result, `{"conflict": {"member": N,
+  "with": "branch", "files": [PATH]}}`, the files as the merge names
+  them, cut to the result's bound and marked `"cut": true` when cut, and
+  nothing is pushed. A clean merge ends with exit 0's result,
+  `{"combined": [{"member": N, "by": "merge" | "squash"}]}`, and
+  delivers its commit to the writable branch, the landing's, expecting
+  it new (above). A request of more than one member is
   refused as invalid until the merge queue's batches
   (`../draft/merge-queue.md`, 5.1). Its bounds, the engine's declaration
   and the worker's alike: a spec of 16,384 bytes, a result of 4,096 and

@@ -70,18 +70,31 @@ what they write, and how they end. temper runs them as jobs on a worker
 ## 4. `prepare`
 
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
-  COMMIT, "members": [{"number": N, "branch": BRANCH, "head": COMMIT,
-  "message": TEXT}], "upstreams": [{"repository": NAME, "main": COMMIT,
-  "candidate": COMMIT}], "gates": [NAME]}`; commits as 40 or 64
-  hexadecimal digits, names as the project's settings give them, `main`
-  the round's base, and `message` the commit message temper's own merge
-  gives the member (`../domain/landing.md`, 5.2): `Merge pull request
-  'TITLE' (#N) from BRANCH into BASE`, a blank line, then `Landed by
-  landing L for change C.`, L and C task numbers, BASE the train's
-  branch.
+  COMMIT, "combine": "merge" | "squash", "train_upstream": COMMIT,
+  "members": [{"number": N, "branch": BRANCH, "head": COMMIT,
+  "message": TEXT, "squash": TEXT}], "upstreams": [{"repository": NAME,
+  "main": COMMIT, "candidate": COMMIT}], "gates": [NAME]}`; commits as
+  40 or 64 hexadecimal digits, names as the project's settings give
+  them, `main` the round's base.
+  - **`combine`** is the train's (`../domain/landing.md`, 5.2 and
+    13.1), and **`train_upstream`** its upstream's tip as the round read
+    it, present only where the train has an upstream: a member whose
+    head holds a commit `main` lacks and `train_upstream` holds is
+    merged under `squash` too.
+  - **`message`** is the commit message temper's own merge gives the
+    member: `Merge pull request 'TITLE' (#N) from BRANCH into BASE`, a
+    blank line, then `Landed by landing L for change C.`, L and C task
+    numbers, BASE the train's branch.
+  - **`squash`** is its squash's: `TITLE`, a blank line, then three
+    trailers, a line each, `Temper-Change: C`, `Temper-Pull: N` and
+    `Temper-Head: HEAD`, HEAD the member's head in hexadecimal at the
+    forge's length. The engine knows a squash on the landing's branch by
+    its `Temper-Head` trailer (`../domain/landing.md`, 5.2).
+  - **TITLE** is the member's pull request's title, N its number.
 - **temper's own,** where the project names no prepare command: the
   same request, read by the worker itself, with no command run, and the
-  results below with `{"merged": [N]}` for exit 0's
+  results below with `{"combined": [{"member": N, "by": "merge" |
+  "squash"}]}` for exit 0's, a member's way as it combined it
   (`../domain/worker.md`, 4.4).
 - **`result.json`, exit 0:** `{"candidate": COMMIT, "keys": [{"gate":
   NAME, "key": HEX64}]}`, `keys` present only where the project names
