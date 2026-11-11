@@ -22,6 +22,7 @@ skein-json.workspace = true
 skein-ui.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 temper-fixtures.workspace = true
 jig-domain-core.workspace = true
 jig-domain-tasks.workspace = true

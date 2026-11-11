@@ -66,6 +66,7 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 jig-domain-authority.workspace = true
 temper-fixtures.workspace = true
 temper-playground.workspace = true
