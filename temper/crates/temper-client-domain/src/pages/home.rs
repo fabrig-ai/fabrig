@@ -535,9 +535,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         Facts { configured, repository, needs, delivered, skip, skip_refused, status, decided: None, spell: None };
     if !facts.to_begin() && home.is_some() {
         facts.decided = root.pages().decided(Some(project), wall);
-        if facts.decided.is_some()
-            && let Some(row) = root.forge().away(project)
-        {
+        if let Some(row) = root.forge().away(project) {
             let end = row.ended(wall);
             let recent = match end {
                 Some(end) => wall.as_nanos().saturating_sub(end.as_nanos()) < super::decided::DAY,

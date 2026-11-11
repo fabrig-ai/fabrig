@@ -622,6 +622,8 @@ pub enum Word {
     HomeNeedsMany,
     HomeNeedsCut,
     HomeNeedsCount,
+    HomeStillNeedsCount,
+    HomeStillNeedsCountMore,
     HomeQuestion,
     HomeProposal,
     HomeHeld,
@@ -1765,7 +1767,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2318;
+const PHRASES: u32 = 2320;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1792,10 +1794,10 @@ const PHRASES: u32 = 2318;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4157;
+const SEGMENTS: u32 = 4163;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56270;
-const ALL: [Word; 1634] = [
+const ENGLISH_BYTES: u32 = 56309;
+const ALL: [Word; 1636] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -2393,6 +2395,8 @@ const ALL: [Word; 1634] = [
     Word::HomeNeedsMany,
     Word::HomeNeedsCut,
     Word::HomeNeedsCount,
+    Word::HomeStillNeedsCount,
+    Word::HomeStillNeedsCountMore,
     Word::HomeQuestion,
     Word::HomeProposal,
     Word::HomeHeld,
@@ -4067,6 +4071,8 @@ impl Word {
             Self::HomeNeedsMany => 3147,
             Self::HomeNeedsCut => 3148,
             Self::HomeNeedsCount => 3149,
+            Self::HomeStillNeedsCount => 5660,
+            Self::HomeStillNeedsCountMore => 5661,
             Self::HomeQuestion => 3152,
             Self::HomeProposal => 3153,
             Self::HomeHeld => 3154,
@@ -5990,6 +5996,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeedsCountMore => (&[b"Still needs you \xc2\xb7 ", b"+"], &[Number]),
         Word::HomeQuestion => (&[b"a question"], &[]),
         Word::HomeProposal => (&[b"a proposal"], &[]),
         Word::HomeHeld => (&[b"held"], &[]),

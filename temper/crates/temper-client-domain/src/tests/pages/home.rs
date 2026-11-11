@@ -2170,6 +2170,43 @@ fn no_form_while_to_begin_shows() {
     assert_eq!(task_reads(&out).len(), 1);
 }
 #[test]
+fn spell_does_not_require_a_showing_decision() {
+    for (off, until, wall, end, recent) in [
+        (None, None, 100, None, true),
+        (Some(150), None, 150 + DAY - 1, Some(150), true),
+        (Some(150), None, 150 + DAY, Some(150), false),
+        (None, Some(200), 200 + DAY - 1, Some(200), true),
+        (None, Some(200), 200 + DAY, Some(200), false),
+    ] {
+        let mut f = fixture();
+        status_document(&mut f, &crate::tests::status::document(9, 2, None));
+        spell(&mut f, off, until, 3);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall));
+        assert!(facts.decided.is_none());
+        assert_eq!(
+            facts.spell,
+            if recent {
+                Some(home::Spell {
+                    since: Wall::from_nanos(10),
+                    end: match end {
+                        Some(end) => Some(Wall::from_nanos(end)),
+                        None => None,
+                    },
+                    landed: Some(6),
+                })
+            } else {
+                None
+            }
+        );
+    }
+    let mut f = fixture();
+    ready(&mut f);
+    spell(&mut f, None, None, 0);
+    let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(100));
+    assert!(facts.to_begin());
+    assert_eq!(facts.spell, None);
+}
+#[test]
 fn span_is_since_and_its_end() {
     const HOUR: u64 = 3_600_000_000_000;
     for (delivered, off, until, wall, expected) in [
