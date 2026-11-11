@@ -50,7 +50,7 @@ pub(crate) fn holds(limits: &Limits) -> Option<u32> {
     limits.workspaces.checked_mul(2)
 }
 
-/// Most stores the workspaces can borrow (domain/worker.md, 5).
+/// Most stores the workspaces can borrow (domain/worker/checkouts.md).
 pub(crate) fn stores(limits: &Limits) -> Option<u32> {
     limits.workspaces.checked_mul(limits.repositories)
 }

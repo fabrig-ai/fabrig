@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
@@ -154,10 +154,7 @@ section 5, *Away on All projects after landing*).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
-  which names none (`../forge/README.status.md`).  `google-sign-in`,
-  `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
-  states the gallery holds (`tools/gallery/names.txt`,
-  `tools/gallery/src/samples.rs`) that the table does not list.
+  which names none (`../forge/README.status.md`).  the unlisted gallery states remain `gallery.status.md`, 2.
 
 `README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
 `code` query, transport sign-in by cookie, the signed-out state with

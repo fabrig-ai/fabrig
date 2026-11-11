@@ -208,3 +208,13 @@ The required retained documents are temper.json, agent.json, github.json,
 oauth.json, llm.json and forgejo.json. One validation path checks every
 required file before any child starts. A missing required file refuses by
 name with reset instructions, without generating a replacement on reuse.
+
+## 2. Open questions
+
+- **A configuration directory moved or copied.** The agent's paths are
+  absolute (`README.md`, section 4), so they still name the old place: the agent's
+  configuration is read there, or the start is refused, naming the
+  member, when it is gone. Default: the person edits the two members;
+  standalone could derive them from its own binary and its
+  configuration directory, as no check can tell temper's binary from
+  another program today (`README.md`, section 2).

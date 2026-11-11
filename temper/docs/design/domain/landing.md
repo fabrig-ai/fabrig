@@ -105,7 +105,7 @@ temper-engine-domain-forge              the top: landings' and receipts' states,
   flight; the landing's own effects' outcomes.
 - **Keys are computed in the domain** from what the forge answers of a
   tree (skein's `Read::Tree`), or taken from a prepare's report: the
-  engine never reads a repository (`worker.md`, section 2).
+  engine never reads a repository (`worker/README.md`, section 2).
 - **The worker** runs a landing's prepare (section 5) as a job, never
   an agent's run.
 
@@ -300,7 +300,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 
 The default, for a project with no prepare command:
 
-- **A job** (`worker.md`, 4.4, kind 1, `prepare`), delegated by the
+- **A job** (`worker/jobs.md`, kind 1, `prepare`), delegated by the
   landing, so that its push is made under the landing's hold on its
   branch (jig's `domain/tasks/holds.md`, 1): the train's repository
   checked out at the round's base, by its commit; the member's head
@@ -327,7 +327,7 @@ The default, for a project with no prepare command:
   from and lands into, a goal's own branch's base (`forge/branches.md`,
   1); a train into a repository's main, or into a branch no goal holds,
   has none. The job tells, from the upstream's tip the round read
-  (5.1), given in its request (`worker.md`, 4.4).
+  (5.1), given in its request (`worker/jobs.md`).
 - **Its outcome:** the engine reads the landing's branch afresh once the
   job has ended. Its tip is the round's candidate when it contains the
   base and either contains the member's head, merged, or is a squash of
@@ -391,7 +391,7 @@ The default, for a project with no prepare command:
   and the landing computes the key.
 - **A project's `key` command** gives its own instead: in its prepare
   job's result when the project names a prepare command too, and
-  otherwise by a key job (`worker.md`, 4.4) per repository and gate at
+  otherwise by a key job (`worker/jobs.md`) per repository and gate at
   the candidate, delegated by the landing; the engine reads only the
   job's result.
 - **A judgement gate's key** is not a tree: it is the gate and the head

@@ -332,7 +332,7 @@ fn original_forms_and_digest_halves_are_found() {
 }
 #[test]
 fn the_committed_journeys_pass() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/design/client/journeys");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/design/client/web/journeys");
     let originals = Originals::of(&[], &[]);
     let mut recordings = 0;
     let mut pages = 0;

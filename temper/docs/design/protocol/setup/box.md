@@ -874,3 +874,57 @@ remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6
   front has ended, and the binary takes the foreground back in the loop's
   drain hook (skein's `runtime/shell.md`, section 11), between that turn and its
   submissions, since neither of skein's terminal calls is step code's.
+
+## 7. Open questions
+
+- **Repeated admission during fake-box preparation** (`box.md`, 5): share a
+  checked protocol document and typed deployment between preparation,
+  step assembly and peer validation, preserving admission of every
+  changed retained/source document and the order of refusals. Ordinary
+  boxes still discover their environment and generate independent fresh
+  provider keys. Default: retain those checks and keys; further startup
+  cost work follows `../../testing/README.md`, section 7, with its measured
+  causes in `temper/docs/development/limits-heavy.md`.
+
+- **A box killed outright on macOS** (`box.md`, 1): its steps have no parent-death
+  signal, so they can keep running and hold the next start's ports. A
+  lifetime guard on macOS needs a mechanism of its own; until one is
+  designed, the box's ordered stop, including a hangup, is its cleanup.
+
+- **A box started in the background of a terminal** (`box.md`, 6): `temper-box &`
+  from a shell with job control has a terminal on its standard input and
+  output, so it runs its front, which takes the terminal's foreground
+  from the shell. `--no-tui` keeps it off. Telling a background start
+  from a foreground one needs the box to read its terminal's foreground
+  group, which skein's `runtime/shell.md`, 6.3 does not give yet.
+
+- **The terminal after a front killed outright** (`box.md`, 6): the front's modes
+  and screen stay on the terminal, as any program's killed outright do
+  (skein's `runtime/shell.md`, 6.3). The box could keep the modes at its start and
+  set them back once it takes the foreground again. It needs a reason
+  first: a front leaves them only when it is killed, by the box's close
+  after two graces or from outside.
+
+- **The fake box's retained ports under concurrent stories** (`box.md`, 5):
+  prove the story-supplied ports across a stopped box's restart in the
+  after-landing tiers (`../../testing/README.md`, 7), beside other test
+  processes drawing their own ports. Focused proof holds the choice and
+  retention rules; the process and browser walks hold the running box.
+
+- **A fake fetch for the fake box,** so that a journey prints the
+  percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
+  page moving, and `again` takes no page while it moves
+  (`../../client/web/journeys.md`, 8.1).
+
+- **The other fake peers' refused connections** (`box.md`, 5): the issuer's log
+  takes a line for each connection it turns away at its cap, from skein's
+  OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
+  theirs away silently, and skein's forge and LLM peers count none. Each
+  takes the same count and line when a walk meets its cap.
+
+- **The time of day on the terminal's error lines** (`box.md`, 2;
+  `../../draft/box-link-first.md`, 6): the user may prefer none. Default:
+  kept.
+
+- **A launchd agent for the box** on macOS, as `box.md`, 4 arranges systemd
+  (`../../draft/macos.md`, section 7).

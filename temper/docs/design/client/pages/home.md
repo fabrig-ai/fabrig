@@ -303,7 +303,7 @@
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
 
-  **In the TUI** (`../tui/pages.md`, *The launchpad*), Home is the root's page under
+  **In the TUI** (`../tui/pages/launchpad.md`, 1), Home is the root's page under
   the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's

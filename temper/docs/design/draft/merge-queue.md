@@ -67,7 +67,7 @@
 
 ### 5.1 The merge train
 
-- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker.md`, 4.4), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, its head combined onto the prefix below by the train's `combine` (10):
+- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker/jobs.md`), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, its head combined onto the prefix below by the train's `combine` (10):
   - **merge:** a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message;
   - **squash:** one commit whose tree is that merge's, its only parent the prefix below, its message the member's title, then its change, pull request and head as trailers.
 - **Each such commit is a prefix,** pushed by the worker to a branch of its own that the landing makes and holds, named per landing, round and member under the landing's branch name (`../domain/forge/branches.md`), each push expecting the branch new. The last is the round's candidate. The job writes under the landing's hold, as a pin-only member's does (`../domain/landing.md`, 4.1).

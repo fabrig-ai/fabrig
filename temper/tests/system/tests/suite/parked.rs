@@ -1,5 +1,5 @@
 //! Saved producer work survives answers across landing merges
-//! (temper/docs/design/domain/worker.md, section 5).
+//! (temper/docs/design/domain/worker/checkouts.md).
 use skein_fake_llm_domain::api::{Script, Turn};
 use temper_system_world::composed::{World, call};
 
