@@ -86,7 +86,7 @@ or the nearest thing, and says so in that draft's status.
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | landed but for what waits on a login and Only you's other kinds, which wait on reads (section 5) |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
 | N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge/change/gates.md`, 1; its entry below | | temper/migration | should | done |
-| N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
+| N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | landed; its render check and walk follow (`../client/README.md`, 5) |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | landed; its walk follows R2's and R3's (*R1 to R3*, below) |
 | R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
@@ -300,7 +300,8 @@ P1's that day, as goal 368, its repair, landed, and
 P2's, as goal 338, its repair's wording, landed, and
 N1's that day, as goal 367, its repair's web part, landed, and
 R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
-N1's, N2's, N5's, N6's and P3c's that day, as N2 retired. Plans
+N1's, N2's, N5's, N6's and P3c's that day, as N2 retired, and
+N5's that day, as goal 836, its plan, retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -327,7 +328,8 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
 | N3b | starts | |
 | N4 | done | goal 147, PR #41 |
-| N5, N6 | start | |
+| N5 | landed; its render check and walk follow | goal 836 built who can still sign (`../domain/forge/change/questions.md`, 2, *Who can still sign*): each `approvals` row names the people counted at its head and those who can still give the next sign-off, the watcher first, and the card's context says so, "1 of 2 signed: Sam; you or Kit can give the second." (`../client/forge/README.md`, 4.1), on Needs you and Home's first card; the card's why line and question as `team/needs.html` and `team/home.html` word it, the phone's from line, Work's table of changes to sign and Team's "Can sign" stay `surfaces.status.md`'s, 4 and 6; its render check and walk follow landing (`../client/README.md`, 5) |
+| N6 | starts | |
 | R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
 | R2, R3 | start | R1 has landed |
 | F1 | in flight | goal 102 |
@@ -340,4 +342,4 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P7; N3b, must; N5, N6 and P3c, N2 having landed.
+- **Next to start:** P7; N3b, must; N6 and P3c, N2 having landed.

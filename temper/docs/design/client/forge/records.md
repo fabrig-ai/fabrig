@@ -571,10 +571,18 @@
   - the approval it waits on: `scope`, 0 for the deployment's rules or the
     project's number; `rule`; `role`; `required`; `counted`, the people
     counted so far;
-  - `behind`, the changes waiting behind it in its landing branch's order;
-    `whole`, whether its reviews were read whole;
+  - `sets`, at most 6, each an `ApprovalSet`: `number`, u8, and `name`, at
+    most 40 bytes, the sets of the approval's rule the change touches;
+  - `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - who can still sign (`../../domain/forge/change/questions.md`, 2, *Who
+    can still sign*): `signed`, at most 8, the people counted at the head;
+    `can_sign`, at most 8, the people who can still give the next
+    sign-off, the watcher first where among them; and `can_sign_more`,
+    u32, how many more can past those. Each is an `ApprovalPerson`:
+    `person`, u64, the deployment's person number, and `name`, at most 64
+    bytes, empty where none is known;
 
   then `more`, the rows past the bound. Times are nanoseconds since the
   epoch. Every client of the party's watches it once, for the session (`../pages/needs-you.md`, 1, *What the client
