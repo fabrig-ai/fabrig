@@ -168,7 +168,11 @@ fn a_body_past_body_bytes_is_carried_empty_without_its_key() {
             },
         ],
     );
-    world.call(1, fixtures::REPO, Op::Read(Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }));
+    world.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }),
+    );
     world.run_for(SECOND);
     let result = &world.answered(1).expect("items answered").result;
     let Ok(ResultAnswer::Items { items, more, .. }) = result else {

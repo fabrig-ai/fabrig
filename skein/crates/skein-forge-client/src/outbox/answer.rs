@@ -42,8 +42,8 @@ pub(crate) fn answered(
     match answer {
         Answer::Runs { runs, more } => super::find::runs_found(d, env, number, phase, &runs, more, out),
         Answer::Run(run) => super::find::rerun_found(d, env, number, &run, out),
-        Answer::Items { items, more, now, .. } => {
-            super::find::listed(d, env, number, phase, &items, super::find::Listing { more, now }, out);
+        Answer::Items { items, more, cut, now } => {
+            super::find::listed(d, env, number, phase, &items, super::find::Listing { more, cut, now }, out);
         }
         Answer::Item { comments, more, .. } => super::find::comments_found(d, env, number, phase, &comments, more, out),
         Answer::Reviews { reviews, more } => super::find::reviews_found(d, env, number, phase, &reviews, more, out),

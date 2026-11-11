@@ -203,21 +203,61 @@ fn cut_time_pages_resume_after_every_kept_row_then_restore_full_pages() {
         let mut next_number = 1;
         if full_before_cut {
             let first = h.one();
-            let items = (1..=8).map(|number| api::Summary { number, ..summary() }).collect();
+            let mut items = List::with_capacity(8);
+            for number in 1..=8 {
+                items.push(api::Summary { number, ..summary() }).unwrap();
+            }
+            let items = items.into_boxed();
             h.answer(first, Answer::Items { items, more: true, cut: false, now: at(105) });
             next_number = 9;
         }
         let cut = h.one();
-        assert_eq!(cut.op, Op::Read(Read::Items { since: at(100), page: if full_before_cut { 2 } else { 1 }, kind: None, single: false }));
-        let items = (next_number..next_number + 3).map(|number| api::Summary { number, ..summary() }).collect();
+        assert_eq!(
+            cut.op,
+            Op::Read(Read::Items {
+                since: at(100),
+                page: if full_before_cut { 2 } else { 1 },
+                kind: None,
+                single: false
+            })
+        );
+        let mut items = List::with_capacity(3);
+        for number in next_number..next_number + 3 {
+            items.push(api::Summary { number, ..summary() }).unwrap();
+        }
+        let items = items.into_boxed();
         h.answer(cut, Answer::Items { items, more: true, cut: true, now: at(105) });
         for number in next_number + 3..=next_number + 4 {
             let single = h.one();
-            assert_eq!(single.op, Op::Read(Read::Items { since: at(100), page: u32::try_from(number).unwrap(), kind: None, single: true }));
-            h.answer(single, Answer::Items { items: Box::new([api::Summary { number, ..summary() }]), more: true, cut: false, now: at(105) });
+            assert_eq!(
+                single.op,
+                Op::Read(Read::Items {
+                    since: at(100),
+                    page: u32::try_from(number).unwrap(),
+                    kind: None,
+                    single: true
+                })
+            );
+            h.answer(
+                single,
+                Answer::Items {
+                    items: Box::new([api::Summary { number, ..summary() }]),
+                    more: true,
+                    cut: false,
+                    now: at(105),
+                },
+            );
         }
         let later = h.one();
-        assert_eq!(later.op, Op::Read(Read::Items { since: at(100), page: u32::try_from(next_number + 5).unwrap(), kind: None, single: true }));
+        assert_eq!(
+            later.op,
+            Op::Read(Read::Items {
+                since: at(100),
+                page: u32::try_from(next_number + 5).unwrap(),
+                kind: None,
+                single: true
+            })
+        );
         let moved = api::Summary { number: next_number + 5, updated: at(104), ..summary() };
         h.answer(later, Answer::Items { items: Box::new([moved.clone()]), more: true, cut: false, now: at(105) });
         let full = h.one();

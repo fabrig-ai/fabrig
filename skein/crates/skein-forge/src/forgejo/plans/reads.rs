@@ -447,7 +447,9 @@ impl Plan {
                 };
                 let added = row_size(crate::measure::SUMMARY_BYTES, size::summary(&item, bounds.rows)?, bounds)?;
                 match charge(size, added, rows.len(), rows.capacity(), bounds) {
-                    Ok(()) => { rows.push(item).expect("room checked"); }
+                    Ok(()) => {
+                        rows.push(item).expect("room checked");
+                    }
                     Err(error) if rows.is_empty() => return Err(error),
                     Err(_) => {
                         *cut = true;

@@ -1,11 +1,11 @@
-use super::{Listing, Shared, Unusable, bounded_page_size, check, largest_row, page_size};
+use super::{Listing, Shared, Unusable, check, largest_row, page_size};
 use crate::tests::fixtures;
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{List, Time};
 
 #[test]
-fn each_listing_uses_its_largest_answer_row() {
+fn item_pages_use_real_rows_and_other_listings_reserve_the_largest() {
     let limits = fixtures::limits();
     for (listing, row) in [
         (Listing::Items, fixtures::ROW_ITEMS),
@@ -33,7 +33,8 @@ fn each_listing_uses_its_largest_answer_row() {
             (fixtures::PAGE_ROWS * row, fixtures::ONE_PAGE_ROW, fixtures::PAGE_ROWS, fixtures::ONE_PAGE_ROW),
         ] {
             let shared = Shared { rows, answer_bytes, ..fixtures::shared() };
-            assert_eq!(bounded_page_size(listing, cap, &limits, &shared), expected, "{listing:?}/{answer_bytes}/{rows}/{cap}");
+            let expected = if listing == Listing::Items { rows.min(cap) } else { expected };
+            assert_eq!(page_size(listing, cap, &limits, &shared), expected, "{listing:?}/{answer_bytes}/{rows}/{cap}");
         }
     }
 }
@@ -60,7 +61,8 @@ fn maximal_answer(listing: Listing) -> api::Answer {
             for _ in 0..limits.inner {
                 labels.push(fixtures::filled(string, b'l')).expect("labels");
             }
-            api::Answer::Items { cut: false,
+            api::Answer::Items {
+                cut: false,
                 items: Box::new([api::Summary {
                     labels: labels.into_boxed(),
                     number: 1,

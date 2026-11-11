@@ -149,7 +149,7 @@ fn item_answer(answer: api::Answer) -> (api::Summary, Box<[api::Comment]>, bool)
     (item, comments, more)
 }
 fn items_answer(answer: api::Answer) -> (Box<[api::Summary]>, bool, Time) {
-    let api::Answer::Items { items, more, now } = answer else {
+    let api::Answer::Items { items, more, now, .. } = answer else {
         panic!("expected Items");
     };
     (items, more, now)

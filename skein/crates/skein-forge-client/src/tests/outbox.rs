@@ -68,6 +68,30 @@ fn an_uncertain_comment_is_found_by_key_without_a_second_write() {
     );
 }
 #[test]
+fn an_uncertain_issue_is_found_after_a_cut_without_skipping_its_row() {
+    let mut h = Harness::new();
+    let key = Box::from(&b"\x01\x00\x03kit:task:milestone"[..]);
+    h.make(1, Write::CreateIssue { key, title: Box::new([]), body: Box::new([]) }, Condition::None);
+    h.clock();
+    let sent = h.one();
+    h.answer(sent, Err(Error::Timeout));
+    let find = h.one();
+    assert_eq!(find.op, Op::Read(Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue), single: false }));
+    let mut other = summary();
+    other.key = None;
+    h.answer(find, Ok(Answer::Items { items: Box::new([other]), more: true, cut: true, now: at(101) }));
+    let next = h.one();
+    assert_eq!(next.op, Op::Read(Read::Items { since: at(100), page: 2, kind: Some(api::Kind::Issue), single: true }));
+    let made = api::Summary { number: 42, key: Some(Box::from(&b"\x01\x00\x03kit:task:milestone"[..])), ..summary() };
+    h.answer(next, Ok(Answer::Items { items: Box::new([made]), more: true, cut: false, now: at(101) }));
+    assert_eq!(h.writes, 1);
+    assert_eq!(
+        h.outcomes.as_slice(),
+        &[(1, Outcome::Uncertain), (1, Outcome::Made { made: Made::Created(42), found: true })]
+    );
+}
+
+#[test]
 fn a_closed_pull_found_after_an_uncertain_open_is_raced() {
     let mut h = Harness::new();
     let write = Write::OpenPull {

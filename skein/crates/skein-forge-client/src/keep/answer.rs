@@ -101,24 +101,8 @@ pub(crate) fn answered_repository(
     }
 }
 fn next_page(mut progress: Progress, items: &[api::Summary], cut: bool, now: Time) -> Option<Progress> {
-    progress.since = progress.since.min(now);
-    match items.last() {
-        Some(last) if last.updated.min(now) > progress.since => {
-            progress.since = last.updated.min(now);
-            progress.page = 1;
-            progress.single = false;
-            progress.consumed = 0;
-        }
-        Some(_) | None => {
-            progress.tied = Some(progress.tied.unwrap_or(progress.since).min(now));
-            progress.consumed = progress.consumed.checked_add(u32::try_from(items.len()).ok()?)?;
-            progress.single |= cut;
-            progress.page = if progress.single {
-                progress.consumed.checked_add(1)?
-            } else {
-                progress.page.checked_add(1)?
-            };
-        }
+    if !progress.position.next(items, cut, now)? {
+        progress.tied = Some(progress.tied.unwrap_or(progress.position.since).min(now));
     }
     Some(progress)
 }

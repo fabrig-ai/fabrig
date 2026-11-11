@@ -38,6 +38,7 @@ struct Writing {
     clock: Time,
     state: State,
     look: queue::Look,
+    items: Option<crate::paging::Items>,
     uncertain: bool,
     restart_checked: bool,
     withdrawn: bool,
@@ -215,6 +216,7 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
                 clock: Time::ZERO,
                 state: State::Due(phase),
                 look: queue::Look::new(env.now),
+                items: None,
                 uncertain,
                 restart_checked: !uncertain,
                 withdrawn: false,
@@ -321,7 +323,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     calls::queue(&mut d.calls, Owner::Entry(number), repository, op, priority);
     false
 }
-fn operation(w: &Writing, phase: Phase) -> Op {
+fn operation(w: &mut Writing, phase: Phase) -> Op {
     let read = match phase {
         // An empty inclusive listing supplies Date without scanning history.
         Phase::Clock => Read::Items { single: false, since: Time::from_nanos(u64::MAX), page: 1, kind: None },
@@ -339,11 +341,12 @@ fn operation(w: &Writing, phase: Phase) -> Op {
         Phase::Find { page, after } => match &w.entry.effect.write {
             Write::Dispatch { branch, .. } => Read::Branch { branch: branch.clone() },
             Write::Rerun { attempt: job } => Read::Run { run: job.run },
-            Write::CreateIssue { .. } => Read::Items { single: false,
-                since: w.entry.start.expect("find has saved start").at,
-                page,
-                kind: Some(api::Kind::Issue),
-            },
+            Write::CreateIssue { .. } => {
+                if w.items.is_none() {
+                    w.items = Some(crate::paging::Items::first(w.entry.start.expect("find has saved start").at));
+                }
+                w.items.expect("issue search has a position").read(Some(api::Kind::Issue))
+            }
             Write::OpenPull { head, base, .. } => Read::PullFor { head: head.clone(), base: base.clone() },
             Write::Post { number, .. } => Read::Item { number: *number, after, since: Time::ZERO },
             Write::Review { number, .. } => Read::Reviews { number: *number, page },

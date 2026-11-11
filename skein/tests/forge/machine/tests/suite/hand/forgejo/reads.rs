@@ -116,7 +116,8 @@ fn items_list_since_with_leastupdate_and_an_explicit_page() {
             cost: 1,
             free: 0,
             rate: None,
-            result: Ok(Answer::Items { cut: false,
+            result: Ok(Answer::Items {
+                cut: false,
                 items: Box::new([summary()]),
                 more: false,
                 now: Time::from_nanos(1_577_836_800_000_000_000)
@@ -165,7 +166,12 @@ fn a_call_without_a_kept_path_resolves_by_id_and_counts_it() {
     assert_eq!(h.answered(1).expect("resolved answer").cost, 2);
     assert_eq!(
         h.answered(1).expect("resolved answer").result,
-        Ok(Answer::Items { cut: false, items: Box::from([]), more: false, now: Time::from_nanos(1_577_836_800_000_000_000) })
+        Ok(Answer::Items {
+            cut: false,
+            items: Box::from([]),
+            more: false,
+            now: Time::from_nanos(1_577_836_800_000_000_000)
+        })
     );
 }
 #[test]

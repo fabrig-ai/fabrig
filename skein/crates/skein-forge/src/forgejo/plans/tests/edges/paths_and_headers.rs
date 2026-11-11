@@ -95,25 +95,83 @@ fn items_without_date_is_invalid_answer() {
 fn items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
     // Each retained summary has 128 fixed bytes, a one-byte title and one-byte body.
     const ROW_BYTES: u32 = 130;
-    let body = (1..=8).map(|number| format!(r#"{{"number":{number},"state":"open","user":{{"id":2,"login":"writer"}},"labels":[],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}}"#)).collect::<Vec<_>>().join(",");
-    let body = format!("[{body}]");
+    let body = items_page(8);
+    let short = items_page(6);
     let mut limits = fixtures::limits();
     limits.json.length = u32::try_from(body.len()).unwrap();
-    for (answer_bytes, kept, cut) in [(5 * ROW_BYTES, 5, true), (8 * ROW_BYTES, 8, false), (8 * ROW_BYTES - 1, 7, true)] {
+    for (body, answer_bytes, kept, cut) in [
+        (&body, 5 * ROW_BYTES, 5, true),
+        (&short, 5 * ROW_BYTES, 5, true),
+        (&body, 8 * ROW_BYTES, 8, false),
+        (&body, 8 * ROW_BYTES - 1, 7, true),
+    ] {
         let bounds = crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes, ..fixtures::BOUNDS };
-        let mut run = Run::with_limits(limits, bounds, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }));
+        let mut run = Run::with_limits(
+            limits,
+            bounds,
+            Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }),
+        );
         run.begin();
-        let answer = run.answer(200, body.as_bytes());
-        let Step::Done(Ok(Answer::Items { items, more, cut: actual_cut, .. })) = answer else { panic!("whole prefix of items: {answer:?}") };
+        let answer = run.answer(200, body);
+        let Step::Done(Ok(Answer::Items { items, more, cut: actual_cut, .. })) = answer else {
+            panic!("whole prefix of items: {answer:?}")
+        };
         assert_eq!(items.len(), kept);
-        assert_eq!(items.iter().map(|item| item.number).collect::<Vec<_>>(), (1..=u64::try_from(kept).unwrap()).collect::<Vec<_>>());
+        for (index, item) in items.iter().enumerate() {
+            assert_eq!(item.number, u64::try_from(index + 1).unwrap());
+        }
         assert!(more, "a cut or full page has more");
         assert_eq!(actual_cut, cut);
-        assert_eq!(crate::measure::answer(&Answer::Items { items, more, cut, now: Time::ZERO }), Some(u64::try_from(kept).unwrap() * u64::from(ROW_BYTES)));
+        assert_eq!(
+            crate::measure::answer(&Answer::Items { items, more, cut, now: Time::ZERO }),
+            Some(u64::try_from(kept).unwrap() * u64::from(ROW_BYTES))
+        );
     }
-    let mut run = Run::with_limits(limits, crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes: ROW_BYTES - 1, ..fixtures::BOUNDS }, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }));
+    let mut run = Run::with_limits(
+        limits,
+        crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes: ROW_BYTES - 1, ..fixtures::BOUNDS },
+        Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }),
+    );
     run.begin();
-    assert_eq!(run.answer(200, body.as_bytes()), Step::Done(Err(Error::TooLarge(api::Excess::at_least(api::Bound::AnswerBytes, u64::from(ROW_BYTES - 1), u64::from(ROW_BYTES))))));
+    assert_eq!(
+        run.answer(200, &body),
+        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::AnswerBytes,
+            u64::from(ROW_BYTES - 1),
+            u64::from(ROW_BYTES)
+        ))))
+    );
+}
+
+#[test]
+fn a_single_item_page_requests_one_and_keeps_fullness_at_one() {
+    let mut run = Run::known(Op::Read(Read::Items { since: Time::ZERO, page: 4, kind: None, single: true }));
+    run.begin();
+    run.assert_listing("issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=4&limit=", b"1");
+    let Step::Done(Ok(Answer::Items { items, more, cut, .. })) = run.answer(200, &items_page(1)) else {
+        panic!("single page")
+    };
+    assert_eq!(items.len(), 1);
+    assert!(more);
+    assert!(!cut);
+}
+
+fn items_page(count: u8) -> Box<[u8]> {
+    let row = br#","state":"open","user":{"id":2,"login":"writer"},"labels":[],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}"#;
+    let row_bytes = b"{\"number\":".len().checked_add(1).unwrap().checked_add(row.len()).unwrap();
+    let length = usize::from(count).checked_mul(row_bytes.checked_add(1).unwrap()).unwrap().checked_add(1).unwrap();
+    let mut body = skein_lib::Writer::new(length);
+    body.put(b"[").unwrap();
+    for number in 1_u8..=count {
+        if number > 1 {
+            body.put(b",").unwrap();
+        }
+        body.put(b"{\"number\":").unwrap();
+        body.put(&[b'0'.checked_add(number).unwrap()]).unwrap();
+        body.put(row).unwrap();
+    }
+    body.put(b"]").unwrap();
+    body.finish()
 }
 
 // The full page contains PAGE_SIZE rows; the short page contains one fewer.

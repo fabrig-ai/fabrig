@@ -197,7 +197,8 @@ impl Plan {
             }
             State::Items { rows, now, cut, .. } => api::Answer::Items {
                 items: rows.into_boxed(),
-                more: self.count.saturating_add(listed(document)?) >= bounds.page_size || cut,
+                more: self.count.saturating_add(listed(document)?) >= self.bound.expect("items are explicitly paged")
+                    || cut,
                 cut,
                 now,
             },

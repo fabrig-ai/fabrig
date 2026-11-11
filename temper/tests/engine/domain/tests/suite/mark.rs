@@ -87,7 +87,12 @@ fn the_forge_reaches_no_forge_before_the_mark() {
     assert_eq!(driver.forge.as_ref().expect("fake").writes, 1);
     let skein_forge::api::Answer::Items { items, more: false, .. } = driver.forge.as_mut().expect("fake").read(
         temper_engine_forge_world::REPO,
-        skein_forge::api::Read::Items { single: false, since: Time::ZERO, page: 1, kind: Some(skein_forge::api::Kind::Issue) },
+        skein_forge::api::Read::Items {
+            single: false,
+            since: Time::ZERO,
+            page: 1,
+            kind: Some(skein_forge::api::Kind::Issue),
+        },
     ) else {
         panic!("one bounded issue page");
     };

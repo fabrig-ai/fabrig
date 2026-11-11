@@ -73,7 +73,8 @@ fn selected_topic(value: &Value, repository: api::Repository) -> Result<forge::T
 
 fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
     match kind {
-        b"items" => Ok(api::Read::Items { single: false,
+        b"items" => Ok(api::Read::Items {
+            single: false,
             since: Time::from_nanos(optional_number(value, b"since", 0)?),
             page: page(value)?,
             kind: match value.field(b"item_kind")? {

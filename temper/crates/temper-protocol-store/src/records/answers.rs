@@ -126,7 +126,7 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
         d::Answer::Runs { .. } | d::Answer::Run(_) | d::Answer::Commits { .. } | d::Answer::Tree { .. } => {
             unreachable!("queue does not persist Actions or tree answers")
         }
-        d::Answer::Items { items, more, now } => w::Answer::Items(encode_items_answer(items, *more, *now)),
+        d::Answer::Items { items, more, now, cut } => w::Answer::Items(encode_items_answer(items, *more, *now, *cut)),
         d::Answer::Item { item, comments, more } => w::Answer::Item(encode_item_answer(item, comments, *more)),
         d::Answer::Reviews { reviews, more } => w::Answer::Reviews(encode_reviews_answer(reviews, *more)),
         d::Answer::Pull(value) => w::Answer::Pull(encode_pull(value)),
@@ -248,8 +248,13 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
         }
 
         w::Answer::Items(value) => {
-            let w::ItemsAnswerParts { items, more, now } = value.into_parts();
-            d::Answer::Items { cut: false, items: decode_summaries(&items, bounds)?, more, now: skein_lib::Time::from_nanos(now) }
+            let w::ItemsAnswerParts { items, more, now, cut } = value.into_parts();
+            d::Answer::Items {
+                cut,
+                items: decode_summaries(&items, bounds)?,
+                more,
+                now: skein_lib::Time::from_nanos(now),
+            }
         }
         w::Answer::Item(value) => {
             let w::ItemAnswerParts { item, comments, more } = value.into_parts();
@@ -567,9 +572,12 @@ fn decode_collaborators(values: List<w::Collaborator>) -> Box<[d::Collaborator]>
     result.into_boxed()
 }
 
-fn encode_items_answer(items: &[d::Summary], more: bool, now: skein_lib::Time) -> w::ItemsAnswer {
-    w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items: encode_summaries(items), more, now: now.as_nanos() })
-        .expect(FITS)
+fn encode_items_answer(items: &[d::Summary], more: bool, now: skein_lib::Time, cut: bool) -> w::ItemsAnswer {
+    w::ItemsAnswer::new(
+        &w::CEILINGS,
+        w::ItemsAnswerParts { items: encode_summaries(items), more, now: now.as_nanos(), cut },
+    )
+    .expect(FITS)
 }
 fn encode_item_answer(item: &d::Summary, comments: &[d::Comment], more: bool) -> w::ItemAnswer {
     w::ItemAnswer::new(

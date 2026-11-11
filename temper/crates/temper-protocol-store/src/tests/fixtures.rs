@@ -681,10 +681,16 @@ pub fn review() -> skein_forge::api::Review {
         official: true,
     }
 }
-pub fn item_answers() -> [skein_forge::api::Answer; 3] {
+pub fn item_answers() -> [skein_forge::api::Answer; 4] {
     use skein_forge::api::Answer;
     [
-        Answer::Items { cut: false, items: Box::new([summary(), summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
+        Answer::Items {
+            cut: false,
+            items: Box::new([summary(), summary()]),
+            more: true,
+            now: skein_lib::Time::from_nanos(9),
+        },
+        Answer::Items { cut: true, items: Box::new([summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
         Answer::Item { item: summary(), comments: Box::new([comment(), comment()]), more: true },
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true },
     ]
@@ -697,7 +703,8 @@ pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
 pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
     use crate::v11 as w;
     let answer = w::Answer::Items(
-        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1 }).expect("piece ceiling"),
+        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
+            .expect("piece ceiling"),
     );
     let result = w::ReadResult::Answer(Box::new(
         w::AnswerValue::new(&w::CEILINGS, w::AnswerValueParts { answer }).expect("answer ceiling"),

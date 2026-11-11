@@ -127,7 +127,11 @@ fn github_replacement_preserves_the_domain_and_configured_access() {
     world.replace(component);
     world.action(Request::Installations { forge: FORGE, accepted: Box::from([ACCEPTED]) });
     world.run_for(SECOND);
-    world.call(CALL, REPO, Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: Some(api::Kind::Issue) }));
+    world.call(
+        CALL,
+        REPO,
+        Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: Some(api::Kind::Issue) }),
+    );
     world.run_for(SECOND);
     let Ok(Answer::Items { items, .. }) = &world.answered(CALL).expect("items").result else { panic!("items answer") };
     assert_eq!(items.len(), 1);

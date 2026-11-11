@@ -120,7 +120,10 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
         };
         rows.push((
             "measure_answer_summary: item list",
-            (Answer::Items { cut: false, items: Box::new([item.clone()]), more: false, now: skein_lib::Time::ZERO }, 131),
+            (
+                Answer::Items { cut: false, items: Box::new([item.clone()]), more: false, now: skein_lib::Time::ZERO },
+                131,
+            ),
         ))
         .unwrap();
         rows.push((

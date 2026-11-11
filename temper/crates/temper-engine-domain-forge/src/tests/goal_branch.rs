@@ -833,7 +833,9 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
     for _ in 0..MERGE_CALLS {
         let (call, op) = fixtures::next_call(d);
         let answer = match op {
-            Op::Read(Read::Items { .. }) => Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now },
+            Op::Read(Read::Items { .. }) => {
+                Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
+            }
             Op::Read(Read::Branch { branch }) if branch.as_ref() == GOAL_BRANCH => Answer::Commit(TIP),
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
             Op::Read(Read::Pull { number: 1 }) => {

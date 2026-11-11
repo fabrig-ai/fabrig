@@ -630,7 +630,10 @@ fn issue_find_requires_a_believed_key_without_provenance() {
         item.key = Some(Box::from(key));
         item.author = author;
         let find = h.one();
-        h.answer(find, Ok(Answer::Items { cut: false, items: Box::new([item.clone()]), more: false, now: at(fixture::START_AT) }));
+        h.answer(
+            find,
+            Ok(Answer::Items { cut: false, items: Box::new([item.clone()]), more: false, now: at(fixture::START_AT) }),
+        );
         if found {
             assert_eq!(
                 h.outcomes.as_slice().last(),
@@ -643,7 +646,12 @@ fn issue_find_requires_a_believed_key_without_provenance() {
             let find = h.one();
             h.answer(
                 find,
-                Ok(Answer::Items { cut: false, items: Box::new([item]), more: false, now: at(fixture::ATTEMPT_DEADLINE) }),
+                Ok(Answer::Items {
+                    cut: false,
+                    items: Box::new([item]),
+                    more: false,
+                    now: at(fixture::ATTEMPT_DEADLINE),
+                }),
             );
             assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Held)), "{name}");
         }

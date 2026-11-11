@@ -990,8 +990,10 @@ fn repositories(r: &mut Runner<'_>) -> Result<()> {
             &token,
             b"",
         )?;
-        let answer =
-            r.plan(0, api::Op::Read(api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }))?;
+        let answer = r.plan(
+            0,
+            api::Op::Read(api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }),
+        )?;
         Ok(response.status == 200
             && response.json()?.root().items().iter().any(|row| row.get("number").u64() == Some(issue))
             && answer.is_ok())
@@ -1160,8 +1162,10 @@ pub(crate) fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
         )?;
         let empty = epoch.status == 200
             && epoch.json().is_ok_and(|json| json.root().array().is_some_and(|rows| rows.is_empty()));
-        let answer =
-            r.plan(0, api::Op::Read(api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }))?;
+        let answer = r.plan(
+            0,
+            api::Op::Read(api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }),
+        )?;
         let listed =
             matches!(answer, Ok(api::Answer::Items { items, .. }) if items.iter().any(|row| row.number == issue));
         r.fact(r.case, empty && listed, "wire observation differs from the fact");

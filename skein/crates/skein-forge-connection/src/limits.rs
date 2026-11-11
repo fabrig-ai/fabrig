@@ -524,10 +524,15 @@ pub(crate) fn stack(stacked: Stacked, demand: u32, cap: u32) -> Result<(), Unusa
 pub fn page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {
     match listing {
         Listing::Items => s.rows.min(cap),
-        Listing::Reviews | Listing::Statuses | Listing::Remarks | Listing::Branches
-        | Listing::Collaborators | Listing::PullFiles | Listing::Compare | Listing::Runs | Listing::Tree => {
-            bounded_page_size(listing, cap, l, s)
-        }
+        Listing::Reviews
+        | Listing::Statuses
+        | Listing::Remarks
+        | Listing::Branches
+        | Listing::Collaborators
+        | Listing::PullFiles
+        | Listing::Compare
+        | Listing::Runs
+        | Listing::Tree => bounded_page_size(listing, cap, l, s),
     }
 }
 pub(crate) fn bounded_page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {

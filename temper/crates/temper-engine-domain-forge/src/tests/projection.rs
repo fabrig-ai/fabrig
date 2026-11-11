@@ -270,8 +270,12 @@ fn a_lost_open_stays_failed_without_ever_opening_again() {
     let (find, op) = call(&mut d, &environment);
     let Op::Read(Read::Items { kind, .. }) = op else { panic!("issue find") };
     assert_eq!(kind, Some(Kind::Issue));
-    let recovered =
-        answer(&mut d, &environment, find, Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now });
+    let recovered = answer(
+        &mut d,
+        &environment,
+        find,
+        Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now },
+    );
     assert!(recovered.contains(&Request::ProjectionFailed { goal: GOAL }));
     let after_loss = d.issue(GOAL).expect("failed Open").clone();
     // The closing task may settle its held outbox entry before the final

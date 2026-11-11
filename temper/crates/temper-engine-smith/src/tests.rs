@@ -3105,6 +3105,30 @@ fn a_refused_branch_read_says_what_to_read_instead() {
 }
 
 #[test]
+fn item_listings_report_the_answer_byte_cut() {
+    use skein_forge::api;
+    for cut in [false, true] {
+        let item = api::Summary {
+            number: 1,
+            kind: api::Kind::Issue,
+            state: api::State::Open,
+            author: 2,
+            labels: Box::new([]),
+            key: None,
+            title: Box::new([]),
+            body: Box::new([]),
+            updated: skein_lib::Time::ZERO,
+        };
+        let value = api::Answer::Items { items: Box::new([item]), more: true, cut, now: skein_lib::Time::ZERO };
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+        let rendered = crate::answer_for_tool(&recorded, b"read_items", 2048, crate::ForgeReadBounds::STOCK);
+        assert!(!rendered.error());
+        assert_eq!(skein_lib::bytes::find(rendered.text(), b"Page cut at forge.client.answer_bytes.").is_some(), cut);
+        assert!(skein_lib::bytes::find(rendered.text(), b"More pages available.").is_some());
+    }
+}
+
+#[test]
 fn branch_lists_render_whole_within_the_host_byte_bound() {
     use skein_forge::api::Answer;
     for count in [9, 40, 600, 2000] {

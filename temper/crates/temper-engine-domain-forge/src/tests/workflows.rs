@@ -374,7 +374,11 @@ fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed(
                 outputs(&mut d, Event::Committed { entry: 19 });
                 let (poll, op) = fixtures::next_call(&mut d);
                 let Op::Read(Read::Items { .. }) = op else { panic!("repository poll: {op:?}") };
-                fixtures::answer(&mut d, poll, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
+                fixtures::answer(
+                    &mut d,
+                    poll,
+                    Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }),
+                );
                 let (call, op) = fixtures::next_call(&mut d);
                 let Op::Write(_) = op else { panic!("status write: {op:?}") };
                 fixtures::answer(&mut d, call, Err(Error::Forbidden));

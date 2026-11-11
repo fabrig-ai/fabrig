@@ -964,7 +964,12 @@ fn a_never_sent_write_is_committed_again_with_the_same_identity_after_growing_wa
         }
         let (clock, op) = fixtures::next_at(&mut d, &env);
         assert!(matches!(op, Op::Read(_)), "a new never-sent entry reads its clock");
-        fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }));
+        fixtures::answer_at(
+            &mut d,
+            &env,
+            clock,
+            Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+        );
         let (next, op) = fixtures::next_at(&mut d, &env);
         assert_eq!(op, Op::Write(original.effect.write.clone()), "same purpose and key");
         call = next;
@@ -1004,7 +1009,12 @@ fn remaking_a_never_sent_entry_keeps_later_entry_numbers_and_makes_each_once() {
     outputs(&mut d, Event::Enqueue { entry: status(later, 7) });
     outputs(&mut d, Event::Committed { entry: later });
     let (clock, _) = fixtures::next_at(&mut d, &env);
-    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }));
+    fixtures::answer_at(
+        &mut d,
+        &env,
+        clock,
+        Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+    );
     let (later_call, later_op) = fixtures::next_at(&mut d, &env);
     assert_eq!(later_op, Op::Write(status(later, 7).effect.write));
     let due = fixtures::advance(&mut d, &mut env, CLIENT.backoff);
@@ -1019,7 +1029,12 @@ fn remaking_a_never_sent_entry_keeps_later_entry_numbers_and_makes_each_once() {
     let mut out = Queue::uncapped();
     step(&mut d, &env, Event::Committed { entry: fixtures::OPEN }, &mut out);
     let (clock, _) = fixtures::next_at(&mut d, &env);
-    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }));
+    fixtures::answer_at(
+        &mut d,
+        &env,
+        clock,
+        Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+    );
     let (first_call, first_op) = fixtures::next_at(&mut d, &env);
     assert!(matches!(first_op, Op::Write(skein_forge::api::Write::OpenPull { .. })));
     let first = fixtures::answer_at(&mut d, &env, first_call, Ok(Answer::Created(1)));
@@ -1244,7 +1259,8 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
         &[Request::Call {
             call: Token::new(1),
             repository: REPO,
-            op: skein_forge::api::Op::Read(skein_forge::api::Read::Items { single: false,
+            op: skein_forge::api::Op::Read(skein_forge::api::Read::Items {
+                single: false,
                 since: Time::from_nanos(1),
                 page: 1,
                 kind: Some(skein_forge::api::Kind::Issue),
