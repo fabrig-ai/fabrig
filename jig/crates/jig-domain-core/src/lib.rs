@@ -350,6 +350,7 @@ pub struct Core {
     /// Preparations waiting for notes, or deferring their next activation for load room.
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
     pub(crate) preferences: routing::run::preferences::State,
+    pub(crate) now: routing::run::now::State,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
@@ -583,6 +584,7 @@ impl Core {
             projections: Map::with_capacity(limits.tasks.tasks),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
             preferences: routing::run::preferences::State::new(limits.brief.briefs),
+            now: routing::run::now::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),

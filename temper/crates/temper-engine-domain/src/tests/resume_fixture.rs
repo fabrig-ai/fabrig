@@ -196,6 +196,7 @@ pub fn limits() -> engine::Limits {
                 plan: 128,
                 notes: 64,
                 preferences: 64,
+                now: 64,
             },
             brief_bytes: 384,
             gather: Duration::from_secs(1),

@@ -26,6 +26,8 @@ pub enum BriefPart {
     TranscriptTail,
     /// Whole requester preferences (domain/engine/briefs.md, 2.1).
     Preferences,
+    /// A standing task's Now (domain/tasks/standing.md, 6).
+    Now,
 }
 
 /// Render the bounded note index by durable name so a run can recall entries.
@@ -107,7 +109,8 @@ pub fn read_brief_part(core: &Core, limits: BriefTextLimits, task: u64, part: Br
         | BriefPart::Dependencies
         | BriefPart::Delegates
         | BriefPart::Attempts
-        | BriefPart::Preferences => false,
+        | BriefPart::Preferences
+        | BriefPart::Now => false,
     };
     let read = task_section(core, task, part, limits.parts, limits.read_bytes);
     let parts = match read {
@@ -211,6 +214,10 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
             None => BriefRead::Failed,
         },
         BriefPart::Preferences => match crate::routing::run::preferences::text(core, task) {
+            Some(text) => BriefRead::Got(Box::new([text_part(&text, b"", b"", b"", bytes)])),
+            None => BriefRead::Failed,
+        },
+        BriefPart::Now => match crate::routing::run::now::text(core, task) {
             Some(text) => BriefRead::Got(Box::new([text_part(&text, b"", b"", b"", bytes)])),
             None => BriefRead::Failed,
         },

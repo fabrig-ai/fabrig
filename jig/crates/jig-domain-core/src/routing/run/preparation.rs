@@ -342,7 +342,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
             .expect("brief count bounds waiting notes");
         return out;
     }
-    if super::preferences::gather(core, env, work, task) {
+    if super::preferences::gather(core, env, work, task) || super::now::gather(core, env, work, task) {
         return out;
     }
     let context = core.contexts.get(&task).expect("current preparation context");
@@ -413,6 +413,9 @@ pub(crate) fn plan_brief(
             required: true,
         })
         .expect("task brief room");
+    if !super::now::plan(core, &env.limits, work, task, &mut wanted) {
+        return out;
+    }
     if !context.dependencies.is_empty() || !context.spec.inputs.is_empty() {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Dependencies) else {
             work.push(Work::PreparationFailed {
@@ -521,11 +524,16 @@ pub(crate) fn plan_brief(
 }
 
 fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
+    let context = core.contexts.get(&task).expect("brief owns a preparation context");
+    let standing = context.ended_by == tasks::EndedBy::Standing;
+    if standing && core.tasks.task(task).expect("preparing task").retry_notice.is_none() {
+        return false;
+    }
     let transcript = core.transcripts.get(&task).expect("brief owns a loaded transcript");
     if transcript.closed {
         return transcript.last.is_some();
     }
-    core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
+    standing || core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
 }
 
 pub(crate) fn brief_parent(requester: tasks::Party) -> Option<u64> {

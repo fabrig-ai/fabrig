@@ -579,6 +579,7 @@ fn cut_core(kind: Core, text: Box<[u8]>, size: u32) -> Box<[u8]> {
     let tail = match kind {
         Core::Attempts | Core::TranscriptTail => true,
         Core::Task
+        | Core::Now
         | Core::Lineage
         | Core::Results
         | Core::Plan

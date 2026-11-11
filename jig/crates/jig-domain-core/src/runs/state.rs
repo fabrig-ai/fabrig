@@ -290,6 +290,10 @@ impl Core {
         cut: bool,
     ) -> bool {
         self.start_input();
+        let standing = match self.tasks.task(task) {
+            Some(row) => row.flags.ended_by == tasks::EndedBy::Standing,
+            None => false,
+        };
         let transcript = self.transcripts.get_mut(&task).expect("load belongs to prepared task");
         if turn.task != task || turn.attempt > transcript.previous_attempt || turn.attempt == 0 || turn.turn == 0 {
             return false;
@@ -310,7 +314,10 @@ impl Core {
         transcript.bytes = total;
         transcript.cut |= cut;
         transcript.last = Some((turn.attempt, turn.turn));
-        transcript.append_text(text, self.settings.tail_bytes);
+        // A standing retry carries only the attempt it retries (domain/tasks/standing.md, 5.4).
+        if !standing || turn.attempt == transcript.previous_attempt {
+            transcript.append_text(text, self.settings.tail_bytes);
+        }
         if transcript.closed || transcript.cut {
             return true;
         }

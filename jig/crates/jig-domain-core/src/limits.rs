@@ -21,7 +21,7 @@ pub const DOCUMENT_PATH_BYTES: u32 = 256;
 /// Maximum bytes in a charter document's heading (domain/engine/settings.md, 9).
 pub const DOCUMENT_HEADING_BYTES: u32 = 80;
 /// The most sections the core plans of its own (domain/engine/briefs.md, section 1, and domain/engine/settings.md, section 9).
-pub const CORE_SECTIONS: u32 = 7;
+pub const CORE_SECTIONS: u32 = 8;
 /// The connector section kind the core plans a document under; the root may renumber it
 /// (domain/engine/settings.md, 9).
 pub const DOCUMENT_KIND: u16 = 0;
