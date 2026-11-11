@@ -155,10 +155,10 @@
   ink button, a secondary one a white bordered button, a quiet one
   underlined words. The muted line under the cards is 14.5 px; the
   foot, "‹ Back" at the left and the playground alternative at the
-  right, is muted underlined words. Model's forge region follows the
-  choices before the foot: from 1280 px, a 272 px pane to the right of
+  right, is muted underlined words. Model's pane, "Forge and model",
+  follows the choices before the foot: from 1280 px, a 272 px pane to the right of
   the column, its top at the heading's, with a hairline on its left;
-  narrower, in the column with a hairline above. Its line stacks a quiet
+  narrower, in the column with a hairline above. Forge's line stacks a quiet
   ring, the forge's strong name in ink and each detail muted on its own
   line; once connected the ring is a green tick, drawn by style alone,
   and "Each step" is gone. Under way, the repository precedes the status,
@@ -177,7 +177,7 @@
   fields under it, indented, small bold labels over 38 px inputs, the
   addresses a monospace text area; its foot, under a hairline, the
   quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). Ready's pane is Model's forge region, its lines 18 px apart:
+  2026-11-04). Ready's pane is Model's, its lines 18 px apart:
   each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
   name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
   forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
