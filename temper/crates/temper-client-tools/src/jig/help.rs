@@ -17,6 +17,16 @@ fn form_usage(tool: &Tool, form: &[Argument], out: &mut Writer) -> Result<(), Ov
     }
     out.put(tool.name)?;
     for argument in form {
+        // The repository selector is one optional pair (ctl/areas.md, 7).
+        if tool.name == b"draft ready" || tool.name == b"draft not-ready" {
+            if argument.name == b"owner" {
+                out.put(b" [--owner OWNER --name NAME]")?;
+                continue;
+            }
+            if argument.name == b"name" {
+                continue;
+            }
+        }
         argument_usage(argument, out)?;
     }
     out.put(match tool.keyed {
