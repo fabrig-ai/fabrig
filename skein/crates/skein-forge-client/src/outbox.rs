@@ -63,7 +63,7 @@ enum Phase {
     Check,
     Make,
     Queued,
-    Find { page: u32, after: u64 },
+    Find { page: u32, after: u64, skip: u32 },
     DispatchRuns { head: Commit, page: u32 },
     Ancestry { head: Commit, base: Commit },
     AfterUpdate,
@@ -167,7 +167,7 @@ fn lane(entry: &Entry) -> Lane {
 }
 fn find(entry: &Entry) -> Phase {
     let position = entry.start.expect("an attempted write has a saved start");
-    Phase::Find { page: position.review_page.max(1), after: position.comment }
+    Phase::Find { page: position.review_page.max(1), after: position.comment, skip: 0 }
 }
 pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool, out: &mut Queue<Request>) {
     let error = if !d.outbox.ready {
@@ -338,7 +338,7 @@ fn operation(w: &mut Writing, phase: Phase) -> Op {
         Phase::Check | Phase::Queued | Phase::AfterUpdate | Phase::AfterMerge { .. } => {
             Read::Pull { number: w.lane.number.expect("conditional effect names an item") }
         }
-        Phase::Find { page, after } => match &w.entry.effect.write {
+        Phase::Find { page, after, skip } => match &w.entry.effect.write {
             Write::Dispatch { branch, .. } => Read::Branch { branch: branch.clone() },
             Write::Rerun { attempt: job } => Read::Run { run: job.run },
             Write::CreateIssue { .. } => {
@@ -349,7 +349,7 @@ fn operation(w: &mut Writing, phase: Phase) -> Op {
             }
             Write::OpenPull { head, base, .. } => Read::PullFor { head: head.clone(), base: base.clone() },
             Write::Post { number, .. } => Read::Item { number: *number, after, since: Time::ZERO },
-            Write::Review { number, .. } => Read::Reviews { number: *number, page },
+            Write::Review { number, .. } => Read::Reviews { number: *number, page, skip },
             Write::Merge { number, .. } | Write::Update { number, .. } => Read::Pull { number: *number },
             Write::CreateBranch { branch, .. } | Write::DeleteBranch { branch } => {
                 Read::Branch { branch: branch.clone() }

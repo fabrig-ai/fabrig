@@ -181,7 +181,7 @@ fn measured_answers() -> [(&'static str, Answer); 10] {
         ("items", Answer::Items { cut: false, items: Box::new([summary()]), more: false, now: Time::ZERO }),
         ("item", Answer::Item { item: summary(), comments: Box::new([comment(2), comment(3)]), more: true }),
         ("pull", Answer::Pull(expected_pull(13, api::State::Open))),
-        ("reviews", Answer::Reviews { reviews: Box::from([]), more: true }),
+        ("reviews", Answer::Reviews { reviews: Box::from([]), more: true, cut: false }),
         ("statuses", Answer::Statuses { ci: api::Ci::None, statuses: Box::from([]), more: false }),
         (
             "Actions status",

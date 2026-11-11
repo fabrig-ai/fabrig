@@ -288,13 +288,14 @@ A read.
 
 ## read_reviews
 
-Pull reviews within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
+Pull reviews within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
 
 A read.
 
-- `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `number`: an integer from 1 to 18446744073709551615; required. The pull request's number.
-- `page`: an integer from 1 to 4294967295, 1 when absent; optional. The page.
+- `repository`: text; optional. owner/name; omit or empty for sole project repo.
+- `number`: an integer from 1 to 18446744073709551615; required. Pull #.
+- `page`: an integer from 1 to 4294967295, 1 when absent; optional. Page.
+- `skip`: an integer from 0 to 4294967295, 0 when absent; optional. Rows read.
 
 ## read_statuses
 
@@ -308,14 +309,15 @@ A read.
 
 ## read_remarks
 
-Review remarks within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
+Review remarks within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
 
 A read.
 
-- `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `number`: an integer from 1 to 18446744073709551615; required. The pull request's number.
-- `review`: an integer from 1 to 18446744073709551615; required. The review's id, as read_reviews answers it.
-- `page`: an integer from 1 to 4294967295, 1 when absent; optional. The page.
+- `repository`: text; optional. owner/name; omit or empty for sole project repo.
+- `number`: an integer from 1 to 18446744073709551615; required. Pull #.
+- `review`: an integer from 1 to 18446744073709551615; required. read_reviews id.
+- `page`: an integer from 1 to 4294967295, 1 when absent; optional. Page.
+- `skip`: an integer from 0 to 4294967295, 0 when absent; optional. Rows read.
 
 ## read_branch
 
@@ -337,14 +339,15 @@ A read.
 
 ## read_pull_files
 
-Changed files within forge.client.rows/answer_bytes. Whole sides; read_file at head/base. Next page lists other files, not this page.
+Whole pull files within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut. read_file at head/base.
 
 A read.
 
-- `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `number`: an integer from 1 to 18446744073709551615; required. The pull request's number.
-- `head`: text; required. The head's commit id: 40 or 64 lowercase hexadecimal digits.
-- `page`: an integer from 1 to 4294967295, 1 when absent; optional. The page.
+- `repository`: text; optional. owner/name; omit or empty for sole project repo.
+- `number`: an integer from 1 to 18446744073709551615; required. Pull #.
+- `head`: text; required. Head: 40/64 lowercase hex.
+- `page`: an integer from 1 to 4294967295, 1 when absent; optional. Page.
+- `skip`: an integer from 0 to 4294967295, 0 when absent; optional. Rows read.
 
 ## read_compare
 

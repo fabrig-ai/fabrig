@@ -436,7 +436,7 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
         fixtures::checks(skein_forge::api::Check::Passed),
         fixtures::checks(skein_forge::api::Check::Passed),
         Answer::Commits { commits: Box::new([]), more: false },
-        Answer::Reviews { reviews: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         commit_panel_records(&mut records, fixtures::answer_next(&mut d, Ok(answer)));
     }

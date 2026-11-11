@@ -92,7 +92,7 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
     let first = r::object(h.first);
     for (page, count, more) in [(1, 2, true), (2, 1, false)] {
         let api::Answer::PullFiles { files, more: actual, .. } =
-            r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page })
+            r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page, skip: 0 })
                 .expect("pull file plan")
         else {
             panic!("pull files")
@@ -127,7 +127,10 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
         ),
         Err(api::Error::Missing)
     );
-    assert_eq!(r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1 }), Err(api::Error::Stale));
+    assert_eq!(
+        r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1, skip: 0 }),
+        Err(api::Error::Stale)
+    );
     assert_eq!(h.hooks, 0);
 }
 #[test]
@@ -158,7 +161,7 @@ fn github_fake_compare_uses_the_merge_base_on_divergent_branches() {
     assert_eq!(row.merge_base, None, "names-only Compare keeps no merge base id");
     assert_eq!((row.ahead_by, row.behind_by), (1, 1));
     let api::Answer::PullFiles { files, .. } =
-        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1 }).unwrap()
+        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0 }).unwrap()
     else {
         panic!("files")
     };

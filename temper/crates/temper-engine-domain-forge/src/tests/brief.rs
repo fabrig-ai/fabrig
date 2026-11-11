@@ -313,11 +313,57 @@ fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) ->
 }
 
 #[test]
+fn a_review_brief_reads_on_at_the_cut_page_and_skip() {
+    let (mut d, owner) = pending_pull(b"Whole body", change::State::Gating { head: HEAD, asked: Box::new([]) });
+    for (path, cut, page, skip) in [(b"a", true, 1, 1), (b"b", true, 1, 2), (b"c", false, 2, 0)] {
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::PullFiles {
+                head: HEAD,
+                files: Box::new([skein_forge::api::File {
+                    path: Box::from(path.as_slice()),
+                    before: None,
+                    after: None
+                }]),
+                more: true,
+                cut,
+            }),
+            LIMITS.client.rows,
+            &mut out
+        ));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefClient {
+                event: skein_forge_client::Event::Read {
+                    owner,
+                    repository: REPO,
+                    read: Read::PullFiles { number: 1, head: HEAD, page, skip },
+                }
+            })
+        );
+    }
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+        LIMITS.client.rows,
+        &mut out
+    ));
+    let text = take(&mut d);
+    for path in [b"File: a", b"File: b", b"File: c"] {
+        assert!(skein_lib::bytes::find(&text, path).is_some());
+    }
+}
+
+#[test]
 fn a_late_brief_answer_for_completed_work_is_dropped() {
     for compared in [false, true] {
         let (mut d, owner) =
             pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
-        let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false };
+        let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false };
         if compared {
             assert!(brief::brief_answer(&mut d, owner, Ok(files.clone()), LIMITS.client.rows, &mut Queue::uncapped()));
         }
@@ -397,7 +443,7 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false }),
+        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
         &mut out
     ));
@@ -413,7 +459,7 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::PullFiles { head: HEAD, files, more: false }),
+        Ok(Answer::PullFiles { head: HEAD, files, more: false, cut: false }),
         LIMITS.client.rows,
         &mut out
     ));
@@ -506,7 +552,7 @@ fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::Reviews { reviews: Box::default(), more: false }),
+        Ok(Answer::Reviews { reviews: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
         &mut Queue::uncapped()
     ));
@@ -562,7 +608,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
                 request_review(11, REVIEWED, b"Please retain the blank line."),
                 request_review(12, HEAD, b"Other head's review"),
             ]),
-            more: false
+            more: false,
+            cut: false
         }),
         LIMITS.client.rows,
         &mut out
@@ -586,7 +633,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
                 line: 9,
                 body: b"Keep both appended lines.".as_slice().into(),
             }]),
-            more: false
+            more: false,
+            cut: false
         }),
         LIMITS.client.rows,
         &mut out
@@ -611,7 +659,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
         assert!(brief::brief_answer(
             &mut d,
             owner,
-            Ok(Answer::Reviews { reviews: reviews.into(), more: false }),
+            Ok(Answer::Reviews { reviews: reviews.into(), more: false, cut: false }),
             LIMITS.client.rows,
             &mut out
         ));
@@ -622,7 +670,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
             assert!(brief::brief_answer(
                 &mut d,
                 owner,
-                Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
+                Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
                 LIMITS.client.rows,
                 &mut out
             ));

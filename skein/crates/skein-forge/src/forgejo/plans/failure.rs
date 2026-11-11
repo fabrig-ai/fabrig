@@ -37,9 +37,14 @@ pub fn classify(asked: Asked, status: u16, refusal: Option<Refusal>, retry: Opti
             api::Error::Unavailable
         }
         403 if asked == Asked::DeleteBranch => api::Error::Protected,
-        401 | 403 | 423 => api::Error::Forbidden,
+        401 | 403 | 423 => {
+            if !read {
+                drop = Drop::Row;
+            }
+            api::Error::Forbidden
+        }
         404 => {
-            if asked != Asked::Leaf {
+            if asked != Asked::Leaf && asked != Asked::Job {
                 drop = Drop::Path;
             }
             if asked == Asked::Job { api::Error::MissingJob } else { api::Error::Missing }

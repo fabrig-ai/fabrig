@@ -138,9 +138,9 @@ fn review_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "reviews",
-            read: Read::Reviews { number: 1, page: 1 },
+            read: Read::Reviews { number: 1, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
-            expected: Ok(Answer::Reviews { reviews: Box::new([]), more: false }),
+            expected: Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/1/reviews?page=1&limit=2"],
             range: None,
             kept: true,
@@ -161,9 +161,9 @@ fn review_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "remarks",
-            read: Read::Remarks { number: 1, review: 7, page: 1 },
+            read: Read::Remarks { number: 1, review: 7, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, b"[]")],
-            expected: Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
+            expected: Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
             sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/1/reviews/7/comments"],
             range: None,
             kept: true,
@@ -195,9 +195,9 @@ fn content_cases() -> [ReadCase; 5] {
     [
         ReadCase {
             name: "pull files",
-            read: Read::PullFiles { number: 1, head: HEAD, page: 1 },
+            read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 },
             replies: &[(200, REPOSITORY), (200, PULL), (200, b"[]")],
-            expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false }),
+            expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/1",
@@ -290,7 +290,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
     ]
 }
-fn repository_cases() -> [ReadCase; 5] {
+fn repository_cases() -> [ReadCase; 7] {
     [
         ReadCase {
             name: "protection",
@@ -354,6 +354,26 @@ fn repository_cases() -> [ReadCase; 5] {
             login: Some(b"seven"),
         },
         ReadCase {
+            name: "branch fills settings",
+            read: Read::Branch { branch: Box::from(*b"work") },
+            replies: &[(200, REPOSITORY), (200, BRANCH)],
+            expected: Ok(Answer::Commit(HEAD)),
+            sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/branches/work"],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
+            name: "missing pull for keeps the row",
+            read: Read::PullFor { head: Box::from(*b"work"), base: Box::from(*b"main") },
+            replies: &[(200, REPOSITORY), (404, b"{}")],
+            expected: Err(Error::Missing),
+            sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/main/work"],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
             name: "missing branch keeps the row",
             read: Read::Branch { branch: Box::from(&b"gone"[..]) },
             replies: &[(200, REPOSITORY), (404, b"{}")],
@@ -383,6 +403,22 @@ fn read_calls_follow_canned_exchanges() {
             case.name
         );
         assert_eq!(run.tables().user(REPO.forge, 7), case.login, "{}", case.name);
+        if case.kept {
+            for _ in 0_u8..2 {
+                let mut settings = super::super::plan::Plan::new(REPO, Op::Read(Read::Settings));
+                assert_eq!(
+                    settings.begin(BOUNDS, fixtures::WORD, run.tables()),
+                    Ok(Step::Done(Ok(Answer::Settings(api::Settings {
+                        default_branch: Box::from(*b"main"),
+                        merge: true,
+                        squash: false,
+                        rebase: false,
+                    })))),
+                    "settings after {} sends nothing",
+                    case.name,
+                );
+            }
+        }
     }
 }
 #[test]
@@ -413,14 +449,14 @@ fn listings() -> [Listing; 7] {
             &[],
             "issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=",
         ),
-        (Read::Reviews { number: 1, page: 1 }, &[], "pulls/1/reviews?page=1&limit="),
+        (Read::Reviews { number: 1, page: 1, skip: 0 }, &[], "pulls/1/reviews?page=1&limit="),
         (
             Read::Statuses { commit: HEAD, page: 1 },
             &[],
             "commits/0100000000000000000000000000000000000000/status?page=1&limit=",
         ),
         (Read::Collaborators { page: 1 }, &[], "collaborators?page=1&limit="),
-        (Read::PullFiles { number: 1, head: HEAD, page: 1 }, &[PULL], "pulls/1/files?page=1&limit="),
+        (Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }, &[PULL], "pulls/1/files?page=1&limit="),
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],
@@ -434,18 +470,26 @@ const CLOSED_PULL: &[u8] = br#"{"number":1,"state":"closed","head":{"repo_id":1,
 fn remarks_are_sliced_without_wire_paging() {
     let page_rows = usize::try_from(PAGE_SIZE).expect("fixture page fits usize");
     let one_row = usize::try_from(ONE_ROW_PAGE).expect("fixture page fits usize");
-    for (size, expected, more) in [
-        (PAGE_SIZE, &REMARKS[..page_rows], true),
-        (ROWS, &REMARKS[..], false),
-        (ONE_ROW_PAGE, &REMARKS[..one_row], true),
+    for (size, page, skip, answer_bytes, expected, more, cut) in [
+        (PAGE_SIZE, 1, 0, BOUNDS.answer_bytes, &REMARKS[..page_rows], true, false),
+        (ROWS, 1, 0, BOUNDS.answer_bytes, &REMARKS[..], false, false),
+        (ONE_ROW_PAGE, 1, 0, BOUNDS.answer_bytes, &REMARKS[..one_row], true, false),
+        (PAGE_SIZE, 2, 0, BOUNDS.answer_bytes, &REMARKS[page_rows..], false, false),
+        (ROWS, 1, 0, 66, &REMARKS[..one_row], true, true),
+        (ROWS, 1, 1, 66, &REMARKS[one_row..page_rows], true, true),
+        (ROWS, 1, 2, 66, &REMARKS[page_rows..], false, false),
     ] {
         let mut run = Run::with(
-            crate::forgejo::plans::plan::Bounds { page_size: size, ..BOUNDS },
-            Op::Read(Read::Remarks { number: 1, review: 7, page: 1 }),
+            crate::forgejo::plans::plan::Bounds { page_size: size, answer_bytes, ..BOUNDS },
+            Op::Read(Read::Remarks { number: 1, review: 7, page, skip }),
         );
         run.begin();
         let result = run.answer(200, REMARKS_JSON);
-        assert_eq!(result, Step::Done(Ok(Answer::Remarks { remarks: remarks(expected), more })), "page size {size}");
+        assert_eq!(
+            result,
+            Step::Done(Ok(Answer::Remarks { remarks: remarks(expected), more, cut })),
+            "size {size}/page {page}/skip {skip}"
+        );
         run.assert_sent(&["GET /api/v1/repos/fixture/specimen/pulls/1/reviews/7/comments"]);
     }
 }
@@ -626,6 +670,16 @@ fn refusals_match_status_and_whole_message() {
             failure::classify(asked, status, refusal, retry),
             Classified { error, drop },
             "{asked:?} {status} {message:?} {retry:?}"
+        );
+    }
+    for status in [401, 403] {
+        let mut run = begun(create_issue());
+        assert_eq!(run.answer(status, b"{}"), Step::Done(Err(Error::Forbidden)));
+        assert_eq!(run.tables().repository(REPO), None);
+        let mut next = super::super::plan::Plan::new(REPO, Op::Read(Read::Settings));
+        assert_eq!(
+            next.begin(BOUNDS, fixtures::WORD, run.tables()),
+            Ok(Step::send(crate::forgejo::request::Request::RepositoryById { id: 1 },))
         );
     }
     let mut run = begun(create_issue());
