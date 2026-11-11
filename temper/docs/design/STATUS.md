@@ -219,7 +219,7 @@ of its own (`domain/forge/branches.status.md`, 2;
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
 the worker's frozen landing pin, or, for a repair or a resolution, the head
 its delivery replaces (`domain/worker.status.md`), run changed-package lints and focused
-tests with direct dependents, and identify inherited failures. A project
+tests with direct dependents, one process per test binary, and identify inherited failures. A project
 may give its changes' checks a bound of its own, and a check that only ran
 out of time runs once more at twice its time
 (`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`). The

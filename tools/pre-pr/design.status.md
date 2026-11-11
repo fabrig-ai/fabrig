@@ -8,6 +8,10 @@
   file over the cap fails as `known-reds`, and a build failure is always the
   delivery's. 9: the tests say so, and the base builds' tests go
   [in flight: change 215].
+- **Not yet:** 1, 4, 5, 6: the focused tests run under a `cargo nextest run` of
+  the check's own, with a JUnit overlay, not through `tools/tiers/one-process
+  default`; no starved line, alone label or `check one-process`. 9: the tests
+  fake nextest, not one-process [in flight: change 303].
 
 No other gaps in sections 1–9. Section 10's later work remains outside the delivery
 check.
