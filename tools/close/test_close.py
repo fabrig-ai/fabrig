@@ -116,23 +116,58 @@ class Close(unittest.TestCase):
         self.assertEqual(self.read(), kept)
         self.assertEqual(self.staged(), [STATUS])
 
-    def test_a_tag_naming_no_change_fails_and_stages_nothing(self):
-        self.write('docs/first.status.md', b'- **Not yet:** 1: known [in flight: change 9]\n')
-        self.write(STATUS, b'# Status\n- **Not yet:** 4.2: unknown [in flight: change 40]\n')
+    def test_a_tag_naming_no_change_is_kept(self):
+        first = 'docs/first.status.md'
+        self.write(first, b'- **Not yet:** 1: known [in flight: change 9]\n')
+        self.write(STATUS, b'# Status\n- **Not yet:** 4.2: other [in flight: change 40]\n')
         other = 'tree/docs/design/b.status.md'
-        self.write(other, b'- **Not yet:** 1: unknown [in flight: some-name]\n')
+        self.write(other, b'- **Not yet:** 1: named [in flight: some-name]\n')
         self.commit()
-        index = self.git('write-tree')
-        before = {path: self.read(path) for path in ('docs/first.status.md', STATUS, other)}
-        result = self.run_close({9: True})
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(f'{STATUS}:2:'.encode(), result.stderr)
-        self.assertIn(b'change 40', result.stderr)
-        self.assertIn(f'{other}:1:'.encode(), result.stderr)
-        self.assertIn(b'some-name', result.stderr)
-        self.assertEqual(self.git('write-tree'), index)
-        self.assertEqual(self.staged(), [])
+        before = {path: self.read(path) for path in (STATUS, other)}
+        self.assert_success(self.run_close({9: True}))
         self.assertEqual({path: self.read(path) for path in before}, before)
+        self.assertEqual(self.read(first), b'')
+        self.assertEqual(self.staged(), [first])
+        self.assertEqual(self.result(), {'settled': [first], 'kept': [
+            f'{STATUS}:2: [in flight: change 40]',
+            f'{other}:1: [in flight: some-name]']})
+        self.assertEqual((self.job / 'result.json').read_bytes(),
+                         b'{"settled":["docs/first.status.md"],"kept":['
+                         b'"tree/docs/design/a.status.md:2: [in flight: change 40]",'
+                         b'"tree/docs/design/b.status.md:1: [in flight: some-name]"]}\n')
+
+    def test_sentence_punctuation_after_a_tag_is_kept(self):
+        for punctuation, spaces in ((b'.', b''), (b';', b'  '), (b',', b'\t'),
+                                    (b'?!', b'  '), (b'...', b' \t'), (b':', b' ')):
+            with self.subTest(punctuation=punctuation):
+                suffix = punctuation + spaces
+                other = b'- **Not yet:** 3: other [in flight: change 40].\n'
+                self.write(STATUS, b'- **Not yet:** 1: built [in flight: change 9]'
+                           + suffix + b'\n- **Not yet:** 2: gap [in flight: change 12]'
+                           + suffix + b'\r\n' + other)
+                self.commit()
+                self.assert_success(self.run_close({9: True, 12: False}))
+                self.assertEqual(self.read(), b'- **Not yet:** 2: gap' + suffix + b'\r\n' + other)
+                self.assertEqual(self.staged(), [STATUS])
+                self.assertEqual(self.result(), {'settled': [STATUS], 'kept': [
+                    f'{STATUS}:3: [in flight: change 40]']})
+                self.commit()
+                self.assert_success(self.run_close({9: True, 12: False}))
+                self.assertEqual(self.staged(), [])
+                self.assertEqual(self.result(), {'settled': [], 'kept': [
+                    f'{STATUS}:2: [in flight: change 40]']})
+
+    def test_text_after_a_tag_is_not_a_tag(self):
+        before = (b'- **Not yet:** 1: gap [in flight: change 9] .\n'
+                  b'- **Not yet:** 2: gap [in flight: change 9]).\n'
+                  b'- **Not yet:** 3: gap [in flight: change 9] more\n'
+                  b'- **Not yet:** 4: gap [in flight: change 9].\n  continuation\n')
+        self.write(STATUS, before)
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        self.assertEqual(self.read(), before)
+        self.assertEqual(self.staged(), [])
+        self.assertEqual(self.result(), {'settled': []})
 
     def test_untagged_entries_and_other_files_are_untouched(self):
         contents = {
@@ -210,6 +245,77 @@ class Close(unittest.TestCase):
         next_result = {'settled': paths[:kept + 1], 'more': len(paths) - kept - 1}
         self.assertGreater(len((json.dumps(next_result, separators=(',', ':')) + '\n').encode()), 512)
 
+    def assert_bounded_result(self, settled, kept):
+        data = (self.job / 'result.json').read_bytes()
+        self.assertLessEqual(len(data), 512)
+        result = self.result()
+        path_count = len(result['settled'])
+        tag_count = len(result.get('kept', []))
+        self.assertLessEqual(path_count, len(settled))
+        self.assertLessEqual(tag_count, len(kept))
+        if path_count < len(settled):
+            self.assertEqual(tag_count, 0)
+
+        def model(paths, tags):
+            value = {'settled': settled[:paths]}
+            if kept:
+                value['kept'] = kept[:tags]
+            if paths < len(settled):
+                value['more'] = len(settled) - paths
+            if tags < len(kept):
+                value['kept_more'] = len(kept) - tags
+            return value
+
+        self.assertEqual(result, model(path_count, tag_count))
+        if path_count < len(settled):
+            next_result = model(path_count + 1, 0)
+        elif tag_count < len(kept):
+            next_result = model(path_count, tag_count + 1)
+        else:
+            return
+        self.assertGreater(len((json.dumps(next_result, ensure_ascii=True,
+                                           separators=(',', ':')) + '\n').encode()), 512)
+
+    def test_kept_tags_are_cut_after_all_settled_paths(self):
+        settled = ['docs/first.status.md', 'docs/second.status.md']
+        paths = sorted(f'docs/{number:02}-' + 'long-path-' * 8 + '.status.md'
+                       for number in range(15))
+        for path in reversed(paths):
+            self.write(path, b'- **Not yet:** 1: other [in flight: change 40]\n')
+        for path in settled:
+            self.write(path, b'- **Not yet:** 1: built [in flight: change 9]\n')
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        kept = [f'{path}:1: [in flight: change 40]' for path in paths]
+        self.assert_bounded_result(settled, kept)
+        result = self.result()
+        self.assertEqual(result['settled'], settled)
+        self.assertNotIn('more', result)
+        self.assertGreater(len(result['kept']), 0)
+        self.assertGreater(result['kept_more'], 0)
+        self.assertEqual(self.staged(), settled)
+        for path in paths:
+            self.assertEqual(self.read(path), b'- **Not yet:** 1: other [in flight: change 40]\n')
+
+    def test_settled_paths_overflow_before_any_kept_tag(self):
+        paths = sorted(f'docs/{number:02}-' + 'long-path-' * 8 + '.status.md'
+                       for number in range(15))
+        for path in reversed(paths):
+            self.write(path, b'- **Not yet:** 1: built [in flight: change 9]\n')
+        other = b'- **Not yet:** 2: other [in flight: change 40]\n'
+        self.write(STATUS, other * 3)
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        kept = [f'{STATUS}:{line}: [in flight: change 40]' for line in range(1, 4)]
+        self.assert_bounded_result(paths, kept)
+        result = self.result()
+        self.assertGreater(len(result['settled']), 0)
+        self.assertGreater(result['more'], 0)
+        self.assertEqual(result['kept'], [])
+        self.assertEqual(result['kept_more'], len(kept))
+        self.assertEqual(self.read(), other * 3)
+        self.assertEqual(self.staged(), paths)
+
     def test_random_status_files_settle_by_their_changes_ends(self):
         started = time.monotonic()
         for seed in SEEDS:
@@ -218,7 +324,7 @@ class Close(unittest.TestCase):
             ends = {task: bool(rng.randrange(2)) for task in range(1, 21)
                     if seed % 2 == 0 or rng.randrange(4)}
             originals, expected = {}, {}
-            unknown = False
+            kept = []
             for number in range(4):
                 path = f'docs/random-{number}.status.md'
                 original, model = [], []
@@ -236,33 +342,33 @@ class Close(unittest.TestCase):
                               for _ in range(rng.randrange(4))]
                     bare = newline.join(lines)
                     task = rng.randint(1, 20)
-                    tagged = bare + f' [in flight: change {task}]'.encode()
+                    punctuation = bytes(rng.choice(b'.,;:!?') for _ in range(rng.randrange(1, 5))) \
+                        if rng.randrange(2) else b''
+                    spaces = rng.choice((b'', b' ', b'  ', b'\t'))
+                    tagged = bare + f' [in flight: change {task}]'.encode() + punctuation + spaces
                     suffix = newline + newline
                     original.append((tagged if kind in ('tagged', 'departs') else bare) + suffix)
                     if kind != 'tagged':
                         model.append(original[-1])
                     elif task not in ends:
-                        unknown = True
+                        line = sum(chunk.count(b'\n') for chunk in original) - 1
+                        kept.append(f'{path}:{line}: [in flight: change {task}]')
+                        model.append(original[-1])
                     elif ends[task]:
                         model.append(newline)
                     else:
-                        model.append(bare + suffix)
+                        model.append(bare + punctuation + spaces + suffix)
                 originals[path] = b''.join(original)
                 expected[path] = b''.join(model)
                 self.write(path, originals[path])
             self.commit()
             result = self.run_close(ends)
             with self.subTest(seed=seed):
-                if unknown:
-                    self.assertEqual(result.returncode, 1, result.stderr.decode())
-                    self.assertEqual({path: self.read(path) for path in originals}, originals)
-                    self.assertEqual(self.staged(), [])
-                else:
-                    self.assert_success(result)
-                    self.assertEqual({path: self.read(path) for path in expected}, expected)
-                    changed = sorted(path for path in expected if expected[path] != originals[path])
-                    self.assertEqual(self.staged(), changed)
-                    self.assertEqual(self.result(), {'settled': changed})
+                self.assert_success(result)
+                self.assertEqual({path: self.read(path) for path in expected}, expected)
+                changed = sorted(path for path in expected if expected[path] != originals[path])
+                self.assertEqual(self.staged(), changed)
+                self.assert_bounded_result(changed, kept)
         print(f'close fuzzy: {len(SEEDS)} seeds in {time.monotonic() - started:.3f}s', flush=True)
 
 
