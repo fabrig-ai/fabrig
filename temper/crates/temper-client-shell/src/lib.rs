@@ -23,6 +23,22 @@ pub enum Command {
     Ctl { arguments: Vec<OsString> },
 }
 
+/// The client's capture and dispatch (temper/docs/design/cli/README.md, 3).
+#[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C3: the client's arguments configure its command; temper's table will read them"
+)]
+pub fn main(line: &str) -> std::process::ExitCode {
+    match configure(&skein_shell::arguments()).and_then(|command| run(command, line)) {
+        Ok(code) => std::process::ExitCode::from(code),
+        Err(why) => {
+            eprint!("{why}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
 pub fn configure(arguments: &[Box<[u8]>]) -> Result<Command, String> {
     match arguments {
         [flag] if flag.as_ref() == b"--help" => return Ok(Command::Overview),
@@ -51,10 +67,10 @@ pub fn configure(arguments: &[Box<[u8]>]) -> Result<Command, String> {
     }
 }
 
-pub fn run(command: Command) -> Result<u8, String> {
+pub fn run(command: Command, line: &str) -> Result<u8, String> {
     match command {
         Command::Overview => print!("{}", commands::help(NAME, &COMMANDS)),
-        Command::Version => print!("{}", version()),
+        Command::Version => println!("{line}"),
         Command::Usage(row) => print!("{}", commands::row(NAME, row)),
         Command::Help { request } => print!("{}", help::answer(NAME, &request)?),
         Command::Tui { address } => {
@@ -63,12 +79,6 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Ctl { arguments } => return Ok(temper_client_shell_cli::start::run(&arguments, &Clock::new())),
     }
     Ok(0)
-}
-
-/// The binary's version and build commit (temper/docs/design/release.md, section 3).
-#[must_use]
-pub fn version() -> String {
-    format!("{}\n", temper_version::line(NAME))
 }
 
 #[cfg(test)]

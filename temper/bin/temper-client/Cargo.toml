@@ -1,19 +1,15 @@
 [package]
 name = "temper-client"
-description = "The deployment's client: the TUI and temper ctl (protocol/binaries.md)"
+description = "The deployment's client binary"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[lib]
-name = "temper_client"
-path = "src/lib.rs"
-
 [[bin]]
 name = "temper-client"
-path = "src/main.rs"
+path = "main.rs"
 test = false
 
 [[test]]
@@ -21,16 +17,13 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
-temper-version.workspace = true
-temper-shell.workspace = true
-temper-client-shell-tui.workspace = true
-temper-client-shell-cli.workspace = true
-skein-shell.workspace = true
+temper-client-shell.workspace = true
 skein-fail-stop.workspace = true
+temper-version.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
-
+temper-shell.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
