@@ -381,6 +381,7 @@ fn repository_cases() -> [ReadCase; 7] {
         },
         ReadCase {
             name: "branch fills settings",
+            known: false,
             read: Read::Branch { branch: Box::from(*b"work") },
             replies: &[(200, REPOSITORY), (200, BRANCH)],
             expected: Ok(Answer::Commit(HEAD)),
@@ -391,6 +392,7 @@ fn repository_cases() -> [ReadCase; 7] {
         },
         ReadCase {
             name: "missing pull for keeps the row",
+            known: false,
             read: Read::PullFor { head: Box::from(*b"work"), base: Box::from(*b"main") },
             replies: &[(200, REPOSITORY), (404, b"{}")],
             expected: Err(Error::Missing),
