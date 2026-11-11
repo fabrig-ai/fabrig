@@ -571,9 +571,13 @@ fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
 
 pub(crate) fn core() -> (Core, Limits) {
     let limits = limits();
-    let mut core = seeded_core(config(41), &limits).expect("fixture core configuration");
+    (core_with_limits(&limits), limits)
+}
+
+fn core_with_limits(limits: &Limits) -> Core {
+    let mut core = seeded_core(config(41), limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
-    restore_key_account(&mut core, &limits, 0, 1, 1);
+    restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     people::step(
@@ -603,7 +607,7 @@ pub(crate) fn core() -> (Core, Limits) {
         &mut out,
     );
     finish_people(&mut core.people, &env);
-    (core, limits)
+    core
 }
 
 pub(crate) fn make_task(core: &mut Core, limits: &Limits, number: u64) {
