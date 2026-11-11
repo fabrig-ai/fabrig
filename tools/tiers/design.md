@@ -620,7 +620,10 @@ incomplete record.
 ## 8. Later
 
 Switching a caller's focused and fuzzy steps to section 11's mode is a
-separate change of that caller, tree by tree. The gate and after-landing
+separate change of that caller, tree by tree. The delivery check runs its
+focused tests so (`tools/pre-pr/design.md`, 4), and item 4 of the gate in
+`.config/gate/README.md` names the mode's commands for both suites; CI's
+own runner, outside the repository, follows them by its owner's change. The gate and after-landing
 runs then measure the suites with process CPU; the mode's introduction
 requires no CPU comparison or change to budgets, timeouts or build settings.
 Per-test CPU within a shared process remains outside this mode's contract.

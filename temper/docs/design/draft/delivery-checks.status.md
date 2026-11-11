@@ -8,6 +8,13 @@
     charters' words are generated elsewhere, not in this plan.
   - The draft's third ranked item: an early start may merge a dependency's save, unchecked
     (`../domain/forge/change/questions.status.md`, 1).
+- **Design departs:** the draft's first ranked item: the focused tests'
+  `cargo nextest run`, default profile, is the front end alone, selecting
+  and building; the tests run through `tools/tiers/one-process default`,
+  each test binary's selected tests in one process, one at a time, and
+  binaries in parallel (`tools/pre-pr/design.md`, 4;
+  `skein/docs/foundation/testing-strategy.md`, 8). The user, 2026-11-11:
+  every caller runs the focused and fuzzy suites so.
 - **Design departs:** the draft's second ranked item: nothing is built or
   tested at the base. A lint or test failure is inherited only when the
   checked tree's `.temper/known-reds.md` lists it, and a build failure is
