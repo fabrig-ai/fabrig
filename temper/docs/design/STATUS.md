@@ -57,14 +57,16 @@ after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
 the box (`client/tui/README.md`, 2 to 3 and `client/tui/pages.md` and `client/tui/theme.md`; `draft/tui.status.md`).
-`temper box` in a terminal runs the TUI in front, by the look request
-`tui-box-front`: signed in by a link the box hands it, the welcome
-following the browser's steps, "Signed in as the owner" from the forges
-document's `linked`, the playground's header and quiet line, a quit that
-asks while work runs and stops the box, and the box's state and `/log`,
-with goldens, joint-world stories and a focused box story on a
-pseudo-terminal; `--no-tui` and a box off a terminal run as before
-(`client/tui/box.md`; `protocol/setup/box.md`, 6). Its journey waits
+`temper box` in a terminal runs the TUI at once and the box behind
+it, by the look request `tui-box-front`: it finds, or downloads once,
+`temper-box` of its own build and runs `temper-box --front` as its
+child, signed in by the link the box hands it on a pipe, the welcome
+following the box's start and then the browser's steps, "Signed in as
+the owner" from the forges document's `linked`, the playground's header
+and quiet line, a quit that asks while work runs and stops the box,
+showing it stopping, and the box's state and `/log`; `temper-box` alone
+runs the box with no TUI (`client/tui/box.md`; `client/box-binary.md`;
+`protocol/setup/box.md`, 6). Its journey waits
 for `again` to start the box in the pseudo-terminal
 (`client/tui/journeys.status.md`, 8.3), and its real-terminal check
 follows landing (`client/README.md`, section 5).

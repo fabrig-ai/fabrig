@@ -31,11 +31,12 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
-- **Started by a box, too:** `temper-box` in a terminal runs the TUI in
-  front of its services, `temper-box internal tui --box http://HOST:PORT`,
-  signed in by a link the box hands it (`box.md`).
-- **Exit status:** 0 once the TUI closed (4); 1 when it cannot
-  start, with one line on stderr:
+- **In front of a box, too:** `temper box` in a terminal runs the TUI
+  at once and `temper-box --front` behind it, signed in by a link the box
+  hands it (`box.md`).
+- **Exit status:** 0 once the TUI closed (4); 2 when its arguments are
+  refused, the table's rows about ADDRESS and its count; 1 when it
+  cannot start otherwise; each with one line on stderr:
 
   | Cause | stderr |
   |---|---|
@@ -48,15 +49,11 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 
   A panic aborts the process (fail-stop), the terminal left as it was
   found (4).
-- **In the deployment's client,** `temper-client [ADDRESS]` is the same
-  TUI by the same start (`../README.md`, section 2), its lines naming `temper-client`
-  where the table above names `temper`: `temper-client: the TUI needs a
-  terminal on stdin and stdout`, `run temper-client http://HOST:PORT and
-  paste it`, and, bare with no terminal, `temper-client: no command;
-  temper-client --help lists them`. Its directory, its `address` and its
-  `sign-in` note are the same files (2), so either binary finds what
-  the other kept, and it reads the engine's link file as the box's
-  `temper-box internal tui` does (`../../protocol/binaries.md`).
+- **The client's binary is `temper`** (`../../cli/README.md`, 7.4): the
+  table above is its bare form's, and an ADDRESS that isn't one is
+  refused, exit 2, as its table's refusals are. Its directory, its
+  `address` and its `sign-in` note are the same files (2) whether it runs
+  on an engine or in front of a box (`box.md`).
 
 ## 2. Its directory
 

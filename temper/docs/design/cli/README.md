@@ -406,10 +406,12 @@ command; temper help pages lists the pages.`
 
 - **The bare form** takes at most one argument, the engine's address,
   as `temper-client` took it: `temper` alone runs the TUI on the
-  address its link file or its kept address names. A word that is no
-  command is the address; one that isn't an address is refused as 4
-  says, exit 2, naming it. Without a terminal it is refused as today,
-  under `temper`'s name.
+  address its link file or its kept address names. A first word that is
+  no command and no address is no command, `CLIENT.unknown`'s line, exit
+  2 (4); an address refused (a sign-in link, a host off loopback) and
+  two arguments are refusals of its arguments, in
+  `../client/tui/README.md`, 1's words, exit 2. Without a terminal, or
+  with its directory refused, it fails in that table's words, exit 1.
 - **`box`'s ARGUMENT... are the box's,** passed on unchanged: `temper`
   reads among them the three directories alone (`--config`, `--data`,
   `--cache`, `temper_shell::directories`' group, with their twins), for
