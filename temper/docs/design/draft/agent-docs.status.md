@@ -1,6 +1,6 @@
 # agent-docs: status
 
-2026-11-08. Where the design lags or departs from [agent-docs.md](agent-docs.md).
+2026-11-11. Where the design lags or departs from [agent-docs.md](agent-docs.md).
 
 `../protocol/documentation.md`, `../client/ctl/README.md` and `../protocol/binaries.md` build on this draft. They state its sections 3, 8 and 9, and take the others from it by citation:
 
@@ -12,4 +12,4 @@
 - **Design departs:**
   - 2, 10: `../domain/agent/agents.md`, 1 and `../protocol/documentation.md`, 2.2 have Ask temper read temper's pages by `see help`, its instructions naming no list of pages, where this draft has the configuring agent read them with `read_docs` and its pages listed: `ask-temper.md`, section 9, the user, 2026-11-07.
 
-The help lags the design too: of the map's pages (section 4), the concepts `finding` and `qa`, the walk `upgrade` and the recipes "review before landing" and "a tester that cannot land" are not written (`../protocol/documentation.status.md`).
+The missing help pages remain `../protocol/documentation.status.md`, 2.2.

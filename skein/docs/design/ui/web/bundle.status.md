@@ -1,6 +1,6 @@
 # bundle: status
 
-2026-11-10. Where the tree's code lags or departs from [bundle.md](bundle.md).
+2026-11-11. Where the tree's code lags or departs from [bundle.md](bundle.md).
 
 - **Departs:** 2: `Cargo.toml` builds `flate2`, `miniz_oxide`, `crc32fast` and
   `adler2` at `opt-level` 3 in development, as it does the bundler, because the tiers
@@ -14,3 +14,13 @@
   `a_module_not_found_says_so_and_offers_to_try_again` passing there: the plan that wrote
   them ran focused and fuzzy alone, the tier waiting for its run after landing
   (the `bundle-loading` plan's figures on the browser tier, at `668f7cd3e5`).
+
+- **Departs:** 3, *The loader*: a stall before the module's answer draws no words,
+  where the line has `data-waiting` after 15 s with no byte. `loader.js`'s `draw`
+  returns until the glue and that answer are both in, as the same section's "the line
+  says nothing" has it, so a server holding the answer's head leaves the mark and an
+  empty bar with no line, and `#boot-note` empties at 15 s. The draft that asks the
+  loader has a stall say it is waiting
+  (`temper/docs/design/draft/bundle-loading.status.md`). No reason is recorded; seen by
+  reading, and no test stalls an answer: the proof (the `bundle-loading` plan's figures
+  on its render check, at `668f7cd3e5`) paused one part-way.

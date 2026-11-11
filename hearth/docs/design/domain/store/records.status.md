@@ -1,20 +1,12 @@
 # records: status
 
-2026-11-10. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** 6: checking the store's filesystem
-  and subvolume, the subordinate uid and gid ranges and the namespace
-  and cgroup prerequisites; recording the range before the first layer
-  and refusing a different range. The store record's codec carries a
-  range, but startup checks only the layout and uid.
+- **Not yet:** 6: the store prerequisites remain `README.status.md`, 2.4, 7.1, 7.2 and 7.3.
 - **Not yet:** 3: subtree digests and the packages layer's boot
   digests. The tree codec carries `boot`; the walk copies its parent's
   list and gives an empty list with no parent.
-- **Not yet:** 2: measuring helper request costs and filling a
-  layer record's scan digest, placed downloads, tool versions and step
-  costs. The record translation uses a zero scan digest for nonempty
-  layers and empty lists for `placed`, `tools` and `costs`; packages
-  metadata describes scratch alone.
+- **Not yet:** 2: the helper cost and record-population gaps remain `tree-helper.status.md`, 7.
 - **Not yet:** 1, 6: target records, their codec and bounds, and
   recording the last N builds per target.
 - **Departs:** 2: unsettled: 2 allows a reconciled packages

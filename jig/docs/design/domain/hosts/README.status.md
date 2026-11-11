@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-10. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 
 `hub.md`, section 4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a
@@ -55,28 +55,11 @@ together; a field's bound alone does not promise that the whole fits.
 
 - **Not yet:** 3, 5.2, 9: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
-   the engine hub's hello before placement. 7: the test root puts
-  a task's message together itself, rendering its words by
-  `jig_protocol_tools::words` (`jig/testing/jig-test-domain/src/link.rs`,
-  `down`), because its manifest does not link `jig-protocol-charter`.
-  The code's side is
-  `jig/docs/development/debt/D004-ops-root-jig-wiring.md`. 8: an agent
+   the engine hello remains `hub.status.md`, 1. 7: the test-root message rendering gap remains `charters.status.md` (Not yet, the whole document). 8: an agent
   process's tree contained.
-- **Departs:**  a run with no `deliver` keeps the shell its policy
-  grants, where the section has it inspect alone: `charter`
-  (`jig/crates/jig-protocol-charter/src/charter.rs`) narrows `modify`
-  and leaves `shell` as the policy says, and
-  `workspace_tools_follow_every_combination_of_run_policy` pins that.
-  Such a run can write in its workspace by a command, and no delivery
-  carries it out. No reason is recorded.
+- **Departs:**  the shell-without-delivery departure remains `charters.status.md` (Departs, the whole document).
   7: a sender's label gives a person by number and the deployment by the
   word `deployment`, where the section has a party by name: `Party::sender`
   (`jig/crates/jig-domain-tasks/src/boundary.rs`) reads a `Party`, which
   holds numbers. No reason is recorded.
-  7: the user's request of 2026-11-05 has temper's consumers use jig's
-  messages, but `temper-engine-domain/src/link.rs`'s `message`,
-  `inbox_sender` and `inbox_words` stay beside
-  `jig_protocol_charter::message`, because they render other words and
-  the request keeps behaviour unchanged; `inbox_sender` starts from
-  `Party::sender` (the code's side is
-  `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+  7: the temper message-rendering departure remains `charters.status.md` (Departs).

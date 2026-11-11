@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-09. Where smith's code lags or departs from [README.md](README.md).
+2026-11-11. Where smith's code lags or departs from [README.md](README.md).
 
 Sections 2.1 and 2.6 have no known gap at main's `fdc26f71c6`:
 `smith-agent-profile` owns the values, derivation and checks beneath the
@@ -26,9 +26,4 @@ crash lifetime are ../protocol/programs.md, sections 5.1 and 9's.
     decodes, `tls::Name::new` is a portable check, and a call's
     argument takes no `cfg`, with `Decoded::resolve`, which passes
     `errors`, public on every target.
-  -  `smith login` tells the sign-in deadline from other time-outs
-    by the clock alone, because `skein_oauth::Failure::TimedOut` does
-    not say which deadline passed: a redirect taken in the deadline's
-    last `request_time` (20 s) whose code exchange is not answered
-    before the deadline ends with the browser's words, though the
-    browser answered.
+  -  the login deadline departure remains `commands.status.md`, 5.

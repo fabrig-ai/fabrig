@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-05. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-11. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -11,7 +11,7 @@
     the local host's simulated scenarios do not run there.
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
-    (shell/README.status.md).
+    (`shell/commands.status.md`, Not yet, the whole document).
   - 2.3: whether the refresh story passes live is unknown: main holds
     it as 2.3 has it from `c2922ded2b10`, and no after-landing run of a
     main holding it is read. The last run read, at main

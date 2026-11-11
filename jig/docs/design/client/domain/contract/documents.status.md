@@ -1,12 +1,8 @@
 # documents: status
 
-2026-11-10. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-11. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: a provider read changing only the visible accounts'
-  largest `left_out` updates the accounts watch but does not mark `me`,
-  leaving its omitted count stale until another Frame mark
-  (`../../../domain/engine/settings.status.md`, 12). The field is computed correctly
-  on a fresh read; no reason for the missing mark is recorded.
+- **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the
@@ -24,13 +20,7 @@ client protocol world's
 and `turn_read::a_turns_private_parts_reach_its_person_alone_over_the_wire`,
 and the core world's `withheld.rs`, hold it.
 
-- **Not yet:** 3: a withheld turn whose projection does not decode,
-  or passes `turn_carried_bytes` once projected, fails the whole read as
-  malformed, an activity page's other turns with it, where a page's turn
-  that does not decode is that one turn, too large or malformed: the
-  clients' `translate/activity.rs`, `archive`, answers a problem and
-  `reads.rs`, `read_response`, answers the read `Malformed`. No test
-  reads such a turn.
+- **Not yet:** 3: the withheld-turn read failure remains `README.status.md`, 4.
 
 - **Departs:** 1: an omitted template's preview and its new task's next-run
   model can differ while no supporting worker is ready. `Core::preview_llm`
@@ -49,7 +39,7 @@ and the core world's `withheld.rs`, hold it.
 - **Not yet:** 3: `me` represents a refused creating offer by absence,
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.
-- **Not yet:**  `Hold`; `Move` of a live task as its new requester; `Succeed` (neither `contract::Ask` nor the client wire's v19 schema has them). 1: the accounts document's aggregate `settled` counts only the party's pending sign-ins, not the program checks they asked, and lists no host whose answer is pending (`jig/crates/jig-domain-core/src/documents/accounts.rs`). 3: creating's executors list charters and procedures, not persons or roles (`CreateBounds`); a result's texts are not checked as UTF-8 where the tasks child admits a result; a project's document offers `RemoveProject` to no one, its owners included (`jig/crates/jig-domain-core/src/acts/objects.rs`, `admit`, refuses `Act::RemoveProject` not offered; `documents/offers.rs` leaves it out of a project's acts). 6: the `holds{project}` read.  a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it.  an application's streams.
+- **Not yet:**  the missing task acts remain `requests.status.md`, 2. 1: the accounts document's aggregate `settled` counts only the party's pending sign-ins, not the program checks they asked, and lists no host whose answer is pending (`jig/crates/jig-domain-core/src/documents/accounts.rs`). 3: creating's executors list charters and procedures, not persons or roles (`CreateBounds`); the result UTF-8 check remains `requests.status.md`, 2; the project-removal offer remains `requests.status.md`, 2. 6: the `holds{project}` read.  the transcript-horizon read remains `README.status.md`, 4.  application streams remain `README.status.md`, 5.4.
 
 `README.md`, section 2's browser-approved sign-in is present on the client wire and
 in the clients' component. Only a take with the secret makes the ordinary

@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-10. Where jig's code lags or departs from [configuration.md](configuration.md).
+2026-11-11. Where jig's code lags or departs from [configuration.md](configuration.md).
 
 `configuration.md`, sections 3 and 3.1 and `limits.md` have no known gap in ordered charter parts and
 their instruction files, path-specific refusals, the
@@ -35,4 +35,4 @@ figures to the application's page is deferred in `configuration.md`, section 8.
 
 Section 3's optional clients' `approval` boolean is present, defaults to
 false when absent, and reaches the clients' component's settings.
-- **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 6: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4).  the people envelope diagnostics' words name `people-v13`, where the people family is v14 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
+- **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 6: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4).  the people-envelope diagnostic gap remains `limits.status.md` (Not yet, the whole document).

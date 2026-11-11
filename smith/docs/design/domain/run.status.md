@@ -54,3 +54,5 @@ a silent check still has no output to report (section 13).
   `render_checkout`). The user's request of 2026-11-04 asks that the word
   stay only where git's checkout is meant, and that behaviour not change;
   this text is what the LLM reads, so it stays (15).
+
+- **Not yet:** 6: messages mid-work.

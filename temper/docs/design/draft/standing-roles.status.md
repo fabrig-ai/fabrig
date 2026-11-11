@@ -1,6 +1,6 @@
 # standing-roles: status
 
-2026-11-09. Where the design lags or departs from [standing-roles.md](standing-roles.md).
+2026-11-11. Where the design lags or departs from [standing-roles.md](standing-roles.md).
 
 - **Design lags:**
   - 2 and 9: jig's `domain/tasks/README.md`, sections 3 and 5, have no standing
@@ -36,10 +36,7 @@
   - 5 and 9: `../domain/agent/agents.md` has no row for a standing role,
     and `../protocol/configuration/stock.md` no standing role's charter or
     template.
-  - 6 and 7: `../client/pages/README.md`, *Team*, draws a project's people
-    alone (`surfaces.status.md`, 6), with no standing role's card or
-    report, and its 5.3 and `standing-roles.md`, section 6 no conversation with one; Home's
-    brief reading the owners' Nows is `surfaces.status.md`'s.
+  - 6 and 7: the Team role-card and report gap remains `surfaces.status.md`, 6, and its 5.3 and `standing-roles.md`, section 6 no conversation with one; Home's brief reading the owners' Nows remains `surfaces.status.md`, 3.
   - 8 and 11: `../client/ctl/tools.md`, 3 has `finding route`, `finding
     backlog` and `finding drop`, but no `finding file`, `need ask`, `role
     list`, `role show` or `role talk`.

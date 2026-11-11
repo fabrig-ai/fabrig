@@ -23,7 +23,5 @@ a committed fake answer, and the launchpad as drawn with its walk
 (`../journeys.md`, section 9). Opened call rows, earlier-page loading,
 Latest, cards at their calls and the remaining TUI controls stay in
 `../../README.md`, section 5, owned by temper/tui.
-The shared reader still reparses closed blocks; the gap from the user's
-read-once requirement remains `../../README.md`, section 5's parsed-block work and
-`../../../draft/chat-reading.status.md`, 3. Request differences remain explicit
+The read-once gap remains `../../../draft/chat-reading.status.md`, 3; parsed-block work is `../../README.md`, section 5's. Request differences remain explicit
 in `../../../draft/tui.status.md`; no rendered-equality result is supplied.

@@ -14,3 +14,9 @@
   leaves the corrected words' proof to temper/qa's next real landing
   (`walk = false`); the supplied inventory gives no outcome. Tests alone
   do not show whether a run still takes a detached checkout for a failure.
+
+- **Design departs:** 3, from the request for `landing-fixes-3` of
+  2026-11-06, item 1, decided by its plan's cut: a report past its bound
+  is shortened, with file or test references and the cuts named under Left,
+  where the request asks for nothing lost. The stock's instructions alone
+  decide what a model cuts and lists; no tool checks that list.

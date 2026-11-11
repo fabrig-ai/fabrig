@@ -1,6 +1,6 @@
 # tui: status
 
-2026-11-09. Where the design lags or departs from [tui.md](tui.md).
+2026-11-11. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
   `../client/tui/pages/design-session.md`, 1, as `surfaces.md`, 11.2
@@ -96,9 +96,7 @@
     landing account's explained differences: the quiet line names a
     failing step as the box names it ("forgejo-3 restarting"), where the
     request's frame 05 has "forge restarting", and `/log` shows the box's
-    own lines as it wrote them, where the frame's are hand-made; its
-    journey is not recorded, since `again` cannot yet start the box in
-    its pseudo-terminal (`../client/tui/journeys.status.md`, 8.3); and
+    own lines as it wrote them, where the frame's are hand-made; its journey recording remains `../client/tui/journeys.status.md`, 8.3; and
     the render check and a real terminal's walk, Linux and macOS, follow
     landing (`../client/README.md`, section 5).
   - 3, 4.4 and 5: the user's requests of 2026-11-08, from a walk on

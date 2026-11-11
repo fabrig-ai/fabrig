@@ -1,6 +1,6 @@
 # catalogue: status
 
-2026-11-10. Where the tree's code lags or departs from [catalogue.md](catalogue.md).
+2026-11-11. Where the tree's code lags or departs from [catalogue.md](catalogue.md).
 
 - **Not yet:**
   - 5: calibrations. The probes `budget`, `cache-reuse`,
@@ -11,15 +11,9 @@
     (`benchmarks/src/probe/gating.rs`), the smoke suite's among them.
     `cache-reuse/idle-gap` has no variant, and `budget/spend` is missing
     from `suites/probes.toml`.
-  -  the Claude Code arm: `benchmarks/src/agent/mod.rs` refuses it.
-  -  no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
-    is empty), and no suite runs `smith-claude-code`.
-  -  `shell-cwd` is at version 3, its first grade having
-    changed (`README.md`, 5.2), and both `benchmarks/baselines/parity-*.json` and
-    every committed summary hold it at version 2. So a run's drift says
-    "baseline inputs changed; retake baseline"
-    (`benchmarks/src/summary.rs`, `drift`), and parity has not been
-    shown on version 3.
+  -  the Claude Code arm remains `README.status.md`, 6.
+  -  the missing arms remain `README.status.md`, 7.
+  -  version-3 parity remains `codex-parity.status.md`, 4.
   - 1: the `mid-work` and `build-environment` probes.
   - 3: the `affinity`, `cache-lifetime`, `delegation` and
     `edit-format` experiments; only `compaction` has a suite.
@@ -33,20 +27,10 @@
     reference passes. Not validated: the bundle is absent, and the
     source rebuild could not start because the archive host's name
     could not be resolved.
-  -  a projection on this change's ratio alone:
-    `benchmarks/src/parity/change.rs`'s `project_report` still multiplies
-    in the ratios of the changes landed before it (`--landed`).
+  -  the change-only projection remains `codex-parity.status.md`, 6.
 - **Departs:**
-  -  the harness names the OpenAI tier table `codex`
-    (`benchmarks/src/agent/mod.rs`, `Provider::Codex`, and every suite's
-    `provider = "codex"`), where the design names smith's preset,
-    `openai`; the code keeps the earlier name.
-  -  `benchmarks/src/run.rs` names an agent once, where the user's
-    request of 11-04 asked it to name none: `Request`'s `logins`, which
-    each adapter reads, is stored as `codex_home`, since that request
-    kept stored formats as they are.
-  -  smith's `anthropic` endpoint runs on the `claude` program
-    account (`agents/smith/accounts.toml`), not on a key; no reason is
-    recorded.
+  -  the tier-name departure remains `README.status.md`, 5.3 and 7.
+  -  the stored-agent-name departure remains `README.status.md`, 6.
+  -  the Anthropic account departure remains `README.status.md`, 7 and 10.
   - 5: the suites `role` and `repository-check` exist outside the
     catalogue; no reason is recorded.
