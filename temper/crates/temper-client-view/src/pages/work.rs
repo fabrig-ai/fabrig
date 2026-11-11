@@ -437,7 +437,13 @@ fn landed_draft(
             let project = super::project_name(Some(me), project)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
             let small = words.say(Word::WorkProjectWay, &[Hole::Name(project)]);
-            draft_choice(b, bindings, &label, Some(&small), draft.clone(), true, true);
+            match words.shell {
+                Shell::Browser => draft_choice(b, bindings, &label, Some(&small), draft.clone(), true, true),
+                Shell::Terminal => {
+                    draft_choice(b, bindings, &label, None, draft.clone(), true, true);
+                    text(b, Role::Text, look::WORK_WAY, &small);
+                }
+            }
             draft_choice(b, bindings, &words.say(Word::WorkAnotherWay, &[]), None, draft, false, false);
         }
         None => draft_choice(b, bindings, &words.say(Word::WorkStartGoal, &[]), None, draft, false, true),
@@ -453,9 +459,7 @@ fn draft_choice(
     if recommended { b.style(look::WORK_RECOMMENDED); }
     b.name(label);
     b.bind(bindings.insert(Act::OpenLanded { draft, start }));
-    b.text(Run::Plain, label);
     if let Some(small) = small {
-        b.text(Run::Plain, b" ");
         text(b, Role::Text, look::WORK_WAY, small);
     }
     b.close();

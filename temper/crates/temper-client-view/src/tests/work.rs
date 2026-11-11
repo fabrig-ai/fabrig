@@ -539,7 +539,7 @@ fn landed_cards_draw_clock_provenance_and_the_three_choice_cases_in_both_shells(
             let (tree, bindings) = page.tree(&words); assert_eq!(skein_ui::outline::check(&tree), None);
             assert!(has(&tree, "One draft.")); assert!(has(&tree, "Drafts · 1"), "only a landed draft shows the filter");
             let from = styled(&tree, look::WORK_FROM); assert_eq!(from.len(), 1);
-            assert_eq!(subtree_text(&tree, from[0]).as_ref(), "draft · catch-up.md · landed in docs/design/draft/ · ready since Friday 14:10".as_bytes());
+            assert_eq!(subtree_text(&tree, from[0]).as_ref(), "draft · catch-up.md · landed in docs/design/draft/ · ready since Fri 14:10".as_bytes());
             assert!(has(&tree, "Catch up")); let choices = styled(&tree, look::WORK_CHOICE); let mut actual = List::uncapped();
             for choice in &choices { actual.push(choice.name.as_deref().unwrap()).unwrap(); } assert_eq!(actual.as_slice(), labels);
             for (i, choice) in choices.iter().enumerate() {
