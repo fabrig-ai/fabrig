@@ -135,6 +135,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
+| `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
@@ -146,6 +147,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
+| `stop-box` | none | the duty to stop the box (`box.md`, *Quitting*) |
+| `stop-box-again` | none | the duty of the box's second stop (`box.md`, *Quitting*) |
 | `deadline` | nanoseconds, or `none` | each turn's end (shared) |
 | `mark` | the live frame's print | before its key, or at the mark key, in a turn of its own (`turn`, `mark`, `deadline`) (shared) |
 | `end` | the live frame's print | the last line (shared) |
