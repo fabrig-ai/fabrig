@@ -5138,6 +5138,8 @@ dependencies = [
  "temper-playground",
  "temper-playground-world",
  "temper-service",
+ "temper-shell",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -5728,6 +5730,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-forge-world",
  "temper-service",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -6279,6 +6282,8 @@ dependencies = [
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",
+ "temper-service-shell",
+ "temper-test-env",
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-protocol-git",
