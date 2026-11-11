@@ -30,6 +30,7 @@ pub(crate) mod make;
 mod outage;
 #[path = "restore.rs"]
 mod restore;
+mod room;
 pub use restore::{RestoreFit, RestoreSet};
 #[path = "design.rs"]
 mod design;
@@ -1681,6 +1682,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 project(d, env, entry, row.repository, view.clone(), out);
             }
         }
+        Event::DropChange { task } => room::drop_change(d, env, task, out),
         Event::Change { row } => register_change(d, env, row, out),
         Event::Priority { task, priority } => d.priority(env, task, priority, out),
         Event::QueueRepairStarted { owner, repair } => {
@@ -3143,16 +3145,38 @@ fn before_relay_hold(state: &change::State) -> change::State {
 
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
     let task = row.task;
-    if !d.repositories.contains_key(&row.repository)
-        || row.change.task != task
-        || row.branch.is_empty()
-        || row.base.is_empty()
-        || row.branch.len() > skein_lib::usize_of(env.limits.name_bytes)
-        || row.base.len() > skein_lib::usize_of(env.limits.name_bytes)
-        || (!d.changes.contains_key(&task) && d.changes.len() == env.limits.changes)
-        || d.changes.contains_key(&task)
-    {
+    if row.change.task != task || row.branch.is_empty() || row.base.is_empty() || d.changes.contains_key(&task) {
         emit(out, Request::Refused { task });
+        return;
+    }
+    if !d.repositories.contains_key(&row.repository) {
+        room::refused(out, &row, crate::RefusalCause::Unadopted);
+        return;
+    }
+    for name in [&row.branch, &row.base] {
+        if name.len() > skein_lib::usize_of(env.limits.name_bytes) {
+            room::refused(
+                out,
+                &row,
+                crate::RefusalCause::Limit {
+                    member: "forge.name_bytes",
+                    configured: u64::from(env.limits.name_bytes),
+                    needed: u64::try_from(name.len()).expect("name length fits u64"),
+                },
+            );
+            return;
+        }
+    }
+    if d.changes.len() == env.limits.changes {
+        room::refused(
+            out,
+            &row,
+            crate::RefusalCause::Limit {
+                member: "forge.changes",
+                configured: u64::from(env.limits.changes),
+                needed: u64::from(d.changes.len()).saturating_add(1),
+            },
+        );
         return;
     }
     row.change.way = d.landing.way(d.repositories.get(&row.repository).expect("adopted").project);
