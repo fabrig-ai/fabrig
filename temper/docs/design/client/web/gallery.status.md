@@ -2,12 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
-- **Not yet:** 2: `needs-decided-project` and `home-away-quiet`, and
-  `needs-decided`'s head as its row has it. [in flight: change 378]
-- **Not yet:** 2: `needs-why`, `needs-stop-asking` and
-  `needs-stop-asking-set` as their rows have them: the line's "Keep
-  asking" and narrower rule, and the words offer's sentence over its
-  field. [in flight: change 379]
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
