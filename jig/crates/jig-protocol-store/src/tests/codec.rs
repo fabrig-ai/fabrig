@@ -1615,6 +1615,25 @@ fn a_project_removed_outcome_round_trips() {
 }
 
 #[test]
+fn a_deleted_mark_round_trips_with_its_number_only_key() {
+    for project in [0, 2, u32::MAX] {
+        people_round_trip(jig_domain_people::Stored::Deleted { project });
+        let key = jig_domain_core::Key::People(jig_domain_people::Key::Deleted(project));
+        assert!(jig_domain_people::Key::Deleted(project).live());
+        let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
+        let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (target, byte) in expected.iter_mut().skip(3).zip(u64::from(project).to_be_bytes()) {
+            *target = byte;
+        }
+        assert_eq!(bytes.as_ref(), &expected);
+        assert_eq!(crate::keys::decode(&bytes), Some(key));
+        let mut oversized = bytes;
+        *oversized.get_mut(6).expect("project high word") = 1;
+        assert_eq!(crate::keys::decode(&oversized), None);
+    }
+}
+
+#[test]
 fn a_deletion_row_round_trips_at_each_step() {
     use jig_domain_people::{DeletionStep, Stored};
     for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
