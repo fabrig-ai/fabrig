@@ -269,7 +269,7 @@ fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
         let Err(error) = Domain::new(
             &limits,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[],
             false,

@@ -212,7 +212,7 @@ fn first_run_words(
                         record: Some(wire::deployment_answer(
                             &w::DeploymentAnswer::new(
                                 &w::CEILINGS,
-                                w::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
+                                w::DeploymentAnswerParts { push: None,  welcome: true, owned: true, program_login: None },
                             )
                             .expect("deployment answer"),
                         )),

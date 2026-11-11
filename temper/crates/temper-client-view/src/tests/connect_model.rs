@@ -1230,7 +1230,7 @@ pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -
         .expect("live link reads deployment");
     let answer = w::DeploymentAnswer::new(
         &w::CEILINGS,
-        w::DeploymentAnswerParts { welcome: true, owned: true, program_login: line.map(Into::into) },
+        w::DeploymentAnswerParts { push: None,  welcome: true, owned: true, program_login: line.map(Into::into) },
     )
     .unwrap();
     fixtures::root_event(

@@ -130,6 +130,11 @@ impl OneShot {
                         return;
                     }
                 }
+                if TOOLS[usize::from(call.tool)].name == b"push add"
+                    && temper_client_tools::push::subscription(&bytes, temper_client_tools::push::label(&call)).is_none() {
+                    self.fail(b"Not a push subscription's JSON.");
+                    return;
+                }
                 self.value = Some(skein_lib::Secret::new(stripped.into()));
                 self.directory.start(self.class);
                 self.call = Some(Parsed::Call { call, json });
@@ -428,6 +433,22 @@ mod wait_input_tests {
             frame.link = json;
             frame.drain();
             assert_eq!(frame.stderr(), expected);
+            assert!(!frame.opened(b"directory"));
+            assert_eq!(frame.requests(), 0);
+        }
+    }
+}
+
+#[cfg(test)]
+mod push_input_tests {
+    use crate::tests::fixtures::Frame;
+    #[test]
+    fn push_rejects_subscription_files_before_directory_or_network() {
+        for bytes in [b"not JSON".as_slice(), br#"{"endpoint":42,"keys":{}}"#, br#"{"endpoint":"http://push.test/sub","keys":{"p256dh":"AA==","auth":"AA"}}"#] {
+            let mut frame = Frame::read(&["push", "add", "subscription.json"]);
+            frame.link = bytes;
+            frame.drain();
+            assert!(frame.stderr().windows(b"Not a push subscription's JSON.".len()).any(|w| w == b"Not a push subscription's JSON."));
             assert!(!frame.opened(b"directory"));
             assert_eq!(frame.requests(), 0);
         }

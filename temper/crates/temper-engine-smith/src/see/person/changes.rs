@@ -211,6 +211,7 @@ pub(super) fn queues(
             | Document::Landing(_)
             | Document::Changes(_)
             | Document::Status(_)
+            | Document::Devices(_)
             | Document::Aways(_)
             | Document::Decisions(_)
             | Document::Dismissals(_),

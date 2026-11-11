@@ -37,6 +37,7 @@ mod recovery;
 mod remembered_page;
 mod settings;
 mod settings_tools;
+mod push;
 mod status;
 mod stories;
 mod task;

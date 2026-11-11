@@ -361,7 +361,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             connectors: Box::new([0]),
         },
         landings: skein_lib::Map::with_capacity(1),
-        forge: skein_forge_client::Config {
+        forge: temper_engine_domain_forge::Config { push: None,
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
         },

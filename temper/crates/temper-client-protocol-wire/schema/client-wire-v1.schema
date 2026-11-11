@@ -84,7 +84,15 @@ enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
 record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 into: option u32 }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount }
+# A person's devices (client/forge/records.md; domain/forge/attention.md, 7.1).
+record AddDevice { endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 }
+record RemoveDevice { number: u32 }
+record DeviceAdded { number: u32 }
+enum DeviceRefusal { person, off, service, malformed, too_many, unknown }
+record DeviceRefused { reason: DeviceRefusal }
+record DeviceRow { number: u32 label: bytes 60 at: u64 endpoint: bytes 1024 }
+versioned record Devices { rows: list 8 DeviceRow }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, add_device: AddDevice, remove_device: RemoveDevice }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -181,7 +189,7 @@ enum PlaygroundState { starting, running, resetting }
 versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
 # The deployment's read (temper/docs/design/client/forge/records.md).
-versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 }
+versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 push: option fixed 65 }
 versioned record ProgramEnvironmentAnswer { environment: bytes 49216 }
 
 # A change's watched panel (client/forge/records.md; client/forge/served.md, 2).
@@ -193,7 +201,7 @@ record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, devices }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -270,7 +278,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;

@@ -52,7 +52,7 @@ fn connector(limits: &top::Limits) -> top::Domain {
     top::Domain::new(
         limits,
         9,
-        skein_forge_client::Config {
+        temper_engine_domain_forge::Config { push: None,
             namespace: Box::from(&b"world"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author: 1 }]),
         },

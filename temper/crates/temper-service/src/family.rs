@@ -155,7 +155,9 @@ pub fn to_root(
                         | w::Request::SetUp(_)
                         | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
-                        | w::Request::SetAway(_)
+                        | w::Request::AddDevice(_)
+                        | w::Request::RemoveDevice(_)
+| w::Request::SetAway(_)
                         | w::Request::Overturn(_)
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
@@ -331,6 +333,17 @@ pub fn to_root(
                         request: root::Application::Looked { project: value.project() },
                     }));
                 }
+                w::Request::AddDevice(value) => {
+                    let w::AddDeviceParts { endpoint, p256dh, auth, label } = value.into_parts();
+                    return Ok(root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried,
+                        request: root::Application::AddDevice(forge::AddDevice { endpoint, p256dh, auth, label }),
+                    }));
+                }
+                w::Request::RemoveDevice(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried,
+                        request: root::Application::RemoveDevice { number: value.number() },
+                    }));
+                }
                 w::Request::SetAway(value) => {
                     let value = value.into_parts();
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -484,6 +497,11 @@ pub fn to_root(
                         scope,
                         connector: wire::FORGE,
                         subject: Token::new(forge::status_subject(subject.project())),
+                    },
+                    w::Watch::Devices => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::DEVICES_SUBJECT),
                     },
                     w::Watch::Away => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
@@ -867,6 +885,18 @@ pub fn answer(
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
+        Some(root::ApplicationAnswer::Device(answer)) => match answer {
+            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(w::DeviceAdded::new(limits, w::DeviceAddedParts { number }).expect("device number")),
+            forge::DeviceAnswer::Removed => w::Outcome::DeviceRemoved,
+            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(w::DeviceRefused::new(limits, w::DeviceRefusedParts { reason: match why {
+                forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
+                forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
+                forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
+                forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
+                forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
+                forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
+            } }).expect("device refusal")),
+        },
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
             forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
@@ -1479,6 +1509,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Devices(value) => devices(value, limits),
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -1791,6 +1822,7 @@ fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
             welcome: deployment.welcome,
             owned: deployment.owned,
             program_login: deployment.program_login.clone(),
+            push: None,
         },
     )
     .expect("checked deployment facts fit the wire");
@@ -2053,4 +2085,13 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
     }
     let document = w::Approvals::new(limits, w::ApprovalsParts { rows, more: document.more }).ok()?;
     Some(wire::approvals(&document))
+}
+
+fn devices(value: forge::DevicesView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut rows = List::with_capacity(forge::DEVICES);
+    for row in value.rows {
+        rows.push(w::DeviceRow::new(limits, w::DeviceRowParts { number: row.number, label: row.label, at: row.at.as_nanos(), endpoint: row.endpoint }).ok()?).ok()?;
+    }
+    let document = w::Devices::new(limits, w::DevicesParts { rows }).ok()?;
+    Some(wire::devices(&document))
 }
