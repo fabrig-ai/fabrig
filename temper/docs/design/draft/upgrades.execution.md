@@ -7,7 +7,7 @@ design is the documents it names, written before its changes.
 
 ## 1. In one page
 
-- **Ten milestones,** M1 to M10 (section 3), each landing on its own,
+- **Twelve milestones,** M1 to M12 (section 3), each landing on its own,
   leaving `main` green and reading the live store, the smallest useful
   first.
 - **M1 to M3 landed before this file:** skein's run-time schemas and
@@ -16,7 +16,9 @@ design is the documents it names, written before its changes.
 - **M4 to M10 are the goal of 2026-11-11:** the baseline's level rule,
   its golden store, its kept texts and real sets, the gate, jig's
   rehearsal and going back, temper's commands, and a story through an
-  upgrade with power loss.
+  upgrade with power loss; and, by the user's words later that day,
+  the catch-up with `main`'s stored changes (M11) and a rehearsal
+  decoding every record (M12).
 - **No walk:** the user's request of 2026-11-11 set none; each
   milestone is held by focused and fuzzy tests alone.
 - **Out:** the process tier's drill on a real Forgejo (`upgrades.md`,
@@ -27,7 +29,7 @@ design is the documents it names, written before its changes.
   previous release (10), until a release removes a member; the small
   files and the forge's markers (10, 11), each read in every version it
   has, one today (`../protocol/README.md`, 7).
-- When M10 lands, the draft's status keeps only its departures, and
+- When M12 lands, the draft's status keeps only its departures, and
   this file goes with the draft (`DESIGN.md`, section 3).
 
 ## 2. How a milestone runs
@@ -47,13 +49,15 @@ design is the documents it names, written before its changes.
 | M1 | skein-codec's run-time schemas, fingerprints, the diff, patches and the command | 4.3, 4.5, 5 | | landed before 2026-11-11 |
 | M2 | jig's levels in the format row and patching at open: generations, the plan, the copy, the switch, power loss, transcripts patched as read, fresh windows, effects in flight | 3.1, 4.2, 4.4, 6, 7.2, 8 | M1 | landed before 2026-11-11 |
 | M3 | the settled stop, temper's root and connector | 8 | | landed before 2026-11-11 |
-| M4 | a store at the baseline opens at level 0 | 4.1, 4.2 | M2 | in flight: change 691 |
+| M4 | a store at the baseline opens at level 0 | 4.1, 4.2 | M2 | landed in the goal: change 691 |
 | M5 | the golden store at the baseline and its test | 13 | | in flight: change 693 |
-| M6 | the kept texts and the real sets: temper's families and every owner's at level 0, `temper versions` | 4.2, 4.3, 5 | M4, M5 | in flight: changes 692 and 706 |
-| M7 | the policy and the gate | 12 | M6's kept texts | in flight: change 707 |
+| M6 | the kept texts and the real sets: temper's families and every owner's at level 0, `temper versions` | 4.2, 4.3, 5 | M4, M5 | change 692 landed in the goal; in flight: change 706 |
+| M7 | the policy and the gate | 12 | M6's kept texts | landed in the goal: change 707 |
 | M8 | rehearsing and going back in jig's store | 3.1, 3.2 | M2 | in flight: change 670 |
 | M9 | `temper upgrade --check` and `--back`, the rehearsing root, a patching start's lines | 3.1, 3.2, 9's tool | M6, M8 | in flight: change 709 |
 | M10 | a story through an upgrade, and power loss in it | 13 | M6 | in flight: change 708 |
+| M11 | the catch-up: what `main` changed in place after the baseline, as jig's and temper's patch 1 | 4.1, 12, 13 | M6, M7 | in flight: change 862 |
+| M12 | every record decoded in a rehearsal, the first that does not named | 3.1 | M8, M9, M11 | in flight: change 863 |
 
 ### M4. A store at the baseline
 
@@ -107,3 +111,25 @@ design is the documents it names, written before its changes.
 - **Design:** `../testing/README.md`, 2.5.
 - **Builds:** the story on the fixture sets, its referee, the unsettled
   stop, and a fuzzy sweep of power lost during the upgrade's start.
+
+### M11. The catch-up
+
+- **Design:** `../protocol/baseline.md`, 9; the user's words of
+  2026-11-11.
+- **Builds:** `main` merged; `jig-store-tasks` 10 and
+  `jig-store-settings` 2 in jig's patch 1, `temper-store` 12 in temper's
+  patch 1, `jig-store-people`'s kept text refreshed; the golden store's
+  two lines; the levels jig 1 and temper 1; the fixture patch at
+  temper's 2.
+- **Tests:** each patch's goldens; the gate's; the golden store opened
+  through both patches.
+
+### M12. Every record decoded
+
+- **Design:** jig's `protocol/store/opening.md`, 5 ("Every record
+  decoded"); `../protocol/binaries.md` (`upgrade --check`).
+- **Builds:** the rehearsal's walk of every kept family at `A`'s
+  versions, its events, and `--check`'s line naming the first record
+  that does not decode, with its key.
+- **Tests:** a broken record found in jig's store world and in the
+  one-process world over the golden store's copy.

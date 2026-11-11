@@ -33,6 +33,8 @@ this document says what temper's deployment fixes with them.
 - **The policy:** from the baseline, a change of a stored layout lands
   with its patch, and moves its family's version in that landing; a
   focused test holds it (7).
+- **The catch-up:** what `main` changed in place after `bc23255eb7`
+  comes in as jig's and temper's first patches, from the baseline (9).
 
 ## 2. What it fixes
 
@@ -203,8 +205,9 @@ store keeps its row until the first patch it meets writes the levels.
 ## 8. Stories through an upgrade
 
 - **The fixture patch:** the real sets with temper's extended by one
-  patch that changes no family, `patch 1`, `owner temper 1 after jig 0`,
-  `mark fresh-windows`, its set's `fresh` that word (skein's
+  patch that changes no family, the one after temper's last (`patch 1`,
+  `owner temper 1 after jig 0` before the catch-up; `patch 2`, `owner
+  temper 2 after jig 1` after it, 9), `mark fresh-windows`, its set's `fresh` that word (skein's
   `data/codec/patches.md`, 1: a patch may carry a mark and no block).
   A store made under the real sets is behind it, so a start under it
   plans, copies, patches (no record changed), closes every live window,
@@ -213,15 +216,52 @@ store keeps its row until the first patch it meets writes the levels.
   stories (`../testing/README.md`, 2.5); no fixture names a family it
   changes.
 
-## 9. Open questions
+## 9. The catch-up
 
-- **Deployments of builds between the baseline and this design's
-  landing.** A build of `main` after `bc23255eb7` that changed a stored
-  family in place wrote a store at no level and another layout, refused
-  as before the baseline. The goal's catch-up with `main` brings such a
-  change as a patch from the baseline, so the stores of every build that
-  kept the baseline's layouts upgrade, and those of a build that did not
-  are made again. Default: so.
+The user's words of 2026-11-11: every stored layout `main` changed in place after
+`bc23255eb7` comes into this design's landing as a patch from the
+baseline, so a store a build at the baseline's layouts wrote, such as
+dev.fabrig.ai's, upgrades to it.
+
+- **Found by the merge:** once `main` is merged into the goal's branch,
+  each family whose current text differs from its kept text, the
+  baseline's, is caught up; the kept text is never refreshed to `main`'s,
+  since `BASELINE` (5) and the golden store (6) are the baseline's.
+- **On 2026-11-11, goals 63 and 187:**
+
+| Family | Change on `main` | Every old record takes | Here |
+|---|---|---|---|
+| `jig-store-tasks` 9 | `TaskRecord.activation_open`, `TaskRecord.session`; activity lines `stood`, `session_ended` appended | `activation_open` false, `session` none | moves to 10 in jig's patch 1 |
+| `jig-store-settings` 1 | `Model.cache_life_ms` inserted; `EndedBy`'s `standing` appended | `cache_life_ms` 0, the configuration's "none declared" | moves to 2 in jig's patch 1 |
+| `jig-store-people` 14 | `EndedBy`'s `standing` appended | nothing | kept at 14, its kept text refreshed: no patch needed while no landed patch names it (skein's `data/codec/command.md`, 2, step 3) |
+| `temper-store` 11 | `LandingRule.sets` appended | `sets` empty: a rule naming no set covers every change | moves to 12 in temper's patch 1; `STORE_VERSION` 12 |
+
+- **The patches:** jig's patch 1, `owner jig 1 after smith 0 skein 0`,
+  and temper's patch 1, `owner temper 1 after jig 1`, each `after`
+  listing its upstreams' levels at this landing (skein's
+  `data/codec/patches.md`, 1), each written by
+  `skein-codegen patch <crate>` with the values above, their goldens
+  reviewed. Another family `main` changed by the merge comes the same way:
+  a value needed moves its version in its owner's patch; none needed
+  refreshes its kept text.
+- **Their step over the golden store:** a line each in `patched.txt`
+  (6), `jig 1 …` then `temper 1 …`, the counts from the start and
+  reviewed; the golden test's assertions hold under them.
+- **What moves with them:** the binary's levels, jig 1 and temper 1, so
+  `versions` prints `level jig 1` and `level temper 1`; the fixture patch
+  (8) is the one after temper's last, `patch 2`, `owner temper 2 after
+  jig 1`.
+- **Unchanged:** `BASELINE` (5), the baseline's versions and layouts, by
+  which a store the baseline's build wrote reads as level 0 and is
+  patched through both. A store a build of `main` after `bc23255eb7`
+  wrote, at no level and other layouts, is refused as an older build's;
+  such a deployment is made again.
+- **A stored change landing on `main` later,** before this design lands,
+  joins the catch-up at the closer's merge; after it lands, it brings
+  its own patch, the gate (7) refusing it otherwise.
+
+## 10. Open questions
+
 - **The golden stores of later releases** (`../draft/upgrades.md`, 13),
   each made by its release's binary, join this one at each release.
 - **A patch that walks the golden store's records alone,** decoded and
