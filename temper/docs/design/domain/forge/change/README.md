@@ -186,6 +186,29 @@ escalating. It claims nothing landed. The requester receives the successful
 result. Failure words never imply this outcome: production and forge errors
 keep their recovery holds.
 
+A change whose pushed head its landing branch already contains, landed
+there by another change's merge or by any push, has nothing left to land:
+it ends with no change, as a contained catch-up does (step 1), its words
+saying so, `The landing branch already contains its head H.`, H in
+hexadecimal as the catch-up's commit is. Its pull request, where one is
+open, is closed with a comment of the same words, and its branch is
+deleted as its hold is released, as a cancel's are (4). The connector
+reads it at a step that reads the change's branch and its base: a head
+that is the base's tip is contained with no read; a head that lacks the
+base's tip is read once for each pair of head and tip, the commits the
+head has that the tip lacks (`../keeping-up.md`, 3), an empty and complete
+range meaning contained, and any other answer meaning not, or not known.
+It is judged only while nothing of the change's own is under way on its
+branch or its pull: no task that pushes its branch lives, its writer slot
+is free, it has no drift, and no update, prepare or merge of its own is
+sent. A merge in flight settles as its landing does (4): a change whose
+own pull request merged is landed, never this. A held change judges it
+once released. So a change started from it (`questions.md`, 1) finds its
+dependency done, not cancelled, and goes on from its own head; jig's rules
+stay as they are: a cancelled dependency holds its dependent, and one
+started from is never removed (jig's `domain/tasks/lifecycle.md`, 6, and
+`domain/connectors.md`, 6.1).
+
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
 proves and lands it (`../../landing.md`, section 3).

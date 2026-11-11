@@ -119,6 +119,7 @@ pub(crate) fn world() -> PersonWorld {
     world.driver.send(Event::Credential { number: 1, generation: 1, valid: skein_lib::Duration::from_secs(3600) });
     world.driver.settle();
     world.driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::new());
+    world.driver.connect_forges();
     adopt_repository(&mut world, PROJECT, b"repo", 29);
 
     let mut ask = walking::goal_from(

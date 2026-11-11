@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
+- **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`) [in flight: change 262].
+- **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`) [in flight: change 263].
+
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 37].
 
 - **Not yet:**

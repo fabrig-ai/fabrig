@@ -156,9 +156,10 @@ pub(crate) fn answer(
         return true;
     }
     let unread = brief_words::unread_of(&result);
+    let read_reason = brief_words::reason_of(&result);
     let stage = if fetch.head.is_none() { "branch" } else { "file" };
     if let Err(error) = &result {
-        out.push(Request::BriefReadRefused { section, stage, error: Some(*error) });
+        out.push(Request::BriefReadRefused { section, stage, reason: read_reason, heads: None, error: Some(*error) });
     }
     let doc = &fetch.document;
     match result {
@@ -232,7 +233,7 @@ pub(crate) fn answer(
         }
         answer => {
             if answer.is_ok() {
-                out.push(Request::BriefReadRefused { section, stage, error: None });
+                out.push(Request::BriefReadRefused { section, stage, reason: read_reason, heads: None, error: None });
             }
             crate::held::ready(domain, section, BriefRead::Failed(unread), out);
         }
@@ -383,7 +384,13 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         let Some(section) = expired else { break };
         let fetch = domain.document_fetches.remove(&section).expect("expired document");
         let stage = if fetch.head.is_none() { "branch" } else { "file" };
-        out.push(Request::BriefReadRefused { section: fetch.section, stage, error: Some(Error::Busy) });
+        out.push(Request::BriefReadRefused {
+            section: fetch.section,
+            stage,
+            reason: "the forge client is busy",
+            heads: None,
+            error: Some(Error::Busy),
+        });
         crate::held::ready(domain, fetch.section, BriefRead::Failed(busy()), out);
     }
 }

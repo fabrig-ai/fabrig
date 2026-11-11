@@ -473,7 +473,19 @@ impl World {
         };
         world.top.restore_begin(world.env.wall);
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        world.connected();
         world
+    }
+
+    /// The fake routing reports access again after each start
+    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    fn connected(&mut self) {
+        if let Some(writer) = self.writer {
+            self.event(top::Event::Connection {
+                forge: writer.forge,
+                state: top::Connection::Connected { id: writer.author, login: b"bot".as_slice().into() },
+            });
+        }
     }
 
     /// Construct and restart without any configured writer.
@@ -878,6 +890,7 @@ impl World {
             self.event(top::Event::Restore { record });
         }
         self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        self.connected();
     }
 
     /// Script a worker's pushed branch through the independent fake git.

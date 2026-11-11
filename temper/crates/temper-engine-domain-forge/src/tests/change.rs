@@ -1,5 +1,99 @@
 use super::*;
 
+/// Reverse ancestry is read once per pair, including uncertain answers (keeping-up.md, 3).
+#[test]
+fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
+    use skein_forge::api::{Answer, CommitMessage, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    for (answer, status) in fixtures::ancestry_cases() {
+        // Connection failures have their own retry chain; the ancestry fold covers them separately.
+        if matches!(
+            answer,
+            Err(skein_forge::api::Error::Unavailable
+                | skein_forge::api::Error::Forbidden
+                | skein_forge::api::Error::Missing)
+        ) {
+            continue;
+        }
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = change::State::Checking { head: fixtures::HEAD };
+        // A previously updated head waits for CI instead of updating before it concludes.
+        row.change.clean = Box::new([fixtures::HEAD]);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        for (tip, read, live) in [
+            (fixtures::BASE, true, true),
+            (fixtures::BASE, false, true),
+            ([5; 32], true, true),
+            ([5; 32], false, false),
+        ] {
+            seen_base(&mut d, tip);
+            outputs(&mut d, waiting_step(live, false));
+            let mut pull = fixtures::open_pull();
+            pull.base_commit = Some(tip);
+            pull.ci = skein_forge::api::Ci::Pending;
+            for answer in [
+                Answer::Commit(fixtures::HEAD),
+                Answer::Commit(tip),
+                Answer::Pull(pull),
+                fixtures::checks(skein_forge::api::Check::Passed),
+            ] {
+                let (call, _) = fixtures::next_at(&mut d, &env);
+                fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            }
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: tip, page: 1 }));
+            fixtures::answer_at(
+                &mut d,
+                &env,
+                call,
+                Ok(Answer::Commits {
+                    commits: Box::new([CommitMessage { id: tip, parents: Box::new([]), message: Box::new([]) }]),
+                    more: false,
+                }),
+            );
+            if read {
+                let (call, op) = fixtures::next_at(&mut d, &env);
+                assert_eq!(op, Op::Read(Read::Commits { before: tip, after: fixtures::HEAD, page: 1 }));
+                fixtures::answer_at(&mut d, &env, call, answer.clone());
+            }
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }), "no second ancestry read");
+            fixtures::answer_at(
+                &mut d,
+                &env,
+                call,
+                Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            );
+            let state = &d.change(fixtures::CHANGE).expect("change").change.state;
+            if !live && status == change::Status::Passed {
+                assert_eq!(state, &change::State::NoChange { words: Box::from(b"The landing branch already contains its head 0303030303030303030303030303030303030303030303030303030303030303.".as_slice()) });
+            } else {
+                assert_eq!(state, &change::State::Checking { head: fixtures::HEAD });
+            }
+        }
+    }
+}
+
+/// Keep workflow discovery outside the change's fresh-read chain.
+fn seen_base(d: &mut Domain, commit: skein_forge::api::Commit) {
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+    };
+    d.heads.insert(name.clone(), BranchHead { name, commit, owned: false }).expect("fixture head room");
+}
+
 // env() starts at 100 s; the change policy stalls for another 30 s.
 const WAIT_UNTIL: Wall = Wall::from_nanos(130_000_000_000);
 
@@ -12,7 +106,7 @@ const LATER_BRANCH: &[u8] = b"temper/52";
 fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     use skein_forge::api::{Answer, Error};
     use temper_engine_domain_forge_change as c;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     let mut env = env();
     env.limits.client.read_attempts = 1;
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
@@ -69,10 +163,92 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     assert_eq!(d.change(fixtures::CHANGE).expect("still waiting").change.since, since);
 }
 
+#[test]
+fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
+    use skein_forge::api::{Answer, Ci, Error};
+    use temper_engine_domain_forge_change as c;
+    for (titled, restart_stall) in [(false, false), (true, false), (false, true)] {
+        let mut d = fixtures::connected_domain();
+        let mut env = env();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = c::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = if titled {
+            row.title = Box::new([]);
+            c::State::Producing { requested: true }
+        } else {
+            c::State::Checking { head: fixtures::HEAD }
+        };
+        row.change.since = Wall::from_nanos(env.wall.as_nanos() - Duration::from_secs(10).as_nanos());
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::Connection { forge: 1, state: Connection::Connecting });
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Err(Error::NotConnected));
+        fixtures::advance(&mut d, &mut env, Duration::from_secs(50));
+        if restart_stall {
+            // A delegate ending during the wait starts a later stall.
+            d.changes.get_mut(&fixtures::CHANGE).expect("change").change.since = env.wall;
+        }
+        let mut out = Queue::uncapped();
+        step(&mut d, &env, fixtures::change_step(), &mut out);
+        fixtures::advance(&mut d, &mut env, Duration::from_secs(50));
+        step(
+            &mut d,
+            &env,
+            Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } },
+            &mut out,
+        );
+        let since = d.change(fixtures::CHANGE).expect("waiting change").change.since;
+        let counted = if restart_stall { 0 } else { 10 };
+        assert_eq!(env.wall.as_nanos() - since.as_nanos(), Duration::from_secs(counted).as_nanos());
+        let mut saved = false;
+        for request in &out {
+            if let Request::Save { record: Stored::Change(row), .. } = request {
+                saved |= row.change.since == since;
+            }
+        }
+        assert!(saved, "the excluded wait is saved: {out:?}");
+        let remaining = 30 - counted;
+        let until = Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(remaining).as_nanos());
+        for (elapsed, decision) in
+            [(remaining - 1, c::Decision::Wait { until: Some(until) }), (1, c::Decision::Hold(c::Hold::Stalled))]
+        {
+            fixtures::advance(&mut d, &mut env, Duration::from_secs(elapsed));
+            step(&mut d, &env, fixtures::change_step(), &mut out);
+            let mut pull = fixtures::open_pull();
+            pull.ci = Ci::Pending;
+            for answer in [
+                Answer::Commit(fixtures::HEAD),
+                Answer::Commit(fixtures::BASE),
+                Answer::Pull(pull),
+                fixtures::checks(skein_forge::api::Check::Passed),
+                Answer::Commits { commits: Box::new([]), more: false },
+                Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            ] {
+                let (call, _) = fixtures::next_at(&mut d, &env);
+                out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            }
+            let mut decided = false;
+            for request in &out {
+                decided |= *request
+                    == Request::ChangeDecision { task: fixtures::CHANGE, decision, entry: None, evidence: None };
+            }
+            assert!(decided, "{out:?}");
+            assert_eq!(d.change(fixtures::CHANGE).expect("change").change.since, since);
+        }
+    }
+}
+
 fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     use skein_forge::api::{Answer, State};
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pending = None;
@@ -170,7 +346,7 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
     use skein_forge::api::{Answer, Hint, Op, Read, UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;
     for pending in [true, false] {
-        let mut d = domain();
+        let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let name = run_branch(b"51");
         outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
@@ -270,7 +446,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
 /// Leave the lower chain's last read in flight while the higher entry commits.
 fn reversed_openings(lower_requested: bool) -> (Domain, Token) {
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -367,7 +543,7 @@ fn a_woken_chain_restarts_with_its_newest_entry_number() {
 fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     use skein_forge::api::Answer;
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -505,7 +681,7 @@ fn merging_change(protection: Protection, pull_ci: skein_forge::api::Ci) -> Doma
 fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable: bool, queued: bool) -> Domain {
     use skein_forge::api::Answer;
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     let mut repository = adopted();
     repository.protection = protection;
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
@@ -680,7 +856,7 @@ fn required_head_checks_ignore_a_failed_non_required_row() {
 
 fn named_pull_verdict(number: u64) -> Box<[Request]> {
     use skein_forge::api::{Answer, Ci, Kind, Op, Read, State, Summary};
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -831,6 +1007,7 @@ fn projected_words_at(explicit_title: &[u8], words: &[u8], op_bytes: u32) -> ske
     let mut configured = env();
     configured.limits.client.op_bytes = op_bytes;
     let mut d = domain_with_limits(&configured.limits);
+    fixtures::connect(&mut d);
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -978,7 +1155,7 @@ fn change_long_explicit_title_fits_the_byte_bound() {
 #[test]
 fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.change.last_head = Some(fixtures::HEAD);
@@ -1016,7 +1193,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
 fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
     use temper_engine_domain_forge_change as change;
     for expired in [false, true] {
-        let mut d = domain();
+        let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
@@ -1073,7 +1250,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         (52, change::Status::Passed, false, false, true, false),
         (53, change::Status::Passed, false, false, false, false),
     ] {
-        let mut d = domain();
+        let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let mut row = fixtures::opening_row();
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
@@ -1115,7 +1292,7 @@ fn delegate_waiting(
     kind: temper_engine_domain_forge_change::Delegate,
 ) -> Domain {
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -1401,7 +1578,7 @@ fn opens_pull(requests: &[Request]) -> bool {
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -1485,6 +1662,9 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
             more: false,
         }),
     );
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
+    fixtures::answer(d, call, Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
     let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let effect = if preparing {
         change::Effect::Prepare { head: fixtures::HEAD, main: fixtures::BASE }
@@ -1546,7 +1726,7 @@ fn a_let_go_update_restored_is_decided_again() {
         let saved = saved.expect("saved let-go");
         assert_eq!(saved.pending, None);
         assert_eq!(saved.effect, temper_engine_domain_forge_change::EffectResult::None);
-        let mut restored = domain();
+        let mut restored = fixtures::connected_domain();
         outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut restored, Event::Restore { record: Stored::Change(saved) });
         assert_eq!(restored.restore_fit_failure(), None);
@@ -1745,7 +1925,7 @@ fn head_ci_contexts_are_read_once_per_gather() {
         ("head is base uses pull once", (false, true, true, true, false)),
         ("required head is base reads checks once", (true, true, true, true, true)),
     ] {
-        let mut d = domain();
+        let mut d = fixtures::connected_domain();
         let mut repository = adopted();
         repository.protection = ci_protection(required);
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
@@ -1759,12 +1939,7 @@ fn head_ci_contexts_are_read_once_per_gather() {
         row.change.state = change::State::Checking { head: fixtures::HEAD };
         outputs(&mut d, Event::Change { row });
         if same_base {
-            let name = Name {
-                forge: REPO.forge,
-                repository: REPO.repository,
-                what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
-            };
-            d.heads.insert(name.clone(), BranchHead { name, commit: fixtures::HEAD, owned: false }).unwrap();
+            seen_base(&mut d, fixtures::HEAD);
         }
         fixtures::step_change(&mut d);
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
@@ -1793,18 +1968,29 @@ fn head_ci_contexts_are_read_once_per_gather() {
             assert_eq!(op, Op::Read(Read::Checks { commit: base }));
             fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         }
-        let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(d.panel_ci.get(&fixtures::CHANGE).unwrap().status, change::Status::Pending, "{name}: head verdict");
-        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: base, page: 1 }));
-        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        if !same_base {
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: base, page: 1 }));
+            fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(
+            op,
+            Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }),
+            "{name}: equality needs no ancestry read"
+        );
         let finished =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-        let mut waited = false;
+            fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let mut decided = false;
         for request in &finished {
+            if let Request::ChangeDecision { decision: change::Decision::NoChange, .. } = request {
+                decided |= same_base;
+            }
             if let Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. } = request {
-                waited = true;
+                decided |= !same_base;
             }
         }
-        assert!(waited, "{name}: {finished:?}");
+        assert!(decided, "{name}: {finished:?}");
     }
 }
