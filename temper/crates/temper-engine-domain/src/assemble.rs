@@ -486,6 +486,7 @@ pub(crate) fn finish_brief_plan(
     }
     if let Some(parent) = parent
         && let Some(row) = domain.forge.change(parent)
+        && !row.terminal()
         && let Some((child, _)) = row.delegate
         && child == task
         && let Some(number) = row.pull

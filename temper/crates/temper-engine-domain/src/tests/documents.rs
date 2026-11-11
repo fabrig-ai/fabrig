@@ -275,6 +275,25 @@ fn repair() -> forge::ChangeRow {
 }
 
 #[test]
+fn a_completed_changes_delegate_plans_no_forge_sections() {
+    for state in [change::State::Landed { since: skein_lib::Wall::EPOCH, merge: [2; 32] }, change::State::Ended] {
+        let (mut domain, env) = root();
+        let mut row = repair();
+        row.change.state = state;
+        domain.forge.restore_begin(env.wall);
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut Queue::uncapped(),
+        );
+        finish_brief_plan(&mut domain, &env, 8, Some(7), List::with_capacity(8), Box::new([]));
+        assert!(take_plan(&mut domain).is_empty(), "no pull or reason for completed work");
+        assert!(domain.work.is_empty(), "no forge section registration");
+    }
+}
+
+#[test]
 fn a_repair_replaces_optional_core_sections_and_keeps_both_documents() {
     let (mut domain, env) = root();
     domain.forge.restore_begin(env.wall);

@@ -966,7 +966,9 @@ pub struct ChangeRow {
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
-    pub(crate) fn terminal(&self) -> bool {
+    /// A landed or ended change gathers no more brief or change facts.
+    #[must_use]
+    pub fn terminal(&self) -> bool {
         match self.change.state {
             change::State::Landed { .. }
             | change::State::Red { .. }
