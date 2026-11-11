@@ -693,6 +693,8 @@ impl Protocol {
                 | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }

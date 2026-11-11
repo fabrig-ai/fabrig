@@ -78,7 +78,10 @@ fn files_size(entries: &[FollowEntry]) -> usize {
     }
     size
 }
-#[expect(clippy::too_many_lines, reason = "the binding brief's ordered blocks and their two cut budgets are rendered together")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the binding brief's ordered blocks and their two cut budgets are rendered together"
+)]
 fn render(entries: &[FollowEntry], n: &Words, mut rest: usize, mut files_room: usize) -> Option<Box<[u8]>> {
     let newest = entries.last()?;
     let after = commit_text(&newest.after);
