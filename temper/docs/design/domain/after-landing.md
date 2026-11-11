@@ -627,7 +627,7 @@ with failing tests by id and uploading their artifacts:
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing
   alone and the goal triages it (section 7;
-  `../draft/reference-landing.md`, section 11).
+  `../draft/archive/reference-landing.md`, section 11).
 - **A dropped run's branch:** a run dropped as its task closes (section
   3) leaves its `temper/tier/<tier>.<n>` branch on the forge, since a
   closing task makes no effect, and no later run takes its name, its

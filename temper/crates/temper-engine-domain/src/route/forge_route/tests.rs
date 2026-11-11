@@ -2872,7 +2872,7 @@ fn malformed_repairs_refuses_a_change_start() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
+/// temper/docs/design/domain/worker/jobs.md: the root writes R1's repository-relative command.
 #[test]
 #[expect(
     clippy::disallowed_macros,
@@ -4254,7 +4254,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: preserve the close request whole.
+/// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1;

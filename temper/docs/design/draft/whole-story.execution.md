@@ -111,7 +111,7 @@ or the nearest thing, and says so in that draft's status.
   precedence over the greenfield mock (`surfaces.md`, section 13). Mockups
   under `docs/` are documents, whatever their format (the user,
   2026-11-08), so they land as the drafts do.
-- **Then** the drafts and `../client/greenfield/README.md` may cite them
+- **Then** the drafts and `../client/web/greenfield/README.md` may cite them
   as paths.
 - **Done** when it lands. No code.
 
@@ -334,7 +334,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | F2 | waits | F1, by its needs |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
-| T2 | landed | goal 172: `../client/tui/pages.md`, *A design session*, on skein's side region (`skein/docs/design/ui/screen.md`, 5.2); its walk follows landing |
+| T2 | landed | goal 172: `../client/tui/pages/design-session.md`, 1, on skein's side region (`skein/docs/design/ui/screen.md`, 5.2); its walk follows landing |
 | T3 | waits | T1, R2 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |

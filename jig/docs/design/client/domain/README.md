@@ -427,7 +427,7 @@ Each document lists its own; the ones that reach across:
   section 2); nothing in one application's contract changes;
 - **bundling** an application's parts into the answer of the jig read
   that names them, to save a round trip (contract/README.md, section 9);
-- **search** over tasks, results, notes and transcripts;
+- **search:** contract/README.md, section 9's question;
 - **notifications beyond the client,** which are an application's
   connectors (`../../domain/people/README.md`, section 8).
 

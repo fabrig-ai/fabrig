@@ -1,4 +1,4 @@
-//! Send refusals (temper/docs/design/client/tui/pages.md, The chat's question; 3.5).
+//! Send refusals (temper/docs/design/client/tui/pages/chat.md, 2; temper/docs/design/client/pages/README.md).
 use crate::{cards::P, words::Words};
 use alloc::boxed::Box;
 use jig_client::{Answered, Outcome, contract as c};
@@ -6,7 +6,7 @@ use skein_lib::List;
 use skein_ui::phrases::Hole;
 use temper_client_domain::{Address, Domain, pages::chat::Sending};
 
-/// Words beneath the composer's last send (temper/docs/design/client/tui/pages.md, The chat's question).
+/// Words beneath the composer's last send (temper/docs/design/client/tui/pages/chat.md, 2).
 /// Explanatory paragraphs follow the status with a space between them.
 #[must_use]
 pub fn refusal(root: &Domain, w: &Words) -> Option<Box<[u8]>> {

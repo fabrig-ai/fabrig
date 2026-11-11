@@ -199,12 +199,12 @@ early, by these rules:
   count.
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those heads merged into it, one by one in the order
-  of the change's dependencies (`../../worker.md`, section 5). The change
+  of the change's dependencies (`../../worker/checkouts.md`). The change
   keeps each head it started from, with its dependency, and marks those
   dependencies started from (jig's `domain/connectors.md`, 6.1).
 - **A conflict refuses it.** A head that does not merge cleanly fails
-  the producer's preparation as a conflict naming it (`../../worker.md`,
-  section 5). The change cancels that producer, its early start spent,
+  the producer's preparation as a conflict naming it (`../../worker/checkouts.md`
+  ). The change cancels that producer, its early start spent,
   and waits for its dependencies to be done; nothing is held or
   escalated, and its marks stay.
 - **Once.** A change starts its producer early at most once. An early
@@ -216,7 +216,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker.md`, 4.1 and section 5). A clean merge is
+  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
@@ -320,3 +320,23 @@ rest of the branch lands while a sign-off waits a night
   such a rule stops their mistakes, not one trying to get past it, and the
   client says so (`../../../client/pages/settings.md`, 2; `../../../draft/forge-identity.md`,
   section 6).
+
+## 3. Open questions
+
+- **A refused `message` keeps no record** (`questions.md`, 1): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`../../routing.md`, 2). So a call asked again decides again, from the change as
+  it then stands. Default: so.
+
+- **A passed-up question whose asker ends** (`questions.md`, 1): its requester hears of the
+  end when it answers, not before, since saying so once at the end would need a
+  stored mark beside where the question stands. One that never answers hears
+  nothing of it, and the question stays until the change ends. Default: so; it
+  did reach someone.
+
+- **A report's head past a merge** (`questions.md`, 1): a next producer's start that merges a
+  tip it lacks makes a new head before its run if clean, or at its first push or
+  save once its conflicts are settled. A report written before that merge names
+  an older head; a contained tip makes no new one. Default: so; the head delivered
+  names what is on the branch (`../../agent/README.md`, section 5).

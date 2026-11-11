@@ -826,12 +826,7 @@ with a person in front of a tree, are ../view-state.md's, 10.
   level-triggered watches and the link are jig's while they have one
   user; whether they move to skein, by a rename and a crate move, once
   a second user wants them.
-- **A root's two modes:** an application root chooses its mode at run
-  time, so it holds both modes' requests under one type (4.4), and a
-  host that only ever runs a linked root still matches the unlinked
-  variant, as a cell it never reaches. Whether each root splits by mode,
-  so that such a host is never handed that variant, is a change to every
-  application root and its hosts.
+- **A root's two modes:** ../root.md, section 14's question.
 - **A class's members in the schema:** the derivation by class lists each
   class's members by hand, once per class (section 11). Bound classes in the
   schema would generate the lists. Default: by hand until the schema has them.

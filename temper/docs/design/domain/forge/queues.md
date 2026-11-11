@@ -145,3 +145,30 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
 - **Cancelled while there,** the change waits for its merge's entry to
   settle, landed or ejected, and what landed counts (`change/README.md`, 4): temper never
   takes a pull request out of the forge's queue itself (`README.md`, section 11).
+
+## 2. Open questions
+
+- **A queue's throughput:** landings into one branch wait on CI one after
+  another. If that binds, landings are batched: tested together, and
+  bisected when they fail.
+
+- **A repair of the branch's own CI at a tip since passed** (`queues.md`): the
+  rule of `change/repairs.md` asks of a change's own head. That repair is a change of its own,
+  made for a failed tip: CI passing on the tip ends the queue's pause, and that
+  change goes on. Whether the rule reaches it. Default: as it stands.
+
+- **Several changes in a forge's merge queue** (`queues.md`, 1): a change there
+  leaves temper's turn, and the next enters behind it. The alternative
+  is the first keeping its turn until it lands or is ejected, one at a
+  time, as temper's own queue does. Default: several, the forge's queue
+  grouping them.
+
+- **The update before entering a forge's merge queue** (`queues.md`, 1): the first
+  takes its base as any first does (`README.md`, section 6), though the queue merges
+  the base itself. The alternative enters it as its head is, saving a CI
+  run. Default: as any first.
+
+- **Taking a change out of a forge's merge queue** when it is cancelled:
+  the vocabulary has no call for it. Default: none; the cancel waits for
+  the landing or the ejection (`queues.md`, 1). The alternative is closing the
+  pull request, which the forge's queue drops.

@@ -1,4 +1,4 @@
-//! The chat's ordered conversation (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages.md).
+//! The chat's ordered conversation (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages/README.md).
 use super::{
     Binds, foot, pane,
     printed::{self, Printed},
@@ -62,7 +62,7 @@ fn join(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
-/// The rule's short title (temper/docs/design/client/tui/pages.md, The rule above the box).
+/// The rule's short title (temper/docs/design/client/tui/pages/chat.md, 1, The rule above the box).
 #[expect(clippy::disallowed_methods, reason = "the title's validated UTF-8 is cut at scalar boundaries")]
 pub(crate) fn cut(title: &[u8], words: &Words) -> Box<[u8]> {
     let title = core::str::from_utf8(title).expect("view words are UTF-8");

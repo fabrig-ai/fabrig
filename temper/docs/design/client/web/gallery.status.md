@@ -64,10 +64,7 @@ chosen.
   "temper", where the shell's is "Home · temper" (`../view.md`, 1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
-- **Departs:**  `?forge=elsewhere` still reads, as A Forgejo
-  elsewhere's Details (`temper-client-domain`'s `address.rs`
-  `forge_choice`), words for a forge added to the configuration by hand,
-  which names none (`../forge/README.status.md`). 2: `google-sign-in`,
+- **Departs:**  the elsewhere-forge address departure remains `README.status.md`, 2.3. 2: `google-sign-in`,
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`tools/gallery/names.txt`,
   `tools/gallery/src/samples.rs`) that the table does not list.

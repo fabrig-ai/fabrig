@@ -39,7 +39,7 @@ files'.
     no task waiting on a person's own account (jig's
     `client/domain/contract/documents.md`, 1), no read says a forge's token
     must be replaced, and a person task asking an act stays among the
-    cards. The terminal's inbox lists no Only you (`../client/tui/pages.md`
+    cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
   - 9: `../client/pages/settings.md`, 2's *Telling you* is disabled; no design
     holds a service worker, a push or a digest (`../client/web/README.md`),

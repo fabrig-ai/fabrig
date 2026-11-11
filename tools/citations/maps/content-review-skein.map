@@ -1,0 +1,5 @@
+# Unnumbered question map, 2026-11-11. Applied by hand, not move.py input.
+# No numbered section or document moves.
+# skein/docs/design/ui/README.md 16 [The text shell's own words] -> skein/docs/design/ui/text.md 9 [Its own words in another language] (existing question; source cites it)
+# skein/docs/design/ui/README.md 16 [A server keeping the previous bundle's digest directory] -> skein/docs/design/ui/web/README.md 13 [A server keeping the previous digest directory] (existing question; source cites it)
+# skein/docs/design/forge/github.md 15 [The blob host's address] -> skein/docs/design/forge/connection.md 11 [Runtime DNS] (existing question; source cites it)

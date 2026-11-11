@@ -321,12 +321,12 @@ impl Domain {
         rows.into_boxed()
     }
 
-    /// The core's declared merge bounds (temper/docs/design/domain/worker.md, 4.4).
+    /// The core's declared merge bounds (temper/docs/design/domain/worker/jobs.md).
     pub fn merge_kind(&mut self, spec: u32, result: u32) {
         self.merge_kind = Some((spec, result));
     }
 
-    /// The core's declared close bounds (temper/docs/design/domain/worker.md, 4.4).
+    /// The core's declared close bounds (temper/docs/design/domain/worker/jobs.md).
     pub fn close_kind(&mut self, spec: u32, result: u32) {
         self.close_kind = Some((spec, result));
     }
@@ -8401,7 +8401,7 @@ fn bind(d: &mut Domain, request: Token, mut address: Box<[u8]>, subject: Box<[u8
 }
 
 // The worker wire uses two four-byte lengths; the request is C2's compact JSON.
-// temper/docs/design/domain/worker.md, 4.4; temper/docs/design/domain/forge/change/repairs.md.
+// temper/docs/design/domain/worker/jobs.md; temper/docs/design/domain/forge/change/repairs.md.
 fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip: [u8; 32]) -> bool {
     if !pending.merge_job {
         return false;

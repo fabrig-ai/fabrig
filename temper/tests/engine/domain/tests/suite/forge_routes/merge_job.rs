@@ -368,7 +368,7 @@ fn a_failed_merge_job_is_held_after_its_retries() {
     world.close();
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: a retry prepares its workspace afresh after a transient failure.
+/// temper/docs/design/domain/worker/jobs.md: a retry prepares its workspace afresh after a transient failure.
 #[test]
 fn a_failed_merge_jobs_retry_keeps_the_changes_workspace() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
