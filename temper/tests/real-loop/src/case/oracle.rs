@@ -2104,7 +2104,9 @@ mod rules_tests {
         )
     }
     fn met() -> Observed {
-        let fresh = vec![user(&format!("{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"))];
+        let fresh = vec![user(&format!(
+            "{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}; answer with message target={SCOPE}, form=answer, question={SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"
+        ))];
         let mut later = fresh.clone();
         later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {
