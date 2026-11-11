@@ -17,6 +17,24 @@ pub const HELP: Command = Command {
     notes: crate::rows::HELP.notes,
 };
 
+/// The tests' ctl command, with ctl's own lines (temper/docs/design/cli/README.md, 6).
+pub const CTL: Command = Command {
+    reach: Reach::Words(crate::rows::CTL.words),
+    set: Set::Internal,
+    forms: crate::rows::CTL.forms,
+    line: crate::rows::CTL.line,
+    arguments: &[
+        skein_shell::Argument { shown: "DIR", line: crate::rows::CTL.arguments[0].line },
+        skein_shell::Argument { shown: "GROUP", line: crate::rows::CTL.arguments[1].line },
+        skein_shell::Argument { shown: "VERB", line: crate::rows::CTL.arguments[2].line },
+        skein_shell::Argument { shown: "FILE", line: crate::rows::CTL.arguments[3].line },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[],
+    notes: crate::rows::CTL.notes,
+};
+
 /// Help's words: stdout on success, or an exit code and stderr.
 pub fn help(table: &Table, words: &[Box<[u8]>]) -> Result<String, (u8, String)> {
     if words.is_empty() {

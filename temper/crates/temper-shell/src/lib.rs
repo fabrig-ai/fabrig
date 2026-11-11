@@ -5,6 +5,7 @@ use std::{os::unix::ffi::OsStrExt, path::Path};
 
 pub mod commands;
 pub mod directories;
+pub mod environment;
 pub mod help;
 pub mod link_file;
 pub mod rows;

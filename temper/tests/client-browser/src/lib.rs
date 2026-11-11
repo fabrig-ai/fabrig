@@ -203,7 +203,7 @@ impl Tier {
     pub fn demo(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::demo(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "box" }
+        Self { scratch, forged: forgery::request(), command: "" }
     }
     /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
     /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/web/testing.md, 3).
@@ -362,7 +362,10 @@ impl Tier {
     }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
-        let mut args = vec![self.command.into()];
+        let mut args = Vec::new();
+        if !self.command.is_empty() {
+            args.push(self.command.into());
+        }
         args.extend(configuration::flags(self.scratch.path()));
         Setup {
             server: temper(),

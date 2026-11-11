@@ -22,7 +22,9 @@ use std::{
 
 pub fn command(root: &Path, action: &str) -> Command {
     let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
-    command.arg(action);
+    if !action.is_empty() {
+        command.arg(action);
+    }
     for name in ["config", "data", "cache"] {
         command.arg(format!("--{name}")).arg(root.join(name));
     }
@@ -87,7 +89,6 @@ impl Boxed {
             .open(scratch.path().join("stderr"))
             .expect("private stderr capture");
         let mut child = command
-            .arg("box")
             .arg("--config")
             .arg(scratch.path().join("config"))
             .arg("--data")

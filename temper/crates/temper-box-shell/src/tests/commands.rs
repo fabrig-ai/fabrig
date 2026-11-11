@@ -1,8 +1,5 @@
-use crate::{
-    Command,
-    commands::{self, COMMANDS, Who},
-    configure_with, fake,
-};
+use crate::{Command, TABLE, TREE, configure_with, fake};
+use skein_shell::{Reach, Set};
 
 fn bytes(words: &[&str]) -> Vec<Box<[u8]>> {
     words.iter().map(|word| Box::from(word.as_bytes())).collect()
@@ -12,19 +9,22 @@ fn configured(words: &[&str]) -> Result<Command, String> {
 }
 fn command_words(command: &Command) -> Vec<&str> {
     match command {
-        Command::Usage(row) => row.words.to_vec(),
+        Command::Version => vec!["--version"],
+        Command::Usage(row) => match row.reach {
+            Reach::Words(words) => words.to_vec(),
+            Reach::RunAs(name) => vec![name],
+        },
         Command::Init { .. } => vec!["init"],
         Command::Serve { boxed: false, .. } => vec!["serve"],
         Command::Serve { boxed: true, .. } => vec!["internal", "serve"],
-        Command::Box { .. } | Command::BoxFakeBackends { .. } => vec!["box"],
+        Command::Box { .. } | Command::BoxFakeBackends { .. } => vec![],
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
-        Command::Tui { .. } => vec![],
         Command::TuiFront { .. } => vec!["internal", "tui"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
-        Command::Help { .. } => vec!["help"],
+        Command::Overview | Command::Help { .. } => vec!["help"],
         Command::Fake { arguments } => vec![
             "fake",
             match arguments.kind {
@@ -37,17 +37,21 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::FakeGit { .. } => vec!["fake", "git"],
         Command::ForgeChild { .. } => vec!["internal", "forge-child"],
         Command::Forge { arguments, .. } => vec!["forge", arguments[0].to_str().expect("forge verb")],
+        Command::Claude { .. } => vec!["claude"],
+        Command::Relay => vec!["--mcp-relay"],
+        Command::ProgramChild => vec!["--program-child"],
     }
 }
 
 #[test]
 fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
-        (&["help"], &["help"]),
+        (&["help"], &["help", "pages"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
-        (&["box"], &["box", "--echo", "steps", "--no-tui"]),
-        (&["box"], &["box", "--fake-backends", "--bundle", "/bundle", "--no-tui"]),
+        (&[], &[]),
+        (&[], &["--echo", "steps", "--no-tui"]),
+        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps", "--no-tui"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -57,13 +61,12 @@ fn every_row_parses_from_an_example() {
         (&["forge", "source"], &["forge", "source", "1"]),
         (&["ctl"], &["ctl", "DIR", "task", "show", "1"]),
         (&["ctl"], &["ctl", "DIR", "me"]),
-        (&[], &[]),
-        (&[], &["http://127.0.0.1:8367"]),
         (&["ctl"], &["ctl", "DIR", "--call", "FILE"]),
         (&["ctl"], &["ctl", "help", "task", "show"]),
         (&["open"], &["open", "/client", "http://127.0.0.1:7000"]),
         (&["internal", "agent"], &["internal", "agent", "agent.json"]),
         (&["internal", "agent-list"], &["internal", "agent-list", "agent.json"]),
+        (&["internal", "agent-list"], &["--list", "internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
         (&["internal", "tui"], &["internal", "tui", "--box", "http://127.0.0.1:8367"]),
@@ -74,101 +77,62 @@ fn every_row_parses_from_an_example() {
         (&["fake", "forge", "check"], &["fake", "forge", "check", "1", "observations", "store"]),
         (&["fake", "oauth"], &["fake", "oauth", "--document", "oauth.json"]),
         (&["fake", "git"], &["fake", "git", "status"]),
+        (&["--mcp-relay"], &["--mcp-relay"]),
+        (&["--program-child"], &["--program-child"]),
     ];
     for &(words, example) in examples {
-        let row = commands::find(&bytes(example)).expect("example names a row");
-        assert_eq!(row.words, words, "{example:?}: longest command words");
         let command = configured(example).expect("example parses");
         assert_eq!(command_words(&command), words, "{example:?}: dispatched command");
     }
-    for row in &COMMANDS {
-        assert_eq!(
-            examples.iter().filter(|(words, _)| *words == row.words).count(),
-            row.forms.len() + usize::from(row.words.is_empty()),
-            "{:?}: an example per form",
-            row.words
-        );
+    for (run_as, expected) in [("/demo/bin/git", vec!["fake", "git"]), ("/bin/claude", vec!["claude"])] {
+        let arguments = bytes(&["--help", "status", "--version"]);
+        let command = crate::configure_as(run_as.as_bytes(), &arguments, &[], b"/").expect("delegated grammar");
+        assert_eq!(command_words(&command), expected);
+        let (Command::FakeGit { arguments: passed } | Command::Claude { arguments: passed, .. }) = command else {
+            panic!("delegated command")
+        };
+        assert_eq!(passed.as_ref(), arguments, "all delegated arguments are preserved");
     }
-    for words in [vec!["internal", "tui"], vec!["internal", "tui", "--box"]] {
-        assert!(configured(&words).is_err(), "the front requires --box ADDRESS");
-    }
-    assert!(matches!(configured(&["init"]).expect("bare init"), Command::Init { boxed: false, .. }));
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["box", "--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
-    assert!(matches!(
-        configured(&["box", "--fake-backends", "--no-tui"]).expect("fake no TUI"),
-        Command::BoxFakeBackends { no_tui: true, .. }
-    ));
-    assert!(matches!(configured(&["box"]).expect("bare box"), Command::Box { no_tui: false, .. }));
-    assert!(matches!(
-        configured(&["box", "--fake-backends"]).expect("fake box"),
-        Command::BoxFakeBackends { no_tui: false, .. }
-    ));
+    assert!(matches!(configured(&["--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
+    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    for words in [
+        vec!["--no-tui", "--no-tui"],
+        vec!["--bundle", "/bundle"],
+        vec!["internal", "tui"],
+        vec!["internal", "tui", "--box"],
+    ] {
+        assert!(configured(&words).is_err(), "refused {words:?}");
+    }
 }
 
 #[test]
 fn each_row_answers_its_help() {
-    for row in &COMMANDS {
-        if row.words.is_empty() {
-            assert!(commands::help().contains("  temper-box [ADDRESS]\n"));
-            assert!(commands::row(row).starts_with("usage: temper-box [ADDRESS]\n"));
+    for command in TABLE.commands {
+        let Reach::Words(words) = command.reach else { continue };
+        if words.is_empty() {
             continue;
         }
-        let mut words = row.words.to_vec();
-        words.push("--help");
-        assert_eq!(configure_with(&bytes(&words), &[], b"/unused"), Ok(Command::Usage(row)));
-        assert!(commands::row(row).starts_with(&format!(
-            "usage: temper-box {} {}\n",
-            row.words.join(" "),
-            row.forms[0]
-        )));
+        let mut arguments = words.to_vec();
+        arguments.push("--help");
+        assert_eq!(configure_with(&bytes(&arguments), &[], b"/unused"), Ok(Command::Usage(command)));
+        assert_eq!(TABLE.command_help(command).starts_with("internal:"), command.set == Set::Internal);
     }
-    let row = commands::find(&bytes(&["forge", "run"])).expect("forge run row");
-    assert_eq!(commands::row(row), "\
-usage: temper-box forge run [DIRECTORIES] FORGE forgejo|runner
-Run an owned forge's Forgejo or its runner.
-  DIRECTORIES: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-  FORGE: A forge's number in the configuration.
-Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
-  --config CONFIG (TEMPER_CONFIG; default $XDG_CONFIG_HOME/temper)
-      Configuration, including temper.json.
-  --data DATA (TEMPER_DATA; default $XDG_DATA_HOME/temper)
-      The deployment's data and secrets.
-  --cache CACHE (TEMPER_CACHE; default $XDG_CACHE_HOME/temper)
-      Binaries that can be fetched again.
-");
 }
 
 #[test]
-fn temper_help_lists_rows_by_who() {
-    let text = commands::help();
-    assert!(text.starts_with("usage: temper-box COMMAND [ARGUMENT...]\ntemper-box help prints the index of temper's pages; temper-box COMMAND --help prints one command.\n\ndocumentation:\n"));
-    let groups = [Who::Documentation, Who::Deployment, Who::Clients, Who::Spawned, Who::TestDoubles];
-    let mut previous_end = 0;
-    for who in groups {
-        let heading = if who == Who::Spawned { "spawned, never run by hand" } else { who.word() };
-        let heading = format!("\n{heading}:\n");
-        assert_eq!(text.matches(&heading).count(), 1);
-        let start = text.find(&heading).expect("group heading");
-        assert!(start >= previous_end, "groups in Who order");
-        let end =
-            text[start + heading.len()..].find("\n\n").map_or(text.len(), |offset| start + heading.len() + offset);
-        let group = &text[start..end];
-        for row in COMMANDS.iter().filter(|row| row.who == who) {
-            for form in row.forms {
-                let words = if row.words.is_empty() { String::new() } else { format!("{} ", row.words.join(" ")) };
-                let form = format!("  temper-box {words}{form}\n");
-                assert_eq!(text.matches(&form).count(), 1, "each form once");
-                assert!(group.contains(form.trim_end()), "form under its group");
-            }
-            if who == Who::Spawned {
-                assert!(!text.contains(row.line), "spawned rows list forms alone");
-            } else {
-                assert!(group.contains(&format!("    {}", row.line)));
-            }
-        }
-        previous_end = end;
-    }
+fn temper_help_lists_only_public_commands() {
+    let text = TABLE.help();
+    let (_, commands) = text.split_once("\ncommands:\n").expect("commands");
+    let commands = commands.split("\n\n").next().expect("command lines");
+    let names: Vec<_> = commands
+        .lines()
+        .filter_map(|line| line.strip_prefix("  "))
+        .filter(|line| !line.starts_with(' '))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    assert_eq!(names, ["init", "serve", "program-login", "help"]);
+    assert!(text.contains("temper-box [--config DIR]"));
 }
 
 #[test]
@@ -177,50 +141,35 @@ fn spawned_commands_answer_only_under_internal() {
         (vec!["agent", "X"], "temper-box: no command agent; temper-box --help lists them\n"),
         (vec!["agent-list", "X"], "temper-box: no command agent-list; temper-box --help lists them\n"),
         (vec!["serve", "--box"], "temper-box serve: invalid arguments\nusage: temper-box serve [DIRECTORIES]\n"),
-        (
-            vec!["forge", "child", "--parent", "1", "--signal", "kill", "--", "p"],
-            "temper-box: no command forge child; temper-box --help lists them\n",
-        ),
+        (vec!["forge", "child"], "temper-box: no command forge child; temper-box --help lists them\n"),
     ] {
         assert_eq!(configured(&words), Err(error.into()));
     }
     assert_eq!(configured(&["internal", "agent", "X"]), Ok(Command::Agent { configuration: "X".into() }));
-    for words in [vec!["internal", "agent-list", "X"], vec!["--list", "internal", "agent-list", "X"]] {
-        assert_eq!(configured(&words), Ok(Command::AgentList { configuration: "X".into() }));
+    let expected = Ok(Command::AgentList { configuration: "X".into() });
+    assert_eq!(configured(&["internal", "agent-list", "X"]), expected);
+    assert_eq!(configured(&["--list", "internal", "agent-list", "X"]), expected);
+    for words in [vec!["internal", "agent-list"], vec!["internal", "agent-list", "X", "Y"], vec!["internal", "serve"]] {
+        assert!(configured(&words).is_err(), "refused {words:?}");
     }
-    for words in [vec!["internal", "agent-list"], vec!["internal", "agent-list", "X", "Y"]] {
-        assert!(configured(&words).is_err(), "one list configuration: {words:?}");
-    }
-    let Command::Serve { directories, boxed } = configured(&["internal", "serve", "--box"]).expect("box step") else {
-        panic!("serve")
-    };
-    assert!(boxed);
-    assert_eq!(directories.config.as_ref(), b"/home/test/.config/temper");
-    assert_eq!(
-        configured(&["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
-        Ok(Command::ForgeChild {
-            parent: 1,
-            signal: skein_io::kernel::Signal::Kill,
-            program: "p".into(),
-            arguments: vec![],
-        })
-    );
-    assert!(configured(&["internal", "serve"]).is_err(), "internal serve requires --box");
+    assert!(matches!(
+        configured(&["internal", "serve", "--box"]).expect("box step"),
+        Command::Serve { boxed: true, .. }
+    ));
 }
 
 #[test]
 fn refusals_name_the_command_and_its_forms() {
     for (words, error) in [
-        (
-            vec!["http://127.0.0.1:8367", "http://127.0.0.1:9000"],
-            "temper-box: invalid arguments\nusage: temper-box [ADDRESS]\n",
-        ),
         (vec!["bogus"], "temper-box: no command bogus; temper-box --help lists them\n"),
+        (vec!["box"], "temper-box: no command box; temper-box --help lists them\n"),
+        (vec!["http://127.0.0.1:8367"], "temper-box: no command http://127.0.0.1:8367; temper-box --help lists them\n"),
         (vec!["forge", "bogus", "1"], "temper-box: no command forge bogus; temper-box --help lists them\n"),
         (
             vec!["forge", "run", "1"],
             "temper-box forge run: invalid arguments\nusage: temper-box forge run [DIRECTORIES] FORGE forgejo|runner\n",
         ),
+        (vec!["init", "extra"], "temper-box init: invalid arguments\nusage: temper-box init [DIRECTORIES]\n"),
     ] {
         assert_eq!(configured(&words), Err(error.into()));
     }
@@ -228,14 +177,14 @@ fn refusals_name_the_command_and_its_forms() {
 
 #[test]
 fn rows_are_within_bounds() {
-    for (index, row) in COMMANDS.iter().enumerate() {
-        assert!(row.line.len() <= 120, "{:?}: line", row.words);
-        assert!(row.notes.len() <= 1024, "{:?}: notes", row.words);
-        for argument in row.arguments {
-            assert!(argument.line.len() <= 200, "{:?}: {}", row.words, argument.shown);
+    for (index, command) in TABLE.commands.iter().enumerate() {
+        assert!(command.line.len() <= 120, "{:?}: line", command.reach);
+        assert!(command.notes.len() <= 1024, "{:?}: notes", command.reach);
+        for argument in command.arguments {
+            assert!(argument.line.len() <= 200, "{:?}: {}", command.reach, argument.shown);
         }
-        for other in &COMMANDS[index + 1..] {
-            assert_ne!(row.words, other.words, "unique command words");
+        for other in &TABLE.commands[index + 1..] {
+            assert_ne!(command.reach, other.reach, "unique reach");
         }
     }
 }
@@ -246,7 +195,7 @@ fn rows_are_within_bounds() {
     reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
 )]
 fn the_page_commands_is_what_the_table_renders() {
-    let rendered = commands::reference();
+    let rendered = temper_shell::table::commands_page(&TABLE);
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
         Some(value) => value == "1",
         None => false,
@@ -356,6 +305,33 @@ fn every_ctl_group_page_is_what_the_table_renders() {
                 "{name} should be:\n{rendered}; regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
             );
             assert_eq!(page.text, rendered, "compiled {name} should be:\n{rendered}");
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the checked documents; the test table will pass it"
+)]
+fn arguments_and_environment_documents_are_the_tables() {
+    let documents = [
+        ("temper-box-args.md", TABLE.arguments_document()),
+        ("temper-box-env.md", TABLE.environment_document(&TREE)),
+        ("temper-engine-env.md", temper_engine_shell::ENGINE.environment_document(&TREE)),
+        ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
+    ];
+    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    for (name, rendered) in documents {
+        let path = skein_scratch::paths::tree().join("docs/design/cli").join(name);
+        if write {
+            std::fs::write(path, rendered).expect("write table document");
+        } else {
+            assert_eq!(
+                std::fs::read_to_string(path).expect("table document"),
+                rendered,
+                "{name}: regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
+            );
         }
     }
 }

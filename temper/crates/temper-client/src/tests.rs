@@ -59,6 +59,28 @@ fn every_row_parses_and_the_rest_is_refused() {
 }
 
 #[test]
+fn the_tui_refusals_explain_the_terminal_and_sign_in() {
+    use temper_client_shell_tui::start::{Refused, terminal_refusal};
+    for (why, line) in [
+        (Refused::NotATerminal, "temper-client: the TUI needs a terminal on stdin and stdout\n"),
+        (Refused::NotAnAddress(Box::from(b"ARG".as_slice())), "temper-client: not an address: ARG\n"),
+        (
+            Refused::Link,
+            "temper-client: a sign-in link is never an argument: run temper-client http://HOST:PORT and paste it\n",
+        ),
+        (Refused::NotLoopback, "temper-client: the engine's address must be on loopback\n"),
+        (
+            Refused::Directory("/s/temper/tui: cannot open its files".into()),
+            "temper-client: /s/temper/tui: cannot open its files\n",
+        ),
+    ] {
+        assert_eq!(why.line(NAME), line, "{why:?}");
+    }
+    assert_eq!(terminal_refusal(NAME, false), "temper-client: no command; temper-client --help lists them\n");
+    assert_eq!(terminal_refusal(NAME, true), Refused::NotATerminal.line(NAME));
+}
+
+#[test]
 fn the_help_lists_the_clients_rows() {
     let text = help(NAME, &COMMANDS);
     for (line, present) in [
