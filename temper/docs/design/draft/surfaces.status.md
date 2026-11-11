@@ -19,11 +19,20 @@
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).
   - 6: `../client/pages/team.md`, 1 holds a project's people and
-    what waits on each, and the project's triager once a setting names
-    one; no design holds a project's areas, an area's owner, a person's
-    areas on their box, a role's card or "Hand an area to a role"
-    (`standing-roles.md` has no design yet either), and its lede counts
-    the people alone. This section has the triager as Who routes, a chip
+    what waits on each, the project's triager once a setting names
+    one, its standing roles in a section of their own, each reached from
+    its row there, and a role's card but for "owns AREA", "Talk to it",
+    "Give the area back" and its weekly report; no design holds a
+    project's areas, an area's owner, a person's areas on their box or
+    "Hand an area to a role" (`standing-roles.md`, 4 has no design yet
+    either), and its lede counts the people alone. A card's rules are its
+    charter's "Asked to", its instructions' first sentence, not the words
+    kept with it; what wakes it says "News from the forge" for a forge
+    topic and "A timer" for a timer, with no branch, check, paths or
+    purpose, which no client read gives; and a session's line on what it
+    did is a run's finished words, where one finished, since no record
+    keeps a session's (`../client/pages/team.md`, 2, *A role's card,
+    where a read lacks*). This section has the triager as Who routes, a chip
     under the areas, where `../client/pages/team.md`, 1 has a line at
     People's foot, "Findings with no area go to NAME.", which nothing
     draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
@@ -93,7 +102,8 @@
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
-    `night-team`), with no areas or role's card. No state holds Tell
+    `night-team`), and a role's card, by day and at night (`team-role`,
+    `night-team-role`), with no areas. No state holds Tell
     temper's card, which nothing draws yet (9); the phone's tabs and a
     need at 390 pixels are `all-home`'s, `needs-list`'s and `ask-chat`'s
     prints read at a phone's width, a print being one page at every
@@ -106,6 +116,16 @@
     role they hold (`../client/pages/README.md`, *Team*): no read gives
     another party's inbox (jig's `domain/people/README.md`, section 5). Decided
     by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
+  - 6: a role's card's "Pause" is jig's `Stop` of the role, as a goal's
+    page's Pause is (`../client/pages/team.md`, 1, *A role's card*): it
+    stops its live run and holds the role and every task it started
+    until Resume, where this section's Pause stops its wakes alone, since
+    a person's hold is placed over a subtree (jig's
+    `domain/tasks/lifecycle.md`, 10) and none holds one task alone yet.
+    Its Now's kicker says "written at 06:58" alone, without "when its
+    last session ended", since no client read gives a session's record
+    (jig's `domain/tasks/standing.md`, 7). Decided by goal 713's design,
+    2026-11-11.
   - 3 and 13: `../client/pages/README.md`, *Home on All projects*, sets
     each joined sentence after its project's name and ": " in the strong
     weight, where `home.html`'s lede names each project in its own words,

@@ -268,8 +268,8 @@ switcher's All projects; Work's one list, its head, filters and cards,
 Goals and Changes its filters; Deployment's six tabs, Members and Limits
 new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
-walk follow landing. Team shows from a project's second person, not yet
-for a standing role. Its repair, goal 368, draws To begin's rail with the
+walk follow landing. Team shows from a project's second person or its
+first standing role. Its repair, goal 368, draws To begin's rail with the
 hairline and How work runs, turns the words that still named Settings to
 How work runs and Deployment, and keeps Home and Needs you across projects
 under All projects, Needs you's count across them; its render check and
@@ -286,8 +286,12 @@ world's two people reading each other and three gallery states; its
 render check and walk follow landing. Its repair gives a box the role
 "Owner", People's head the role its people share, "owners of shop", and
 a line's count in words, as `team/team.html` does. No setting names the
-project's triager, so its line isn't drawn; areas, owners, the triager
-as Who routes and a role's card are P4b's and P4c's, and a line's
+project's triager, so its line isn't drawn. P4b, goal 713, draws the
+project's standing roles, a row each, and a role's card: its head with
+Pause and Resume, its Now, its rules, what wakes it and its sessions this
+week, with two gallery states; a forge topic's words, a charter's kept
+words and a session's line wait for reads. Areas, owners, the triager as
+Who routes and a card's "Talk to it" are P4c's, and a line's
 sign-offs wait on sign-offs by path and kept sign-offs
 (`client/pages/team.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
 ; `draft/surfaces.status.md`, 6). Away on All projects, by

@@ -262,7 +262,7 @@ replay says the same clocks (`../view.md`, 6).
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
-  | `Team { project }` | `/projects/<project>/team` |
+  | `Team { project, role }` | `/projects/<project>/team`, and `?role=N` for `Some(N)` |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
