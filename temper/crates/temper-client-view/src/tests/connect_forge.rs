@@ -514,7 +514,7 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
     // The account by its kind and who it is; the model is chosen elsewhere
     // (choice's tests name each kind).
     let account = crate::pages::accounts::first_usable_short(&root, &f::words()).unwrap();
-    let trying = [account.as_ref(), " · trying: Playground answers".as_bytes()].concat();
+    let trying = [account.as_ref(), " · trying: Playground answers · one short message".as_bytes()].concat();
     node(view.tree(), Role::Paragraph, &trying);
 }
 #[test]

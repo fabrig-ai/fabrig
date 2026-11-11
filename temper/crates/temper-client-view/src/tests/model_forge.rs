@@ -210,7 +210,7 @@ fn subtree<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a [Node] {
     &tree.nodes()[start..start.checked_add(usize::try_from(tree.nodes()[start].size).unwrap()).unwrap()]
 }
 fn region(tree: &Tree) -> &[Node] {
-    subtree(tree, Role::Complementary, b"Forge")
+    subtree(tree, Role::Complementary, b"Forge and model")
 }
 fn paragraph(tree: &Tree) -> &[Node] {
     let name = region(tree).iter().find(|n| n.role == Role::Paragraph).unwrap().name.as_deref().unwrap();
@@ -260,7 +260,7 @@ fn the_forge_is_a_region_after_the_choices_and_before_the_foot() {
             nodes.iter().position(|n| n.role == Role::Link && n.name.as_deref() == Some("‹ Back".as_bytes())).unwrap();
         assert!(heading < body && body < pane && pane < back);
         assert!(nodes[pane].styles.as_slice().contains(&look::WELCOME_STATUS));
-        assert_eq!(nodes[pane].name.as_deref(), Some(b"Forge".as_slice()));
+        assert_eq!(nodes[pane].name.as_deref(), Some(b"Forge and model".as_slice()));
         assert!(!nodes[..heading].iter().any(|n| n.styles.as_slice().contains(&look::WELCOME_STATUS)));
     }
 }
@@ -342,12 +342,14 @@ fn the_terminal_says_the_status_with_no_bar() {
         assert!(!text.contains("Setting up: fetching: "));
         let heading = text.find("Connect a model").unwrap();
         let choices = text.rfind("Claude").unwrap();
-        let forge = text.find("Forge:\n").unwrap();
+        let forge = text.find("Forge and model:\n").unwrap();
         let words = text.find(line).unwrap();
         let back = text.find("‹ Back").unwrap();
         assert!(heading < choices && choices < forge && forge < words && words < back);
         assert!(text.lines().any(|row| row.trim_start() == line && row.starts_with(' ')));
         assert_eq!(text.contains("Each step"), steps);
+        assert!(text.lines().any(|row| row.trim() == "Model none yet" && row.starts_with(' ')));
+        assert!(words < text.find("Model none yet").unwrap() && text.find("Model none yet").unwrap() < back);
     }
 }
 

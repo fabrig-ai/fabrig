@@ -76,6 +76,7 @@ fn running_marks_each_step_and_only_the_browser_has_a_bar() {
             let mut name = String::from("Claude subscription · trying: ");
             name.push_str(step);
             let line = position(&tree, Role::Paragraph, name.as_bytes());
+            assert!(!String::from_utf8_lossy(&f::text(&tree)).contains("one short message"));
             let disclosure = position(&tree, Role::Disclosure, b"Each step");
             assert!(line < disclosure);
             assert_eq!(styled(&tree, look::FLOW_BUSY), w.shell == crate::words::Shell::Browser);
@@ -142,29 +143,67 @@ fn stopped_says_why_then_controls_then_each_step_in_both_shells() {
 }
 #[test]
 fn a_plan_or_key_has_two_steps_with_the_first_already_done() {
-    for (first, account, line) in
-        [(First::Plan, "ChatGPT plan", "Signed in to your ChatGPT plan"), (First::Key, "OpenAI API key", "Key added")]
+    for (key, account, first_line) in
+        [(false, "ChatGPT plan", "Signed in to your ChatGPT plan"), (true, "OpenAI API key", "Key added")]
     {
-        let trial = Trial {
-            first,
-            account_number: None,
-            account: account.as_bytes().into(),
-            who: b"ChatGPT".as_slice().into(),
-            detail: None,
-            state: State::Running { at: 1 },
-        };
-        for w in [f::words(), f::browser_words()] {
-            let tree = drawn(&w, &trial);
-            assert_eq!(items(&tree).len(), 2);
-            assert!(items(&tree)[0].styles.as_slice().contains(&look::FLOW_DONE));
-            assert!(items(&tree)[1].states.as_slice().contains(&skein_ui::State::Current));
-            let text = String::from_utf8_lossy(&f::text(&tree)).into_owned();
-            assert!(text.contains(line));
-            assert!(text.contains("ChatGPT answers"));
-            assert!(!text.contains("Code starts"));
+        for state in [
+            State::Running { at: 1 },
+            State::Answered { seconds: 6 },
+            State::Stopped { at: 1, why: b"Stopped".as_slice().into(), answer: None },
+        ] {
+            let running = match state {
+                State::Running { .. } => true,
+                State::Usable | State::Answered { .. } | State::Stopped { .. } => false,
+            };
+            let trial = Trial {
+                first: if key { First::Key } else { First::Plan },
+                account_number: None,
+                account: account.as_bytes().into(),
+                who: b"ChatGPT".as_slice().into(),
+                detail: None,
+                state,
+            };
+            for w in [f::words(), f::browser_words()] {
+                let tree = drawn(&w, &trial);
+                let text = String::from_utf8_lossy(&f::text(&tree)).into_owned();
+                assert_eq!(text.contains("one short message"), key && running);
+                if !running {
+                    assert!(!print(&tree).contains("one short message"));
+                    continue;
+                }
+                let mut name = String::from(account);
+                name.push_str(" · trying: ChatGPT answers");
+                if key {
+                    name.push_str(" · one short message");
+                }
+                let at = position(&tree, Role::Paragraph, name.as_bytes());
+                if w.shell == crate::words::Shell::Browser {
+                    let paragraph = &tree.nodes()[at..at + usize::try_from(tree.nodes()[at].size).unwrap()];
+                    let details: Vec<_> =
+                        paragraph.iter().filter(|n| n.styles.as_slice().contains(&look::FLOW_MUTED)).collect();
+                    let expected: &[&str] = if key {
+                        &["Trying: ChatGPT answers", "one short message"]
+                    } else {
+                        &["Trying: ChatGPT answers"]
+                    };
+                    assert_eq!(details.len(), expected.len());
+                    for (detail, expected) in details.iter().zip(expected) {
+                        assert_eq!(f::nodes_text(core::slice::from_ref(*detail)).as_ref(), expected.as_bytes());
+                    }
+                } else {
+                    assert!(print(&tree).contains(&name));
+                }
+                assert_eq!(items(&tree).len(), 2);
+                assert!(items(&tree)[0].styles.as_slice().contains(&look::FLOW_DONE));
+                assert!(items(&tree)[1].states.as_slice().contains(&skein_ui::State::Current));
+                assert!(text.contains(first_line));
+                assert!(text.contains("ChatGPT answers"));
+                assert!(!text.contains("Code starts"));
+            }
         }
     }
 }
+
 #[test]
 fn stopped_controls_retry_and_link_to_the_reason_or_all_ways() {
     let root = ready_root();
