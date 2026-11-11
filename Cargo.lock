@@ -309,6 +309,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "skein-throwaway-forgejo",
+ "temper-test-env",
 ]
 
 [[package]]
@@ -6546,6 +6547,7 @@ dependencies = [
  "skein-world",
  "temper-fake-checkout",
  "temper-fake-git",
+ "temper-test-env",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
 ]

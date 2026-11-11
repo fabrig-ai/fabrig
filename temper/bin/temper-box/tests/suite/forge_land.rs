@@ -278,10 +278,10 @@ fn launcher(directory: &std::path::Path, argument: &str, login: Option<&std::pat
         .env("PATH", "/usr/bin:/bin")
         .env("HOME", directory)
         .env("TMPDIR", directory)
-        .env("TEMPER_LIVE_STORE", directory.join("store"))
-        .env("TEMPER_LIVE_KEEP", directory.join("evidence"));
+        .env(temper_test_env::LIVE_STORE.name, directory.join("store"))
+        .env(temper_test_env::LIVE_KEEP.name, directory.join("evidence"));
     if let Some(login) = login {
-        command.env("TEMPER_LIVE_CLAUDE", login);
+        command.env(temper_test_env::LIVE_CLAUDE.name, login);
     }
     command
 }
@@ -303,25 +303,25 @@ fn the_claude_launcher_refuses_invalid_held_directories() {
     }
     symlink(root.join("empty"), root.join("link")).expect("link fixture");
     for (argument, login, message) in [
-        ("forge-land-claude", None, "TEMPER_LIVE_CLAUDE is required for forge-land-claude"),
-        ("forge-land-claude", Some("missing"), "TEMPER_LIVE_CLAUDE names no directory"),
-        ("forge-land-claude", Some("file"), "TEMPER_LIVE_CLAUDE is not a directory or is a link"),
-        ("forge-land-claude", Some("link"), "TEMPER_LIVE_CLAUDE is not a directory or is a link"),
-        ("forge-land-claude", Some("link/"), "TEMPER_LIVE_CLAUDE is not a directory or is a link"),
-        ("forge-land-claude", Some("public"), "TEMPER_LIVE_CLAUDE is not 0700"),
-        ("forge-land-claude", Some("empty"), "TEMPER_LIVE_CLAUDE is empty"),
+        ("forge-land-claude", None, "TEMPER_TEST_LIVE_CLAUDE is required for forge-land-claude"),
+        ("forge-land-claude", Some("missing"), "TEMPER_TEST_LIVE_CLAUDE names no directory"),
+        ("forge-land-claude", Some("file"), "TEMPER_TEST_LIVE_CLAUDE is not a directory or is a link"),
+        ("forge-land-claude", Some("link"), "TEMPER_TEST_LIVE_CLAUDE is not a directory or is a link"),
+        ("forge-land-claude", Some("link/"), "TEMPER_TEST_LIVE_CLAUDE is not a directory or is a link"),
+        ("forge-land-claude", Some("public"), "TEMPER_TEST_LIVE_CLAUDE is not 0700"),
+        ("forge-land-claude", Some("empty"), "TEMPER_TEST_LIVE_CLAUDE is empty"),
         (
             "forge-land-claude",
             Some("Bad-name"),
-            "TEMPER_LIVE_CLAUDE has no valid source name (1 to 32 lowercase letters, digits or hyphens)",
+            "TEMPER_TEST_LIVE_CLAUDE has no valid source name (1 to 32 lowercase letters, digits or hyphens)",
         ),
         (
             "forge-land-claude",
             Some("abcdefghijklmnopqrstuvwxyz1234567"),
-            "TEMPER_LIVE_CLAUDE has no valid source name (1 to 32 lowercase letters, digits or hyphens)",
+            "TEMPER_TEST_LIVE_CLAUDE has no valid source name (1 to 32 lowercase letters, digits or hyphens)",
         ),
-        ("forge-land", Some("empty"), "TEMPER_LIVE_CLAUDE is for forge-land-claude"),
-        ("", Some("empty"), "TEMPER_LIVE_CLAUDE is for forge-land-claude"),
+        ("forge-land", Some("empty"), "TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude"),
+        ("", Some("empty"), "TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude"),
     ] {
         let path = login.map(|name| root.join(name));
         let output = launcher(root, argument, path.as_deref()).output().expect("offline launcher checks");
@@ -739,7 +739,7 @@ fn stubbed_story_launcher(
     let mut command = launcher(scratch.path(), story, if story == "forge-land-claude" { Some(&login) } else { None });
     command.env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()));
     if default_store {
-        command.env_remove("TEMPER_LIVE_STORE");
+        command.env_remove(temper_test_env::LIVE_STORE.name);
     }
     let output = command.output().expect("stubbed launcher");
     (scratch, output)
@@ -771,7 +771,7 @@ fn the_launcher_returns_the_login_after_a_signal() {
 #[test]
 fn the_launcher_refuses_changed_login_metadata_on_exit() {
     let (scratch, output) =
-        stubbed_launcher("live-claude-changed", "chmod 755 \"$TEMPER_LIVE_CLAUDE\"\nexit 17", "claude-login");
+        stubbed_launcher("live-claude-changed", "chmod 755 \"$TEMPER_TEST_LIVE_CLAUDE\"\nexit 17", "claude-login");
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stdout).contains("CLAUDE LOGIN NOT BACK:"));
     scratch.remove();
@@ -791,7 +791,7 @@ fn the_launcher_runs_only_the_claude_story_then_returns() {
 /// The launcher exports the stores' directory and keeps its story's store beneath it.
 #[test]
 fn the_launcher_gives_each_landing_story_its_own_store() {
-    let body = "printf '%s\\n' \"$TEMPER_LIVE_STORE\" \"$@\" >> \"$HOME/seen\"\nexit 0";
+    let body = "printf '%s\\n' \"$TEMPER_TEST_LIVE_STORE\" \"$@\" >> \"$HOME/seen\"\nexit 0";
     for (story, test, default_store) in [
         ("forge-land", "a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge", false),
         ("forge-land-claude", "a_person_asks_claude_code_to_land_a_change_on_the_owned_forge", false),
@@ -837,7 +837,7 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
     }
 }
 
-/// `TEMPER_WRAPPER` names one command that runs each of the launcher's builds, cargo's
+/// `TEMPER_TEST_WRAPPER` names one command that runs each of the launcher's builds, cargo's
 /// own arguments following it.
 #[test]
 fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
@@ -851,7 +851,7 @@ fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
     }
     let output = launcher(root, "forge-land", None)
         .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
-        .env("TEMPER_WRAPPER", "wrap")
+        .env(temper_test_env::WRAPPER.name, "wrap")
         .output()
         .expect("wrapped launcher");
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
@@ -899,7 +899,7 @@ fn the_offline_rung_runs_its_proofs_in_the_process_profile() {
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable wrapper stub");
     let output = launcher(root, "rung-b0-offline", None)
         .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
-        .env("TEMPER_WRAPPER", "wrap")
+        .env(temper_test_env::WRAPPER.name, "wrap")
         .output()
         .expect("wrapped offline launcher");
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
@@ -1165,7 +1165,7 @@ fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std:
     support::write_private(&cargo, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
     fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let output = launcher(root, story, None)
-        .env("TEMPER_LIVE_ACCOUNT", &account)
+        .env(temper_test_env::LIVE_ACCOUNT.name, &account)
         .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
         .output()
         .expect("held-login launcher");
@@ -1188,18 +1188,18 @@ fn the_launcher_runs_the_ordinary_return_hook_before_stopping_after_a_signal() {
         // The first cargo call represents the build; the second imports a
         // synthetic record and installs the same hook contract as the story.
         let body = r#"case " $* " in *" --no-run "*) exit 0 ;; esac
-mkdir -p "$TEMPER_LIVE_STORE"
-mv "$TEMPER_LIVE_ACCOUNT" "$TEMPER_LIVE_STORE/synthetic-import"
-cat > "$TEMPER_LIVE_STORE/give-back" <<'HOOK'
+mkdir -p "$TEMPER_TEST_LIVE_STORE"
+mv "$TEMPER_TEST_LIVE_ACCOUNT" "$TEMPER_TEST_LIVE_STORE/synthetic-import"
+cat > "$TEMPER_TEST_LIVE_STORE/give-back" <<'HOOK'
 #!/bin/sh
 set -eu
-test -d "/proc/$(cat "$TEMPER_LIVE_STORE/runner")"
-mv "$TEMPER_LIVE_STORE/synthetic-import" "$TEMPER_LIVE_ACCOUNT"
+test -d "/proc/$(cat "$TEMPER_TEST_LIVE_STORE/runner")"
+mv "$TEMPER_TEST_LIVE_STORE/synthetic-import" "$TEMPER_TEST_LIVE_ACCOUNT"
 printf '%s\n' 'HOOK RETURNED'
 HOOK
-chmod 700 "$TEMPER_LIVE_STORE/give-back"
-printf '%s\n' "$$" > "$TEMPER_LIVE_STORE/runner"
-for directory in "$TMPDIR/owned" "$TEMPER_LIVE_STORE/owned"; do
+chmod 700 "$TEMPER_TEST_LIVE_STORE/give-back"
+printf '%s\n' "$$" > "$TEMPER_TEST_LIVE_STORE/runner"
+for directory in "$TMPDIR/owned" "$TEMPER_TEST_LIVE_STORE/owned"; do
     mkdir -p "$directory"
     (cd "$directory"; exec sleep 30) >/dev/null 2>&1 &
     printf '%s\n' "$!" >> "$HOME/owned-children"
@@ -1208,8 +1208,8 @@ kill -TERM "$PPID"
 # Stay alive until the launcher has run the hook, then accept its TERM.
 exec sleep 30"#;
         let body = body.replace(
-            "$TEMPER_LIVE_STORE",
-            if story == "forge-land" { "$TEMPER_LIVE_STORE/forge-land" } else { "$TEMPER_LIVE_STORE" },
+            "$TEMPER_TEST_LIVE_STORE",
+            if story == "forge-land" { "$TEMPER_TEST_LIVE_STORE/forge-land" } else { "$TEMPER_TEST_LIVE_STORE" },
         );
         let (scratch, output) = held_launcher("held-signal", story, &body);
         assert_eq!(output.status.code(), Some(143), "{}", String::from_utf8_lossy(&output.stderr));
@@ -1239,7 +1239,8 @@ exec sleep 30"#;
 #[test]
 fn the_launcher_refuses_changed_ordinary_held_login_metadata() {
     for story in ["forge-land", "rung-b0"] {
-        let (scratch, output) = held_launcher("held-metadata", story, r#"chmod 644 "$TEMPER_LIVE_ACCOUNT"; exit 17"#);
+        let (scratch, output) =
+            held_launcher("held-metadata", story, r#"chmod 644 "$TEMPER_TEST_LIVE_ACCOUNT"; exit 17"#);
         assert_eq!(output.status.code(), Some(1));
         assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK:"));
         scratch.remove();
@@ -1248,9 +1249,9 @@ fn the_launcher_refuses_changed_ordinary_held_login_metadata() {
 
 #[test]
 fn the_launcher_records_a_failed_ordinary_return_hook() {
-    let body = r#"mkdir -p "$TEMPER_LIVE_STORE/forge-land"
-printf '#!/bin/sh\nexit 9\n' > "$TEMPER_LIVE_STORE/forge-land/give-back"
-chmod 700 "$TEMPER_LIVE_STORE/forge-land/give-back"
+    let body = r#"mkdir -p "$TEMPER_TEST_LIVE_STORE/forge-land"
+printf '#!/bin/sh\nexit 9\n' > "$TEMPER_TEST_LIVE_STORE/forge-land/give-back"
+chmod 700 "$TEMPER_TEST_LIVE_STORE/forge-land/give-back"
 exit 17"#;
     let (scratch, output) = held_launcher("held-return-failure", "forge-land", body);
     assert_eq!(output.status.code(), Some(1));
@@ -1265,26 +1266,26 @@ fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named(
     use support::forge_land::held_account;
     let scratch = support::Scratch::new("held-account");
     let file = scratch.path().join("record");
-    assert_eq!(held_account(&file), Err("TEMPER_LIVE_ACCOUNT names no file"));
+    assert_eq!(held_account(&file), Err("TEMPER_TEST_LIVE_ACCOUNT names no file"));
     fs::write(&file, b"record").expect("record");
     for (mode, admitted) in [
         (0o600, Ok(())),
-        (0o640, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
-        (0o644, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
-        (0o400, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
-        (0o700, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
+        (0o640, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (0o644, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (0o400, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (0o700, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
     ] {
         fs::set_permissions(&file, fs::Permissions::from_mode(mode)).expect("mode");
         assert_eq!(held_account(&file), admitted, "mode {mode:o}");
     }
     let link = scratch.path().join("link");
     std::os::unix::fs::symlink(&file, &link).expect("link");
-    assert_eq!(held_account(&link), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
-    assert_eq!(held_account(scratch.path()), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
+    assert_eq!(held_account(&link), Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file"));
+    assert_eq!(held_account(scratch.path()), Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file"));
     scratch.remove();
 }
 
-/// testing/live-tier.md: one `TEMPER_LIVE_STORE` holds a store per landing story.
+/// testing/live-tier.md: one `TEMPER_TEST_LIVE_STORE` holds a store per landing story.
 #[test]
 fn each_landing_story_takes_its_own_store_under_one_live_store() {
     use std::{fs, os::unix::fs::PermissionsExt, path::Path};

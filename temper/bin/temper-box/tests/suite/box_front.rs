@@ -29,17 +29,19 @@ struct Terminal {
     bytes: Vec<u8>,
 }
 impl Terminal {
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C4: TERM and the child process environment, through temper's test table once it exists"
-    )]
     fn start(root: &Path) -> Self {
         let mut command = box_link::command(root, "");
         command.env("XDG_STATE_HOME", root.join("state"));
-        if std::env::var_os("TERM").is_none() {
+        if temper_test_env::value(&temper_shell::environment::TERM).is_none() {
             command.env("TERM", "xterm-256color");
         }
-        let mut environment: BTreeMap<_, _> = std::env::vars_os().collect();
+        let mut environment: BTreeMap<_, _> = temper_test_env::environment()
+            .into_vec()
+            .into_iter()
+            .map(|(name, value)| {
+                (std::ffi::OsStr::from_bytes(&name).to_os_string(), std::ffi::OsStr::from_bytes(&value).to_os_string())
+            })
+            .collect();
         for (name, value) in command.get_envs() {
             if let Some(value) = value {
                 environment.insert(name.to_owned(), value.to_owned());
