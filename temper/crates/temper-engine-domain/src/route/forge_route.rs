@@ -13,6 +13,8 @@ use temper_engine_domain_forge_landing as landing;
 pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
 pub(super) const ASKING_TEMPLATE: u32 = 5;
+// The project's roles (temper/docs/design/domain/forge/change/branch-path.md).
+pub(super) const DRAFTING_TEMPLATE: u32 = 6;
 pub(super) const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
