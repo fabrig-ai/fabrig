@@ -189,6 +189,11 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+- **`cli/`:** temper's command lines: each binary's package, crate,
+  table, help, exits and environment (`cli/README.md`), and the
+  reference documents generated from the tables beside it, each
+  binary's `<binary>-args.md` and `<binary>-env.md` and the tree's
+  common environment document.
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.
@@ -258,8 +263,8 @@ temper's side before the layer:
 - the forge's, of no side: skein's, `skein-forge` (its documents and
   call plans, which the forge component and the setup share) and
   `skein-forge-setup` (reconcile); its setup's rest, outside the
-  services, `temper-forge-setup`, `temper-forge-setup-shell` and
-  `temper-box`; a pinned binary's fetch and Claude Code's launcher, of
+  services, `temper-forge-setup`, `temper-forge-setup-shell` and the
+  box's machine, `temper-box-machine`; a pinned binary's fetch and Claude Code's launcher, of
   no side, `temper-fetch`, `temper-fetch-shell` and `temper-launcher`;
 - the user documentation's, of no side, `temper-docs`
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
@@ -269,9 +274,10 @@ temper's side before the layer:
   and the fake git program it hosts, `temper-fake-git-hosted`
   (`playground.md`, 3);
 - the client's, under `temper-client` (`client/README.md`, section 2);
-- the services, `temper-service`; the box's binary, `temper`, and the
-  engine's, `temper-engine`, with the shells they share,
-  `temper-engine-shell` and `temper-shell`, and `temper-version`; the
+- the services, `temper-service`; the box's binary, `temper-box`, and
+  the engine's, `temper-engine`, packages under `bin/` whose crates are
+  `temper-box-shell` and `temper-engine-shell`, with the shell they
+  share, `temper-shell`, and `temper-version` (`cli/README.md`, 2); the
   deployment's client, `temper-client`, and its agent, `temper-agent`
   (`protocol/binaries.md`).
 

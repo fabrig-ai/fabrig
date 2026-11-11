@@ -63,10 +63,15 @@ file the site serves beside it (5.1). The site that links them is
 
 ## 3. Its identity
 
-- **`temper --version`** (and `temper version`) prints one line,
-  `temper VERSION (COMMIT)`, before any configuration is read, exit 0.
-  Each of a deployment's binaries prints its own name the same way,
-  `temper-engine VERSION (COMMIT)` (`protocol/binaries.md`, 1).
+- **`--version`** prints one line, `NAME VERSION (COMMIT)`, NAME the
+  binary's, before any configuration is read, exit 0: `temper-box
+  VERSION (COMMIT)`, `temper-engine VERSION (COMMIT)`, each of a
+  deployment's binaries the same way (`protocol/binaries.md`, 1). It is
+  a flag, with no `version` command beside it
+  (`skein/docs/foundation/cli.md`, 7).
+- **The commit's build name,** `TEMPER_INTERNAL_COMMIT`, is the one
+  `temper-version`'s build script hands its library (`cli/README.md`,
+  8); every binary's line reads it there.
 - **VERSION** is the workspace's version in `Cargo.toml`, `0.1.0` at
   v0.1.0's tag and `0.0.0` between releases; **COMMIT** the commit it
   was built from, twelve hex digits, with `-dirty` when the tree had

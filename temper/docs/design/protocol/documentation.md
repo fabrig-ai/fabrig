@@ -130,17 +130,23 @@ on.
 
 ## 4. `temper help`
 
-- `temper help` prints the page `index` whole.
-- `temper help NAME` prints the page whole, as its file holds it, and
-  exits 0; a name that is no page exits 1, printing `temper: no page
-  NAME; temper help lists them`.
-- `temper help --search WORDS...` prints at most 20 hits, a line each:
+Every binary's `help`, `BINARY` its name (`../cli/README.md`, 5):
+
+- `BINARY help pages` prints the page `index` whole.
+- `BINARY help NAME` prints the page whole, as its file holds it, and
+  exits 0; a name that is no page exits 1, printing `BINARY: no page
+  NAME; BINARY help lists them`.
+- `BINARY help --search WORDS...` prints at most 20 hits, a line each:
   `NAME: HEADING: LINE`, then `and more; narrow the words` when more
-  matched; none exits 1, printing `temper: nothing matches`.
-- It reads no directory and no configuration: it works before `temper
-  init`. `temper --help` prints the binary's table, its rows by who runs
-  them (`binaries.md`); `temper ctl help` prints the
-  page `ctl`, then the tools (`../client/ctl/testing.md`, 5).
+  matched; none exits 1, printing `BINARY: nothing matches`.
+- `BINARY help commands` prints the page `commands` for the binary's own
+  table (8).
+- It reads no directory and no configuration: it works before
+  `temper-box init`. `BINARY -h`, `--help` and `help` alone print the
+  binary's page from its table, its public commands, flags and
+  variables (`skein/docs/design/runtime/shell.md`, 14.2); `temper ctl
+  help` prints the page `ctl`, then the tools
+  (`../client/ctl/testing.md`, 5).
 
 ## 5. `read_docs`, for agents
 
@@ -199,13 +205,13 @@ to a suite's time beyond milliseconds.
 
 Each reference page is rendered from one table by the crate that holds
 the table, checked in under `docs/help/reference/`, and held equal to
-its rendering by `temper`'s step test (section 6), which prints the page
+its rendering by its crate's step test (section 6), which prints the page
 as it should be. A table's text (its lines and notes) is documentation,
 in `../draft/agent-docs.md` 6's voice.
 
 | Page | Its table | A row |
 |---|---|---|
-| `commands` | the binary's commands (`crates/temper`; `binaries.md`) | a command: its words, usage, line, arguments and notes |
+| `commands` | a binary's table: `temper-box`'s, as the page is compiled, and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |

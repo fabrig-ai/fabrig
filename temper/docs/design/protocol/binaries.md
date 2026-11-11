@@ -1,41 +1,48 @@
 # The processes and the binaries
 
-The box's binary, `temper` (`crates/temper`), ordinary Rust: a shell,
-copied from jig's reference binary, the whole product with every
-command; a deployment runs a binary per process (1). Its commands, sorted by who runs them
-(`../draft/agent-docs.md`, 7.1), `temper ctl`'s as `../client/ctl/README.md`
-designs them:
+The box's binary, `temper-box` (`bin/temper-box`, its code
+`crates/temper-box-shell`), ordinary Rust: a shell, copied from jig's
+reference binary, the whole product, for trying temper and for one
+person's development on one machine; a deployment runs a binary per
+process (1). Its table, its sets, its help and its exits are
+`../cli/README.md`'s (6); its commands, `temper ctl`'s as
+`../client/ctl/README.md` designs them:
 
 ```
-documentation  temper help [NAME | --search WORDS...]
-deployment     temper init [DIRECTORIES] [--box]
-               temper serve [DIRECTORIES]
-               temper box [DIRECTORIES] [--echo none|steps] [--fake-backends [--bundle DIR]] [--no-tui]
-               temper versions
-               temper upgrade --check DIRECTORY | --back
-               temper program-login [DIRECTORIES] NAME
-               temper forge fetch|prepare|sign-in|remove [DIRECTORIES] FORGE
-               temper forge run [DIRECTORIES] FORGE forgejo|runner
-clients        temper [ADDRESS]
-               temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
-               temper ctl DIRECTORY --call FILE [--json]
-               temper ctl help [GROUP [VERB]]
-               temper open DIRECTORY LINK_OR_ADDRESS
-spawned        temper internal agent AGENT.json
-               temper internal serve [DIRECTORIES] --box
-               temper internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
-               temper internal tui --box ADDRESS
-test doubles   temper fake llm|forge|oauth|git ...
+public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]
+               temper-box init [DIRECTORIES]
+               temper-box serve [DIRECTORIES]
+               temper-box program-login [DIRECTORIES] NAME
+               temper-box help [NAME | pages | --search WORDS...]
+               temper-box versions
+               temper-box upgrade --check DIRECTORY | --back
+internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--no-tui]
+               temper-box init [DIRECTORIES] --box
+               temper-box forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
+               temper-box forge run [DIRECTORIES] FORGE forgejo|runner
+               temper-box ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+               temper-box ctl DIRECTORY --call FILE [--json]
+               temper-box ctl help [GROUP [VERB]]
+               temper-box open DIRECTORY LINK_OR_ADDRESS
+spawned        temper-box internal agent AGENT.json
+               temper-box internal serve [DIRECTORIES] --box
+               temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
+               temper-box internal tui --box ADDRESS
+test doubles   temper-box fake llm|forge|oauth|git ...
 ```
 
-- **Every command is a row of the binary's table,** as ctl's tools are
-  (`../client/ctl/tools.md`, 1): its words, its usage, its line, its
-  arguments with a line each, and its notes. The parser, `temper
-  COMMAND --help`, `temper --help` (the rows by who runs them, a line
-  each) and the reference page `commands` derive from it.
-- **What temper spawns itself** is under `temper internal`, absent from
-  `temper --help`'s first groups and from every page but `commands`; a
+- **Every command is a command of the binary's table,**
+  `skein_shell::Table` (`../cli/README.md`, 6), as ctl's tools are
+  (`../client/ctl/tools.md`, 1): its words, its forms, its line, its
+  arguments with a line each, and its notes. Its reach, `temper-box
+  --help`, `temper-box COMMAND --help`, the reference documents and the
+  page `commands` derive from it.
+- **What temper spawns itself** is under `temper-box internal`, internal,
+  absent from `temper-box --help` and from every page but `commands`; a
   person or an agent never runs it.
+- **The TUI on an engine** is the client's, `temper-client [ADDRESS]`
+  below; the box runs it in front of itself by `internal tui`, until the
+  client's `temper box` does (`../draft/cli.md`, section 5).
 - **The deployment's client, `temper-client`** (`crates/temper-client`;
   `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
   own for a person's machine or an automation's. Its table holds three of
@@ -276,20 +283,23 @@ A deployment's processes each run a binary of their own
 `temper-engine` (2), the agent's, `temper-agent` (3), the worker's,
 `temper-worker` (5), and the client's, each written here by its own
 milestone
-(`../draft/deployment-binaries.execution.md`). The box keeps `temper`,
+(`../draft/deployment-binaries.execution.md`). The box is `temper-box`,
 which links every one of them and keeps every command above. What holds
 of each:
 
-- **Its own table,** rows as above, from which its parser, its
+- **Its own table,** commands as above, from which its reach, its
   `--help`, its `COMMAND --help` and its usage lines derive, rendered
-  under its own name by `temper-shell`'s `commands` (`components.md`). A row
-  two binaries share, the same words run by the same code, is one
-  constant both tables hold. `help`, the pages, is every binary's.
-- **`--version`** prints `NAME VERSION (COMMIT)` before the table is
+  under its own name: `skein_shell::Table` for `temper-box` and
+  `temper-engine` (`../cli/README.md`), `temper-shell`'s `commands` for
+  the client and the worker until theirs are built
+  (`../draft/cli.execution.md`, C3 and C6). A command two binaries
+  share, the same words run by the same code, is one constant both
+  tables hold. `help`, the pages, is every binary's.
+- **`--version`** prints `NAME VERSION (COMMIT)` before any command is
   read (`../release.md`, section 3).
 - **A binary refuses a document that isn't its own,** before any other
   check, by the document's nearest shape (`cluster.md`, 1), naming the binary that
-  runs it; the standalone shape is the box's `temper serve`'s.
+  runs it; the standalone shape is `temper-box serve`'s.
 - **What it links is held by a test.** Each reads, for a binary's
   package, its closure as `cargo tree -p PACKAGE -e normal --locked
   --offline` gives it, and its table has a row per binary, in one of
@@ -325,11 +335,13 @@ of each:
 
 ## 2. `temper-engine`
 
-The engine's host's binary, `crates/temper-engine`, ordinary Rust: the
-engine and its web client, with the owned forge's commands:
+The engine's host's binary, `bin/temper-engine`, its code
+`crates/temper-engine-shell`, ordinary Rust: the engine and its web
+client, with the owned forge's commands. Its table and sets are
+`../cli/README.md`'s (7):
 
 ```
-documentation  temper-engine help [NAME | --search WORDS...]
+documentation  temper-engine help [NAME | pages | --search WORDS...]
 deployment     temper-engine serve [DIRECTORIES]
                temper-engine versions
                temper-engine upgrade --check DIRECTORY | --back
@@ -354,7 +366,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   - a worker alone's:
     `temper-engine COMMAND: temper.json holds a worker alone; temper-worker serve runs it`;
   - standalone's:
-    `temper-engine COMMAND: temper.json holds an engine and its worker in one process; the box's temper serve runs it`.
+    `temper-engine COMMAND: temper.json holds an engine and its worker in one process; temper-box serve runs it`.
 
   A document whose shape can't be read, not a JSON object, goes on to
   the checks `temper serve` makes, and is refused in their words.
@@ -371,8 +383,8 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     in the order `temper-service`'s `store::WIRES` gives them.
 - **`upgrade`** is `binaries.md`'s `temper upgrade`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
-  temper-engine --help lists them`, the words given as far as a row
-  begins with them, and exit 1, as the box's binary says it.
+  temper-engine --help lists them`, the words given as far as a command
+  begins with them, and exit 2 (`../cli/README.md`, 4).
 - **The bundle is in it,** as in the box's (`../client/web/README.md`,
   2.6): of a deployment's binaries, only the engine's serves the web
   client.
@@ -398,10 +410,10 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   and the channel's shared wires, `jig-protocol-worker-wire` and
   `temper-protocol-worker-wire`, are the engine's as much as the
   worker's, and are not excluded.
-- **Its package** holds its table and its `main` alone; the commands'
-  code is `temper-engine-shell`'s and `temper-shell`'s, `--version`'s
-  `temper-version`'s (`components.md`). Its step tests, one test binary, run
-  the built binary.
+- **Its package** holds its `main` alone; its table, its dispatch and
+  its commands' code are `temper-engine-shell`'s and `temper-shell`'s,
+  `--version`'s `temper-version`'s (`components.md`). Its step tests, one
+  test binary in its package, run the built binary.
 
 ## 3. The agent's binary, `temper-agent`
 
@@ -560,7 +572,7 @@ deployment     temper-worker serve [DIRECTORIES]
   - an engine alone's:
     `temper-worker COMMAND: temper.json holds an engine alone; temper-engine serve runs it`;
   - standalone's:
-    `temper-worker COMMAND: temper.json holds an engine and its worker in one process; the box's temper serve runs it`.
+    `temper-worker COMMAND: temper.json holds an engine and its worker in one process; temper-box serve runs it`.
 
   A document whose shape can't be read, not a JSON object, goes on to
   the checks a worker alone's start makes, and is refused in their
