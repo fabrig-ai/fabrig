@@ -21,6 +21,7 @@ fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box
     )
     .with_close_job(command.then_some(COMMAND), authority)
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

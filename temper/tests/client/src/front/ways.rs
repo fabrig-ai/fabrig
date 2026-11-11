@@ -221,6 +221,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
         if matches!(repository, Repository::Yours) {
             use temper_engine_domain_forge::{self as forge, settings};
             let own = settings::LandingRule {
+                sets: Box::new([]),
                 pattern: forge::GatePattern {
                     segments: Box::new([b"branch".as_slice().into()]),
                     last: forge::GateLast::Open(Box::new([])),

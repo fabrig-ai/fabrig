@@ -177,6 +177,7 @@ fn rule(record: v1::LandingRule) -> settings::LandingRule {
             .expect("decoded approval count");
     }
     settings::LandingRule {
+        sets: parts.sets.into_boxed(),
         pattern: GatePattern { segments: pattern.segments.into_boxed(), last },
         enforce: parts.enforce,
         ci: parts.ci,
@@ -253,6 +254,7 @@ fn wire_rule(rule: &settings::LandingRule) -> v1::LandingRule {
             up_to_date: rule.up_to_date,
             gates,
             approvals,
+            sets: List::from_boxed(rule.sets.clone()),
         },
     )
     .expect("rule within schema ceilings")

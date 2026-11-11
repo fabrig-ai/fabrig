@@ -126,6 +126,7 @@ fn config(seed: u64) -> engine::Config {
     }
     // The changed base takes the update route before the forge's merge.
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,

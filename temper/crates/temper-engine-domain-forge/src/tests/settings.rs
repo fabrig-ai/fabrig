@@ -196,6 +196,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "empty pattern",
             with_rule(LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
@@ -204,6 +205,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "segments past bound",
             with_rule(LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
@@ -213,6 +215,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "exact last bytes",
             with_rule(LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern {
                     last: GateLast::Exact(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()
@@ -224,6 +227,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "open last bytes",
             with_rule(LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern {
                     last: GateLast::Open(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()

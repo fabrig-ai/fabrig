@@ -721,6 +721,7 @@ impl World {
             edit: top::settings::Edit::Set(top::settings::SizedValue {
                 size: 64,
                 value: top::settings::Value::Rule(top::settings::LandingRule {
+                    sets: Box::new([]),
                     pattern: top::GatePattern {
                         segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"]
                             .map(Box::from)

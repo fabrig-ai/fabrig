@@ -395,6 +395,7 @@ fn setting_row(rng: &mut Rng, bounds: &Bounds) {
         s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
     } else {
         s::Value::Rule(s::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
             enforce: rng.below(2) == 0,
             ci: rng.below(2) == 0,

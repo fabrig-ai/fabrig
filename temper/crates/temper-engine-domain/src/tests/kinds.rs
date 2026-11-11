@@ -23,6 +23,7 @@ fn rule(ci: bool) -> settings::SizedValue {
     settings::SizedValue {
         size: RULE_BYTES,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::default()),
@@ -572,6 +573,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let limits = resume_fixture::limits();
     let mut config = resume_fixture::config(7);
     let deployment = Box::new([crate::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         pattern: authority::Pattern {
@@ -603,6 +605,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let expected = settings::SizedValue {
         size: 0,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::new([])),

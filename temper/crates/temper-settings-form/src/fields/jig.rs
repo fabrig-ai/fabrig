@@ -1260,6 +1260,7 @@ pub static FIELDS: [Field; 228] = [
     Field { shape: Shape::LandingRule, name: b"up_to_date", value: Value::Boolean, list: None, null: false, line: b"The change's head must contain its base's tip." },
     Field { shape: Shape::LandingRule, name: b"gates", value: Value::Shape(Shape::LandingGate), list: Some(Bound::Limit(Limit::LandingGates)), null: false, line: b"The gates every change it covers asks for." },
     Field { shape: Shape::LandingRule, name: b"approvals", value: Value::Shape(Shape::LandingApproval), list: Some(Bound::Limit(Limit::LandingApprovals)), null: false, line: b"The distinct people holding each role who must approve the change by a forge review." },
+    Field { shape: Shape::LandingRule, name: b"sets", value: Value::Integer(Width::U8), list: Some(Bound::Limit(Limit::LandingSets)), null: false, line: b"Path sets of the project's classes, each 1 to 6 and at most once; optional, [] when left out. Printed only when nonempty. A deployment's rule names none." },
     Field { shape: Shape::LandingGate, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"The agent review's or repository check's gate number." },
     Field { shape: Shape::LandingGate, name: b"blocking", value: Value::Boolean, list: None, null: false, line: b"Whether this gate must pass before the change lands." },
     Field { shape: Shape::LandingGate, name: b"freshness", value: Value::Words(FRESHNESS), list: None, null: false, line: b"At which later heads a verdict still counts." },

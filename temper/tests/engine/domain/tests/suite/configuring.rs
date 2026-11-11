@@ -1159,6 +1159,7 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
     changed["up_to_date"] = json!(false);
     changed["gates"] = json!([]);
     let value = temper_engine_domain_forge::settings::Value::Rule(temper_engine_domain_forge::settings::LandingRule {
+        sets: Box::new([]),
         pattern: temper_engine_domain_forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: temper_engine_domain_forge::GateLast::Open(Box::default()),

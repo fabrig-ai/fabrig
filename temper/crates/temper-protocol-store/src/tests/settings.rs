@@ -5,6 +5,7 @@ use temper_engine_domain_forge::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
     d::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice()), Box::from(b"branch".as_slice())]),
             last: forge::GateLast::Exact(Box::from(b"main".as_slice())),

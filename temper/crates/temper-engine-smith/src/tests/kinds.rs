@@ -8,6 +8,7 @@ const BOUNDS: Bounds = Bounds { segments: 5, segment_bytes: 12, gates: 2, approv
 
 fn deployment() -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),

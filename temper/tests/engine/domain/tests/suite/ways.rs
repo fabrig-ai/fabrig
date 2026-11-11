@@ -77,6 +77,7 @@ fn ack(driver: &mut Driver) {
 
 fn rule() -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: forge::GateLast::Open(Box::new([])),

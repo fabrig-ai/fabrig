@@ -281,7 +281,7 @@ enum LandingLast { exact: LandingExact, open: LandingOpen }
 record LandingPattern { segments: list 16 bytes 4096 last: LandingLast }
 record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
-record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval sets: list 6 u8 }
 record ForgeCharter { charter: u32 }
 record TemplateGoal { design: bool close_out: bool }
 enum QuestionsRoute { none, foreman, up }
