@@ -480,7 +480,10 @@ pub(crate) fn config(
     _settings: &settings::Engine,
     deployment: [u8; 16],
 ) -> (temper_engine_domain_forge::Config, Box<[forge::GitIdentity]>) {
-    (temper_engine_domain_forge::Config { push: None, namespace: Box::new(deployment), writers: Box::new([]) }, Box::new([]))
+    (
+        temper_engine_domain_forge::Config { push: None, namespace: Box::new(deployment), writers: Box::new([]) },
+        Box::new([]),
+    )
 }
 
 /// What a forge connect starts from.

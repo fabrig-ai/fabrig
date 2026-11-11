@@ -840,7 +840,11 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
     let mut forge = domain::Domain::new(
         limits,
         7,
-        temper_engine_domain_forge::Config { push: None, namespace: Box::from(b"fixture".as_slice()), writers: Box::new([]) },
+        temper_engine_domain_forge::Config {
+            push: None,
+            namespace: Box::from(b"fixture".as_slice()),
+            writers: Box::new([]),
+        },
         &[],
         &[domain::Configured {
             bot: Box::new([]),

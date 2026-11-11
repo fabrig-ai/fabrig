@@ -86,8 +86,8 @@ impl Harness {
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
             | w::Request::AddDevice(_)
-| w::Request::RemoveDevice(_)
-| w::Request::SetAway(_)
+            | w::Request::RemoveDevice(_)
+            | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
             | w::Request::TryAccount(_)

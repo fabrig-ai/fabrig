@@ -1855,7 +1855,7 @@ impl Joint {
                 let (welcome, owned) = self.deployment;
                 let answer = w::DeploymentAnswer::new(
                     &w::CEILINGS,
-                    w::DeploymentAnswerParts { push: None,  welcome, owned, program_login: None },
+                    w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
                 )
                 .expect("deployment answer");
                 self.callbacks.push((

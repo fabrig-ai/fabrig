@@ -436,7 +436,11 @@ impl World {
         let top = top::Domain::new(
             &limits,
             seed,
-            temper_engine_domain_forge::Config { push: None, namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
+            temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::from(&b"world"[..]),
+                writers: writer.into_iter().collect(),
+            },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[configured_forge()],
             false,
@@ -847,7 +851,8 @@ impl World {
         self.top = top::Domain::new(
             &self.env.limits,
             self.seed,
-            temper_engine_domain_forge::Config { push: None,
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },

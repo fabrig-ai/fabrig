@@ -65,7 +65,12 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
 }
 fn decode(record: &[u8], limits: Limits) -> Option<Answer> {
     let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?.into_parts();
-    Some(Answer { welcome: answer.welcome, owned: answer.owned, program_login: answer.program_login, push: answer.push })
+    Some(Answer {
+        welcome: answer.welcome,
+        owned: answer.owned,
+        program_login: answer.program_login,
+        push: answer.push,
+    })
 }
 fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");

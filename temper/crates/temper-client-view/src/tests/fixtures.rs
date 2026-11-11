@@ -1994,9 +1994,11 @@ pub fn deliver_playground(
     playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
-    let answer =
-        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { push: None,  welcome, owned, program_login: None })
-            .expect("deployment answer");
+    let answer = w::DeploymentAnswer::new(
+        &w::CEILINGS,
+        w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
+    )
+    .expect("deployment answer");
     playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
