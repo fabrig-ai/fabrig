@@ -20,10 +20,20 @@ pub struct ApprovalWait {
     pub since: Wall,
     /// Whether its reviews were read whole.
     pub whole: bool,
-    /// The changes after it in its landing branch's order (domain/forge/queues.md).
-    pub behind: u32,
     /// Its enforcing approvals still short, in its panel's order, each with its people counted.
-    pub short: Box<[PanelApproval]>,
+    pub short: Box<[ShortApproval]>,
+}
+
+/// A short approval and the sets of its rule touched at this head
+/// (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ShortApproval {
+    pub scope: u32,
+    pub rule: u32,
+    pub role: u32,
+    pub required: u32,
+    pub counted: Box<[crate::Reviewer]>,
+    pub sets: u8,
 }
 
 impl Domain {
@@ -52,7 +62,7 @@ impl Domain {
     /// are at its last head, with an approval still short and none refused; oldest `since`
     /// first, then by task. Allocates; changes nothing.
     #[must_use]
-    pub fn approval_waits(&self, now: Wall, limits: &Limits) -> Box<[ApprovalWait]> {
+    pub fn approval_waits(&self, _now: Wall, limits: &Limits) -> Box<[ApprovalWait]> {
         let mut waits = Map::with_capacity(limits.changes);
         for (task, row) in &self.changes {
             if row.terminal() {
@@ -92,15 +102,28 @@ impl Domain {
                 continue;
             }
             let since = self.review_since(*task).expect("kept review facts have their first time");
-            let mut behind = 0_u32;
-            let mut found = false;
-            if let Some(ordered) = self.changes_order(row, now, limits) {
-                for other in &ordered {
-                    if found {
-                        behind = behind.saturating_add(1);
+            let mut approvals = List::uncapped();
+            let rules = self.landing_rules(repository.project);
+            let touched = self.touched_at(row);
+            for approval in short {
+                let mut sets = 0;
+                for held in &rules {
+                    if held.scope == approval.scope && held.number == approval.rule {
+                        for number in &held.rule.sets {
+                            sets |= crate::gates::set_bit(*number) & touched.sets;
+                        }
                     }
-                    found |= other == task;
                 }
+                approvals
+                    .push(ShortApproval {
+                        scope: approval.scope,
+                        rule: approval.rule,
+                        role: approval.role,
+                        required: approval.required,
+                        counted: approval.counted,
+                        sets,
+                    })
+                    .expect("admitted approvals");
             }
             waits
                 .insert(
@@ -115,8 +138,7 @@ impl Domain {
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         since,
                         whole: facts.reviews_complete,
-                        behind,
-                        short,
+                        short: approvals.into_boxed(),
                     },
                 )
                 .expect("one wait per bounded change");

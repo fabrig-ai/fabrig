@@ -36,9 +36,16 @@ pub struct ApprovalRow {
     pub role: u32,
     pub required: u32,
     pub counted: u32,
-    pub behind: u32,
+    pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: YourReview,
+}
+
+/// A touched path set of this row's approval (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSet {
+    pub number: u8,
+    pub name: Box<[u8]>,
 }
 
 /// One watcher's approvals document (client/forge/records.md).
@@ -58,7 +65,11 @@ impl Approvals {
                 .saturating_add(size_of::<ApprovalRow>())
                 .saturating_add(row.owner.len())
                 .saturating_add(row.name.len())
-                .saturating_add(row.title.len());
+                .saturating_add(row.title.len())
+                .saturating_add(size_of_val(row.sets.as_ref()));
+            for set in &row.sets {
+                bytes = bytes.saturating_add(set.name.len());
+            }
         }
         bytes
     }
@@ -119,6 +130,22 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
     } else {
         YourReview::Counts
     };
+    let mut sets = List::with_capacity(6);
+    let classes = domain.forge.project_classes(wait.project);
+    for number in 1_u8..=6 {
+        let bit = 1_u8.checked_shl(u32::from(number.saturating_sub(1))).expect("six path sets");
+        if approval.sets & bit == 0 {
+            continue;
+        }
+        let mut name: Box<[u8]> = Box::default();
+        for set in &classes.sets {
+            if set.number == number {
+                name.clone_from(&set.name);
+                break;
+            }
+        }
+        sets.push(ApprovalSet { number, name }).expect("six path sets");
+    }
     Some(ApprovalRow {
         task: wait.task,
         project: wait.project,
@@ -134,7 +161,7 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         role: approval.role,
         required: approval.required,
         counted: u32::try_from(approval.counted.len()).expect("bounded counted people"),
-        behind: wait.behind,
+        sets: sets.into_boxed(),
         whole: wait.whole,
         yours,
     })

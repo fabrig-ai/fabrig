@@ -33,7 +33,7 @@ pub struct NeedPrompt {
 pub enum NeedAct {
     /// A question the person may answer, as `shared::question` builds one.
     Answer(Question),
-    /// The browser's "Review on FORGE ↗" and the forge's review page.
+    /// The browser's review or sign-off words and the forge's review page.
     Review { words: Box<[u8]>, address: Box<[u8]> },
     /// Decided on the web.
     Web,
