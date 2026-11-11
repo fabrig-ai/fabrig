@@ -73,7 +73,7 @@ or the nearest thing, and says so in that draft's status.
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
 | P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | landed but for a charter's line on Roles, whose repair starts (section 5) |
 | P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
-| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed; its repair starts (section 5) |
+| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed and repaired; its render check and walk follow (`../client/README.md`, 5) |
 | P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | not started |
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
 | P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | landed but for Tell temper, which waits (section 5) |
@@ -293,7 +293,8 @@ as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
 and P1's, P5a's and P5b's at 01:30Z, as P5a retired, and P3e's and
 P3f's at 02:25Z, as P3f retired, and P3e's at 03:18Z, as it retired, and
 N1's, N2's, N3a's, N3b's and P3b's at 04:11Z, as N1 retired, and
-N3a's at 15:34Z, as it retired, and P3b's at 15:59Z, as it retired. Plans
+N3a's at 15:34Z, as it retired, and P3b's at 15:59Z, as it retired, and
+P4a's on 2026-11-11, as its repair retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -306,7 +307,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P3c, P3d | wait | N2, or F1 and R1, by their needs |
 | P3e | landed; its repair starts | `ui-p3e-words` keeps a charter's words, kind 9, and a project's, kind 10, which Ask temper writes with what it proposes, the stock's for each stock charter, a headline for each stock way, which How work runs' heading and lede say, the project's own where it runs none, and a tier's description, which its card says; the stock holds no tier, so none of its words. It drew no charter's line on Roles, which had not landed at its cut: a repair carries kind 9 on the `roles` view's cards and draws it after when the role runs, its instructions' first sentence where none is kept, as `how.html` does (`surfaces.status.md`, 7); `see ways` says no way's headline yet (`../domain/agent/ask-temper.status.md`, 1); its render check follows landing |
 | P3f | done | |
-| P4a | landed; its repair starts | `ui-p4a-team` drew Team's people as this draft and `team/team.html` stood before its cut; a repair, or a look request, gives a box the role "Owner", People's head "owners of shop" and a line's count in words; the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its walk follows (`../client/README.md`, 5) |
+| P4a | landed and repaired; its render check and walk follow | `ui-p4a-team` drew Team's people, and its repair gives a box the role "Owner", People's head the role its people share, "owners of shop", and a line's count in words (`../client/pages/team.md`, 1); the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 5). Tell temper is designed and drawn nowhere: it waits for the engine to file a person's word as a finding and for a setting naming the project's triager, which no milestone above builds, and follows as a milestone of its own once they land (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
 | P5b | waits | R2, by its needs, and Tell temper's filing (P5a) |
@@ -331,7 +332,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P4a's repair, as temper/ui's places allow; P3a's
+- **Next to start:** P3a's
   repair, with P3e's, both on Roles; P2's repair, then P7; T2, whose needs have landed: T1 by
   `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair; N2,
   temper/migration's, and N3b, both must, then N1's repair.
