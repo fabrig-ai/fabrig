@@ -42,7 +42,7 @@ refusal names the project, forge, role, required count and current eligible
 count. A rule covering the playground's forge is refused: no one can approve
 there.
 
-With several members (`temper serve`), a managed Forgejo or a pasted App:
+With several members (`temper-box serve`), a managed Forgejo or a pasted App:
 A deployment owner login or a matching display name does not establish a forge identity.
 Add the human collaborator on the forge. On Forgejo, a repository administrator must also grant temper's
 forge user repository admin: collaborator reads can require it even with write.

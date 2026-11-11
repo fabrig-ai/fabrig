@@ -14,7 +14,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
         "`q` types a character on every screen",
         "The TUI has no sign-out action",
         "Close the TUI",
-        "`temper open DIR http://HOST:PORT`",
+        "`temper-box open DIR http://HOST:PORT`",
         "existing TUI directory",
         "engine's loopback HTTP address",
         "`$XDG_STATE_HOME/temper/tui`",
@@ -100,7 +100,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let (step, _) = steps.split_once("\n## 4. ").expect("step 4");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let line = crate::host::note_line(
-        "temper",
+        "temper-box",
         temper_service::Note::ForgeSignIn {
             number: 1,
             client: b"forgejo".as_slice().into(),
@@ -126,7 +126,7 @@ fn coding_run_agent_document() -> serde_json::Value {
     let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
     let facts = temper_init::Facts {
         sign_in: false,
-        binary: b"/opt/temper/bin/temper",
+        binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/opt/temper/bin/claude"),
         ports: temper_init::Ports {
@@ -415,11 +415,12 @@ fn box_help_creates_the_first_project_before_using_its_number() {
 fn every_command_line_in_the_pages_parses() {
     let mut ctl = 0;
     let mut binary = 0;
+    let mut front = 0;
     let mut failures = Vec::new();
     let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
     for page in &temper_docs::PAGES {
         for (at, line) in fenced_lines(page.text) {
-            if line.split_ascii_whitespace().next() != Some("temper") {
+            if !matches!(line.split_ascii_whitespace().next(), Some("temper" | "temper-box")) {
                 continue;
             }
             let words = match command_words(line) {
@@ -429,23 +430,33 @@ fn every_command_line_in_the_pages_parses() {
                     continue;
                 }
             };
-            let mut translated = words[1..].to_vec();
-            if translated.first().is_some_and(|word| word == "box") {
-                translated.remove(0);
-            } else if translated.is_empty() || (translated.len() == 1 && translated[0].starts_with("http://")) {
-                continue;
-            }
-            let arguments = translated.iter().map(String::as_bytes).collect::<Vec<_>>();
-            let result = if words.get(1).is_some_and(|word| word == "ctl") {
-                ctl += 1;
-                match crate::ctl::parse(&arguments[1..]) {
-                    Ok((_, Parsed::Call { .. } | Parsed::File { .. })) => Ok(()),
-                    Err(why) => Err(why),
+            let words = words.iter().map(String::as_str).collect::<Vec<_>>();
+            let result = match words.as_slice() {
+                ["temper", "ctl", arguments @ ..] => {
+                    ctl += 1;
+                    let arguments = arguments.iter().map(|word| word.as_bytes()).collect::<Vec<_>>();
+                    match crate::ctl::parse(&arguments) {
+                        Ok((_, Parsed::Call { .. } | Parsed::File { .. })) => Ok(()),
+                        Err(why) => Err(why),
+                    }
                 }
-            } else {
-                binary += 1;
-                let arguments = arguments.into_iter().map(Box::from).collect::<Vec<_>>();
-                configure_with(&arguments, &environment, b"/").map(|_| ())
+                ["temper-box", arguments @ ..] | ["temper", "box", arguments @ ..] => {
+                    if words[0] == "temper-box" {
+                        binary += 1;
+                    } else {
+                        front += 1;
+                    }
+                    let arguments = arguments.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
+                    configure_with(&arguments, &environment, b"/").map(|_| ())
+                }
+                ["temper"] => continue,
+                // The ADDRESS placeholder becomes "1" in command_words.
+                ["temper", address]
+                    if *address == "1" || address.starts_with("http://") || address.starts_with("https://") =>
+                {
+                    continue;
+                }
+                _ => Err("not a documented binary command".into()),
             };
             if let Err(why) = result {
                 failures.push(format!("{}:{at}: {line}: {why}", page.name));
@@ -453,8 +464,8 @@ fn every_command_line_in_the_pages_parses() {
         }
     }
     assert!(failures.is_empty(), "{} command lines refused:\n{}", failures.len(), failures.join("\n"));
-    assert!(ctl > 0 && binary > 0, "checked {ctl} ctl and {binary} binary lines");
-    println!("checked {ctl} ctl and {binary} binary command lines");
+    assert!(ctl > 0 && binary > 0 && front > 0, "checked {ctl} ctl, {binary} box and {front} front lines");
+    println!("checked {ctl} ctl, {binary} box and {front} front command lines");
 }
 
 #[test]

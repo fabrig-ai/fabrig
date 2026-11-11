@@ -7,7 +7,7 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 ## What it is
 
 - **A provider** is an LLM provider in the configuration, by its
-  number: `temper init --box` writes provider 1, OpenAI, and provider 3, the
+  number: `temper-box init --box` writes provider 1, OpenAI, and provider 3, the
   playground's scripted model. `me` lists the providers your party may
   use and how each signs in.
 - **An account** is your party's, or the deployment's, held for its
@@ -36,7 +36,7 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 - **Connected:** a provider's sign-in starts from ctl and finishes in
   a browser on the engine's machine, where the provider sends it back;
   a key is added from a file; a program's login is declared, made on
-  each host with `temper program-login`, then verified.
+  each host with `temper-box program-login`, then verified.
 - **Limited:** a source that reaches a provider's limit waits,
   `later`, until its time, or until retried.
 - **Signed out or forgotten:** a source is signed out; an account, or
@@ -81,8 +81,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   export` and `account import` move one; `model list` reads the
   models. Each verb's arguments are its help: `temper ctl help
   account`.
-- **The binary:** `temper program-login` signs a program in on this
-  host (temper help commands).
+- **The binary:** `temper-box program-login` signs a program in on this
+  host (`temper-box help commands`).
 - **temper's runs** name a model, and an account where they choose
   one, in the tasks they delegate.
 
