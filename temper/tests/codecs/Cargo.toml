@@ -17,6 +17,7 @@ skein-scratch.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 temper-engine-domain-forge-tiers.workspace = true
 skein-io.workspace = true
 skein-forge.workspace = true

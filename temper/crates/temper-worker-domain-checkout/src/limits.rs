@@ -23,11 +23,11 @@ pub struct Limits {
     pub conflicts: u32,
     /// Maximum bytes of one full relative conflicted or changed path.
     pub path_bytes: u32,
-    /// How long an operation that reaches the forge may take: a clone, a
+    /// How long an operation that reaches the forge may take: making a store, a
     /// fetch, a branch's creation, a push.
     pub remote_timeout: Duration,
     /// How long one on the worker's disk may take: making a workspace,
-    /// checking out, merging, committing.
+    /// making a borrowing repository, checking out, merging, committing.
     pub local_timeout: Duration,
     /// Facts kept until the parent drains them. Beyond them, facts are dropped
     /// and counted.
@@ -38,7 +38,7 @@ pub struct Limits {
 /// needed by construction is representable.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some()
+    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some() && stores(limits).is_some()
 }
 
 /// The hold slab's capacity: two for each workspace. A hold holds one
@@ -48,4 +48,9 @@ pub fn valid(limits: &Limits) -> bool {
 /// released ones of an iteration are no more than twice the workspaces.
 pub(crate) fn holds(limits: &Limits) -> Option<u32> {
     limits.workspaces.checked_mul(2)
+}
+
+/// Most stores the workspaces can borrow (domain/worker.md, 5).
+pub(crate) fn stores(limits: &Limits) -> Option<u32> {
+    limits.workspaces.checked_mul(limits.repositories)
 }

@@ -416,6 +416,8 @@ from the engine's own answers, is where the look is tuned.
 | `sheet-copy` | Copy public, one address per line |
 | `sheet-copy-lines` | invalid copy lines and their repairs |
 | `sheet-empty-source` | Make empty, with organization, name and the destination forge |
+| `sheet-from-home` | `home-add-repository`'s deliveries, To begin's "Adopt another…" pressed: Add repositories over the project's Repositories, as that entry opens it for a project with no repository (`../forge/family.md`, 3) |
+| `sheet-from-chats` | `chats-no-repository`'s deliveries, its band's "Adopt a repository" pressed: Add repositories over Repositories, as a project with no repository opens it (`../forge/family.md`, 3) |
 | `repositories-making` | copies under way and failed, the forge’s reason, Copy again and Dismiss |
 | `chats-reference` | the reference world's chats |
 | `chat-reference-T1` | the reference world's chat T1 |

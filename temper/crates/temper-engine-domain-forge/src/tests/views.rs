@@ -521,6 +521,14 @@ fn changes_marks_a_verifications_save_and_erasure() {
 fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
+        landed_default: Box::new([ChangesLanded {
+            task: THIRD,
+            title: Box::from(TITLE),
+            at: env().wall,
+            commit: [0xab; 32],
+            default_branch: true,
+        }]),
+        landed_default_more: 0,
         project: PROJECT,
         landing: Box::from(b"main".as_slice()),
         more: 3,
@@ -536,15 +544,22 @@ fn changes_owned_bytes_charges_every_field() {
                 checks_since: Some(env().wall),
             }]),
         }]),
-        landed: Box::new([ChangesLanded { task: SECOND, title: Box::from(TITLE), at: env().wall }]),
+        landed: Box::new([ChangesLanded {
+            commit: [0xab; 32],
+            default_branch: true,
+            task: SECOND,
+            title: Box::from(TITLE),
+            at: env().wall,
+        }]),
     };
     assert_eq!(
         Document::Changes(view).owned_bytes(),
         size_of::<Document>()
             + size_of::<ChangesQueue>()
             + size_of::<ChangesQueued>()
-            + size_of::<ChangesLanded>()
+            + 2 * size_of::<ChangesLanded>()
             + STRINGS
+            + TITLE.len()
     );
 }
 #[test]
@@ -556,4 +571,76 @@ fn changes_limits_accept_the_bounds_and_refuse_outside() {
         assert!(!valid(&Limits { changes_rows: count, ..LIMITS }));
         assert!(!valid(&Limits { changes_landed: count, ..LIMITS }));
     }
+}
+
+#[test]
+fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kind() {
+    let mut d = changes_setup(&[]);
+    let mut repository = adopted();
+    repository.provider = OTHER_REPO;
+    repository.home = false;
+    repository.settings.default_branch = b"trunk".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let mut outside = logged(90, 90, 90, b"main");
+    outside.changes = Box::new([]);
+    log(
+        &mut d,
+        REPO,
+        Box::new([
+            logged(10, 10, 10, b"main"),
+            logged(20, 20, 20, b"main"),
+            logged(30, 30, 30, b"goal/7"),
+            logged(40, 40, 40, b"goal/7"),
+            logged(50, 50, 50, b"goal/7"),
+            outside,
+        ]),
+    );
+    log(&mut d, OTHER_REPO, Box::new([logged(25, 25, 25, b"trunk")]));
+    let limits = Limits { changes_landed: 2, ..LIMITS };
+    let Document::Changes(got) =
+        d.document(changes_subject(PROJECT), ApplicationScope::Project(PROJECT), 1, env().wall, &limits).unwrap()
+    else {
+        panic!("changes")
+    };
+    assert_eq!(
+        got.landed.as_ref(),
+        &[
+            ChangesLanded {
+                task: 50,
+                title: TITLE.into(),
+                at: Wall::from_nanos(50),
+                commit: [50; 32],
+                default_branch: false
+            },
+            ChangesLanded {
+                task: 40,
+                title: TITLE.into(),
+                at: Wall::from_nanos(40),
+                commit: [40; 32],
+                default_branch: false
+            },
+        ]
+    );
+    assert_eq!(got.landed_more, 4);
+    assert_eq!(
+        got.landed_default.as_ref(),
+        &[
+            ChangesLanded {
+                task: 25,
+                title: TITLE.into(),
+                at: Wall::from_nanos(25),
+                commit: [25; 32],
+                default_branch: true
+            },
+            ChangesLanded {
+                task: 20,
+                title: TITLE.into(),
+                at: Wall::from_nanos(20),
+                commit: [20; 32],
+                default_branch: true
+            },
+        ]
+    );
+    assert_eq!(got.landed_default_more, 1);
+    assert_eq!(got.landing.as_ref(), b"main", "a push without changes still names the latest branch");
 }

@@ -479,6 +479,26 @@ fn acts_follow_current_step_permission_and_pending_state() {
 }
 
 #[test]
+fn configured_ways_follow_the_pages_own_project() {
+    let mut f = fixture();
+    document(&mut f, NEWEST, true);
+    for (project, settings) in [(f::PROJECT, false), (OTHER, true), (OTHER, false), (f::PROJECT, true)] {
+        let address = if settings { Address::Settings { project } } else { Address::Ask { project } };
+        let out = go(&mut f.root, address);
+        if let Some(watch) = opened(&out, &stock_ways::watch(project, &f::limits().forge).unwrap()) {
+            f.watch = watch;
+            up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        }
+        show(&mut f, &panel(project, Some(0), true));
+        assert_eq!(
+            f.root.pages().stock_ways().unwrap().act(0),
+            if project == f::PROJECT { None } else { Some(WayAct::Keep) },
+            "project={project}"
+        );
+    }
+}
+
+#[test]
 fn use_and_keep_send_one_ordered_decision_at_newest() {
     for (current, action, kept) in [
         (Some(0), pages::Act::UseWay { project: f::PROJECT, way: 1 }, false),

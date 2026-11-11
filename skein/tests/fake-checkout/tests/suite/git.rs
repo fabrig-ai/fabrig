@@ -200,3 +200,48 @@ fn an_always_commit_records_a_fresh_equal_tree_with_its_own_message() {
     assert_eq!(store.message(next), b"checked");
     assert_eq!(store.branch(b"main"), Some(first), "commit moves no branch");
 }
+
+#[test]
+fn a_bare_clone_imports_only_default_history_and_keeps_the_format_even_when_empty() {
+    for format in [git::ObjectFormat::Sha1, git::ObjectFormat::Sha256] {
+        for empty in [false, true] {
+            let mut store = if empty { Store::empty(format) } else { Store::new(tree(&[(b"code", b"root")])) };
+            store.format = format;
+            let side = if empty {
+                None
+            } else {
+                let side = store.store(1, None, true, tree(&[(b"code", b"side")]), b"side").expect("side commit");
+                store.create(b"repo", b"side", side).expect("side branch");
+                Some(side)
+            };
+            let mut checkout = Checkout::new();
+            checkout.mkdir(b"cache");
+            git::clone_bare(&mut store, &mut checkout, b"repo", b"cache").expect("bare clone into empty directory");
+            assert_eq!(git::object_format(&checkout, b"cache"), format);
+            assert!(!checkout.exists(b"cache/.git"));
+            assert!(!checkout.exists(b"cache/code"), "no working tree");
+            if let Some(side) = side {
+                assert!(checkout.exists(b"cache/objects/1"));
+                assert_eq!(checkout.content(b"cache/refs/heads/main"), Some(1_u64.to_le_bytes().as_slice()));
+                assert!(!git::object_present(&checkout, b"cache", side), "a single branch is cloned");
+            } else {
+                assert!(checkout.tree(b"cache/objects").is_empty());
+            }
+        }
+    }
+}
+#[test]
+fn relative_alternates_supply_objects_to_checkout_fetch_and_update_ref() {
+    let mut store = Store::new(tree(&[(b"code", b"contents")]));
+    let mut checkout = Checkout::new();
+    git::init(&mut checkout, b"pool", true);
+    git::fetch(&mut store, &mut checkout, b"repo", b"pool", Want::Default).expect("fetched into bare repository");
+    git::init(&mut checkout, b"projects/local", false);
+    checkout.write(b"projects/local/.git/objects/info/alternates", b"../../../../pool/objects\n");
+    git::check_out(&store, &mut checkout, b"projects/local", 1).expect("relative borrowed object");
+    assert_eq!(checkout.content(b"projects/local/code"), Some(b"contents".as_slice()));
+    git::update_ref(&mut checkout, b"projects/local", b"refs/heads/main", 1).expect("borrowed reference");
+    git::fetch(&mut store, &mut checkout, b"repo", b"projects/local", Want::Default).expect("already borrowed");
+    assert!(!checkout.exists(b"projects/local/.git/objects/1"), "fetch does not copy borrowed objects");
+    assert_eq!(git::update_ref(&mut checkout, b"projects/local", b"refs/heads/absent", 99), Err(NotFetched));
+}

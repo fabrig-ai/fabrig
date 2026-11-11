@@ -209,7 +209,6 @@ pub struct Relay {
 }
 impl Relay {
     #[must_use]
-    #[expect(clippy::disallowed_methods, reason = "cli C4: TMPDIR, through temper's test table once it exists")]
     pub fn start(guard: Guard) -> Self {
         let roots = skein_shell::read_trust_roots(
             &skein_shell::Trust::Machine { ssl_cert_file: None },
@@ -217,7 +216,11 @@ impl Relay {
         )
         .expect("machine roots");
         let (tls, _) = skein_tls::Config::from_der(&roots.certificates, &[b"http/1.1"]).expect("relay TLS");
-        Self::open(guard, Path::new(&std::env::var_os("TMPDIR").expect("private live scratch")), Upstream::Tls(tls))
+        Self::open(
+            guard,
+            Path::new(&temper_test_env::value(&temper_test_env::TMPDIR).expect("private live scratch")),
+            Upstream::Tls(tls),
+        )
     }
     /// Local-only connector used by the default suite; never loads trust or resolves a host.
     #[must_use]

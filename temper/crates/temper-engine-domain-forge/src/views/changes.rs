@@ -15,6 +15,8 @@ pub struct ChangesView {
     pub more: u32,
     pub landed: Box<[ChangesLanded]>,
     pub landed_more: u32,
+    pub landed_default: Box<[ChangesLanded]>,
+    pub landed_default_more: u32,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesQueue {
@@ -35,6 +37,8 @@ pub struct ChangesLanded {
     pub task: u64,
     pub title: Box<[u8]>,
     pub at: Wall,
+    pub commit: [u8; 32],
+    pub default_branch: bool,
 }
 
 impl Domain {
@@ -95,6 +99,8 @@ impl Domain {
             more,
             landed: Box::new([]),
             landed_more: 0,
+            landed_default: Box::new([]),
+            landed_default_more: 0,
         };
         self.changes_history(&mut view, limits)?;
         Some(view)
@@ -107,7 +113,8 @@ impl Domain {
         let mut newest = None;
         let mut landing: Box<[u8]> = Box::default();
         for (repository, log) in &self.landing_logs {
-            if self.repositories.get(repository)?.project != view.project {
+            let adopted = self.repositories.get(repository)?;
+            if adopted.project != view.project {
                 continue;
             }
             for logged in &log.landings {
@@ -121,7 +128,18 @@ impl Domain {
                     landing.clone_from(&logged.branch);
                 }
                 for change in &logged.changes {
-                    recent.insert((key, change.task), change).ok()?;
+                    recent
+                        .insert(
+                            (key, change.task),
+                            ChangesLanded {
+                                task: change.task,
+                                title: change.title.clone(),
+                                at: logged.at,
+                                commit: logged.commit,
+                                default_branch: logged.branch == adopted.settings.default_branch,
+                            },
+                        )
+                        .ok()?;
                 }
             }
         }
@@ -137,16 +155,27 @@ impl Domain {
         }
         let mut landed = List::with_capacity(limits.changes_landed);
         let mut landed_more = 0_u32;
-        for (((Reverse(at), _, _), _), change) in &recent {
+        let mut landed_default = List::with_capacity(limits.changes_landed);
+        let mut landed_default_more = 0_u32;
+        for (_, change) in &recent {
+            if change.default_branch {
+                if landed_default.room() == 0 {
+                    landed_default_more = landed_default_more.checked_add(1)?;
+                } else {
+                    landed_default.push(change.clone()).ok()?;
+                }
+            }
             if landed.room() == 0 {
                 landed_more = landed_more.checked_add(1)?;
-                continue;
+            } else {
+                landed.push(change.clone()).ok()?;
             }
-            landed.push(ChangesLanded { task: change.task, title: change.title.clone(), at: *at }).ok()?;
         }
         view.landing = landing;
         view.landed = landed.into_boxed();
         view.landed_more = landed_more;
+        view.landed_default = landed_default.into_boxed();
+        view.landed_default_more = landed_default_more;
         Some(())
     }
 

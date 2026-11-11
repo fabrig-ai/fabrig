@@ -69,12 +69,12 @@ impl Capture {
 }
 /// # Errors
 /// Refuses an old or relative git, a provisioning failure or an output containing credentials.
-#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_FORGEJO for the transcript tool's pinned forge")]
+#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_TEST_FORGEJO for the transcript tool's pinned forge")]
 pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
     if !git.is_absolute() {
         return Err("--git must be an absolute path".into());
     }
-    let binary = std::env::var_os("TEMPER_FORGEJO").ok_or("TEMPER_FORGEJO must name the pinned Forgejo")?;
+    let binary = std::env::var_os("TEMPER_TEST_FORGEJO").ok_or("TEMPER_TEST_FORGEJO must name the pinned Forgejo")?;
     let forgejo = Forgejo::from_path(Path::new(&binary)).map_err(|e| format!("{e:?}"))?;
     let mut settings = Settings::small();
     settings.actions = false;
@@ -84,6 +84,10 @@ pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
     let home = scratch.join("worker/home");
     fs::create_dir_all(&home)?;
     fs::set_permissions(&home, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
+    let transcripts = out.join("transcripts");
+    if transcripts.exists() {
+        fs::remove_dir_all(&transcripts)?;
+    }
     let mut capture = Capture {
         git: git.into(),
         home,

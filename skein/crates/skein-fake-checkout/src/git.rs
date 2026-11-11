@@ -29,6 +29,11 @@ pub type Tree = BTreeMap<Vec<u8>, Vec<u8>>;
 /// graph; all queried IDs must exist. No delivery state or clock is held here
 /// (testing/fakes/checkout.md, section 4).
 pub trait Remote {
+    /// Metadata and the default tip for a bare, single-branch clone.
+    fn clone_default(&mut self, _remote: &[u8]) -> Result<CloneInfo, Fault> {
+        panic!("the world supplies metadata for a bare clone")
+    }
+
     /// Clone asks for all repository branch tips, or a remote refusal. No
     /// checkout mutation occurs before this returns (testing/fakes/checkout.md, section 4).
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault>;
@@ -172,7 +177,7 @@ pub fn clone_repository(
     assert!(!checkout.exists(at), "a clone goes where nothing is");
     checkout.mkdir(&[at, b"/.git"].concat());
     for commit in reached {
-        checkout.write(&object(at, commit), b"");
+        checkout.write(&object(checkout, at, commit), b"");
     }
     Ok(())
 }
@@ -192,10 +197,10 @@ pub fn fetch(
     let mut pending = vec![fetched];
     let mut reached = BTreeSet::new();
     while let Some(commit) = pending.pop() {
-        if !reached.insert(commit) || checkout.exists(&object(at, commit)) {
+        if !reached.insert(commit) || object_present(checkout, at, commit) {
             continue;
         }
-        checkout.write(&object(at, commit), b"");
+        checkout.write(&object(checkout, at, commit), b"");
         pending.extend(forge.parent(commit));
         pending.extend(forge.merge_parent(commit));
     }
@@ -212,7 +217,7 @@ pub fn create(forge: &mut impl Remote, remote: &[u8], branch: &[u8], commit: u64
 /// tree, writes head metadata and clears merge metadata. Local object absence
 /// returns `NotFetched` without mutation (testing/fakes/checkout.md, section 4).
 pub fn check_out(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], commit: u64) -> Result<(), NotFetched> {
-    if !checkout.exists(&object(at, commit)) {
+    if !object_present(checkout, at, commit) {
         return Err(NotFetched);
     }
     checkout.replace_tree(at, &forge.tree(commit));
@@ -256,7 +261,7 @@ fn commit_with(
     always: bool,
     message: &[u8],
 ) -> Result<Option<u64>, NotFetched> {
-    if !checkout.exists(&object(at, parent)) {
+    if !object_present(checkout, at, parent) {
         return Err(NotFetched);
     }
     let mut tree = checkout.tree(at);
@@ -264,7 +269,7 @@ fn commit_with(
     let Some(commit) = forge.store(parent, None, always, tree, message) else {
         return Ok(None);
     };
-    checkout.write(&object(at, commit), b"");
+    checkout.write(&object(checkout, at, commit), b"");
     checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
     Ok(Some(commit))
 }
@@ -280,7 +285,7 @@ pub fn push(
     commit: u64,
     branch: &[u8],
 ) -> Result<Pushed, Fault> {
-    assert!(checkout.exists(&object(at, commit)), "a push is of a commit the working tree has");
+    assert!(object_present(checkout, at, commit), "a push is of a commit the working tree has");
     forge.push(remote, branch, commit, None)
 }
 
@@ -302,7 +307,7 @@ pub struct Merged {
 pub fn merge(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], theirs: u64) -> Result<Merged, NotFetched> {
     let raw = checkout.content(&[at, b"/.git/temper-head"].concat()).ok_or(NotFetched)?;
     let ours = u64::from_le_bytes(raw.try_into().expect("checkout stores an eight-byte head"));
-    if !checkout.exists(&object(at, theirs)) {
+    if !object_present(checkout, at, theirs) {
         return Err(NotFetched);
     }
     let ours_tree = forge.tree(ours);
@@ -373,7 +378,7 @@ pub fn commit_merging(
     merging: u64,
     message: &[u8],
 ) -> Result<u64, CommitFailure> {
-    if !checkout.exists(&object(at, parent)) || !checkout.exists(&object(at, merging)) {
+    if !object_present(checkout, at, parent) || !object_present(checkout, at, merging) {
         return Err(CommitFailure::NotFetched);
     }
     let files: Vec<_> = checkout
@@ -387,7 +392,7 @@ pub fn commit_merging(
     let mut tree = checkout.tree(at);
     tree.retain(|path, _| !in_git(path));
     let commit = forge.store(parent, Some(merging), false, tree, message).expect("a merge always records both parents");
-    checkout.write(&object(at, commit), b"");
+    checkout.write(&object(checkout, at, commit), b"");
     checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
     checkout.remove(&[at, b"/.git/temper-conflicts"].concat());
     checkout.remove(&[at, b"/.git/MERGE_HEAD"].concat());
@@ -406,7 +411,7 @@ pub fn push_expected(
     branch: &[u8],
     expected: u64,
 ) -> Result<Pushed, Fault> {
-    assert!(checkout.exists(&object(at, commit)), "a push is of a locally held commit");
+    assert!(object_present(checkout, at, commit), "a push is of a locally held commit");
     forge.push(remote, branch, commit, Some(expected))
 }
 
@@ -540,6 +545,114 @@ fn merge_lines(base: &[u8], left: &[u8], right: &[u8]) -> Option<Vec<u8>> {
     Some(result)
 }
 
-fn object(at: &[u8], commit: u64) -> Vec<u8> {
-    [at, format!("/.git/objects/{commit}").as_bytes()].concat()
+/// Initialize a repository without contacting a remote. Bare repositories keep
+/// their objects directly under the directory (testing/fakes/checkout.md, 4).
+pub fn init(checkout: &mut Checkout, at: &[u8], bare: bool) {
+    let directory = if bare { at.to_vec() } else { [at, b"/.git"].concat() };
+    checkout.mkdir(&[directory.as_slice(), b"/objects/info"].concat());
+    checkout.mkdir(&[directory.as_slice(), b"/refs/heads"].concat());
+    checkout.write(&[directory.as_slice(), b"/HEAD"].concat(), b"ref: refs/heads/master\n");
+}
+fn directory(checkout: &Checkout, at: &[u8]) -> Vec<u8> {
+    let git = [at, b"/.git"].concat();
+    if checkout.exists(&git) { git } else { at.to_vec() }
+}
+fn object(checkout: &Checkout, at: &[u8], commit: u64) -> Vec<u8> {
+    [directory(checkout, at).as_slice(), format!("/objects/{commit}").as_bytes()].concat()
+}
+/// Object presence includes one level of alternates, relative to the object directory.
+#[must_use]
+pub fn object_present(checkout: &Checkout, at: &[u8], commit: u64) -> bool {
+    if checkout.exists(&object(checkout, at, commit)) {
+        return true;
+    }
+    let objects = [directory(checkout, at).as_slice(), b"/objects"].concat();
+    let Some(bytes) = checkout.content(&[objects.as_slice(), b"/info/alternates"].concat()) else {
+        return false;
+    };
+    alternate_directories(&objects, bytes)
+        .iter()
+        .any(|alternate| checkout.exists(&[alternate.as_slice(), format!("/{commit}").as_bytes()].concat()))
+}
+/// Resolve newline-separated alternates relative to an object directory, without host IO.
+#[must_use]
+pub fn alternate_directories(objects: &[u8], bytes: &[u8]) -> Vec<Vec<u8>> {
+    bytes
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| {
+            let joined = if line.starts_with(b"/") { line.to_vec() } else { [objects, b"/", line].concat() };
+            let mut parts = Vec::new();
+            for part in joined.split(|byte| *byte == b'/') {
+                match part {
+                    b"" | b"." => {}
+                    b".." => {
+                        parts.pop()?;
+                    }
+                    part => parts.push(part),
+                }
+            }
+            let result = parts.join(&b'/');
+            Some(if joined.starts_with(b"/") { [b"/", result.as_slice()].concat() } else { result })
+        })
+        .collect()
+}
+/// Move a reference only to an available object, in a bare or ordinary repository.
+pub fn update_ref(checkout: &mut Checkout, at: &[u8], reference: &[u8], commit: u64) -> Result<(), NotFetched> {
+    if !object_present(checkout, at, commit) {
+        return Err(NotFetched);
+    }
+    let path = [directory(checkout, at).as_slice(), b"/", reference].concat();
+    checkout.write(&path, &commit.to_le_bytes());
+    Ok(())
+}
+
+/// The object format a remote advertises and its default branch.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ObjectFormat {
+    Sha1,
+    Sha256,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct CloneInfo {
+    pub format: ObjectFormat,
+    pub default: Vec<u8>,
+    pub tip: Option<u64>,
+}
+/// Make a bare single-branch clone, taking the remote's format even when empty.
+pub fn clone_bare(forge: &mut impl Remote, checkout: &mut Checkout, remote: &[u8], at: &[u8]) -> Result<(), Fault> {
+    let info = forge.clone_default(remote)?;
+    init_with_format(checkout, at, true, info.format);
+    if let Some(tip) = info.tip {
+        let mut pending = vec![tip];
+        let mut reached = BTreeSet::new();
+        while let Some(commit) = pending.pop() {
+            if !reached.insert(commit) {
+                continue;
+            }
+            checkout.write(&object(checkout, at, commit), b"");
+            pending.extend(forge.parent(commit));
+            pending.extend(forge.merge_parent(commit));
+        }
+        update_ref(checkout, at, &[b"refs/heads/", info.default.as_slice()].concat(), tip).expect("clone brought tip");
+    }
+    checkout.write(&[at, b"/HEAD"].concat(), &[b"ref: refs/heads/", info.default.as_slice(), b"\n"].concat());
+    checkout.write(&[at, b"/remote"].concat(), remote);
+    Ok(())
+}
+/// Initialize with an explicit format, without reaching the remote.
+pub fn init_with_format(checkout: &mut Checkout, at: &[u8], bare: bool, format: ObjectFormat) {
+    init(checkout, at, bare);
+    let bytes = match format {
+        ObjectFormat::Sha1 => b"sha1\n".as_slice(),
+        ObjectFormat::Sha256 => b"sha256\n",
+    };
+    checkout.write(&[directory(checkout, at).as_slice(), b"/object-format"].concat(), bytes);
+}
+#[must_use]
+pub fn object_format(checkout: &Checkout, at: &[u8]) -> ObjectFormat {
+    match checkout.content(&[directory(checkout, at).as_slice(), b"/object-format"].concat()) {
+        Some(b"sha256\n") => ObjectFormat::Sha256,
+        _ => ObjectFormat::Sha1,
+    }
 }

@@ -228,7 +228,7 @@ impl World {
 
     fn io(&mut self, owner: Token, op: Op, deadline: Time) {
         assert!(deadline > self.env.now);
-        if let Op::Make { workspace } = &op {
+        if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
         }
         if let Op::Commit { title, body, .. } = &op {

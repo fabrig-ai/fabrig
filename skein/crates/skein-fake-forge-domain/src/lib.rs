@@ -73,7 +73,7 @@ mod wiki;
 mod tests;
 
 pub use boundary::{Event, Request};
-pub use creation::{create_file, create_repository};
+pub use creation::{create_empty_repository, create_file, create_repository};
 pub use domain::{Config, Domain, Metadata, Room, Skew, Tally, fire, step, step_admitted, time};
 pub use faults::{Rate, RateDenied, RateKey, rate};
 pub use git::{Object, Signature, Tree};
