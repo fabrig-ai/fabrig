@@ -1,4 +1,4 @@
-//! Delivery selection, inherited failures and bounded output (tools/pre-pr/design.md, 2–9).
+//! Delivery selection, inherited failures and bounded output (tools/pre-pr/design.md, 1–9).
 //! Formatting and baselines retain their budget (temper/docs/design/protocol/configuration/reference.md).
 
 use std::fs;
@@ -34,15 +34,9 @@ if name == 'git':
         if args[0] in ('merge-base', 'worktree', 'checkout', 'clean'):
             state['events'].append(['git', args])
             state_path.write_text(json.dumps(state))
-        if args[:2] == ['worktree', 'add'] and state.get('base_refuse'):
-            print('base worktree refused by ledger', file=sys.stderr)
-            sys.exit(1)
     os.execv('/usr/bin/git', ['git'] + args)
 state = json.loads(state_path.read_text())
 side = 'base' if 'temper-pre-pr/base' in str(Path.cwd()) else 'head'
-if side == 'base':
-    assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to base'
-    assert os.environ['CARGO_TARGET_DIR'] == str(root / 'target')
 if name == 'cargo' and args[0] in ('clippy', 'nextest'):
     assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to build or tests'
     assert os.environ.get('TEMPER_INTERNAL_BUNDLE') == 'none'
@@ -63,11 +57,6 @@ def format_files(paths):
     if fail == 'interrupt':
         os.kill(os.getpid(), signal.SIGTERM)
 metadata = json.loads((git_dir / 'metadata.json').read_text())
-if side == 'base':
-    metadata = json.loads(json.dumps(metadata).replace(str(root), str(Path.cwd())))
-    if 'base_members' in state:
-        metadata['packages'] = [p for p in metadata['packages'] if p['name'] in state['base_members']]
-        metadata['workspace_members'] = [p['id'] for p in metadata['packages']]
 if name == 'cargo' and args[0] == 'metadata':
     spend(1000, ['metadata', args, side])
     print(json.dumps(metadata))
@@ -89,23 +78,9 @@ elif name == 'rustfmt':
 elif name == 'cargo':
     assert '--workspace' not in args and args[0] != 'clean'
     packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
-    expression = args[args.index('-E') + 1] if '-E' in args else ''
     kind = args[0]
-    spend(100, [kind, side, packages, expression, args])
-    if state.get('shared_source'):
-        source = Path.cwd() / state['shared_source']
-        artifact = git_dir / 'shared.rlib'
-        dependency = git_dir / 'shared.input'
-        absolute = state.get('shared_absolute')
-        tracked = Path(dependency.read_text()) if absolute and dependency.exists() else source
-        if not artifact.exists() or not tracked.exists() or tracked.stat().st_mtime_ns > artifact.stat().st_mtime_ns:
-            artifact.write_text(source.read_text())
-            if absolute:
-                dependency.write_text(str(source))
-        if artifact.read_text() != source.read_text():
-            print(side + ' compiled with other checkout artifact', file=sys.stderr)
-            sys.exit(101)
-    ledger = state.get(side, {})
+    spend(100, [kind, side, packages, args])
+    ledger = state.get('head', {})
     if kind == 'clippy':
         assert '--all-targets' in args and '--message-format=json' in args
         assert args[-3:] == ['--', '-D', 'warnings']
@@ -119,16 +94,14 @@ elif name == 'cargo':
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
     assert args[:2] == ['nextest', 'run']
     assert '--profile' in args and args[args.index('--profile') + 1] == 'default'
-    assert ('--no-fail-fast' in args) == ('--no-run' not in args), 'execution and build-only flags conflict'
-    assert ('--no-tests=warn' in args) == ('--no-run' not in args)
+    assert '--no-fail-fast' in args and '--no-tests=warn' in args
+    assert '--no-run' not in args and '-E' not in args
     overlay = args[args.index('--tool-config-file') + 1]
     assert overlay.startswith('temper-pre-pr:')
     config = tomllib.loads(Path(overlay.split(':', 1)[1]).read_text())
     assert list(config) == ['profile']
     junit = config['profile']['default']['junit']['path']
     tests = [t for t in ledger.get('tests', []) if t['package'] in packages]
-    if expression:
-        tests = [t for t in tests if 'test(=' + t['name'] + ')' in expression]
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -138,7 +111,7 @@ elif name == 'cargo':
         ET.SubElement(case, 'system-out').text = test['output']
     Path(junit).write_bytes(ET.tostring(document))
     print('last streamed line: ' + side, flush=True)
-    sys.exit(ledger.get('nextest_exit', 100 if any(t.get('failed', True) for t in tests) and '--no-run' not in args else 0))
+    sys.exit(ledger.get('nextest_exit', 100 if any(t.get('failed', True) for t in tests) else 0))
 else:
     tree = Path.cwd().name
     if Path('delivery.rs').exists():
@@ -522,117 +495,82 @@ fn changed_field(mut value: Value, field: &str, replacement: Value) -> Value {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "The inheritance cases are rows of one boundary table (tools/pre-pr/design.md, 9)."
-)]
 fn only_what_the_delivery_broke_refuses() {
-    for (row, head, base, extra, accepted, named) in [
+    for (row, head, known_reds, accepted, named) in [
         (
             "inherited test",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({"tests": [test_failure("rule", "base junit tail")]}),
-            json!({}),
+            Some("- test A::rules rule\n"),
             true,
-            "inherited: test A::rules rule",
+            "inherited: test A::rules rule (known red, .temper/known-reds.md)",
         ),
         (
-            "new test failure",
+            "different test",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({"tests": [changed_field(test_failure("rule", "base pass"), "failed", json!(false))]}),
-            json!({}),
+            Some("- test A::rules other\n"),
             false,
             "test A::rules rule",
         ),
         (
-            "test absent",
+            "no file",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({}),
-            json!({}),
-            false,
-            "test A::rules rule",
-        ),
-        (
-            "package absent",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({}),
-            json!({"base_members": ["B"]}),
+            None,
             false,
             "test A::rules rule",
         ),
         (
             "different binary",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({"tests": [changed_field(test_failure("rule", "base fault"), "binary", json!("A::other"))]}),
-            json!({}),
+            Some("- test A::other rule\n"),
             false,
             "test A::rules rule",
         ),
         (
             "inherited clippy",
-            json!({"clippy": [lint_failure(20, "lint fault")]}),
-            json!({"clippy": [lint_failure(1, "lint fault")]}),
-            json!({}),
+            json!({"clippy": [lint_failure(20, "any lint message")]}),
+            Some("- lint A clippy::rule a/src/lib.rs\n"),
             true,
-            "inherited: clippy A clippy::rule a/src/lib.rs",
+            "inherited: clippy A clippy::rule a/src/lib.rs (known red, .temper/known-reds.md)",
         ),
         (
             "different lint code",
             json!({"clippy": [changed_field(lint_failure(20, "lint fault"), "code", json!("clippy::other"))]}),
-            json!({"clippy": [lint_failure(1, "lint fault")]}),
-            json!({}),
+            Some("- lint A clippy::rule a/src/lib.rs\n"),
             false,
             "clippy A clippy::other",
         ),
         (
             "different lint file",
             json!({"clippy": [changed_field(lint_failure(20, "lint fault"), "file", json!("a/src/other.rs"))]}),
-            json!({"clippy": [lint_failure(1, "lint fault")]}),
-            json!({}),
+            Some("- lint A clippy::rule a/src/lib.rs\n"),
             false,
             "clippy A clippy::rule a/src/other.rs",
         ),
         (
-            "new clippy",
-            json!({"clippy": [lint_failure(20, "new lint")]}),
-            json!({"clippy": [lint_failure(1, "other lint")]}),
-            json!({}),
-            false,
-            "clippy A",
-        ),
-        (
-            "inherited build",
+            "build with entries",
             json!({"nextest_exit": 101}),
-            json!({"nextest_exit": 101}),
-            json!({}),
-            true,
-            "inherited: build",
-        ),
-        ("new build failure", json!({"nextest_exit": 101}), json!({}), json!({}), false, "build"),
-        (
-            "base unavailable",
-            json!({"tests": [test_failure("rule", "head junit tail")], "clippy": [lint_failure(2, "lint fault")]}),
-            json!({}),
-            json!({"base_refuse": true}),
+            Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
             false,
-            "base worktree refused by ledger",
+            "build\nno tests ran",
         ),
         (
-            "base check error",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            json!({"nextest_exit": 102}),
-            json!({}),
+            "lint test and build failures",
+            json!({"clippy": [lint_failure(2, "lint fault")],
+                "tests": [test_failure("rule", "head junit tail")], "nextest_exit": 101}),
+            Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
             false,
-            "base could not judge",
+            "build\nno tests ran",
         ),
-        ("head check error", json!({"nextest_exit": 102}), json!({}), json!({}), false, "check nextest"),
+        ("head check error", json!({"nextest_exit": 102}), Some("- test A::rules rule\n"), false, "check nextest"),
     ] {
         let scratch = fixture();
         let root = scratch.path();
         pin(root);
         write(root, "a/src/lib.rs", "fn changed() {}\n");
-        ledger(root, &json!({"head": head, "base": base}));
-        ledger(root, &extra);
+        if let Some(entries) = known_reds {
+            write(root, ".temper/known-reds.md", entries);
+        }
+        ledger(root, &json!({"head": head}));
         let output = deliver(root);
         let log = text(&output);
         assert_eq!(output.status.code(), Some(i32::from(!accepted)), "{row}: {log}");
@@ -640,110 +578,23 @@ fn only_what_the_delivery_broke_refuses() {
         assert_eq!(passed(root), accepted, "{row}: cache only passes");
         let events = build_events(root);
         assert!(events.iter().any(|e| e[0] == "nextest" && e[1] == "head"), "tests run even after clippy fails: {row}");
-        if row == "new test failure" || row == "test absent" {
+        let state = budget(root);
+        for event in state["events"].as_array().expect("events") {
+            let side = if event[0] == "metadata" { &event[2] } else { &event[1] };
+            assert_ne!(side, "base", "no base cargo: {row}: {event}");
+        }
+        assert!(!root.join(".git/temper-pre-pr/base").exists(), "no base worktree: {row}");
+        assert!(!log.contains("inherited: build"), "build always refuses: {row}: {log}");
+        if row == "different test" || row == "no file" {
             assert!(log.contains("head junit tail"), "JUnit output in summary: {log}");
         }
         if row == "inherited test" {
-            let base_call = events.iter().find(|e| e[0] == "nextest" && e[1] == "base").expect("base tests");
-            assert!(base_call[3].as_str().expect("filter").contains("test(=rule)"));
-            assert_eq!(base_call[2], json!(["A"]));
-            assert!(base_call[3].as_str().expect("filter").contains("binary_id(=A::rules)"));
             assert!(log.contains("pre-pr: tests: inherited,"), "inherited check timed: {log}");
         }
-        if row == "inherited build" {
-            assert!(
-                events.iter().any(|e| e[1] == "base" && e[4].as_array().expect("args").contains(&json!("--no-run"))),
-                "base build alone"
-            );
-            assert!(log.contains("no tests ran"), "build failure leaves tests unobserved: {log}");
-        }
-        if row == "base unavailable" {
-            assert!(!log.contains("inherited:"), "unjudged failures remain new: {log}");
-            assert!(log.contains("test A::rules rule") && log.contains("clippy A"));
-        }
         if row == "inherited clippy" {
-            write(root, "a/src/lib.rs", "fn changed_again() {}\n");
-            ledger(root, &json!({"ms": 0, "events": []}));
-            let again = deliver(root);
-            assert!(again.status.success(), "kept base worktree: {}", text(&again));
-            let events = budget(root);
-            let events = events["events"].as_array().expect("events");
-            assert!(events.iter().any(|e| e[0] == "git" && e[1][0] == "checkout"));
-            assert!(events.contains(&json!(["git", ["clean", "-ffdxq"]])));
+            assert!(log.contains("pre-pr: clippy: inherited,"), "inherited check timed: {log}");
         }
     }
-}
-
-#[test]
-fn each_judge_builds_its_own_sources() {
-    for (row, head, base) in [
-        ("clippy", json!({"clippy": [lint_failure(1, "head lint")]}), json!({})),
-        ("tests", json!({"tests": [test_failure("rule", "head failure")]}), json!({})),
-        ("build", json!({"nextest_exit": 101}), json!({})),
-        ("base tool error", json!({"tests": [test_failure("rule", "head failure")]}), json!({"nextest_exit": 102})),
-    ] {
-        let scratch = fixture();
-        let root = scratch.path();
-        write(root, "a/src/removed.rs", "fn removed() {}\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "-qm", "base source"]);
-        pin(root);
-        let worktree = root.join(".git/temper-pre-pr/base");
-        git(root, &["worktree", "add", "--detach", worktree.to_str().expect("base worktree path"), "HEAD"]);
-        fs::remove_file(root.join("a/src/removed.rs")).expect("head deletes a source");
-        write(root, "a/src/lib.rs", "fn head() {}\n");
-        write(root, "a/src/new file\nname.rs", "fn new_source() {}\n");
-        ledger(root, &json!({"head": head, "base": base, "shared_source": "a/src/lib.rs"}));
-        let first = deliver(root);
-        assert_eq!(first.status.code(), Some(1), "{row}: {}", text(&first));
-        assert!(
-            !text(&first).contains("other checkout artifact"),
-            "base uses its own sources: {row}: {}",
-            text(&first)
-        );
-        assert!(build_events(root).iter().any(|event| event[1] == "base"), "base judge ran: {row}");
-        let artifact_time =
-            fs::metadata(root.join(".git/shared.rlib")).expect("base artifact").modified().expect("mtime");
-        let new_time =
-            fs::metadata(root.join("a/src/new file\nname.rs")).expect("new source").modified().expect("mtime");
-        assert!(new_time > artifact_time, "new source is fresher than base artifact: {row}");
-        ledger(root, &json!({"head": {}, "base": {}, "ms": 0, "events": []}));
-        let next = deliver(root);
-        assert!(next.status.success(), "{row}: next head check: {}", text(&next));
-        assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("head artifact"), "fn head() {}\n");
-        assert!(!root.join("a/src/removed.rs").exists(), "deleted sources stay absent: {row}");
-        assert!(!worktree.join("a/src/new file\nname.rs").exists(), "head-only sources stay absent at base: {row}");
-    }
-}
-
-#[test]
-fn each_judge_embeds_its_own_out_of_package_input() {
-    let scratch = fixture();
-    let root = scratch.path();
-    write(root, "a/src/lib.rs", "pub const PAGE: &str = include_str!(\"../../docs/page.md\");\n");
-    write(root, "docs/page.md", "old\n");
-    write(root, ".config/gate/always.txt", "A docs/\n");
-    write(root, ".config/gate/read-by-tests.txt", "docs/page.md\n");
-    git(root, &["add", "."]);
-    git(root, &["commit", "-qm", "base page"]);
-    pin(root);
-    let worktree = root.join(".git/temper-pre-pr/base");
-    git(root, &["worktree", "add", "--detach", worktree.to_str().expect("base worktree path"), "HEAD"]);
-    write(root, "docs/page.md", "new page\n");
-    ledger(
-        root,
-        &json!({"head": {"tests": [test_failure("page", "head failure")]}, "base": {},
-            "shared_source": "docs/page.md", "shared_absolute": true}),
-    );
-    let first = deliver(root);
-    assert_eq!(first.status.code(), Some(1), "{}", text(&first));
-    assert!(!text(&first).contains("other checkout artifact"), "base embeds its own page: {}", text(&first));
-    assert!(build_events(root).iter().any(|event| event[1] == "base"), "base judge ran");
-    assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("base artifact"), "old\n");
-    ledger(root, &json!({"head": {}, "base": {}, "ms": 0, "events": []}));
-    let next = deliver(root);
-    assert!(next.status.success(), "next head embeds its own page: {}", text(&next));
-    assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("head artifact"), "new page\n");
 }
 
 #[test]

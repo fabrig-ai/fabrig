@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-import time
 import unittest
 from unittest import mock
 
@@ -62,7 +61,8 @@ sys.exit(int(count > 0))
         self.command('git', 'commit', '-qm', 'base')
         self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
 
-    def deliver(self, packages=('api',), expected_bundle=None):
+    def deliver(self, packages=('api',), expected_bundle=None,
+                clippy_answer=(0, []), nextest_answer=(0, [])):
         calls = []
         data = {'packages': [{'name': name, 'id': name, 'dependencies': [],
                              'manifest_path': str(self.root / name / 'Cargo.toml')} for name in packages],
@@ -85,8 +85,8 @@ sys.exit(int(count > 0))
         with contextlib.chdir(self.root), mock.patch.dict(os.environ, self.env, clear=True), \
                 mock.patch.object(PRE_PR, 'metadata', return_value=data), \
                 mock.patch.object(PRE_PR, 'formatting', return_value=[]) as formatting, \
-                mock.patch.object(PRE_PR, 'clippy', return_value=(0, [])) as clippy, \
-                mock.patch.object(PRE_PR, 'nextest', return_value=(0, [])) as nextest, \
+                mock.patch.object(PRE_PR, 'clippy', return_value=clippy_answer) as clippy, \
+                mock.patch.object(PRE_PR, 'nextest', return_value=nextest_answer) as nextest, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
             result = PRE_PR.main()
@@ -97,6 +97,68 @@ sys.exit(int(count > 0))
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(nextest.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, nextest.called)
+
+    def test_known_reds_judge_only_listed_tests_and_lints(self):
+        test = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')
+        lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'changed message',
+                              ('api', 'clippy::rule', 'api/src/lib.rs', 'changed message'), 'api')
+        for entry, check, error, accepted in (
+                ('- test api::rules rule', 'tests', test, True),
+                ('- test api::rules other', 'tests', test, False),
+                ('- test api::other rule', 'tests', test, False),
+                (None, 'tests', test, False),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint, True),
+                ('- lint other clippy::rule api/src/lib.rs', 'clippy', lint, False),
+                ('- lint api clippy::other api/src/lib.rs', 'clippy', lint, False),
+                ('- lint api clippy::rule api/src/other.rs', 'clippy', lint, False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('build', 'no tests ran'), False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('check nextest', 'tool error'), False),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy',
+                 PRE_PR.failure('check clippy', 'tool error'), False)):
+            with self.subTest(entry=entry, failure=error['name']):
+                path = self.root / '.temper/known-reds.md'
+                path.unlink(missing_ok=True)
+                if entry is not None:
+                    self.write('.temper/known-reds.md', '# Known reds\n\nSome prose.\n' + entry + '  \n')
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                answer = (101 if error['name'] == 'build' or check == 'clippy' else 100, [error.copy()])
+                result, log, calls, _ = self.deliver(**{
+                    'clippy_answer' if check == 'clippy' else 'nextest_answer': answer})
+                self.assertEqual(result, int(not accepted), log)
+                summary = log.rsplit('pre-pr: passed (' if accepted else 'pre-pr: refused (', 1)[1]
+                self.assertIn(error['name'], summary)
+                if accepted:
+                    self.assertIn('inherited: ' + error['name'] +
+                                  ' (known red, .temper/known-reds.md)', summary)
+                    self.assertIn(f'pre-pr: {check}: inherited,', log)
+                else:
+                    self.assertNotIn('inherited:', summary)
+                self.assertEqual(path.exists(), 'pre-pr: known reds: 1 entries (.temper/known-reds.md)' in log)
+                self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
+                self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+
+    def test_known_reds_are_bounded_snapshot_entries(self):
+        for content, count, accepted in (
+                ('- test api::rules rule\n' * 64, 64, True),
+                ('- test api::rules rule\n' * 65, 65, False),
+                ('x' * 8192, 0, True),
+                ('x' * 8193, 0, False),
+                ('- test api::rules rule\n' + 'x' * 8193, 1, False),
+                ('# Prose\n - test api::rules rule\n- test api::rules\n'
+                 '- lint api clippy::rule\n', 0, True)):
+            with self.subTest(entries=count, size=len(content)):
+                # Only this unstaged Markdown changes: reading is independent of code selection.
+                self.write('.temper/known-reds.md', content)
+                result, log, _, code = self.deliver()
+                self.assertEqual(result, int(not accepted), log)
+                self.assertEqual(code, (False, False, False))
+                self.assertIn(f'pre-pr: known reds: {count} entries (.temper/known-reds.md)', log)
+                if not accepted:
+                    self.assertIn('known-reds\n.temper/known-reds.md: '
+                                  f'{count} entries, {len(content):,} bytes; '
+                                  'the cap is 64 entries and 8,192 bytes', log)
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def test_saved_edits_are_checked_with_new_edits(self):
         title = 'Unchecked: work in progress, saved before a question'
@@ -277,131 +339,6 @@ sys.exit(int(count > 0))
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 1, log)
         self.assertIn('size limit', log)
-
-
-class SharedTarget(unittest.TestCase):
-    def test_base_and_head_builds_use_their_own_sources(self):
-        self.check_builds(generated=False)
-
-    def test_build_script_regenerates_each_sides_code(self):
-        for missing in (False, True):
-            with self.subTest(missing_input=missing):
-                self.check_builds(generated=True, missing=missing)
-
-    def test_out_of_package_include_uses_each_sides_page(self):
-        self.check_builds(generated=False, embedded=True)
-
-    def check_builds(self, generated, missing=False, embedded=False):
-        with tempfile.TemporaryDirectory(prefix='pre-pr-target-') as directory:
-            root = Path(directory)
-            env = os.environ.copy()
-            for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR'):
-                env.pop(name, None)
-            env.update(TEMPER_INTERNAL_BUNDLE='none', CARGO_TARGET_DIR=str(root / 'target'))
-
-            def command(*args, cwd=root, command_env=env):
-                return subprocess.run(args, cwd=cwd, env=command_env, check=True,
-                                      capture_output=True, text=True).stdout
-
-            def write(name, content):
-                path = root / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content)
-
-            command('git', 'init', '-q')
-            command('git', 'config', 'user.name', 'Pre-pr test')
-            command('git', 'config', 'user.email', 'pre-pr@example.invalid')
-            command('git', 'config', 'commit.gpgsign', 'false')
-            write('.gitignore', '/target\n')
-            api = 'crates/x' if embedded else 'api'
-            write('Cargo.toml', f'[workspace]\nmembers = ["{api}", "consumer"]\nresolver = "3"\n')
-            write(f'{api}/Cargo.toml', '[package]\nname = "api"\nversion = "0.1.0"\nedition = "2024"\n')
-            write('consumer/Cargo.toml', '[package]\nname = "consumer"\nversion = "0.1.0"\n'
-                  f'edition = "2024"\n[dependencies]\napi = {{ path = "../{api}" }}\n')
-            source = 'api/value.txt' if generated else 'api/src/lib.rs'
-            if embedded:
-                source = 'crates/docs/page.md'
-                write(f'{api}/src/lib.rs',
-                      'pub fn value() -> &\'static str { include_str!("../../docs/page.md").trim() }\n')
-                write('.config/gate/always.txt', 'api crates/docs/\n')
-                write('.config/gate/read-by-tests.txt', 'crates/docs/page.md\n')
-            if generated:
-                write('api/src/lib.rs', 'include!(concat!(env!("OUT_DIR"), "/value.rs"));\n')
-                write('api/build.rs', '''fn main() {
-    println!("cargo:rerun-if-changed=value.txt");
-    let value = std::fs::read_to_string("value.txt").unwrap_or_else(|_| "head".to_owned());
-    let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("value.rs");
-    std::fs::write(output, format!("pub fn value() -> &'static str {{ {:?} }}", value.trim())).unwrap();
-}
-''')
-            write(source, 'base\n' if generated or embedded else 'pub fn value() -> &\'static str { "base" }\n')
-            write('consumer/src/main.rs', 'fn main() { println!("{}", api::value()); }\n')
-            command('cargo', 'generate-lockfile', '--offline')
-            command('git', 'add', '.')
-            command('git', 'commit', '-qm', 'base')
-            command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
-            # A kept base checkout can predate the head's shared artifacts too.
-            worktree = root / '.git/temper-pre-pr/base'
-            if not embedded:
-                command('git', 'worktree', 'add', '--detach', str(worktree), 'HEAD')
-            if missing:
-                (root / source).unlink()
-            else:
-                write(source, 'head\n' if generated or embedded else 'pub fn value() -> &\'static str { "head" }\n')
-            # Older head sources reproduce Cargo accepting the base's newer rlib.
-            older = time.time_ns() - 10_000_000_000
-            if not missing:
-                os.utime(root / source, ns=(older, older))
-            self.assertEqual(command('cargo', 'run', '--offline', '-q', '-p', 'consumer'), 'head\n')
-            index = (root / '.git/index').read_bytes()
-            unchanged = (root / 'consumer/src/main.rs').stat().st_mtime_ns
-            real_run = PRE_PR.run
-            base_builds = []
-
-            def run(arguments, cwd, run_env, *args, **kwargs):
-                if arguments[0] == 'python3':
-                    return 0, ''
-                return real_run(arguments, cwd, run_env, *args, **kwargs)
-
-            def build_base(cwd, build_env):
-                self.assertEqual(build_env['CARGO_TARGET_DIR'], str(root / 'target'))
-                command('cargo', 'build', '--offline', '-q', '-p', 'consumer',
-                        cwd=cwd, command_env=build_env)
-                self.assertEqual(command(str(root / 'target/debug/consumer')), 'base\n')
-                base_builds.append(cwd)
-                return 0, []
-
-            def clippy(packages, data, cwd, build_env):
-                if cwd == root:
-                    return 101, [PRE_PR.failure('clippy api lint api/src/lib.rs', 'head lint',
-                                                ('api', 'lint', 'api/src/lib.rs', 'head lint'), 'api')]
-                return build_base(cwd, build_env)
-
-            def nextest(packages, cwd, build_env, expression=None):
-                if not embedded:
-                    return 0, []
-                if cwd == root:
-                    return 100, [PRE_PR.failure('test api::pages page', 'head failure',
-                                                ('api::pages', 'page'), 'api')]
-                return build_base(cwd, build_env)
-
-            def judge():
-                with contextlib.chdir(root), mock.patch.dict(os.environ, env, clear=True), \
-                        mock.patch.object(PRE_PR, 'formatting', return_value=[]), \
-                        mock.patch.object(PRE_PR, 'run', side_effect=run), \
-                        mock.patch.object(PRE_PR, 'clippy', side_effect=clippy), \
-                        mock.patch.object(PRE_PR, 'nextest', side_effect=nextest):
-                    self.assertEqual(PRE_PR.main(), 1)
-
-            # The second page judgment uses a kept base checkout after a head build.
-            for judgment in range(2 if embedded else 1):
-                judge()
-                self.assertEqual(len(base_builds), judgment + 1)
-                dep_info = '\n'.join(repr(path.read_bytes()) for path in
-                                     (root / 'target/debug/.fingerprint').glob('api-*/dep-lib-api'))
-                self.assertEqual(command('cargo', 'run', '--offline', '-q', '-p', 'consumer'), 'head\n', dep_info)
-            self.assertEqual((root / '.git/index').read_bytes(), index)
-            self.assertEqual((root / 'consumer/src/main.rs').stat().st_mtime_ns, unchanged)
 
 
 if __name__ == '__main__':
