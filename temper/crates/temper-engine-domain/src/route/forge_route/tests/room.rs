@@ -25,19 +25,36 @@ fn kept(count: u32) -> (crate::Domain, Env<crate::Limits>, Box<jig_domain_tasks:
     );
     // Reverse insertion makes the oldest choice independent of insertion order.
     for number in (FIRST..FIRST + u64::from(count)).rev() {
-        let mut row = change_row(None);
-        row.task = number;
-        row.change.task = number;
-        row.repository = repository.provider;
-        row.change.state = change::State::Ended;
-        row.ending = Some(forge::Ending::Cancelled);
-        row.goal = Some(999); // The goal has ended; no live task with this number remains.
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        keep(&mut domain, &env, number, change::State::Ended, 999);
+    }
+    (domain, env, context)
+}
+
+fn keep(domain: &mut crate::Domain, env: &Env<crate::Limits>, number: u64, state: change::State, goal: u64) {
+    let mut row = change_row(None);
+    row.task = number;
+    row.change.task = number;
+    row.repository = super::adopted(1).provider;
+    row.change.state = state;
+    row.ending = Some(forge::Ending::Cancelled);
+    row.goal = Some(goal);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+}
+
+fn verifying_table(settled: bool) -> (crate::Domain, Env<crate::Limits>, Box<jig_domain_tasks::RunContext>) {
+    let (mut domain, env, context) = kept(0);
+    for number in (FIRST..FIRST + u64::from(KEPT - 2 - u32::from(settled))).rev() {
+        keep(&mut domain, &env, number, change::State::Uncleared { merge: [1; 32] }, context.task);
+    }
+    keep(&mut domain, &env, 9, change::State::Red { merge: [1; 32], since: env.wall }, 999);
+    keep(&mut domain, &env, 5, change::State::Uncleared { merge: [1; 32] }, 999);
+    if settled {
+        keep(&mut domain, &env, 50, change::State::Ended, 999);
     }
     (domain, env, context)
 }
@@ -59,40 +76,49 @@ fn free_room_keeps_every_settled_panel() {
     }
 }
 
-#[test]
-fn a_live_goal_pins_the_oldest_panel_by_row_or_tracked_ancestor() {
+fn pin_goal(
+    domain: &mut crate::Domain,
+    env: &Env<crate::Limits>,
+    context: &jig_domain_tasks::RunContext,
+    number: u64,
+    explicit: bool,
+) {
     use jig_domain_tasks as tasks;
-    for explicit in [true, false] {
-        let (mut domain, env, context) = kept(KEPT);
-        let mut goal = domain.core.tasks.task(context.task).unwrap().clone();
-        domain.core.tasks =
-            crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
-        goal.tracked = Some(1);
+    let mut goal = domain.core.tasks.task(context.task).unwrap().clone();
+    domain.core.tasks = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+    goal.tracked = Some(1);
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal.clone())) },
+        &mut Queue::uncapped(),
+    );
+    let mut row = domain.forge.change(number).unwrap().clone();
+    row.goal = if explicit { Some(context.task) } else { None };
+    if !explicit {
+        goal.number = number;
+        goal.tracked = None;
+        goal.requester = tasks::Party::Task(context.task);
         tasks::step(
             &mut domain.core.tasks,
             &env.with(env.limits.tasks),
-            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal.clone())) },
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
             &mut Queue::uncapped(),
         );
-        let mut row = domain.forge.change(FIRST).unwrap().clone();
-        row.goal = if explicit { Some(context.task) } else { None };
-        if !explicit {
-            goal.number = FIRST;
-            goal.tracked = None;
-            goal.requester = tasks::Party::Task(context.task);
-            tasks::step(
-                &mut domain.core.tasks,
-                &env.with(env.limits.tasks),
-                tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
-                &mut Queue::uncapped(),
-            );
-        }
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+    }
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+}
+
+#[test]
+fn a_live_goal_pins_the_oldest_panel_by_row_or_tracked_ancestor() {
+    for explicit in [true, false] {
+        let (mut domain, env, context) = kept(KEPT);
+        pin_goal(&mut domain, &env, &context, FIRST, explicit);
         assert!(start_change(&mut domain, &env, &context));
         // The root's first two queued events decide the drop and registration, before any reads.
         for _ in 0_u8..2 {
@@ -103,6 +129,33 @@ fn a_live_goal_pins_the_oldest_panel_by_row_or_tracked_ancestor() {
         assert!(domain.forge.change(FIRST + 1).is_none(), "next oldest, explicit {explicit}");
         assert!(domain.forge.change(context.task).is_some());
     }
+}
+
+#[test]
+fn a_live_goal_pins_a_dropped_last_panel_by_row_or_tracked_ancestor() {
+    for explicit in [true, false] {
+        let (mut domain, env, context) = verifying_table(false);
+        pin_goal(&mut domain, &env, &context, 5, explicit);
+        assert!(start_change(&mut domain, &env, &context));
+        for _ in 0_u8..2 {
+            let Some(crate::Work::Forge(event)) = domain.work.pop() else { panic!("drop then change") };
+            forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut Queue::uncapped());
+        }
+        assert!(domain.forge.change(5).is_some(), "live goal, explicit {explicit}");
+        assert!(domain.forge.change(9).is_none(), "next oldest, explicit {explicit}");
+        assert!(domain.forge.change(context.task).is_some());
+    }
+}
+
+#[test]
+fn a_settled_panel_goes_before_an_older_ended_verifying_panel() {
+    let (mut domain, env, context) = verifying_table(true);
+    run_start(&mut domain, &env, &context);
+    assert!(domain.forge.change(context.task).is_some(), "the 129th change registers");
+    assert!(domain.forge.change(50).is_none(), "a settled task goes first");
+    assert!(domain.forge.change(5).is_some(), "the older Uncleared panel stays");
+    assert!(domain.forge.change(9).is_some(), "the Red panel stays");
+    assert_eq!(domain.forge.change_tasks().len(), 128);
 }
 
 #[test]
@@ -148,6 +201,35 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
     run_start(&mut domain, &env, &context);
     assert!(domain.forge.change(context.task).is_some());
     assert!(domain.forge.change(FIRST).is_none());
+}
+
+#[test]
+fn the_129th_change_replaces_the_oldest_ended_verifying_panel_in_one_decision() {
+    let (mut domain, env, context) = verifying_table(false);
+    assert_eq!(domain.forge.change_tasks().len(), 128);
+    assert!(start_change(&mut domain, &env, &context));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::route::route_into(&mut domain, &env, &mut decision);
+    assert!(domain.forge.change(context.task).is_some(), "the 129th change registers");
+    assert!(domain.forge.change(5).is_none(), "the oldest ended verifying task gives its room");
+    assert!(domain.forge.change(9).is_some(), "the newer Red panel stays");
+    assert_eq!(domain.forge.change_tasks().len(), 128);
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    let Some(crate::decision::JournalOutput::Commit { writes, .. }) =
+        crate::decision::commit(&mut domain.journal, &env.limits.journal)
+    else {
+        panic!("one root decision")
+    };
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(5)))));
+    let mut registered = false;
+    for write in &writes {
+        if let Write::Save(Record::Forge { row }) = write
+            && let forge::Stored::Change(row) = row.as_ref()
+        {
+            registered |= row.task == context.task;
+        }
+    }
+    assert!(registered);
 }
 
 #[test]

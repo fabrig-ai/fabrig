@@ -1750,7 +1750,7 @@ pub enum Event {
         entry: u64,
         goal: u64,
     },
-    /// Give a full change table the room of a settled, unpinned row (domain/forge/change/README.md, 7).
+    /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
     DropChange {
         task: u64,
     },
