@@ -89,7 +89,9 @@ pub(crate) fn move_tasks(domain: &mut Domain, env: &Env<Limits>, from: Option<u3
     }
     let newest = domain.newest();
     for &number in &moving {
-        task_mut(domain, number).expect("moving task").record.settings.task = newest;
+        let task = task_mut(domain, number).expect("moving task");
+        crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Rules, out);
+        task.record.settings.task = newest;
     }
     crate::settings::recount(domain);
     for &number in &moving {

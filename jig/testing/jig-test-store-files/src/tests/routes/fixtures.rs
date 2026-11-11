@@ -206,6 +206,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
     use jig_domain_tasks as tasks;
     Box::new(tasks::TaskRecord {
         session: None,
+        activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

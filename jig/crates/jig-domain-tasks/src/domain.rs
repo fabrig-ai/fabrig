@@ -765,12 +765,22 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::after_delegate(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
-        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered } => {
+        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
             crate::run::claim(
                 domain,
                 env,
                 reply_to,
-                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes, reasons, offered },
+                crate::run::Claiming {
+                    number: task,
+                    attempt,
+                    resumed,
+                    budget,
+                    account,
+                    writes,
+                    reasons,
+                    offered,
+                    session_end,
+                },
                 out,
             );
         }
@@ -1104,6 +1114,8 @@ impl Domain {
                 .expect("bounded delegate snapshot");
         }
         Some(Box::new(crate::RunContext {
+            session_wake: task.flags.ended_by == crate::EndedBy::Standing && !task.activation_open,
+            session_kinds: crate::wake::session_kinds(domain, number, inbox.as_slice()),
             reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
@@ -1470,6 +1482,7 @@ pub(crate) fn make_admitted(
         let number = new.number;
         let task = Task::new(TaskRecord {
             session: None,
+            activation_open: false,
             closer: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,
