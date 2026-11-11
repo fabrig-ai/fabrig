@@ -195,10 +195,11 @@ forge, temper adds:
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
 - **`cli/`:** temper's command lines: each binary's package, crate,
-  table, help, exits and environment (`cli/README.md`), and the
-  reference documents generated from the tables beside it, each
-  binary's `<binary>-args.md` and `<binary>-env.md` and the tree's
-  common environment document.
+  table, help, exits and environment, and the test set its tests read
+  (`cli/README.md`), and the reference documents generated from the
+  tables beside it, each binary's `<binary>-args.md` and
+  `<binary>-env.md`, the tree's common environment document and the
+  test set's `test-env`.
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.

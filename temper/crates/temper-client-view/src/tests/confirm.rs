@@ -248,10 +248,6 @@ fn a_rejecting_chat_keeps_its_reason_disclosure_open() {
     assert!(view.tree().find(disclosure).unwrap().states.as_slice().contains(&skein_ui::State::Expanded));
 }
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_RECORD_RELEASE selects the release card recording path; the test table will pass it"
-)]
 fn releases_card_tree_stays_byte_identical() {
     let root = super::task::held_agent_root();
     let mut loaded = None;
@@ -274,7 +270,7 @@ fn releases_card_tree_stays_byte_identical() {
     let tree = builder.finish();
     // Test-only diagnostic serialization freezes all of Release's node fields.
     let actual = alloc::fmt::format(format_args!("{:?}", tree.nodes()));
-    if let Some(path) = std::env::var_os("TEMPER_RECORD_RELEASE") {
+    if let Some(path) = temper_test_env::value(&temper_test_env::RECORD_RELEASE) {
         std::fs::write(path, &actual).unwrap();
         return;
     }
