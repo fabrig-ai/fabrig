@@ -74,6 +74,9 @@ makes each call to a forge and hears its deliveries, is
 - **Issues stay, one per goal,** as a projection people can read: the
   goal, its plan as a task list, and its milestones. Pull requests refer
   to it.
+- **Landed drafts:** a draft in a repository, which its writer says is
+  ready to start a goal, read once at the landing branch's head and kept
+  with its commit, its chat and its goal once started (`drafts.md`).
 - **Plugged in as it is.** temper adopts repositories with whatever
   access it is given; webhooks, labels, protection and CI are all
   optional. Nothing is forced: pushes are fast-forwards, and merges are

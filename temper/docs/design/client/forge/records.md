@@ -40,7 +40,7 @@
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
   `make_repository`, `MakeRepository`, `dismiss_making`, `DismissMaking`,
-  `dismiss`, `Dismiss`, `looked`, `Looked`,
+  `dismiss`, `Dismiss`, `looked`, `Looked`, `set_draft`, `SetDraft`,
   `start_playground` and `end_playground`, the last two with no fields
   (below). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -186,6 +186,20 @@
   outcome: *looked*, `looked`, no fields, once the row has committed;
   *forge refused*, `too large`, the family's bound reached; or *unknown*,
   no longer held, which the subject `status` answers.
+- **`SetDraft`:** of the project it names, from any party with a role
+  there, as `SetAway` (`../../domain/forge/drafts.md`, 2): `project`, u32;
+  `repository`, an option of `DraftRepository`: `owner` and `name`, at
+  most 1024 bytes each, none for the project's home; `path`, at most 1024
+  bytes; and `change`, `DraftChange`: `ready`, `ReadyDraft`, with `chat`,
+  an optional u64; `not_ready`, no fields; or `started`, `StartedDraft`,
+  with `goal`, u64. Appended after the family's last request, so that
+  every request before it keeps its tag. Its outcome: *drafted*,
+  `drafted`, the row as it stands once committed, a `LandedDraft`
+  (*A project's landed drafts*, below); *draft refused*,
+  `draft_refused`, `DraftRefusal`: `no_repository`, `path`, `missing`,
+  `not_a_file`, `unreachable`, `unknown` or `full`, as the domain names
+  them; or *unknown*, no longer held, which the subject `drafts`
+  answers. Both outcomes are appended after the family's last.
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -530,6 +544,22 @@
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
   merge.
+- **A project's landed drafts, the subject `drafts`:** of the project's
+  scope, for a party with a role there, its window unused
+  (`../../domain/forge/drafts.md`, 3); on the wire `Watching`'s `drafts`,
+  `DraftsSubject`: `project`, appended after the family's last subject.
+  Work watches it while open, as it does `changes` (`../pages/work.md`,
+  1). Its document, `DraftsPanel`: `project`; and `drafts`, at most 64,
+  newest `at` first, then the lower path, each a `LandedDraft`:
+  - `forge`, u16; `owner` and `name`, its repository's, at most 1024
+    bytes each; `path`, at most 1024 bytes;
+  - `branch`, at most 1024 bytes, and `commit`, at most 64 bytes, the
+    commit's id as the forge names it;
+  - `title`, at most 200 bytes, empty with none;
+  - `writer`, the party, u64; `at`, nanoseconds since the epoch;
+  - `chat` and `goal`, optional u64s; `ready`, bool.
+
+  It is marked at each row written or erased.
 - **What changed since the person last looked, the subject `status`:** of
   the project's scope, for a party with a role there, its window unused;
   on the wire `Watching`'s `status`, `StatusSubject`: `project`. `Home`

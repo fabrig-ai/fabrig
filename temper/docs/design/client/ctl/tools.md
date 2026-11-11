@@ -68,6 +68,7 @@ watch's subject, its digest (4). It needs no key.
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
 | `finding list --project PROJECT [--state new\|routed\|backlog\|dropped]` | the project's findings: issue, kind, severity, area, state, signature, times seen, goal (`../../domain/findings.md`, section 2) | the forge's family |
 | `finding show FINDING` | one finding whole, its state as its word set | the forge's family |
+| `draft list --project PROJECT` | the project's landed drafts, newest first, each its repository and path, ready, not ready or its goal, its commit, branch and time, its chat and its title (`areas.md`, area 7) | the forge's family, the subject `drafts` |
 | `qa marks --project PROJECT` | the project's marks: landing, words, chosen, waiting or tested (`../../domain/findings.md`, section 8) | the forge's family |
 | `qa passes --project PROJECT` | the project's QA passes: the cleared main, the marks covered, the tester, its outcome and findings | the forge's family |
 | `hold list --project PROJECT` | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |
@@ -202,6 +203,8 @@ agent must name.
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`../forge/family.md`, 4) | yes |
 | `repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until adopted] [--timeout DURATION]` | makes an empty repository, its starter workflow in it, and has it adopted into the project: owned, landing on its default branch, with CI, the project's home unless `--no-home` (`../../domain/forge/adoption.md`, 5) | the forge family's `MakeRepository` (`../forge/records.md`) | yes |
 | `repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until adopted] [--timeout DURATION]` | copies a public repository, `HOST/OWNER/NAME`, into `OWNER/NAME` on the forge, or `--as` where given, and has it adopted as `repository make` does; the address refused, naming the form to write, before anything is sent | the forge family's `MakeRepository` | yes |
+| `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH, landed on the repository's landing branch, is ready to start a goal (`areas.md`, area 7) | the forge family's `SetDraft` (`../forge/records.md`) | yes |
+| `draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH` | says the landed draft at PATH is not ready (`areas.md`, area 7) | the forge family's `SetDraft` | yes |
 | `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |

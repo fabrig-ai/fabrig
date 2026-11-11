@@ -285,7 +285,14 @@ plan `ui-away-all`, sets every project the person is in, each by its own
 `SetAway`, one after another, reads "Away on N of M" while they differ
 and toasts how many changed, with two gallery states; its render check
 and walk follow landing (`client/pages/README.md` and `client/README.md`, 5;
-`client/pages/README.status.md`; `client/web/gallery.status.md`, 2). Home and Needs you across
+`client/pages/README.status.md`; `client/web/gallery.status.md`, 2). Landed
+drafts are the whole story's milestone P8, by goal 638: a project keeps
+each draft landed in its repositories that its writer says is ready, by
+`temper ctl draft ready`, read at the landing branch's head and kept with
+its commit, title, chat and, once started, its goal; Work lists the ready
+ones under Drafts, each starting a goal at the project's way; its render
+check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
+`draft/surfaces.status.md`, 5). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the
@@ -1146,6 +1153,7 @@ Design documents:
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)

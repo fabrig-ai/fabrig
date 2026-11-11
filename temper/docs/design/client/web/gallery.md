@@ -284,9 +284,9 @@ from the engine's own answers, is where the look is tuned.
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
 | `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
 | `rail-across` | *Needs you* across projects, a need in each of two projects: the switcher names "All projects"; the rail's "Needs you 2", current, counting both, its Home to `AllHome`, and the phone's Home and "Needs 2" the same; its Work and How work runs the project last open (`../view.md`, 3, *All projects*) |
-| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
+| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts, as `work.html`'s, a design session's being written and `witness-catch-up.md`, landed and ready, with "Start a goal: WAY", WAY its project's way as `../pages/work.md`, 1, *Ways*, names it, and "Another way"; four changes landed this week |
 | `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
-| `work-drafts` | `work` under Drafts: the drafts' cards alone |
+| `work-drafts` | `work` under Drafts: the drafts' cards alone, the landed draft's among them |
 | `work-goals` | `work` under Goals: Work's head and filters, the goals' list under them, its heading at level 2 |
 | `work-changes` | `work` under Changes: Work's head and filters, the queue and what landed under them |
 | `work-empty` | hand-made deliveries with nothing listed: "Nothing in flight yet.", All alone among the filters |
