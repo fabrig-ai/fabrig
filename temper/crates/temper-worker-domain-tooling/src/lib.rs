@@ -1,4 +1,4 @@
-//! The worker's job capability (temper/docs/design/domain/worker.md, 4.4):
+//! The worker's job capability (temper/docs/design/domain/worker/jobs.md):
 //! a project's command runs in its job's directory with the arguments and
 //! environment of temper/docs/design/protocol/tooling.md, 2.
 //!

@@ -9,7 +9,7 @@ executes a part of the drafts and writes its own design as it goes.
 where the design lags each is the drafts' statuses.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
-and `worker.md` are temper's `../domain/` documents; jig's and smith's
+and `../domain/worker/README.md` are temper's `../domain/` documents; jig's and smith's
 are named as theirs.
 
 ## 1. In one page
@@ -229,7 +229,7 @@ section 14 it adds.
 
 - **Executes:** `reference-code-production.md`, section 7, and section
   6, step 1's kept start.
-- **Design:** `worker.md`, 4.1 and section 5 (a checkout from g's tip
+- **Design:** `../domain/worker/README.md`, 4.1 and `../domain/worker/checkouts.md` (a checkout from g's tip
   with its dependencies' pushed heads merged in); `../domain/forge/change/README.md`
   (the early start, its once rule, its refusal on a conflict, an
   amendment refused for dropping a dependency started from); `landing.md`,
@@ -249,7 +249,7 @@ section 14 it adds.
   and 5.
 - **Design:** jobs are designed and, by M7a, built (jig's
   `domain/model.md`, 3.2, `jig/docs/design/domain/tasks/lifecycle.md`, 3.1, `jig/docs/design/domain/engine/executors.md`,
-  5 and `jig/docs/design/domain/hosts/hub.md`, 9; `worker.md`, 4.4); temper's worker
+  5 and `jig/docs/design/domain/hosts/hub.md`, 9; `../domain/worker/jobs.md`); temper's worker
   declares no kind yet. The merge job is not
   designed: `landing.md`, 5.3, `../domain/forge/change/repairs.md` and `../domain/forge/README.md`, 6, temper's
   `../protocol/tooling.md`, sections 1 and 4, and

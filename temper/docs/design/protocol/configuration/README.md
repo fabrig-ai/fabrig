@@ -267,14 +267,14 @@ have one, an engine alone none. Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker.md`, section 5) |
+| `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
 | `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
 
 - **The worker's root takes the rest from jig's and smith's:** the hub's
   limits from jig's worker part; smith's host limits and the bounds its
   hello states from the agent's configuration (section 4), as jig's
   reference binary derives them, but for the agents the host holds, which
-  are its slots (`../../domain/worker.md`, section 6); its stop bound from
+  are its slots (`../../domain/worker/README.md`, section 5); its stop bound from
   jig's graces; the checkout's limits from temper's profile (`limits.md`).
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
@@ -287,7 +287,7 @@ have one, an engine alone none. Each:
 
 **The engine-away bound** is jig's worker member `graces.grace_ms`: how
 long a worker keeps hosting its runs with no engine that has admitted
-its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker.md`, section
+its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). `temper-box init` writes 60,000, so that an engine's restart (its
 store's load, its switch, its listeners again) passes within it and
 each run is adopted where it stands; a deployment whose engine takes
@@ -348,7 +348,7 @@ longer to start raises it.
   `protocol/agent.md`, section 4), bounds each reasoning item the model
   sends; past it, with smith's default `oversized_reasoning` of `fail`,
   the call fails and the run holds at once, naming the bound and its
-  value (`../../domain/worker.md`, 4.3). smith derives its largest turn
+  value (`../../domain/worker/README.md`, 4.3). smith derives its largest turn
   from it, so the allowance and the hub's bounds go together: the start
   refuses a document whose bounds do not hold that turn (`limits.md`).
   temper's documents give a plan's model an allowance its reasoning

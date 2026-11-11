@@ -7,7 +7,7 @@ and `reference-case.md` cite its choices, N1 to N24, by number. Where the
 design still lags a draft is that draft's status, not these notes.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`,
-`worker.md` and `findings.md` are temper's `../domain/` documents; jig's
+`../domain/worker/README.md` and `findings.md` are temper's `../domain/` documents; jig's
 and smith's are named as theirs.
 
 ## 1. In one page

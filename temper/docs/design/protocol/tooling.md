@@ -7,7 +7,7 @@ the `merge` command any project may name for the merge job
 (`../domain/forge/change/repairs.md`), and the `close` command any project may name
 for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
-(`../domain/worker.md`, 4.4). What is open is `tooling.md`, section 7.
+(`../domain/worker/jobs.md`). What is open is `tooling.md`, section 7.
 
 ## 1. In one page
 
@@ -45,8 +45,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
-- **Its network** is the worker's containment's (`../domain/worker.md`,
-  section 9): a command that fetches what the directory lacks does so
+- **Its network** is the worker's containment's (`../domain/worker/README.md`,
+  section 8): a command that fetches what the directory lacks does so
   without temper's credentials.
 
 ## 3. The directory
@@ -89,8 +89,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 
 ### 4.1 `merge`
 
-The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker.md`,
-4.4): it settles the conflicts the project's rules know (a counted
+The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker/jobs.md`
+): it settles the conflicts the project's rules know (a counted
 baseline recounted, a generated file made again), with no model.
 
 - **Named by the project's `merge_job`** (`configuration/engine.md`
@@ -117,8 +117,8 @@ baseline recounted, a generated file made again), with no model.
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, no file left
-  unmerged: temper commits and delivers the merge (`../domain/worker.md`,
-  4.4). A file left unmerged or still marked fails the delivery, and
+  unmerged: temper commits and delivers the merge (`../domain/worker/jobs.md`
+  ). A file left unmerged or still marked fails the delivery, and
   the job with it.
 - **`result.json`, exit 3:** `{"settled": [PATH], "left": [PATH]}`:
   nothing is committed or pushed, and the change makes a resolution in
@@ -126,8 +126,8 @@ baseline recounted, a generated file made again), with no model.
   (`../domain/forge/change/repairs.md`); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, as `prepare`'s. The bound is the merge kind's
-  result bound, 512 bytes in the small profile (`../domain/worker.md`,
-  4.4): a command lists the paths that fit, in index order, and adds
+  result bound, 512 bytes in the small profile (`../domain/worker/jobs.md`
+  ): a command lists the paths that fit, in index order, and adds
   `"more": N`, the count of those it left out.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree.
@@ -140,8 +140,8 @@ text form; another form refuses the change's start (2026-11-04).
 
 ### 4.2 `close`
 
-The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker.md`,
-4.4): it settles, with no model, what a goal leaves in its branch once
+The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker/jobs.md`
+): it settles, with no model, what a goal leaves in its branch once
 every change of it has ended, before the goal's landing takes the branch
 into its base. fabrig's settles the goal's in-flight status entries
 (fabrig's `DESIGN.md`, section 2); another project's may settle what it
@@ -185,7 +185,7 @@ keeps of a goal's work in its own files.
 
 - **Run** inside a prepare job, after `prepare`, when the project names
   both and `prepare` gave no key for a gate; or alone, as a key job, at
-  a candidate the forge's rebase made (`../domain/worker.md`, 4.4).
+  a candidate the forge's rebase made (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "repository": NAME, "gate": NAME,
   "commit": COMMIT}`, with `repos/<name>/` checked out at the commit.
 - **`result.json`, exit 0:** `{"key": HEX64}`: 32 bytes the command
@@ -197,10 +197,10 @@ keeps of a goal's work in its own files.
 
 `request.json` and `result.json` at most `tooling_file_bytes` each, a
 merge job's and a close job's within their kinds' bounds
-(`../domain/worker.md`, 4.4);
+(`../domain/worker/jobs.md`);
 `files`, `settled` and `left` at most `conflict_files`, each a path
 within a branch name's bounds; members and upstreams within the landing's limits. Each is a
-limit of the worker's jobs (`../domain/worker.md`, 4.4).
+limit of the worker's jobs (`../domain/worker/jobs.md`).
 
 ## 7. Open questions
 

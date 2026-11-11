@@ -1,4 +1,4 @@
-//! The TUI's screens and paints (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/theme.md;
+//! The TUI's screens and paints (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md;
 //! skein/docs/design/ui/screen.md, sections 4 and 5).
 //!
 //! The frames are written by hand from the view trees and theme contracts.

@@ -9,7 +9,7 @@ The hello's optional reply bound is `jig/docs/design/protocol/channel/records.md
 1 and `jig/docs/design/domain/hosts/README.md`, section 2; the fleet keeping it
 by a run's live attempt is `jig/docs/design/domain/engine/fleet.md` and `jig/docs/design/domain/engine/settings.md`, section 8
 . A temper worker naming `host_reply_text` is
-`temper/docs/design/domain/worker.md`, section 6; a task read's room and
+`temper/docs/design/domain/worker/README.md`, section 5; a task read's room and
 its rendering are `temper/docs/design/domain/routing.md`, 2 and
 `temper/docs/design/domain/agent/tools.md`. Where the worker names none,
 the local agent's bound applies, else `documents.text_bytes`.

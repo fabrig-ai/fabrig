@@ -11,7 +11,7 @@ who make the code meet it. How the goal lands is `reference-landing.md`;
 reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
-and `worker.md` are temper's `../domain/` documents; jig's and smith's
+and `../domain/worker/README.md` are temper's `../domain/` documents; jig's and smith's
 are named as theirs.
 
 ## 1. In one page

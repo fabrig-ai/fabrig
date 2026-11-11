@@ -1,6 +1,6 @@
 //! New work waits at the watermark; what finishes or advances admitted
 //! work is always taken (skein's `programming-model.md`, 7.1;
-//! `domain/worker.md`, 3.1). Passing held work preserves W5 (skein's
+//! `domain/worker/README.md`, 3.1). Passing held work preserves W5 (skein's
 //! `programming-model.md`, 7.2).
 use crate::{Event, Limits, host};
 
@@ -49,7 +49,7 @@ pub fn is_new_work(event: &Event) -> bool {
 /// Whether `event`, from the engine, passes new work waiting before it:
 /// the engine's answers about admitted runs' turns and calls. A cancellation
 /// or a grant may name the waiting run, and the link's state follows what
-/// came before it, so those wait (W5; `domain/worker.md`, 3.1).
+/// came before it, so those wait (W5; `domain/worker/README.md`, 3.1).
 #[must_use]
 pub fn passes(event: &Event) -> bool {
     match event {

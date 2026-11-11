@@ -1,4 +1,4 @@
-//! Words and data shared by the browser and TUI (temper/docs/design/client/tui/pages.md, Its words).
+//! Words and data shared by the browser and TUI (temper/docs/design/client/tui/pages/README.md, Its words).
 mod cards;
 mod lists;
 mod needs;

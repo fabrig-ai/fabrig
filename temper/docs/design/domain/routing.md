@@ -92,7 +92,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   its hello (jig's `protocol/channel/records.md`, 1), as jig's fleet keeps it by
   the attempt (jig's `domain/engine/fleet.md`); where the worker names
   none, the local agent's `host_reply_text`. Every temper worker names its
-  agent's `tool_payload` (`worker.md`, section 6), the local agent's
+  agent's `tool_payload` (`worker/README.md`, section 5), the local agent's
   in-process worker among them. Where neither names one, as for a worker
   that names none in a process with no local agent's metadata (`agent/tools.md`
   ), the room is `documents.text_bytes`: the root does not know that

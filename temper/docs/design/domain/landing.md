@@ -71,7 +71,7 @@ temper-engine-domain-forge              the top: landings' and receipts' states,
   repair, the turn, a merge) and the landing's next state.
 - **Keys are computed in the domain** from what the forge answers of a
   tree (skein's `Read::Tree`), or taken from a prepare's report: the
-  engine never reads a repository (`worker.md`, section 2).
+  engine never reads a repository (`worker/README.md`, section 2).
 - **The worker** runs a project's prepare (section 5.3) as a job, never
   an agent's run.
 
@@ -230,12 +230,12 @@ For a project with no prepare command, one member per repository:
   main keeps the resolution's merge commit.
 - **A forced update, and only here:** the rebase rewrites the member's
   branch, so the heads before it are kept in the change's state, and
-  the pull request's timeline shows each candidate (`worker.md`,
-  section 5's rule that no push is forced is temper's runs'; the
+  the pull request's timeline shows each candidate (`worker/checkouts.md`
+  's rule that no push is forced is temper's runs'; the
   forge's rebase is the prepare's). Where the forge's rules dismiss
   approvals on a push, it dismisses the forge's approvals too, though
   the member's diff is the same: temper's judgement gates still hold
-  (section 3), and on GitHub the turn's ref update under `Always`
+  (`landing.md`, section 3), and on GitHub the turn's ref update under `Always`
   passes the rule; a person's approval the landing rules require is
   asked again.
 - **On GitHub,** whose REST API updates a pull request only by a merge,
@@ -263,7 +263,7 @@ For a project with no prepare command, one member per repository:
 
 - **Per repository, upstream first.** A landing whose project names a
   prepare command, or with a stack of several members in a repository,
-  prepares each repository by a job (`worker.md`, 4.4), in the order of
+  prepares each repository by a job (`worker/jobs.md`), in the order of
   the project's pins, upstream first: a downstream's job starts once
   its upstreams' candidates are known, and is given them.
 - **Delegated by the task that holds the branch it writes,** so the job
@@ -278,10 +278,10 @@ For a project with no prepare command, one member per repository:
   rebase or merge, bump a downstream's pin to its upstream's candidate,
   regenerate derived files and settle conflicts its rules know.
 - **Its result** is the candidate, pushed by the worker to the branch
-  with a lease on the head temper last read (`worker.md`, 4.4), or the
+  with a lease on the head temper last read (`worker/jobs.md`), or the
   conflict: the member, its files, and the main's tip, kept in the
   landing's state. The conflict makes a resolution under that member
-  (section 3), whose workspace is main's tip merged into the member's
+  (`landing.md`, section 3), whose workspace is main's tip merged into the member's
   head with those files marked, made afresh from the forge, never the
   job's discarded one; its pushed merge contains main's tip, and the
   next prepare takes it. And each gate's key when the project's key
@@ -320,7 +320,7 @@ For a project with no prepare command, one member per repository:
   and the landing computes the key.
 - **A project's `key` command** gives its own instead: in its prepare
   job's result when the project names a prepare command too, and
-  otherwise by a key job (`worker.md`, 4.4) per repository and gate at
+  otherwise by a key job (`worker/jobs.md`) per repository and gate at
   the candidate, delegated by the landing; the engine reads only the
   job's result.
 - **A judgement gate's key** is not a tree: it is the gate and the head

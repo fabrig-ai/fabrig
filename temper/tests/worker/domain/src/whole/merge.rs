@@ -1,4 +1,4 @@
-//! Merge jobs in the whole worker world (temper/docs/design/domain/worker.md, 4.4).
+//! Merge jobs in the whole worker world (temper/docs/design/domain/worker/jobs.md).
 
 use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Token};
@@ -30,7 +30,7 @@ fn kind() -> tooling::Kind {
 }
 
 /// A merge in progress, the scripted command, delivery, answer and teardown
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn run(seed: u64, case: Case) -> Report {
     let mut limits = crate::limits();

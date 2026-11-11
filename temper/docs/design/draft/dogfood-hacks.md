@@ -15,9 +15,9 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 
 ### 2.1 A workspace kept between workstreams
 
-- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too. Any value counts as set; it's read once, at the worker's start. On main (`../domain/worker.status.md`).
-- **Why:** a checkout otherwise starts empty for each workstream (`../domain/worker.md`, section 5), so every file is new to cargo, and each crate recompiles. Kept, a new piece of work rebuilds only what changed.
-- **Cost and risk:** a run can write its `.git`. With no contained trees (`../domain/worker.md`, section 9), its hooks reach later workstreams, and the worker's own git runs them, with push credentials in reach. Acceptable for one trusted person only. Old objects also pile up in a clone.
+- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too. Any value counts as set; it's read once, at the worker's start. On main (`../domain/worker/README.status.md`).
+- **Why:** a checkout otherwise starts empty for each workstream (`../domain/worker/checkouts.md`), so every file is new to cargo, and each crate recompiles. Kept, a new piece of work rebuilds only what changed.
+- **Cost and risk:** a run can write its `.git`. With no contained trees (`../domain/worker/README.md`, section 8), its hooks reach later workstreams, and the worker's own git runs them, with push credentials in reach. Acceptable for one trusted person only. Old objects also pile up in a clone.
 - **The pipeline:** a fixed set of long-lived checkouts, each claimed by one run, fetched and reset in place.
 - **A real design:** the checkout's cache keyed by repository, not workstream, once contained trees make `.git` read-only and hooks are off for the worker's git. Possibly no switch at all then.
 
@@ -166,4 +166,4 @@ For the user to weigh; each can become an entry.
 - Which machine runs the worker (2.4)?
 - Does any entry become a real feature before the switch, rather than after v0.1.0?
 - Does `ENABLE_INTERNAL_SIGNIN = false` leave the link page's password form (2.8), so that internal sign-in can go off once every account is linked? Nothing has run it.
-- What may a deployment's operators read of a run's prompts (2.12, 2.13)? `../domain/worker.md`, section 12 holds the question.
+- What may a deployment's operators read of a run's prompts (2.12, 2.13)? `../domain/worker/README.md`, section 10 holds the question.

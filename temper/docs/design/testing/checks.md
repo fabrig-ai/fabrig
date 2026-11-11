@@ -13,7 +13,7 @@ Every world checks what the strategy lists (skein/docs/foundation/testing-strate
 6). In temper:
 
 - **Contracts** include each operation's deadline and identity, and each
-  component's own (`../domain/worker.md`, section 10).
+  component's own (`../domain/worker/README.md`, section 9).
 - **Engine replay** runs two independent walking, escalation or role
   worlds in lockstep under the same stimuli. After each iteration it
   compares their complete traces exactly, and hashes the frozen root,

@@ -324,7 +324,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   `client/domain/contract/documents.md`, 1); Only you's other kinds, a forge's
   token to replace, and a person task asking an act rather than a choice,
   which stays among the cards meanwhile; Only you in the terminal's inbox
-  (`../tui/pages.md`); a need's goal, role and asker on its from
+  (`../tui/pages/README.md`); a need's goal, role and asker on its from
   line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
   person's word as a finding and a setting names the project's triager
   (`../../domain/findings.md`, sections 4 and 6); one brief across projects written per person,

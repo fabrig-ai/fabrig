@@ -1,7 +1,7 @@
 # The checkout's io: git
 
 Provisional, 2026-10-14, revised 2026-10-20. How the worker's protocol
-layer runs the checkout's operations (`../domain/worker.md`, section 5):
+layer runs the checkout's operations (`../domain/worker/checkouts.md`):
 the git component, `temper-worker-protocol-git`. For each operation of
 `temper-worker-domain-checkout`'s `git::Op`, the fixed sequence of git
 invocations it runs, their arguments and environment, how its terminal is
@@ -105,7 +105,7 @@ the worker's root directory     workers[].root
   resolves beneath (skein's `runtime/io/files.md`). At every start the
   component renames `workspaces` and `home` into `trash` if they exist,
   and makes them afresh, private (0o700), with `trash` if it is absent:
-  the worker keeps nothing durable (`../domain/worker.md`, section 1),
+  the worker keeps nothing durable (`../domain/worker/README.md`, section 1),
   and git's `HOME` must be empty.
 - **What it depends on:** `skein-lib`, `skein-io` and the checkout's
   vocabulary. It never decodes a channel record or reads configuration.
@@ -148,7 +148,7 @@ pipes      stdin (written, then closed), stdout, stderr
   worker's root, never `-C`: a repository's directory is
   `workspaces/<token>/<repository>`, with the workspace's token in
   decimal and the repository's name, one path component
-  (`../domain/worker.md`, 4.1).
+  (`../domain/worker/README.md`, 4.1).
 - **Operands.** Object ids are hex the component writes; branches appear
   only inside refspecs the component composes (`refs/heads/<branch>`);
   the remote URL and Clone's directory come after `--`. So no operand can
@@ -222,7 +222,7 @@ section 3 writes them. The settings of section 3 precede each command.
 
 `Succeeded` once both are done; a failed file operation is `Broken`. So
 what the cache evicted, or a worker left behind before a restart, never
-fails a prepare (`../domain/worker.md`, section 9), and Make takes two
+fails a prepare (`../domain/worker/README.md`, section 8), and Make takes two
 file operations however large the old tree was.
 
 **The sweep** empties `trash`, which io cannot do in one operation (io
@@ -283,7 +283,7 @@ and `refs/temper/landing` for `Into::Landing`.
   the head its push branch had (or its start's commit, where that branch
   does not exist yet), which the project's checks take their base from
   (`tools/pre-pr/design.md`, section 2). Only prepare's one pin fetch
-  writes it (`../domain/worker.md`, section 5), forced (`+`), since a
+  writes it (`../domain/worker/checkouts.md`), forced (`+`), since a
   cached checkout's pin from an earlier hold may be anywhere; no other
   operation names it, so it stays where prepare put it for the hold.
 - **These two are the references the component writes** in a repository.
@@ -291,7 +291,7 @@ and `refs/temper/landing` for `Into::Landing`.
   not have; `Commit` for a commit it does not have (section 6). A full id
   is required: git looks an abbreviation up as a reference name.
 - **A push that ended ambiguously** is verified by the domain with a
-  fetch of its branch (`../domain/worker.md`, section 5): no other
+  fetch of its branch (`../domain/worker/checkouts.md`): no other
   invocation is needed for it.
 
 ### 4.4 Create
@@ -365,7 +365,7 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   entries whatever the repository's diff settings say.
 - **The committer** git requires even with `--no-commit` is the
   placeholder of section 5: Merge names no identity, and makes no commit.
-- **Who commits it** is the domain's (`../domain/worker.md`, section 5): a
+- **Who commits it** is the domain's (`../domain/worker/checkouts.md`): a
   producer's clean merge and each head of a base with heads merged in at
   once, any other merge at its run's first push or save.
 
@@ -375,7 +375,7 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 tree exactly as it is, on the parents the domain names, or those the checkout
 holds when `snapshot` names the push remote and its account. `always` makes
 the commit even when the tree is the parent's: the next commit of a hold
-after an unchecked save (`../domain/worker.md`, section 5). The message,
+after an unchecked save (`../domain/worker/checkouts.md`). The message,
 given on stdin, is `title`, then, when `body` is not empty, a blank line and
 `body`, then a newline. `.gitignore` is honoured: an ignored file is not
 part of the tree. **A hidden log is no part of a change:** a file named
@@ -530,7 +530,7 @@ section 4.8's separate contract: exit 1 rejects that push. The checkout
 uses this operation to compare an existing producer head with the landing
 tip frozen by its prepare, and to ask whether a start's checkout already
 contains a head or a producer's base it would merge
-(`../domain/worker.md`, section 5); the comparison alone is never a push
+(`../domain/worker/checkouts.md`); the comparison alone is never a push
 receipt.
 
 
@@ -550,7 +550,7 @@ behind a long list of Markdown files or the stdout retention cap.
 
 ### 4.10 Rewrite
 
-A prepare job's (`../domain/worker.md`, 4.4). `Rewrite { at,
+A prepare job's (`../domain/worker/jobs.md`). `Rewrite { at,
 remote, commit, branch, expected, identity }`: the branch moved to
 `commit` only if it is still at `expected`, whether or not `commit`
 descends from it:
@@ -685,7 +685,7 @@ variable of the worker's own process reaches git.
 - **Kill at once.** A killed git may leave a lock file or half an index;
   the checkout does not trust a workspace whose operation timed out, was
   cancelled or broke, and makes it again from an empty directory
-  (`../domain/worker.md`, section 5).
+  (`../domain/worker/checkouts.md`).
 - **stdin** is written whole (the message, for `commit-tree`; nothing
   otherwise) and closed; stdout and stderr are read as they come, both at
   once, so git never waits on a full pipe.
@@ -720,8 +720,8 @@ and io's close timeout bounds the end of a killed invocation.
 - **Time:** an operation ends within its deadline and io's close timeout.
 - **Kernel submissions:** `KERNEL_SUBMISSIONS = 1`, one file operation
   at the queue edge toward skein-io. Internal hand-offs reserve no room.
-- **Disk:** the workspaces are the cache's (`../domain/worker.md`, section
-  5); `trash` holds no more than the workspaces it took, until the sweep
+- **Disk:** the workspaces are the cache's (`../domain/worker/checkouts.md`
+  ); `trash` holds no more than the workspaces it took, until the sweep
   has emptied it.
 
 ## 9. Testing
@@ -809,7 +809,7 @@ checks this document's contract:
 - **HEAD after saving unfinished work.** Default: a commit without a delivery snapshot
   does not move HEAD (section 4.7). Preparation follows each clean producer
   merge or merged head's commit with `CheckOut`, moving HEAD and clearing
-  the merge's state before the run (`../domain/worker.md`, section 5).
+  the merge's state before the run (`../domain/worker/checkouts.md`).
   A saved-work commit retains its domain-named parents; an unchecked save
   and checked delivery read and advance HEAD.
 - **A forge whose certificate needs its own trust for git.** Default: the
@@ -828,5 +828,5 @@ checks this document's contract:
 - **A clone that outlives its workstream.** Section 3 turns off automatic
   garbage collection and maintenance, which costs little while a new
   workstream makes its workspace again. A clone kept past one
-  (`../domain/worker.status.md`) gathers old objects until a make. Default:
+  (`../domain/worker/README.status.md`) gathers old objects until a make. Default:
   nothing collects them.
