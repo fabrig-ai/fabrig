@@ -128,12 +128,10 @@ fn choosing_another_project_changes_the_navigations_project() {
     let mut view = fixtures::view();
     fixtures::build(&mut view, &root);
     assert_rail(&view, b"Second");
-    let link = fixtures::find(view.tree(), Role::Link, b"Home").expect("selected project's adoption");
+    let link = fixtures::find(view.tree(), Role::Link, b"Home").expect("across Home");
     assert_eq!(
         crate::act(&mut view, link, Act::Press),
-        Some(Action::Pages(pages::Act::Go {
-            address: temper_client_domain::Address::Home { project: fixtures::SECOND_PROJECT }
-        }))
+        Some(Action::Pages(pages::Act::Go { address: temper_client_domain::Address::AllHome }))
     );
 }
 #[test]
@@ -584,6 +582,90 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
                 address: temper_client_domain::Address::Team { project: fixtures::PROJECT },
             }))
         );
+    }
+}
+
+#[test]
+fn home_and_needs_stay_across_projects_in_the_rail_and_phone_tabs() {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    use temper_client_domain::{Address, Event, Place, WorkFilter, address::Filter};
+    let project = fixtures::SECOND_PROJECT;
+    let (mut root, me_watch, _, inbox_watch) =
+        fixtures::root_at_with_needs(Address::Work { project, filter: WorkFilter::All }, &fixtures::domain_limits());
+    let me = root.pages().me(root.client()).unwrap().clone();
+    assert_eq!(me.projects.len(), 2);
+    fixtures::deliver_me(&mut root, me_watch, me);
+    let mut rows = List::with_capacity(2);
+    for project in [fixtures::PROJECT, fixtures::SECOND_PROJECT] {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: u64::from(project), message: 1 },
+            project,
+            1,
+            fixtures::NOW,
+            None,
+        ))
+        .unwrap();
+    }
+    let inbox = temper_fixtures::client_documents::inbox(rows, 99, c::Count { value: 0, limited: false }, 0, false);
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: inbox_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(inbox))),
+                },
+            },
+        },
+    );
+    for (address, across, home_current, needs_current) in [
+        (Address::AllHome, true, true, false),
+        (Address::Inbox { filter: Filter::ALL }, true, false, true),
+        (Address::Work { project, filter: WorkFilter::All }, false, false, false),
+        (Address::Home { project }, false, true, false),
+        (Address::Inbox { filter: Filter { project: Some(project), ..Filter::ALL } }, false, false, true),
+    ] {
+        let work_current = address == Address::Work { project, filter: WorkFilter::All };
+        fixtures::root_event(&mut root, Event::Went { place: Place::Address(address) });
+        for browser in [false, true] {
+            let mut view = if browser { fixtures::browser_page_view(&root) } else { fixtures::page_view(&root) };
+            let home = if across { Address::AllHome } else { Address::Home { project } };
+            let needs =
+                Address::Inbox { filter: Filter { project: if across { None } else { Some(project) }, ..Filter::ALL } };
+            let rail_name = if across { b"Needs you 2".as_slice() } else { b"Needs you 1".as_slice() };
+            let tab_name = if across { b"Needs 2".as_slice() } else { b"Needs 1".as_slice() };
+            let links = [
+                (b"temper home".as_slice(), home.clone(), false, 1),
+                (b"Home".as_slice(), home, home_current, if browser { 2 } else { 1 }),
+                (rail_name, needs.clone(), needs_current, 1),
+                (tab_name, needs, needs_current, u32::from(browser)),
+                (
+                    b"Work".as_slice(),
+                    Address::Work { project, filter: WorkFilter::All },
+                    work_current,
+                    if browser { 2 } else { 1 },
+                ),
+                (b"How work runs".as_slice(), Address::Settings { project }, false, 1),
+            ];
+            for (name, target, current, expected) in links {
+                let mut found = List::with_capacity(2);
+                for node in view.tree().nodes() {
+                    if node.role == Role::Link && node.name.as_deref() == Some(name) {
+                        found.push((node.id, node.states.as_slice().contains(&skein_ui::State::Current))).unwrap();
+                    }
+                }
+                assert_eq!(found.len(), expected, "{name:?}");
+                for (id, is_current) in &found {
+                    assert_eq!(*is_current, current, "{name:?}");
+                    assert_eq!(
+                        crate::act(&mut view, *id, Act::Press),
+                        Some(Action::Pages(pages::Act::Go { address: target.clone() })),
+                        "{name:?}"
+                    );
+                }
+            }
+        }
     }
 }
 

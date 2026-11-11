@@ -87,7 +87,7 @@ fn parts_follow_each_rails_rule_and_to_begin_cut() {
         (
             "to begin",
             Facts { beginning: true, ..BASE },
-            Parts { needs_you: false, work: false, how: false, new: New::Hidden, ..ORDINARY },
+            Parts { needs_you: false, work: false, how: true, new: New::Hidden, ..ORDINARY },
             Tabs { needs: false, work: false, deployment: true, ..ORDINARY_TABS },
         ),
         (
@@ -111,7 +111,7 @@ fn parts_follow_each_rails_rule_and_to_begin_cut() {
                 work: false,
                 team: false,
                 ask: true,
-                how: false,
+                how: true,
                 away: true,
                 new: New::Hidden,
             },
@@ -267,7 +267,12 @@ fn facts_gather_the_open_projects_domain_values() {
             },
         ),
         ("other project", &project_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, ..BASE }),
-        ("across", &across_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, away: true, ..BASE }),
+        (
+            "across",
+            &across_root,
+            OTHER,
+            Facts { projects: PROJECTS, needs: NEEDS, needs_cut: true, away: true, ..BASE },
+        ),
         ("unread", &unread, f::PROJECT, BASE),
     ] {
         assert_eq!(rail::facts(root, project, f::NOW), expected, "{name}");

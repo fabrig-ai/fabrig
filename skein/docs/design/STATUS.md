@@ -116,9 +116,9 @@ its checks' exceptions and the `expect`s naming a round or milestone
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
-`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts, `component-kit.md` waits on
-`runtime/lib.md` and `runtime/io/README.md` to name its items, the design departs from
-`redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
+`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts,
+`component-kit.md` leaves the forwarding `Host` and component-kit role open,
+the design departs from `redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
 status holds a departure the user has not answered, a progress's text
 as runs of its own.
 

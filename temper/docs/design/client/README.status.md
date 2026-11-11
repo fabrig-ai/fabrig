@@ -519,7 +519,7 @@ The four request accounts are `2f653fffa3`
 (`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
 (`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
-render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
+render comparison follows landing (`web/look-requests.md`, 4 and 5;
 `README.md`, section 5). The ground, scrollbar and foot repairs are recorded in
 `web/look.status.md`. The ordinary bar's two-row title at 1000 px
 remains intentional: `>_` and the status words leave the path less than

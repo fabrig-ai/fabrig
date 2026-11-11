@@ -55,6 +55,14 @@ fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
                 print!("{}", temper_shell::table::help(&TABLE, arguments)?);
                 return Ok(ExitCode::SUCCESS);
             }
+            if command.reach == Reach::Words(&["versions"]) {
+                let command =
+                    crate::configure_command(command, arguments, &captured.arguments, &captured.environment, b"")
+                        .map_err(|why| (2, why))?;
+                return crate::run(command, &captured.environment, b"", &captured.run_as)
+                    .map(ExitCode::from)
+                    .map_err(|why| (1, why));
+            }
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?;
             crate::configure_command(
                 command,

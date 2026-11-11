@@ -165,7 +165,7 @@
 - **The chat heading's rendered look** (`../README.md`; the request `chat-title`):
   temper/ui compares the request's page and named states with the shipped
   view after landing, at 1440, 1000 and 420 px, including open disclosures
-  and menus (`../../../draft/look-requests.md`, section 4). Default: the focused
+  and menus (`../../web/look-requests.md`, section 4). Default: the focused
   short-title and heading tables; they establish no rendered equality.
 - **A model-written chat title** (`../README.md`): a later request may replace the
   first-sentence short form. Default: derive the heading in the view and

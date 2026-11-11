@@ -57,11 +57,15 @@
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
     "Skip"; under them a line by what is left: "Two steps left. Skip
-    them if you like; they stay in Settings and Ask temper." with both
-    left, "One step left. Skip it if you like; it stays in Settings."
+    them if you like; they stay in How work runs and Ask temper." with both
+    left, "One step left. Skip it if you like; it stays in How work runs."
     with the repository left, and "One step left. Skip it if you like; it
     stays in Ask temper." with "Tell temper how you work" left (the look
-    request `to-begin-two-steps`, the user's word of 2026-11-07). Then one
+    request `to-begin-two-steps`, the user's word of 2026-11-07), each
+    naming where the rail keeps the step: the repository on How work
+    runs' Repositories tab, the way of working in Ask temper, the rail
+    naming no Settings (`../../draft/surfaces.md`, section 2;
+    `../view.md`, 3). Then one
     row a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
