@@ -119,6 +119,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            rules: w::PathRules::new(&w::CEILINGS, w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) }).expect("empty path rules"),
             words: if name == Some("how-yours") {
                 Some(w::ProjectWords::new(
                     &w::CEILINGS,

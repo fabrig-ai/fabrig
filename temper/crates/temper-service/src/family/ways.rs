@@ -63,6 +63,8 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                 ),
                 None => None,
             },
+            rules: w::PathRules::new(limits, w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) })
+                .ok()?,
             may_change: document.may_change,
         },
     )
