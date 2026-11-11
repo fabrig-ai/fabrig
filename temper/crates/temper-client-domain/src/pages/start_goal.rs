@@ -208,8 +208,12 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
 }
 
 pub(super) fn open_landed(
-    pages: &mut Pages, env: &Env<Limits>, client: &Client, draft: super::work::Landed,
-    run: bool, out: &mut Queue<Request>,
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    draft: super::work::Landed,
+    run: bool,
+    out: &mut Queue<Request>,
 ) {
     if pages.start.is_some() || !draft.listed {
         return;
@@ -351,7 +355,9 @@ pub(super) fn told(
     told: &Told,
     out: &mut Queue<Request>,
 ) -> bool {
-    if let Told::Answered { key, .. } = told && pages.draft_starts.remove(key) {
+    if let Told::Answered { key, .. } = told
+        && pages.draft_starts.remove(key)
+    {
         return true;
     }
     let Some(start) = &mut pages.start else { return false };
@@ -395,7 +401,15 @@ pub(super) fn told(
                         }
                     }
                     if let Some(draft) = &start.landed {
-                        mark_started(start.project, draft, *first, env, &mut pages.serial, &mut pages.draft_starts, out);
+                        mark_started(
+                            start.project,
+                            draft,
+                            *first,
+                            env,
+                            &mut pages.serial,
+                            &mut pages.draft_starts,
+                            out,
+                        );
                     }
                     out.push(Request::Show { address: Address::Task { task: *first } });
                     pages.start = None;
@@ -418,15 +432,27 @@ pub(super) fn told(
 }
 
 fn mark_started(
-    project: u32, draft: &super::work::Landed, goal: u64, env: &Env<Limits>,
-    serial: &mut u64, pending: &mut skein_lib::Set<Key>, out: &mut Queue<Request>,
+    project: u32,
+    draft: &super::work::Landed,
+    goal: u64,
+    env: &Env<Limits>,
+    serial: &mut u64,
+    pending: &mut skein_lib::Set<Key>,
+    out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::v1 as w;
-    let Ok(repository) = w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts {
-        owner: draft.owner.clone(), name: draft.name.clone(),
-    }) else { return };
-    let change = w::DraftChange::Started(w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal }).expect("goal number fits"));
-    if let Some(request) = crate::forge::drafts::ask(project, Some(repository), draft.path.clone(), change, &env.limits.forge) {
+    let Ok(repository) = w::DraftRepository::new(
+        &w::CEILINGS,
+        w::DraftRepositoryParts { owner: draft.owner.clone(), name: draft.name.clone() },
+    ) else {
+        return;
+    };
+    let change = w::DraftChange::Started(
+        w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal }).expect("goal number fits"),
+    );
+    if let Some(request) =
+        crate::forge::drafts::ask(project, Some(repository), draft.path.clone(), change, &env.limits.forge)
+    {
         *serial = serial.checked_add(1).expect("page keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
         pending.insert(key).expect("one key per draft start");

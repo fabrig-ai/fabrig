@@ -4565,7 +4565,8 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
                     && tagged.iter().all(u8::is_ascii_digit)));
         let project_way = node.role == Role::Button
             && node.styles.as_slice().contains(&temper_client_view::look::WORK_CHOICE)
-            && !way.is_empty() && text == way;
+            && !way.is_empty()
+            && text == way;
         let path_stop = node.role == Role::Button
             && node.name.as_deref() == Some(text.as_slice())
             && nodes[..index].iter().enumerate().any(|(start, ancestor)| {

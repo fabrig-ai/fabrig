@@ -27,8 +27,13 @@ impl Landed {
     #[must_use]
     pub fn row(row: &temper_client_protocol_wire::v1::LandedDraft) -> Self {
         Self {
-            forge: row.forge(), owner: row.owner().into(), name: row.name().into(), path: row.path().into(),
-            at: Wall::from_nanos(row.at()), title: row.title().into(), listed: row.ready() && row.goal().is_none(),
+            forge: row.forge(),
+            owner: row.owner().into(),
+            name: row.name().into(),
+            path: row.path().into(),
+            at: Wall::from_nanos(row.at()),
+            title: row.title().into(),
+            listed: row.ready() && row.goal().is_none(),
         }
     }
 }

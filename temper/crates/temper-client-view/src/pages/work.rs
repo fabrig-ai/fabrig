@@ -395,36 +395,45 @@ fn chat(
     }
 }
 fn landed_draft(
-    b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings,
-    times: &mut Times, project: u32, index: u32,
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    project: u32,
+    index: u32,
 ) {
     let Some(page) = root.pages().drafts() else { return };
     let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
     let Some(row) = panel.drafts().get(index) else { return };
     let file = temper_client_domain::pages::goal::file_of(row.path());
     let dir = row.path().strip_suffix(file).expect("file is the last segment");
-    let dir = if dir.is_empty() {
-        crate::accounts::words::join(&[row.name(), b"/"])
-    } else { dir.into() };
+    let dir = if dir.is_empty() { crate::accounts::words::join(&[row.name(), b"/"]) } else { dir.into() };
     b.open(Role::Paragraph);
     b.style(look::WORK_FROM);
     text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
     separated(b, words, file);
     separated(b, words, &words.say(Word::WorkLandedIn, &[Hole::Name(dir)]));
-    separated(b, words, &words.say(Word::WorkReadySince, &[
-        Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at()))),
-    ]));
+    separated(
+        b,
+        words,
+        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at())))]),
+    );
     b.close();
     if !row.title().is_empty() {
         text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
     }
     let Some(me) = root.pages().me(root.client()) else { return };
     let ways = super::goals::ways(me, project, words);
-    if ways.is_empty() { return; }
+    if ways.is_empty() {
+        return;
+    }
     let configured = root.forge().ways(project);
     let mut recommended = None;
     for way in &ways {
-        if let Some(configured) = configured && configured.way == way.number {
+        if let Some(configured) = configured
+            && configured.way == way.number
+        {
             recommended = Some(way);
         }
     }
@@ -451,12 +460,19 @@ fn landed_draft(
     b.close();
 }
 fn draft_choice(
-    b: &mut Builder, bindings: &mut Bindings, label: &[u8], small: Option<&[u8]>,
-    draft: work::Landed, start: bool, recommended: bool,
+    b: &mut Builder,
+    bindings: &mut Bindings,
+    label: &[u8],
+    small: Option<&[u8]>,
+    draft: work::Landed,
+    start: bool,
+    recommended: bool,
 ) {
     b.open(Role::Button);
     b.style(look::WORK_CHOICE);
-    if recommended { b.style(look::WORK_RECOMMENDED); }
+    if recommended {
+        b.style(look::WORK_RECOMMENDED);
+    }
     b.name(label);
     b.bind(bindings.insert(Act::OpenLanded { draft, start }));
     if let Some(small) = small {
