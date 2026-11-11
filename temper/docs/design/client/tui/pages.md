@@ -5,11 +5,11 @@ the TUI's own state: signing in, while the link is signed out; once
 signed in, or while the TUI signs in from the engine's link (below), the
 launchpad, the root at `Home { project }`; and a chat, the root at
 `Chat { task }` (`README.md`, 3, *Its pages*), with its draft beside it where it
-has one (*A design session*, below). Signing in has a framed top, the
+has one (section 8, below). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: what closes the TUI, and the link's state. The
 launchpad and a chat share their foot: the box, and under it the quiet
-line or a list (*The foot*, below). The launchpad and a chat are drawn
+line or a list (section 4, below). The launchpad and a chat are drawn
 from the user's hand-made frames of the look request `tui-launchpad`
 (2026-11-08), at 80 by 24 in the dark theme; their words are the
 browser's chat terminal's (`../pages/chat/terminal.md`, 1), and a chat reads
@@ -28,12 +28,11 @@ the foot and the commands (`box.md`).
   whether the link was signed out after a sign-in, and whether the
   credential's last write failed; the window's columns, for what a
   narrow row leaves out; the question set aside by "Tell it something
-  else" (*The chat's question*); the notice standing (*The notice*);
+  else" (section 7); the notice standing (section 4, *The notice*);
   the theme chosen, the terminal's scheme Auto reads, and whether the
-  theme's list stands (*`/theme`*); the left-off chat selected on the
-  launchpad, by its task (*Where you left off*); the reply whose choices
-  were set aside, and the chat a goal's start was asked from (*A design
-  session*); and whether it is on a
+  theme's list stands (section 5, *`/theme`*); the left-off chat selected on the
+  launchpad, by its task (section 3, *Where you left off*); the reply whose choices
+  were set aside, and the chat a goal's start was asked from (section 8); and whether it is on a
   box (`README.md`, 2, *On a box*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
   words with a project and of the terminal's look, lists and notes.
@@ -59,7 +58,9 @@ the foot and the commands (`box.md`).
   "Signed out", "Out of date", each in its token's paint (`theme.md`). On the
   launchpad and a chat it ends the quiet line.
 
-**Signing in**, illustrative:
+## 1. Signing in
+
+Illustrative:
 
 ```
 ╭─ temper ─────────────────────────────────────╮
@@ -107,7 +108,9 @@ the foot and the commands (`box.md`).
   a held credential the engine does not know): the token is erased
   (`README.md`, 3), and the screen shows again under the view's "Signed out.".
 
-**Signed in from the engine's link** (`README.md`, 2, *The engine's link, kept at
+## 2. Signed in from the engine's link
+
+(`README.md`, 2, *The engine's link, kept at
 rest*), with nothing pasted and no key pressed:
 
 - **When:** the link is signed out, the TUI has not closed, it has an
@@ -161,7 +164,9 @@ rest*), with nothing pasted and no key pressed:
   the TUI's state; a recording keeps it in the person's private file, and
   `add` redacts it (`journeys.md`, section 5).
 
-**The launchpad**, as drawn (`../../draft/surfaces.md`, 11.1, less its
+## 3. The launchpad
+
+As drawn (`../../draft/surfaces.md`, 11.1, less its
 team lines and `/draft` and `/talk`; its mockup
 `tui/whole-story/launchpad.html`, and `pair/` and `team/` beside it, whose
 words, parts and order bind and whose figures don't), illustrative:
@@ -227,7 +232,7 @@ words, parts and order bind and whose figures don't), illustrative:
     the status agent HH:MM" (`tui-byline`, aligned to the end), HH:MM its
     `at` in the view's clock (`../view.md`, 6, *clock*), and, where its lede has
     words, " · /brief" after it, in the byline's paint: `/brief` prints
-    the brief whole (*The TUI's own commands*, below);
+    the brief whole (section 5, *The TUI's own commands*, below);
   - *with none,* Home's headline, as the browser's Home says it, by the
     view's one function (`../pages/home.md`, 1, *the headline*): the landed sentence and
     the needs sentence, "The last change landed 2 hours ago. Nothing
@@ -264,7 +269,7 @@ words, parts and order bind and whose figures don't), illustrative:
     is open in it, all but the title in `tui-hint`;
   - *its number,* on a chat's row alone: "/chats N" (`tui-hint`) at the
     row's end, N the chat's place among the section's chats, 1 the
-    newest, which `/chats N` opens (*The TUI's own commands*). The row's
+    newest, which `/chats N` opens (section 5, *The TUI's own commands*). The row's
     words are cut at a word with "…" where they and two spaces would not
     leave it room; where that would leave the words fewer than 24
     columns, the number is left out. A goal has no number: the TUI has no
@@ -314,8 +319,7 @@ words, parts and order bind and whose figures don't), illustrative:
   the box, its head a line of its own, `tui-list-head`), one after
   another in Needs you's order (`../../draft/tui.md`, section 3, *Needs from
   elsewhere*):
-  - *a question* the person may answer: as the chat's question (*The
-    chat's question*, below), its question line the head, its choices
+  - *a question* the person may answer: as the chat's question (section 7, below), its question line the head, its choices
     numbered, the recommended one first and active, "Tell it something
     else", then "Next";
   - *a sign-off:* its row's words the head; "1. Review on FORGE ↗",
@@ -353,7 +357,7 @@ words, parts and order bind and whose figures don't), illustrative:
   temper". `/talk` joins it when the TUI has it
   (`../../draft/surfaces.md`, 11.3).
 - **The box keeps the keys:** the box is the only node of the launchpad
-  a person acts on, so the keys stay in it (*The box*, below), but Up,
+  a person acts on, so the keys stay in it (section 4, *The box*, below), but Up,
   Down, Enter and Esc on the left-off rows and `n` while it is empty
   (*Where you left off*, *Walking what needs you*). `/chats` opens any
   live chat; what needs the person is walked, answered in its chat or on
@@ -364,7 +368,9 @@ words, parts and order bind and whose figures don't), illustrative:
 - **The terminal's notes** (`../pages/chat/terminal.md`, 1, *The terminal's notes*) follow the
   sections, each in `tui-note`.
 
-**The foot,** the launchpad's and a chat's, from the bottom up: the
+## 4. The foot
+
+The launchpad's and a chat's, from the bottom up: the
 quiet line, or a list in its place; the box between two rules; on a
 chat, the running line above them.
 
@@ -401,16 +407,16 @@ chat, the running line above them.
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
     Down leave the focus where it is (skein's `ui/screen.md`, 6.2), but
-    for the launchpad's left-off chats (*Where you left off*), and
+    for the launchpad's left-off chats (section 3, *Where you left off*), and
     `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
     TUI from anywhere (`README.md`, 4).
   - *Enter:* before the sign-in lands, the words kept and the notice
     "Still signing in" (*Typed before the sign-in lands*); on the
     launchpad's empty box with a left-off chat
-    selected, that chat opened (*Where you left off*); else the box's
+    selected, that chat opened (section 3, *Where you left off*); else the box's
     words, by what they are, in this order: a
-    command's beginning, as *The commands* say; on a chat whose question
-    stands, its answer in words (*The chat's question*); with no
+    command's beginning, as section 5 says; on a chat whose question
+    stands, its answer in words (section 7); with no
     project, nothing; otherwise sent: on the launchpad `Act::StartChat`,
     which asks Ask temper in the project and opens the chat it makes
     (`../pages/home.md`, 1, *In the TUI*), on a chat `Act::Send`. A refusal or a
@@ -448,12 +454,11 @@ chat, the running line above them.
     usable account) the closed line and its " · " are left out, and with
     no project the project and its " · " too; in a design session, the
     project's name, " · ", "drafter" (`tui-hint`), " · " and the closed
-    line, the link's state after them only while it is not Live (*A
-    design session*, *The quiet line*);
+    line, the link's state after them only while it is not Live (section 8, *The quiet line*);
   - *at its right,* each left out when absent, " · " between two (`tui-faint`):
     in front of a box its state and "playground" (`box.md`); "paused · a
     message resumes it" on a chat the person paused (`tui-hint`); on a
-    chat whose draft can show, the pane's parts (*A design session*,
+    chat whose draft can show, the pane's parts (section 8,
     *The quiet line*); while
     something needs the person in the project, "1 needs you", "3 need
     you", or "3+ need you" where the read is cut (`tui-signal`), the
@@ -467,10 +472,10 @@ chat, the running line above them.
   where the quiet line's two halves, two spaces between them and its
   padding are wider than the window's columns, it leaves out "n to walk"
   and its " · ", on a chat the pane's goal part and then its Ctrl-P
-  words, each with its " · " (*A design session*), then the closed line
+  words, each with its " · " (section 8), then the closed line
   and its " · ", and skein cuts what
   still does not fit from the left half's end; the rule above a chat's
-  box leaves out the place, then the project (*A chat*, *The rule above
+  box leaves out the place, then the project (section 6, *The rule above
   the box*). A notice goes before the line's own words (*The notice*).
 - **The notice,** the user's request of 2026-11-09: a one-line notice
   of the TUI's, at the right end of the quiet line, never in the
@@ -478,9 +483,9 @@ chat, the running line above them.
   made general:
   - *What:* `temper_client_tui::Notice`, one of an unknown command's,
     "Unknown command /WORDS · /help lists them", WORDS the box's words
-    after "/" (*The commands*); "Still signing in" (*Typed before the
-    sign-in lands*); the theme taken's (*`/theme`*); and a goal
-    proposed's (*A design session*, *`/goal`*). Its words are
+    after "/" (section 5); "Still signing in" (*Typed before the
+    sign-in lands*); the theme taken's (section 5, *`/theme`*); and a goal
+    proposed's (section 8, *`/goal`*). Its words are
     the TUI's own (`tui-signal`).
   - *Where:* the quiet line's right half, alone: the box's state,
     "playground", "paused · a message resumes it", the count and "n to
@@ -501,7 +506,9 @@ chat, the running line above them.
     address to copy, and the box's give up note, which stands for good
     (`box.md`).
 
-**The commands**, the browser terminal's (`../pages/chat/terminal.md`, 1,
+## 5. The commands
+
+The browser terminal's (`../pages/chat/terminal.md`, 1,
 *Commands*), illustrative (the request's 02):
 
 ```
@@ -528,8 +535,7 @@ chat, the running line above them.
   is (the user's request of 2026-11-08); `/draft` there only while the
   chat has a document or writes one (`Chat::draft`, `Chat::writing`),
   so it shows or hides the draft and never adds one; and `/goal` only
-  while the document has a section with a heading too (*A design
-  session*, *`/goal`*); with no project `/theme`,
+  while the document has a section with a heading too (section 8, *`/goal`*); with no project `/theme`,
   `/help` and `/quit`. Never the root's `/draft` on the launchpad, where
   the TUI's own `/draft` stands (below), nor `/font`,
   the browser's alone. On the launchpad `/model` and `/effort` change
@@ -540,7 +546,7 @@ chat, the running line above them.
 - **The TUI's own commands** (`../../draft/surfaces.md`, 11.4), which the
   root's `Command` does not hold and which never reach the root as
   commands, as `/quit` and `/new` don't: offered on the launchpad with a
-  project, `/draft` while the project offers drafts (*Start*), `/change`
+  project, `/draft` while the project offers drafts (section 3, *Start*), `/change`
   and `/ask` before the root's, and `/brief` while
   the header holds a brief, `/needs` while Needs you stands and `/open`
   after `/chats`; on a chat `/open` after `/chats`. So the launchpad's
@@ -559,8 +565,7 @@ chat, the running line above them.
     its words, `Act::StartChat`, so the domain sends WORDS, a blank line
     and "Write this up as a draft beside us." from template 6 where `me`
     lists it, and from the project's chat template otherwise; the chat
-    opens as a chat started from the launchpad is, its pane at half (*A
-    design session*). A refusal is drawn under the box, as `/change`'s.
+    opens as a chat started from the launchpad is, its pane at half (section 8). A refusal is drawn under the box, as `/change`'s.
   - *`/change` and `/ask`,* pressed or sent alone, leave "/change " or
     "/ask " in the box for the words; sent with words, `/change WORDS`
     starts a chat in the project, the one change's (the project's chat
@@ -569,7 +574,7 @@ chat, the running line above them.
     a chat started from the launchpad is, and run as the project's way
     says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
     is drawn under the box, as a send's, and the launchpad stays.
-  - *`/brief`* writes `/brief`'s note (*The launchpad*).
+  - *`/brief`* writes `/brief`'s note (section 3).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
     `http://HOST:PORT` and the page's path (`address::print`) as one
@@ -577,10 +582,10 @@ chat, the running line above them.
     the selected row's page, a chat's (`/chats/T`) or the goal's
     (`/tasks/T`), else the project's Home (`/projects/P`); on a chat
     its page, or, where a goal was started from its draft, that goal's
-    (`/tasks/T`, *A design session*, *A linked goal*). Only the page's address: never a link, a code or a
+    (`/tasks/T`, section 8, *A linked goal*). Only the page's address: never a link, a code or a
     secret. Where no browser opened (no opener, or it failed), the TUI
     notes "Open ADDRESS in your browser." until the next send or screen.
-  - *`/chats N`,* sent on the launchpad, opens the Nth chat of *Where you
+  - *`/chats N`,* sent on the launchpad, opens the Nth chat of section 3, *Where you
     left off*, as Enter on it does; a number with no chat there gives
     the notice an unknown command gives. `/chats` alone opens the root's
     list, whose order is the launchpad's numbering, newest first.
@@ -611,14 +616,14 @@ chat, the running line above them.
   press: `/quit` closes the TUI (`README.md`, 4) and never reaches the root;
   `/new` opens the launchpad (`README.md`, 3), whose next question starts a new
   Ask temper chat; `/goal` opens the root's sheet by `Act::OpenStart`
-  and its prompt (*A design session*, *`/goal`*), never `Run`; any
+  and its prompt (section 8, *`/goal`*), never `Run`; any
   other is the root's `terminal::Act::Run {
   command }`, so that its list opens, its note is written or its act is
   taken, as in the browser's terminal. The box is cleared.
 - **Words no command of the TUI's names:** words that begin with "/",
   hold no white space and begin no command the TUI offers there are
   cleared from the box (`terminal::Act::Dismiss`), nothing is sent, and
-  the notice says "Unknown command /WORDS · /help lists them" (*The
+  the notice says "Unknown command /WORDS · /help lists them" (section 4, *The
   notice*), in the TUI's own words, never a note in the conversation.
   So `/font`, which the root knows, is unknown here.
 - **A command's list,** under the box in the quiet line's place, an
@@ -668,14 +673,16 @@ chat, the running line above them.
     chosen*), lowers the list, and gives the notice "Theme: auto, light
     as your terminal says.", "Theme: auto, dark as your terminal
     says.", "Theme: auto, dark: your terminal doesn't say.", "Theme:
-    light." or "Theme: dark." (*The notice*).
+    light." or "Theme: dark." (section 4, *The notice*).
   - *Its state:* the TUI's, `Tui::theme_list`, as the quit question's
     is (`box.md`), and never the root's: the root's lists and notes don't
     hold it.
   - *The browser's terminal's* `/theme` is the root's and flips, as
     before (`../pages/chat/terminal.md`, 1).
 
-**A chat**, illustrative (the request's 03, with the look request
+## 6. A chat
+
+Illustrative (the request's 03, with the look request
 `tui-chat-title-below`'s rule):
 
 ```
@@ -833,7 +840,7 @@ chat, the running line above them.
   - *not drawn,* as in the browser's terminal: the speakers' names, the
     turns' times, a turn's opaque blocks, a run's beginning and end;
     and, the TUI's, a document's write, since the pane shows the draft
-    and marks what the turn wrote (*A design session*), and "Being
+    and marks what the turn wrote (section 8), and "Being
     sent" and "Sent", the conversation showing the words.
   The terminal's notes follow the conversation, each in `tui-note`.
 - **Reading back:** PgUp and PgDn page the body by its rows while the
@@ -849,7 +856,9 @@ chat, the running line above them.
   no command note "This chat is closed. /new starts another.", the
   root's note (`../pages/chat/terminal.md`, 1, *The box*).
 
-**The chat's question**, illustrative (the request's 04):
+## 7. The chat's question
+
+Illustrative (the request's 04):
 
 ```
 ❯ Answer it with a comma
@@ -888,7 +897,9 @@ Answer csv-export's question with "Comma"?
   something else" last, as `../../draft/tui.md`, section 3 asks, and has no
   Later, since the box is there for an answer in the person's words.
 
-**A design session**, illustrative (`tui/whole-story/design-session.html`,
+## 8. A design session
+
+Illustrative (`tui/whole-story/design-session.html`,
 at 80 by 24, the drafter's choices set aside by the "1" typed):
 
 ```
@@ -918,23 +929,23 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
 
 - **What it is:** a chat whose chip's executor is template 6's charter,
   `pages::chats::drafting(me, project, executor)` (`../pages/README.md`, *A design
-  session*; `../../domain/agent/agents.md`, 4), read as any chat (*A chat*,
+  session*; `../../domain/agent/agents.md`, 4), read as any chat (section 6,
   above), with its draft beside the conversation, the drafter's
   questions as prompts, `/goal`, and a quiet line of its own
   (`../../draft/surfaces.md`, 11.2; `../../draft/tui-design-session.md`). Any
   other chat with a document has the pane, its marks, its replies'
   choices, `/goal` and the quiet line's pane parts too, but not
   "drafter".
-- **Starting one:** `/draft WORDS` on the launchpad (*The TUI's own
+- **Starting one:** `/draft WORDS` on the launchpad (section 5, *The TUI's own
   commands*), template 6 where `me` lists it and a chat otherwise, as
   the browser's new chat with a draft; it opens with the pane at half,
   as the domain's start leaves it (`Mode::Split`, `../pages/README.md`, *A new chat*).
 - **Sittings:** a session is kept (`../../domain/agent/agents.md`, 4). Opened
-  again, from *Where you left off*, `/chats N` or `/chats`, it is the
+  again, from section 3, *Where you left off*, `/chats N` or `/chats`, it is the
   root's chat as any chat is, its conversation and draft read as they
   stand, and the domain opens a design session with its pane at half
-  (`../pages/README.md`, *A design session*); *Where you left off* says ", a design
-  session" for one (*The launchpad*).
+  (`../pages/README.md`, *A design session*); section 3, *Where you left off* says ", a design
+  session" for one (section 3).
 - **The pane's states,** the chat page's mode as the root keeps it
   (`pages::chat::Chat::mode`, `../pages/README.md`, *Its mode*), of which the TUI keeps
   nothing: `Mode::Chat`, folded, the conversation alone; `Mode::Split`,
@@ -960,7 +971,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     to show, Ctrl-P does nothing.
   - *`/draft`* on such a chat is the root's `Command::Draft`, as the
     browser's terminal's "Draft": the draft shown at half, or hidden
-    (*Offered*).
+    (section 5, *Offered*).
   - *The body as the state changes:* entering all, the host sets the
     body's scroll to its first row and stops following its end (skein's
     `ui/screen.md`, 5.2, `Focus::scroll` and `Focus::follow`); leaving
@@ -1003,7 +1014,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     (`tui-hint`), the browser's words (`../pages/README.md`, *Empty*).
   - *not drawn:* the web's tint, its note "Changed by T4 just now" and
     "Show"; the path's `docs/design/draft/`; and in the conversation a
-    write's line (*A chat*, *not drawn*).
+    write's line (section 6, *not drawn*).
 - **A reply's choices,** as the drafter asks (its instructions,
   `temper/crates/temper-service/src/stock/drafter.txt`: one question at
   a time, as numbered choices, the recommendation first with its
@@ -1024,7 +1035,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     stands just above it; its choices numbered "1. ", "2. ", the first,
     the recommendation, active, each its words as its name and its
     reason as its words (`tui-option`); then "N. Tell it something
-    else", the TUI's words (*The chat's question*). A held question of
+    else", the TUI's words (section 7). A held question of
     the chat's wins over it, and any list a command or a walk opens
     stands in its place. The reply itself prints in the conversation as
     written, its list included.
@@ -1037,7 +1048,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     turn }`, the list gone for that reply, the box the person's own, its
     words sent as any message; `Tui` keeps the reply's turn, and the
     list stands again only for a newer reply.
-- **`/goal`,** the root's `Command::Goal` where *Offered* says, starts a
+- **`/goal`,** the root's `Command::Goal` where section 5, *Offered* says, starts a
   goal from the draft through the domain's start sheet, as the web's
   "Start goal…" does (`../pages/README.md`, *Starting a goal from a chat's document*;
   `../pages/goal.md`, 3):
@@ -1047,7 +1058,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     `terminal::Act::Run`, so that the root's sheet opens with the chat's
     checks and the project's preferred way; `Tui` keeps the chat.
   - *Its prompt,* while the root's sheet stands (`Pages::start`), as a
-    command's list (*A command's list*): its head "Start a goal from
+    command's list (section 5, *A command's list*): its head "Start a goal from
     FILE. How should it run?" (`tui-list-head`), FILE the path's last
     segment; its choices the project's ways, kind 7's tracked templates
     (`temper_client_view::pages::goals::ways(me, project, words)`),
@@ -1064,12 +1075,12 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     goal's page, so the host, while `Tui` keeps the chat, opens that
     chat again (`Act::Go { address: Chat { task } }`) and lets it go.
     *Proposed:* the sheet closes, and the notice says "Proposed: the goal
-    starts once it is accepted." (*The notice*).
+    starts once it is accepted." (section 4, *The notice*).
 - **A linked goal,** the newest goal started from this chat's draft
   (`pages::chat::Chat::goal_from`, its chip `Chat::goal_chip`): `/goal`
   is no longer offered, the quiet line names the goal, and `/open` opens
-  its page (*The TUI's own commands*).
-- **The quiet line,** on a chat whose pane can show (*The foot*, *The
+  its page (section 5, *The TUI's own commands*).
+- **The quiet line,** on a chat whose pane can show (section 4, *The
   quiet line*):
   - *at its left,* in a design session: the project's name, " · ",
     "drafter" (`tui-hint`), " · " and the closed line, "Opus `../pages/accounts.md`, 2 ·
@@ -1085,7 +1096,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     all in `tui-hint`; then the count of what needs the person, as
     before;
   - *narrow:* the goal's part goes first, then the Ctrl-P words, each
-    with its " · ", then as *A narrow terminal* says.
+    with its " · ", then as section 4, *A narrow terminal* says.
 - **Where it departs from its mockup** (`tui/whole-story/design-session.html`;
   `../../draft/surfaces.md`, 13), each for a reason:
   - the chat's title is in the rule above the box, "cowsql / Raft to

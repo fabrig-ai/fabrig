@@ -719,7 +719,7 @@ runs as contained processes and whose output it parses.
   remote must also still be at that exact head, so no movement of the
   branch since the run started goes unseen. Saved starts use the fetched
   delivery head when none was supplied; for other starts without one,
-  a rewind of the branch to an ancestor goes unseen (section 12).
+  a rewind of the branch to an ancestor goes unseen (section 12.1).
 - **A design delivery.** A repository naming the same push and landing
   branch is a goal's design delivery (`forge/branches.md`, 3). It runs
   the repository's `.temper/pre-pr` as any delivery does (smith's
@@ -795,7 +795,7 @@ runs as contained processes and whose output it parses.
   push) leaves that saved work standing, and the next run starts from it. A
   run's own edits are in the saved commit, so in the next run's head, and
   `git status` shows none of them. A run that parks with a conflict marker
-  left keeps none of that run's edits (section 12); what was saved before it
+  left keeps none of that run's edits (section 12.1); what was saved before it
   stands.
 - **No credentials on disk.** Every git operation that reaches the forge,
   or commits, names the repository's identity, which the protocol layer
@@ -987,29 +987,6 @@ for; and that nothing is live once it settles.
 
 ## 12. Open questions
 
-- **A goal's saved start overtaken by its change's repair** (section 5):
-  starting from saved work preserves its edits, but a repair or resolution
-  may have moved r since that save. Reconciliation is the forge's open
-  question (`forge/README.md`, section 11). Default: resume the saved tree; a
-  moved delivery branch ends the run stale.
-- **A park with markers left.** A save refuses a tree whose merge still holds
-  a conflict marker, so a run that parks so keeps none of that run's edits,
-  while earlier saved work stands. Its charter tells it to settle first
-  (`temper help change`). Keeping them would need the list of files in conflict
-  to outlive the hold: without
-  it a saved tree's markers could be delivered, since the refusal at push
-  reads that list. That list would be stored, so this is the user's.
-  Default: settle before parking; keeping an unresolved tree waits for a
-  deployment replay showing that need.
-- **A push's message:** the worker commits the run's title and body; how
-  a change's pull request takes them, and whether a squash keeps them.
-- **An assignment naming an expected head.** The worker enforces one when
-  given (section 5), but the engine names none, so a branch another
-  party rewound to an ancestor since the run started still takes a push
-  that restores what that party removed. With branches held by one task
-  (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
-  looks for after the push (forge/change/README.md, 3). Naming the head prepare saw
-  needs a decision for a branch that did not exist then.
 - **Several workers in one world:** the whole worker's world runs one;
   placement across several is exercised with scripted workers in the
   engine's world.
@@ -1017,20 +994,6 @@ for; and that nothing is live once it settles.
   and the repository's checks but no conversation. It could be a run
   whose outcome is its checks' result, for repositories without CI
   (forge/README.md, section 11).
-- **Code graph:** indexing a checkout for codebase-memory-mcp as part of
-  preparing it, and keeping that index with the cache.
-- **A workspace's repositories in parallel:** a checkout runs one
-  operation at a time, so its repositories are cloned, fetched and pushed
-  one after another.
-- **A workspace kept past its workstream.** The cache is keyed by workstream,
-  so a new one starts from an empty directory and every file is new to a
-  build. Keyed by repository, it could keep a clone across workstreams and a
-  restart once contained trees keep a run out of the git directory
-  (`../protocol/git.md`, section 10), perhaps with no switch. With that goes
-  which workspace a workstream takes: the departure in `worker.status.md`
-  considers only the least recently used, and after a restart only the one a
-  first hold takes, since nothing says which workstream held which. So a
-  clone another workstream wanted can be made again, wasteful and never wrong.
 - **A worker past what no document raises.** A standalone start counts its
   slots and git operations against the process's sockets, a constant
   (`../protocol/configuration/limits.md`), and the link's caps are `u32`s
@@ -1069,3 +1032,43 @@ for; and that nothing is live once it settles.
   sizes `io.output` from the configured room, and one far past it bounds
   what the start carries, as the committed calls' cut does. Default: it
   fails with its numbers.
+
+### 12.1 Checkouts
+
+- **A goal's saved start overtaken by its change's repair** (section 5):
+  starting from saved work preserves its edits, but a repair or resolution
+  may have moved r since that save. Reconciliation is the forge's open
+  question (`forge/README.md`, section 11). Default: resume the saved tree; a
+  moved delivery branch ends the run stale.
+- **A park with markers left.** A save refuses a tree whose merge still holds
+  a conflict marker, so a run that parks so keeps none of that run's edits,
+  while earlier saved work stands. Its charter tells it to settle first
+  (`temper help change`). Keeping them would need the list of files in conflict
+  to outlive the hold: without
+  it a saved tree's markers could be delivered, since the refusal at push
+  reads that list. That list would be stored, so this is the user's.
+  Default: settle before parking; keeping an unresolved tree waits for a
+  deployment replay showing that need.
+- **A push's message:** the worker commits the run's title and body; how
+  a change's pull request takes them, and whether a squash keeps them.
+- **An assignment naming an expected head.** The worker enforces one when
+  given (section 5), but the engine names none, so a branch another
+  party rewound to an ancestor since the run started still takes a push
+  that restores what that party removed. With branches held by one task
+  (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
+  looks for after the push (forge/change/README.md, 3). Naming the head prepare saw
+  needs a decision for a branch that did not exist then.
+- **Code graph:** indexing a checkout for codebase-memory-mcp as part of
+  preparing it, and keeping that index with the cache.
+- **A workspace's repositories in parallel:** a checkout runs one
+  operation at a time, so its repositories are cloned, fetched and pushed
+  one after another.
+- **A workspace kept past its workstream.** The cache is keyed by workstream,
+  so a new one starts from an empty directory and every file is new to a
+  build. Keyed by repository, it could keep a clone across workstreams and a
+  restart once contained trees keep a run out of the git directory
+  (`../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  which workspace a workstream takes: the departure in `worker.status.md`
+  considers only the least recently used, and after a restart only the one a
+  first hold takes, since nothing says which workstream held which. So a
+  clone another workstream wanted can be made again, wasteful and never wrong.

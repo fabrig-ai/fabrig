@@ -7,7 +7,7 @@ use temper_client_domain::pages::chat::Shown;
 use temper_client_protocol_wire::v1 as w;
 use temper_client_view::words::Word;
 
-// The actors' marks (temper/docs/design/client/tui/pages.md, A chat, a view).
+// The actors' marks (temper/docs/design/client/tui/pages.md, 6, a view).
 const PERSON: &[u8] = "○".as_bytes();
 const AGENT: &[u8] = "✦".as_bytes();
 const CODE: &[u8] = "▪".as_bytes();

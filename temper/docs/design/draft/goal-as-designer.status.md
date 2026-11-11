@@ -43,7 +43,7 @@ section 11). The stock's figures stay as they are.
     mechanisms.
   - 4: a run resuming saved work starts from that saved tree, rather than
     from g's current tip (`../domain/forge/branches.md`, 3;
-    `../domain/worker.md`, sections 5 and 12), to preserve parked edits.
+    `../domain/worker.md`, sections 5 and 12.1), to preserve parked edits.
     Its design delivery merges g's moved tip first, so it is never stale.
   - 1, 4: the goal's runs deliver straight to g, as its design writers
     (`../domain/forge/branches.md`, 3), where `goal-as-designer.md`, section 4 has them deliver to

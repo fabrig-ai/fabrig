@@ -1,4 +1,4 @@
-//! A reply's trailing choices (temper/docs/design/client/tui/pages.md, A design session).
+//! A reply's trailing choices (temper/docs/design/client/tui/pages.md, 8).
 use alloc::boxed::Box;
 use skein_lib::{
     List,

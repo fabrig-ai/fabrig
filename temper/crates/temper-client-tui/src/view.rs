@@ -470,7 +470,7 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
     }
 }
 
-/// The shared commands narrowed to the TUI's screen (client/tui/pages.md, Offered).
+/// The shared commands narrowed to the TUI's screen (client/tui/pages.md, 5, Offered).
 #[must_use]
 pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::pages::terminal::Command]> {
     use temper_client_domain::pages::terminal::Command;

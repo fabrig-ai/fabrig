@@ -85,8 +85,7 @@ both themes and at 110 by 32, joint-world stories of a need walked and answered 
 (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
 design session, T2, is designed and not yet built: `/draft`, the draft
 in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
-design session*; `client/README.status.md`). The
+reply's choices as a prompt and `/goal` (`client/tui/pages.md`, 8; `client/README.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words

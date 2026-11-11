@@ -402,7 +402,7 @@ host:
   until a real landing shows that recovery cannot serve the change.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine/executors.md`, 3); temper's takes none.
-- **A code graph** for a workspace (../worker.md, section 12), as an MCP
+- **A code graph** for a workspace (../worker.md, section 12.1), as an MCP
   tool source once smith has one.
 - **A change produced by a job of any kind.** `producer` names a
   charter, and `merge` the merge job, a catch-up's producer (`tools.md`, 1):

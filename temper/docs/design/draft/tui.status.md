@@ -3,7 +3,7 @@
 2026-11-09. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
-  `../client/tui/pages.md`, *A design session*, as `surfaces.md`, 11.2
+  `../client/tui/pages.md`, 8, as `surfaces.md`, 11.2
   revises them. 3 and 7: of the direction, a need from elsewhere on a chat, the line above its box, the
   web's hand-off, a page's terminal command to copy, and the project
   chosen from a checkout; approval between hosts and managing sign-ins;
@@ -140,6 +140,6 @@
     "in a narrow window the notice goes before the quiet line's own
     words" reads two ways, the design draws the notice first, at the
     row's start, and cuts the line's own words after it
-    (`../client/tui/pages.md`, *The notice*).
+    (`../client/tui/pages.md`, 4, *The notice*).
 - **Open:**
   - 3: a need from elsewhere on a chat, the web's hand-off and a checkout's project, refined on recorded frames as the launchpad and a chat were.

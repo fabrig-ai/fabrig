@@ -25,8 +25,7 @@ with Away off, Overturn, the unfiltered page, Keep asking or a member's
 Propose, which the domain's tables hold alone. Its render check and walk
 follow landing (`README.md`, section 5).
 
-- **Not yet:** `pages/README.md`, *Needs you*, *Why it reached you*, in the TUI (`tui/pages.md`, *The
-  launchpad*): its need lines and a need walked by `n` say no reason, though
+- **Not yet:** `pages/README.md`, *Needs you*, *Why it reached you*, in the TUI (`tui/pages.md`, 3): its need lines and a need walked by `n` say no reason, though
   `temper_client_view::shared::why` gives it and the view's terminal shell
   prints it; milestone T1 of
   [whole-story.execution.md](../draft/whole-story.execution.md), landed by
@@ -365,7 +364,7 @@ terminal has shown any of it: the check, emacs vterm among them, is
   send or screen; a send that clears the box (`Told::Cleared`) and
   another screen lower it (`temper-client-shell-tui`'s `host.rs`,
   `send`).
-- **Not yet:** `tui/pages.md`, *`/quit`*: the commands reference's notes for bare
+- **Not yet:** `tui/pages.md`, 5, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
   `../../help/reference/commands.md` and held by `temper-box-shell`'s
   `tests/help.rs`) say "`/exit` or Ctrl+C closes it", where
@@ -442,12 +441,12 @@ of each screen in a real terminal against its mockup follows landing
 (`README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../draft/surfaces.status.md`.
 
-- **Not yet:** `tui/pages.md`, *The launchpad*: the blank row between the header
+- **Not yet:** `tui/pages.md`, 3: the blank row between the header
   and the first section, which its illustration and the mockups draw;
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
-- **Not yet:** `tui/pages.md`, *A design session*, and the lines of `tui/pages.md` and `tui/theme.md`
+- **Not yet:** `tui/pages.md`, 8, and the lines of `tui/pages.md` and `tui/theme.md`
   that name it, milestone T2 of
   [whole-story.execution.md](../draft/whole-story.execution.md), the
   plan `tui-design-session`: the root's `/goal` on a chat, which

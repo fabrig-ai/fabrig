@@ -41,7 +41,7 @@ the user's hand-made frames of the look request `tui-box-front`
   and a credential the engine does not hold signs in afresh (`../README.md`, section 4;
   jig's `protocol/client/sign-in.md`, *A sign-in held is kept*).
   While it signs in, the welcome is drawn, its state "Connecting". It
-  ends as `pages.md`'s *Signed in from the engine's link* says: `link_used` or
+  ends as `pages.md`, section 2 says: `link_used` or
   `link_expired` reads the engine's link file a second later. Not ready
   and busy wait for jig's resend after its backoff, still "Connecting",
   because the box starts serve beside the front. Any other end falls
@@ -109,7 +109,7 @@ signed in, and 02, after):
 
 - **When:** in front, from the first frame, while the sign-in screen is
   not drawn and `me`, read or not, names no project: in the no-project
-  launchpad's place (`pages.md`, *No project yet*), "Connecting" included.
+  launchpad's place (`pages.md`, 3, *No project yet*), "Connecting" included.
   Once `me` names a project the host goes to its launchpad (`README.md`, 3, *Its
   pages*), and once it names none again, the welcome stands again.
 - **Its header,** the region `tui-top`, as the launchpad's: "temper" in
@@ -200,7 +200,7 @@ signed in, and 02, after):
   launchpad, and the sections below as on any project.
 - **The quiet line,** on the launchpad and a chat: " · " and
   "playground" (`tui-hint`) after the box's state, if any, and before
-  the needs' count (`pages.md`, *The quiet line*). A chat's top line is as on
+  the needs' count (`pages.md`, 4, *The quiet line*). A chat's top line is as on
   any chat.
 - **Read again:** a playground another client started reaches the TUI
   through the forge's side, which reads the playground again whenever
@@ -267,11 +267,10 @@ Stop the box? csv-export's running task stops with it.
  / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
 ```
 
-- **The box's state,** on the quiet line, first at its right (`pages.md`,
-  *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
+- **The box's state,** on the quiet line, first at its right (`pages.md`, 4, *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
   until its `running` line for that step, for the step it last said
   restarting; once it gave up, "STEP gave up" (`tui-down`). A notice
-  stands in its place for its time (`pages.md`, *The notice*). STEP is as
+  stands in its place for its time (`pages.md`, 4, *The notice*). STEP is as
   the box names it, its bytes read as UTF-8 with a replacement for each
   invalid one (`forge::words::lossy`) and cut at 64 bytes,
   `limits::STEP`.
