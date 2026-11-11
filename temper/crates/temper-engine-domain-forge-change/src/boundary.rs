@@ -304,6 +304,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
+    pub fault: Fault,
     /// Pending dependencies in the order of the change's dependencies.
     pub pending: Box<[Pending]>,
     /// Its landing's current request; absent under queue.
@@ -353,6 +355,16 @@ pub struct Facts {
     pub verification: Verification,
     /// The project's `verification_bound` (temper/docs/design/protocol/configuration/engine.md).
     pub verification_bound: Duration,
+}
+
+/// Whose failure the head's failed checks establish (change/README.md, 2, step 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fault {
+    Change,
+    /// Every failed check is the runner's; the most any job was run again at this head.
+    Runner {
+        reruns: u32,
+    },
 }
 
 /// Committed delegate and effect results supplied by the top.
@@ -422,6 +434,8 @@ pub enum Delegate {
 /// The effect the top should commit after checking authority.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
+    /// Run the next failed runner job again without moving the head.
+    Rerun { head: Commit },
     /// Open a pull request for the pushed branch.
     Open,
     /// Recreate a deleted held branch at its last known head.
@@ -484,6 +498,8 @@ pub struct Stepped {
 /// (temper/docs/design/domain/agent/tools.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Re-runs of a job the runner failed at one head, counted by the forge's attempts.
+    pub reruns: u32,
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,

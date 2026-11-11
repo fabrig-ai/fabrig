@@ -273,6 +273,16 @@ fn advance_phase(
         State::Reopening { requested, retarget } => {
             reopening(next, *requested, *retarget, facts, standing, now, limits)
         }
+        State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
+            if standing.effect == EffectResult::Pending =>
+        {
+            waiting(next, now, limits)
+        }
+        State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
+            if standing.effect == EffectResult::Failed =>
+        {
+            hold(next, Hold::Failed)
+        }
         State::Checking { head } => checking(next, *head, facts, standing, now, limits),
         State::Gating { head, asked } => gating(next, *head, asked, facts, now, limits),
         State::Ready { head, ready_since } => ready(next, *head, *ready_since, facts, now, limits),
@@ -784,6 +794,18 @@ fn reopening(
     }
 }
 
+fn rerun_due(facts: &Facts, limits: &Limits) -> bool {
+    match facts.fault {
+        crate::Fault::Runner { reruns } => reruns < limits.reruns,
+        crate::Fault::Change => false,
+    }
+}
+
+fn rerun(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    change.since = now;
+    Stepped { change, decision: Decision::Effect(Effect::Rerun { head }) }
+}
+
 fn checking(
     mut change: Change,
     head: [u8; 32],
@@ -808,6 +830,9 @@ fn checking(
             Stepped { change, decision: Decision::None }
         }
         Status::Failed => {
+            if rerun_due(facts, limits) {
+                return rerun(change, head, now);
+            }
             let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
             repair_due(change, why, facts, now, limits)
         }
@@ -888,6 +913,9 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return hold(change, Hold::BranchMoved);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
+        if rerun_due(facts, limits) {
+            return rerun(change, head, now);
+        }
         if facts.live_gate == Some(head) {
             change.state = State::CancellingGates { head };
             return Stepped { change, decision: Decision::CancelGates { head } };
@@ -959,6 +987,13 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
 }
 
 fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if facts.branch == Some(head)
+        && facts.ci.head == head
+        && facts.ci.status == Status::Failed
+        && rerun_due(facts, limits)
+    {
+        return rerun(change, head, now);
+    }
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -967,6 +1002,9 @@ fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, li
     }
     if let Some(head) = green_head(facts) {
         return take_pushed_head(change, head, now);
+    }
+    if facts.ci.head != head || facts.ci.status == Status::Pending || facts.ci.status == Status::Unknown {
+        return waiting(change, now, limits);
     }
     let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
     repair_due(change, why, facts, now, limits)

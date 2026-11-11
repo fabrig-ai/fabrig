@@ -14,6 +14,7 @@ fn entrance_limits_reject_incoherent_names_rows_and_windows() {
         Limits { name_bytes: PANEL_NAME_BYTES + 1, ..LIMITS },
         Limits {
             change_policy: temper_engine_domain_forge_change::Limits {
+                reruns: 1,
                 gates: PANEL_GATES + 1,
                 questions: 4,
                 ..LIMITS.change_policy

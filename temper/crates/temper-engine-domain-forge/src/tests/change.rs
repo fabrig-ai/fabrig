@@ -1994,3 +1994,212 @@ fn head_ci_contexts_are_read_once_per_gather() {
         assert!(decided, "{name}: {finished:?}");
     }
 }
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table checks failed-job reads, classification, bounds and the emitted write"
+)]
+fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
+    use skein_forge::api::{Answer, Check, Ci, CommitMessage, Conclusion, JobAttempt, Op, Read, Status, Write};
+    use temper_engine_domain_forge_change as change;
+    for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, rerun) in [
+        ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, true),
+        ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, true),
+        ("one job exhausted", Some(0), 1, 1, Check::Failed, false, false, false, false),
+        ("completion", Some(3), 1, 1, Check::Failed, false, false, false, true),
+        ("no step", None, 1, 1, Check::Failed, false, false, false, true),
+        ("unreadable", Some(0), 1, 1, Check::Failed, false, false, false, false),
+        ("workflow", Some(1), 1, 1, Check::Failed, false, false, false, false),
+        ("mixed", Some(0), 1, 1, Check::Failed, false, true, false, false),
+        ("bound", Some(0), 2, 1, Check::Failed, false, false, false, false),
+        ("disabled", Some(0), 1, 0, Check::Failed, false, false, false, false),
+        ("cancelled", Some(0), 1, 1, Check::Failed, true, false, false, false),
+        ("no job", Some(0), 1, 1, Check::Failed, false, false, true, false),
+        ("passed", Some(0), 2, 1, Check::Passed, false, false, false, false),
+        ("pending", Some(0), 1, 1, Check::Pending, false, false, false, false),
+    ] {
+        let mut clock = env();
+        clock.limits.change_policy.reruns = bound;
+        let mut d = fixtures::connected_domain();
+        let mut repository = adopted();
+        repository.protection = ci_protection(false);
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = change::State::Checking { head: fixtures::HEAD };
+        outputs(&mut d, Event::Change { row });
+        let job = JobAttempt { head: fixtures::HEAD, run: 7, job: 41, attempt };
+        let mut checks = skein_lib::List::with_capacity(3);
+        for (context, job) in [
+            (b"ci/test".as_slice(), job),
+            (
+                b"ci/other",
+                JobAttempt {
+                    job: 42,
+                    run: if name == "distinct runs" { 8 } else { 7 },
+                    attempt: if name == "one job exhausted" { 2 } else { attempt },
+                    ..job
+                },
+            ),
+            (b"ci/duplicate", job),
+        ] {
+            checks
+                .push(Status {
+                    at: Time::ZERO,
+                    context: context.into(),
+                    check: check_state,
+                    description: Box::new([]),
+                    url: Box::new([]),
+                    job: if missing { None } else { Some(job) },
+                })
+                .expect("three checks");
+        }
+        let mut run = fixtures::failed_run(job, failed_step);
+        if cancelled {
+            run.jobs[0].conclusion = Some(Conclusion::Cancelled);
+        }
+        let mut other = run.jobs[0].clone();
+        other.id = 42;
+        if name == "one job exhausted" {
+            other.attempt = 2;
+        }
+        if mixed {
+            other.step = Some(skein_forge::api::Step { number: 1, name: Box::new([]) });
+        }
+        run.jobs = Box::new([run.jobs[0].clone(), other]);
+        let mut out = Queue::uncapped();
+        step(&mut d, &clock, fixtures::change_step(), &mut out);
+        let mut runs = 0_u32;
+        let mut decision = None;
+        for _ in 0_u32..20 {
+            if decision.is_some() {
+                break;
+            }
+            let (call, op) = fixtures::next_call(&mut d);
+            let unreadable = name == "unreadable" && matches!(&op, Op::Read(Read::Run { .. }));
+            let answer = match op {
+                Op::Read(Read::Branch { branch }) => {
+                    Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+                }
+                Op::Read(Read::Pull { .. }) => {
+                    let mut pull = fixtures::open_pull();
+                    pull.ci = match check_state {
+                        Check::Failed => Ci::Failed,
+                        Check::Passed => Ci::Passed,
+                        Check::Pending => Ci::Pending,
+                    };
+                    Answer::Pull(pull)
+                }
+                Op::Read(Read::Checks { commit }) if commit == fixtures::HEAD => {
+                    Answer::Checks(checks.clone().into_boxed())
+                }
+                Op::Read(Read::Checks { .. }) => fixtures::checks(Check::Passed),
+                Op::Read(Read::Run { run: id }) => {
+                    assert!(id == 7 || id == 8);
+                    runs += 1;
+                    let mut answer = run.clone();
+                    answer.id = id;
+                    Answer::Run(answer)
+                }
+                Op::Read(Read::Commits { before, .. }) => Answer::Commits {
+                    commits: if before == fixtures::HEAD {
+                        Box::new([])
+                    } else {
+                        Box::new([CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }])
+                    },
+                    more: false,
+                },
+                Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                other @ (Op::Read(_) | Op::Write(_)) => panic!("{name}: unexpected {other:?}"),
+            };
+            let mut answered = Queue::uncapped();
+            step(
+                &mut d,
+                &clock,
+                Event::Client(skein_forge_client::Event::Answered {
+                    call,
+                    free: 0,
+                    rate: None,
+                    cost: 1,
+                    result: if unreadable { Err(skein_forge::api::Error::Missing) } else { Ok(answer) },
+                }),
+                &mut answered,
+            );
+            d.reclaim();
+            while let Some(request) = answered.pop() {
+                if let Request::ChangeDecision { decision: choice, .. } = request {
+                    decision = Some(choice);
+                }
+            }
+        }
+        assert_eq!(
+            runs,
+            u32::from(check_state == Check::Failed && !missing) + u32::from(name == "distinct runs"),
+            "{name}"
+        );
+        let decision = decision.expect("gather decided");
+        if rerun {
+            assert_eq!(decision, change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD }), "{name}");
+            let row = d.change(fixtures::CHANGE).expect("change");
+            assert_eq!(row.change.repairs, 0);
+            assert_eq!(
+                d.entries.get(&row.pending.expect("entry")).expect("entry").entry.effect.write,
+                Write::Rerun { attempt: job }
+            );
+            let words = &row.effect_account.as_ref().expect("account").words;
+            let reason = match failed_step {
+                Some(0) => "set-up failed",
+                Some(3) => "completion failed",
+                _ => "no step failed",
+            };
+            assert_eq!(words.as_ref(), format!("ran job 41 of ci/test again at 030303030303: {reason}").as_bytes());
+        } else if check_state == Check::Failed {
+            assert_eq!(decision, change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)), "{name}");
+        } else {
+            assert!(!matches!(decision, change::Decision::Effect(change::Effect::Rerun { .. })));
+        }
+        if check_state == Check::Passed {
+            assert_eq!(
+                d.change(fixtures::CHANGE).expect("change").result.checks.bytes.as_ref(),
+                b"",
+                "passed CI without requested contexts keeps today's read path"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
+    use temper_engine_domain_forge_change as change;
+    for was in [
+        change::State::Checking { head: fixtures::HEAD },
+        change::State::Gating { head: fixtures::HEAD, asked: Box::new([9]) },
+        change::State::CancellingGates { head: fixtures::HEAD },
+    ] {
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::Failed;
+        row.change.state = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Failed };
+        outputs(&mut d, Event::Change { row });
+        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+        let row = d.change(fixtures::CHANGE).expect("released change");
+        assert_eq!(row.change.state, was);
+        assert_eq!(row.effect, change::EffectResult::None);
+        fixtures::step_change(&mut d);
+        assert_eq!(
+            fixtures::next_call(&mut d).1,
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"temper/51".as_slice().into() })
+        );
+    }
+}

@@ -79,6 +79,7 @@ enum StepStage {
     Pull,
     Ci,
     BaseCi,
+    Run(u64),
     Compare,
     ContainsHead,
     CatchUp,
@@ -104,6 +105,7 @@ pub(crate) struct PendingStep {
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
+    failed: crate::change_ci::Failed,
     base_ci: change::Status,
     contains_base: change::Status,
     contains_head: change::Status,
@@ -2000,10 +2002,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
                     continue;
                 }
-                let account = match d.entries.get(&entry) {
-                    Some(row) => {
-                        crate::effect_words::account(&row.entry, d.repositories.get(&row.entry.repository), outcome)
-                    }
+                let account = match settled_account(d, entry, outcome) {
+                    Some(account) => Some(account.words),
                     None => None,
                 };
                 let mut projection = false;
@@ -3714,6 +3714,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        failed: crate::change_ci::Failed::new(Box::new([])),
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
         contains_head: change::Status::Unknown,
@@ -3828,6 +3829,7 @@ fn step_verified(
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        failed: crate::change_ci::Failed::new(Box::new([])),
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
         contains_head: change::Status::Unknown,
@@ -4135,8 +4137,28 @@ fn step_read(
                         Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
                     );
                 }
+                pending.failed = crate::change_ci::Failed::new(rows);
             }
-            if let Some(read) = step_after_ci(d, &mut pending, out) {
+            if pending.ci == change::Status::Failed
+                && let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32]))
+            {
+                let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
+                pending.stage = StepStage::Run(run);
+                read
+            } else if let Some(read) = step_after_ci(d, &mut pending, out) {
+                read
+            } else {
+                finish_step(d, env, pending, out);
+                return;
+            }
+        }
+        StepStage::Run(run) => {
+            pending.failed.read(run, result);
+            if let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32])) {
+                let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
+                pending.stage = StepStage::Run(run);
+                read
+            } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
             } else {
                 finish_step(d, env, pending, out);
@@ -4537,7 +4559,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                     | change::Effect::Reopen
                     | change::Effect::Prepare { .. }
                     | change::Effect::Retarget
-                    | change::Effect::Update { .. } => prior,
+                    | change::Effect::Update { .. }
+                    | change::Effect::Rerun { .. } => prior,
                 };
                 emit_change_effect(d, env, &mut row, pending, prior, effect, out);
                 return;
@@ -4727,6 +4750,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
@@ -4806,7 +4830,7 @@ fn emit_change_effect(
     effect: change::Effect,
     out: &mut Queue<Request>,
 ) {
-    let Some(write) = change_write(row, effect, &env.limits) else {
+    let Some(write) = change_write(row, effect, &pending.failed, &env.limits) else {
         emit(
             out,
             Request::ChangeDecision {
@@ -4843,7 +4867,8 @@ fn emit_change_effect(
         change::Effect::Open
         | change::Effect::CreateBranch { .. }
         | change::Effect::Reopen
-        | change::Effect::Retarget => skein_forge_client::Condition::None,
+        | change::Effect::Retarget
+        | change::Effect::Rerun { .. } => skein_forge_client::Condition::None,
     };
     let entry = skein_forge_client::Entry {
         number: pending.entry,
@@ -4858,7 +4883,19 @@ fn emit_change_effect(
     crate::landing::change_advanced(d, row, &prior, change::Decision::Effect(effect), out);
     row.pending = Some(pending.entry);
     row.effect = change::EffectResult::Pending;
-    row.effect_account = None;
+    row.effect_account = match effect {
+        change::Effect::Rerun { head } => match pending.failed.account(head) {
+            Some(words) => Some(crate::EffectAccount { entry: pending.entry, words }),
+            None => None,
+        },
+        change::Effect::Open
+        | change::Effect::CreateBranch { .. }
+        | change::Effect::Reopen
+        | change::Effect::Retarget
+        | change::Effect::Update { .. }
+        | change::Effect::Prepare { .. }
+        | change::Effect::Merge { .. } => None,
+    };
     let before = match d.changes.get(&row.task) {
         Some(row) => crate::panel::ready(row),
         None => None,
@@ -4897,8 +4934,14 @@ fn emit_change_effect(
 /// temper/docs/design/domain/forge/change/README.md, 1.
 const PULL_BODY_BYTES: usize = 65_536;
 
-fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Option<skein_forge::api::Write> {
+fn change_write(
+    row: &ChangeRow,
+    effect: change::Effect,
+    failed: &crate::change_ci::Failed,
+    limits: &Limits,
+) -> Option<skein_forge::api::Write> {
     match effect {
+        change::Effect::Rerun { head } => Some(skein_forge::api::Write::Rerun { attempt: failed.job(head)? }),
         change::Effect::Open => {
             // domain/forge/change/README.md, 1: fit the explicit title independently of the brief.
             let room = skein_lib::usize_of(limits.client.op_bytes)
@@ -4929,6 +4972,13 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
 }
 
 fn settled_account(d: &Domain, entry: u64, outcome: skein_forge_client::Outcome) -> Option<crate::EffectAccount> {
+    if let skein_forge_client::Outcome::Made { .. } = outcome {
+        for (_, row) in &d.changes {
+            if row.pending == Some(entry) {
+                return row.effect_account.clone();
+            }
+        }
+    }
     let row = d.entries.get(&entry)?;
     let words = crate::effect_words::account(&row.entry, d.repositories.get(&row.entry.repository), outcome)?;
     Some(crate::EffectAccount { entry, words })
@@ -5081,7 +5131,8 @@ fn accept_released_branch(
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
-/// A released update drops a failed result, retaining conflicts (temper/docs/design/domain/forge/README.md, 6).
+/// Released updates and re-runs drop failed results, retaining conflicts
+/// (temper/docs/design/domain/forge/README.md, 6, and change/README.md, 2, step 3).
 fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
@@ -5093,14 +5144,15 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     row.change = released;
     if lifted && row.effect == change::EffectResult::Failed {
         match row.change.state {
-            change::State::Updating { .. } | change::State::Preparing { .. } => row.effect = change::EffectResult::None,
+            change::State::Updating { .. }
+            | change::State::Preparing { .. }
+            | change::State::Checking { .. }
+            | change::State::Gating { .. }
+            | change::State::CancellingGates { .. } => row.effect = change::EffectResult::None,
             change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
-            | change::State::Checking { .. }
-            | change::State::Gating { .. }
-            | change::State::CancellingGates { .. }
             | change::State::Ready { .. }
             | change::State::Queued { .. }
             | change::State::First { .. }
