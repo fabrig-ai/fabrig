@@ -1,4 +1,4 @@
-//! Team's drawn facts (temper/docs/design/client/pages/README.md, Team).
+//! Team's drawn facts (temper/docs/design/client/pages/team.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -20,6 +20,7 @@ struct Row {
     shown: Shown,
     lede: Option<&'static str>,
     unreadable: bool,
+    shared: Option<&'static str>,
     boxes: Vec<BoxWords>,
 }
 fn person(you: bool, name: &[u8], role: HeldRole, waits: Option<Waits>) -> Person {
@@ -36,6 +37,7 @@ fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str,
         }),
         lede: Some(lede),
         unreadable: false,
+        shared: None,
         boxes,
     }
 }
@@ -43,12 +45,17 @@ fn pair(label: &'static str, waits: Option<Waits>, line: Option<&'static str>) -
     read(
         label,
         vec![
-            person(true, b"Alex", HeldRole::Owner, Some(Waits { questions: 2, reviews: 1, ..Waits::default() })),
+            person(
+                true,
+                b"Alex",
+                HeldRole::Owner,
+                Some(Waits { questions: 1, reviews: 1, proposals: 1, ..Waits::default() }),
+            ),
             person(false, b"Sam", HeldRole::Member, waits),
         ],
         false,
         "Two of you.",
-        vec![("You", "Owner of shop", Some("3 things wait on you.")), ("Sam", "Member", line)],
+        vec![("You", "Owner", Some("Three things wait on you.")), ("Sam", "Member", line)],
     )
 }
 
@@ -56,9 +63,16 @@ fn pair(label: &'static str, waits: Option<Waits>, line: Option<&'static str>) -
 #[expect(clippy::too_many_lines, reason = "one table covers Team's states, counts, roles and five wait kinds")]
 fn team_draws_what_it_shows() {
     let mut rows = vec![
-        Row { label: "reading", shown: Shown::Reading, lede: None, unreadable: false, boxes: vec![] },
-        Row { label: "unreadable", shown: Shown::Unreadable, lede: None, unreadable: true, boxes: vec![] },
-        pair("two people", Some(Waits { questions: 1, ..Waits::default() }), Some("1 question waits on Sam.")),
+        Row { label: "reading", shown: Shown::Reading, lede: None, unreadable: false, shared: None, boxes: vec![] },
+        Row {
+            label: "unreadable",
+            shown: Shown::Unreadable,
+            lede: None,
+            unreadable: true,
+            shared: None,
+            boxes: vec![],
+        },
+        pair("two people", Some(Waits { questions: 1, ..Waits::default() }), Some("One question waits on Sam.")),
         pair("unread waits", None, None),
         pair(
             "cut waits",
@@ -75,7 +89,7 @@ fn team_draws_what_it_shows() {
             vec![person(true, b"Alex", HeldRole::Owner, Some(Waits::default()))],
             false,
             "Just you.",
-            vec![("You", "Owner of shop", Some("Nothing waits on you."))],
+            vec![("You", "Owner", Some("Nothing waits on you."))],
         ),
         read(
             "reader absent",
@@ -100,19 +114,49 @@ fn team_draws_what_it_shows() {
         ),
         read("empty document", vec![], false, "0 people.", vec![]),
     ];
+    for (role, word, shared, cut) in [
+        (HeldRole::Owner, "Owner", Some("owners of shop"), false),
+        (HeldRole::Maintainer, "Maintainer", Some("maintainers of shop"), false),
+        (HeldRole::Member, "Member", Some("members of shop"), false),
+        (HeldRole::Observer, "Observer", Some("observers of shop"), false),
+        (HeldRole::Owner, "Owner", None, true),
+        (HeldRole::Policy { role: 12 }, "Role 12", None, false),
+    ] {
+        let mut row = read(
+            "shared role",
+            vec![person(true, b"Alex", role, None), person(false, b"Sam", role, None)],
+            cut,
+            if cut { "2 or more of you." } else { "Two of you." },
+            vec![("You", word, None), ("Sam", word, None)],
+        );
+        row.shared = shared;
+        rows.push(row);
+    }
+    for (count, line) in [(1, "One question waits on you."), (2, "Two questions wait on you.")] {
+        rows.push(read(
+            line,
+            vec![person(true, b"Alex", HeldRole::Owner, Some(Waits { questions: count, ..Waits::default() }))],
+            false,
+            "Just you.",
+            vec![("You", "Owner", Some(line))],
+        ));
+    }
     // Each row pins the grammar of one kind at one and at more than one.
     for (waits, said) in [
-        (Waits { questions: 2, ..Waits::default() }, "2 questions wait on Sam."),
-        (Waits { reviews: 1, ..Waits::default() }, "1 review waits on Sam."),
-        (Waits { reviews: 2, ..Waits::default() }, "2 reviews wait on Sam."),
-        (Waits { proposals: 1, ..Waits::default() }, "1 proposal waits on Sam."),
-        (Waits { proposals: 2, ..Waits::default() }, "2 proposals wait on Sam."),
-        (Waits { held: 1, ..Waits::default() }, "1 held task waits on Sam."),
-        (Waits { held: 2, ..Waits::default() }, "2 held tasks wait on Sam."),
-        (Waits { person_tasks: 1, ..Waits::default() }, "1 person task waits on Sam."),
-        (Waits { person_tasks: 2, ..Waits::default() }, "2 person tasks wait on Sam."),
+        (Waits { questions: 2, ..Waits::default() }, "Two questions wait on Sam."),
+        (Waits { reviews: 1, ..Waits::default() }, "One review waits on Sam."),
+        (Waits { reviews: 2, ..Waits::default() }, "Two reviews wait on Sam."),
+        (Waits { proposals: 1, ..Waits::default() }, "One proposal waits on Sam."),
+        (Waits { proposals: 2, ..Waits::default() }, "Two proposals wait on Sam."),
+        (Waits { held: 1, ..Waits::default() }, "One held task waits on Sam."),
+        (Waits { held: 2, ..Waits::default() }, "Two held tasks wait on Sam."),
+        (Waits { person_tasks: 1, ..Waits::default() }, "One person task waits on Sam."),
+        (Waits { person_tasks: 2, ..Waits::default() }, "Two person tasks wait on Sam."),
         (Waits { reviews: 1, held: 1, cut: true, ..Waits::default() }, "2+ things wait on Sam."),
         (Waits { questions: u32::MAX, reviews: 1, ..Waits::default() }, "4294967295 things wait on Sam."),
+        (Waits { questions: 9, ..Waits::default() }, "Nine questions wait on Sam."),
+        (Waits { questions: 10, ..Waits::default() }, "10 questions wait on Sam."),
+        (Waits { questions: 12, ..Waits::default() }, "12 questions wait on Sam."),
         (Waits::default(), "Nothing waits on Sam."),
     ] {
         rows.push(pair(said, Some(waits), Some(said)));
@@ -131,7 +175,7 @@ fn team_draws_what_it_shows() {
         (1, false, true, "1 or more people."),
     ] {
         let mut people = vec![person(you, b"Alex", HeldRole::Owner, None)];
-        let mut boxes = vec![(if you { "You" } else { "Alex" }, "Owner of shop", None)];
+        let mut boxes = vec![(if you { "You" } else { "Alex" }, "Owner", None)];
         for (name, party) in [("Sam", 8), ("Kit", 9), ("Jo", 10), ("Lee", 11)].into_iter().take(count - 1) {
             let mut member = person(false, name.as_bytes(), HeldRole::Member, None);
             member.party = party;
@@ -158,6 +202,27 @@ fn team_draws_what_it_shows() {
                     row.label
                 );
             }
+            let head_at =
+                nodes.iter().position(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION_HEAD)).unwrap();
+            let head = &nodes[head_at..head_at + usize::try_from(nodes[head_at].size).unwrap()];
+            let mut head_words = vec![(Role::Heading { level: 2 }, "People")];
+            if let Some(shared) = row.shared {
+                head_words.push((Role::Text, shared));
+                assert!(
+                    head.iter().any(|n| n.styles.as_slice().contains(&look::TEAM_SHARED)
+                        && n.name.as_deref() == Some(shared.as_bytes())),
+                    "{} shared style",
+                    row.label
+                );
+            }
+            assert_eq!(
+                head.iter()
+                    .filter_map(|n| n.name.as_deref().map(|name| (n.role, core::str::from_utf8(name).unwrap())))
+                    .collect::<Vec<_>>(),
+                head_words,
+                "{} head",
+                row.label
+            );
             let mut paragraphs = vec!["shop · Team"];
             paragraphs.extend(row.lede);
             for (_, role, line) in &row.boxes {
