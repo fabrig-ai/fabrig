@@ -28,7 +28,7 @@ fn the_rails_person_is_a_menu_in_a_browser() {
     assert_eq!(person.get(1).unwrap().id, menu.id);
     assert_eq!(
         person.iter().filter(|n| n.role == Role::MenuItem).map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-        [b"Accounts".as_slice(), b"What temper remembers about you", b"Sign out"]
+        [b"Accounts".as_slice(), b"What temper remembers about you", b"Telling you", b"Sign out"]
     );
     assert!(!foot.iter().any(|n| n.role == Role::Status && n.name.as_deref() == Some(b"Pat")));
 }
@@ -38,6 +38,7 @@ fn the_person_menus_items_go_to_accounts_and_sign_out() {
     for (name, act) in [
         (b"Accounts".as_slice(), pages::Act::Go { address: Address::Accounts }),
         (b"What temper remembers about you", pages::Act::Go { address: Address::Remembered }),
+        (b"Telling you", pages::Act::Go { address: Address::Told }),
         (b"Sign out", pages::Act::SignOut),
     ] {
         let id = f::find(view.tree(), Role::MenuItem, name).unwrap();
@@ -79,6 +80,9 @@ fn the_accounts_tabs_sign_out_is_marked_for_the_sheet() {
         assert!(form.styles.as_slice().contains(&look::SETTINGS_SIGN_OUT));
         let row = styled(view.tree(), look::SETTINGS_SIGN_OUT);
         let link = named(row, Role::Link, b"What temper remembers about you").id;
+        let told = named(row, Role::Link, b"Telling you").id;
+        assert_eq!(crate::act(&mut view, told, Act::Press), Some(d::Action::Pages(pages::Act::Go { address: Address::Told })));
+        let row = styled(view.tree(), look::SETTINGS_SIGN_OUT);
         let sign_out = named(row, Role::Button, b"Sign out").id;
         assert!(row.iter().position(|n| n.id == link).unwrap() < row.iter().position(|n| n.id == sign_out).unwrap());
         assert_eq!(

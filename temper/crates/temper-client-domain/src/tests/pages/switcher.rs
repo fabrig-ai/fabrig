@@ -235,7 +235,7 @@ fn a_made_project_is_opened_on_its_home_page() {
         while let Some(request) = f.out.pop() {
             match request {
                 Request::Show { .. } => panic!("the made project opens once"),
-                Request::Screen { .. }
+                Request::Push(_) | Request::Screen { .. }
                 | Request::KeepLook { .. }
                 | Request::Client(_)
                 | Request::Replace { .. }

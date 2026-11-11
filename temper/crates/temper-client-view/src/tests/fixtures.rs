@@ -481,6 +481,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
         // page-view: draw Remembered.
+        | temper_client_domain::Address::Told
         | temper_client_domain::Address::Remembered
         | temper_client_domain::Address::Members
         | temper_client_domain::Address::Limits
@@ -2607,6 +2608,7 @@ fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => continue,
         };
         temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);

@@ -376,6 +376,7 @@ fn wanted(root: &Domain) -> List<u32> {
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -414,6 +415,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -465,7 +467,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded reconciliation queue") {
             super::Request::Client(event) => crate::route::client(root, env, event, out),
-            super::Request::Screen { .. }
+            super::Request::Push(_) | super::Request::Screen { .. }
             | super::Request::KeepLook { .. }
             | super::Request::Show { .. }
             | super::Request::Replace { .. }

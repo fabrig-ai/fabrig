@@ -149,11 +149,9 @@ impl Clients {
         // Arrived is allowed to exceed the stream's intake; a positive maximum
         // also observes one byte beyond the issuer bound without storing it.
         let bound = kit::provider_limits(&self.env.limits).request_bytes;
-        self.server.answer(
+        self.server_answer(
             call,
-            http::Request::Body(Down::Demand { read: Read::Arrived { max: bound.saturating_add(1) }, room: 0 }),
-            &mut self.server_out,
-        );
+            http::Request::Body(Down::Demand { read: Read::Arrived { max: bound.saturating_add(1) }, room: 0 }));
     }
     pub(super) fn provider_answer(&mut self, exchange: Token, answer: kit::ProviderAnswer) {
         let mut call = None;
@@ -194,8 +192,8 @@ impl Clients {
         if let Some(value) = challenge {
             headers.push(Header { name: bytes::copy_of(b"WWW-Authenticate"), value }).expect("challenge");
         }
-        self.server.answer(call, http::Request::Discard, &mut self.server_out);
-        self.server.answer(
+        self.server_answer(call, http::Request::Discard);
+        self.server_answer(
             call,
             http::Request::Respond(http::Response {
                 status,
@@ -206,22 +204,18 @@ impl Clients {
                     http::Body::Length(u64::try_from(length).expect("bounded document"))
                 },
                 close: false,
-            }),
-            &mut self.server_out,
-        );
+            }));
         if length > 0 {
             self.provider_demand(call, length);
         }
     }
     fn provider_demand(&mut self, call: Token, length: usize) {
-        self.server.answer(
+        self.server_answer(
             call,
             http::Request::Reply(Down::Demand {
                 read: Read::Nothing,
                 room: self.send.min(u32::try_from(length).expect("bounded document")),
-            }),
-            &mut self.server_out,
-        );
+            }));
     }
     pub(super) fn provider_event(&mut self, call: Token, event: http::Event) {
         match event {
@@ -254,9 +248,9 @@ impl Clients {
                 let chunk = bytes::copy_of(body.expose().get(reply.offset..end).expect("reply cursor"));
                 reply.offset = end;
                 let left = body.len().saturating_sub(end);
-                self.server.answer(call, http::Request::Reply(Down::Send(chunk)), &mut self.server_out);
+                self.server_answer(call, http::Request::Reply(Down::Send(chunk)));
                 if left == 0 {
-                    self.server.answer(call, http::Request::Reply(Down::Finish), &mut self.server_out);
+                    self.server_answer(call, http::Request::Reply(Down::Finish));
                 } else {
                     self.provider_demand(call, left);
                 }

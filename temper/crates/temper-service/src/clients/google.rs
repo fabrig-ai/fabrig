@@ -564,8 +564,8 @@ impl Clients {
                 .push(cookie(secure, b"temper-sign-in", b"/sign-in/google", &[], Duration::ZERO, true))
                 .expect("clear tag cookie");
         }
-        self.server.answer(call, http::Request::Discard, &mut self.server_out);
-        self.server.answer(
+        self.server_answer(call, http::Request::Discard);
+        self.server_answer(
             call,
             http::Request::Respond(http::Response {
                 status,
@@ -576,18 +576,14 @@ impl Clients {
                     http::Body::Length(skein_lib::len_u64(body.len()))
                 },
                 close: false,
-            }),
-            &mut self.server_out,
-        );
+            }));
         if !body.is_empty() {
-            self.server.answer(
+            self.server_answer(
                 call,
                 http::Request::Reply(Down::Demand {
                     read: Read::Nothing,
                     room: self.send.min(u32::try_from(body.len()).expect("page")),
-                }),
-                &mut self.server_out,
-            );
+                }));
         }
     }
     pub(super) fn google_event(&mut self, call: Token, event: http::Event) {
@@ -599,18 +595,16 @@ impl Clients {
                 let chunk = bytes::copy_of(body.get(reply.offset..end).expect("page cursor"));
                 reply.offset = end;
                 let left = body.len().saturating_sub(end);
-                self.server.answer(call, http::Request::Reply(Down::Send(chunk)), &mut self.server_out);
+                self.server_answer(call, http::Request::Reply(Down::Send(chunk)));
                 if left == 0 {
-                    self.server.answer(call, http::Request::Reply(Down::Finish), &mut self.server_out);
+                    self.server_answer(call, http::Request::Reply(Down::Finish));
                 } else {
-                    self.server.answer(
+                    self.server_answer(
                         call,
                         http::Request::Reply(Down::Demand {
                             read: Read::Nothing,
                             room: self.send.min(u32::try_from(left).expect("page")),
-                        }),
-                        &mut self.server_out,
-                    );
+                        }));
                 }
             }
             http::Event::Done(_)

@@ -9,6 +9,10 @@ use skein_lib::{List, Map, Token, bytes, stream::Up};
 
 /// Temper's fixed explanation when configuration names no browser bundle (client/web/README.md, 2.2).
 #[expect(clippy::disallowed_macros, reason = "a fixed page compiled in, not data read at run time")]
+pub const SERVICE_WORKER: &[u8] = include_bytes!("sw.js");
+#[expect(clippy::disallowed_macros, reason = "fixed root file compiled into temper")]
+pub const MANIFEST: &[u8] = include_bytes!("manifest.webmanifest");
+#[expect(clippy::disallowed_macros, reason = "fixed explanation compiled into temper")]
 pub const NO_BUNDLE_PAGE: &[u8] = include_bytes!("no-bundle.html");
 
 /// A bundle path's bound (jig's testing/jig-test/src/bundle.rs).
@@ -32,6 +36,8 @@ pub(crate) enum Answer {
     NoBundle,
     NotModified,
     Root,
+    Worker,
+    Manifest,
     NotFound,
     NotAllowed,
     Busy,
@@ -52,6 +58,8 @@ impl Bundle {
             Answer::File | Answer::Root => &self.file(&reply.path).expect("routed file").bytes,
             Answer::Gzip => self.file(&reply.path).expect("routed file").gzip.as_deref().expect("routed form"),
             Answer::Page => &self.page,
+            Answer::Worker => SERVICE_WORKER,
+            Answer::Manifest => MANIFEST,
             Answer::NoBundle => NO_BUNDLE_PAGE,
             Answer::NotModified | Answer::NotFound | Answer::NotAllowed | Answer::Busy => b"",
         }
@@ -101,6 +109,8 @@ pub(crate) fn route(bundle: Option<&Bundle>, head: &http::Call) -> Answer {
         let Some(file) = bundle.file(path) else { return Answer::NotFound };
         return if file.gzip.is_some() && head.accepts_gzip() { Answer::Gzip } else { Answer::File };
     }
+    if path == b"/sw.js" { return Answer::Worker; }
+    if path == b"/manifest.webmanifest" { return Answer::Manifest; }
     if path == b"/robots.txt" && bundle.file(path).is_none() {
         return Answer::NotFound;
     }
@@ -124,7 +134,7 @@ impl Clients {
                 let kind = match answer {
                     Answer::Gzip | Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
                     Answer::Page => b"text/html; charset=utf-8",
-                    Answer::NoBundle => unreachable!("handled without a bundle"),
+                    Answer::Worker | Answer::Manifest | Answer::NoBundle => unreachable!("handled without a bundle"),
                     Answer::NotModified | Answer::NotFound | Answer::NotAllowed | Answer::Busy => {
                         unreachable!("content answer")
                     }
@@ -139,6 +149,12 @@ impl Clients {
                     field(&mut headers, b"Vary", b"Accept-Encoding");
                 }
                 length = bundle.content(&reply).len();
+                200
+            }
+            Answer::Worker | Answer::Manifest => {
+                let (kind, body) = if answer == Answer::Worker { (b"text/javascript".as_slice(), SERVICE_WORKER) } else { (b"application/manifest+json".as_slice(), MANIFEST) };
+                field(&mut headers, b"Content-Type", kind);
+                length = body.len();
                 200
             }
             Answer::NoBundle => {
@@ -157,7 +173,7 @@ impl Clients {
                 field(&mut headers, b"Cache-Control", policy::PAGE_CACHE);
                 field(&mut headers, b"ETag", &self.bundle.as_ref().expect("revalidated bundle").etag);
             }
-            Answer::NoBundle => field(&mut headers, b"Cache-Control", policy::PAGE_CACHE),
+            Answer::Worker | Answer::Manifest | Answer::NoBundle => field(&mut headers, b"Cache-Control", policy::PAGE_CACHE),
             Answer::NotFound | Answer::NotAllowed | Answer::Busy => {}
         }
         let response = http::Response {
@@ -171,8 +187,8 @@ impl Clients {
             close: busy,
         };
         let response = if busy { self.mount.refusal(head) } else { response };
-        self.server.answer(call, http::Request::Discard, &mut self.server_out);
-        self.server.answer(call, http::Request::Respond(response), &mut self.server_out);
+        self.server_answer(call, http::Request::Discard);
+        self.server_answer(call, http::Request::Respond(response));
         if length != 0 {
             bundle::demand(&mut self.server, call, length, self.send, &mut self.server_out);
         }
@@ -224,6 +240,8 @@ impl Clients {
     fn chunk(&mut self, call: Token) {
         let reply = self.replies.get_mut(&call).expect("own reply");
         let body = match reply.answer {
+            Answer::Worker => SERVICE_WORKER,
+            Answer::Manifest => MANIFEST,
             Answer::NoBundle => NO_BUNDLE_PAGE,
             Answer::Gzip
             | Answer::File

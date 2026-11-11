@@ -440,6 +440,13 @@ impl Clients {
         self.pending = true;
         !failed
     }
+    fn server_answer(&mut self, call: Token, request: skein_http::server::Request) {
+        let request = match request {
+            skein_http::server::Request::Respond(mut response) => { policy::add(&mut response); skein_http::server::Request::Respond(response) }
+            request @ (skein_http::server::Request::Discard | skein_http::server::Request::Body(_) | skein_http::server::Request::Next | skein_http::server::Request::Reply(_) | skein_http::server::Request::Close) => request,
+        };
+        self.server.answer(call, request, &mut self.server_out);
+    }
     fn server_requests(&mut self) {
         for _ in 0..self.server_out.len() {
             match self.server_out.pop().expect("server requests") {
@@ -692,7 +699,7 @@ impl Clients {
             self.pending = true;
             match request {
                 http::Request::Component(message) => self.down(kit::Event::Transport(message)),
-                http::Request::Http { call, request } => self.server.answer(call, request, &mut self.server_out),
+                http::Request::Http { call, request } => self.server_answer(call, request),
             }
         }
         if !self.component_closed {
