@@ -17,7 +17,7 @@ const PULL: &[u8] = br#"{"number":1,"state":"open","head":{"repo_id":1,"ref":"wo
 #[test]
 fn pull_files_at_another_head_fail_stale_reading_no_file() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0, sides: true }));
     h.run(Duration::from_millis(1));
     let lines = h.request_lines(fixtures::FORGE).into_boxed();
     assert_eq!(lines.last().expect("pull request").as_ref(), b"GET /api/v1/repos/fixture/specimen/pulls/1 HTTP/1.1");
@@ -29,7 +29,7 @@ fn pull_files_at_another_head_fail_stale_reading_no_file() {
 #[test]
 fn a_files_missing_side_is_absent_and_its_read_counted() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true }));
     h.answer(fixtures::FORGE, &fixtures::ok(PULL));
     h.answer(fixtures::FORGE, b"HTTP/1.1 200 OK\r\nContent-Length: 40\r\nX-HasMore: true\r\n\r\n[{\"filename\":\"one\",\"status\":\"modified\"}]");
     h.answer(fixtures::FORGE, &fixtures::status(404));
@@ -66,7 +66,7 @@ fn a_files_missing_side_is_absent_and_its_read_counted() {
 fn pull_files_choose_added_deleted_and_renamed_sides() {
     for (name, document, first, file, cost) in side_cases() {
         let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 2, skip: 0 }));
+        h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 2, skip: 0, sides: true }));
         h.answer(fixtures::FORGE, &fixtures::ok(PULL));
         h.answer(fixtures::FORGE, &fixtures::ok(document));
         assert!(skein_lib::bytes::find(&h.request_bytes(fixtures::FORGE), first).is_some(), "{name}: first side");
@@ -189,7 +189,7 @@ fn raw_sides_at_the_answer_bound_fit_and_one_byte_more_is_too_large() {
         h.answer(fixtures::FORGE, &fixtures::user_ok());
         h.answer(fixtures::FORGE, &fixtures::settings_ok());
         h.known(fixtures::REPO, fixtures::specimen());
-        h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }));
+        h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true }));
         h.answer(fixtures::FORGE, &fixtures::ok(PULL));
         h.answer(fixtures::FORGE, &fixtures::last_page(br#"[{"filename":"x","status":"added"}]"#));
         h.answer(fixtures::FORGE, &fixtures::ok(body));
@@ -225,7 +225,7 @@ fn bounded_cases() -> [BoundedCase; 2] {
 #[test]
 fn multiple_changed_files_each_advance_to_their_own_sides() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }));
+    h.call(1, fixtures::REPO, Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true }));
     h.answer(fixtures::FORGE, &fixtures::ok(PULL));
     h.answer(
         fixtures::FORGE,

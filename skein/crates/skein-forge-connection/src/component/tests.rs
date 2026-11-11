@@ -8,21 +8,26 @@ fn call_sizes_distinguish_real_rows_single_recovery_and_github() {
     for (kind, single, expected) in [
         (crate::settings::Kind::Forgejo, false, 8),
         (crate::settings::Kind::Forgejo, true, 1),
-        (crate::settings::Kind::GitHub, false, 1),
+        (crate::settings::Kind::GitHub, false, 8),
         (crate::settings::Kind::GitHub, true, 1),
     ] {
         let op = api::Op::Read(api::Read::Items { since: Time::ZERO, page: 4, kind: None, single });
         assert_eq!(calls::page_size(&op, kind, 50, &limits, &shared), expected);
     }
     for (read, github) in [
-        (api::Read::Reviews { number: 1, page: 1, skip: 0 }, 2),
-        (api::Read::Remarks { number: 1, review: 7, page: 1, skip: 0 }, 3),
-        (api::Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0 }, 1),
+        (api::Read::Reviews { number: 1, page: 1, skip: 0 }, 8),
+        (api::Read::Remarks { number: 1, review: 7, page: 1, skip: 0 }, 8),
+        (api::Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0, sides: true }, 8),
     ] {
         let op = api::Op::Read(read);
         for (kind, expected) in [(crate::settings::Kind::Forgejo, 8), (crate::settings::Kind::GitHub, github)] {
             assert_eq!(calls::page_size(&op, kind, 50, &limits, &shared), expected);
         }
+    }
+    let op = api::Op::Read(api::Read::Item { number: 1, after: 0, since: Time::ZERO });
+    for (kind, expected) in [(crate::settings::Kind::Forgejo, 1), (crate::settings::Kind::GitHub, 8)] {
+        assert_eq!(calls::page_size(&op, kind, 50, &limits, &shared), expected);
+        assert_eq!(calls::page_size(&op, kind, 3, &limits, &shared), expected.min(3));
     }
 }
 

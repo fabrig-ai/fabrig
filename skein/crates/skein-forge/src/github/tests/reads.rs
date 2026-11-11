@@ -52,6 +52,147 @@ fn github_commit_ranges_are_paged_without_files() {
 fn bounds() -> Bounds {
     Bounds { inner: 8, page_size: 4, rows: 4, answer_bytes: ROOM, body_bytes: 128 }
 }
+#[derive(Clone, Copy, Debug)]
+enum RealRows {
+    Items,
+    Reviews,
+    Remarks,
+}
+impl RealRows {
+    fn read(self, skip: u32) -> api::Read {
+        match self {
+            Self::Items => api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None, single: false },
+            Self::Reviews => api::Read::Reviews { number: 3, page: 1, skip },
+            Self::Remarks => api::Read::Remarks { number: 3, review: 4, page: 1, skip },
+        }
+    }
+    fn page(self, lengths: &[u8]) -> (Kind, Box<[u8]>) {
+        let mut out = Writer::new(4096);
+        let mut issues = skein_lib::List::with_capacity(4);
+        let mut reviews = skein_lib::List::with_capacity(4);
+        let mut remarks = skein_lib::List::with_capacity(4);
+        for (index, length) in lengths.iter().enumerate() {
+            let id = u64::try_from(index).unwrap().saturating_add(1);
+            let body = crate::text::Body::Kept(Box::from(&[b'x'; 128][..usize::from(*length)]));
+            match self {
+                Self::Items => issues
+                    .push(document::Issue {
+                        number: match id {
+                            1 => 2,
+                            2 => 1,
+                            number => number,
+                        },
+                        pull: false,
+                        merged: false,
+                        state: api::State::Open,
+                        author: USER,
+                        labels: Box::new([]),
+                        updated_at: fixtures::wall(),
+                        title: Box::from(*b"t"),
+                        body,
+                    })
+                    .unwrap(),
+                Self::Reviews => reviews.push(document::Review { body, ..review(id) }).unwrap(),
+                Self::Remarks => remarks.push(document::Remark { body, path: Box::from(*b"p"), ..remark(id) }).unwrap(),
+            }
+        }
+        let kind = match self {
+            Self::Items => {
+                server::issues(issues.as_slice(), &mut out).unwrap();
+                Kind::IssueRows
+            }
+            Self::Reviews => {
+                server::reviews(reviews.as_slice(), &mut out).unwrap();
+                Kind::ReviewRows
+            }
+            Self::Remarks => {
+                server::remarks(remarks.as_slice(), &mut out).unwrap();
+                Kind::RemarkRows
+            }
+        };
+        (kind, bytes(out))
+    }
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the table checks only the three real-row answers")]
+fn github_items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
+    for (listing, width, large) in
+        [(RealRows::Items, 130_u32, 128), (RealRows::Reviews, 129, 128), (RealRows::Remarks, 66, 64)]
+    {
+        // The third row overflows, but the smaller fourth would fit: keep only the prefix.
+        for (lengths, room, skip, next, expected, cut) in [
+            (&[1, 1][..], width * 2, 0, false, &[1, 2][..], false),
+            (&[1, 1][..], width * 2, 0, true, &[1, 2][..], false),
+            (&[1, 1, 1, 1][..], width * 4, 0, false, &[1, 2, 3, 4][..], false),
+            (&[1, 1, large, 1][..], width * 3, 0, false, &[1, 2][..], true),
+            (&[1, 1, large, 1][..], width * 3, 2, false, &[3, 4][..], false),
+            (&[1][..], width - 1, 0, false, &[][..], false),
+        ] {
+            if let RealRows::Items = listing
+                && skip != 0
+            {
+                continue;
+            }
+            let (kind, wire) = listing.page(lengths);
+            let cap = Bounds { page_size: 4, rows: 4, answer_bytes: room, ..bounds() };
+            let mut call = Call::new(listing.read(skip), cap, true);
+            let Step::Send(exchange) = call.begin().unwrap() else { panic!("listing request") };
+            let (rows, document) = fixtures::decode_with(exchange.decoder(&limits()).unwrap(), &wire, 1, &limits());
+            assert_eq!(crate::github::decode::kind(&exchange.request), Some(kind));
+            let mut head = Head::new();
+            head.next = next;
+            head.date = Some(fixtures::wall());
+            call.heard(Heard::Head { status: 200, head }).unwrap();
+            let mut result = Ok(None);
+            for row in rows.into_boxed() {
+                result = call.heard(Heard::Row(row));
+                if result != Ok(None) {
+                    break;
+                }
+            }
+            if expected.is_empty() {
+                assert_eq!(
+                    result,
+                    ended(Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(room),
+                        u64::from(width)
+                    )))),
+                    "{listing:?}"
+                );
+                continue;
+            }
+            assert_eq!(result, Ok(None), "{listing:?}: whole prefix");
+            let Ok(Some(Step::Done(Ok(answer)))) = call.done(document.unwrap()) else { panic!("whole prefix") };
+            let mut ids = skein_lib::List::with_capacity(4);
+            let (more, actual_cut) = match answer {
+                api::Answer::Items { items, more, cut, .. } => {
+                    for row in items {
+                        ids.push(row.number).unwrap();
+                    }
+                    (more, cut)
+                }
+                api::Answer::Reviews { reviews, more, cut } => {
+                    for row in reviews {
+                        ids.push(row.id).unwrap();
+                    }
+                    (more, cut)
+                }
+                api::Answer::Remarks { remarks, more, cut } => {
+                    for row in remarks {
+                        ids.push(row.id).unwrap();
+                    }
+                    (more, cut)
+                }
+                value => panic!("listing: {value:?}"),
+            };
+            assert_eq!(ids.as_slice(), expected, "{listing:?}");
+            assert_eq!((actual_cut, more), (cut, next || cut), "{listing:?}");
+        }
+    }
+}
+
 fn owner() -> Box<[u8]> {
     Box::from(*b"acme")
 }
@@ -414,7 +555,11 @@ fn github_remarks_page_and_long_body() {
     long.body = crate::text::Body::Long(129);
     document(Kind::RemarkRows, &bytes(out), Document::Rows, &[Row::Remark(long.clone())]);
     for (more, skip) in [(false, 0), (true, 0), (false, 1), (true, 1)] {
-        let mut call = Call::new(api::Read::Remarks { number: 3, review: 4, page: 2, skip }, bounds(), true);
+        let mut call = Call::new(
+            api::Read::Remarks { number: 3, review: 4, page: 2, skip },
+            Bounds { answer_bytes: 71, ..bounds() },
+            true,
+        );
         call.begin().unwrap();
         call.head(more);
         if skip != 0 {
@@ -578,11 +723,15 @@ fn github_reviews_marker_revision_and_long_body() {
 }
 #[test]
 fn github_reviews_page_bounds_and_failures() {
+    let mut call = Call::new(reviews_read(), Bounds { page_size: 16, rows: 16, answer_bytes: 512, ..bounds() }, true);
+    assert_eq!(
+        call.begin(),
+        Ok(Step::send(Request::Reviews { owner: owner(), name: name(), number: 3, page: 2, per_page: 16 }))
+    );
     for more in [false, true] {
         for skip in [0, 1] {
             let read = api::Read::Reviews { number: 3, page: 2, skip };
-            let mut call =
-                Call::new(read, Bounds { answer_bytes: if skip == 0 { 133 } else { 266 }, ..bounds() }, true);
+            let mut call = Call::new(read, Bounds { answer_bytes: 133, ..bounds() }, true);
             call.begin().unwrap();
             call.head(more);
             if skip != 0 {
@@ -829,32 +978,35 @@ fn github_compare_answer_budget_keeps_the_names_that_fit() {
 }
 
 fn pull_files_read() -> api::Read {
-    api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0 }
+    api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0, sides: true }
 }
 fn merge_base() -> api::Commit {
     crate::github::id::commit(b"1111111111111111111111111111111111111111").unwrap()
 }
 fn pull_files_listing(cap: Bounds, next: bool) -> Call {
-    pull_files_listing_skipping(cap, next, 0)
+    pull_files_listing_skipping(cap, next, 0, true)
 }
-fn pull_files_listing_skipping(cap: Bounds, next: bool, skip: u32) -> Call {
-    let mut call = started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip }, cap);
+fn pull_files_listing_skipping(cap: Bounds, next: bool, skip: u32, sides: bool) -> Call {
+    let mut call = started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip, sides }, cap);
     let exchange = sent(call.done(Document::Pull(fixtures::pull(3))));
-    assert_eq!(exchange.comparison, crate::github::plans::plan::Comparison::MergeBase);
-    assert_eq!(
-        exchange.request,
-        Request::Compare {
-            owner: owner(),
-            name: name(),
-            before: fixtures::pull(3).base_commit,
-            after: review(1).commit,
-            per_page: 1
-        }
-    );
-    call.head(false);
-    let exchange =
-        sent(call.done(Document::Compare(document::Compare { merge_base: Some(merge_base()), ..comparison(1000, 3) })));
-    let expected = cap.page_size.min(cap.rows).min(100).min(cap.answer_bytes / 64);
+    let exchange = if sides {
+        assert_eq!(exchange.comparison, crate::github::plans::plan::Comparison::MergeBase);
+        assert_eq!(
+            exchange.request,
+            Request::Compare {
+                owner: owner(),
+                name: name(),
+                before: fixtures::pull(3).base_commit,
+                after: review(1).commit,
+                per_page: 1
+            }
+        );
+        call.head(false);
+        sent(call.done(Document::Compare(document::Compare { merge_base: Some(merge_base()), ..comparison(1000, 3) })))
+    } else {
+        exchange
+    };
+    let expected = cap.page_size.min(100);
     assert_eq!(
         exchange.request,
         Request::PullFiles { owner: owner(), name: name(), number: 3, page: 2, per_page: expected }
@@ -882,10 +1034,13 @@ fn github_pull_files_stale_before_contents() {
         Some(Kind::FileRows),
         Accept::Json,
     );
-    let mut call = started(pull_files_read(), bounds());
-    let mut pull = fixtures::pull(3);
-    pull.head_commit = merge_base();
-    assert_eq!(call.done(Document::Pull(pull)), ended(Err(api::Error::Stale)));
+    for sides in [true, false] {
+        let mut call =
+            started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0, sides }, bounds());
+        let mut pull = fixtures::pull(3);
+        pull.head_commit = merge_base();
+        assert_eq!(call.done(Document::Pull(pull)), ended(Err(api::Error::Stale)));
+    }
     let mut call = started(pull_files_read(), bounds());
     assert_eq!(call.done(Document::Pull(fixtures::pull(4))), ended(Err(api::Error::InvalidAnswer)));
     let mut call = started(pull_files_read(), bounds());
@@ -998,19 +1153,41 @@ fn github_pull_files_merge_base_rename_add_remove() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks whole-file admission, paging and raw-side refusals")]
 fn github_pull_files_page_and_budget() {
-    for (more, skip) in [(false, 0), (true, 0), (false, 1), (true, 1)] {
+    for (more, skip, sides) in
+        [(false, 0, true), (true, 0, true), (false, 1, true), (true, 1, true), (false, 0, false), (true, 1, false)]
+    {
         let mut call = pull_files_listing(bounds(), more);
         assert_eq!(
             call.done(Document::Rows),
             ended(Ok(api::Answer::PullFiles { head: review(1).commit, files: Box::from([]), more, cut: false }))
         );
-        let mut call = pull_files_listing_skipping(bounds(), more, skip);
+        let mut call = pull_files_listing_skipping(bounds(), more, skip, sides);
         if skip != 0 {
             call.heard(Heard::Row(Row::File(file(b"skipped")))).unwrap();
         }
         call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
-        side(sent(call.done(Document::Rows)), b"x", merge_base());
+        if !sides {
+            call.heard(Heard::Row(Row::File(file(b"y")))).unwrap();
+        }
+        let result = call.done(Document::Rows);
+        if !sides {
+            assert_eq!(
+                result,
+                ended(Ok(api::Answer::PullFiles {
+                    head: review(1).commit,
+                    files: Box::from([
+                        api::File { path: Box::from(*b"x"), before: None, after: None },
+                        api::File { path: Box::from(*b"y"), before: None, after: None },
+                    ]),
+                    more,
+                    cut: false,
+                }))
+            );
+            continue;
+        }
+        side(sent(result), b"x", merge_base());
         let mut raw_head = Head::new();
         raw_head.next = !more;
         call.heard(Heard::Head { status: 404, head: raw_head }).unwrap();
@@ -1057,14 +1234,14 @@ fn github_pull_files_page_and_budget() {
     let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::File(file(b"y")))) else {
         panic!("expected a typed size refusal");
     };
-    for cap in [65, 66] {
+    for cap in [64, 65] {
         let mut call = pull_files_listing(Bounds { answer_bytes: cap, ..bounds() }, false);
         let result = call.heard(Heard::Row(Row::File(document::File {
             status: document::FileStatus::Renamed,
             previous: Some(Box::from(*b"y")),
             ..file(b"x")
         })));
-        if cap == 66 {
+        if cap == 65 {
             assert_eq!(result, Ok(None));
         } else {
             let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = result else {
@@ -1093,6 +1270,93 @@ fn github_pull_files_page_and_budget() {
     call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
     sent(call.done(Document::Rows));
     assert_eq!(call.heard(Heard::Failed(Failure::Seen)), ended(Err(api::Error::Timeout)));
+}
+
+#[test]
+fn github_file_sides_past_remaining_room_cut_before_incomplete_file() {
+    // Paths alone cut at a whole-file boundary too, resuming without side reads.
+    for skip in [0, 1] {
+        let mut call = pull_files_listing_skipping(Bounds { answer_bytes: 65, ..bounds() }, false, skip, false);
+        for path in [b"x", b"y"] {
+            call.heard(Heard::Row(Row::File(file(path)))).unwrap();
+        }
+        assert_eq!(
+            call.done(Document::Rows),
+            ended(Ok(api::Answer::PullFiles {
+                head: review(1).commit,
+                files: Box::from([api::File {
+                    path: Box::from(if skip == 0 { *b"x" } else { *b"y" }),
+                    before: None,
+                    after: None
+                }]),
+                more: skip == 0,
+                cut: skip == 0,
+            }))
+        );
+    }
+    // Three descriptors fit, but only the first complete file and three side bytes do.
+    let cap = Bounds { answer_bytes: 198, ..bounds() };
+    for (body, more) in [(b"four".as_slice(), false), (b"123", true)] {
+        for skip in [0, 1] {
+            let mut call = pull_files_listing_skipping(cap, false, skip, true);
+            for path in [b"x", b"y", b"z"] {
+                call.heard(Heard::Row(Row::File(file(path)))).unwrap();
+            }
+            let first = sent(call.done(Document::Rows));
+            if skip == 0 {
+                side(first, b"x", merge_base());
+                call.head(false);
+                side(sent(raw_body(&mut call, b"", false)), b"x", review(1).commit);
+                call.head(false);
+                side(sent(raw_body(&mut call, &[b'a'; 65], false)), b"y", merge_base());
+                call.head(false);
+                side(sent(raw_body(&mut call, b"", false)), b"y", review(1).commit);
+                call.head(false);
+                assert_eq!(
+                    raw_body(&mut call, body, more),
+                    ended(Ok(api::Answer::PullFiles {
+                        head: review(1).commit,
+                        files: Box::from([api::File {
+                            path: Box::from(*b"x"),
+                            before: Some(Box::from([])),
+                            after: Some(Box::from([b'a'; 65]))
+                        }]),
+                        more: true,
+                        cut: true,
+                    }))
+                );
+            } else {
+                side(first, b"y", merge_base());
+                call.head(false);
+                side(sent(raw_body(&mut call, b"", false)), b"y", review(1).commit);
+                call.head(false);
+                side(sent(raw_body(&mut call, b"four", false)), b"z", merge_base());
+                call.head(false);
+                side(sent(raw_body(&mut call, b"", false)), b"z", review(1).commit);
+                call.head(false);
+                assert_eq!(
+                    raw_body(&mut call, b"", false),
+                    ended(Ok(api::Answer::PullFiles {
+                        head: review(1).commit,
+                        files: Box::from([
+                            api::File {
+                                path: Box::from(*b"y"),
+                                before: Some(Box::from([])),
+                                after: Some(Box::from(*b"four"))
+                            },
+                            api::File {
+                                path: Box::from(*b"z"),
+                                before: Some(Box::from([])),
+                                after: Some(Box::from([]))
+                            },
+                        ]),
+                        more: false,
+                        cut: false,
+                    }))
+                );
+            }
+        }
+    }
 }
 
 fn file_path_limits() {

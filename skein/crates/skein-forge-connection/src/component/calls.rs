@@ -315,27 +315,29 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
                 if *single {
                     return 1;
                 }
-                return match kind {
-                    crate::settings::Kind::Forgejo => limits::page_size(Listing::Items, cap, l, s),
-                    crate::settings::Kind::GitHub => limits::bounded_page_size(Listing::Items, cap, l, s),
-                };
+                return limits::page_size(Listing::Items, cap, l, s);
             }
             api::Read::PullFor { .. } => return limits::bounded_page_size(Listing::Items, cap, l, s),
-            api::Read::Reviews { .. } => Listing::Reviews,
+            api::Read::Reviews { .. } => return limits::page_size(Listing::Reviews, cap, l, s),
             api::Read::Statuses { .. } | api::Read::Checks { .. } => Listing::Statuses,
             api::Read::Pull { .. } => match kind {
                 crate::settings::Kind::Forgejo => Listing::Statuses,
                 crate::settings::Kind::GitHub => return 1,
             },
-            api::Read::Remarks { .. } => Listing::Remarks,
+            api::Read::Remarks { .. } => return limits::page_size(Listing::Remarks, cap, l, s),
             api::Read::Branches { .. } => Listing::Branches,
             api::Read::Collaborators { .. } => Listing::Collaborators,
-            api::Read::PullFiles { .. } => Listing::PullFiles,
+            api::Read::PullFiles { .. } => return limits::page_size(Listing::PullFiles, cap, l, s),
             api::Read::Compare { .. } | api::Read::Commits { .. } => Listing::Compare,
             api::Read::Runs { .. } => Listing::Runs,
             api::Read::Tree { .. } => Listing::Tree,
+            api::Read::Item { .. } => {
+                return match kind {
+                    crate::settings::Kind::Forgejo => 1,
+                    crate::settings::Kind::GitHub => limits::page_size(Listing::Items, cap, l, s),
+                };
+            }
             api::Read::Locate { .. }
-            | api::Read::Item { .. }
             | api::Read::Branch { .. }
             | api::Read::Protection { .. }
             | api::Read::Permission { .. }
