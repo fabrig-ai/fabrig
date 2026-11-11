@@ -353,7 +353,8 @@ independence.
   0.17.14).
 - **Not deterministic:** ring draws its randoms and keys from the kernel,
   through `getrandom`: the only kernel calls step code makes, when the
-  handshake starts and as it runs, and when it signs (below). That is the documented exception;
+  handshake starts and as it runs, when it signs, and when it parses a
+  push key (below). That is the documented exception;
   nothing else impure comes in.
 - **`getrandom` on Linux** makes the getrandom(2) system call. Where it
   cannot, a kernel older than 3.17 (below the shell's floor, ../runtime/shell.md, 4)
@@ -431,7 +432,11 @@ independence.
   draws ring's randomness for its nonce, so two signatures of one
   message differ; it reads no clock and keeps no key.
   `es256_public(key) -> Option<[u8; 65]>` gives the key's public half,
-  uncompressed, drawing nothing. `verify_es256(public, message,
+  uncompressed, from the key as `sign_es256` takes it, none where it
+  would refuse: ring parses and checks it whole, with
+  `EcdsaKeyPair::from_pkcs8`, which draws ring's randomness for the
+  key's nonce seed (ring 0.17 asks a source there), and the public half
+  does not depend on it; it keeps nothing. `verify_es256(public, message,
   signature) -> bool` checks one, for the fake push service
   (`../testing/fakes/push.md`).
 - **A push's seal:** `seal_aes128gcm(p256dh, auth, payload) ->
