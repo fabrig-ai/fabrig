@@ -223,6 +223,12 @@ pub fn repository(value: d::Repository) -> crate::forgejo::plans::tables::Reposi
         object_format: value.object_format,
         merge_style: value.default_merge_style,
         html_url: value.html_url,
+        settings: api::Settings {
+            default_branch: value.default_branch,
+            merge: value.allow_merge_commits,
+            squash: value.allow_squash_merge,
+            rebase: value.allow_rebase,
+        },
     }
 }
 #[must_use]

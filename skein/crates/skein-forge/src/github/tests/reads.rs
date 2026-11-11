@@ -80,6 +80,12 @@ impl Call {
                     name: name(),
                     owner_id: 8,
                     organization: true,
+                    settings: api::Settings {
+                        default_branch: Box::from(*b"main"),
+                        merge: true,
+                        squash: true,
+                        rebase: true,
+                    },
                     merge: None,
                     html_url: Box::from([]),
                 },
