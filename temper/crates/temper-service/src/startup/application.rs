@@ -212,6 +212,18 @@ fn configured_limits(
         object.finish(document, &path, &mut found);
         problems.append(found, &Path::root());
     }
+    // Both runtime startup and offline store readers pass here before sizing the store.
+    let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
+    if limits.forge.changes > bound {
+        problems.push(
+            super::checks::own(b"forge.changes"),
+            What::TierChanges {
+                count: limits.forge.changes,
+                bound,
+                ceiling: temper_protocol_store::tier_landings_ceiling(),
+            },
+        );
+    }
     // Pass the resolved client capacity once, including the profile default.
     handed
         .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
