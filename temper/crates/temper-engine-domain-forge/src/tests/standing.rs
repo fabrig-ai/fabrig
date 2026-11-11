@@ -514,7 +514,7 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
     for (state, pull, head, complete, reviews, expected) in [
         (first.clone(), Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
         (State::Landing { head: HEAD }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
-        (State::Queued { head: HEAD, ready_since: env().wall }, Some(1), Some(Some(HEAD)), true, [].as_slice(), None),
+        (State::Queued { head: HEAD, ready_since: env().wall }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
         (
             State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
             Some(1),
@@ -600,7 +600,7 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     assert!(!d.keep_review_facts(b, CHANGE, facts.clone()));
     assert!(d.keep_review_facts(b, CHANGE, ReviewFacts { reviews_complete: true, ..facts.clone() }));
     let waits = d.approval_waits(env().wall, &LIMITS);
-    assert_eq!((waits[0].since, waits[0].behind), (a, 1));
+    assert_eq!((waits[0].since, waits[0].behind), (a, 0), "a short approval is outside the queue");
     assert_eq!(waits[0].title.len(), LOGGED_TITLE_BYTES);
     assert!(waits[0].title.ends_with("…".as_bytes()));
     assert_eq!(d.review_since.get(&CHANGE), Some(&a));
@@ -674,4 +674,111 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     domain::save_change(&mut d, &mut Queue::uncapped(), row);
     assert!(!d.review_facts.contains_key(&CHANGE));
     assert!(!d.review_since.contains_key(&CHANGE));
+}
+
+
+fn queued_fixture() -> Domain {
+    let (mut d, _) = fixture();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.pull = Some(1);
+    row.change.state = change::State::Queued { head: HEAD, ready_since: env().wall };
+    row.change.ready_since = Some(env().wall);
+    d
+}
+
+#[test]
+fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
+    use skein_forge::api::Answer;
+    for (enforce, asks, covered) in [(true, true, true), (true, false, false), (false, true, false)] {
+        let mut d = queued_fixture();
+        let mut required = rule();
+        required.enforce = enforce;
+        if asks {
+            required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+        }
+        keep(&mut d, 0, 1, required);
+        let mut owner = d.change(CHANGE).expect("queued").clone();
+        owner.task = 52;
+        owner.change.task = 52;
+        owner.change.state = change::State::First { head: HEAD, ready_since: env().wall };
+        owner.change.owns_turn = true;
+        d.changes.insert(52, owner).expect("second change");
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+        fixtures::finish_open(&mut d);
+        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let reviews: Vec<_> = finished.iter().filter_map(|request| match request {
+            Request::Reviewed { task, evidence } => Some((*task, evidence)),
+            _ => None,
+        }).collect();
+        assert_eq!(reviews.len(), usize::from(covered), "enforce {enforce}, asks {asks}");
+        if let Some((task, evidence)) = reviews.first() {
+            assert_eq!(*task, CHANGE);
+            assert_eq!(evidence.head, Some(HEAD));
+            assert!(evidence.reviews_complete);
+            assert!(evidence.reviews.is_empty());
+        }
+        assert!(finished.iter().any(|request| matches!(request,
+            Request::ChangeDecision { decision: change::Decision::Wait { until: None }, entry: None, .. })));
+        assert!(d.entries.is_empty(), "the queued step attempts no merge");
+    }
+}
+
+#[test]
+fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
+    use skein_forge::api::Answer;
+    let mut d = queued_fixture();
+    let mut required = rule();
+    required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+    keep(&mut d, 0, 1, required);
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.change.state = change::State::First { head: HEAD, ready_since: env().wall };
+    row.change.owns_turn = true;
+    let mut next = row.clone();
+    next.task = 52;
+    next.change.task = 52;
+    next.change.owns_turn = false;
+    next.change.state = change::State::Queued { head: HEAD, ready_since: Wall::from_nanos(env().wall.as_nanos().saturating_add(1)) };
+    d.changes.insert(52, next).expect("next change");
+    let facts = ReviewFacts { head: Some(HEAD), reviews_complete: true, reviewers: Box::new([]), unmapped: Box::new([]) };
+    assert!(d.keep_review_facts(env().wall, CHANGE, facts.clone()));
+    outputs(&mut d, Event::ReviewsChanged { task: CHANGE });
+    let row = d.change(CHANGE).expect("out of queue");
+    assert_eq!(row.change.state, change::State::Queued { head: HEAD, ready_since: env().wall });
+    assert!(!row.change.owns_turn, "the first gives up its turn in this decision");
+    assert_eq!(d.changes_order(row, env().wall, &LIMITS).unwrap().as_slice(), &[52]);
+    assert!(d.procedure_wakes.contains_key(&52), "the next is woken before any clock advances");
+    // Restore the saved rows, without any volatile facts.
+    let saved = row.clone();
+    let next = d.change(52).expect("next change").clone();
+    let mut required = rule();
+    required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+    d = queued_fixture();
+    keep(&mut d, 0, 1, required);
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(saved)) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(next)) });
+    assert!(d.review_facts.is_empty());
+    assert_eq!(d.changes_order(d.change(CHANGE).unwrap(), env().wall, &LIMITS).unwrap().as_slice(), &[CHANGE, 52]);
+    fixtures::step_change(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::finish_open(&mut d);
+    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let (entry, prior) = finished.iter().find_map(|request| match request {
+        Request::ChangeDecision { decision: change::Decision::Effect(change::Effect::Merge { .. }), entry: Some(entry), evidence: Some(evidence), .. } => Some((*entry, evidence.prior.clone())),
+        _ => None,
+    }).expect("without facts the first still asks to merge");
+    assert!(d.keep_review_facts(env().wall, CHANGE, facts));
+    outputs(&mut d, Event::VetoChange { task: CHANGE, entry, prior });
+    let row = d.change(CHANGE).expect("waiting merge");
+    assert_eq!(row.change.state, change::State::Queued { head: HEAD, ready_since: env().wall });
+    assert!(!row.change.owns_turn, "the merge wait yields without another step");
 }

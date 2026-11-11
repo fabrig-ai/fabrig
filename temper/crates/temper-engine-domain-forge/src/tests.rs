@@ -520,6 +520,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -613,6 +614,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -699,6 +701,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }

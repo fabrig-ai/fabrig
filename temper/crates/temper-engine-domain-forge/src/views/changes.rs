@@ -156,7 +156,7 @@ impl Domain {
             if other.repository == row.repository
                 && other.base == row.base
                 && owns(other)
-                && crate::panel::ready(other).is_none()
+                && (!crate::domain::in_queue(&other.change.state) || !self.approval_short(other))
             {
                 active.insert((ready_since(other), other.task), other.task).ok()?;
             }
@@ -168,7 +168,9 @@ impl Domain {
         let (candidates, repair) = crate::domain::queue_ready(self, row, limits);
         let candidates = crate::public::order_ready(candidates, repair, limits, now)?;
         for candidate in &candidates {
-            ordered.push(candidate.task).ok()?;
+            if !self.changes.get(&candidate.task)?.change.owns_turn {
+                ordered.push(candidate.task).ok()?;
+            }
         }
         Some(ordered)
     }
