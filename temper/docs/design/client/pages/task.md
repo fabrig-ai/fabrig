@@ -271,7 +271,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
     "T28" and "Change · T28" (`README.md`, 2, "Links are by number");
   - not drawn, since the panel does not carry them (`../forge/served.md`, 2):
     the "Fixes finding" notice (findings are a gap,
-    `../mockups/README.md`); the head's requirements, its heads in order,
+    `../web/mockups/README.md`); the head's requirements, its heads in order,
     CI's contexts, the pull request's title and mergeability, how long
     a step has waited and when a stall began;
   - not drawn: the mockup's case name beside the tag, a reference

@@ -91,7 +91,7 @@ user, 2026-11-06):
 7. **Account** (section 5), and bring the design text in line: the
    client's `README.md` and `../client/web/README.md`, the journeys' `README.md`
    files, `../client/web/journeys.md`, 9, and the mockups'
-   `mockups/STATUS.md`.
+   `../client/web/mockups/STATUS.md`.
 
 Each commit of the landing carries the request's trailer, a later fix
 of what it missed included; one that lacks it hides the fix from

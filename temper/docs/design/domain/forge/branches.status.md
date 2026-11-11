@@ -71,7 +71,7 @@ a change's merge job from the engine through its worker to the fake forge
   -  the remaining green-head repair stories remain `change/repairs.status.md` (Not yet, the whole document).
   - 1: a goal's landing whose update into main conflicts,
     settled by the merge job and a resolution on its goal's branch
-    (`../../draft/reference-landing.md`, section 9's first story), is built
+    (`../../draft/archive/reference-landing.md`, section 9's first story), is built
     by every change's path, the job writing the branch under the goal's
     hold as the landing's resolution does
     (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),

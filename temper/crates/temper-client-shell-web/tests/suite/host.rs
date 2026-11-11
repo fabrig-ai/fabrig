@@ -279,7 +279,7 @@ fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
     use skein_ui::{Act, Role};
     use temper_client_shell_web::journey::{Control, control, giving};
     let mut records =
-        lines(include_bytes!("../../../../docs/design/client/journeys/chat-draft/recording")).expect("chat records");
+        lines(include_bytes!("../../../../docs/design/client/web/journeys/chat-draft/recording")).expect("chat records");
     let at = records
         .iter()
         .position(|line| matches!(line, Line::Act { event, .. } if event.as_ref() == b"Act { action: Pages(Go { address: NewChat { draft: false } }) }"))

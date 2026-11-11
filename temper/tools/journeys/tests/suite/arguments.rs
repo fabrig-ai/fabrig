@@ -59,7 +59,7 @@ fn a_stale_recording_prints_no_line_of_its_own() {
     let file = scratch.path().join("recording");
     fs::write(&file, recording).expect("write stale recording");
     let name = "a-refused-add";
-    let directory = paths::tree().join("docs/design/client/journeys").join(name);
+    let directory = paths::tree().join("docs/design/client/web/journeys").join(name);
     assert!(!directory.exists(), "the refused journey name is unused");
     let output = Command::new(paths::binary("temper-client-journeys"))
         .args(["add", name])

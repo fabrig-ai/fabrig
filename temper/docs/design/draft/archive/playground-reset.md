@@ -181,7 +181,7 @@ reference drafts execute.
   `RemoveAccount`; then the row erased, none again.
 - **The page** shows "Leaving the playground…" until the reset answers,
   then opens the welcome's Forge step, `/welcome?at=forge`
-  (`../../client/journeys/welcome-set-up/02.html`): the store as a person
+  (`../../client/web/journeys/welcome-set-up/02.html`): the store as a person
   who pressed "Set up temper" from the welcome finds it.
 - **Cut by a restart,** the kept acts are sent again at the next start
   (sections 4 and 5), and the page shows the reset under way until the

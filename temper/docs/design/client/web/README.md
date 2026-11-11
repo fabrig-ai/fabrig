@@ -3,7 +3,7 @@
 Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`../README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`../README.md`;
-`../forge/README.md`). The greenfield mock (`../greenfield/README.md`) is the look's
+`../forge/README.md`). The greenfield mock (`greenfield/README.md`) is the look's
 target, with later look requests, and takes precedence over `mockups/`
 (the user, 2026-11-05). Journeys record and print what temper draws
 (`journeys.md`). How a view runs in a browser is

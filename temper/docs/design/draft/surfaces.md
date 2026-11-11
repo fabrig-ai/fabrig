@@ -6,7 +6,7 @@ what each page and screen holds, in words, with the whole story's
 mockups as their look (section 13). It is drawn green field, on the
 user's word: "take it as greenfield, doesn't matter what we have now,
 let's design optimizing for the vision". It revises the greenfield
-mock's rail (`../client/greenfield/README.md`), the client's rail, tab
+mock's rail (`../client/web/greenfield/README.md`), the client's rail, tab
 bar and Settings (`../client/view.md`, 3 and `../client/pages/README.md`, *Settings*), and
 the terminal's direction and what it leaves after its first pass
 (`tui.md`, sections 3, 6 and 7): the launchpad as drawn here, the side
@@ -492,7 +492,7 @@ them, shows exactly its parts, and moving along it never flips a page.
   work runs, Deployment, the phone's tabs and the terminal's screens.
   The greenfield mock still leads where these draw nothing, a goal's page
   and a chat, and leads `../client/mockups/` as it does today
-  (`../client/mockups/README.md`, section 1).
+  (`../client/web/mockups/README.md`, section 1).
 - **Their data is illustrative:** at scale, one Sunday morning on one
   deployment with four projects, vsr, vsr-rs, cowsql and fabrig; Pair,
   one maintainer's project, pocket; Team, three people's project, shop,

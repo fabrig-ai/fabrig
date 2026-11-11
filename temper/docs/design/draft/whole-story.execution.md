@@ -111,7 +111,7 @@ or the nearest thing, and says so in that draft's status.
   precedence over the greenfield mock (`surfaces.md`, section 13). Mockups
   under `docs/` are documents, whatever their format (the user,
   2026-11-08), so they land as the drafts do.
-- **Then** the drafts and `../client/greenfield/README.md` may cite them
+- **Then** the drafts and `../client/web/greenfield/README.md` may cite them
   as paths.
 - **Done** when it lands. No code.
 

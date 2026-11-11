@@ -98,8 +98,8 @@
     parts by one pure function too (3.5, *Team*, *Its parts*); and 3.5,
     *Away*, shows Away by the project's classes in its own function,
     `Domain::away_shown`, outside *A page's parts*.
-  - 13: `../client/greenfield/README.md` names the whole story's
-    mockups, and `../client/mockups/README.md`,
+  - 13: `../client/web/greenfield/README.md` names the whole story's
+    mockups, and `../client/web/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
     as the path's marks are (`../client/pages/chat/conversation.md`, 3), but Work's
     tags and What reaches you's columns (3.5, *Work*; 5.13).

@@ -22,7 +22,7 @@ nothing known, a section draws its title with no line under it.
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
-acts lead (`../mockups/README.md`, section 1). Lists of tasks are
+acts lead (`../web/mockups/README.md`, section 1). Lists of tasks are
 task queries (jig's `client/domain/contract/README.md`, 4.1): the chat and
 goal templates' labels are jig's defaults, which temper's configuration
 keeps (`../../protocol/configuration/README.md`, section 2).

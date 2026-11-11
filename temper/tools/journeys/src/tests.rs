@@ -176,8 +176,8 @@ fn the_stylesheets_resolve_in_the_checkout() {
         stylesheets,
         [
             "../skein-ui.css",
-            "../../../../../crates/temper-client-shell-web/temper.css",
-            "../../../../../crates/temper-client-shell-web/task-pages.css",
+            "../../../../../../crates/temper-client-shell-web/temper.css",
+            "../../../../../../crates/temper-client-shell-web/task-pages.css",
             "../overlay.css",
         ]
     );
@@ -788,13 +788,14 @@ fn tui_add_redacts_proves_and_reprints_byte_for_byte() {
 #[test]
 fn a_name_is_unique_across_both_clients_directories() {
     let scratch = Scratch::new("journeys-both-names");
-    let web = scratch.path().join("web");
-    let tui = scratch.path().join("tui");
+    let web = scratch.path().join("web/journeys");
+    let tui = scratch.path().join("tui/journeys");
+    fs::create_dir(web.parent().expect("web surface")).expect("web directory");
     for (held, recording) in [(&web, tui_recording()), (&tui, fixture_recording())] {
         fs::create_dir_all(held.join("held")).expect("other client's name");
         let before = tree_bytes(scratch.path());
         assert!(
-            matches!(crate::add_to(&web, &tui, "held", &recording, &[]), Err(crate::Refusal::OtherClient { name }) if name == "held")
+            matches!(crate::add(&web, "held", &recording, &[]), Err(crate::Refusal::OtherClient { name }) if name == "held")
         );
         assert_eq!(before, tree_bytes(scratch.path()));
         fs::remove_dir_all(held).expect("remove held name");

@@ -16,7 +16,7 @@ only to REPORT, and screenshots beside it, in `shots/`. Use `rg`.
 ## Context
 
 temper's client mockups (`~/src/rust/temper`, at `main`:
-`docs/design/client/mockups/`, its `README.md` first) are the design of
+`docs/design/client/web/mockups/`, its `README.md` first) are the design of
 the client's pages. Under their rules, a page's main drawing shows only
 what the engine already has (temper, and jig and skein at the versions
 temper's `Cargo.lock` pins: `~/src/rust/jig`, `~/src/rust/skein`), so
@@ -27,7 +27,7 @@ Future. This audit is the input for bringing GROUP under those rules.
 The client's code: `crates/temper-client-domain` (pages, routes,
 addresses), `crates/temper-client-view` (what each page draws, its
 words), `crates/temper-client-shell-web`, and the engine's side that
-the pages read. Its design: DOCUMENTS, and `docs/design/STATUS.md` (what
+the pages read. Its design: DOCUMENTS, and `../../../STATUS.md` (what
 is built). Render a state with `chromium --headless=new --no-sandbox
 --window-size=1300,2400 --screenshot=FILE 'file://…/PAGE.html?QUERY'`.
 
@@ -53,7 +53,7 @@ leads or what it does, each classed:
   (`path:line`) and its design section.
 - **FUTURE:** it needs work below the client: exactly what is missing,
   and the design, draft or plan that covers it with its state in
-  `docs/design/STATUS.md`, or "not designed".
+  `../../../STATUS.md`, or "not designed".
 - **UNCLEAR:** what you checked, and why it didn't decide.
 
 Then four lists:

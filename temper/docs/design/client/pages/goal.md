@@ -14,7 +14,7 @@
 ## 2. A goal's page
 
 A goal is a tracked agent's task (`README.md`). Its page is the greenfield mock's
-`goal.html` (`../greenfield/README.md`), drawn by the view's `pages/goal.rs`,
+`goal.html` (`../web/greenfield/README.md`), drawn by the view's `pages/goal.rs`,
 where `pages/task.rs`'s `main` hands over for `Shape::Tracked`. An agent's
 task's page (`task.md`, 2) and a change's or a person's (`task.md`, 3) are other pages, and
 they are where a goal's task rows lead: the mock has no task page.

@@ -128,7 +128,6 @@ Design documents:
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
 Drafts:
-- [`draft/agent-binary.md`](draft/agent-binary.status.md) — completion and draft fate: `draft/agent-binary.status.md`.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
@@ -162,7 +161,6 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
-- [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
@@ -179,4 +177,5 @@ Drafts:
 - [`draft/whole-story.md`](draft/whole-story.status.md)
 
 Archived drafts:
+- [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)

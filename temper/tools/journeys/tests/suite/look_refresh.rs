@@ -7,10 +7,10 @@ use std::{
     process::{Command, Output},
 };
 
-const JOURNEYS: &str = "docs/design/client/journeys";
-const PAGE: &str = "docs/design/client/journeys/welcome-playground/01.html";
-const OTHER_PAGE: &str = "docs/design/client/journeys/welcome-playground/02.html";
-const OVERLAY: &str = "docs/design/client/journeys/overlay.css";
+const JOURNEYS: &str = "docs/design/client/web/journeys";
+const PAGE: &str = "docs/design/client/web/journeys/welcome-playground/01.html";
+const OTHER_PAGE: &str = "docs/design/client/web/journeys/welcome-playground/02.html";
+const OVERLAY: &str = "docs/design/client/web/journeys/overlay.css";
 
 struct Repositories {
     scratch: Scratch,

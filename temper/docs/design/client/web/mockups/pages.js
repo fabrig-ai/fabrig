@@ -57,7 +57,7 @@
   }
   if (params.has('future')) document.body.classList.add(FLAGS.future);
 
-  // The pages under the README's rules (client/mockups/README.md, section 5; STATUS.md,
+  // The pages under the README's rules (client/web/mockups/README.md, section 5; client/web/mockups/STATUS.md,
   // section 1): realistic, with their future pieces marked.
   const REVIEWED = { welcome: '2026-10-25', github: '2026-10-25' };
 
@@ -186,7 +186,7 @@
     display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract/README.md, 5.1, OwnerAccountLine.display)'],
     preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract/documents.md, 3)'],
     ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
-    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
+    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft draft/archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
     eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
     port: ['jig’s port-taken end', 'a sign-in’s ending for the listener’s port held by another program (client README, section 11)'],
     login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client/forge/deployment.md)'],
@@ -380,7 +380,7 @@
   const projectTasks = () => Object.keys(world.tasks).filter(k => inProject(T(k)));
   // A first run's deployment has the project `temper init` seeds; with
   // no project until the playground's start or the first repository
-  // makes one (draft archive/first-run.md, 2.4), its place reads "No project yet".
+  // makes one (draft draft/archive/first-run.md, 2.4), its place reads "No project yet".
   const seeded = () => world.seeded && shownProject() === world.seeded;
   const project = () => seeded()
     ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup/init.md, 3)', esc(world.seeded)), 'No project yet')
@@ -406,7 +406,7 @@
         <button type="button" data-go="${next ? next.id : ''}" ${next ? '' : 'disabled'} title="${esc(nextTitle)}" aria-label="Next step">›</button>
       </div>
       <div class="mockbar-now"><b>${esc(when)}</b><span>${esc(W.acts[step.act])}</span></div>
-      ${page === 'index' ? '' : REVIEWED[page] ? `<span class="mockbar-rules" title="${esc(`Under the README’s rules since ${REVIEWED[page]}: what the main drawing shows, the engine has. STATUS.md says what the client lacks.`)}">Under the rules</span>` : '<span class="mockbar-rules not" title="Not under the README’s rules yet: it may draw what the engine lacks (STATUS.md, section 2).">Not reviewed</span>'}
+      ${page === 'index' ? '' : REVIEWED[page] ? `<span class="mockbar-rules" title="${esc(`Under the README’s rules since ${REVIEWED[page]}: what the main drawing shows, the engine has. STATUS.md says what the client lacks.`)}">Under the rules</span>` : '<span class="mockbar-rules not" title="Not under the README’s rules yet: it may draw what the engine lacks (client/web/mockups/STATUS.md, section 2).">Not reviewed</span>'}
       <div class="mockbar-right">
         <div class="mockbar-legend" aria-hidden="true">${legend}</div>
         <button type="button" data-pop="steps" aria-expanded="false">Steps ⌄</button>
@@ -529,7 +529,7 @@
   // ---- The product's chrome -------------------------------------------
 
   // In client README 5.3's order. Tasks and Workers are jig's pages
-  // (jig's pages.md, 6.3 and 7), not temper's yet; Adopt has no mockup (client
+  // (jig's client/domain/pages.md, 6.3 and 7), not temper's yet; Adopt has no mockup (client
   // README, 4.4).
   const NAV = [
     ['inbox', 'inbox.html', 'Inbox'],
@@ -697,7 +697,7 @@
     </article>`;
   }
 
-  // A proposal (jig's client objects.md, section 4), in the inbox or at
+  // A proposal (jig's client client/domain/objects.md, section 4), in the inbox or at
   // the call that made it.
   const number = n => String(+n.toFixed(1));
   function proposalCard(e, where) {
@@ -724,7 +724,7 @@
       <div class="button-row"><button class="button primary" data-later>Accept goal</button><button class="button" data-later>Reject with reason</button><a class="button ghost" href="${href(e.task)}">Open ${esc(e.task)} ↗</a></div></article>`;
   }
 
-  // A conversation's lines (jig's client objects.md, section 10), its
+  // A conversation's lines (jig's client client/domain/objects.md, section 10), its
   // turns named as client README 5.1 names them: "You", "Temper", or the
   // party's name. A delegation shows as its tasks' cards, and a proposal
   // as its card, at the call that made them.
@@ -888,7 +888,7 @@
   // A plan's first use: a card in the conversation of the run that first
   // used it, from the document's fact (client README, 5.5).
   function firstUseCard(a) {
-    return `<article class="terminal-proposal plan-card" aria-label="Your ${esc(a.plan)}"><div class="terminal-proposal-heading"><span class="terminal-proposal-type">${conf('the provider’s plan, in temper’s words', esc(a.plan.toUpperCase()))}</span><span>${fact('jig: the account’s first use, a fact of its document', 'First use')}</span></div><p>${fact('jig: a plan’s first use (jig’s accounts.md, section 5), in temper’s words', esc(`You’re using your ${a.plan}. Eligible requests from temper use your plan’s included usage. You can see it, and set a weekly cap for temper, in ${a.name}’s settings.`))}</p><div class="terminal-proposal-actions">${manageUsage()}</div></article>`;
+    return `<article class="terminal-proposal plan-card" aria-label="Your ${esc(a.plan)}"><div class="terminal-proposal-heading"><span class="terminal-proposal-type">${conf('the provider’s plan, in temper’s words', esc(a.plan.toUpperCase()))}</span><span>${fact('jig: the account’s first use, a fact of its document', 'First use')}</span></div><p>${fact('jig: a plan’s first use (jig’s domain/accounts.md, section 5), in temper’s words', esc(`You’re using your ${a.plan}. Eligible requests from temper use your plan’s included usage. You can see it, and set a weekly cap for temper, in ${a.name}’s settings.`))}</p><div class="terminal-proposal-actions">${manageUsage()}</div></article>`;
   }
   function planVariants() {
     const a = ownAccounts().find(isPlan);
@@ -1426,7 +1426,7 @@
       ['The same account again', 1, endingCard(fact('jig: a sign-in to a subject the person already holds', esc(`That’s ${a ? a.sources[0].name : 'sam@example.com'} again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.`)), again, '', false), undefined, 'other-states-renewed'],
       ['Signed in without plan usage', 1, endingCard(fact('jig: the sign-in refused, plan usage declined', 'You signed in without plan usage.'), again + key), undefined, 'other-states-declined'],
       ['Not eligible', 1, endingCard(fact('jig: the sign-in refused, not eligible', 'This ChatGPT account can’t be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan.'), `${key}<button class="button" data-later="Mockup: sign out of ChatGPT in your browser first; then a fresh sign-in.">Sign in to another account</button>`), undefined, 'other-states-not-eligible'],
-      ['Another person holds that account', 1, endingCard(fact('jig: the sign-in refused, a subject another holder holds', 'Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.'), again, ahead('words', 'a sign-in refused for a subject another holder holds (jig’s accounts.md, 3.3): client README 5.5 has no words yet')), undefined, 'other-states-refused'],
+      ['Another person holds that account', 1, endingCard(fact('jig: the sign-in refused, a subject another holder holds', 'Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.'), again, ahead('words', 'a sign-in refused for a subject another holder holds (jig’s domain/accounts.md, 3.3): client README 5.5 has no words yet')), undefined, 'other-states-refused'],
       ['The port is taken, before ChatGPT opens', 1, endingCard(fact('temper: the loopback listener couldn’t bind the fixed port', 'temper can’t listen on 127.0.0.1:1455: another program has it, such as Codex’s own sign-in. Finish or close that sign-in, then Continue with ChatGPT.'), again, ahead('words', 'a sign-in whose fixed port is taken: client README 5.5 has no words yet')), undefined, 'other-states-port-taken'],
       ['Misconfigured', 1, endingCard(fact('jig: the sign-in refused by the provider, misconfigured', 'OpenAI refused temper’s sign-in. Check the configuration’s registration.'), ''), undefined, 'other-states-misconfigured'],
       ['An OpenAI API key: its details', 1, keyForm(), 'key', 'other-states-key-details'],

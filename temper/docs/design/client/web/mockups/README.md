@@ -16,10 +16,10 @@ and which pages are under the rules below yet.
   for what it draws (the user, 10-26): where a mockup differs from what
   temper draws, the mockup is reconciled to temper, gradually, and a
   built page's look is tuned on its journey's print
-  (`../web/journeys.md`, section 7). For what is not built yet, a page's
+  (`../journeys.md`, section 7). For what is not built yet, a page's
   look, its parts and their order, its words and where each act leads
-  are its mockup's. The client's documents (`../README.md`,
-  `../forge/README.md`, `../web/README.md`) hold what a page reads, watches and
+  are its mockup's. The client's documents (`../../README.md`,
+  `../../forge/README.md`, `../README.md`) hold what a page reads, watches and
   does, and cite the mockup for the rest. The two agree: a change to
   one changes the other in the same landing, and a disagreement found
   is settled, never recorded.
@@ -45,7 +45,7 @@ and which pages are under the rules below yet.
 ## 2. Opening them
 
 ```sh
-python3 -m http.server 8765 --directory docs/design/client/mockups
+python3 -m http.server 8765 --directory docs/design/client/web/mockups
 # http://localhost:8765/index.html
 ```
 
@@ -78,7 +78,7 @@ hovering one shows its citation.
 | Source | What it is | Its citation |
 |---|---|---|
 | Engine fact | what jig or temper keeps or computes, and the client can read | the design section that defines it, and its record and field: jig's `client/domain/contract/README.md`, 5.1, `Account.display` |
-| Configuration | what the deployment's configuration gives | its key, and `../../protocol/configuration/README.md`'s section |
+| Configuration | what the deployment's configuration gives | its key, and `../../../protocol/configuration/README.md`'s section |
 | As written | words a person or an agent wrote, with the writer | the writer, and when |
 
 - **The UI's own words** are unmarked, and name no workflow: a
@@ -99,7 +99,7 @@ hovering one shows its citation.
 ## 4. The structure
 
 - **Pages:** one HTML shell for each of the client's pages, named after
-  its address in `../README.md`'s 3.5 (`connect-forge.html` is
+  its address in `../../README.md`'s 3.5 (`connect-forge.html` is
   `ConnectForge`), all drawn by `pages.js`. Two draw pages a journey
   meets that are not the client's: `github.html`, GitHub's own, each
   under a slate strip with its address; and `sign-in.html`, the
@@ -120,7 +120,7 @@ hovering one shows its citation.
 - **The look:** `style.css`, `terminal-chat.css` and
   `terminal-pages.css` sketch the look of what is not built yet; the
   product's is `temper.css`, tuned on the journeys' prints
-  (`../web/look.md`; `../web/journeys.md`), to which these sheets are
+  (`../look.md`; `../journeys.md`), to which these sheets are
   reconciled. `mockup.css` is the mockups' own bar and marks, never the
   product.
 

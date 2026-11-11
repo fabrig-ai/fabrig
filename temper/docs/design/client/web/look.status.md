@@ -228,5 +228,5 @@ keeps it; publication is not a cutoff on a handed change's commit.
   project's frame and Goals do, where the general main's scale says
   14/12: its column is 720 px, body 15 px, headline 32 px (25 px on a
   phone), facts 13.5 px and byline 12 px. The greenfield target is the
-  user's look (`../greenfield/README.md`); `temper.css` scopes these rules
+  user's look (`greenfield/README.md`); `temper.css` scopes these rules
   under `temper-home`.

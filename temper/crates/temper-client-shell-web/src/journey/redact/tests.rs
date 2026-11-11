@@ -352,7 +352,7 @@ fn an_undecodable_data_line_refuses() {
 
 #[test]
 fn the_committed_recordings_redact() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/journeys");
+    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
     let mut count = 0;
     for entry in std::fs::read_dir(journeys).expect("journeys") {
         let path = entry.expect("journey").path().join("recording");

@@ -227,7 +227,7 @@
 
   // ---- The frame --------------------------------------------------------
   // The banner's project: the open one, the others, rename in place and a
-  // new project (first-run-projects.md, 7).
+  // new project (draft/first-run-projects.md, 7).
   let renaming = false;
   function switcher() {
     const rows = Object.keys(projects()).map(k => {
@@ -650,7 +650,7 @@
 
   // The configuring chat's turns: an explanation, or a proposal in the
   // person's words with the settings underneath, which an owner accepts
-  // (configuring.md, 1). A proposal waiting is also in Needs you.
+  // (draft/configuring.md, 1). A proposal waiting is also in Needs you.
   function configureAnswer(c, th, text) {
     if (/not sure|what can/i.test(text)) { th.push({ who: 'agent', text: FR.configure.explain }); return; }
     const key = /draft|design|plan|goal|task/i.test(text) ? 'drafts' : 'small';
