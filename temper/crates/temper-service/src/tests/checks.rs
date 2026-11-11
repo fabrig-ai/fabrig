@@ -93,7 +93,7 @@ fn a_checkout_with_one_repository_can_start() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits.overrides",
-        br#"{"checkout.name_bytes":600,"checkout.repositories":1,"git_component.stdout_bytes":2048}"#,
+        br#"{"checkout.name_bytes":600,"checkout.repositories":1,"git_component.stdout_bytes":131072}"#,
     );
     let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
     assert!(found.is_empty(), "{:?}", lines(&found));
@@ -117,7 +117,7 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
 #[test]
 fn installations_past_the_grant_bound_refuse_the_start_naming_the_limit() {
     // Nine entries fit; ten entries are the first count past jig's ceiling.
-    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge.name_bytes":256,"forge.resources_per_task":4,"forges.installations":10,"forge_component.installations":10}"#);
+    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4,"forges.installations":10,"forge_component.installations":10}"#);
     let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
     assert_eq!(&*lines(&found), b"engine.limits.application_value_secret: 8625 bytes, past its bound of 8192\nworkers.limits.application_value_secret: 8625 bytes, past its bound of 8192\n".as_slice());
     let document = fixtures::with(
@@ -197,17 +197,97 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
 fn git_component_limits_against_the_checkout_name_both() {
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
     own.checkout.name_bytes = 600;
-    let git = crate::limits::GitComponent { stdout_bytes: 2048, ..own.git_component };
+    let git = own.git_component;
     for (git, expected) in [
-        (crate::limits::GitComponent { operations: 2, ..git }, b"application.limits.overrides.git_component.operations: must agree with checkout.workspaces\n".as_slice()),
-        (crate::limits::GitComponent { stdout_bytes: 1024, ..git }, b"application.limits.overrides.git_component.stdout_bytes: must agree with checkout.name_bytes and checkout.conflicts * (checkout.path_bytes + 1)\n"),
-        (crate::limits::GitComponent { stderr_bytes: 1, ..git }, b"application.limits.overrides.git_component.stderr_bytes: must agree with checkout.push_diagnostic\n"),
+        (
+            crate::limits::GitComponent { operations: 2, ..git },
+            b"application.limits.overrides.git_component.operations: must agree with checkout.workspaces\n".as_slice(),
+        ),
+        (
+            crate::limits::GitComponent { stderr_bytes: 1, ..git },
+            b"application.limits.overrides.git_component.stderr_bytes: must agree with checkout.push_diagnostic\n",
+        ),
     ] {
         let mut found = Problems::empty();
         checks::limits(&own, &git, &mut found);
         assert_eq!(&*lines(&found), expected, "row {git:?}");
     }
 }
+#[test]
+fn checkout_capacity_names_stdout_and_both_link_rooms() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits.overrides",
+        br#"{"checkout.name_bytes":600,"checkout.repositories":2,"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
+    );
+    let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    document["workers"][0]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    let mut agent = fixtures::startup_agent();
+    agent.host_limits.conflicts = 1024;
+    agent.host_limits.path_bytes = 4096;
+    let found = started(&serde_json::to_vec(&document).unwrap(), &fixtures::files(), &agent);
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(
+        String::from_utf8_lossy(&lines(&found)),
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401142 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401142 bytes\n"
+    );
+}
+
+#[test]
+fn checkout_capacity_names_stdout_alone_when_the_links_hold() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits.overrides",
+        br#"{"checkout.name_bytes":600,"checkout.repositories":2,"checkout.conflicts":1024,"git_component.stdout_bytes":1024}"#,
+    );
+    let mut agent = fixtures::startup_agent();
+    agent.host_limits.conflicts = 1024;
+    let found = started(&document, &fixtures::files(), &agent);
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(
+        String::from_utf8_lossy(&lines(&found)),
+        "checkout.conflicts 1024, checkout.path_bytes 255, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 1024 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 262144 bytes\n"
+    );
+}
+
+#[test]
+fn checkout_capacity_keeps_the_agent_saved_and_rooms_in_one_refusal() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits.overrides",
+        br#"{"checkout.name_bytes":600,"checkout.repositories":4,"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
+    );
+    let mut agent = fixtures::startup_agent();
+    agent.host_limits.conflicts = 512;
+    let found = started(&document, &fixtures::files(), &agent);
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(
+        String::from_utf8_lossy(&lines(&found)),
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\n"
+    );
+}
+
+#[test]
+fn worker_checkout_capacity_names_stdout_and_its_room_without_an_engine() {
+    let document = fixtures::with(
+        &fixtures::worker_alone_document(),
+        b"application.limits.overrides",
+        br#"{"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
+    );
+    let mut agent = fixtures::startup_agent();
+    agent.host_limits.path_bytes = 4096;
+    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
+    let found = crate::startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7)
+        .err()
+        .expect("checkout capacity is refused");
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(
+        String::from_utf8_lossy(&lines(&found)),
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401142 bytes\n"
+    );
+}
+
 #[test]
 fn a_channel_limit_past_a_ceiling_names_the_limit() {
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
@@ -238,7 +318,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 }
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
-    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":61}"#);
+    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 260 bytes, past its bound of 256\n".as_slice());
 }
@@ -376,7 +456,7 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
-        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge_component.hooks":228}"#);
+        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":228}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"engine.limits.io.sockets: 257 bytes, past its bound of 256\n"
@@ -436,7 +516,7 @@ fn fixed_redirect_ports_accept_listeners_without_a_reserved_number() {
 fn provider_redirect_ports_are_checked_before_files_are_read() {
     const PROVIDERS: &[u8] = br#"[{"name":"Fake","number":1,"signed_in_plan":false,"endpoint":"fake","sources":{"sign_in":{"issuer":"https://issuer.example","client":"client","scopes":[],"authorization":"https://issuer.example/auth","token":"https://issuer.example/token","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","must_grant":[],"redirect_path":"callback","redirect_port":7100}}}]"#;
     let input = fixtures::with(&fixtures::document(), b"engine.llm.providers", PROVIDERS);
-    let input = fixtures::with(&input, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":2,"checkout.workspaces":2,"forge_component.hooks":1}"#);
+    let input = fixtures::with(&input, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":2,"checkout.workspaces":2,"forge_component.hooks":1}"#);
     let input = core::str::from_utf8(&input).unwrap();
     for (listener, expected) in [
         (r#"{"socket":"127.0.0.1:7100"}"#, true),

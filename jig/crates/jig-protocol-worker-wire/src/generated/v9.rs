@@ -87,7 +87,7 @@ pub const CEILINGS: Limits = Limits {
     call_input: 1_048_576,
     invalid_start_why: 4_096,
     work_left_some: 65_536,
-    work_saved_some: 65_536,
+    work_saved_some: 16_777_216,
     ended_outcome: 67_108_864,
     resource_resource_some: 1_024,
     failed_detail: 4_096,

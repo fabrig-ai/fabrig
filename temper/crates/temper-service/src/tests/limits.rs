@@ -139,6 +139,15 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
 }
 
 #[test]
+fn stock_profiles_hold_a_few_hundred_conflicted_paths() {
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let own = limits::profile(profile);
+        assert_eq!(own.checkout.conflicts, 512, "{profile:?}");
+        assert_eq!(own.git_component.stdout_bytes, 131_072, "{profile:?}");
+    }
+}
+
+#[test]
 fn the_small_profile_passes_each_domains_validity() {
     let settings = fixtures::engine();
     assert!(temper_engine_domain_forge::valid(&settings.limits.forge));
@@ -370,12 +379,12 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
 #[test]
 fn each_git_component_limit_has_its_dotted_override() {
     let names: [(&[u8], u64, [u32; 6]); 6] = [
-        (b"git_component.operations", 7, [7, 1024, 512, 4096, 16, 4080]),
-        (b"git_component.stdout_bytes", 2048, [3, 2048, 512, 4096, 16, 4080]),
-        (b"git_component.stderr_bytes", 1024, [3, 1024, 1024, 4096, 16, 4080]),
-        (b"git_component.read_bytes", 7, [3, 1024, 512, 7, 16, 4080]),
-        (b"git_component.sweep_entries", 7, [3, 1024, 512, 4096, 7, 4080]),
-        (b"git_component.sweep_bytes", 4096, [3, 1024, 512, 4096, 16, 4096]),
+        (b"git_component.operations", 7, [7, 131_072, 512, 4096, 16, 4080]),
+        (b"git_component.stdout_bytes", 262_144, [3, 262_144, 512, 4096, 16, 4080]),
+        (b"git_component.stderr_bytes", 1024, [3, 131_072, 1024, 4096, 16, 4080]),
+        (b"git_component.read_bytes", 7, [3, 131_072, 512, 7, 16, 4080]),
+        (b"git_component.sweep_entries", 7, [3, 131_072, 512, 4096, 7, 4080]),
+        (b"git_component.sweep_bytes", 4096, [3, 131_072, 512, 4096, 16, 4096]),
     ];
     for (name, value, expected) in names {
         let mut limits = limits::profile(limits::Profile::Small);

@@ -11,6 +11,7 @@ pub use worker::{WorkerPart, worker_alone, worker_part};
 #[cfg(test)]
 #[path = "tests/startup_calls.rs"]
 mod calls_tests;
+mod checkout;
 pub(crate) mod checks;
 mod problems;
 #[cfg(test)]
@@ -750,6 +751,7 @@ pub(crate) fn checked_start_with(
     }
     let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
+    checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
     let remote =
         u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))

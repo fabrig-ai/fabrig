@@ -39,7 +39,7 @@
         "checkout.repositories": 2,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
-        "git_component.stdout_bytes": 2048,
+        "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 998048,
         "root.loads.bytes": 998292,
         "root.loads.read_bytes": 1996088,
