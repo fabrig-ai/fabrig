@@ -1,7 +1,13 @@
 # Status
 
 2026-11-11. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The TUI's
+its design from its drafts, from the status files below. A standing
+role is the stock's charter 13 and template 7, jig's task that stands,
+started with `temper ctl role start` and read with `role list` and
+`role show`, its person its requester, moved to an owner when that
+person leaves the project (`domain/agent/standing.status.md`); its
+areas, routing, talk and reports are the standing-roles draft's later
+milestones (`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its

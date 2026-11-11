@@ -2,6 +2,9 @@
 
 2026-11-10. Where the tree's code lags or departs from [executors.md](executors.md).
 
+- **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2) [in flight: change 103].
+- **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5) [in flight: change 106].
+
 - **Not yet:**  runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the remaining point-load fences.

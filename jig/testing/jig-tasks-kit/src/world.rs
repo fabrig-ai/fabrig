@@ -324,6 +324,13 @@ impl World {
         self.send(Event::OpenPeriod { reply_to, project: 1, period, budget });
     }
 
+    /// Route a period's standing renewals as the parent does.
+    pub fn renew_standing(&mut self, period: u64) {
+        for task in self.domain.standing_tasks(1) {
+            self.send(Event::RenewStanding { task, period });
+        }
+    }
+
     /// Configure procedures that start kept, including after a restart.
     pub fn set_kept_starts(&mut self, starts: Box<[tasks::KeptStart]>) {
         self.domain.set_kept_starts(starts.clone());
@@ -1228,6 +1235,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

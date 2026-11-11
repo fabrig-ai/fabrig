@@ -1,0 +1,8 @@
+role show TASK
+  TASK (task): a number; required. The role's task number
+Read a standing role's task document and its Now whole
+Prints: The task document, then its whole Now with note number, revision and time, or `no Now yet`
+--json: the record role.
+Key: none.
+The Now is the lowest-numbered note described now in the role's
+own task scope. A supplied cut body is marked, never silently lost.

@@ -15,7 +15,8 @@ Its sections come from two places:
 
 - **The core's,** which it holds typed: the task (its number and project,
   which a run names in a note's scope, its spec and, unless
-  its requester ends it (../tasks/lifecycle.md, 9), its contract,
+  its requester ends it (../tasks/lifecycle.md, 9) or it stands
+  (../tasks/standing.md, section 2), its contract,
   and its lineage: its requesters' specs, cut); its dependencies' and
   inputs' results in jig's terms, and, for a run after its task was kept
 (../tasks/lifecycle.md, 8), what it waited for: each dependency added, when and by
@@ -26,9 +27,11 @@ whom; its delegates, their states, and the
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; the proposals and escalations
   waiting for its decision; the index of its notes; for a run that
-  explains to its person, that person's preferences, whole (2.1); a
+  explains to its person, that person's preferences, whole (2.1); for a
+  standing task, its Now, whole (../tasks/standing.md, section 6); a
   transcript's tail,
-  when it does not resume, the window's last turns as text rendered by the
+  when it does not resume, but for a standing task's session's first run
+  (../tasks/standing.md, 5.4), the window's last turns as text rendered by the
   host's protocol layer when loaded, a turn too large to load as its
   fixed marker (`executors.md`, 2), within the tail's own budget; and,
   for a run whose tools hold `delegate`,
@@ -132,7 +135,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
   one scope: a goal's `project` and number. What lives there is the
   application's to say: an application's chats may keep a document in it. A
   brief's index lists this scope first, as it lists a goal's first (section
-  1).
+  1). A standing task's own scope is the same: the goal scope named by its
+  own number, which holds its Now (../tasks/standing.md, section 6).
 - **In the store,** where parties read, correct and delete them through a
   client. Notes are hints: where a note and the facts disagree, the facts
   are right.

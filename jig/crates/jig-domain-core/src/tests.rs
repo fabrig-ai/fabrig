@@ -216,6 +216,7 @@ pub(crate) fn limits() -> Limits {
             plan: 128,
             notes: 64,
             preferences: 64,
+            now: 64,
         },
         accounts: accounts::Limits {
             accounts: 1,
@@ -382,6 +383,7 @@ fn scripted_model() -> Model {
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
+        cache_life_ms: 0,
         window: 8192,
         output: 1024,
         input_price: 1,
@@ -1555,6 +1557,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,
