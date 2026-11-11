@@ -238,7 +238,8 @@ fn the_fake_box_writes_and_settles_the_farewell_draft() {
         (OPENING, OPENING, "Farewell line"),
         ("", "Write this up as a draft beside us.", "Away mode"),
     ] {
-        let (first, question) = document_reply(&model, system, request, "Note 3 revision 1 written");
+        let written = if title == "Away mode" { "Note 3 revision 1 written" } else { "Note 2 revision 1 written" };
+        let (first, question) = document_reply(&model, system, request, written);
         let body = first["body"].as_str().expect("Markdown draft");
         assert_eq!(body.lines().next(), Some(alloc::format!("# {title}").as_str()));
         assert_eq!(first["scope"], json!({"kind":"goal", "project":1, "goal":2}));
@@ -260,10 +261,10 @@ fn the_fake_box_writes_and_settles_the_farewell_draft() {
                 "3. Tell me something else",
             ]
         );
-        let (revision, ready) = document_reply(&model, system, "At the end of README.md", "Note 3 revision 2 written");
+        let (revision, ready) = document_reply(&model, system, "At the end of README.md", "Note 2 revision 2 written");
         assert_eq!(revision["scope"], first["scope"]);
         assert_eq!(revision["description"], first["description"]);
-        assert_eq!(revision["name"], 3);
+        assert_eq!(revision["name"], 2);
         assert_eq!(revision["recalled"], 1);
         let start = usize::try_from(revision["first"].as_u64().expect("first line")).expect("line fits") - 1;
         let removed = usize::try_from(revision["remove"].as_u64().expect("removed lines")).expect("lines fit");

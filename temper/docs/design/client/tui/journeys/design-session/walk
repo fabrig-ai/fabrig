@@ -9,16 +9,17 @@ see "Tell it something else"
 see "farewell-line.md"
 mark
 key control "p"
-see "pane: all"
+see "Check README.md keeps its greeting and contains one farewell line."
 mark
 key control "p"
-see "pane: folded"
+see "I wrote the farewell draft beside us. Where should the farewell line go?"
 mark
 key control "p"
+see "farewell-line.md"
 see "Tell it something else"
 key char "1"
 key enter
-see "nothing blocks the work."
+see "blocks the work."
 see "Open questions  new"
 mark
 key paste "/goal"

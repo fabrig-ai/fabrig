@@ -203,7 +203,7 @@ impl Host {
                 }
             }
             Report::Key(key) => {
-                if key == Key::Control(16) {
+                if key == Key::Control(b'p') {
                     if let Some(event) = tui::pane_key(&self.view) {
                         self.event(event, &mut duties);
                     }
@@ -1027,7 +1027,7 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
-        if *key == Key::Control(16) {
+        if *key == Key::Control(b'p') {
             return tui::pane_key(&self.view);
         }
         if *key == Key::Char('n')
