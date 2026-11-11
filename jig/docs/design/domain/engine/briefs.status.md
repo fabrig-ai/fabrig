@@ -39,3 +39,4 @@
   the project's deletion (`../connectors.md`, 17); whether they pass
   unignored is unknown. The core's own tests of a restore run
   (`jig-domain-core/src/tests/settings/restore.rs`).
+- **Not yet:** 2.2: the wait table bounded by `brief.briefs`, not by live tasks, and a wait that finds it full aborts the engine (`jig-domain-core/src/routing/run/preparation.rs`, `start_brief`; `routing/effect/note.rs`, `defer_brief`) [in flight: change 232].

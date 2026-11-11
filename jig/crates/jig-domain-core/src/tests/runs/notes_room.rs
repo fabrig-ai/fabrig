@@ -105,6 +105,219 @@ fn same_accounting(before: &tasks::TaskRecord, after: &tasks::TaskRecord) {
     assert_eq!(after.numbers, before.numbers);
 }
 
+// Preparations can outnumber the two briefs gathering at once.
+fn four_ready() -> (Core, Limits) {
+    let mut limits = limits();
+    limits.tasks.tasks = 4;
+    limits.tasks.project_tasks = 4;
+    limits.tasks.tree_tasks = 4;
+    let mut core = core_with_limits(&limits);
+    core.opened = true;
+    for task in 1..=4 {
+        make_task(&mut core, &limits, task);
+    }
+    runs::run_choice::host(&mut core, &limits, CHANNEL, &[b"scripted"]);
+    watch_outputs(&mut core, &limits, Event::Account(accounts::Event::Want));
+    watch_outputs(
+        &mut core,
+        &limits,
+        Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
+            form: Form::Credential(Scheme::Bearer),
+            account: 1,
+            generation: 1,
+            valid: Duration::from_secs(60),
+        })),
+    );
+    (core, limits)
+}
+
+fn no_brief_failure(out: &[Request]) {
+    for request in out {
+        if let Request::Now(now) = request
+            && let Now::BriefFailed { task, failure } = now.as_ref()
+        {
+            panic!("task {task} failed: {failure:?}");
+        }
+    }
+}
+
+fn finish_index(core: &mut Core, limits: &Limits, task: u64, mut owner: Token, pages: u32) -> Box<[Request]> {
+    let before = core.tasks.task(task).expect("preparing task").clone();
+    let mut out: Box<[Request]> = Box::new([]);
+    for _ in 0..pages {
+        out = empty_page(core, limits, owner);
+        no_brief_failure(&out);
+        if let Some(next) = load(&out) {
+            owner = next;
+        }
+    }
+    assert_eq!(planned(&out).as_slice(), [task]);
+    let after = core.tasks.task(task).expect("prepared task");
+    assert_eq!(after.phase, tasks::Phase::Active(tasks::Active::Preparing));
+    same_accounting(&before, after);
+    out
+}
+
+#[test]
+fn more_preparations_than_briefs_wait_and_resume_without_counting() {
+    let (mut core, limits) = four_ready();
+    let out = prepare(&mut core, &limits, FIRST);
+    let mut owner = load(&out).expect("first cold index holds notes busy");
+    for task in 2..=4 {
+        let before = core.tasks.task(task).expect("live task").clone();
+        let out = prepare(&mut core, &limits, task);
+        assert!(load(&out).is_none());
+        no_brief_failure(&out);
+        assert_eq!(core.pending_note_briefs.get(&task), Some(&crate::routing::NoteBrief::Operation));
+        let after = core.tasks.task(task).expect("waiting task");
+        assert_eq!(after.phase, tasks::Phase::Active(tasks::Active::Preparing));
+        same_accounting(&before, after);
+    }
+    assert_eq!(limits.brief.briefs, 2);
+    assert_eq!(core.pending_note_briefs.capacity(), limits.tasks.tasks);
+    for task in 1..=4 {
+        // The first index loads shared project and deployment scopes too.
+        let pages = if task == FIRST { SCOPES } else { 1 };
+        let out = finish_index(&mut core, &limits, task, owner, pages);
+        if task < 4 {
+            owner = load(&out).expect("the next waiting index starts");
+        } else {
+            assert!(load(&out).is_none());
+        }
+    }
+    assert!(core.pending_note_briefs.is_empty());
+    assert!(core.due.is_empty());
+}
+
+#[test]
+fn a_refused_load_defers_its_task_with_two_other_waiters() {
+    let (mut core, limits) = four_ready();
+    let out = prepare(&mut core, &limits, FIRST);
+    let owner = load(&out).expect("first index in flight");
+    let before = core.tasks.task(FIRST).expect("preparing task").clone();
+    for task in 2..=3 {
+        assert!(load(&prepare(&mut core, &limits, task)).is_none());
+    }
+    let out = failed(&mut core, &limits, owner);
+    no_brief_failure(&out);
+    assert!(!activates(&out));
+    let after = core.tasks.task(FIRST).expect("deferred task");
+    assert_eq!(after.phase, tasks::Phase::Active(tasks::Active::Due));
+    same_accounting(&before, after);
+    assert_eq!(core.due.len(), DEFERRED);
+    let owner = load(&out).expect("second task resumes after the refused load");
+    let out = finish_index(&mut core, &limits, SECOND, owner, SCOPES);
+    let owner = load(&out).expect("third task resumes next");
+    let out = finish_index(&mut core, &limits, 3, owner, 1);
+    assert!(load(&out).is_none());
+    assert!(core.pending_note_briefs.is_empty());
+}
+
+fn fill_wait_table(core: &mut Core) {
+    for task in 100..u64::from(core.pending_note_briefs.capacity()).checked_add(100).expect("fixture markers") {
+        core.pending_note_briefs.insert(task, crate::routing::NoteBrief::Activation).expect("bounded marker");
+    }
+    assert_eq!(core.pending_note_briefs.len(), core.pending_note_briefs.capacity());
+}
+
+fn capacity_pause(core: &mut Core, limits: &Limits, task: u64, before: &tasks::TaskRecord, out: &[Request]) {
+    let mut failures = 0_u32;
+    for request in out {
+        if let Request::Now(now) = request
+            && let Now::BriefFailed { task: failed, failure } = now.as_ref()
+        {
+            assert_eq!(*failed, task);
+            assert_eq!(failure.fate, jig_domain_brief::GatherFate::Capacity);
+            assert_eq!(failure.section, b"notes");
+            assert_eq!(failure.words.as_ref(), b"no room for the index");
+            failures = failures.checked_add(1).expect("bounded outputs");
+        }
+    }
+    assert_eq!(failures, 1, "one capacity failure reaches the root");
+    assert!(load(out).is_none());
+    assert!(!activates(out));
+    let row = core.tasks.task(task).expect("paused task");
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = row.phase else {
+        panic!("capacity pauses the task: {:?}", row.phase);
+    };
+    assert!(until > Wall::EPOCH);
+    assert_eq!(row.tries, before.tries);
+    assert_eq!(row.attempt, before.attempt);
+    assert_eq!(row.numbers, before.numbers);
+    assert_eq!(row.made, before.made);
+    assert_eq!(row.reasons, before.reasons);
+    assert_eq!(row.inbox, before.inbox);
+    assert_eq!(row.refusals, before.refusals.checked_add(1).expect("one capacity refusal"));
+    assert_eq!(
+        row.retry_notice,
+        Some(tasks::RetryNotice::Refused {
+            count: row.refusals,
+            reason: Some(b"notes: no room for the index".as_slice().into()),
+        }),
+    );
+    assert!(!core.contexts.contains_key(&task));
+    assert!(!core.transcripts.contains_key(&task));
+    assert!(!core.pending_note_briefs.contains_key(&task));
+    let now = core.tasks.next_deadline().expect("backoff alarm");
+    assert!(now > Time::ZERO);
+    let mut out = fire(core, &Env { now, wall: until, limits: *limits }, Timer::Tasks);
+    let mut activated = false;
+    while let Some(request) = out.pop() {
+        if let Request::Now(now) = request
+            && let Now::Activate { context } = now.as_ref()
+            && context.task == task
+        {
+            activated = true;
+        }
+    }
+    assert!(activated, "backoff makes the paused task due again");
+    let row = core.tasks.task(task).expect("due again");
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(row.tries, before.tries);
+    assert_eq!(row.attempt, before.attempt);
+}
+
+#[test]
+fn a_full_notes_wait_table_pauses_a_starting_brief() {
+    let (mut core, limits, _) = preparing();
+    fill_wait_table(&mut core);
+    let before = core.tasks.task(SECOND).expect("live task").clone();
+    let out = prepare(&mut core, &limits, SECOND);
+    capacity_pause(&mut core, &limits, SECOND, &before, &out);
+}
+
+#[test]
+fn a_full_notes_wait_table_pauses_a_deferred_brief() {
+    let (mut core, limits, owner) = preparing();
+    fill_wait_table(&mut core);
+    let before = core.tasks.task(FIRST).expect("preparing task").clone();
+    let out = failed(&mut core, &limits, owner);
+    capacity_pause(&mut core, &limits, FIRST, &before, &out);
+}
+
+#[test]
+fn a_stale_notes_waiter_does_not_strand_the_next_preparation() {
+    let (mut core, limits) = four_ready();
+    let out = prepare(&mut core, &limits, FIRST);
+    let mut owner = load(&out).expect("first index in flight");
+    for task in 2..=3 {
+        assert!(load(&prepare(&mut core, &limits, task)).is_none());
+    }
+    watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Hold { task: SECOND, why: tasks::Hold::Stopped }));
+    let held = core.tasks.task(SECOND).expect("held waiter").clone();
+    assert!(!core.contexts.contains_key(&SECOND));
+    for _ in 0..SCOPES {
+        let out = empty_page(&mut core, &limits, owner);
+        no_brief_failure(&out);
+        owner = load(&out).expect("third index starts even though the second preparation is gone");
+    }
+    assert_eq!(core.tasks.task(SECOND).expect("still held").phase, held.phase);
+    same_accounting(&held, core.tasks.task(SECOND).expect("still held"));
+    let out = finish_index(&mut core, &limits, 3, owner, 1);
+    assert!(load(&out).is_none());
+    assert!(core.pending_note_briefs.is_empty());
+}
+
 #[test]
 fn refused_notes_room_returns_due_without_a_replacement_load() {
     let (mut core, limits, owner) = preparing();

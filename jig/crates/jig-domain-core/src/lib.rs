@@ -347,7 +347,8 @@ pub struct Core {
     /// Connectors whose outboxes must finish before a task closes.
     pub(crate) closing_connectors: Map<(u64, u16), ()>,
     pub(crate) projections: Map<u64, Box<Projection>>,
-    /// Preparations waiting for notes, or deferring their next activation for load room.
+    /// Preparations waiting for notes, or deferring their next activation for load room,
+    /// at most one per live task (`jig/docs/design/domain/engine/briefs.md`, 2.2).
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
     pub(crate) preferences: routing::run::preferences::State,
     /// Durable deployment numbers.
@@ -581,7 +582,7 @@ impl Core {
                 limits.tasks.tasks.checked_mul(limits.connectors).expect("bounded closing connectors"),
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
-            pending_note_briefs: Map::with_capacity(limits.brief.briefs),
+            pending_note_briefs: Map::with_capacity(limits.tasks.tasks),
             preferences: routing::run::preferences::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,

@@ -138,14 +138,15 @@ pub(crate) fn refused(
     match why {
         notes::Refusal::Busy => {
             if core.notes.busy() {
-                core.pending_note_briefs.insert(task, NoteBrief::Operation).expect("bounded waiting briefs");
+                crate::routing::effect::note::wait_for_notes(core, work, task, NoteBrief::Operation);
             } else {
                 super::results::clear(core, task);
                 drop(core.contexts.remove(&task));
                 drop(core.dependency_results.remove(&task));
                 drop(core.transcripts.remove(&task));
-                core.pending_note_briefs.insert(task, NoteBrief::Activation).expect("bounded deferred briefs");
-                work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+                if crate::routing::effect::note::wait_for_notes(core, work, task, NoteBrief::Activation) {
+                    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+                }
             }
         }
         notes::Refusal::Full => fail(work, task, brief::GatherFate::Capacity, b"no room for the index"),

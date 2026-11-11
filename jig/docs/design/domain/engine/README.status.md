@@ -360,3 +360,4 @@ try. A window's later pages keep its first page's slot there
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2) [in flight: change 232].
