@@ -153,11 +153,13 @@ Their forms are today's:
 - **A command's run:** `Front::Run` names the command, which the crate
   matches against its table's constants and runs on its own arguments,
   as the tool did. Arguments it refuses are refused with
-  `TABLE.refusal`'s words and exit 2. A failure once its arguments are
-  taken writes `BINARY: WHY` (`BINARY WORDS: WHY` for a command of
-  words), the tool's own words for why, to stderr and exits 1, where the
-  twin answered 2 and the transcripts' tool its error's debug form. A
-  run's output and its other exit codes are the tool's, as before.
+  `TABLE.refusal`'s words and exit 2, where each tool printed a usage
+  line of its own. Past its arguments, a run's output, its words for
+  what failed or what it refused, and its exit codes are the tool's, as
+  before, under the binary's new name where they print one. The one
+  failure Rust's `Result` reported, the transcripts' tool's
+  `Error: "WHY"` with exit 1, is `temper-git-transcripts: WHY` with
+  exit 1.
 - **Help is the table's:** a binary's page lists no internal entry, so
   a tool's page is its line, the three flags of every binary, its public
   variables and its last line; a command's page, `COMMAND --help`, says
