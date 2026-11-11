@@ -684,7 +684,7 @@ pub fn review() -> skein_forge::api::Review {
 pub fn item_answers() -> [skein_forge::api::Answer; 3] {
     use skein_forge::api::Answer;
     [
-        Answer::Items { items: Box::new([summary(), summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
+        Answer::Items { cut: false, items: Box::new([summary(), summary()]), more: true, now: skein_lib::Time::from_nanos(9) },
         Answer::Item { item: summary(), comments: Box::new([comment(), comment()]), more: true },
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true },
     ]

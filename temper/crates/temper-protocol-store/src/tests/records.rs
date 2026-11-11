@@ -208,7 +208,7 @@ fn answer_item_counts_past_rows_fail_to_decode() {
         items.push(fixtures::summary()).expect("fixture room");
     }
     let answer =
-        skein_forge::api::Answer::Items { items: items.into_boxed(), more: false, now: skein_lib::Time::from_nanos(1) };
+        skein_forge::api::Answer::Items { cut: false, items: items.into_boxed(), more: false, now: skein_lib::Time::from_nanos(1) };
     let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

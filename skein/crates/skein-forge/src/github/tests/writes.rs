@@ -696,7 +696,7 @@ fn github_create_issue_lost_find() {
     for (word, writer, found) in [(WORD, NUMBER, true), (b"alice".as_slice(), NUMBER, false), (WORD, 1, false)] {
         let mut find = Plan::new(
             KEY,
-            api::Op::Read(api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: Some(api::Kind::Issue) }),
+            api::Op::Read(api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: Some(api::Kind::Issue) }),
         );
         let request = begin(&mut find, &mut tables);
         assert_eq!(decoding::kind(&request), Some(Kind::IssueRows));

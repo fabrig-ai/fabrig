@@ -81,7 +81,7 @@ fn redirect_drops_the_path() {
 
 #[test]
 fn items_without_date_is_invalid_answer() {
-    let mut run = Run::new(Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None }));
+    let mut run = Run::new(Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }));
     run.begin();
     run.answer(200, fixtures::REPOSITORY);
     assert_eq!(run.answer_with(200, b"[]", fixtures::fields()), Step::Done(Err(Error::InvalidAnswer)));
@@ -89,6 +89,31 @@ fn items_without_date_is_invalid_answer() {
         "GET /api/v1/repositories/1",
         "GET /api/v1/repos/fixture/specimen/issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=2",
     ]);
+}
+
+#[test]
+fn items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
+    // Each retained summary has 128 fixed bytes, a one-byte title and one-byte body.
+    const ROW_BYTES: u32 = 130;
+    let body = (1..=8).map(|number| format!(r#"{{"number":{number},"state":"open","user":{{"id":2,"login":"writer"}},"labels":[],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}}"#)).collect::<Vec<_>>().join(",");
+    let body = format!("[{body}]");
+    let mut limits = fixtures::limits();
+    limits.json.length = u32::try_from(body.len()).unwrap();
+    for (answer_bytes, kept, cut) in [(5 * ROW_BYTES, 5, true), (8 * ROW_BYTES, 8, false), (8 * ROW_BYTES - 1, 7, true)] {
+        let bounds = crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes, ..fixtures::BOUNDS };
+        let mut run = Run::with_limits(limits, bounds, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }));
+        run.begin();
+        let answer = run.answer(200, body.as_bytes());
+        let Step::Done(Ok(Answer::Items { items, more, cut: actual_cut, .. })) = answer else { panic!("whole prefix of items: {answer:?}") };
+        assert_eq!(items.len(), kept);
+        assert_eq!(items.iter().map(|item| item.number).collect::<Vec<_>>(), (1..=u64::try_from(kept).unwrap()).collect::<Vec<_>>());
+        assert!(more, "a cut or full page has more");
+        assert_eq!(actual_cut, cut);
+        assert_eq!(crate::measure::answer(&Answer::Items { items, more, cut, now: Time::ZERO }), Some(u64::try_from(kept).unwrap() * u64::from(ROW_BYTES)));
+    }
+    let mut run = Run::with_limits(limits, crate::forgejo::plans::plan::Bounds { page_size: 8, answer_bytes: ROW_BYTES - 1, ..fixtures::BOUNDS }, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None, single: false }));
+    run.begin();
+    assert_eq!(run.answer(200, body.as_bytes()), Step::Done(Err(Error::TooLarge(api::Excess::at_least(api::Bound::AnswerBytes, u64::from(ROW_BYTES - 1), u64::from(ROW_BYTES))))));
 }
 
 // The full page contains PAGE_SIZE rows; the short page contains one fewer.

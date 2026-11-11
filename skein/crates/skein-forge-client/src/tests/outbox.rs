@@ -153,7 +153,7 @@ fn lane_order_and_cancellation_hold_while_a_capture_call_is_out() {
     let clock = h.one();
     assert!(h.send().is_none(), "later lane entry waits");
     h.step(Event::Withdraw { entry: 1 });
-    h.answer(clock, Ok(Answer::Items { items: Box::new([]), more: false, now: at(100) }));
+    h.answer(clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: at(100) }));
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Withdrawn)]);
     h.clock();
     let write = h.one();

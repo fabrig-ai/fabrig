@@ -83,7 +83,7 @@ fn missing(d: &mut Domain) -> Box<[Request]> {
 fn making(d: &mut Domain) -> (Token, Op) {
     missing(d);
     outputs(d, Event::Committed { entry: TAKING });
-    fixtures::answer_next(d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     fixtures::next_call(d)
 }
 
@@ -241,7 +241,7 @@ fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
         }
     }
     outputs(&mut d, Event::Committed { entry: TAKING });
-    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (_, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
 }
@@ -364,7 +364,7 @@ fn deleting_goal(d: &mut Domain, ending: ReleaseEnding) -> Token {
     assert!(!requests.contains(&Request::Released { task: GOAL }), "delete must settle first: {requests:?}");
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
     outputs(d, Event::Committed { entry: CLOSING });
-    fixtures::answer_next(d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Write(Write::DeleteBranch { branch: GOAL_BRANCH.into() }));
     call
@@ -493,7 +493,7 @@ fn a_goal_branch_found_missing_after_restart_gets_a_fresh_entry() {
     for _ in 0_u8..2 {
         d = restored_making(entry(), false);
     }
-    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
     assert!(fixtures::answer(&mut d, call, Ok(Answer::Branch(BranchCreation::Created))).contains(&made()));
@@ -801,7 +801,7 @@ fn a_goal_branch_making_restored_before_sending_keeps_its_taking_entry() {
     assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
     assert_no_making(&missing);
     outputs(&mut d, Event::SettleOutbox);
-    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
     let made = fixtures::answer(&mut d, call, Ok(Answer::Branch(BranchCreation::Created)));
@@ -833,7 +833,7 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
     for _ in 0..MERGE_CALLS {
         let (call, op) = fixtures::next_call(d);
         let answer = match op {
-            Op::Read(Read::Items { .. }) => Answer::Items { items: Box::new([]), more: false, now: env().now },
+            Op::Read(Read::Items { .. }) => Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now },
             Op::Read(Read::Branch { branch }) if branch.as_ref() == GOAL_BRANCH => Answer::Commit(TIP),
             Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
             Op::Read(Read::Pull { number: 1 }) => {

@@ -249,7 +249,7 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
 
         w::Answer::Items(value) => {
             let w::ItemsAnswerParts { items, more, now } = value.into_parts();
-            d::Answer::Items { items: decode_summaries(&items, bounds)?, more, now: skein_lib::Time::from_nanos(now) }
+            d::Answer::Items { cut: false, items: decode_summaries(&items, bounds)?, more, now: skein_lib::Time::from_nanos(now) }
         }
         w::Answer::Item(value) => {
             let w::ItemAnswerParts { item, comments, more } = value.into_parts();

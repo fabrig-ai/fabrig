@@ -162,7 +162,7 @@ pub fn opening() -> (Domain, Token) {
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Enqueue { entry });
     outputs(&mut d, Event::Committed { entry: OPEN });
-    answer_next(&mut d, Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    answer_next(&mut d, Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, _) = next_call(&mut d);
     (d, call)
 }

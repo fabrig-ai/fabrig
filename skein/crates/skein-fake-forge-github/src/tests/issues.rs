@@ -21,7 +21,7 @@ fn github_fake_issues_and_comments_drive_the_dialect_plans() {
     let token = r::token(&mut h);
     for (page, expected, more) in [(1, &[first, second][..], true), (2, &[third][..], false)] {
         let api::Answer::Items { items, more: actual, .. } =
-            r::read(&mut h, &token, api::Read::Items { since: Time::ZERO, page, kind: None }).expect("items plan")
+            r::read(&mut h, &token, api::Read::Items { single: false, since: Time::ZERO, page, kind: None }).expect("items plan")
         else {
             panic!("items answer")
         };
@@ -69,7 +69,7 @@ fn github_fake_merged_pull_reads_as_merged_in_the_mixed_listing() {
     r::call(&mut h, a::Op::Write(a::Write::Merge { number: pull, head, how: a::MergeHow::Style }));
     let token = r::token(&mut h);
     let api::Answer::Items { items, .. } =
-        r::read(&mut h, &token, api::Read::Items { since: Time::ZERO, page: 1, kind: None }).expect("mixed listing")
+        r::read(&mut h, &token, api::Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }).expect("mixed listing")
     else {
         panic!("items")
     };
@@ -78,7 +78,7 @@ fn github_fake_merged_pull_reads_as_merged_in_the_mixed_listing() {
         assert_eq!((item.number, item.kind), (number, kind));
     }
     let api::Answer::Items { items, .. } =
-        r::read(&mut h, &token, api::Read::Items { since: Time::ZERO, page: 1, kind: Some(api::Kind::Issue) })
+        r::read(&mut h, &token, api::Read::Items { single: false, since: Time::ZERO, page: 1, kind: Some(api::Kind::Issue) })
             .expect("kind filtering")
     else {
         panic!("items")

@@ -145,6 +145,9 @@ enum Scan {
 struct Progress {
     since: Time,
     page: u32,
+    single: bool,
+    /// Rows consumed since `since`, including full pages before a byte cut.
+    consumed: u32,
     newest: Time,
     begun: Option<Time>,
     tied: Option<Time>,
@@ -154,7 +157,7 @@ struct Progress {
 impl Progress {
     fn first(mark: Option<Time>) -> Progress {
         let since = mark.unwrap_or(Time::from_nanos(u64::MAX));
-        Progress { since, page: 1, newest: since, begun: None, tied: None, moved: false, bootstrap: mark.is_none() }
+        Progress { since, page: 1, single: false, consumed: 0, newest: since, begun: None, tied: None, moved: false, bootstrap: mark.is_none() }
     }
 }
 impl Keep {

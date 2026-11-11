@@ -17,7 +17,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
                     &mut d.calls,
                     Owner::Repository(*key),
                     *key,
-                    Op::Read(Read::Items { since: progress.since, page: progress.page, kind: None }),
+                    Op::Read(Read::Items { single: progress.single, since: progress.since, page: progress.page, kind: None }),
                     if row.fresh == Fresh::Pending { Priority::Fresh } else { Priority::Keep },
                 );
                 return true;

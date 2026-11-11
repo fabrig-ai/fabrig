@@ -2504,7 +2504,7 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
         decided(b"read_items", b"{}").unwrap().tool,
         engine::Tool::ReadNamed {
             repository: None,
-            read: skein_forge::api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }
+            read: skein_forge::api::Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }
         }
     );
     let engine::Tool::ReadNamed { read: skein_forge::api::Read::Checks { commit }, .. } =

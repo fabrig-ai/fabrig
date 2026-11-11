@@ -324,7 +324,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 fn operation(w: &Writing, phase: Phase) -> Op {
     let read = match phase {
         // An empty inclusive listing supplies Date without scanning history.
-        Phase::Clock => Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None },
+        Phase::Clock => Read::Items { single: false, since: Time::from_nanos(u64::MAX), page: 1, kind: None },
         Phase::Make => return Op::Write(w.entry.effect.write.clone()),
         Phase::DispatchRuns { head, page } => {
             let Write::Dispatch { workflow, .. } = &w.entry.effect.write else {
@@ -339,7 +339,7 @@ fn operation(w: &Writing, phase: Phase) -> Op {
         Phase::Find { page, after } => match &w.entry.effect.write {
             Write::Dispatch { branch, .. } => Read::Branch { branch: branch.clone() },
             Write::Rerun { attempt: job } => Read::Run { run: job.run },
-            Write::CreateIssue { .. } => Read::Items {
+            Write::CreateIssue { .. } => Read::Items { single: false,
                 since: w.entry.start.expect("find has saved start").at,
                 page,
                 kind: Some(api::Kind::Issue),

@@ -13,7 +13,7 @@ fn github_calls_costs_and_credentials_survive_cuts_renewal_and_replacement() {
         let mut world = World::github_with_log_poll(seed, 300, LOG_POLL);
         world.run_for(Duration::from_secs(20));
         let number = world.person_issue(b"before");
-        let _ = world.read(Read::Items { since: Time::ZERO, page: 1, kind: None });
+        let _ = world.read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None });
         world.person_edit(number, b"after");
         let _ = world.read(Read::Item { number, after: 0, since: Time::ZERO });
         fixtures::github_close(&mut world, number);
@@ -30,7 +30,7 @@ fn github_calls_costs_and_credentials_survive_cuts_renewal_and_replacement() {
         });
         world.replace_github_access();
         world.run_for(Duration::from_secs(20));
-        let _ = world.read(Read::Items { since: Time::ZERO, page: 1, kind: None });
+        let _ = world.read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None });
         world.finish();
         let (calls, answers) = world.calls_and_answers();
         assert!(calls > 0, "seed {seed}");

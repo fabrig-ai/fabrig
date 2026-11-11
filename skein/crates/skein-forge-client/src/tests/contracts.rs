@@ -201,7 +201,7 @@ fn empty_summary() -> api::Summary {
 fn items_answer() -> Answer {
     let mut item = empty_summary();
     item.title = Box::from(&b"kit"[..]);
-    Answer::Items { items: Box::new([item]), more: false, now: at(100) }
+    Answer::Items { cut: false, items: Box::new([item]), more: false, now: at(100) }
 }
 
 fn item_answer() -> Answer {
@@ -242,7 +242,7 @@ const BYTE_CASES: usize = 5; // items, item, pull, job, branches
 type ByteCase = (&'static str, Read, Answer, u32);
 fn byte_cases() -> [ByteCase; BYTE_CASES] {
     [
-        ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
+        ("items", Read::Items { single: false, since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
         ("item", Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }, item_answer(), ITEM_BYTES),
         ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
         ("branches", Read::Branches { prefix: Box::from(&b"m"[..]) }, Answer::Branches(branch_rows(40)), 800),

@@ -108,6 +108,8 @@ pub enum Read {
         since: Time,
         page: u32,
         kind: Option<Kind>,
+        /// One-row pages resume a byte cut within rows of one time.
+        single: bool,
     },
     /// An item and its comments with ids above `after`.
     /// `since` is at or before the update of every comment above `after`;
@@ -199,7 +201,13 @@ pub enum Answer {
     /// The located repository's nonzero id on its forge.
     Located { repository: u32 },
     /// Return items.
-    Items { items: Box<[Summary]>, more: bool, now: Time },
+    Items {
+        items: Box<[Summary]>,
+        more: bool,
+        /// Whole rows were omitted at the answer's byte bound.
+        cut: bool,
+        now: Time,
+    },
     /// Return item.
     Item { item: Summary, comments: Box<[Comment]>, more: bool },
     /// Return pull.

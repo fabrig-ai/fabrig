@@ -297,7 +297,7 @@ fn reversed_openings(lower_requested: bool) -> (Domain, Token) {
 }
 
 fn answer_entry_clock(d: &mut Domain) {
-    fixtures::answer_next(d, Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(d, Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
 }
 
 fn built_entry(requests: &[Request], number: u64) -> bool {
@@ -709,7 +709,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
             return values.into_boxed();
         }
         let answer = if let Op::Read(Read::Items { .. }) = op {
-            Answer::Items { items: Box::new([]), more: false, now: env().now }
+            Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
         } else {
             let Op::Read(Read::Item { number: read_number, .. }) = op else { panic!("{op:?}") };
             assert_eq!(read_number, number);
@@ -873,7 +873,7 @@ fn projected_words_at(explicit_title: &[u8], words: &[u8], op_bytes: u32) -> ske
             rate: None,
             call,
             cost: 1,
-            result: Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: configured.now }),
+            result: Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: configured.now }),
         }),
         &mut Queue::uncapped(),
     );

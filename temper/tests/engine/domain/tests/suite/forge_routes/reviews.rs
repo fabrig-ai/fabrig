@@ -196,7 +196,7 @@ fn a_changes_reviewer_reads_its_own_pull() {
     assert_eq!(files[0].path.as_ref(), FILE);
     assert_eq!(files[0].after.as_deref(), Some(CONTENT));
     let Answer::Items { items, .. } =
-        read(&mut world, &reviewer, 12, forge_world::REPO, Read::Items { since: Time::ZERO, page: 1, kind: None })
+        read(&mut world, &reviewer, 12, forge_world::REPO, Read::Items { single: false, since: Time::ZERO, page: 1, kind: None })
             .expect("items read")
     else {
         panic!("items")

@@ -63,9 +63,9 @@ fn find_cases() -> Box<[ReadCase]> {
         },
         ReadCase {
             name: "items",
-            read: Read::Items { since: Time::ZERO, page: 1, kind: None },
+            read: Read::Items { single: false, since: Time::ZERO, page: 1, kind: None },
             replies: &[(200, REPOSITORY), (200, b"[]")],
-            expected: Ok(Answer::Items { items: Box::new([]), more: false, now: Time::ZERO }),
+            expected: Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: Time::ZERO }),
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=2",
@@ -409,7 +409,7 @@ type Listing = (Read, &'static [&'static [u8]], &'static str);
 fn listings() -> [Listing; 7] {
     [
         (
-            Read::Items { since: Time::ZERO, page: 1, kind: None },
+            Read::Items { single: false, since: Time::ZERO, page: 1, kind: None },
             &[],
             "issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=",
         ),
@@ -483,7 +483,7 @@ fn read_plans_emit_escaped_targets_for_supplied_inputs() {
             (
                 "far_future_times_have_golden_targets",
                 (
-                    Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None },
+                    Read::Items { single: false, since: Time::from_nanos(u64::MAX), page: 1, kind: None },
                     [].as_slice(),
                     ["GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2"].as_slice(),
                 ),

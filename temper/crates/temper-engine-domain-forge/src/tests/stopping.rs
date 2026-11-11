@@ -10,7 +10,7 @@ fn sent() -> (Domain, Token) {
     outputs(&mut d, Event::Enqueue { entry: status(1, 7) });
     outputs(&mut d, Event::Committed { entry: 1 });
     let (call, _) = next_call(&mut d);
-    answer(&mut d, call, Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    answer(&mut d, call, Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = next_call(&mut d);
     assert_eq!(op, skein_forge::api::Op::Write(status(1, 7).effect.write));
     (d, call)

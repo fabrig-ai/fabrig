@@ -100,7 +100,7 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             limit: l.rows,
         },
         client::Read::Locate { .. } => forge::Read::Locate,
-        client::Read::Items { since, page, kind } => forge::Read::Items {
+        client::Read::Items { single: false, since, page, kind } => forge::Read::Items {
             order: forge::Order::LeastUpdated,
             since: *since,
             page: *page,
@@ -274,7 +274,7 @@ pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::
             for item in items {
                 rows.push(summary(item)).expect("fake listing bounded");
             }
-            client::Answer::Items { items: rows.into_boxed(), more, now }
+            client::Answer::Items { cut: false, items: rows.into_boxed(), more, now }
         }
         forge::Answer::Item { item, comments, more } => {
             let mut rows = List::with_capacity(l.rows);

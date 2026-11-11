@@ -50,7 +50,7 @@ fn no_delete(requests: &[Request]) {
 fn deleted(d: &mut Domain, task: u64, missing: bool) {
     outputs(d, Event::Committed { entry: ENTRY });
     // The client's outbox searches for the cleanup effect before making it.
-    fixtures::answer_next(d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    fixtures::answer_next(d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Write(Write::DeleteBranch { branch: SAVED.into() }));
     let result = if missing { Err(Error::Missing) } else { Ok(Answer::Done) };

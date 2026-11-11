@@ -249,7 +249,7 @@ pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable
         Listing::Runs,
         Listing::Tree,
     ] {
-        if page_size(listing, u32::MAX, l, s) == 0 {
+        if bounded_page_size(listing, u32::MAX, l, s) == 0 {
             return Err(Unusable::PageSize { listing });
         }
     }
@@ -519,9 +519,18 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
 pub(crate) fn stack(stacked: Stacked, demand: u32, cap: u32) -> Result<(), Unusable> {
     if demand > cap { Err(Unusable::Stack { stacked, demand, cap }) } else { Ok(()) }
 }
-/// A listing's largest fixed row and owned payloads, measured as the client measures them.
+/// Items keep whole rows by bytes; other listings reserve their largest rows.
 #[must_use]
 pub fn page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {
+    match listing {
+        Listing::Items => s.rows.min(cap),
+        Listing::Reviews | Listing::Statuses | Listing::Remarks | Listing::Branches
+        | Listing::Collaborators | Listing::PullFiles | Listing::Compare | Listing::Runs | Listing::Tree => {
+            bounded_page_size(listing, cap, l, s)
+        }
+    }
+}
+pub(crate) fn bounded_page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {
     let Some(row) = largest_row(listing, l) else {
         return 0;
     };

@@ -45,7 +45,7 @@ fn github_listings_follow_another_partys_changes_across_pages() {
     let mut page = 1;
     loop {
         let Answer::Items { items, more, .. } =
-            world.read(Read::Items { since: Time::ZERO, page, kind: None }).expect("listing")
+            world.read(Read::Items { single: false, since: Time::ZERO, page, kind: None }).expect("listing")
         else {
             panic!("items")
         };

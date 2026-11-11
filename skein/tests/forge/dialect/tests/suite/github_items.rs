@@ -60,7 +60,7 @@ fn repository() -> document::Repository {
     }
 }
 fn items(kind: Option<api::Kind>) -> api::Read {
-    api::Read::Items { since: Time::from_nanos(u64::MAX), page: 3, kind }
+    api::Read::Items { single: false, since: Time::from_nanos(u64::MAX), page: 3, kind }
 }
 fn issues_request(per_page: u32) -> Request {
     Request::Issues {

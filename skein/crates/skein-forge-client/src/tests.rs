@@ -224,8 +224,8 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: duplicate",
                 (
-                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
-                    Answer::Items {
+                    Read::Items { single: false, since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items { cut: false,
                         items: Box::new([
                             listing_item(1, 100, api::Kind::Issue),
                             listing_item(1, 101, api::Kind::Issue),
@@ -239,8 +239,8 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: order",
                 (
-                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
-                    Answer::Items {
+                    Read::Items { single: false, since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items { cut: false,
                         items: Box::new([
                             listing_item(1, 101, api::Kind::Issue),
                             listing_item(2, 100, api::Kind::Issue),
@@ -254,8 +254,8 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: identity",
                 (
-                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
-                    Answer::Items {
+                    Read::Items { single: false, since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items { cut: false,
                         items: Box::new([
                             listing_item(2, 100, api::Kind::Issue),
                             listing_item(1, 100, api::Kind::Issue),
@@ -269,8 +269,8 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
             (
                 "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: kind",
                 (
-                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
-                    Answer::Items {
+                    Read::Items { single: false, since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items { cut: false,
                         items: Box::new([
                             listing_item(1, 100, api::Kind::Issue),
                             listing_item(2, 100, api::Kind::Pull),
@@ -349,10 +349,10 @@ fn arbitrary_item_since_tolerates_the_providers_coarse_inclusive_overlap() {
     drop(h.step(Event::Read {
         owner: Token::new(1),
         repository: REPO,
-        read: Read::Items { since: at(100).saturating_add(Duration::from_millis(900)), page: 1, kind: None },
+        read: Read::Items { single: false, since: at(100).saturating_add(Duration::from_millis(900)), page: 1, kind: None },
     }));
     let sent = h.one();
-    let answer = Answer::Items {
+    let answer = Answer::Items { cut: false,
         items: Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(2, 100, api::Kind::Issue)]),
         more: false,
         now: at(101),

@@ -76,7 +76,7 @@ fn keep_projection(d: &mut Domain, environment: &Env<Limits>, number: u64) {
 fn write(d: &mut Domain, environment: &Env<Limits>) -> (Token, Write) {
     let (clock, op) = call(d, environment);
     let Op::Read(Read::Items { .. }) = op else { panic!("entry clock: {op:?}") };
-    answer(d, environment, clock, Answer::Items { items: Box::new([]), more: false, now: environment.now });
+    answer(d, environment, clock, Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now });
     let (token, op) = call(d, environment);
     let Op::Write(write) = op else { panic!("projection write: {op:?}") };
     (token, write)
@@ -271,7 +271,7 @@ fn a_lost_open_stays_failed_without_ever_opening_again() {
     let Op::Read(Read::Items { kind, .. }) = op else { panic!("issue find") };
     assert_eq!(kind, Some(Kind::Issue));
     let recovered =
-        answer(&mut d, &environment, find, Answer::Items { items: Box::new([]), more: false, now: environment.now });
+        answer(&mut d, &environment, find, Answer::Items { cut: false, items: Box::new([]), more: false, now: environment.now });
     assert!(recovered.contains(&Request::ProjectionFailed { goal: GOAL }));
     let after_loss = d.issue(GOAL).expect("failed Open").clone();
     // The closing task may settle its held outbox entry before the final

@@ -275,7 +275,7 @@ pub fn keep_after(decoder: &mut Decoder, after: u64) {
         | DecoderState::Branches(_) => {}
     }
 }
-/// Stops emitting rows from an unpaged thread and counts its remaining elements.
+/// Stops emitting rows from an items page or unpaged thread and counts the rest.
 pub fn cut(decoder: &mut Decoder) -> tokenizer::Request {
     decoder.walk.cut()
 }
