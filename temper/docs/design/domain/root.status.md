@@ -121,8 +121,9 @@ LINKED`, as for every link jig's start cannot make
 - **Not yet:** 6.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
-  `BriefSource`), and a merge-queue ejection's reason. 8.1: the
-  rehearsing root, `temper-box upgrade --check`.
+  `BriefSource`), and a merge-queue ejection's reason.
+- **Not yet:** 8.1: the rehearsing root, `temper-box upgrade --check`
+  [in flight: change 709]
 - **Not yet:** 8.1: the forge's link of its restored records panics at
   the first it cannot make, `forge link KIND -> NEED for KEY`, where
   step 3 refuses the start naming the record and what it links to, as
