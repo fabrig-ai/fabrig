@@ -747,7 +747,9 @@ pub fn full_heap(forges: Forges, ceiling: u64) -> Full {
     {
         w.hold_responses = true;
         w.call(1, forge, || api::Op::Read(api::Read::Compare { before: [0; 32], after: head() }));
-        w.call(2, forge, || api::Op::Read(api::Read::PullFiles { number: 1, head: head(), page: 1, skip: 0 }));
+        w.call(2, forge, || {
+            api::Op::Read(api::Read::PullFiles { number: 1, head: head(), page: 1, skip: 0, sides: true })
+        });
         w.settle();
         assert_eq!(w.live_calls, 2);
         w.release_responses();

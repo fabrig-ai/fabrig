@@ -447,7 +447,7 @@ fn compare_names_fit_rows_independently_of_counts() {
 #[test]
 fn files_at_a_different_head_are_refused_and_deletions_survive() {
     let mut h = Harness::new(LIMITS);
-    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1, skip: 0 };
+    let read = Read::PullFiles { number: 1, head: [1; 32], page: 1, skip: 0, sides: true };
     drop(h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }));
     let sent = h.one();
     terminal(

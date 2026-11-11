@@ -80,7 +80,7 @@ fn redirect_drops_the_path() {
         ("checks", Read::Checks { commit: HEAD }, &[(200, FAILING)][..]),
         (
             "pull side",
-            Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 },
+            Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true },
             &[(200, PULL), (200, super::CHANGED_FILES)][..],
         ),
     ] {
@@ -251,13 +251,20 @@ const FULL_PATHS: [&[u8]; 2] = [b"x", b"y"];
 fn added_file(path: &[u8]) -> api::File {
     api::File { path: Box::from(path), before: None, after: Some(Box::new([])) }
 }
-fn pull_files_page(body: &[u8], paths: &[&[u8]], has_more: Option<bool>) -> Step {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }));
+fn pull_files_page(body: &[u8], paths: &[&[u8]], has_more: Option<bool>, sides: bool) -> Step {
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides }));
     run.begin();
     run.answer(200, PULL);
     let mut step = run.answer_with(200, body, crate::forgejo::plans::Fields { has_more, ..fixtures::fields() });
-    for _path in paths {
-        step = run.answer(200, b"");
+    if sides {
+        for _path in paths {
+            step = run.answer(200, b"");
+        }
+    } else {
+        run.assert_sent(&[
+            "GET /api/v1/repos/fixture/specimen/pulls/1",
+            "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+        ]);
     }
     step
 }
@@ -266,6 +273,7 @@ struct PullFilesPage {
     body: &'static [u8],
     paths: &'static [&'static [u8]],
     has_more: Option<bool>,
+    sides: bool,
     expected: Step,
 }
 #[test]
@@ -278,6 +286,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                     body: SHORT_FILES,
                     paths: &FULL_PATHS[..short_rows],
                     has_more: None,
+                    sides: true,
                     expected: Step::Done(Ok(Answer::PullFiles {
                         head: HEAD,
                         files: Box::new([added_file(b"x")]),
@@ -291,6 +300,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                     body: FULL_FILES,
                     paths: &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()],
                     has_more: None,
+                    sides: true,
                     expected: Step::Done(Ok(Answer::PullFiles {
                         head: HEAD,
                         files: Box::new([added_file(b"x"), added_file(b"y")]),
@@ -304,6 +314,7 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                     body: FULL_FILES,
                     paths: &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()],
                     has_more: Some(false),
+                    sides: true,
                     expected: Step::Done(Ok(Answer::PullFiles {
                         head: HEAD,
                         files: Box::new([added_file(b"x"), added_file(b"y")]),
@@ -312,8 +323,26 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                     })),
                 }
             }),
+            (
+                "paths_only_last_page",
+                PullFilesPage {
+                    body: FULL_FILES,
+                    paths: &FULL_PATHS,
+                    has_more: Some(false),
+                    sides: false,
+                    expected: Step::Done(Ok(Answer::PullFiles {
+                        head: HEAD,
+                        files: Box::new([
+                            api::File { path: Box::from(*b"x"), before: None, after: None },
+                            api::File { path: Box::from(*b"y"), before: None, after: None },
+                        ]),
+                        more: false,
+                        cut: false,
+                    })),
+                },
+            ),
         ],
-        |case| assert_eq!(pull_files_page(case.body, case.paths, case.has_more), case.expected),
+        |case| assert_eq!(pull_files_page(case.body, case.paths, case.has_more, case.sides), case.expected),
     );
 }
 
@@ -354,7 +383,7 @@ fn repository_404_drops_the_row() {
 
 #[test]
 fn null_pull_files_page_past_last_finishes_at_the_observed_head() {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 3, skip: 0 }));
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 3, skip: 0, sides: true }));
     run.begin();
     run.answer(200, PULL);
     assert_eq!(

@@ -128,9 +128,7 @@ quiet checks remain later work (`protocol/configuration/reference.md` and `proto
 `domain/forge/change/repairs.md` and `domain/forge/README.md`, 11). Containment read as a count of
 commits (skein's `Read::Range`) and a branch list's refusal naming its
 bound are designed and not built (`domain/forge/keeping-up.md`, 3;
-`domain/agent/tools.md`); of the draft `forge-reads-targeted`, goal
-overlap's paths and GitHub's page sizes lag in the design
-(`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
+`domain/agent/tools.md`). Root forge reads have their own owner
 range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code

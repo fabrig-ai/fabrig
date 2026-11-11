@@ -208,16 +208,41 @@ fn review_cases() -> [ReadCase; 5] {
     ]
 }
 #[expect(clippy::too_many_lines, reason = "each canned content exchange states its request and bounded answer")]
-fn content_cases() -> [ReadCase; 5] {
+fn content_cases() -> [ReadCase; 6] {
     [
         ReadCase {
             name: "pull files",
             known: false,
-            read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 },
+            read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true },
             replies: &[(200, REPOSITORY), (200, PULL), (200, b"[]")],
             expected: Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
             sends: &[
                 "GET /api/v1/repositories/1",
+                "GET /api/v1/repos/fixture/specimen/pulls/1",
+                "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+            ],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
+            name: "pull paths",
+            known: true,
+            read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: false },
+            replies: &[
+                (200, PULL),
+                (200, br#"[{"filename":"a","status":"modified"},{"filename":"b","status":"added"}]"#),
+            ],
+            expected: Ok(Answer::PullFiles {
+                head: HEAD,
+                files: Box::new([
+                    api::File { path: Box::from(*b"a"), before: None, after: None },
+                    api::File { path: Box::from(*b"b"), before: None, after: None },
+                ]),
+                more: true,
+                cut: false,
+            }),
+            sends: &[
                 "GET /api/v1/repos/fixture/specimen/pulls/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
             ],
@@ -485,7 +510,11 @@ fn listings() -> [Listing; 7] {
             "commits/0100000000000000000000000000000000000000/status?page=1&limit=",
         ),
         (Read::Collaborators { page: 1 }, &[], "collaborators?page=1&limit="),
-        (Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0 }, &[PULL], "pulls/1/files?page=1&limit="),
+        (
+            Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true },
+            &[PULL],
+            "pulls/1/files?page=1&limit=",
+        ),
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],

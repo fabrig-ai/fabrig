@@ -574,6 +574,10 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
 }
 
 fn member_landing(d: &mut Domain) {
+    member_landing_with_gates(d, Box::new([]));
+}
+
+fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     let mut row = landing_row(61, policy::Phase::Preparing);
     row.landing.members = Box::new([policy::Member {
         change: fixtures::CHANGE,
@@ -582,7 +586,7 @@ fn member_landing(d: &mut Domain) {
         head: None,
         base: None,
         candidate: None,
-        gates: Box::new([]),
+        gates,
         asked: None,
         landed: None,
     }]);
@@ -932,5 +936,121 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         assert_eq!(d.review_facts.get(&52), Some(&facts), "another change keeps its facts");
         assert_eq!(d.review_since.get(&52), Some(&env().wall));
         assert!(!outputs(&mut d, Event::Committed { entry: 91 }).contains(&mark), "no repeated drop mark");
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one landing world drives both filtered-key bounds through the same read chain"
+)]
+fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
+    use skein_forge::api::{Answer, Op, Read, TreeEntry, TreeEntryKind};
+    for (member, entries, path_bytes, configured, needed) in
+        [("forge.key_entries", 2, 1024, 2, 3), ("forge.key_path_bytes", 16, 4, 4, 6)]
+    {
+        let mut d = landing_fixture();
+        fixtures::connect(&mut d);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
+            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        let after = d.after_landing(5).unwrap();
+        assert!(d.project_landing(
+            5,
+            temper_engine_domain_forge_change::Way::Turn,
+            Box::new([RepositoryGates {
+                repository: REPO,
+                tiers: Box::new([]),
+                gates: Box::new([policy::Gate {
+                    name: b"gate".as_slice().into(),
+                    workflow: b"gate.yml".as_slice().into(),
+                    ignored: Box::new([b"dir/skip".as_slice().into()]),
+                    blocking: true,
+                }])
+            }]),
+            after
+        ));
+        member_landing_with_gates(
+            &mut d,
+            Box::new([policy::GateProof { proof: policy::Proof::Unkeyed, posted: policy::Posted::Nothing, faults: 0 }]),
+        );
+        let mut env = env();
+        env.limits.key_entries = entries;
+        env.limits.key_path_bytes = path_bytes;
+        let mut out = Queue::uncapped();
+        step(
+            &mut d,
+            &env,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+            &mut out,
+        );
+        assert!(!d.landing.pending.is_empty(), "initial {out:?}");
+        let mut refused = false;
+        for _ in 0..10_u32 {
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            let seen = op.clone();
+            let answer = match op {
+                Op::Read(Read::Branch { branch }) => {
+                    Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+                }
+                Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+                Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+                Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                Op::Read(Read::Tree { object, .. }) => {
+                    let entries = if object == [9; 32] {
+                        Box::new([
+                            TreeEntry {
+                                name: b"a".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [7; 32],
+                            },
+                            TreeEntry {
+                                name: b"b".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [8; 32],
+                            },
+                        ])
+                    } else {
+                        Box::new([
+                            TreeEntry {
+                                name: b"dir".as_slice().into(),
+                                mode: 0o040_000,
+                                kind: TreeEntryKind::Tree,
+                                object: [9; 32],
+                            },
+                            TreeEntry {
+                                name: b"x".as_slice().into(),
+                                mode: 0o100_644,
+                                kind: TreeEntryKind::Blob,
+                                object: [7; 32],
+                            },
+                        ])
+                    };
+                    Answer::Tree { entries, more: false }
+                }
+                Op::Read(_) | Op::Write(_) => panic!("unexpected key read {op:?}"),
+            };
+            let out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            for request in &out {
+                if let Request::ResourceRefused { task: 61, cause, .. } = request {
+                    assert_eq!(*cause, RefusalCause::Limit { member, configured, needed });
+                    refused = true;
+                }
+                assert!(!matches!(request, Request::Refused { .. }), "a key bound is not structural: {out:?}");
+            }
+            assert!(refused || !d.landing.pending.is_empty(), "chain ended after {seen:?}: {out:?}");
+            if refused {
+                break;
+            }
+        }
+        assert!(refused, "filtered key must name {member}");
     }
 }

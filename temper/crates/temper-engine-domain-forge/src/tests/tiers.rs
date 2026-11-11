@@ -464,6 +464,42 @@ fn full_range_compacts_adjacent_outside_landings_preserving_changes() {
 }
 
 #[test]
+fn a_dropped_changes_landing_is_outside_the_tiers_own_range() {
+    for drop in [false, true] {
+        let mut d = dispatched();
+        let mut change = fixtures::opening_row();
+        change.task = CHANGE;
+        change.change.task = CHANGE;
+        change.change.state = temper_engine_domain_forge_change::State::Ended;
+        change.ending = Some(Ending::Cancelled);
+        d.changes.insert(CHANGE, change).unwrap();
+        d.landed.insert(HEAD, CHANGE).unwrap();
+        let mut small = env();
+        small.limits.changes = 1;
+        if drop {
+            step(&mut d, &small, Event::DropChange { task: CHANGE }, &mut Queue::uncapped());
+            assert!(d.change(CHANGE).is_none());
+        }
+        d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending = Box::new([
+            TierLanding { commit: HEAD, key: Some(HEAD) },
+            TierLanding { commit: [10; 32], key: Some([10; 32]) },
+            TierLanding { commit: [11; 32], key: Some([11; 32]) },
+        ]);
+        crate::tiers::observed(&mut d, &small, REPO, b"main", Some(HEAD), NEXT_TIP, &mut Queue::uncapped());
+        let first = if drop { [10; 32] } else { HEAD };
+        assert_eq!(
+            row(&d).pending.as_ref(),
+            &[
+                TierLanding { commit: first, key: Some(first) },
+                TierLanding { commit: [11; 32], key: Some([11; 32]) },
+                TierLanding { commit: NEXT_TIP, key: None },
+            ],
+            "dropped {drop}"
+        );
+    }
+}
+
+#[test]
 fn a_green_whole_run_clears_its_nonempty_range() {
     let mut d = dispatched();
     seen(&mut d, Some(BASE), NEXT_TIP);
