@@ -93,10 +93,7 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "TEMPER_MANAGED_PREFIX", until: "cli C4" },
     Exception { what: "TEMPER_MANAGED_SCRATCH", until: "cli C4" },
     Exception { what: "TEMPER_MANAGED_UPSTREAM", until: "cli C4" },
-    Exception { what: "TEMPER_RATE", until: "cli C4" },
-    Exception { what: "TEMPER_RECORD_RELEASE", until: "cli C4" },
     Exception { what: "TEMPER_SITTING_WAIT_SECS", until: "cli C4" },
-    Exception { what: "TEMPER_TEST_CLAUDE", until: "cli C4" },
     Exception { what: "TEMPER_WRAPPER", until: "cli C4" },
 ];
 
