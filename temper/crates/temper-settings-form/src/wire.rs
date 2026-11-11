@@ -537,6 +537,7 @@ pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Res
             ended_by: match value.flags().ended_by() {
                 w::EndedBy::Result => c::EndedBy::Result,
                 w::EndedBy::Requester => c::EndedBy::Requester,
+                w::EndedBy::Standing => c::EndedBy::Standing,
                 w::EndedBy::Closer(closer) => {
                     c::EndedBy::Closer(c::Closer { connector: closer.connector(), code: closer.code() })
                 }
@@ -1375,6 +1376,7 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
                     ended_by: match value.flags.ended_by {
                         c::EndedBy::Result => w::EndedBy::Result,
                         c::EndedBy::Requester => w::EndedBy::Requester,
+                        c::EndedBy::Standing => w::EndedBy::Standing,
                         c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
                             limits,
                             w::CloserParts { connector: closer.connector, code: closer.code },

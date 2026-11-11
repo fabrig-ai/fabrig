@@ -567,7 +567,15 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
             role: u32::from(no_account),
             required: if no_account { 2 } else { 1 },
             counted: u32::from(no_account),
-            behind: if no_account { 0 } else { 2 },
+            sets: if name == "needs-approval-path" {
+                List::from_boxed(Box::new([w::ApprovalSet::new(
+                    &w::CEILINGS,
+                    w::ApprovalSetParts { number: 1, name: b"vsr's protocol core".as_slice().into() },
+                )
+                .expect("path set")]))
+            } else {
+                List::with_capacity(0)
+            },
             whole: true,
             yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
         },

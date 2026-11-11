@@ -351,6 +351,7 @@ pub struct Core {
     /// at most one per live task (`jig/docs/design/domain/engine/briefs.md`, 2.2).
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
     pub(crate) preferences: routing::run::preferences::State,
+    pub(crate) now: routing::run::now::State,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
@@ -368,7 +369,7 @@ pub struct Core {
     /// Restored claims not yet reported by a host.
     pub(crate) unreported_restored: Map<u64, u64>,
     /// Claims awaiting completion of their route: attempt and prepared offered kinds.
-    pub claiming: Map<u64, (u64, tasks::Reasons)>,
+    pub claiming: Map<u64, (u64, tasks::Reasons, Option<tasks::SessionEnd>)>,
     /// Child work due to activation.
     pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
@@ -584,6 +585,7 @@ impl Core {
             projections: Map::with_capacity(limits.tasks.tasks),
             pending_note_briefs: Map::with_capacity(limits.tasks.tasks),
             preferences: routing::run::preferences::State::new(limits.brief.briefs),
+            now: routing::run::now::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),

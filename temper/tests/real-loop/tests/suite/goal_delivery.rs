@@ -37,7 +37,7 @@ fn configure(document: &mut Value, agent: &mut Value, address: SocketAddr) {
         project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
     }
     // The four stock templates and this goal's own-branch template.
-    document["engine"]["limits"]["overrides"]["core.templates"] = 5.into();
+    document["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // A tracked goal keeps core news, landing news and its delegate's result.
     document["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 16384.into();
     let mut template = settings::stock(document)["template"].clone();

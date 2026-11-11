@@ -2,12 +2,12 @@
 
 2026-11-04. The reasons behind temper's drafts (`AGENTS.md`, section 6):
 the choices they make, each with its reasons. Sections 1, 4, 5 and 6 are
-the reference's: `reference-code-production.md`, `reference-landing.md`
+the reference's: `reference-code-production.md`, `archive/reference-landing.md`
 and `reference-case.md` cite its choices, N1 to N24, by number. Where the
 design still lags a draft is that draft's status, not these notes.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`,
-`worker.md` and `findings.md` are temper's `../domain/` documents; jig's
+`../domain/worker/README.md` and `findings.md` are temper's `../domain/` documents; jig's
 and smith's are named as theirs.
 
 ## 1. In one page
@@ -107,7 +107,7 @@ rules; their statuses say where the design still lags.
   that hold, by change, one writer at a time; its landing is an ordinary
   change into main whose branch is its requester's
   (`reference-code-production.md`, sections 3 and 4;
-  `reference-landing.md`, section 3).
+  `archive/reference-landing.md`, section 3).
 - **Why not a change's:** a goal's own branch made "a change of its own"
   (`../domain/forge/branches.md`, 1) is at once the landing branch of its goal's changes
   and the branch of its own change, and three rules stand against that:
@@ -139,7 +139,7 @@ rules; their statuses say where the design still lags.
   merge refused for a conflict goes to the merge job
   (`reference-code-production.md`, section 6).
 - **Why:** the goal's landing into main checks the whole
-  (`reference-landing.md`, section 1), and g's tier checks along the way
+  (`archive/reference-landing.md`, section 1), and g's tier checks along the way
   (N5); CI and an update on every change into g would cost a gate per
   change for a branch nothing ships from. One rule on `… branch temper`,
   its last segment open, covers every goal's branch (jig's
@@ -298,7 +298,7 @@ rules; their statuses say where the design still lags.
 
 ### N17. A red at the gate that passes alone
 
-- **The choice:** Later (`reference-landing.md`, section 11).
+- **The choice:** Later (`archive/reference-landing.md`, section 11).
 - **Why:** a gate holding several changes could retry a red test alone
   before refusing them, so one flake does not take the others with it
   (collateral). temper reruns failed tests alone for tiers
@@ -396,7 +396,7 @@ reference:
 | L8 a measured failure rerun once before red | Later, for the gate (N17); tiers have it (`after-landing.md`, 5.2) |
 | L10 a repair pinned ahead of every landing | temper's branch repair, first in its queue (`../domain/forge/queues.md`) |
 | L11 a change's own checks before ready | the producer's checks at delivery (`.temper/pre-pr`) |
-| L12 leases on paths across goals | not needed: one branch per goal, held by it (N3); overlaps between goals Later (`reference-landing.md`, section 11) |
+| L12 leases on paths across goals | not needed: one branch per goal, held by it (N3); overlaps between goals Later (`archive/reference-landing.md`, section 11) |
 | L13 tiers following main, L14 cleared as a setting | needed, as `after-landing.md` has them, each tier naming the branches it follows (N5) |
 | L15 findings, L16 QA walks | `findings.md`; the reference uses only a red of no goal's |
 | L17 trailers in landing news | `after-landing.md`, section 8; the reference does not need them |

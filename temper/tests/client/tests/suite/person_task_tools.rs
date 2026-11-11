@@ -222,6 +222,102 @@ fn start_goal(spec: &[u8]) -> (Ctl, u64) {
     let goal = fixtures::done_task(&started);
     (ctl, goal)
 }
+fn role_configuration() -> engine::Config {
+    use jig_domain_authority::{Executor, Scopes};
+    let mut config = temper_engine_domain_world::walking::config(fixtures::SEED);
+    let models = config
+        .core
+        .settings
+        .models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+            first_read: None,
+            number: u32::try_from(at).expect("bounded fixture model count") + 1,
+            model: model.clone(),
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect();
+    let stock = temper_service::stock::with_models(models, RESULT_WORDS);
+    config.core.defaults.charters = stock.charters.into_iter().filter(|charter| charter.number == 13).collect();
+    config.core.defaults.templates = stock.templates.into_iter().filter(|template| template.number == 7).collect();
+    let ceiling = &mut config.core.defaults.rules.ceiling;
+    ceiling.delegation.kinds = Box::new([Executor::Charter(13)]);
+    ceiling.notes = Scopes::GOAL;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.kinds.clone_from(&ceiling.delegation.kinds);
+    policy.ceiling.notes = Scopes::GOAL;
+    policy.roles[0].authority.delegation.kinds.clone_from(&ceiling.delegation.kinds);
+    policy.roles[0].authority.notes = Scopes::GOAL;
+    config
+}
+
+#[test]
+fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+    use temper_client_world::front::engine_limits;
+    use temper_engine_domain_world::{protocol, store::Store};
+    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
+    let mut bounds = engine_limits();
+    bounds.tasks.charters = 13;
+    bounds.journal.run_bytes = 16_384;
+    let front = Joint::with_engine(
+        fixtures::SEED,
+        &fixtures::domain_limits(),
+        Store::with_limits(&bounds),
+        [role_configuration(), role_configuration()],
+        &bounds,
+        1,
+    );
+    let (mut front, root) = fixtures::tools_on(front, fixtures::SEED);
+    front.engine.send(engine::Event::Worker(engine::WorkerInput::Link { channel: WORKER, link: engine::Link::Lost }));
+    front.engine.settle();
+    let mut hello = protocol::hello_slots(WORKER, 1, Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
+    {
+        hello.bounds.time = skein_lib::Duration::from_secs(28_800);
+        hello.bounds.turns = 800;
+        hello.bounds.message_bytes = bounds.tasks.message_bytes;
+    }
+    front.engine.send(hello);
+    front.engine.settle();
+    let mut ctl = Ctl::new(front, root);
+    let started = ctl.call(
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        None,
+    );
+    assert_eq!(started.status, 0, "{started:?}");
+    let task = fixtures::done_task(&started);
+    let row = ctl.front.engine.task(task).expect("standing task");
+    assert_eq!(row.label, 3);
+    assert_eq!(row.flags.ended_by, tasks::EndedBy::Standing);
+    assert_eq!(row.requester, tasks::Party::Person(fixtures::PARTY));
+    let run = ctl.front.assignments.last().expect("standing role assigned").clone();
+    assert_eq!(run.task, task);
+    let input = format!(
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{task}}},"description":"now","body":"Tests are green.\nWaiting for a change, then check its tests."}}"#
+    );
+    let (answer, failed) =
+        temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 1, b"note", input.as_bytes());
+    assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    ctl.front.engine.answer(WORKER, task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    ctl.front.engine.settle();
+    assert!(ctl.front.engine.task(task).is_some(), "parking does not finish the role");
+    ctl.text(&[b"task", b"message", task.to_string().as_bytes(), b"A change landed", b"--key", b"wake-role"]);
+    let next = ctl.front.assignments.last().expect("standing role woken").clone();
+    assert_eq!(next.task, task);
+    assert!(next.attempt > run.attempt);
+    assert!(next.sections.iter().any(|section| {
+        matches!(&section.body, engine::BriefBody::Text(text) if skein_lib::bytes::find(text, NOW.as_bytes()).is_some())
+    }), "next brief: {:?}", next.sections);
+    let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
+    assert!(shown.contains(NOW));
+}
+
 fn sign_in_stranger(ctl: &mut Ctl) -> u64 {
     const REPLY: skein_lib::Token = skein_lib::Token::new(2003);
     let driver = &mut ctl.front.engine;

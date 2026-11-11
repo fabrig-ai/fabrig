@@ -163,6 +163,7 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         plan: 128,
         notes: 64,
         preferences: 64,
+        now: 64,
     },
     accounts: jig_domain_accounts::Limits {
         accounts: 1,
@@ -291,8 +292,11 @@ pub fn header(commits: u64) -> core::Record {
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        session: None,
+        activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

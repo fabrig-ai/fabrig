@@ -63,6 +63,8 @@ watch's subject, its digest (4). It needs no key.
 | `project show PROJECT` | the project: its name, whether it is public and, if so, its public page's path, and its homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../../domain/routing.md`, 7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract/README.md`, 4.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts, its text saying under `next run:` why a run that can't start waits and what to run; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
+| `role list --project PROJECT [--after CURSOR]` | the project's live standing roles, label 3 (`../../domain/agent/standing.md`, section 6), a line each: its number, its charter, its state, what its period's budget has left, and its Now's first line, or `no Now yet` | `tasks{query}` by label, and the notes read of each role's scope by the description `now` (jig's `client/domain/contract/README.md`, section 4) |
+| `role show TASK` | a standing role: its task's document, as `task show` prints it, then its Now whole, its note's name, revision and when it was written, or `no Now yet` | `task{n}`, and the notes read of its scope by the description `now` |
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../../domain/landing.md`, section 14) | the forge's family |
 | `landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]` | the project's landings, newest first, with their phases, the turn's holder first, a page and its cursor; with `--newer-than`, every landing on its repositories' landing branches the engine saw after TIME (as `task amend --deadline` takes it, UTC to the minute), with its verdicts and its trailers, from the landing log (`../../domain/after-landing.md`, sections 8 and 10) | the forge's family |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
@@ -197,6 +199,7 @@ agent must name.
 | Tool | What it does | jig's | K |
 |---|---|---|---|
 | `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 5 is Ask temper (`../../domain/agent/ask-temper.md`) and template 6 a design session (`../../domain/agent/agents.md`, 4); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
+| `role start --project PROJECT --budget AMOUNT [--charter CHARTER] TEXT` | starts a standing role from template 7 (`../../domain/agent/standing.md`, section 2): TEXT its spec's words, what it covers and how; AMOUNT its budget each period; run by CHARTER, the stock's charter 13 when none is named; prints the task it made, or the proposal a batch beyond the person's role became | `shapes`' fill of template 7, a `Create` | yes |
 | `task message TASK TEXT` | words to a task | `Message` | yes |
 | `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`../forge/family.md`, 4) | yes |
@@ -244,7 +247,10 @@ agent must name.
   `value` member `settings show … --json` prints: for a landing rule, `README.md`, section 3
   's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
-  (`../../protocol/configuration/settings.md`, 2), for the forge's charter a charter's
+  (`../../protocol/configuration/settings.md`, 2), its `sets` a list of
+  path sets' numbers, `[1]`, optional, `[]` left out, and printed only
+  where it names one, so a rule by none reads as it always has
+  (`../../protocol/configuration/engine.md`), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
   "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,

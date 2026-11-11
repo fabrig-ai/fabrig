@@ -262,6 +262,7 @@ models-read-failed
 needs-approval
 needs-approval-first
 needs-approval-no-account
+needs-approval-path
 needs-decided
 needs-decided-project
 needs-done
@@ -333,6 +334,8 @@ sheet-copy-lines
 sheet-empty
 sheet-empty-source
 sheet-few
+sheet-from-chats
+sheet-from-home
 sheet-none
 sheet-searching
 signed-out

@@ -42,10 +42,14 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
     assert_eq!(limits.forge.change_policy.questions, 4);
-    let rows: [(&[u8], u64); 16] = [
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        assert_eq!(limits::profile(profile).forge.change_policy.reruns, 1);
+    }
+    let rows: [(&[u8], u64); 17] = [
         (b"forge.repositories", 3),
         (b"forge.sitting_ms", 3000),
         (b"forge.change_policy.questions", 7),
+        (b"forge.change_policy.reruns", 2),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
         (b"checkout.remote_timeout_ms", 7_000),
@@ -66,6 +70,8 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge.repositories, 3);
     assert_eq!(limits.forge.sitting, Duration::from_secs(3));
     assert_eq!(limits.forge.change_policy.questions, 7);
+    assert_eq!(limits.forge.change_policy.reruns, 2);
+    assert_eq!((limits::find(b"forge.change_policy.reruns").expect("listed re-run bound").value)(&limits), 2);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
     assert_eq!(limits.checkout.remote_timeout, Duration::from_millis(7_000));
@@ -224,6 +230,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             landings: 32,
             client: skein_forge_client::Limits { resources: 128, op_bytes: 262_144, ..small.forge.client },
             change_policy: temper_engine_domain_forge_change::Limits {
+                reruns: 1,
                 questions: 80,
                 tasks: 80,
                 repairs: 80,
@@ -247,8 +254,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The closer owner adds 32 bytes; two executor places add 16.
-                transcript_bytes: 22_467_744,
+                // The closer and session each add 32 bytes; two executor places add 16.
+                transcript_bytes: 22_467_776,
                 result_bytes: 353_072,
                 ..small.root.journal
             },
@@ -783,7 +790,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
 #[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!(limits.root.brief.sections, 9);
+    assert_eq!(limits.root.brief.sections, 10);
     assert_eq!(limits.root.brief.budgets.document, 4096);
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
     assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));

@@ -1,4 +1,4 @@
-//! Transfer accounting (temper/docs/design/domain/worker.md, 5).
+//! Transfer accounting (temper/docs/design/domain/worker/checkouts.md).
 use skein_lib::{Duration, Time};
 use std::collections::BTreeSet;
 use temper_fake_checkout::{git::Remote, in_git};

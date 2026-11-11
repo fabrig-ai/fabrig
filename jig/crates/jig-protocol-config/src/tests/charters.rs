@@ -167,11 +167,13 @@ fn a_charter_refuses_parts_past_its_limit() {
     refuses_parts(value.as_bytes(), part_path().child(crate::Segment::Index(count)), What::Bound);
 }
 
-fn a_resuming_charter_refuses_parts() {
+#[test]
+fn a_resuming_charter_admits_parts() {
     let document = with_parts(br#"[{"on":["first"],"instructions":"a.md"}]"#);
     let document = fixtures::with(&document, br#""resume": false"#, br#""resume": true"#);
-    let problems = fixtures::engine(&document).expect_err("resuming charter with parts");
-    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: part_path(), what: What::Form }));
+    let engine = fixtures::engine(&document).expect("resuming charter with parts");
+    assert!(engine.charters[0].policy.resume);
+    assert_eq!(engine.charters[0].parts.len(), 1);
 }
 
 fn a_charter_refuses_policy_and_parts_past_run_bytes() {
@@ -297,7 +299,6 @@ fn charters_configuration_problems_name_the_invalid_fields() {
         ("a_part_refuses_a_repeated_reason", a_part_refuses_a_repeated_reason),
         ("a_part_refuses_no_reasons", a_part_refuses_no_reasons),
         ("a_charter_refuses_parts_past_its_limit", a_charter_refuses_parts_past_its_limit),
-        ("a_resuming_charter_refuses_parts", a_resuming_charter_refuses_parts),
         ("a_charter_refuses_policy_and_parts_past_run_bytes", a_charter_refuses_policy_and_parts_past_run_bytes),
         ("a_charter_reads_two_parts_and_their_files_in_order", a_charter_reads_two_parts_and_their_files_in_order),
         (

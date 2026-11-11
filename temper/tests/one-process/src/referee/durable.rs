@@ -247,9 +247,10 @@ impl Store {
                             history: true,
                             revision,
                         })) = &row
+                            && !self.restoring
                         {
-                            // Jig materializes a held-to-history copy as a KV Put. Retain the
-                            // operation in the oracle, so a dropped copy cannot go unnoticed.
+                            // An active write copies the held revision. A recovered snapshot or
+                            // log carries a materialized history row, not a new copy operation.
                             writes.push(root::Write::CopySettingsRevision(revision.head.number));
                         } else {
                             writes.push(root::Write::Save(root::Record::Core(row)));

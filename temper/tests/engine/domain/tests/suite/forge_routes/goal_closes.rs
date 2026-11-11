@@ -28,6 +28,7 @@ fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box
         .with_close_job(Some(b".temper/close"), true)
         .with_goal_closer()
         .with_landing_deployment(Box::new([engine::LandingRule {
+            sets: Box::new([]),
             connector: 1,
             kind: 4,
             enforce: true,
@@ -205,6 +206,7 @@ fn member(task: &c::NewTask) -> people::Member {
         ended_by: match task.flags.ended_by {
             c::EndedBy::Result => people::EndedBy::Result,
             c::EndedBy::Requester => people::EndedBy::Requester,
+            c::EndedBy::Standing => people::EndedBy::Standing,
             c::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }

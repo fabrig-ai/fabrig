@@ -75,6 +75,7 @@ fn observe_pull(d: &mut Domain) {
         dequeued: None,
     };
     let pending = PendingStep {
+        failed: change_ci::Failed::new(Box::new([])),
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,
@@ -96,6 +97,8 @@ fn observe_pull(d: &mut Domain) {
         contains_catch_up: change::Status::Passed,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     };
     decide_step(d, &env(), &pending, &mut Queue::uncapped());

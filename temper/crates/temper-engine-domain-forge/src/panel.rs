@@ -251,7 +251,7 @@ impl Domain {
                 None => None,
             },
             ci: self.observed_ci(row),
-            ci_required: repository.ci && self.requires(repository, &row.base).ci,
+            ci_required: repository.ci && self.requires(repository, &row.base, self.touched_at(row)).ci,
             gates: panel_gates(row, head),
             approvals: self.panel_approvals(row),
             unmapped_reviews: self.panel_unmapped(row),

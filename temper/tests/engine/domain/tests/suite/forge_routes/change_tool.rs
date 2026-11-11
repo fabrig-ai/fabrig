@@ -386,7 +386,7 @@ fn change_expands_the_only_repository_field_by_field() {
     assert_eq!(row.authority.tools, parent.authority.tools);
     assert_eq!(
         row.authority.grants,
-        [1, 2, 3, 4, 10, 11, 12]
+        [1, 2, 3, 4, 10, 11, 12, 17]
             .into_iter()
             .flat_map(|kind| {
                 let prefix = [b"forge".as_slice(), b"forge.example", b"org"];

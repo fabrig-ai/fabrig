@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 404;
+pub const N: usize = 407;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -912,6 +912,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "needs-approval", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
+            name: "needs-approval-path",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
             name: "needs-approval-no-account",
             world: Solo,
             address: Address::Inbox { filter: Filter::ALL },
@@ -1098,6 +1104,18 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "sheet-empty-source",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "sheet-from-home",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "sheet-from-chats",
             world: FirstRun { step: 7 },
             address: Address::Adopt { project: 1 },
             then: Shown,
@@ -1825,6 +1843,17 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name == "welcome-ready-copies" {
         return crate::worlds::copies_world(sample.address.clone(), sample.then);
+    }
+    if matches!(sample.name, "sheet-from-home" | "sheet-from-chats") {
+        let source = if sample.name == "sheet-from-home" { "home-add-repository" } else { "chats-no-repository" };
+        let source = samples().into_iter().find(|sample| sample.name == source).expect("sheet entry sample");
+        let mut root = domain(&source);
+        step(
+            &mut root,
+            Event::Went { place: temper_client_domain::Place::Address(sample.address.clone()) },
+            &mut Queue::uncapped(),
+        );
+        return root;
     }
     if sample.name == "chats-no-repository" {
         let mut root = home_domain("home-no-repository");

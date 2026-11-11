@@ -177,3 +177,17 @@ The installation's page and the App's settings are built by the engine
 from the `web` address the forge's record keeps, never from an
 address a forge's answer gave, so a link the client shows points at
 that forge alone. SLUG is the App's slug, as the forge's row shows it (`deployment.md`).
+
+## 5. Open questions
+
+- **The picker's pages kept.** Default: none; each page is a fresh read
+  of the forge through the setup host's `Reachable` plan, asked by
+  number, so a
+  repository added or removed between two pages can move a row across
+  them, seen twice or missed until the list is read again from its
+  first page. A scroll or search beyond a full last page gets an empty
+  answer and ends the reading.
+
+- **A repository's role, health and landing rules on the Repositories
+  tab** (`../pages/README.md`; `repositories.md`, 2 and 3). Default: not drawn, as the user's
+  request of 2026-11-05 settled: a line says its name and its forge.
