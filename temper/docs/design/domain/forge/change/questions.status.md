@@ -1,6 +1,6 @@
 # questions: status
 
-2026-11-10. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-11. Where the tree's code lags or departs from [questions.md](questions.md).
 
 - **Not yet:**
   -  the user's N4 request of 2026-11-08 asks for focused and
@@ -235,3 +235,5 @@
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+
+- **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].

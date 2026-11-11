@@ -1,6 +1,6 @@
 # records: status
 
-2026-11-10. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
 - **Not yet:** the whole document: the walk the request `first-usable-model` of
   2026-11-06 asks: none on record has a real box with one account, unedited, start
@@ -96,3 +96,6 @@
   (`temper-client-view`'s `pages/accounts/rows.rs`, `draw`), where the section
   has a row's facts as `.setting` rows, because the rows keep their sources,
   observations and forms in document order.
+
+- **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
+- **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].

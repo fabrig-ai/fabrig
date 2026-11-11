@@ -1,6 +1,6 @@
 # gates: status
 
-2026-11-10. Where the tree's code lags or departs from [gates.md](gates.md).
+2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
 
 - **Not yet:**
   - 1: the user's N4 request of 2026-11-08 asks for focused and
@@ -201,3 +201,5 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+
+- **Not yet:** 2: the pull request's size kept with the approval evidence at its head [in flight: change 534].

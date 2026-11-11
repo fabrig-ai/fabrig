@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, count behind, partial-read notice, Open and Later. A
@@ -84,3 +84,6 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
   but `forge/admin.rs`, `send_target`, sends nothing on that state.
   `temper ctl forge connect forgejo-admin`, which the engine admits,
   remains the way back; the panel alone does not repair admission.
+
+- **Not yet:** 4.1: *Its size* on Needs you's and Home's cards, and on a phone [in flight: change 535].
+- **Not yet:** 4.1: the joined world's approval card showing the fake forge's size [in flight: change 536].
