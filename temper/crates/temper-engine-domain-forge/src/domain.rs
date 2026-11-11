@@ -20,6 +20,7 @@ pub const DEFAULT_CHANGE_TITLE: &[u8] = b"Update repository";
 
 mod admission;
 mod ci_news;
+mod connection_wait;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
@@ -225,6 +226,8 @@ pub struct Domain {
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
     pub(crate) steps: Map<Token, PendingStep>,
+    // Volatile, bounded by changes (temper/docs/design/domain/forge/adoption.md, 1).
+    change_connections: Option<Box<Map<u64, skein_lib::Wall>>>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
     // Volatile input for the next change step, never restored (domain/forge/change/gates.md, 1).
     review_requests: Map<u64, skein_forge::api::Commit>,
@@ -612,6 +615,10 @@ impl Domain {
 
     /// Keep the connector's retry deadline; the root carries no timer policy.
     pub fn wait_change(&mut self, env: &Env<Limits>, task: u64, until: Option<skein_lib::Wall>) {
+        if connection_wait::contains(self, task) {
+            self.change_due.remove(&task);
+            return;
+        }
         let until = match until {
             Some(until) => until,
             None => {
@@ -781,6 +788,7 @@ impl Domain {
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            change_connections: None,
             start_conflicts: Map::with_capacity(l.changes),
             review_requests: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
@@ -1462,6 +1470,15 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
+            match d.connection(forge) {
+                crate::Connection::Connected { .. } => connection_wait::connected(d, env, forge, out),
+                crate::Connection::NotConnected
+                | crate::Connection::NotSetUp
+                | crate::Connection::SettingUp { .. }
+                | crate::Connection::SetUpFailed { .. }
+                | crate::Connection::Connecting
+                | crate::Connection::Stopped { .. } => {}
+            }
             if let Some((number, _)) = d.fetched
                 && number == forge
             {
@@ -3486,6 +3503,7 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
     None
 }
 
+#[expect(clippy::too_many_lines, reason = "one change step admits a fresh-read chain or joins its connection wait")]
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
     if d.stopping {
         return;
@@ -3538,6 +3556,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.queue_repair_active = queue_repair_active;
         pending.gates = gates;
         pending.woken = true;
+        return;
+    }
+    if connection_wait::waiting(d, task, row.repository.forge) {
+        connection_wait::wait(d, env, task, out);
         return;
     }
     if d.steps.len() == env.limits.changes {
@@ -3765,6 +3787,10 @@ fn step_read(
     if result == Err(skein_forge::api::Error::Busy) {
         branch_due(d, pending.task);
         retry_step(env, pending.task, out);
+        return;
+    }
+    if result == Err(skein_forge::api::Error::NotConnected) {
+        connection_wait::wait(d, env, pending.task, out);
         return;
     }
     if admission::read_failed(row, &pending, &result, out) {
@@ -5241,6 +5267,7 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
 
 /// The panel outlives its task, but never its task's live state (domain/forge/change/gates.md, 1).
 fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    connection_wait::take(d, task);
     let merge = recorded_merge(d, task);
     let cancelled = match d.releases.get(&task) {
         Some(row) => row.ending == ReleaseEnding::Cancelled,
@@ -6968,6 +6995,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 // kept task names retain repository rows; live watches and release gates retire.
 /// Drop the forge's local reads now; the event's environment retires its watches before returning.
 pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    connection_wait::retire(d, forge);
     outage::retire(d, forge);
     goal_branch::retire(d, forge);
     let mut removed = List::with_capacity(d.lost.capacity());
@@ -7172,6 +7200,9 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 
 /// Every saved record invalidates its own panel (domain/forge/change/README.md, 5).
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
+    if row.terminal() {
+        connection_wait::take(d, row.task);
+    }
     retain_terminal_ci(d, &mut row);
     let task = row.task;
     let mut tasks = List::with_capacity(crate::MARKED);
@@ -7199,6 +7230,9 @@ fn save_queue_change(
     mut row: ChangeRow,
     out: &mut Queue<Request>,
 ) {
+    if row.terminal() {
+        connection_wait::take(d, row.task);
+    }
     let after = crate::panel::ready(&row);
     if before == after {
         save_change(d, out, row);

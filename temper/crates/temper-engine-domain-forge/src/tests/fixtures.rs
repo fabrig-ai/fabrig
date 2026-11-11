@@ -1,5 +1,16 @@
 //! Shared adoption and change fixtures.
 use super::*;
+
+/// Change reads start after routing has reported access.
+pub fn connected_domain() -> Domain {
+    let mut d = domain();
+    connect(&mut d);
+    d
+}
+
+pub fn connect(d: &mut Domain) {
+    outputs(d, Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } });
+}
 pub fn adoption() -> Adoption {
     Adoption {
         project: 5,
@@ -135,7 +146,7 @@ pub fn opening_row() -> ChangeRow {
 }
 
 pub fn opening() -> (Domain, Token) {
-    let mut d = domain();
+    let mut d = connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -312,31 +323,32 @@ pub fn answer_next(
 }
 
 pub fn step_change(d: &mut Domain) {
+    outputs(d, change_step());
+}
+
+pub fn change_step() -> Event {
     use temper_engine_domain_forge_change as change;
-    outputs(
-        d,
-        Event::StepChange {
-            merge_job: false,
-            task: CHANGE,
-            entry: OPEN + 1,
-            heard: change::Heard {
-                delegate_running: false,
-                delegate_live: false,
-                review_request: None,
-                start_conflict: None,
-                lacking: None,
-                spend: None,
-                delegate: change::Status::Passed,
-                effect: change::EffectResult::None,
-                released: false,
-                cancelled: false,
-            },
-            gates: Box::new([]),
-            queue_repair_active: false,
-            pending: Box::new([]),
-            kept: false,
+    Event::StepChange {
+        merge_job: false,
+        task: CHANGE,
+        entry: OPEN + 1,
+        heard: change::Heard {
+            delegate_running: false,
+            delegate_live: false,
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
         },
-    );
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([]),
+        kept: false,
+    }
 }
 
 pub fn missing_pull(d: &mut Domain) {
