@@ -1451,6 +1451,18 @@ fn program_checks_retain_the_source_number() {
 }
 
 #[test]
+fn a_retained_live_tasks_refusal_round_trips() {
+    use jig_domain_people as p;
+    people_round_trip(p::Stored::Answer {
+        models: Box::new([]),
+        key: p::RequestKey { person: 1, key: [7; 16] },
+        ask: Box::new(p::Ask::RemoveProject { project: 1, grace: None }),
+        outcome: p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }),
+        at: skein_lib::Wall::EPOCH,
+    });
+}
+
+#[test]
 fn retained_people_answers_keep_dependency_refusal_facts() {
     use jig_domain_people as p;
     for why in [

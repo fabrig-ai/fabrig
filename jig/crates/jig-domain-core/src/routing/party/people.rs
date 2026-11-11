@@ -305,7 +305,11 @@ pub(crate) fn tag_people_part(
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)
-                        } else if role == Some(people::Role::Owner) {
+                        } else if role != Some(people::Role::Owner) {
+                            Err(people::Refusal::Role { held: role })
+                        } else if let Some(why) = crate::admission::deletion::live_roots(core, project) {
+                            Err(why)
+                        } else {
                             crate::admission::deletion::begin(
                                 core,
                                 env,
@@ -315,8 +319,6 @@ pub(crate) fn tag_people_part(
                                 project,
                                 grace,
                             )
-                        } else {
-                            Err(people::Refusal::Role { held: role })
                         };
                         if let Err(why) = result {
                             routed.work.push(Work::Event(Event::People(people::Event::Decided {

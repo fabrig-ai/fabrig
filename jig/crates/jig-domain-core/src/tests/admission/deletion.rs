@@ -126,6 +126,145 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
     }
 }
 
+fn owner_remove(core: &mut Core, limits: &Limits) -> people::Outcome {
+    let mut child = Queue::uncapped();
+    child.push(people::Request::Route {
+        request: Token::new(90),
+        person: 1,
+        project: 1,
+        role: Some(people::Role::Owner),
+        ask: Box::new(people::Ask::RemoveProject { project: 1, grace: None }),
+        models: Box::new([]),
+    });
+    let mut work = Queue::uncapped();
+    let requests = crate::routing::party::people::tag_people(core, &environment(limits), child, &mut work);
+    let answer = outcome(core, work);
+    if let people::Outcome::Refused(_) = answer {
+        assert!(requests.is_empty(), "refusal writes no deletion");
+    }
+    answer
+}
+
+#[test]
+fn an_owner_cannot_remove_a_live_chat() {
+    let (mut core, limits) = core();
+    make_task(&mut core, &limits, 12);
+    let before = core.tasks.task(12).unwrap().clone();
+    let answer = owner_remove(&mut core, &limits);
+    assert_eq!(answer, people::Outcome::Refused(people::Refusal::LiveTasks { tasks: Box::new([12]), more: 0 }));
+    assert!(core.open_project(1));
+    let Document::Frame(frame) = make(&core, &limits, 1, &Subject::Frame { party: 1 }, &window(), Wall::EPOCH).unwrap()
+    else {
+        panic!("frame")
+    };
+    assert_eq!(frame.projects.get(0).unwrap().project, 1);
+    assert!(core.people.deletions().is_empty());
+    assert!(!core.deletions.contains(1));
+    assert_eq!(core.tasks.task(12), Some(&before));
+}
+
+#[test]
+fn an_owners_refusal_names_only_live_roots_lowest_first() {
+    let (mut core, limits) = conversation_tree();
+    let mut rows = List::uncapped();
+    for number in [4, 3, 2, 1] {
+        let mut row = core.tasks.task(number).unwrap().clone();
+        row.number = if number == 1 { 12 } else { number + 14 };
+        row.root = 12;
+        if number == 1 {
+            row.delegates = Box::new([16, 17, 18]);
+        } else {
+            row.requester = tasks::Party::Task(12);
+            row.funder = tasks::Funder::Task(12);
+        }
+        rows.push(row).unwrap();
+    }
+    let mut goal = core.tasks.task(1).unwrap().clone();
+    goal.number = 15;
+    goal.root = 15;
+    goal.delegates = Box::new([]);
+    goal.flags.conversation = false;
+    goal.tracked = Some(1);
+    rows.push(goal).unwrap();
+    fixtures::restore(&mut core, &limits, rows.into_boxed());
+    assert_eq!(
+        owner_remove(&mut core, &limits),
+        people::Outcome::Refused(people::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 0 })
+    );
+    assert!(core.open_project(1));
+    for number in [12, 15, 16, 17, 18] {
+        assert!(!closing(&core, number));
+    }
+}
+
+#[test]
+fn an_owners_refusal_bounds_the_named_live_roots() {
+    let (mut core, mut limits) = core();
+    make_task(&mut core, &limits, 12);
+    let original = core.tasks.task(12).unwrap().clone();
+    limits.tasks.tasks = 40;
+    limits.tasks.project_tasks = 40;
+    let mut rows = List::uncapped();
+    for number in (1..=34).rev() {
+        let mut row = original.clone();
+        row.number = number;
+        row.root = number;
+        rows.push(row).unwrap();
+    }
+    fixtures::restore(&mut core, &limits, rows.into_boxed());
+    let answer = owner_remove(&mut core, &limits);
+    let mut expected = List::with_capacity(people::NAMED_TASKS);
+    for number in 1..=u64::from(people::NAMED_TASKS) {
+        expected.push(number).unwrap();
+    }
+    assert_eq!(answer, people::Outcome::Refused(people::Refusal::LiveTasks { tasks: expected.into_boxed(), more: 2 }));
+    assert!(core.open_project(1));
+}
+
+#[test]
+fn a_closing_chat_is_live_until_it_has_ended() {
+    let (mut core, limits) = core();
+    make_task(&mut core, &limits, 12);
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Cancel {
+            reply_to: ReplyTo::new(Token::new(1)),
+            by: tasks::Party::Person(1),
+            operation: tasks::Cancel { task: 12, reason: Box::new([]), grace: None, message: None },
+        },
+    );
+    assert!(closing(&core, 12));
+    assert_eq!(
+        owner_remove(&mut core, &limits),
+        people::Outcome::Refused(people::Refusal::LiveTasks { tasks: Box::new([12]), more: 0 })
+    );
+    send_task(&mut core, &limits, tasks::Event::EffectsSettled { task: 12 });
+    send_task(&mut core, &limits, tasks::Event::Settled { task: 12 });
+    assert!(core.tasks.task(12).is_none());
+    assert_eq!(owner_remove(&mut core, &limits), people::Outcome::ProjectRemoved { project: 1 });
+}
+
+#[test]
+fn a_chat_finishing_under_a_grace_is_live() {
+    let (mut core, limits) = conversation_tree();
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Cancel {
+            reply_to: ReplyTo::new(Token::new(1)),
+            by: tasks::Party::Person(1),
+            operation: tasks::Cancel { task: CHAT, reason: Box::new([]), grace: Some(GRACE), message: Some(1) },
+        },
+    );
+    assert!(core.tasks.task(CHAT).unwrap().grace.is_some());
+    assert_eq!(
+        owner_remove(&mut core, &limits),
+        people::Outcome::Refused(people::Refusal::LiveTasks { tasks: Box::new([1]), more: 0 })
+    );
+    assert!(core.open_project(1));
+}
+
 #[test]
 fn an_owners_grace_at_the_bound_is_admitted_and_kept() {
     let (mut core, limits) = core();
@@ -148,7 +287,7 @@ fn an_owners_grace_at_the_bound_is_admitted_and_kept() {
 #[test]
 fn a_grace_past_the_bound_is_refused_and_nothing_is_deleted() {
     for owner in [false, true] {
-        let (mut core, limits) = make_tree();
+        let (mut core, limits) = if owner { core() } else { make_tree() };
         let grace = Some(Duration::from_nanos(limits.tasks.grace.as_nanos() + 1));
         let mut work = Queue::uncapped();
         let mut out = Queue::uncapped();
@@ -181,8 +320,10 @@ fn a_grace_past_the_bound_is_refused_and_nothing_is_deleted() {
         assert!(!core.deletions.contains(1));
         assert!(core.people.deletions().is_empty());
         assert!(out.is_empty());
-        for number in 1..=4 {
-            assert!(!closing(&core, number));
+        if !owner {
+            for number in 1..=4 {
+                assert!(!closing(&core, number));
+            }
         }
     }
 }

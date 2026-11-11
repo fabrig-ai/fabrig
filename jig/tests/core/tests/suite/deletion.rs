@@ -430,6 +430,44 @@ fn final_rows(world: &World) -> BTreeMap<root::Key, root::Record> {
 }
 
 #[test]
+fn an_owner_ends_live_work_then_removes_under_a_new_key() {
+    let (config, limits) = configuration(SEED);
+    let initial = profile_fixtures::create_chat(
+        &profile_fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        PROJECT,
+        0,
+        b"live conversation".as_slice().into(),
+    );
+    let rows = account_rows(&config);
+    let mut world = World::new(Setup {
+        seed: SEED,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows),
+        ..Setup::default()
+    });
+    let chat = world.task();
+    let ask = people::Ask::RemoveProject { project: PROJECT, grace: None };
+    let refused = people::Reply::Outcome(people::Outcome::Refused(people::Refusal::LiveTasks {
+        tasks: Box::new([chat]),
+        more: 0,
+    }));
+    request(&mut world, REMOVE, ask.clone());
+    assert_eq!(world.people_answers.last(), Some(&refused));
+    assert!(!world.store.rows.contains_key(&deletion()));
+    fixtures::finish_chat(&mut world, 7, b"ended before deletion");
+    request(&mut world, REMOVE, ask.clone());
+    assert_eq!(world.people_answers.last(), Some(&refused), "a refused key keeps its answer");
+    request(&mut world, REMOVE_GRACED, ask);
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::ProjectRemoved { project: PROJECT }))
+    );
+    finish(&mut world);
+}
+
+#[test]
 fn a_deleted_project_leaves_only_its_spend() {
     let mut world = deleted_world(SEED);
     let number = world.store.applied + 1;

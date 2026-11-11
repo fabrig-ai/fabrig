@@ -191,9 +191,12 @@ fn a_deleted_project_loses_its_rules() {
     assert!(kept(&driver, 2, 1, 1, settings::SettingSlot::Change).is_some());
     let chat = driver.chat_ask(1, b"work under the project rules");
     ask(&mut driver, 27, chat);
-    ask(&mut driver, 26, people::Ask::RemoveProject { project: 1, grace: None });
-    driver.fire_at(Duration::from_secs(5));
+    ask(&mut driver, 28, people::Ask::Cancel { project: 1, task: 1, reason: Box::new([]), grace: None });
     driver.pump();
+    ask(&mut driver, 26, people::Ask::RemoveProject { project: 1, grace: None });
+    driver.hello(Token::new(7));
+    driver.fire_at(Duration::from_secs(5));
+    driver.settle();
     assert!(
         driver.delivered.iter().any(|delivery| matches!(
             delivery,

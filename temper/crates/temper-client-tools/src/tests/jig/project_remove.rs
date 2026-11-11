@@ -94,6 +94,42 @@ fn a_refused_project_removal_exits_2() {
 }
 
 #[test]
+fn a_live_project_removal_names_its_tasks_and_exits_2() {
+    for (more, expected) in [
+        (0, b"project remove: This project has live tasks; end them first: 12, 15\n".as_slice()),
+        (2, b"project remove: This project has live tasks; end them first: 12, 15, and 2 more\n".as_slice()),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        root.deliver(c::Delivery::Me(Box::new(me(true, b"fabrig"))));
+        let call = root.submit(REMOVE);
+        let mut tasks = List::with_capacity(2);
+        tasks.push(12).unwrap();
+        tasks.push(15).unwrap();
+        root.answered(call, c::Answer::Refused { refusal: c::Refusal::LiveTasks { tasks, more }, at: None });
+        let printed = root.answer(call).expect("live removal refused");
+        assert_eq!(printed.status, 2);
+        assert!(printed.stdout.is_empty());
+        assert_eq!(printed.stderr.as_ref(), expected);
+    }
+}
+
+#[test]
+fn a_live_project_removal_json_carries_tasks_and_more() {
+    let mut root = f::signed_in(f::PARTY);
+    root.deliver(c::Delivery::Me(Box::new(me(true, b"fabrig"))));
+    let argv = f::extended(REMOVE, &["--json"]);
+    let call = root.submit(argv.as_slice());
+    let mut tasks = List::with_capacity(2);
+    tasks.push(12).unwrap();
+    tasks.push(15).unwrap();
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::LiveTasks { tasks, more: 2 }, at: None });
+    let printed = root.answer(call).expect("JSON live removal refused");
+    assert_eq!(printed.status, 2);
+    assert_eq!(printed.stderr.as_ref(), br#"{"operation":"remove-project","outcome":{"refused":{"refusal":{"live_tasks":{"tasks":[12,15],"more":2}},"at":null}},"task":null,"to":null}"#);
+    assert!(printed.stdout.is_empty());
+}
+
+#[test]
 fn a_project_removal_json_carries_its_answer_number() {
     let mut root = f::signed_in(f::PARTY);
     root.deliver(c::Delivery::Me(Box::new(me(true, b"fabrig"))));
