@@ -5,15 +5,16 @@ use temper_shell::{commands::Row, directories, environment, table::HELP};
 pub const ENGINE: Table = Table {
     binary: "temper-engine",
     line: "the deployment's engine, with the owned forge's commands.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &[SERVE, VERSIONS, HELP, FETCH, PREPARE, RUN, SIGN_IN, SOURCE, REMOVE, FORGE_CHILD],
     settings: &[&directories::SETTINGS],
     variables: &[
         &temper_service_shell::WAIT_CHECK,
         &temper_service_shell::CUT_AT_LISTEN,
         &super::forge_sign_in::NO_REGISTRATION,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_client_bundle::INTERNAL_BUNDLE,
     ],
     more: "temper-engine COMMAND --help prints one command; temper-engine help pages lists the pages.",

@@ -41,6 +41,8 @@ pub fn refused(directory: &Path, name: &std::ffi::OsStr) -> String {
         &[],
         b"/",
         b"temper-box",
+        "0.0.0",
+        "0123456789ab",
     )
     .expect_err("login refused")
 }

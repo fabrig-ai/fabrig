@@ -37,6 +37,7 @@ name = "proof_live"
 path = "tests/proof_live.rs"
 
 [dependencies]
+temper-version.workspace = true
 temper-box-shell.workspace = true
 skein-fail-stop.workspace = true
 
