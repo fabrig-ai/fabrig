@@ -139,7 +139,7 @@ name `smith check` and the event stream's header print it under
 | `shell_timeout` | duration | a command's deadline when its call asks for none |
 | `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5) |
 | `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5) |
-| `check_timeout` | duration | the checks' deadline (domain/run.md, 8.1), cut at the run's end; a charter that allows a change keeps at least this much time in its reserve (../domain/budget.md, 1) |
+| `check_timeout` | duration | the checks' deadline where the charter names no bound of its own (domain/run.md, 8.1; charter.md, section 2), cut at the run's end; a check that ran out of time runs once more at twice its bound (domain/run.md, 8.1); a charter that allows a change keeps at least this much time in its reserve (../domain/budget.md, 1) |
 | `group_stop` | duration | each of the three steps that stop a command's group (agent.md, section 2) |
 | `close` | duration | io's close deadline (section 7) |
 | `write_deadline` | duration | the most one write of the event stream may stay in flight before its destination is given up (events.md, section 5.2) |
@@ -837,8 +837,10 @@ reserve against the budget.
   fails unsent.
 - **Tools and checks** have the domain's deadlines: a host tool's from
   the charter, at most `tool_deadline`; a command's from its call, or
-  `shell_timeout`, clamped to `tool_deadline`; the checks' is
-  `check_timeout`, cut at the run's end (domain/tools.md, section 5).
+  `shell_timeout`, clamped to `tool_deadline`; the checks' is the
+  charter's bound, else `check_timeout`, cut at the run's end, and twice
+  that for a check's one retry after it ran out of time (domain/run.md,
+  8.1; domain/tools.md, section 5).
 - **A job keeps its command's deadline,** counted from the command's
   start, whatever its yield. A `shell` call's yield and a `job` call's
   wait bound how long that call waits before it answers, never how long
