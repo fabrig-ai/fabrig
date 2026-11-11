@@ -84,7 +84,7 @@ digest: task 7c1e09a2b44f0d13
 - **A hold for failed runs** has its class and no failure's text: `held:`
   prints `out of tries: run failures`, and `way out:` starts `the engine's log
   names each failure (temper help hold), then`. `temper help hold` says where
-  that log is, under `temper box` and under `temper serve`
+  that log is, under `temper box` and under `temper-box serve`
   (`../../domain/worker.md`, 12, on keeping the text with the hold).
 - **`next run:`** prints what a run that can't start waits for, then the
   lines that say why and what to run (`tools.md`, 2). When no account serves the
@@ -374,7 +374,7 @@ may change with them.
   secret. *Busy*, *streams full* (`README.md`, 6.2) and all watches in use keep their
   own lines, ahead of these. A watch refused not ready also takes
   precedence: its line says the engine is not ready and points to
-  `temper serve`'s log for why (`../../protocol/README.md`, 6.2), rather
+  `temper-box serve`'s log for why (`../../protocol/README.md`, 6.2), rather
   than claiming all watches are in use. A sign-in's or a sign-out's call
   says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any

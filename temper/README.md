@@ -24,9 +24,9 @@ draft to landed change.
 - **Built from the family.** jig's engine runs the work, smith's agents
   do it under the charters temper writes and with the tools it serves,
   and skein carries the bytes, the forge's calls among them.
-- **One binary, standalone first.** `temper serve` runs the engine and a
-  worker on one person's machine, `temper open` is that person's
-  terminal, and `temper forge` and `temper box` set up and run a forge
+- **One binary, standalone first.** `temper-box serve` runs the engine and a
+  worker on one person's machine, `temper-box open` is that person's
+  terminal, and `temper-box forge` and `temper box` set up and run a forge
   beside it.
 - **Tested as it runs.** Worlds with a fake forge and a fake LLM, then
   the real loop, then the binary against an owned Forgejo with its
@@ -73,7 +73,7 @@ falls back to `TEMPER_CONFIG`, `TEMPER_DATA` or `TEMPER_CACHE`, then the
 corresponding XDG directory under `temper`. Relative flags are joined to
 the working directory once at startup. Data and cache must be private.
 
-`temper init --config ./config --data ./data --cache ./cache` writes the
+`temper-box init --config ./config --data ./data --cache ./cache` writes the
 initial configuration and worker secret. It refuses existing
 `temper.json`, `worker.secret` or `worker.digest` files.
 

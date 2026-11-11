@@ -1,6 +1,6 @@
 # The TUI in front of a box
 
-`temper box`, run in a terminal, runs its services and the TUI in front
+`temper-box`, run in a terminal, runs its services and the TUI in front
 of them: a small front end for the box, started by it, which quitting
 stops (`../../protocol/setup/box.md`, 6). The TUI is the one of `README.md`, 1 to 3 and `pages.md` and `theme.md` and `README.md`, 4
  but where this section says otherwise. Its pages are drawn from
@@ -8,7 +8,7 @@ the user's hand-made frames of the look request `tui-box-front`
 (2026-11-08), at 80 by 24 in the dark theme, and are illustrative, as
 `pages.md`'s are.
 
-- **Its start:** the box spawns `temper internal tui --box
+- **Its start:** the box spawns `temper-box internal tui --box
   http://HOST:PORT`, HOST:PORT the clients' listener, on loopback, never
   the configured public origin, which is the TUI's address
   (`../../protocol/setup/box.md`, 6); the handed link is made there too. Its stdin is

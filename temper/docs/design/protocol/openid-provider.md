@@ -170,7 +170,7 @@ forgejo admin auth add-oauth --name temper --provider openidConnect \
   --auto-discover-url https://temper.example.com/.well-known/openid-configuration
 ```
 
-`temper forge sign-in` prints it, for a managed Forgejo and `temper serve`'s
+`temper-box forge sign-in` prints it, for a managed Forgejo and `temper-box serve`'s
 owned one alike (`setup/owned.md`, 8); a box runs its own (9), with no secret.
 The name `temper` is the callback's path
 segment, so it is fixed. `add-oauth` fetches the discovery document at
@@ -207,13 +207,13 @@ section 3), and temper's `application.sign_in.forges`:
 ```
 
 - **The key:** an RSA key of 3072 bits, PKCS#8 PEM, mode 0600, the
-  service's own user, made on its host by `temper forge sign-in`
+  service's own user, made on its host by `temper-box forge sign-in`
   (`setup/owned.md`, 8) with `openssl genpkey`, never copied, printed or
   logged; jig's start refuses any other. A key replaced is a file
   replaced; its key set's `kid` names it anew.
 - **`sign_in.forges`:** a list, absent for none (`configuration/engine.md`
   ): each `{"forge", "client"}`, `forge` a forge's number, as
-  the Forges page and `temper forge` name it, `client` one of the
+  the Forges page and `temper-box forge` name it, `client` one of the
   provider's clients. Each forge and each client at most once, and each
   client one of the provider's, or the start is refused at its path. A
   member whose login, folded, is the bot's (`temper`) refuses the start at
@@ -268,7 +268,7 @@ section 3), and temper's `application.sign_in.forges`:
   forge's records load, an entry for a forge not kept, not a Forgejo,
   of another origin or past the bundle's room named and left out; the
   metas' bytes;
-  `temper forge sign-in`'s printed bytes and the files it makes.
+  `temper-box forge sign-in`'s printed bytes and the files it makes.
 - **One process-tier story** (`../testing/process-tier.md`): an owned
   Forgejo, the temper source added by the printed command, a scripted
   client with a cookie jar that signs in to temper by the printed link
@@ -290,11 +290,11 @@ section 3), and temper's `application.sign_in.forges`:
 A box's person presses a repository's link and lands on its page, signed in
 (`../client/forge/deployment.md`, *A repository's link*). A box has no provider
 without this, and nobody to run a printed command, so its owned Forgejo sets
-itself up, with no command for the person. A managed Forgejo and `temper
+itself up, with no command for the person. A managed Forgejo and `temper-box
 serve`'s owned one stay as 4 to 7 say. This is an authentication change, so
 its reasons are kept here.
 
-**What the box's configuration holds,** as `temper init --box` writes it
+**What the box's configuration holds,** as `temper-box init --box` writes it
 (`setup/init.md`, 2):
 
 ```
@@ -348,7 +348,7 @@ account on this Forgejo and the printed link signs in the box's one person (belo
 A box trusts every program listening on this machine's loopback, since browser
 cookies ignore ports. So Forgejo's session lasts an hour (`setup/owned.md`, 2): every
 press signs in again, and one click needs no more. `login` stays for a
-managed Forgejo, whose accounts are not temper's, and for `temper serve`'s owned
+managed Forgejo, whose accounts are not temper's, and for `temper-box serve`'s owned
 one, until the same reasoning has been checked for several members.
 
 **What a name match could take,** and how a box rules each out:
@@ -363,7 +363,7 @@ one, until the same reasoning has been checked for several members.
 
 - **Refused, at the start, at its path:** `machine.owned.person.login`, folded,
   being `temper`, `temper-admin` or `work`, or its `email`, folded, being the bot's
-  or the set-up's admin's, when `machine.owned.sign_in` is not `null`. `temper init --box` already falls back
+  or the set-up's admin's, when `machine.owned.sign_in` is not `null`. `temper-box init --box` already falls back
   from these logins; a hand-written document is refused. A login reaches jig only
   from these or from `sign_in.members` (7), so a start-time refusal is whole.
 - **Refused too, at the start, at `machine.owned.sign_in`'s path:** that member
@@ -382,8 +382,8 @@ one, until the same reasoning has been checked for several members.
   is refused *not a person* (jig's `protocol/client/openid.md`).
 
 **The provider's key:** an RSA key of 3072 bits, as 7 says, made at the first run
-by `temper init --box`, before the document is written, in `provider.key` in the data
-directory, 0600 and the service's user's, under `temper forge sign-in`'s rule
+by `temper-box init --box`, before the document is written, in `provider.key` in the data
+directory, 0600 and the service's user's, under `temper-box forge sign-in`'s rule
 (`setup/owned.md`, 8): `openssl genpkey`, since skein has no key generation (ring signs
 and does not generate); a key already there is left as it is. With no `openssl`, or if it fails, the document has
 `clients.provider` and `machine.owned.sign_in` `null`, the box goes on and the links
@@ -396,7 +396,7 @@ local users, and a fixed value is no secret. So the box's client has none, and
 other rules are skein's, per client, so no other client is weakened.
 
 **The source's step:** the last of the owned group's, after Forgejo answers
-(`setup/box.md`, 1): `temper forge source`, which makes the source serve. It reads
+(`setup/box.md`, 1): `temper-box forge source`, which makes the source serve. It reads
 temper's discovery document first, `ISSUER/.well-known/openid-configuration`, within
 the set-up's deadline; with no answer it ends failed, `temper's discovery did not
 answer`. Then, unless Forgejo lists the source, it adds it, by `add-oauth --name temper
