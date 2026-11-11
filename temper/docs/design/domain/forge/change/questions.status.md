@@ -1,8 +1,16 @@
 # questions: status
 
-2026-11-10. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-11. Where the tree's code lags or departs from [questions.md](questions.md).
 
 - **Not yet:**
+  - 2: the read takes changes `First` or `Landing` alone, its facts a
+    merge's, and a change it shows holds its branch's queue
+    [in flight: change 203].
+  - 2, *The forge's part*: a rule covers a change by its branch alone,
+    not by the kept `Touched` at its head [in flight: change 206].
+  - 2, *The forge's part* and *The root's part*: a row counts `behind`
+    and names no path set: no `sets`, no `ApprovalSet`
+    [in flight: change 207].
   -  the user's N4 request of 2026-11-08 asks for focused and
     fuzzy tests. The focused story
     `a_persons_request_for_changes_repairs_with_its_remarks`

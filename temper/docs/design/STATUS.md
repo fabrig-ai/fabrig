@@ -339,7 +339,8 @@ each call kept as a row, decided or asked, for 7 days under
 Decided for you on Home and Needs you, each row saying what allowed it;
 each need's why, Stop asking and Keep asking; and kind 7 without
 `away`. The joint world walks it on Agents review's table. A standing
-role's case waits for R1 and an asker's change's paths for N2; the TUI
+role's case is built by R1; judging an asker's change's paths, read
+since N2, is N1's repair's; the TUI
 draws no why; its repair, goal 367, draws Needs you's Decided head,
 a words offer's sentence over its field, Home's Away spell with no row
 showing, and the why line on the signal ground with "Keep asking" and
@@ -357,7 +358,19 @@ for reads, the terminal's inbox lists none, and its item's question names
 its source where `needs.html` names who uses it; its render check and walk follow landing
 (`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
 2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
-4). Ask temper's
+4). Rules by path are the whole story's milestone N2, by goal 187: a
+landing rule's `sets`, path sets of the project's classes, through
+both codecs, settings files and ctl; what a change touches, the
+forge's comparison from its merge base to its head, as `Touched`,
+judged at that exact head by one coverage predicate for every reader
+of the rules and by the turn's merge; a change whose sign-off waits
+out of its branch's queue, its review facts a step's; and Needs you's
+card saying the path sets it signs off, with the domain world's story
+of a path rule's change waiting while another lands. The path's stop
+for a path set is P3c's; its walk follows landing
+(`domain/forge/change/gates.status.md`; `domain/forge/queues.status.md`;
+`client/forge/README.status.md`; `draft/what-reaches-you.status.md`,
+7). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing, and its reading milestone, M2:

@@ -6,6 +6,10 @@
 
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
 
+- **Not yet:** 3: a settings file's landing rule has no `sets`, in
+  `temper-settings-form` or `temper-client-tools`' `render_rule`
+  [in flight: change 202].
+
 - **Not yet:** 1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   2: `repository receipts`, `finding list`, `finding show`, `qa marks`,

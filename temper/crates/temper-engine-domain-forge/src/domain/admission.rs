@@ -489,7 +489,8 @@ pub(super) fn read_failed(
         | StepStage::Compare
         | StepStage::ContainsHead
         | StepStage::CatchUp
-        | StepStage::Reviews(_) => {
+        | StepStage::Reviews(_)
+        | StepStage::Paths => {
             return false;
         }
     };

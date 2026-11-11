@@ -3,6 +3,10 @@
 2026-11-11. Where the tree's code lags or departs from [queues.md](queues.md).
 
 - **Not yet:**
+  - *In the queue* and *Out of the queue while a sign-off waits*: a
+    ready change whose approval is short stays in the queue, and a
+    first whose merge waits on one keeps the turn, holding the branch
+    [in flight: change 203].
   -  the user's N4 request of 2026-11-08 asks for focused and
     fuzzy tests. The focused story
     `a_persons_request_for_changes_repairs_with_its_remarks`

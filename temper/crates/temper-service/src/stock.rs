@@ -857,6 +857,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
 fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
     use temper_engine_domain_forge::{self as forge, settings};
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: forge::GateLast::Open(Box::default()),

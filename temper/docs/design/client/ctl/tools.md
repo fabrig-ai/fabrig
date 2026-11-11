@@ -247,7 +247,10 @@ agent must name.
   `value` member `settings show … --json` prints: for a landing rule, `README.md`, section 3
   's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
-  (`../../protocol/configuration/settings.md`, 2), for the forge's charter a charter's
+  (`../../protocol/configuration/settings.md`, 2), its `sets` a list of
+  path sets' numbers, `[1]`, optional, `[]` left out, and printed only
+  where it names one, so a rule by none reads as it always has
+  (`../../protocol/configuration/engine.md`), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
   "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,

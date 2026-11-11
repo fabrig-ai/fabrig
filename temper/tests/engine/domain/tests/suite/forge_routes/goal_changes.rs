@@ -47,6 +47,7 @@ fn goal_landing_rules() -> Box<[engine::LandingRule]> {
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     Box::new([
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -60,6 +61,7 @@ fn goal_landing_rules() -> Box<[engine::LandingRule]> {
             approvals: Box::new([]),
         },
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,

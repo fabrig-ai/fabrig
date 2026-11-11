@@ -9,6 +9,7 @@ use temper_engine_domain_world::kinds;
 
 fn rule() -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([b"forge".as_slice().into()]),
             last: forge::GateLast::Open(Box::new([])),

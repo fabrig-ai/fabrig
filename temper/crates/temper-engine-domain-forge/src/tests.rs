@@ -38,6 +38,7 @@ mod release;
 mod removal;
 mod requires;
 mod restore_fit;
+mod rules_by_path;
 mod runs;
 mod saved_close;
 mod settings;
@@ -523,6 +524,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -616,6 +618,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -702,6 +705,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }

@@ -78,6 +78,7 @@ fn goal_world_with_updates(
     .with_goal_closer()
     .with_landing_deployment(Box::new([
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -97,6 +98,7 @@ fn goal_world_with_updates(
             approvals: Box::new([]),
         },
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,

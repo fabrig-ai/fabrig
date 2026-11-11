@@ -36,10 +36,17 @@ pub struct Row {
     pub role: u32,
     pub required: u32,
     pub counted: u32,
-    pub behind: u32,
+    pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: Yours,
 }
+/// A path set touched by this approval's change (temper/docs/design/client/forge/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ApprovalSet {
+    pub number: u8,
+    pub name: Box<[u8]>,
+}
+
 #[derive(Debug)]
 enum State {
     Unknown,
@@ -178,6 +185,11 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
     let mut rows = List::with_capacity(document.rows.len());
     for value in document.rows.into_boxed() {
         let value = value.into_parts();
+        let mut sets = List::with_capacity(value.sets.len());
+        for set in value.sets.into_boxed() {
+            let set = set.into_parts();
+            sets.push(ApprovalSet { number: set.number, name: set.name }).expect("wire bounds approval sets");
+        }
         rows.push(Row {
             task: value.task,
             project: value.project,
@@ -198,7 +210,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
             role: value.role,
             required: value.required,
             counted: value.counted,
-            behind: value.behind,
+            sets: sets.into_boxed(),
             whole: value.whole,
             yours: match value.yours {
                 w::ApprovalYours::Counts => Yours::Counts,
