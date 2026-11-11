@@ -530,7 +530,7 @@ tests/fake-checkout                 temper-fake-checkout: working trees' git, ov
 tools/git-transcripts               git's transcripts, from real git against skein's throwaway Forgejo (../protocol/git.md, section 9)
 tools/gallery                       temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 tools/journeys                      temper-client-journeys: recorded walks replayed through the shipped host and printed (../client/journeys.md), its test reprinting each committed journey
-tools/stage-one                     temper-stage-one: configuring's stage 1, the golden, its check, its judge's brief and the evidence's collection (6.5), its step tests in the focused suite
+crates/temper-stage-one-tool        bin/temper-stage-one: configuring's stage 1, the golden, its check, its judge's brief and the evidence's collection (6.5), its step tests in the focused suite
 scripts/proof-live.sh               the live tier
 ```
 

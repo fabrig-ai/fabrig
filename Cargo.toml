@@ -265,7 +265,8 @@ members = [
     "temper/crates/temper-box",
     "temper/tools/gallery",
     "temper/tools/journeys",
-    "temper/tools/stage-one",
+    "temper/crates/temper-stage-one-tool",
+    "temper/bin/temper-stage-one",
     "temper/tests/one-process",
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
@@ -598,6 +599,7 @@ temper-shell = { path = "temper/crates/temper-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-version = { path = "temper/crates/temper-version" }
+temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper = { path = "temper/crates/temper" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }

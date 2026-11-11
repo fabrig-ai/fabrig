@@ -396,7 +396,11 @@ fn parse_number(text: &str, flag: &str) -> Result<u32, CollectError> {
 /// Run the collect command, reporting usage and read failures with exit 2.
 #[must_use]
 pub fn main(args: &[String]) -> ExitCode {
-    match CollectArgs::parse(args).and_then(|args| collect(&args)) {
+    let args = match CollectArgs::parse(args) {
+        Ok(args) => args,
+        Err(error) => return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::COLLECT, &error.reason)),
+    };
+    match collect(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("temper-stage-one: {error}");

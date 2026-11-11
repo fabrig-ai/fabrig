@@ -4,7 +4,7 @@ temper-box
 temper-client-world
 temper-docs
 temper-client-journeys
-temper-stage-one
+temper-stage-one-tool
 temper-playground temper/tests/playground/
 temper-playground-serve-tool
 skein-oauth-world

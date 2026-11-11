@@ -378,7 +378,7 @@ fn run_exits_by_outcome() {
     assert!(check::run(std::slice::from_ref(&missing)).expect_err("unreadable directory").contains("box.json"));
     assert_eq!(check::main(&[missing]), ExitCode::from(2));
     for args in [vec![], vec![dir.clone(), "--unknown".into()], vec!["--json".into(), dir]] {
-        assert!(check::run(&args).expect_err("usage").starts_with("usage:"));
+        assert!(check::run(&args).expect_err("usage").starts_with("temper-stage-one check: "));
     }
 }
 
