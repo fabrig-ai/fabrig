@@ -169,6 +169,12 @@ fn pull_of(world: &mut World, change: u64) -> raw::Pull {
 }
 
 fn assert_landed(world: &mut World, change: u64) {
+    for _ in 0..200 {
+        if matches!(change_row(world, change).change.state, State::Landed { .. }) {
+            break;
+        }
+        world.tick();
+    }
     assert!(matches!(change_row(world, change).change.state, State::Landed { .. }), "{:?}", change_row(world, change));
     let pull = change_row(world, change).pull.expect("opened pull");
     assert!(

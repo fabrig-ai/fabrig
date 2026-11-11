@@ -37,6 +37,10 @@ impl Exchange {
             head_total: None,
         }
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the request borrows the component's conditional store while it is composed"
+    )]
     pub fn start(
         &mut self,
         c: &mut Connection,
@@ -45,6 +49,7 @@ impl Exchange {
         user_agent: &[u8],
         exchange: plans::plan::Exchange,
         authorization: Secret,
+        kept: &mut crate::kept::Store,
     ) -> Result<(), documents::Refusal> {
         let plans::plan::Exchange { request, range } = exchange;
         let encoded = documents::encode(&request, &limits::documents(&env.limits))?;
@@ -88,6 +93,7 @@ impl Exchange {
             env,
             http::Call { method, target: encoded.target, headers: headers.into_boxed(), body, close: false },
             encoded.body,
+            kept,
         );
         Ok(())
     }
@@ -166,15 +172,22 @@ impl Exchange {
         }
     }
     pub fn cut(&mut self, c: &mut Connection) {
+        c.cancel_capture();
         if let Some(decoder) = &mut self.decoder {
             let request = documents::cut(decoder);
             c.set_json_next(request);
         }
     }
     /// Routes the same bounded run of movements before handing an answer to the plan.
-    pub fn pump(&mut self, c: &mut Connection, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+    pub fn pump(
+        &mut self,
+        c: &mut Connection,
+        env: &Env<Limits>,
+        io: &mut Queue<skein_io::Request>,
+        kept: &mut crate::kept::Store,
+    ) {
         for _ in 0_u32..64 {
-            match c.step(env, io, !self.heard.is_empty()) {
+            match c.step(env, io, !self.heard.is_empty(), kept) {
                 Moved::Within => {}
                 Moved::Nothing => break,
                 Moved::Head(response) => self.response(c, env, response),

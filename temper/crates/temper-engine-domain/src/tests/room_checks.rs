@@ -230,6 +230,7 @@ fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
                 key: Some(key),
                 note_decoding: false,
                 job: None,
+                page: None,
                 render: FlightRender::Plain,
                 name: b"proposal".as_slice().into(),
                 tool: b"propose_settings".as_slice().into(),

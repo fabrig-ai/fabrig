@@ -56,6 +56,7 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        contains_head: Status::Unknown,
         merge_job: false,
         delegate: None,
         catch_up: None,
@@ -368,6 +369,159 @@ fn a_released_failed_ci_repair_requests_one_replacement_despite_the_stale_failur
     let pending = step(&fresh.change, &f, &heard(), at(5), &limits);
     assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) });
     assert_eq!(pending.change.repairs, 1);
+}
+
+fn failed_resolution(delegate: Delegate) -> (Change, Facts, Heard) {
+    let mut c = change(State::Resolving { requested: true, base: BASE });
+    c.resolutions = LIMITS.resolutions;
+    let f = Facts { delegate: Some(delegate), ..facts() };
+    let h = Heard { delegate: Status::Failed, ..heard() };
+    let failed = step(&c, &f, &h, at(2), &LIMITS);
+    assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(failed.change.last_head, Some(HEAD));
+    (failed.change, f, h)
+}
+
+#[test]
+fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failure() {
+    use crate::Way;
+    for (terminal, delegate) in [
+        ("resolution failed", Delegate::Resolve { base: BASE }),
+        // The connector reports a cancelled delegate as Failed too.
+        ("resolution cancelled", Delegate::Resolve { base: BASE }),
+        ("merge job failed", Delegate::Merge { base: BASE, from: Some(HEAD) }),
+    ] {
+        let (c, f, h) = failed_resolution(delegate);
+        for (mergeable, live, way, state, decision, resolutions, last_head) in [
+            (Status::Passed, false, Way::Queue, State::Checking { head: NEW }, Decision::None, 0, Some(NEW)),
+            (
+                Status::Failed,
+                false,
+                Way::Queue,
+                State::Resolving { requested: true, base: MERGE },
+                Decision::Delegate(Delegate::Resolve { base: MERGE }),
+                1,
+                Some(NEW),
+            ),
+            (
+                Status::Unknown,
+                false,
+                Way::Queue,
+                State::WaitingProducer { base: BASE },
+                Decision::Wait { until: Some(at(4000)) },
+                0,
+                Some(NEW),
+            ),
+            (
+                Status::Pending,
+                false,
+                Way::Queue,
+                State::WaitingProducer { base: BASE },
+                Decision::Wait { until: Some(at(4000)) },
+                0,
+                Some(NEW),
+            ),
+            (
+                Status::Failed,
+                true,
+                Way::Queue,
+                State::WaitingProducer { base: BASE },
+                Decision::Wait { until: None },
+                0,
+                Some(HEAD),
+            ),
+            (
+                Status::Failed,
+                false,
+                Way::Turn,
+                State::Preparing { from: NEW, main: BASE, ready_since: at(3600) },
+                Decision::Effect(Effect::Prepare { head: NEW, main: BASE }),
+                0,
+                Some(NEW),
+            ),
+        ] {
+            let mut held = c.clone();
+            held.way = way;
+            let fresh = Facts {
+                branch: Some(NEW),
+                pull: Pull::Open { head: NEW, base: MERGE },
+                base_tip: MERGE,
+                merge_job: true,
+                mergeable,
+                settling: Some(at(4000)),
+                ..f.clone()
+            };
+            let stale = Heard { delegate_live: live, ..h };
+            let reset = step(&released(&held, at(3)), &fresh, &stale, at(3), &LIMITS);
+            assert_eq!(reset.decision, Decision::None, "{terminal}");
+            assert_eq!(reset.change.state, State::WaitingProducer { base: BASE }, "{terminal}");
+            assert_eq!(reset.change.resolutions, 0, "{terminal}");
+            // A live pushing task must not stall even long after the release.
+            let next = step(&reset.change, &fresh, &stale, at(3600), &LIMITS);
+            assert_eq!(next.decision, decision, "{terminal}, {mergeable:?}, {way:?}, live={live}");
+            assert_eq!(next.change.state, state, "{terminal}");
+            assert_eq!(next.change.resolutions, resolutions, "{terminal}");
+            assert_eq!(next.change.last_head, last_head, "{terminal}");
+        }
+        let fresh = Facts { branch: Some(NEW), base_tip: MERGE, mergeable: Status::Failed, merge_job: true, ..f };
+        let reset = step(&released(&c, at(3)), &fresh, &h, at(3), &LIMITS);
+        let replacement = step(&reset.change, &fresh, &h, at(4), &LIMITS);
+        assert_eq!(replacement.decision, Decision::Delegate(Delegate::Resolve { base: MERGE }), "{terminal}");
+        let pending = step(&replacement.change, &fresh, &heard(), at(5), &LIMITS);
+        assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) }, "{terminal}");
+        assert_eq!(pending.change.resolutions, 1, "{terminal}");
+    }
+}
+
+#[test]
+fn a_released_failed_resolution_obeys_the_reset_allowance_and_current_authority() {
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let cause = AuthorityHold {
+        recovery: AuthorityRecovery { task: 7, spec: 0, hold: 2, tasks: 2 },
+        lack: AuthorityLack::Tasks,
+        had: 0,
+        released: false,
+    };
+    let (c, mut f, h) = failed_resolution(Delegate::Resolve { base: BASE });
+    f.branch = Some(NEW);
+    f.base_tip = MERGE;
+    f.mergeable = Status::Failed;
+    f.merge_job = true;
+    for (allowance, lacking, decision, count) in [
+        (1, None, Decision::Delegate(Delegate::Resolve { base: MERGE }), 1),
+        (0, None, Decision::Hold(Hold::Resolutions), 0),
+        (1, Some(cause), Decision::Hold(Hold::Authority(cause)), 0),
+    ] {
+        let limits = Limits { resolutions: allowance, ..LIMITS };
+        let stale = Heard { lacking, ..h };
+        let reset = step(&released(&c, at(3)), &f, &stale, at(3), &limits);
+        let next = step(&reset.change, &f, &stale, at(4), &limits);
+        assert_eq!(next.decision, decision);
+        assert_eq!(next.change.resolutions, count);
+    }
+}
+
+#[test]
+fn a_resolution_held_for_allowance_or_authority_keeps_its_release_path() {
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let authority = AuthorityHold {
+        recovery: AuthorityRecovery { task: 7, spec: 0, hold: 2, tasks: 2 },
+        lack: AuthorityLack::Tasks,
+        had: 0,
+        released: false,
+    };
+    let state = State::Resolving { requested: false, base: BASE };
+    for why in [Hold::Resolutions, Hold::Authority(authority)] {
+        let mut c = change(State::Held { was: Box::new(state.clone()), why });
+        c.resolutions = LIMITS.resolutions;
+        let f = Facts { delegate: Some(Delegate::Resolve { base: BASE }), merge_job: true, ..facts() };
+        let reset = step(&released(&c, at(3)), &f, &heard(), at(3), &LIMITS);
+        assert_eq!(reset.change.state, state);
+        assert_eq!(reset.change.resolutions, 0);
+        let next = step(&reset.change, &f, &heard(), at(4), &LIMITS);
+        assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+        assert_eq!(next.change.resolutions, 0, "the unrequested resolution was counted before the hold");
+    }
 }
 
 #[test]

@@ -4,7 +4,7 @@ use skein_forge::api::{Answer, Op, Read};
 use temper_engine_domain_forge_change as change;
 
 fn checking() -> Domain {
-    let mut d = domain();
+    let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);

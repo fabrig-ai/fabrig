@@ -123,6 +123,8 @@ fn a_repair_whose_pull_read_answers_wrongly_starts_with_words() {
         task,
         section: b"pull",
         stage: "item",
+        reason: "the forge's answer did not match its read",
+        heads: None,
         error: Some(Error::InvalidAnswer)
     }));
     assert!(!facts.iter().any(|fact| matches!(fact, engine::Fact::BriefFailed { .. })));
@@ -237,6 +239,8 @@ fn a_repair_whose_checks_cannot_be_read_starts_on_its_pull() {
         task,
         section: b"ci",
         stage: "checks",
+        reason: "the forge's answer did not match its read",
+        heads: None,
         error: Some(Error::InvalidAnswer)
     }));
     assert!(!facts.iter().any(|fact| matches!(fact, engine::Fact::BriefFailed { .. })));

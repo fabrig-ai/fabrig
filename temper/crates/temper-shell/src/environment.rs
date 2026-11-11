@@ -110,3 +110,13 @@ pub const XDG_RUNTIME_DIR: Variable = Variable {
     notes: "",
     way: Way::Reads,
 };
+
+pub const JOB: Variable = Variable {
+    name: "TEMPER_JOB",
+    set: Set::Public,
+    form: "DIR",
+    way: Way::Sets,
+    line: "The job's directory, set for its scripts.",
+    absent: "Set when a worker runs a job's scripts.",
+    notes: "",
+};

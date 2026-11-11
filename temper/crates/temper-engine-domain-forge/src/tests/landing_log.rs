@@ -64,6 +64,7 @@ fn a_pull_seen_merged_is_logged() {
     };
     let mut out = Queue::uncapped();
     let pending = PendingStep {
+        pull_ci: false,
         task: CHANGE,
         entry: OPEN,
         stage: StepStage::Branch,
@@ -74,11 +75,13 @@ fn a_pull_seen_merged_is_logged() {
         merge_job: false,
         pending: Box::new([]),
         branch: Some(HEAD),
+        branch_fresh: false,
         base_tip: Some(FIRST),
         pull: Some(pull),
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
+        contains_head: change::Status::Unknown,
         contains_catch_up: change::Status::Passed,
         reviews: Box::new([]),
         reviews_complete: true,

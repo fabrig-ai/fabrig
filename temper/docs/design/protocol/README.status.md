@@ -1,13 +1,13 @@
 # README: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
 dispatch, the launcher and the substitution `temper-launcher`'s, and
 `--version` from `temper-version`, with no build script of its own
-(`crates/temper-agent/src/tests.rs`,
-`the_version_line_names_the_binary_its_version_and_commit`). Its parser
+(`crates/temper-agent-shell`'s tests, and its package's suite at
+`bin/temper-agent`). Its parser
 table and twenty-row suite cover its forms, refusals and modes. `binaries.md`, 1's
 two closure tests are present, each with its row, and `components.md`'s
 crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since

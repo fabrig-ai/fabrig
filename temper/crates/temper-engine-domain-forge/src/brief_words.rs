@@ -28,7 +28,7 @@ pub(crate) fn busy() -> BriefUnread {
     BriefUnread { fate: BriefFate::Capacity, words: Box::from(b"the forge client is busy".as_slice()) }
 }
 pub(crate) fn moved() -> BriefUnread {
-    BriefUnread { fate: BriefFate::Transient, words: Box::from(b"the change's head moved".as_slice()) }
+    BriefUnread { fate: BriefFate::Capacity, words: Box::from(b"the change's head moved".as_slice()) }
 }
 pub(crate) fn unnamed() -> BriefUnread {
     BriefUnread {
@@ -46,34 +46,61 @@ pub(crate) fn bounds() -> BriefUnread {
     BriefUnread { fate: BriefFate::Permanent, words: Box::from(b"the connector cannot hold this section".as_slice()) }
 }
 
-pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
+/// Static reason words; a measured bound stays in the forge error, not the reason.
+pub(crate) fn reason_of(result: &Result<Answer, Error>) -> &'static str {
+    refusal(result).1
+}
+
+fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
+    use BriefFate::{Capacity, Permanent, Transient};
     let error = match result {
-        Ok(Answer::Pull(_)) => return moved(),
-        Ok(_) => {
-            return BriefUnread {
-                fate: BriefFate::Permanent,
-                words: Box::from(b"the forge answered another read".as_slice()),
-            };
+        Ok(Answer::Pull(_)) => return (Capacity, "the change's head moved"),
+        Ok(
+            Answer::Located { .. }
+            | Answer::Items { .. }
+            | Answer::Item { .. }
+            | Answer::Reviews { .. }
+            | Answer::Statuses { .. }
+            | Answer::Remarks { .. }
+            | Answer::Commit(_)
+            | Answer::Branches(_)
+            | Answer::PullFiles { .. }
+            | Answer::Compare { .. }
+            | Answer::Checks(_)
+            | Answer::Job { .. }
+            | Answer::File { .. }
+            | Answer::Directory { .. }
+            | Answer::Protection(_)
+            | Answer::Settings(_)
+            | Answer::Collaborators { .. }
+            | Answer::Permission(_)
+            | Answer::Created(_)
+            | Answer::Commented(_)
+            | Answer::Reviewed(_)
+            | Answer::Merged(_)
+            | Answer::Queued
+            | Answer::Branch(_)
+            | Answer::Runs { .. }
+            | Answer::Run(_)
+            | Answer::Tree { .. }
+            | Answer::Commits { .. }
+            | Answer::Done,
+        ) => {
+            return (Permanent, "the forge answered another read");
         }
         Err(error) => error,
     };
-    let (fate, words): (BriefFate, &'static [u8]) = match error {
-        Error::Busy => return busy(),
-        Error::NotConnected => (BriefFate::Capacity, b"the forge is not connected"),
-        Error::Unavailable => (BriefFate::Capacity, b"the forge could not be reached"),
-        Error::Timeout => (BriefFate::Capacity, b"the forge did not answer in time"),
-        Error::RateLimited { .. } => (BriefFate::Transient, b"the forge is limiting calls"),
-        Error::InvalidAnswer => (BriefFate::Permanent, b"the forge's answer did not match its read"),
-        Error::Forbidden => (BriefFate::Permanent, b"the forge forbids this read"),
-        Error::NotInstalled => (BriefFate::Permanent, b"the forge App is not installed"),
-        Error::Missing | Error::MissingJob => (BriefFate::Permanent, b"the forge has no such object"),
-        Error::TooLarge(excess) => {
-            let mut words = skein_lib::List::uncapped();
-            for byte in b"the answer is past ".iter().chain(crate::bound_words(*excess).iter()) {
-                words.push(*byte).expect("short measured refusal");
-            }
-            return BriefUnread { fate: BriefFate::Permanent, words: words.into_boxed() };
-        }
+    match error {
+        Error::Busy => (Capacity, "the forge client is busy"),
+        Error::NotConnected => (Capacity, "the forge is not connected"),
+        Error::Unavailable => (Capacity, "the forge could not be reached"),
+        Error::Timeout => (Capacity, "the forge did not answer in time"),
+        Error::RateLimited { .. } => (Transient, "the forge is limiting calls"),
+        Error::InvalidAnswer => (Permanent, "the forge's answer did not match its read"),
+        Error::Forbidden => (Permanent, "the forge forbids this read"),
+        Error::NotInstalled => (Permanent, "the forge App is not installed"),
+        Error::Missing | Error::MissingJob => (Permanent, "the forge has no such object"),
+        Error::TooLarge(_) => (Permanent, "the answer is past"),
         Error::Empty
         | Error::Full
         | Error::Exists
@@ -82,7 +109,20 @@ pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
         | Error::Stale
         | Error::Conflict
         | Error::Protected
-        | Error::Refused => (BriefFate::Permanent, b"the forge refused this read"),
+        | Error::Refused => (Permanent, "the forge refused this read"),
+    }
+}
+
+pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
+    let (fate, reason) = refusal(result);
+    let words = if let Err(Error::TooLarge(excess)) = result {
+        let mut words = skein_lib::List::uncapped();
+        for byte in reason.as_bytes().iter().chain(b" ").chain(crate::bound_words(*excess).iter()) {
+            words.push(*byte).expect("short measured refusal");
+        }
+        words.into_boxed()
+    } else {
+        Box::from(reason.as_bytes())
     };
-    BriefUnread { fate, words: Box::from(words) }
+    BriefUnread { fate, words }
 }

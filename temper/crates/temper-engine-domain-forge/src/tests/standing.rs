@@ -737,7 +737,7 @@ fn step_reads_its_own_diff_after_reviews_and_requires_complete_endpoints() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
-        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Compare { before: fixtures::BASE, after: HEAD }));
         let result = if failed {
@@ -820,6 +820,7 @@ fn queued_fixture() -> Domain {
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
+    fixtures::connect(&mut d);
     let row = d.changes.get_mut(&CHANGE).expect("change");
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -851,7 +852,8 @@ fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
-        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let mut reviewed = 0_usize;
         let mut waited = false;
         for request in &finished {
@@ -916,7 +918,8 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
-    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut proposed = None;
     for request in &finished {
         if let Request::ChangeDecision {

@@ -33,7 +33,7 @@ impl PullSelection {
 pub fn selection_read(closer: &Closer) -> Option<Read> {
     for selection in &closer.selections {
         match &selection.progress {
-            SelectionProgress::Pull => return Some(Read::Pull { number: selection.pull }),
+            SelectionProgress::Pull => return Some(Read::Pull { number: selection.pull, ci: false }),
             SelectionProgress::Checks => {
                 return Some(Read::Checks { commit: selection.head.expect("checks pin a head") });
             }

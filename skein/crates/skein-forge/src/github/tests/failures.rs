@@ -146,13 +146,22 @@ pub(super) fn check() {
             expected: fail(api::Error::Forbidden),
         },
         Case {
+            label: "unauthorized write",
+            asked: Asked::Write { empty: false },
+            status: 401,
+            message: b"",
+            errors: &[],
+            head: Head::new(),
+            expected: Verdict::Fail(api::Error::Forbidden, Drop::Row),
+        },
+        Case {
             label: "unknown forbidden",
             asked: Asked::Write { empty: false },
             status: 403,
             message: b"unknown",
             errors: &[],
             head: Head::new(),
-            expected: fail(api::Error::Forbidden),
+            expected: Verdict::Fail(api::Error::Forbidden, Drop::Row),
         },
         Case {
             label: "missing",

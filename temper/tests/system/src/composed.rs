@@ -470,7 +470,13 @@ impl World {
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root_out: Queue::uncapped(),
-            root_events: VecDeque::from([engine::Event::Restart { pending: false }]),
+            root_events: VecDeque::from([
+                engine::Event::Restart { pending: false },
+                engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+                    forge: 1,
+                    state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+                })),
+            ]),
             store,
             party: signed_in_party(),
             protocol: Protocol::default(),
@@ -872,7 +878,7 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -882,6 +888,7 @@ impl World {
                             key.task,
                             self.worker_env.limits.reply_bytes,
                             job,
+                            page,
                         ),
                     }
                 }
@@ -1018,6 +1025,16 @@ impl World {
                     return;
                 }
                 story.clean_answered = false;
+            }
+            // The goal's wait must cross the worker before its producer uses
+            // this story's single concrete process.
+            if self.assignment.as_ref().is_some_and(|previous| previous.task == 1)
+                && self.process.answered.is_none()
+                && !self.process.prepared()
+            {
+                assert!(story.pending.is_none(), "one next agent");
+                story.pending = Some((channel, assignment));
+                return;
             }
             // This story ends when the resolution is made, before its agent runs.
             if assignment.task > 5 {
@@ -1237,7 +1254,7 @@ impl World {
             self.up(link);
         }
         if let Some(story) = &mut self.merge_job
-            && story.row == merge_job::Row::Clean
+            && (story.row == merge_job::Row::Clean || run.raw() == 1)
         {
             story.clean_answered = true;
             if let Some((channel, assignment)) = story.pending.take() {

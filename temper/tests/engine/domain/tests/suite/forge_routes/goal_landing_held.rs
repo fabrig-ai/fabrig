@@ -80,6 +80,8 @@ fn checking(world: &mut World, landing: u64, head: u64) {
             matches!(op,
             skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit })
                 if *commit == translate::commit(head))
+                || matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: true })
+                    if row(world, landing).pull == Some(*number))
         });
         if read_ci && row(world, landing).change.state == (State::Checking { head: translate::commit(head) }) {
             break;

@@ -1,6 +1,8 @@
 # adoption: status
 
-2026-11-10. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-11. Where the tree's code lags or departs from [adoption.md](adoption.md).
+
+- **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected` [in flight: change 261].
 
 - **Not yet:** 6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears

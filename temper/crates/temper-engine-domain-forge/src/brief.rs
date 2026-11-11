@@ -41,6 +41,8 @@ pub fn home_access_reason(owner: &[u8], repository: &[u8], bytes: u32) -> BriefR
 #[derive(Hash, Debug)]
 pub(crate) struct BriefFetch {
     owner: Token,
+    task: Option<u64>,
+    identity: u32,
     item: BriefItem,
     head: BriefCommit,
     repository: skein_forge::api::Repository,
@@ -55,6 +57,7 @@ pub(crate) struct BriefFetch {
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
     changed: Box<[Box<[u8]>]>,
     file_page: u32,
+    file_skip: u32,
     request: Option<RequestReviews>,
     review_ids: Box<[u64]>,
     next_review: u32,
@@ -197,7 +200,7 @@ pub(super) fn brief_pull(
         return Some(BriefRead::Failed(unnamed()));
     };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(moved()));
+        return Some(moved_change(domain, owner, item, head, BriefStage::Pull, out));
     }
     if parts == 0 {
         return Some(BriefRead::Failed(bounds()));
@@ -211,6 +214,8 @@ pub(super) fn brief_pull(
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
         owner,
+        task: None,
+        identity: words.bytes.len(),
         item,
         head,
         repository,
@@ -225,6 +230,7 @@ pub(super) fn brief_pull(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        file_skip: 0,
         request: None,
         review_ids: Box::new([]),
         next_review: 0,
@@ -268,6 +274,7 @@ pub(crate) fn brief_answer(
         return true;
     }
     let unread = brief_words::unread_of(&result);
+    let reason = brief_words::reason_of(&result);
     let error = match &result {
         Ok(_) => None,
         Err(error) => Some(*error),
@@ -292,23 +299,52 @@ pub(crate) fn brief_answer(
             append(&mut fetch.words, &item.body);
             append(&mut fetch.words, b"\n");
             fetch.stage = BriefStage::Pull;
-            Some(skein_forge::api::Read::Pull { number: fetch.item.number })
+            Some(skein_forge::api::Read::Pull { number: fetch.item.number, ci: false })
         }
-        Ok(skein_forge::api::Answer::Pull(pull)) if fetch.stage == BriefStage::Pull && pull.commit == fetch.head.0 => {
+        Ok(skein_forge::api::Answer::Pull(pull)) if fetch.stage == BriefStage::Pull => {
+            // temper/docs/design/domain/forge/change/repairs.md,
+            // "A pull section is pinned at the change's head": any attempt of
+            // this brief's task may have pushed beyond the recorded pin.
+            if pull.commit != fetch.head.0 {
+                if !own_writer(domain, &fetch) {
+                    refused(
+                        fetch.owner,
+                        fetch.stage,
+                        "the change's head moved",
+                        Some((fetch.head.0, pull.commit)),
+                        None,
+                        out,
+                    );
+                    wake_change(domain, fetch.item);
+                    crate::held::ready(domain, fetch.owner, BriefRead::Failed(moved()), out);
+                    return true;
+                }
+                own_head(&mut fetch, pull.commit);
+            }
             fetch.base = pull.base_commit;
             fetch.stage = BriefStage::Files;
-            Some(skein_forge::api::Read::PullFiles { number: fetch.item.number, head: fetch.head.0, page: 1 })
+            Some(skein_forge::api::Read::PullFiles { number: fetch.item.number, head: fetch.head.0, page: 1, skip: 0 })
         }
-        Ok(skein_forge::api::Answer::PullFiles { head, files, more })
+        Ok(skein_forge::api::Answer::PullFiles { head, files, more, cut })
             if fetch.stage == BriefStage::Files && head == fetch.head.0 =>
         {
-            if fetch.file_page == 1 {
+            if fetch.file_page == 1 && fetch.file_skip == 0 {
                 append(&mut fetch.words, b"Files and diff:\n");
             }
             let nonempty = !files.is_empty();
-            let mut changed = List::with_capacity(u32::try_from(files.len()).expect("bounded file list"));
+            let kept = u32::try_from(files.len()).expect("bounded files");
+            let mut changed = List::with_capacity(rows);
+            if fetch.file_skip > 0 {
+                for path in &fetch.changed {
+                    if changed.room() > 0 {
+                        changed.push(path.clone()).expect("checked path room");
+                    }
+                }
+            }
             for file in files {
-                changed.push(file.path.clone()).expect("sized from bounded file list");
+                if changed.room() > 0 {
+                    changed.push(file.path.clone()).expect("checked path room");
+                }
                 match fetch.mode {
                     PullMode::Conflict(_) => {
                         if name_conflict_if_past_room(&mut fetch.words, &file) {
@@ -336,13 +372,19 @@ pub(crate) fn brief_answer(
                 PullMode::Review => true,
                 PullMode::Conflict(_) | PullMode::Semantic(_) | PullMode::Other => false,
             };
-            if review && more {
+            if (review || cut) && more {
                 if nonempty && fetch.words.bytes.room() > 0 {
-                    fetch.file_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
+                    if cut {
+                        fetch.file_skip = fetch.file_skip.saturating_add(kept);
+                    } else {
+                        fetch.file_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
+                        fetch.file_skip = 0;
+                    }
                     let read = skein_forge::api::Read::PullFiles {
                         number: fetch.item.number,
                         head: fetch.head.0,
                         page: fetch.file_page,
+                        skip: fetch.file_skip,
                     };
                     fetch.read = read.clone();
                     let repository = fetch.repository;
@@ -357,7 +399,7 @@ pub(crate) fn brief_answer(
             comparison(&mut fetch)
         }
         Err(skein_forge::api::Error::TooLarge(excess)) if fetch.stage == BriefStage::Files => {
-            refused(fetch.owner, fetch.stage, error, out);
+            refused(fetch.owner, fetch.stage, reason, None, error, out);
             append(&mut fetch.words, b"[files omitted from page ");
             append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
             append(&mut fetch.words, b": past ");
@@ -375,7 +417,7 @@ pub(crate) fn brief_answer(
             None
         }
         Err(skein_forge::api::Error::TooLarge(excess)) if fetch.stage == BriefStage::Compare => {
-            refused(fetch.owner, fetch.stage, error, out);
+            refused(fetch.owner, fetch.stage, reason, None, error, out);
             append(&mut fetch.words, b"[comparison omitted: past ");
             append(&mut fetch.words, &crate::bound_words(excess));
             append(&mut fetch.words, b"]\n");
@@ -439,7 +481,7 @@ pub(crate) fn brief_answer(
                     keep_check(&mut fetch, log, truncated);
                 }
                 Ok(_) | Err(_) => {
-                    refused(fetch.owner, fetch.stage, error, out);
+                    refused(fetch.owner, fetch.stage, reason, None, error, out);
                     append(&mut fetch.words, b"[job log could not be read]\n");
                     keep_check(&mut fetch, Box::new([]), false);
                 }
@@ -447,7 +489,7 @@ pub(crate) fn brief_answer(
             next_failed_job(&mut fetch)
         }
         Ok(_) | Err(_) => {
-            refused(fetch.owner, fetch.stage, error, out);
+            refused(fetch.owner, fetch.stage, reason, None, error, out);
             if unread.fate == crate::BriefFate::Capacity || !crate::held::stand_on_partner(domain, fetch.owner) {
                 crate::held::ready(domain, fetch.owner, BriefRead::Failed(unread), out);
                 return true;
@@ -483,6 +525,77 @@ pub(crate) fn brief_answer(
         crate::held::ready(domain, fetch.owner, read, out);
     }
     true
+}
+
+/// The writer slot, not the change's current delegate, identifies this brief's
+/// own push (temper/docs/design/domain/forge/change/repairs.md, pinned pull sections).
+fn own_writer(domain: &Domain, fetch: &BriefFetch) -> bool {
+    let Some(task) = fetch.task else { return false };
+    let Some(row) = domain.change_for_pull(fetch.item.repository, fetch.item.number) else { return false };
+    for (name, hold) in &domain.holds {
+        if name.forge == row.repository.forge
+            && name.repository == row.repository.repository
+            && crate::items::branch_matches(name, &row.branch)
+        {
+            return match hold.writer {
+                Some(crate::Writer::Run { task: writer, .. } | crate::Writer::Lost { task: writer, .. }) => {
+                    writer == task
+                }
+                Some(crate::Writer::Entry(_)) | None => false,
+            };
+        }
+    }
+    false
+}
+
+/// Insert the own-head notice after the identity, within the same section room
+/// (temper/docs/design/domain/forge/change/repairs.md, pinned pull sections).
+fn own_head(fetch: &mut BriefFetch, head: skein_forge::api::Commit) {
+    let mut words = BriefWords::with_capacity(fetch.bytes, false);
+    let at = skein_lib::usize_of(fetch.identity);
+    append(&mut words, fetch.words.bytes.as_slice().get(..at).expect("identity precedes content"));
+    append(&mut words, b"[the pull's head is ");
+    let read = crate::commit_text(&head);
+    let pinned = crate::commit_text(&fetch.head.0);
+    append(&mut words, read.get(..12).expect("commit has twelve digits"));
+    append(&mut words, b", past the change's recorded ");
+    append(&mut words, pinned.get(..12).expect("commit has twelve digits"));
+    append(&mut words, b": an earlier attempt of this task pushed it, and this section reads at ");
+    append(&mut words, read.get(..12).expect("commit has twelve digits"));
+    append(&mut words, b"]\n");
+    append(&mut words, fetch.words.bytes.as_slice().get(at..).expect("content follows identity"));
+    words.left = words.left.saturating_add(fetch.words.left);
+    fetch.words = words;
+    fetch.head = BriefCommit(head);
+}
+
+fn wake_change(domain: &mut Domain, item: BriefItem) {
+    if let Some(row) = domain.change_for_pull(item.repository, item.number) {
+        let task = row.task;
+        domain.procedure_wakes.insert(task, true).expect("one pending wake per change");
+    }
+}
+
+/// A stale plan pauses without spending a try and wakes its change to judge the
+/// move (temper/docs/design/domain/forge/change/repairs.md, pinned pull sections).
+fn moved_change(
+    domain: &mut Domain,
+    section: Token,
+    item: BriefItem,
+    pinned: BriefCommit,
+    stage: BriefStage,
+    out: &mut Queue<Request>,
+) -> BriefRead {
+    let heads = match domain.change_for_pull(item.repository, item.number) {
+        Some(row) => match row.change.last_head {
+            Some(head) if head != pinned.0 => Some((pinned.0, head)),
+            Some(_) | None => None,
+        },
+        None => None,
+    };
+    refused(section, stage, "the change's head moved", heads, None, out);
+    wake_change(domain, item);
+    BriefRead::Failed(moved())
 }
 
 /// Name a conflicting file whose whole contents exceed the section's room
@@ -658,7 +771,7 @@ fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     let review = *fetch.review_ids.get(index)?;
     fetch.next_review = fetch.next_review.checked_add(1).expect("bounded review count");
     fetch.stage = BriefStage::Remarks;
-    Some(skein_forge::api::Read::Remarks { number: fetch.item.number, review, page: 1 })
+    Some(skein_forge::api::Read::Remarks { number: fetch.item.number, review, page: 1, skip: 0 })
 }
 
 /// Append each failed status before asking for its pinned attempt's log.
@@ -732,7 +845,7 @@ pub(super) fn brief_reviews(
         return Some(BriefRead::Failed(unnamed()));
     };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(moved()));
+        return Some(moved_change(domain, owner, item, head, BriefStage::Reviews, out));
     }
     if parts == 0 {
         return Some(BriefRead::Failed(bounds()));
@@ -752,13 +865,15 @@ pub(super) fn brief_reviews(
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
         owner,
+        task: None,
+        identity: words.bytes.len(),
         item,
         head,
         repository,
         parts,
         bytes,
         stage: BriefStage::Reviews,
-        read: skein_forge::api::Read::Reviews { number: item.number, page: 1 },
+        read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
         refused: None,
         deadline: None,
         mode: PullMode::Other,
@@ -766,6 +881,7 @@ pub(super) fn brief_reviews(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        file_skip: 0,
         request: match reviewed {
             Some(reviewed) => Some(RequestReviews { reviewed, has_remarks: false }),
             None => None,
@@ -783,7 +899,7 @@ pub(super) fn brief_reviews(
         event: skein_forge_client::Event::Read {
             owner: call,
             repository,
-            read: skein_forge::api::Read::Reviews { number: item.number, page: 1 },
+            read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
         },
     });
     None
@@ -803,9 +919,11 @@ pub(super) fn brief_ci(
     let Some(row) = domain.change_for_pull(item.repository, item.number) else {
         return Some(BriefRead::Failed(unnamed()));
     };
-    let change::State::Repairing { .. } = row.change.state else { return Some(BriefRead::Failed(moved())) };
+    let change::State::Repairing { .. } = row.change.state else {
+        return Some(moved_change(domain, owner, item, head, BriefStage::Checks, out));
+    };
     if row.change.last_head != Some(head.0) {
-        return Some(BriefRead::Failed(moved()));
+        return Some(moved_change(domain, owner, item, head, BriefStage::Checks, out));
     }
     if parts == 0 {
         return Some(BriefRead::Failed(bounds()));
@@ -818,6 +936,8 @@ pub(super) fn brief_ci(
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
         owner,
+        task: None,
+        identity: words.bytes.len(),
         item,
         head,
         repository,
@@ -832,6 +952,7 @@ pub(super) fn brief_ci(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        file_skip: 0,
         request: None,
         review_ids: Box::new([]),
         next_review: 0,
@@ -920,10 +1041,12 @@ fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
     None
 }
 
-pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: skein_lib::Time) {
+pub(crate) fn set_context(domain: &mut Domain, section: Token, task: u64, deadline: skein_lib::Time) {
     crate::brief_document::set_deadline(domain, section, deadline);
     if let Some(owner) = section_owner(domain, section) {
-        domain.brief_fetches.get_mut(&owner).expect("section fetch").deadline = Some(deadline);
+        let fetch = domain.brief_fetches.get_mut(&owner).expect("section fetch");
+        fetch.deadline = Some(deadline);
+        fetch.task = Some(task);
     }
 }
 
@@ -960,7 +1083,7 @@ pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<
     for _ in 0..domain.brief_fetches.capacity() {
         let Some(owner) = expired_owner(domain, now) else { break };
         let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
-        refused(fetch.owner, fetch.stage, Some(skein_forge::api::Error::Busy), out);
+        refused(fetch.owner, fetch.stage, "the forge client is busy", None, Some(skein_forge::api::Error::Busy), out);
         if fetch.stage == BriefStage::Job {
             // Each remaining pinned job has the same unavailable-log marker.
             for _ in 0..=fetch.checks.len() {
@@ -1016,7 +1139,14 @@ fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
     }
 }
 
-fn refused(section: Token, stage: BriefStage, error: Option<skein_forge::api::Error>, out: &mut Queue<Request>) {
+fn refused(
+    section: Token,
+    stage: BriefStage,
+    reason: &'static str,
+    heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
+    error: Option<skein_forge::api::Error>,
+    out: &mut Queue<Request>,
+) {
     let stage = match stage {
         BriefStage::Item => "item",
         BriefStage::Pull => "pull",
@@ -1027,5 +1157,5 @@ fn refused(section: Token, stage: BriefStage, error: Option<skein_forge::api::Er
         BriefStage::Checks => "checks",
         BriefStage::Job => "job",
     };
-    out.push(Request::BriefReadRefused { section, stage, error });
+    out.push(Request::BriefReadRefused { section, stage, reason, heads, error });
 }

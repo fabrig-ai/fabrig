@@ -886,6 +886,10 @@ fn linked_box_world() -> World {
     .with_box_setup();
     forge_with_only_temper(&mut world);
     world.until(Until::Ready);
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Connection {
+        forge: forge_world::REPO.forge,
+        state: forge_top::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+    })));
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
         held: None,
         reply_to: ReplyTo::new(Token::new(90)),

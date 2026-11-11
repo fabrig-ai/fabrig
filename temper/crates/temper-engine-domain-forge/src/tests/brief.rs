@@ -69,6 +69,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     let started = outputs(
         &mut d,
         Event::GatherPlanned {
+            task: 9,
             section: SECTION,
             parts: 2,
             bytes: budget,
@@ -257,6 +258,7 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
         d,
         &env,
         Event::GatherPlanned {
+            task: 9,
             section: SECTION,
             parts: 2,
             bytes: budget,
@@ -271,19 +273,20 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
     owner
 }
 
-fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) -> (Domain, Token) {
+fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
-    row.change.last_head = Some(HEAD);
+    row.change.last_head = Some(head);
+    row.change.clean = Box::new([head]);
     row.change.state = state;
     outputs(&mut d, Event::Change { row });
     let owner = planned_read(
         &mut d,
-        BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) },
+        BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(head) },
         4608,
     );
     let item = skein_forge::api::Summary {
@@ -305,6 +308,12 @@ fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) ->
         LIMITS.client.rows,
         &mut out
     ));
+    (d, owner)
+}
+
+fn pending_pull(body: &[u8], state: change::State) -> (Domain, Token) {
+    let (mut d, owner) = pending_pull_item(body, state, HEAD);
+    let mut out = Queue::uncapped();
     let mut pull = fixtures::open_pull();
     pull.commit = HEAD;
     pull.base_commit = None;
@@ -313,11 +322,205 @@ fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) ->
 }
 
 #[test]
+fn a_pull_section_reads_its_own_tasks_moved_head() {
+    let pinned = [1; 32];
+    let head = [99; 32];
+    for (writer, state, before, after) in [
+        (
+            Writer::Run { task: 9, attempt: 3 },
+            change::State::Gating { head: pinned, asked: Box::new([]) },
+            fixtures::BASE,
+            head,
+        ),
+        (
+            Writer::Lost { task: 9, attempt: 1 },
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            head,
+            fixtures::BASE,
+        ),
+        (
+            Writer::Run { task: 9, attempt: 2 },
+            change::State::Repairing { requested: true, why: change::Repair::Semantic },
+            pinned,
+            head,
+        ),
+    ] {
+        let (mut d, owner) = pending_pull_item(b"Whole body", state, pinned);
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: run_branch(b"51"),
+                    task: fixtures::CHANGE,
+                    writer: Some(writer),
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
+        let mut pull = fixtures::open_pull();
+        pull.commit = head;
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefClient {
+                event: skein_forge_client::Event::Read {
+                    owner,
+                    repository: REPO,
+                    read: Read::PullFiles { number: 1, head, page: 1, skip: 0 },
+                }
+            }),
+            "{writer:?}"
+        );
+        assert!(out.is_empty());
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::PullFiles { head, files: Box::new([]), more: false, cut: false }),
+            LIMITS.client.rows,
+            &mut out
+        ));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefClient {
+                event: skein_forge_client::Event::Read {
+                    owner,
+                    repository: REPO,
+                    read: Read::Compare { before, after },
+                }
+            })
+        );
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 0, changed: 0 }),
+            LIMITS.client.rows,
+            &mut out
+        ));
+        let bytes = take(&mut d);
+        let words = text(&bytes);
+        let notice = "[the pull's head is 636363636363, past the change's recorded 010101010101: an earlier attempt of this task pushed it, and this section reads at 636363636363]\n";
+        assert!(words.contains(notice), "{words}");
+        assert!(
+            words.find(notice).expect("notice") < words.find("Title:").expect("content"),
+            "the notice follows the identity, before content: {words}"
+        );
+        assert_eq!(d.hold(&run_branch(b"51")).expect("hold").writer, Some(writer));
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").change.last_head, Some(pinned));
+    }
+}
+
+#[test]
+fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
+    for writer in [
+        None,
+        Some(Writer::Run { task: 8, attempt: 2 }),
+        Some(Writer::Lost { task: 8, attempt: 1 }),
+        Some(Writer::Entry(17)),
+    ] {
+        let (mut d, owner) = pending_pull_item(
+            b"Whole body",
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            [1; 32],
+        );
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: run_branch(b"51"),
+                    task: fixtures::CHANGE,
+                    writer,
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut pull = fixtures::open_pull();
+        pull.commit = [99; 32];
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefReadRefused {
+                section: SECTION,
+                stage: "pull",
+                reason: "the change's head moved",
+                heads: Some(([1; 32], [99; 32])),
+                error: None,
+            })
+        );
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Capacity,
+                    words: Box::from(b"the change's head moved".as_slice()),
+                })
+            })
+        );
+        assert!(out.is_empty());
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let resumed = ready(&mut d);
+        assert!(resumed.contains(&Request::WakeProcedure { task: fixtures::CHANGE }), "{writer:?}: {resumed:?}");
+    }
+}
+
+#[test]
+fn a_review_brief_reads_on_at_the_cut_page_and_skip() {
+    let (mut d, owner) = pending_pull(b"Whole body", change::State::Gating { head: HEAD, asked: Box::new([]) });
+    for (path, cut, page, skip) in [(b"a", true, 1, 1), (b"b", true, 1, 2), (b"c", false, 2, 0)] {
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::PullFiles {
+                head: HEAD,
+                files: Box::new([skein_forge::api::File {
+                    path: Box::from(path.as_slice()),
+                    before: None,
+                    after: None
+                }]),
+                more: true,
+                cut,
+            }),
+            LIMITS.client.rows,
+            &mut out
+        ));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefClient {
+                event: skein_forge_client::Event::Read {
+                    owner,
+                    repository: REPO,
+                    read: Read::PullFiles { number: 1, head: HEAD, page, skip },
+                }
+            })
+        );
+    }
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+        LIMITS.client.rows,
+        &mut out
+    ));
+    let text = take(&mut d);
+    for path in [b"File: a", b"File: b", b"File: c"] {
+        assert!(skein_lib::bytes::find(&text, path).is_some());
+    }
+}
+
+#[test]
 fn a_late_brief_answer_for_completed_work_is_dropped() {
     for compared in [false, true] {
         let (mut d, owner) =
             pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
-        let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false };
+        let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false };
         if compared {
             assert!(brief::brief_answer(&mut d, owner, Ok(files.clone()), LIMITS.client.rows, &mut Queue::uncapped()));
         }
@@ -359,6 +562,7 @@ fn a_planned_brief_does_not_start_after_its_change_completes() {
         let out = outputs(
             &mut d,
             Event::GatherPlanned {
+                task: 9,
                 section: SECTION,
                 parts: 2,
                 bytes: 2048,
@@ -397,7 +601,7 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false }),
+        Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
         &mut out
     ));
@@ -413,7 +617,7 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::PullFiles { head: HEAD, files, more: false }),
+        Ok(Answer::PullFiles { head: HEAD, files, more: false, cut: false }),
         LIMITS.client.rows,
         &mut out
     ));
@@ -506,7 +710,7 @@ fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
     assert!(brief::brief_answer(
         &mut d,
         owner,
-        Ok(Answer::Reviews { reviews: Box::default(), more: false }),
+        Ok(Answer::Reviews { reviews: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
         &mut Queue::uncapped()
     ));
@@ -562,7 +766,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
                 request_review(11, REVIEWED, b"Please retain the blank line."),
                 request_review(12, HEAD, b"Other head's review"),
             ]),
-            more: false
+            more: false,
+            cut: false
         }),
         LIMITS.client.rows,
         &mut out
@@ -586,7 +791,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
                 line: 9,
                 body: b"Keep both appended lines.".as_slice().into(),
             }]),
-            more: false
+            more: false,
+            cut: false
         }),
         LIMITS.client.rows,
         &mut out
@@ -611,7 +817,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
         assert!(brief::brief_answer(
             &mut d,
             owner,
-            Ok(Answer::Reviews { reviews: reviews.into(), more: false }),
+            Ok(Answer::Reviews { reviews: reviews.into(), more: false, cut: false }),
             LIMITS.client.rows,
             &mut out
         ));
@@ -622,7 +828,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
             assert!(brief::brief_answer(
                 &mut d,
                 owner,
-                Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
+                Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
                 LIMITS.client.rows,
                 &mut out
             ));
@@ -646,6 +852,7 @@ fn a_requests_section_refuses_a_moved_change_head() {
     let out = outputs(
         &mut d,
         Event::GatherPlanned {
+            task: 9,
             section: SECTION,
             parts: 2,
             bytes: 512,
@@ -653,8 +860,24 @@ fn a_requests_section_refuses_a_moved_change_head() {
             deadline: env().now.saturating_add(Duration::from_secs(30)),
         },
     );
-    let [Request::BriefSized { section: SECTION, size: Err(why) }] = out.as_ref() else { panic!("moved: {out:?}") };
-    assert_eq!(*why, brief_words::moved());
+    let [
+        Request::BriefReadRefused {
+            section: SECTION,
+            stage: "reviews",
+            reason: "the change's head moved",
+            heads: Some((pinned, head)),
+            error: None,
+        },
+        Request::BriefSized { section: SECTION, size: Err(why) },
+    ] = out.as_ref()
+    else {
+        panic!("moved: {out:?}")
+    };
+    assert_eq!(*pinned, [8; 32]);
+    assert_eq!(*head, HEAD);
+    assert_eq!(d.procedure_wakes.get(&fixtures::CHANGE), Some(&true));
+    assert_eq!(why.fate, BriefFate::Capacity);
+    assert_eq!(why.words.as_ref(), b"the change's head moved");
 }
 
 #[test]
@@ -789,7 +1012,13 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     brief::expire(&mut d, deadline, &mut out);
     assert_eq!(
         out.pop(),
-        Some(Request::BriefReadRefused { section: SECTION, stage: "job", error: Some(skein_forge::api::Error::Busy) })
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "job",
+            reason: "the forge client is busy",
+            heads: None,
+            error: Some(skein_forge::api::Error::Busy)
+        })
     );
     let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
         panic!("completed CI section: {out:?}")
@@ -851,6 +1080,8 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
         Some(Request::BriefReadRefused {
             section: SECTION,
             stage: "checks",
+            reason: "the forge client is busy",
+            heads: None,
             error: Some(skein_forge::api::Error::Busy)
         })
     );
@@ -932,7 +1163,7 @@ fn each_unread_error_has_its_count_and_fixed_words() {
     pull.commit = [99; 32];
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Pull(pull))),
-        BriefUnread { fate: Transient, words: Box::from(b"the change's head moved".as_slice()) }
+        BriefUnread { fate: Capacity, words: Box::from(b"the change's head moved".as_slice()) }
     );
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Commit(HEAD))),
@@ -961,7 +1192,7 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit([99; 32]), 1, 512, &mut out),
         Some(BriefRead::Failed(BriefUnread {
-            fate: BriefFate::Transient,
+            fate: BriefFate::Capacity,
             words: Box::from(b"the change's head moved".as_slice())
         }))
     );
@@ -984,6 +1215,17 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
             words: Box::from(b"the connector has no room for another read".as_slice())
         }))
     );
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "pull",
+            reason: "the change's head moved",
+            heads: Some(([99; 32], HEAD)),
+            error: None
+        })
+    );
+    assert_eq!(d.procedure_wakes.get(&fixtures::CHANGE), Some(&true));
     assert!(out.is_empty(), "no local refusal makes a forge read");
     held::ready_ci(&mut d, SECTION, brief_ci::Section::new(BriefCommit(HEAD), 0, 0), 0, &mut out);
     assert_eq!(

@@ -1466,8 +1466,15 @@ impl World {
     /// protocol layer answered at once, as the root's door gives them.
     pub fn flush(&mut self) {
         while let Some(event) = self.immediate.pop_front() {
+            let restart = matches!(&event, engine::Event::Restart { .. });
             if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
                 self.events.push_back(event);
+            } else if restart {
+                for configured in &self.restart_config.forges {
+                    if let Some(event) = crate::fixtures::connection(&self.restart_config, configured.number) {
+                        self.events.push_back(event);
+                    }
+                }
             }
             engine::release(&mut self.root, &self.env, &mut self.out);
             self.collect();
@@ -2572,11 +2579,21 @@ pub struct Change {
 /// stories observe `WakeProcedure` before offering each fresh-read step.
 #[must_use]
 pub fn hint_world() -> forge_world::World {
+    hint_world_for_goal(false)
+}
+
+#[must_use]
+pub fn shared_goal_hint_world() -> forge_world::World {
+    hint_world_for_goal(true)
+}
+
+fn hint_world_for_goal(shared_goal: bool) -> forge_world::World {
     use temper_engine_domain_forge_change as change;
     let mut world = forge_world::World::new(71);
     world.adopt();
     world.produce(b"release");
-    for (task, branch, base) in [(51, b"temper/a".as_slice(), b"main".as_slice()), (52, b"temper/b", b"release")] {
+    let first_base = if shared_goal { b"release".as_slice() } else { b"main".as_slice() };
+    for (task, branch, base) in [(51, b"temper/a".as_slice(), first_base), (52, b"temper/b", b"release")] {
         world.produce_on(branch, base);
         let pull = world.open_pull(branch, base);
         let head = translate::commit(world.branch(branch));
@@ -2585,6 +2602,7 @@ pub fn hint_world() -> forge_world::World {
         row.change.task = task;
         row.branch = branch.into();
         row.base = base.into();
+        row.goal = if shared_goal { Some(70) } else { None };
         row.pull = Some(pull);
         row.change.last_head = Some(head);
         row.change.since = world.wall();

@@ -12,10 +12,27 @@ pub(crate) struct Settle {
     base: Option<Commit>,
     read_base: Option<Commit>,
     open: Option<(Wall, Wall)>,
+    pub(crate) branch: crate::domain::BranchRead,
+    pub(crate) contains_head: Option<HeadContainment>,
+}
+
+/// One reverse ancestry answer per unchanged head and tip (domain/forge/change/README.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct HeadContainment {
+    pub(crate) head: Commit,
+    pub(crate) tip: Commit,
+    pub(crate) status: change::Status,
 }
 
 impl Settle {
-    pub(crate) const NEW: Settle = Settle { since: None, base: None, read_base: None, open: None };
+    pub(crate) const NEW: Settle = Settle {
+        since: None,
+        base: None,
+        read_base: None,
+        open: None,
+        branch: crate::domain::BranchRead::NEW,
+        contains_head: None,
+    };
 
     /// The branch tip used for the last decision's base CI and comparison.
     pub(crate) fn read_base(self) -> Option<Commit> {

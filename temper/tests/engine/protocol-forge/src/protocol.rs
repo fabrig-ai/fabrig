@@ -52,7 +52,7 @@ impl Protocol {
             seed,
             chance,
             config,
-            fixtures::limits(),
+            fixtures::protocol_limits(),
             fixtures::writer_settings(),
             fixtures::protocol_shared(),
             joint::checks(1000),
@@ -73,7 +73,7 @@ impl Protocol {
         let joint = Joint::github(
             seed,
             0,
-            fixtures::limits(),
+            fixtures::protocol_limits(),
             fixtures::github_settings(),
             fixtures::protocol_shared(),
             checks,
@@ -88,7 +88,7 @@ impl Protocol {
             seed,
             0,
             fixtures::protocol_config(),
-            fixtures::limits(),
+            fixtures::limits_for(&limits.client),
             fixtures::writer_settings(),
             fixtures::protocol_shared_for(&limits.client),
             joint::checks(1000),
@@ -122,7 +122,7 @@ impl Protocol {
         // The story supplies each end and its status separately, with no second
         // delivery of the same jobs from the fake's automatic CI timers.
         checks.silent = 1000;
-        let mut component_limits = fixtures::limits();
+        let mut component_limits = fixtures::limits_for(&limits.client);
         component_limits.inner = 64;
         let joint = Joint::with(
             seed,
@@ -203,8 +203,17 @@ impl Protocol {
         };
         world.accept_installations();
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        world.connected();
         world
     }
+    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption.md, 1).
+    fn connected(&mut self) {
+        self.event(top::Event::Connection {
+            forge: REPO.forge,
+            state: top::Connection::Connected { id: self.fixture.writer, login: b"bot".as_slice().into() },
+        });
+    }
+
     fn accept_installations(&mut self) {
         if self.fixture.kind == skein_forge_connection::settings::Kind::GitHub {
             self.joint
@@ -437,8 +446,9 @@ impl Protocol {
         self.merge_cut = None;
         self.cut_taken = false;
         self.cut_call = None;
-        let component = Component::new(self.fixture.settings(), &fixtures::limits(), &fixtures::protocol_shared())
-            .expect("fresh component");
+        let component =
+            Component::new(self.fixture.settings(), &fixtures::protocol_limits(), &fixtures::protocol_shared())
+                .expect("fresh component");
         self.joint.replace(component);
         self.accept_installations();
         self.top = Self::top(self.seed, self.fixture.writer, &self.env.limits);
@@ -448,6 +458,7 @@ impl Protocol {
             self.event(top::Event::Restore { record });
         }
         self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        self.connected();
     }
     pub fn issue(&mut self, title: &[u8], body: &[u8]) {
         self.external_at(

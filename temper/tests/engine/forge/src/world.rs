@@ -473,7 +473,19 @@ impl World {
         };
         world.top.restore_begin(world.env.wall);
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        world.connected();
         world
+    }
+
+    /// The fake routing reports access again after each start
+    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    fn connected(&mut self) {
+        if let Some(writer) = self.writer {
+            self.event(top::Event::Connection {
+                forge: writer.forge,
+                state: top::Connection::Connected { id: writer.author, login: b"bot".as_slice().into() },
+            });
+        }
     }
 
     /// Construct and restart without any configured writer.
@@ -802,6 +814,10 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    pub fn fallback(&mut self, interval: Duration) {
+        self.env.limits.client.fallback = interval;
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.forge_env.limits.latency_min = delay;
         self.forge_env.limits.latency_max = delay;
@@ -883,6 +899,7 @@ impl World {
             self.event(top::Event::Restore { record });
         }
         self.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        self.connected();
     }
 
     /// Script a worker's pushed branch through the independent fake git.
@@ -979,7 +996,7 @@ impl World {
     /// Merge at the forge, retaining its preceding pull snapshot for the
     /// connector's next fresh-read chain, whose base read sees the merge.
     pub fn merge_before_pull_read(&mut self, number: u64) -> skein_forge::api::Commit {
-        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number });
+        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: false });
         let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
         let skein_forge::api::Answer::Pull(snapshot) =
             translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)

@@ -620,6 +620,25 @@ fn a_closers_landing_held_escalates_to_the_goal() {
     wait_held(&mut world, landing, goal.task);
     assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Repairs, .. }));
     assert!(matches!(live_task(&world, closer).phase, tasks::Phase::Active(_)));
+    let name = forge_top::Name {
+        forge: forge_world::REPO.forge,
+        repository: forge_world::REPO.repository,
+        what: forge_top::What::Pull(row(&world, landing).pull.expect("landing pull")),
+    };
+    let pull = Key::Forge(forge_top::Key::PullState(name));
+    let mut watched = false;
+    for _ in 0..STEPS {
+        if let Some(Record::Forge { row }) = world.store.rows.get(&pull)
+            && let forge_top::Stored::PullState(pull) = row.as_ref()
+        {
+            watched = pull.head == translate::commit(head) && pull.ci == skein_forge::api::Ci::Failed;
+        }
+        if watched {
+            break;
+        }
+        world.tick();
+    }
+    assert!(watched, "the pull watch catches the gathered head before the restart oracle");
     world.close();
 }
 

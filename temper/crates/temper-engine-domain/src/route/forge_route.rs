@@ -643,7 +643,7 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         segments.push(Box::from(segment)).ok()?;
     }
     let what = match read {
-        skein_forge::api::Read::Pull { number }
+        skein_forge::api::Read::Pull { number, .. }
         | skein_forge::api::Read::Reviews { number, .. }
         | skein_forge::api::Read::Remarks { number, .. }
         | skein_forge::api::Read::PullFiles { number, .. } => Some((b"pull".as_slice(), Some(decimal(*number)))),
@@ -4948,7 +4948,7 @@ pub(crate) fn outputs(
                 };
                 domain.work.push(Work::Brief(event));
             }
-            forge::Request::BriefReadRefused { section, stage, error } => {
+            forge::Request::BriefReadRefused { section, stage, reason, heads, error } => {
                 let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 super::diagnostics::emit(
                     domain,
@@ -4956,6 +4956,8 @@ pub(crate) fn outputs(
                         task: row.task,
                         section: crate::assemble::forge_brief_name(&row.kind),
                         stage,
+                        reason,
+                        heads,
                         error,
                     },
                 );

@@ -61,7 +61,7 @@ mod stop;
 pub use start_refusal::refused_start;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
-pub use tools::{render_for_task, settings_note};
+pub use tools::{render_for_task, render_for_task_page, settings_note};
 /// How the service ended (protocol/README.md, 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {
@@ -219,6 +219,8 @@ pub enum Note {
         task: u64,
         section: &'static [u8],
         stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).

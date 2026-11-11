@@ -543,6 +543,74 @@ fn a_vetoed_dispatch_is_a_fault_on_the_next_step() {
 }
 
 #[test]
+fn tier_flights_and_walks_use_hearing_deadlines() {
+    skein_rows::check(
+        [
+            ("quiet", (false, 60, 0, false, 5)),
+            ("hearing", (true, 60, 0, false, 60)),
+            ("poll is later", (true, 60, 58, false, 5)),
+            ("expired", (true, 60, 60, false, 5)),
+            ("disabled", (true, 0, 0, false, 5)),
+            ("another repository", (true, 60, 0, true, 5)),
+        ],
+        tier_hearing_row,
+    );
+}
+fn tier_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bool, u64)) {
+    for walking in [false, true] {
+        let mut d = if walking { configured(None) } else { dispatched() };
+        let running = if walking {
+            seen(&mut d, None, BASE);
+            None
+        } else {
+            let mut run = workflow(&d, api::Conclusion::Success, None);
+            run.state = api::RunState::Running;
+            run.conclusion = None;
+            answer(&mut d, api::Answer::Runs { runs: Box::new([run.clone()]), more: false });
+            Some(run)
+        };
+        let mut clock = env();
+        clock.limits.client.fallback = Duration::from_secs(fallback);
+        if hint {
+            fixtures::repository_heard(
+                &mut d,
+                &clock,
+                if other { api::Repository { repository: 3, ..REPO } } else { REPO },
+            );
+        }
+        clock.now = clock.now.saturating_add(Duration::from_secs(elapsed));
+        let owner = if walking {
+            *d.tier_ops.reads.iter().next().unwrap().0
+        } else {
+            d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+            READ
+        };
+        let result = match running {
+            Some(run) => Ok(api::Answer::Run(run)),
+            None => Err(api::Error::Busy),
+        };
+        let mut out = Queue::uncapped();
+        crate::tiers::answered(&mut d, &clock, owner, result, &mut out);
+        let expected = Some(clock.now.saturating_add(Duration::from_secs(delay)));
+        if walking {
+            assert_eq!(crate::tiers::deadline(&d), expected, "walk retry");
+        } else {
+            assert_eq!(row(&d).flight.as_ref().unwrap().next, expected, "flight poll");
+            let mut out = Queue::uncapped();
+            crate::tiers::hinted(
+                &d,
+                &api::Hint { repository: REPO, change: api::Change::Commit(BASE), key: None },
+                &mut out,
+            );
+            assert!(
+                collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }),
+                "job delivery wakes immediately"
+            );
+        }
+    }
+}
+
+#[test]
 fn waiting_tier_task_wakes_at_its_wall_deadline() {
     for until in [Some(Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(2).as_nanos())), None] {
         let mut d = configured(None);

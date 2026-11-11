@@ -458,11 +458,10 @@ fn branch_mine_without_a_goal_branch_is_refused() {
 
 #[test]
 fn a_second_landing_of_the_same_goal_branch_is_refused_naming_the_first() {
-    let (mut world, goal, _) = running_goal();
-    let answer = mine(&mut world, &goal, LANDING_CALL, br#"{"words":"Land the goal","branch":"mine"}"#);
-    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("landing admitted: {answer:?}") };
-    let words = format!("branch mine: change task {} is on it already.", made[0].task);
-    refused(&mut world, &goal, LANDING_CALL + 1, br#"{"words":"Land again","branch":"mine"}"#, words.as_bytes());
+    // An unchanged goal branch ends with no change instead of keeping a live landing.
+    let (mut world, goal, _, landing, _) = checking_landing();
+    let words = format!("branch mine: change task {landing} is on it already.");
+    refused(&mut world, &goal, LANDING_CALL + 2, br#"{"words":"Land again","branch":"mine"}"#, words.as_bytes());
     world.close();
 }
 
@@ -698,6 +697,8 @@ fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() 
             matches!(op,
             skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit })
                 if *commit == translate::commit(head))
+                || matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: true })
+                    if row(&world, landing).pull == Some(*number))
         });
         if read_ci && row(&world, landing).change.last_head == Some(translate::commit(head)) {
             break;
