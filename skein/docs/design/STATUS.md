@@ -1,6 +1,6 @@
 # Status
 
-2026-11-10. Where skein's code lags or departs from its design, and its
+2026-11-11. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. A job's log reads
 by its start as well as its end, in both dialects (`forge/README.status.md`,
 3.2). The full-screen
@@ -28,9 +28,10 @@ path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`testing/fakes/forge.md`).
 The forge kit's targeted reads are designed and not built: `Range` for
 containment and emptiness, `Item`'s `since`, `PullFor`'s `head` and `base`
-filters, branch names bounded by bytes, runs found by `workflow_id` and
-resolved once per call, and `Pull`'s CI from a short first page
+filters and branch names bounded by bytes
 (`forge/README.md`, `forge/github.md`, `forge/client.md`, `testing/fakes/forge.md`).
+GitHub's review and pull-file pages stay sized for their largest row, as
+its dialect designs them (`forge/github.md`).
 No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`runtime/shell.md`). json, tls and http's collector have no fuzz target
 (`data/json.md`, `net/tls.md`, `http.md`). A few items lag in `runtime/lib.md`,
 `examples.md`, `forge/setup/README.md`, `data/kv.md` and `ui/README.md`, and the LLM live

@@ -164,6 +164,10 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         row.record.pushed = Some(commit);
         row.record.cached.tip = Some(commit);
         out.push(Request::Save { record: Stored::Live(row.record.clone()) });
+        match row.state {
+            State::Idle => schedule_resource(&mut d.alarms, env, key, row),
+            State::Due(_, _) | State::Busy(_, _) | State::Waiting(_, _) => {}
+        }
     }
 }
 pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
@@ -255,6 +259,9 @@ pub(super) fn nudge_resource(
     row: &mut Live,
 ) {
     row.refused = super::Refusals::new();
+    schedule_resource(alarms, env, key, row);
+}
+fn schedule_resource(alarms: &mut skein_lib::Deadlines<Alarm>, env: &Env<Limits>, key: &Resource, row: &mut Live) {
     row.interval = env.limits.poll;
     match row.state {
         State::Idle => {

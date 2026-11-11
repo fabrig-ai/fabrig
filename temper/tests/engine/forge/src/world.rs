@@ -793,6 +793,10 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    pub fn fallback(&mut self, interval: Duration) {
+        self.env.limits.client.fallback = interval;
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.forge_env.limits.latency_min = delay;
         self.forge_env.limits.latency_max = delay;
