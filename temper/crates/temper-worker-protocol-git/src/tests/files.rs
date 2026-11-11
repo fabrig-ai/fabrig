@@ -5,8 +5,8 @@ use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use temper_worker_domain_checkout::git;
 
 // Kept layout reaches its workspaces open after five completions; fresh layout makes it after four.
-const KEPT_BEFORE_OPEN: u8 = 5;
-const FRESH_BEFORE_WORKSPACES: u8 = 4;
+const KEPT_BEFORE_OPEN: u8 = 6;
+const FRESH_BEFORE_WORKSPACES: u8 = 5;
 
 fn directory(dir: Fd, name: &[u8]) -> Op {
     Op::MakeDirectory { dir, name: Box::from(name), mode: 0o700 }
@@ -48,10 +48,13 @@ fn the_start_moves_workspaces_and_home_into_trash_and_makes_them_afresh() {
         directory(Fd::new(3), b"trash"),
         open(b"trash", OpenHow::DirectoryNoFollow),
         rename(Fd::new(3), b"workspaces", b"1000"),
-        rename(Fd::new(3), b"home", b"1001"),
+        rename(Fd::new(3), b"stores", b"1001"),
+        rename(Fd::new(3), b"home", b"1002"),
         directory(Fd::new(3), b"workspaces"),
+        directory(Fd::new(3), b"stores"),
         directory(Fd::new(3), b"home"),
         open(b"workspaces", OpenHow::DirectoryNoFollow),
+        open(b"stores", OpenHow::DirectoryNoFollow),
     ];
     for operation in expected {
         assert_eq!(component.file_operation(), operation);
@@ -144,7 +147,7 @@ fn a_conflicted_path_gone_a_directory_or_a_link_holds_no_marker() {
 #[test]
 fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..7 {
+    for _ in 0_u8..10 {
         component.file_operation();
         component.complete_ok();
     }
@@ -161,7 +164,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     component.complete_ok();
     assert_eq!(component.file_operation(), remove(fixtures::WORKSPACES, b"nested", false));
     component.complete_err(Error::IsADirectory);
-    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1002"));
+    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1003"));
     component.complete_ok();
     assert_eq!(component.file_operation(), Op::Close { fd: fixtures::WORKSPACES });
     component.complete_ok();
@@ -176,7 +179,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
 #[test]
 fn no_sweep_pass_starts_after_shutdown() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..7 {
+    for _ in 0_u8..10 {
         component.file_operation();
         component.complete_ok();
     }
@@ -184,7 +187,7 @@ fn no_sweep_pass_starts_after_shutdown() {
     assert_eq!(component.file_operation(), open(b"trash", OpenHow::DirectoryNoFollow));
     component.down(Request::Shutdown);
     component.complete_ok();
-    for fd in [fixtures::TRASH, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in [fixtures::TRASH, fixtures::STORES, fixtures::WORKSPACES, fixtures::TRASH] {
         assert_eq!(component.file_operation(), Op::Close { fd });
         component.complete_ok();
     }
@@ -240,8 +243,10 @@ fn a_kept_start_replaces_home_and_opens_existing_or_new_workspaces_without_follo
             (open(b"trash", OpenHow::DirectoryNoFollow), None),
             (rename(Fd::new(3), b"home", b"1000"), None),
             (directory(Fd::new(3), b"workspaces"), if existing { Some(Error::Exists) } else { None }),
+            (directory(Fd::new(3), b"stores"), if existing { Some(Error::Exists) } else { None }),
             (directory(Fd::new(3), b"home"), None),
             (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
+            (open(b"stores", OpenHow::DirectoryNoFollow), None),
         ] {
             assert_eq!(component.file_operation(), operation);
             if let Some(error) = error {

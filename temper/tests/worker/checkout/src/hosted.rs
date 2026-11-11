@@ -22,7 +22,10 @@ pub fn identity() -> Identity {
 #[must_use]
 pub fn spawn_of(command: &Command) -> Spawn {
     let kind = match command {
-        Command::Clone { .. } => Some(git::Kind::Clone),
+        Command::Format | Command::Clone { .. } | Command::Remote { .. } | Command::UpdateRef { .. } => {
+            Some(git::Kind::Clone)
+        }
+        Command::Store { .. } => Some(git::Kind::Store),
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(git::Kind::Fetch),
         Command::Create { .. } => Some(git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(git::Kind::Push),
@@ -237,12 +240,25 @@ pub fn answer_case(case: &str, fault: Fault) -> Answer {
     let full = match case {
         "create-protected" | "push-protected" => b"fixture/guarded".as_slice(),
         "clone-stranger-private" => b"fixture/private",
-        "fetch-sha256-branch" => b"fixture/hashed",
+        "fetch-sha256-branch" | "clone-sha256" | "object-format-sha256" => b"fixture/hashed",
         "clone-empty" => b"fixture/empty",
         _ => b"fixture/specimen",
     };
     let mut scenario = named(full, protected);
     let command = command_case(case, &mut scenario);
+    if matches!(command, Command::Fetch { .. }) {
+        scenario.at = b"stores/1".to_vec();
+        local::init(&mut scenario.checkout, &scenario.at, true);
+        if matches!(case, "fetch-commit" | "fetch-default" | "fetch-up-to-date") {
+            let source =
+                if case == "fetch-commit" { Source::Branch(b"topic".as_slice().into()) } else { Source::Default };
+            let remote = scenario.remote.clone().into();
+            apply(
+                &mut scenario,
+                &Command::Fetch { workspace: skein_lib::Token::new(1), into: git::Into::Fetched, remote, source },
+            );
+        }
+    }
     let mut spawn = spawn_of(&command);
     if !matches!(command, Command::Origin { .. }) {
         spawn.dir = scenario.at.clone().into();
@@ -250,21 +266,17 @@ pub fn answer_case(case: &str, fault: Fault) -> Answer {
     match fault {
         Fault::None | Fault::MissingBranch | Fault::MissingCommit | Fault::ProtectedBranch => {}
         Fault::MissingRepository => {
-            if let Command::Clone { directory, .. } = &command {
-                spawn.args = invocation::arguments(&Command::Clone {
-                    remote: remote(b"fixture/missing").into(),
+            if let Command::Store { directory, .. } = &command {
+                spawn.args = invocation::arguments(&Command::Store {
                     directory: directory.clone(),
+                    remote: remote(b"fixture/missing").into(),
                 });
             }
         }
         Fault::WrongToken => {
             let mut identity = identity();
             identity.token = Secret::new(b"wrong-token".as_slice().into());
-            spawn.env = invocation::environment(
-                b"/worker/home",
-                Some(if case.starts_with("clone") { git::Kind::Clone } else { git::Kind::Fetch }),
-                Some(&identity),
-            );
+            spawn.env = invocation::environment(b"/worker/home", Some(git::Kind::Fetch), Some(&identity));
         }
         Fault::Unreachable => {
             let mut forge = scenario.transport.forge.borrow_mut();
@@ -296,6 +308,23 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
     let base = commit(scenario.base);
     match case {
         "version" => Command::Version,
+        "object-format" => Command::Format,
+        "object-format-sha256" => {
+            local::init_with_format(&mut scenario.checkout, &scenario.at, false, local::ObjectFormat::Sha256);
+            Command::Format
+        }
+        "init" | "init-sha256" => {
+            scenario.at = b"workspaces/1".to_vec();
+            Command::Clone {
+                directory: if case == "init" { b"specimen".as_slice() } else { b"hashed" }.into(),
+                format: if case == "init" { invocation::Format::Sha1 } else { invocation::Format::Sha256 },
+            }
+        }
+        "remote-add" => {
+            scenario.checkout.remove(&[scenario.at.as_slice(), b"/.git/temper-remote"].concat());
+            Command::Remote { remote }
+        }
+        "update-ref" => Command::UpdateRef { into: git::Into::Fetched, commit: base },
         "origin-matches" => Command::Origin { directory: scenario.at.clone().into() },
         "origin-no-repository" => Command::Origin { directory: b"workspaces/1/absent".as_slice().into() },
         "origin-no-remote" => {
@@ -309,43 +338,53 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
         }
         "clone"
         | "clone-empty"
+        | "clone-sha256"
         | "clone-missing-repository"
         | "clone-stranger-private"
         | "clone-wrong-token"
         | "clone-refused-connection" => clone_case(case, scenario, remote),
         "fetch-branch" => Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote,
             source: Source::Branch(b"topic".as_slice().into()),
         },
         "fetch-sha256-branch" => Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote,
             source: Source::Branch(b"main".as_slice().into()),
         },
         "fetch-missing-branch" => Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote,
             source: Source::Branch(b"missing".as_slice().into()),
         },
         "fetch-missing-commit" => Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote,
             source: Source::Commit(commit(u64::MAX)),
         },
-        "fetch-wrong-token" => {
-            Command::Fetch { into: temper_worker_domain_checkout::git::Into::Fetched, remote, source: Source::Default }
-        }
+        "fetch-wrong-token" => Command::Fetch {
+            workspace: skein_lib::Token::new(1),
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote,
+            source: Source::Default,
+        },
         "fetch-commit" => {
             apply(
                 scenario,
                 &Command::Fetch {
+                    workspace: skein_lib::Token::new(1),
                     into: temper_worker_domain_checkout::git::Into::Fetched,
                     remote: remote.clone(),
                     source: Source::Branch(b"topic".as_slice().into()),
                 },
             );
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Fetched,
                 remote,
                 source: Source::Commit(base),
@@ -355,12 +394,18 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
             apply(
                 scenario,
                 &Command::Fetch {
+                    workspace: skein_lib::Token::new(1),
                     into: temper_worker_domain_checkout::git::Into::Fetched,
                     remote: remote.clone(),
                     source: Source::Default,
                 },
             );
-            Command::Fetch { into: temper_worker_domain_checkout::git::Into::Fetched, remote, source: Source::Default }
+            Command::Fetch {
+                workspace: skein_lib::Token::new(1),
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote,
+                source: Source::Default,
+            }
         }
         "checkout-1" => Command::CheckOut { commit: base },
         "checkout-2" => {
@@ -487,15 +532,18 @@ pub fn masked(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn clone_case(case: &str, scenario: &mut Scenario, remote: Box<[u8]>) -> Command {
-    scenario.checkout.remove(&scenario.at);
-    scenario.at = b"workspaces/1".to_vec();
+    scenario.at = b"stores".to_vec();
+    if case == "clone-sha256" {
+        scenario.transport.set_object_format(&remote, local::ObjectFormat::Sha256);
+    }
     let directory = match case {
-        "clone-empty" => b"empty".as_slice(),
-        "clone-missing-repository" => b"missing",
-        "clone-stranger-private" => b"private",
-        "clone-wrong-token" => b"wrong",
-        "clone-refused-connection" => b"refused",
-        _ => b"specimen",
+        "clone-empty" => b"new-2".as_slice(),
+        "clone-missing-repository" => b"new-3",
+        "clone-wrong-token" => b"new-4",
+        "clone-stranger-private" => b"new-5",
+        "clone-refused-connection" => b"new-6",
+        "clone-sha256" => b"new-7",
+        _ => b"new-1",
     };
-    Command::Clone { remote, directory: directory.into() }
+    Command::Store { directory: directory.into(), remote }
 }

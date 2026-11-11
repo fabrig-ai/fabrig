@@ -8,7 +8,7 @@ TEMPER_TEST_FORGEJO=<absolute path to the pinned Forgejo> git-transcripts --git 
 
 The tool starts and removes its own isolated Forgejo, with Actions off.
 `VERSION` in `skein_forge::forgejo::pin` pins it.
-It records 46 invocations using protocol/git.md's settings and whole
+It records 54 invocations using protocol/git.md's settings and whole
 environment; credentials are Basic headers in the environment, scanned
 before writing.
 Each case holds `argv` (one argument per line), `exit`, `stdout`, and

@@ -124,6 +124,7 @@ impl Kernel {
         }
         Done::Count(u32::try_from(count).unwrap())
     }
+    #[expect(clippy::too_many_lines, reason = "the service fixture routes layout for workspaces, stores and home")]
     pub fn answer(&mut self, service: &mut Service) {
         for _ in 0..service.submissions.len() {
             let mut submit = service.submissions.pop().unwrap();
@@ -142,12 +143,18 @@ impl Kernel {
                     continue;
                 }
                 Op::Open { path, .. } => {
-                    assert!(path.as_ref() == b"trash" || path.as_ref() == b"workspaces", "layout opens {path:?}");
+                    assert!(
+                        path.as_ref() == b"trash" || path.as_ref() == b"workspaces" || path.as_ref() == b"stores",
+                        "layout opens {path:?}"
+                    );
                     self.files = self.files.checked_add(1).unwrap();
                     Ok(Done::Fd(self.descriptor()))
                 }
                 Op::Rename { from, .. } => {
-                    assert!(from.as_ref() == b"workspaces" || from.as_ref() == b"home", "layout moves {from:?}");
+                    assert!(
+                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"stores",
+                        "layout moves {from:?}"
+                    );
                     self.files = self.files.checked_add(1).unwrap();
                     Err(Error::NotFound)
                 }

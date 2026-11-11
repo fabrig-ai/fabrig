@@ -135,7 +135,12 @@ pub fn run(scenario: &Scenario, seed: u64) -> Outcome {
         let Some(input) = below.next(&mut draw) else {
             break;
         };
-        if !stopped && scenario.stop == Stop::ExitFirst && below.closed_children == below.spawns && below.spawns > 0 {
+        if !stopped
+            && scenario.stop == Stop::ExitFirst
+            && below.script.invocations.is_empty()
+            && below.closed_children == below.spawns
+            && below.spawns > 0
+        {
             stopped = true;
             referee.stop(below.spawns);
             component.down(now, Request::CancelIo { owner: fixtures::OWNER }, &mut below.out);
