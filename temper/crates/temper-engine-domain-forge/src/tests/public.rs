@@ -353,6 +353,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                         workflow: Box::from(b"gate.yml".as_slice()),
                         ignored: Box::new([]),
                         blocking: true,
+                        base: false,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -365,6 +366,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 },
                 None,
                 None,
+                policy::Project::DEFAULT,
             ),
         )
         .expect("project");
@@ -755,6 +757,7 @@ fn maximal_proofs(d: &mut Domain) {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                base: false,
             })
             .expect("gate");
         d.landing

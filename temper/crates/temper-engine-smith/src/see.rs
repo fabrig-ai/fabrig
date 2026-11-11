@@ -327,6 +327,7 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
                 &gate.workflow,
                 b", ",
                 blocking,
+                if gate.base { b", base" } else { b"" },
                 &ignored_text(&gate.ignored),
                 b"\n",
             ]))

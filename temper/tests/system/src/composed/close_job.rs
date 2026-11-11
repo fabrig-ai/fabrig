@@ -96,6 +96,8 @@ fn config(seed: u64) -> engine::Config {
             .insert(
                 1,
                 engine::ProjectLanding {
+                    gate_retries: 2,
+                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     check_timeout: None,
                     by: engine::Way::Queue,
                     close_job: command,

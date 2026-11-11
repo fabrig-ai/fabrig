@@ -232,6 +232,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     5,
                     change::Way::Queue,
                     Box::new([]),
+                    temper_engine_domain_forge_landing::Project::DEFAULT,
                     crate::AfterLanding {
                         verdict: temper_engine_domain_forge_tiers::Settings {
                             retries: 2,

@@ -10,7 +10,7 @@ const MAIN: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const KEY: [u8; 32] = [4; 32];
 const LIMITS: Limits = Limits { members: 4, gates: 4, poll: Duration::from_secs(5) };
-const PROJECT: Project = Project { gate_retries: 2 };
+const PROJECT: Project = Project::DEFAULT;
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }

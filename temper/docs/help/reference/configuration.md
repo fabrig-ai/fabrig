@@ -132,6 +132,8 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `close_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The close command’s path from the repository root; see temper help configuration’s close command.
 - `gates`: list of repository-checks, at most forge.repositories; optional; init leaves it out. Each repository’s test gates and tiers.
 - `check_timeout_ms`: integer, 1,000 to 86,400,000; none when absent; optional; init leaves it out. Delivery checks’ wall bound for change producers, repairs and resolutions, including goal landings; read each attempt, or the agent’s bound when absent.
+- `gate_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many runner faults a landing gate may retry.
+- `gate_timeout_ms`: integer, 60,000 to 86,400,000; 3,600,000 when absent; optional; init leaves it out. How long a landing gate may run, in milliseconds.
 - `tier_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many times a failing tier may be retried.
 - `verification_bound_ms`: integer, at most 18,446,744,073,709,551,615; 7,200,000 when absent; optional; init leaves it out. The verification time bound in milliseconds.
 
@@ -152,6 +154,7 @@ Shape: `gate-check`. Paths: `application.landing.projects[].gates[].gates[]`. A 
 - `workflow`: text, 1 to 255 bytes; no slash; required; init leaves it out. The workflow file dispatched for the gate.
 - `ignored`: list of text, at most forge.ignored_paths; each at most forge.name_bytes; optional; init leaves it out. Whole paths the check ignores, with no empty, dot or parent segment.
 - `blocking`: true or false; required; init leaves it out. Whether a failing gate blocks landing.
+- `base`: true or false, false when absent; optional; init leaves it out. Whether the gate reads the round’s base, given as temper_base and included in its key.
 
 ## application.landing.projects[].gates[].tiers[]
 
