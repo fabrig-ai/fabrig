@@ -16,6 +16,7 @@ impl Referee {
     pub fn resolved(&self) -> usize {
         self.resolved.len()
     }
+    #[expect(clippy::too_many_lines, reason = "four invariants observe one settled durable snapshot")]
     pub fn check(&mut self, world: &mut World) {
         assert!(world.store.pending.is_empty(), "observe a durable settled step");
         let row = proof::follow(world).clone();

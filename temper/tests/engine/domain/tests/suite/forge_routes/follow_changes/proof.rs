@@ -326,6 +326,7 @@ fn a_follow_without_the_targets_context_adoption_is_refused() {
     world.close();
 }
 
+#[expect(clippy::too_many_lines, reason = "one ctl exchange reads the engine's frame and follow document")]
 fn ctl_list(world: &mut World) -> String {
     use jig_client::{self as client, contract as c};
     use skein_lib::{Env, List, Queue};
