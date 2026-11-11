@@ -1162,6 +1162,7 @@ Design documents:
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
+- [`domain/areas.md`](domain/areas.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
 - [`domain/worker.md`](domain/worker.status.md)
 - [`domain/agent/README.md`](domain/agent/README.status.md)

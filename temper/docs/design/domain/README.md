@@ -38,6 +38,8 @@ all. Then temper's:
    turn.
 8. **findings.md:** findings as labelled issues read back, matched,
    triaged and closed when their fix clears; QA after landing.
+9. **areas.md:** a project's areas in words and their owners, the
+   triager, and how a finding reaches its owner.
 
 ## 2. Structure
 
