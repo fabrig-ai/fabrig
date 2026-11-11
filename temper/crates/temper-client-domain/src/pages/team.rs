@@ -7,8 +7,8 @@ use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, con
 use skein_lib::List;
 use skein_lib::Queue;
 
-mod standing;
 mod rules;
+mod standing;
 pub mod wakes;
 pub use rules::{Rules, asked};
 pub use standing::{Card, Now, Role, StartedBy};
@@ -161,13 +161,15 @@ pub fn parts(facts: &Facts) -> Parts {
         pause: false,
         resume: false,
         now: false,
-            rules: false,
-            wakes: false,
-            wakes_cut: false,
-            right: false,
+        rules: false,
+        wakes: false,
+        wakes_cut: false,
+        right: false,
     };
     if let Some(detail) = detail {
-        parts.rules = detail.rules.is_some();
+        if let Some(rules) = &detail.rules {
+            parts.rules = !rules.asked.is_empty();
+        }
         parts.wakes = !detail.wakes.is_empty();
         parts.wakes_cut = parts.wakes && detail.wakes_cut;
         parts.right = parts.wakes;
@@ -385,8 +387,16 @@ impl Team {
         self.standing.leave(out);
         *self = Self::default();
     }
-    pub(super) fn told(&mut self, client: &Client, told: &Told, limits: crate::forge::Limits, out: &mut Queue<Request>) -> bool {
-        if self.standing.rules_told(told, limits) { return true; }
+    pub(super) fn told(
+        &mut self,
+        client: &Client,
+        told: &Told,
+        limits: crate::forge::Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        if self.standing.rules_told(told, limits) {
+            return true;
+        }
         if self.standing.told(client, told, out) {
             return true;
         }

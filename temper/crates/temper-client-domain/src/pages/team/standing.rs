@@ -31,6 +31,7 @@ pub enum StartedBy {
 }
 /// The card's read facts; sibling parts join this struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "card facts keep independent control permissions and document cut")]
 pub struct Card {
     pub task: u64,
     pub name: Box<[u8]>,
@@ -154,7 +155,13 @@ impl Standing {
             }
         }
     }
-    pub(super) fn configure_rules(&mut self, client: &Client, limits: crate::forge::Limits, next: &mut u64, out: &mut Queue<Request>) {
+    pub(super) fn configure_rules(
+        &mut self,
+        client: &Client,
+        limits: crate::forge::Limits,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
         // The card watch is closed on leaving Team, even while the roles watch stays open.
         let document = card_document(self.card, self.chosen(), self.read, client);
         self.rules.configure(document, client, limits, next, out);
@@ -490,7 +497,9 @@ fn paused(task: &c::Task) -> bool {
 
 fn card_document(card: Option<(u64, Handle)>, chosen: Option<u64>, read: bool, client: &Client) -> Option<&c::Task> {
     let (task, handle) = card?;
-    if Some(task) != chosen || !read { return None; }
+    if Some(task) != chosen || !read {
+        return None;
+    }
     let Latest::Jig(c::Delivery::Task(document)) = latest(client, handle)? else { return None };
     if document.chip.task == task { Some(document) } else { None }
 }

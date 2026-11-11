@@ -1,5 +1,6 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
+pub(crate) mod wakes;
 use crate::{
     cards::text,
     frame::Bindings,
@@ -223,7 +224,7 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
                     Some(card) if card.task == role.task => Some(card),
                     Some(_) | None => None,
                 };
-                card(b, w, role, detail, &parts, bindings, times);
+                card(b, w, project, role, detail, &parts, bindings, times);
                 break;
             }
         }
@@ -231,9 +232,11 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
 }
 
 /// The card frame; sibling parts join its left column and conditionally open its right column.
+#[expect(clippy::too_many_arguments, reason = "card drawing joins project links, facts and build accumulators")]
 fn card(
     b: &mut Builder,
     w: &Words,
+    project: u32,
     role: &team::Role,
     facts: Option<&team::Card>,
     parts: &team::Parts,
@@ -292,17 +295,34 @@ fn card(
         b.close();
     }
     b.close();
-    if parts.now
+    if (parts.now || parts.rules || parts.right)
         && let Some(facts) = facts
-        && let Some(now) = &facts.now
     {
         b.open(Role::Slot);
         b.style(look::TEAM_COLUMNS);
-        b.open(Role::Slot);
-        b.style(look::TEAM_LEFT);
-        draw_now(b, w, now, times);
-        b.close();
-        // The right column is absent until a sibling part has something to draw.
+        if parts.now || parts.rules {
+            b.open(Role::Slot);
+            b.style(look::TEAM_LEFT);
+            if parts.now
+                && let Some(now) = &facts.now
+            {
+                draw_now(b, w, now, times);
+            }
+            if parts.rules
+                && let Some(rules) = &facts.rules
+            {
+                wakes::rules(b, w, project, rules, bindings);
+            }
+            b.close();
+        }
+        if parts.right {
+            b.open(Role::Slot);
+            b.style(look::TEAM_RIGHT);
+            if parts.wakes {
+                wakes::draw(b, w, facts, parts.wakes_cut, bindings, times);
+            }
+            b.close();
+        }
         b.close();
     }
     b.close();
