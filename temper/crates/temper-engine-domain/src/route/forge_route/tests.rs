@@ -4206,3 +4206,30 @@ fn a_close_jobs_spec_is_its_command_and_its_request() {
         None
     );
 }
+
+#[test]
+fn a_configured_resource_limit_reaches_the_held_tasks_words() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::ResourceRefused {
+        task, operation: b"subscribe", resource: None,
+        cause: forge::RefusalCause::Limit { member: "forge.paths_per_subscription", configured: 4, needed: 5 },
+    });
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+        panic!("resource refusal routes a hold");
+    };
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        panic!("refused task is held");
+    };
+    assert_eq!(*why, tasks::Hold::ResourceUnavailable);
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
+    for text in [b"subscribe".as_slice(), b"forge.paths_per_subscription = 4; required usage 5", b"deployment configuration, restart, then release"] {
+        let mut found = false;
+        for part in words.windows(text.len()) { found |= part == text; }
+        assert!(found, "missing {text:?} in {words:?}");
+    }
+}

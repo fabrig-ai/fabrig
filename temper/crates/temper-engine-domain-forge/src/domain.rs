@@ -1014,49 +1014,12 @@ impl Domain {
         limits: &Limits,
         subscription: &Subscriber,
     ) -> Option<(&'static [u8], Option<u32>)> {
-        if let Some(tasks) = &subscription.goal_tasks
-            && tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items)
-        {
-            return Some((b"goal_tasks exceeds issue_policy.plan_items", Some(limits.issue_policy.plan_items)));
-        }
-        if subscription.number == 0 {
-            return Some((b"subscription number must be positive", None));
-        }
-        if subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription) {
-            return Some((b"paths exceeds paths_per_subscription", Some(limits.paths_per_subscription)));
-        }
-        match self.subscriptions.get(&(subscription.task, subscription.topic.clone())) {
-            Some(existing) if existing.number != subscription.number => {
-                return Some((b"duplicate topic; keep the existing subscription or unsubscribe it first", None));
-            }
-            None if self.subscriptions.len() == limits.subscriptions => {
-                return Some((b"forge subscription room exhausted: subscriptions", Some(limits.subscriptions)));
-            }
-            Some(_) | None => {}
-        }
-        for path in &subscription.paths {
-            if path.len() > skein_lib::usize_of(limits.name_bytes) {
-                return Some((b"path exceeds name_bytes", Some(limits.name_bytes)));
-            }
-        }
-        let repository = match &subscription.topic {
-            Topic::Landings { repository, branch } => {
-                if branch.len() > skein_lib::usize_of(limits.name_bytes) {
-                    return Some((b"branch exceeds name_bytes", Some(limits.name_bytes)));
-                }
-                *repository
-            }
-            Topic::Ci { repository, .. } | Topic::Pull { repository, .. } | Topic::Participation { repository, .. } => {
-                *repository
-            }
+        let problem = admission::subscription_problem(self, limits, subscription)?;
+        let configured = match problem.failure {
+            Some((_, crate::RefusalCause::Limit { configured, .. })) => Some(u32::try_from(configured).expect("u32 limit")),
+            Some((_, crate::RefusalCause::Unadopted | crate::RefusalCause::InvalidName | crate::RefusalCause::Backend(_))) | None => None,
         };
-        if !self.repositories.contains_key(&repository) {
-            return Some((b"repository is not adopted; select an adopted owner/name", None));
-        }
-        match &subscription.topic {
-            Topic::Landings { branch, .. } => admission::landing_subscription_problem(self, limits, repository, branch),
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
-        }
+        Some((problem.words, configured))
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.
@@ -3551,7 +3514,7 @@ fn record_review(
     }
     if !failed && verdicts.push(report).is_err() {
         return Err(crate::RefusalCause::Limit { member: "forge.change_policy.gates",
-            configured: u64::from(env.limits.change_policy.gates), needed: u64::from(verdicts.len()).saturating_add(1) });
+            configured: u64::from(env.limits.change_policy.gates), needed: u64::from(verdicts.len()) });
     }
     row.verdicts = verdicts.into_boxed();
     if failed {
@@ -3566,7 +3529,7 @@ fn record_review(
     let text = crate::ResultText { bytes: Box::from(words), cut: 0 };
     let Some(words) = text.fitted(env.limits.client.answer_bytes) else {
         return Err(crate::RefusalCause::Limit { member: "forge.client.answer_bytes",
-            configured: u64::from(env.limits.client.answer_bytes), needed: text.minimum_room() });
+            configured: u64::from(env.limits.client.answer_bytes), needed: text.minimum_room().saturating_sub(1) });
     };
     remarks.push(crate::GateRemark { number, head, words }).expect("gate room checked");
     row.gate_remarks = remarks.into_boxed();
@@ -6201,8 +6164,11 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
         Topic::Ci { repository, head } => Some((*repository, *head)),
         Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
     };
-    if !d.can_subscribe(&env.limits, &subscription) {
-        emit(out, Request::Refused { task });
+    if let Some(problem) = admission::subscription_problem(d, &env.limits, &subscription) {
+        match problem.failure {
+            Some((resource, cause)) => emit(out, Request::ResourceRefused { task, operation: b"subscribe", resource, cause }),
+            None => emit(out, Request::Refused { task }),
+        }
         return;
     }
     let key = (task, subscription.topic.clone());
