@@ -724,8 +724,12 @@ fn shared_read_failure_row((error, attempts): (Error, u32)) {
     let mut h = Harness::new(Limits { read_attempts: if rate_limited { 1 } else { LIMITS.read_attempts }, ..LIMITS });
     for owner in 1..=2 {
         assert!(
-            h.step(Event::Read { owner: Token::new(owner), repository: REPO, read: Read::Pull { number: 7, ci: false } })
-                .is_empty()
+            h.step(Event::Read {
+                owner: Token::new(owner),
+                repository: REPO,
+                read: Read::Pull { number: 7, ci: false }
+            })
+            .is_empty()
         );
     }
     for attempt in 1..=attempts {
