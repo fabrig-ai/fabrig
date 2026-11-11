@@ -1311,6 +1311,7 @@ impl Chat {
             | Act::Confirm
             | Act::Cancel
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Pause
