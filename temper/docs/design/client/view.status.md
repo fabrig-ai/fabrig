@@ -1,6 +1,6 @@
 # view: status
 
-2026-11-10. Where the tree's code lags or departs from [view.md](view.md).
+2026-11-11. Where the tree's code lags or departs from [view.md](view.md).
 
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`

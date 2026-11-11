@@ -147,20 +147,26 @@ fn gather_lists_each_person_once_the_reader_first() {
 
 #[test]
 fn parts_show_what_the_facts_hold() {
+    use c::HeldRole::{Maintainer, Member, Observer, Owner, Policy};
     for (name, people, triager, expected) in [
-        ("no people or triager", Box::<[_]>::from([]), None, Parts { people: false, triager: false }),
+        ("no people or triager", Box::<[_]>::from([]), None, Parts { people: false, shared: None, triager: false }),
         (
             "people without waits",
-            Box::<[_]>::from([person(YOU, true, b"Reader", c::HeldRole::Owner, None)]),
+            Box::<[_]>::from([person(YOU, true, b"Reader", Owner, None)]),
             None,
-            Parts { people: true, triager: false },
+            Parts { people: true, shared: None, triager: false },
         ),
-        ("triager alone", Box::<[_]>::from([]), Some(b"Sam".as_slice()), Parts { people: false, triager: true }),
+        (
+            "triager alone",
+            Box::<[_]>::from([]),
+            Some(b"Sam".as_slice()),
+            Parts { people: false, shared: None, triager: true },
+        ),
         (
             "both parts",
-            Box::<[_]>::from([person(SAM, false, b"Sam", c::HeldRole::Member, Some(SAMS))]),
+            Box::<[_]>::from([person(SAM, false, b"Sam", Member, Some(SAMS))]),
             Some(b"Reader".as_slice()),
-            Parts { people: true, triager: true },
+            Parts { people: true, shared: None, triager: true },
         ),
     ] {
         let facts = Facts {
@@ -173,6 +179,25 @@ fn parts_show_what_the_facts_hold() {
             standing_roles: Some(1),
         };
         assert_eq!(team::parts(&facts), expected, "{name}");
+    }
+    for (roles, cut, shared) in [
+        (Box::<[_]>::from([]), false, None),
+        (Box::<[_]>::from([Owner]), false, None),
+        (Box::<[_]>::from([Owner, Owner]), false, Some(Owner)),
+        (Box::<[_]>::from([Maintainer, Maintainer]), false, Some(Maintainer)),
+        (Box::<[_]>::from([Member, Member]), false, Some(Member)),
+        (Box::<[_]>::from([Observer, Observer, Observer]), false, Some(Observer)),
+        (Box::<[_]>::from([Owner, Member]), false, None),
+        (Box::<[_]>::from([Owner, Owner, Member]), false, None),
+        (Box::<[_]>::from([Owner, Owner]), true, None),
+        (Box::<[_]>::from([Policy { role: 12 }, Policy { role: 12 }]), false, None),
+    ] {
+        let mut people = List::with_capacity(u32::try_from(roles.len()).unwrap());
+        for (at, role) in roles.iter().enumerate() {
+            people.push(person(u64::try_from(at).unwrap(), false, b"Person", *role, None)).unwrap();
+        }
+        let facts = Facts { people, cut, triager: None, standing_roles: None };
+        assert_eq!(team::parts(&facts), Parts { people: !roles.is_empty(), shared, triager: false }, "{roles:?} {cut}");
     }
 }
 

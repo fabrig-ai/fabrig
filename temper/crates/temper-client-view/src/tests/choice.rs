@@ -2222,7 +2222,7 @@ fn all_models_links_to_the_projects_models_and_marks_new() {
     let (mut root, watch, _) = picker_fixture(false, true, true);
     edit(&mut root, d::pages::choice::Act::All);
     let mut view = fixtures::page_view(&root);
-    let link = fixtures::find(view.tree(), Role::Link, b"Choose what the list shows, in Settings").unwrap();
+    let link = fixtures::find(view.tree(), Role::Link, b"Choose what the list shows, in Deployment").unwrap();
     assert_eq!(
         crate::act(&mut view, link, skein_ui::Act::Press),
         Some(d::Action::Pages(d::pages::Act::Go { address: Address::Models { project: 1 } }))

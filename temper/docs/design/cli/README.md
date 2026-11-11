@@ -176,6 +176,9 @@ pub fn help(table: &skein_shell::Table, words: &[Box<[u8]>]) -> Result<String, (
 pub fn refused(table: &skein_shell::Table, command: &skein_shell::Command, why: &str) -> String;
 /// The page `commands` for `table`: `../protocol/documentation.md`, 8.
 pub fn commands_page(table: &skein_shell::Table) -> String;
+/// The compiled page `commands`, from several binaries' tables in the
+/// order given: `../protocol/documentation.md`, 8.1.
+pub fn commands_reference(tables: &[&skein_shell::Table]) -> String;
 ```
 
 `temper_shell::help::request` takes `pages` as the index's word, so
@@ -195,7 +198,8 @@ command; temper-box help pages lists the pages.`
 | `serve` | public | `[DIRECTORIES]`: the deployment in one process |
 | `program-login` | public | `[DIRECTORIES] NAME` |
 | `help` | public | `temper_shell::table::HELP` (5) |
-| `versions`, `upgrade` | public | `../protocol/binaries.md`'s, once they're built for the box |
+| `versions` | public | `temper-engine-shell`'s `VERSIONS` (7.1) |
+| `upgrade` | public | `../protocol/binaries.md`'s, once it's built |
 | `ctl`, `open` | internal | the tests' |
 | `forge fetch`, `prepare`, `run`, `remove`, `source`, `sign-in` | internal | `temper-engine-shell`'s (7) |
 | `internal agent`, `internal agent-list`, `internal serve`, `internal forge-child`, `internal tui` | internal | spawned |
@@ -220,8 +224,15 @@ command; temper-box help pages lists the pages.`
   `--ready`, `--seed` and `--observations`, internal, with no twins
   (`../draft/cli.md`, 4.6, *Twins dropped*).
 - **Rows two tables share** are one constant both hold: `help`, the
-  forge's commands, `internal forge-child`, and `program-login`,
-  `temper-worker-shell`'s `PROGRAM_LOGIN` (7.2).
+  forge's commands, `internal forge-child` and `versions`,
+  `temper-engine-shell`'s (7.1); `program-login`,
+  `temper-worker-shell`'s `PROGRAM_LOGIN` (7.2); and the pre-table
+  modes `--mcp-relay`, `--program-child` and run as `claude`,
+  `temper-agent-shell`'s `RELAY`, `PROGRAM_CHILD` and `CLAUDE` (7.3).
+  Each is run by the same code as in its own binary, under the box's
+  name: `versions` by `temper_engine_shell::versions`, and `internal
+  agent` and `internal agent-list` by `temper-agent-shell`'s `run` and
+  `list` (7.3).
 
 ## 7. The deployment's tables
 
@@ -261,6 +272,9 @@ pub const FORGE_CHILD: skein_shell::Command;
 // temper_engine_shell
 pub const ENGINE: skein_shell::Table;
 pub fn main() -> std::process::ExitCode;
+/// `versions`' lines (`../protocol/binaries.md`, 2), each ending in a
+/// newline, which `temper-engine versions` and `temper-box versions` print.
+pub fn versions() -> String;
 ```
 
 ### 7.2 `temper-worker`
@@ -340,6 +354,22 @@ pages.`
 // temper_agent_shell
 pub const AGENT: skein_shell::Table;
 pub fn main() -> std::process::ExitCode;
+/// The rows the box's table holds too, as its pre-table modes (6).
+pub const RELAY: skein_shell::Command;
+pub const PROGRAM_CHILD: skein_shell::Command;
+pub const CLAUDE: skein_shell::Command;
+/// One run of AGENT.json, and one endpoint's list
+/// (`../protocol/binaries.md`, 3): Ok the exit status; Err the lines for
+/// stderr, each after `WORDS: `, `temper-agent` or `temper-agent --list`
+/// in this binary, the box's `internal agent` and `internal agent-list`
+/// words in the box's.
+pub fn run(
+    words: &str,
+    configuration: &std::path::Path,
+    environment: &[temper_shell::directories::EnvironmentEntry],
+    working: &Result<std::path::PathBuf, String>,
+) -> Result<u8, String>;
+pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
 ```
 
 ## 8. The environment

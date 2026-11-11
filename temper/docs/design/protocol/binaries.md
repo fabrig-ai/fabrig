@@ -73,7 +73,8 @@ test doubles   temper-box fake llm|forge|oauth|git ...
   - **It links** the client's crates but the web shell and the bundle,
     jig's client crates, skein's, and `temper-shell` (`components.md`), which
     every binary of temper's starts from; none of the engine's, the
-    worker's, smith's agent, the box or the forge's setup. Built alone,
+    worker's, smith's agent, the box or the forge's setup, its row in 4
+    holding it with its exceptions. Built alone,
     as the release job builds it (`cargo build -p temper-client --bin
     temper-client`), `temper-protocol-records` is built without its
     `forge` feature.
@@ -81,8 +82,9 @@ test doubles   temper-box fake llm|forge|oauth|git ...
     deployment's people run it by is the user's to choose
     (`../draft/deployment-binaries.status.md`, Open), and the release job
     names the published file by it.
-  - **Its story,** in the process tier: `temper-client ctl` signs in to an
-    engine with the link it printed and reads `me`, as `temper ctl` does
+  - **Its story,** in the process tier: `temper-client ctl` signs in to a
+    `temper-engine serve` on an engine alone's document, with the link
+    it printed, and reads `me`, as `temper ctl` does
     (`../draft/deployment-binaries.md`, section 10).
 
 `DIRECTORIES` is `[--config DIR] [--data DIR] [--cache DIR]`, given
@@ -154,7 +156,9 @@ default; the document is `temper.json` in the configuration directory
   temper reads it, a `"fetched"` program naming its launcher
   (configuration/README.md, section 4; setup/owned.md, 6). The worker's protocol layer spawns it,
   one process per run; a person never does. `temper-agent` runs the
-  same modes as a binary of its own (3).
+  same modes as a binary of its own (3): this command and `internal
+  agent-list` call `temper-agent-shell`'s run and list, under the box's
+  words.
 - **smith's agent modes,** `temper-box --mcp-relay 127.0.0.1:PORT` and
   `temper-box --program-child PARENT PROGRAM ARGUMENTS...`: temper's binary
   is its agents' own executable, so the agent shell starts each program
@@ -180,11 +184,14 @@ default; the document is `temper.json` in the configuration directory
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
   process, over the same native transport as `temper-box open`
   (`../client/ctl/README.md`, section 6). It reads no configuration file.
+  Their rows, and run as `claude`'s, are `temper-agent-shell`'s
+  constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line
   each: every owner's patch level (none before the first release), its
   families' and the store's versions, and its wires, as jig's store
   keeps them (jig's `protocol/store/records.md`, 3). It reads no
-  configuration and no store.
+  configuration and no store. Its row and its lines are
+  `temper-engine versions`', the same constant run by the same code (2).
 - **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's
   `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
   data directory or a copy of one such as last night's backup, which it
@@ -300,18 +307,11 @@ of each:
 - **A binary refuses a document that isn't its own,** before any other
   check, by the document's nearest shape (`cluster.md`, 1), naming the binary that
   runs it; the standalone shape is `temper-box serve`'s.
-- **What it links is held by a test.** Each reads, for a binary's
-  package, its closure as `cargo tree -p PACKAGE -e normal --locked
-  --offline` gives it, and its table has a row per binary, in one of
-  two shapes. `tests/boundary/tests/binaries.rs`, by the crates a row
-  excludes, holds `temper-engine`'s: it fails naming each crate of the
-  binary's excluded set it finds there, and each named exception it no
-  longer finds, so that the list only shrinks. A row: its package, the
-  crates it excludes, by name or by a prefix ending in `-`, and its
-  exceptions, each with its reason. `tests/boundary/tests/closure.rs`,
-  by the temper crates and the trees a row allows, holds
-  `temper-agent`'s (4). An exception is a cut that costs more than it
-  gives.
+- **What it links is held by a test,** one table test with a row per
+  binary's package, which reads the package's closure as `cargo tree`
+  gives it and fails naming each crate its row excludes, and each named
+  exception it no longer finds, so that the list only shrinks (4). An
+  exception is a cut that costs more than it gives.
 - **Code two binaries share is a crate each links,** never one binary's
   package another links: `temper-shell` (the commands' table and its
   renderings, the directories, `help`, the engine's link file) for every
@@ -388,7 +388,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **The bundle is in it,** as in the box's (`../client/web/README.md`,
   2.6): of a deployment's binaries, only the engine's serves the web
   client.
-- **What it links** (1): its row in `binaries.rs` excludes the
+- **What it links** (1): its row in 4 excludes the
   worker's domain, `temper-worker-`, `jig-protocol-worker-agents`,
   `jig-protocol-worker-link` and smith's host half, `smith-host-`, and
   smith's agent: `smith-agent-`, `smith-local-`, `smith-inline-agent`,
@@ -450,8 +450,16 @@ internal  temper-agent AGENT.json
   | the program child | `--program-child` | `PARENT PROGRAM ARGUMENTS...` | Run a program as the agent's child, which ends with its parent. | `PARENT`: The agent's process id. `PROGRAM`: The program's path, with its `ARGUMENTS`. |
 
   The run's and the list's lines and argument are `temper-box`'s
-  `internal agent` and `internal agent-list` rows' words. The fifth,
-  run as `claude`, is the box's row of that name.
+  `internal agent` and `internal agent-list` rows' words. The relay,
+  the program child and the fifth, run as `claude`, are public
+  constants of `temper-agent-shell`, `RELAY`, `PROGRAM_CHILD` and
+  `CLAUDE`, which the box's table holds as its rows of those words
+  (`../cli/README.md`, 6), so the box's lines for them are these.
+- **The run and the list are the box's too:** `temper-agent-shell`'s
+  `run` and `list`, public, each given the words its lines start with,
+  `temper-agent` and `temper-agent --list` here, the box's `internal
+  agent` and `internal agent-list` words there, so that both binaries
+  run one copy of each (`../cli/README.md`, 7.3).
 - **Its arguments,** captured once `main` has installed skein's
   fail-stop hook, as every binary's `main` does first, reach a command
   by `Table::reach` (skein's `runtime/shell.md`, 14.4;
@@ -532,23 +540,66 @@ internal  temper-agent AGENT.json
 ## 4. Each binary's closure
 
 The dependency rule (`../draft/deployment-binaries.md`, sections 4 and
-10) holds the agent's closure by a table test of 1's second shape,
-`tests/boundary/tests/closure.rs`, in the repository's boundary tests:
-a row per binary's package, naming the
-temper crates its closure may hold, the trees it may not, and its
-exceptions, each with its reason. A row reads `cargo tree --locked
---offline -p PACKAGE -e normal --prefix none --format {p}` at the
-workspace's root, the package's normal dependencies, and fails naming
-each crate the row excludes and isn't its exception. A row whose closure
-reads empty, or lacks its own package, fails too.
+10) is one table test, `tests/boundary/tests/binaries.rs`, in the
+repository's boundary tests: a row per deployment binary's package,
+saying, tree by tree, which of the workspace's crates its closure may
+hold, and its exceptions, each with its reason.
 
-| Package | temper's crates it may hold | Trees it may not | Exceptions |
-|---|---|---|---|
-| `temper-agent` | `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell`, `temper-version` | jig | none |
+- **A row's closure** is `cargo tree --locked --offline -p PACKAGE -e
+  normal --prefix none --format {p}` at the workspace's root: the
+  package's normal dependencies, with that package's features alone. A
+  crate's tree is the first directory of its manifest's path under the
+  root (`skein`, `smith`, `jig`, `temper`); a crate from outside the
+  workspace has none, and no row excludes it.
+- **A row's rules,** one for each tree it names, each of two kinds:
+  `only` names the crates of that tree the closure may hold, `not` the
+  crates of it the closure may not. A crate is named by its name, or by
+  a prefix ending in `-`. A tree the row doesn't name may be held whole.
+- **An exception** names one crate, by its name, that a rule excludes
+  and that a cut would cost more than it gives, with its reason.
+- **The test fails,** naming the package and each finding, when:
+  - the closure reads empty, or lacks the package itself;
+  - the closure holds a crate a rule excludes that is no exception: the
+    finding names the crate and its path, as `cargo tree -p PACKAGE -e
+    normal -i CRATE` gives it;
+  - an exception names a crate the closure no longer holds, or one no
+    rule excludes: it is dropped, so that the list only shrinks.
+- **The rules' matching** is held without cargo by a table test beside
+  it, over closures the test writes: a name and a prefix, `only` and
+  `not`, a tree no rule names, an exception kept, one gone and one no
+  rule excludes, an empty closure and one lacking its package.
+
+| Package | Rules | Exceptions |
+|---|---|---|
+| `temper-client` | temper only `temper-client`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
+| `temper-engine` | temper not `temper-worker-`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
+| `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup-shell` and `temper-agent-shell`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | `temper-engine-domain` and the nine `temper-engine-domain-` crates its closure holds, `temper-engine-smith`, `temper-box-machine` (5) |
+| `temper-agent` | temper only `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell` and `temper-version`; jig only none | none |
+
+- **The client's exceptions:** `temper-settings-form`, the settings
+  form and its words, `no_std` and neither the client's nor the
+  engine's, which ctl's tools (`temper-client-tools`) render and the
+  engine decodes; `temper-protocol-records`, the forges' pasted bundle's
+  codec, which the client encodes and the engine decodes, built without
+  its `forge` feature (`../client/README.status.md`, 2);
+  `temper-protocol-reaches`, what reaches a person, `no_std`, whose
+  subjects the client's forge pages and the engine share; and
+  `jig-protocol-transcript` with `smith-transcript` beneath it, jig's
+  bounded translation of smith's turns into its client's vocabulary,
+  which `jig-client-protocol-link` reads, a cut of jig's. Each is
+  sans-io vocabulary two sides speak; a crate of its own for either
+  side would remove no io or process from the client.
+- **The client links no `jig-protocol-accounts`:** its CLI shell's
+  manifest names none, since no code of the client uses it, and with it
+  go jig's engine protocol, its store and its domain crates.
+- **The worker's exceptions** are `temper-service`'s, whose `worker`
+  feature composes the engine's half too, until
+  `../draft/cli.execution.md`'s C5 makes the worker's half crates of its
+  own (5); each names that reason.
 
 smith's crates and skein's are the agent's to hold: smith's agent and
-what it rests on. The client's, the engine's and the worker's rows are
-M5's (`../draft/deployment-binaries.execution.md`, 1).
+what it rests on. The box links every crate the four hold but their
+packages, and has no row: it is the whole product.
 
 ## 5. The worker's binary, `temper-worker`
 
@@ -603,8 +654,8 @@ public  temper-worker help [NAME | pages | --search WORDS...]
   `../draft/cli.execution.md`'s C5 composes the engine's half too, so
   its closure holds the engine's domain and `temper-service`'s other
   dependencies (`temper-forge-setup`, `temper-box-machine`, the forge kit). Its
-  row, with that as its exception, is M5's
-  (`../draft/deployment-binaries.execution.md`, 1). It links no
+  row in 4 names those of them it excludes as its exceptions, each for
+  that reason. It links no
   `temper-engine-shell`, `temper-client-bundle`, `temper-fake`,
   `temper-forge-setup-shell`, smith's agent shell or smith's agent
   service.

@@ -52,7 +52,8 @@ const LIST: Row = Row {
     arguments: RUN.arguments,
     ..INTERNAL
 };
-const RELAY: Row = Row {
+/// A delegated mode shared with the box (temper/docs/design/cli/README.md, 7.3).
+pub const RELAY: Row = Row {
     reach: Reach::Words(&["--mcp-relay"]),
     forms: &["127.0.0.1:PORT"],
     line: "Relay a program's MCP connection to its agent.",
@@ -62,7 +63,8 @@ const RELAY: Row = Row {
     }],
     ..INTERNAL
 };
-const PROGRAM_CHILD: Row = Row {
+/// A delegated mode shared with the box (temper/docs/design/cli/README.md, 7.3).
+pub const PROGRAM_CHILD: Row = Row {
     reach: Reach::Words(&["--program-child"]),
     forms: &["PARENT PROGRAM ARGUMENTS..."],
     line: "Run a program as the agent's child, which ends with its parent.",
@@ -72,7 +74,8 @@ const PROGRAM_CHILD: Row = Row {
     ],
     ..INTERNAL
 };
-const CLAUDE: Row = Row {
+/// A delegated mode shared with the box (temper/docs/design/cli/README.md, 7.3).
+pub const CLAUDE: Row = Row {
     reach: Reach::RunAs("claude"),
     forms: &["ARGS..."],
     line: "Run the Claude Code launcher with its delegated arguments.",
@@ -121,7 +124,9 @@ fn configure(reached: Reached<'_>) -> Result<Command, (u8, String)> {
     }
 }
 
-fn run(
+/// Run one agent, prefixing failures with `words` (protocol/binaries.md, 3).
+pub fn run(
+    words: &str,
     configuration: &Path,
     environment: &[EnvironmentEntry],
     working: &Result<PathBuf, String>,
@@ -134,7 +139,7 @@ fn run(
         .and_then(|decoded| {
             let directory = dump_directory(environment, working).unwrap_or_else(|why| {
                 use std::io::Write;
-                drop(writeln!(std::io::stderr(), "temper-agent: TEMPER_INTERNAL_DUMP_LLM: {why}"));
+                drop(writeln!(std::io::stderr(), "{words}: TEMPER_INTERNAL_DUMP_LLM: {why}"));
                 None
             });
             match directory {
@@ -147,14 +152,15 @@ fn run(
             }
         })
         .map(exit_code)
-        .map_err(|why| prefixed(AGENT.binary, &why))
+        .map_err(|why| prefixed(words, &why))
 }
 
-fn list(configuration: &Path) -> Result<u8, String> {
+/// Read one endpoint's model list, prefixing failures with `words`.
+pub fn list(words: &str, configuration: &Path) -> Result<u8, String> {
     decoded(configuration)
         .and_then(|decoded| smith_agent_shell::list::run_decoded(decoded, Box::new(std::io::stderr())))
         .map(exit_code)
-        .map_err(|why| prefixed("temper-agent --list", &why))
+        .map_err(|why| prefixed(words, &why))
 }
 
 fn exit_code(exit: skein_io::kernel::Exit) -> u8 {
