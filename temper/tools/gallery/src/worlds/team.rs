@@ -95,7 +95,7 @@ fn project(reader: u64, alone: bool) -> c::Project {
     let mut members = List::with_capacity(MEMBERS);
     members.push(member(reader, c::PartyKind::Person, "Reader", c::HeldRole::Owner)).expect("reader");
     if !alone {
-        members.push(member(SAM, c::PartyKind::Person, "Sam", c::HeldRole::Member)).expect("Sam");
+        members.push(member(SAM, c::PartyKind::Person, "Sam", c::HeldRole::Owner)).expect("Sam");
         members.push(member(SERVICE, c::PartyKind::Service, "Service", c::HeldRole::Member)).expect("service");
     }
     c::Project {

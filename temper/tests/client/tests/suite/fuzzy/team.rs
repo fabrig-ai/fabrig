@@ -42,10 +42,11 @@ fn random_waits(rng: &mut Rng) -> Waits {
 fn random_project(rng: &mut Rng) -> c::Project {
     let mut project = stories::project();
     project.members = List::with_capacity(MAX_MEMBERS);
+    let shared = if rng.chance(500) { Some(random_role(rng)) } else { None };
     for member in 0..rng.between(0, u64::from(MAX_MEMBERS)) {
         let party = rng.between(1, MEMBER_PARTIES);
         let kind = if rng.chance(500) { c::PartyKind::Person } else { c::PartyKind::Service };
-        let role = random_role(rng);
+        let role = shared.unwrap_or_else(|| random_role(rng));
         let name = if rng.chance(500) { String::new() } else { format!("name-{member}") };
         let login = format!("login-{member}");
         project
@@ -92,7 +93,29 @@ fn oracle(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u64, 
     people
 }
 
-fn sweep(seed: u64) {
+// Sets ignore document order; the first person of each party owns its role.
+fn shared_role(project: &c::Project) -> Option<c::HeldRole> {
+    let mut parties = std::collections::BTreeSet::new();
+    let mut roles = Vec::new();
+    let mut shared = None;
+    for member in &project.members {
+        if member.kind == c::PartyKind::Person && parties.insert(member.party) {
+            if !roles.contains(&member.role) {
+                roles.push(member.role);
+            }
+            shared = Some(member.role);
+        }
+    }
+    if project.cut || parties.len() < 2 || roles.len() != 1 {
+        return None;
+    }
+    match shared {
+        Some(c::HeldRole::Policy { .. }) | None => None,
+        Some(role) => Some(role),
+    }
+}
+
+fn sweep(seed: u64) -> bool {
     let mut rng = Rng::new(seed);
     let mut project = random_project(&mut rng);
     let you = rng.between(1, READER_PARTIES);
@@ -111,7 +134,7 @@ fn sweep(seed: u64) {
     assert_eq!(facts.standing_roles, None, "seed {seed}: standing roles are unread");
     assert_eq!(
         team::parts(&facts),
-        team::Parts { people: !expected.is_empty(), triager: false },
+        team::Parts { people: !expected.is_empty(), shared: shared_role(&project), triager: false },
         "seed {seed}: parts show exactly when their facts exist"
     );
 
@@ -119,16 +142,23 @@ fn sweep(seed: u64) {
         member.role = random_role(&mut rng);
     }
     let moved = team::gather(&project, you, yours, &others);
+    assert_eq!(team::parts(&moved).shared, shared_role(&project), "seed {seed}: shared after roles move");
     assert_eq!(
         moved.people.iter().map(|person| person.party).collect::<Vec<_>>(),
         expected.iter().map(|person| person.party).collect::<Vec<_>>(),
         "seed {seed}: a move of roles never hides or reorders a person"
     );
+    team::parts(&facts).shared.is_some()
 }
 
 #[test]
 fn team_parts_follow_their_rules() {
+    let mut shared = 0;
     for seed in 1..=SEEDS {
-        assert!(catch_unwind(|| sweep(seed)).is_ok(), "seed {seed}: Team parts sweep panicked");
+        match catch_unwind(|| sweep(seed)) {
+            Ok(some) => shared += u32::from(some),
+            Err(error) => panic!("seed {seed}: Team parts sweep panicked: {error:?}"),
+        }
     }
+    assert!(shared > 0, "the sweep reaches a shared built-in role");
 }
