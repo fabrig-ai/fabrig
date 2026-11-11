@@ -58,7 +58,7 @@ struct Walk {
 
 pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     let Some(adopted) = d.repositories.get(&repository) else { return &[] };
-    if let Some((_, repositories, _, _, _)) = d.landing.projects.get(&adopted.project) {
+    if let Some((_, repositories, _, _, _, _)) = d.landing.projects.get(&adopted.project) {
         for row in repositories {
             if row.repository == repository {
                 return &row.tiers;
@@ -460,6 +460,7 @@ fn tree_answer(
                     &tier.ignored,
                     walk.commit,
                     walk.trees.as_slice(),
+                    None,
                     &landing::KeyLimits { entries: env.limits.key_entries, path_bytes: env.limits.key_path_bytes },
                 );
             }

@@ -11,6 +11,7 @@ fn gate() -> Gate {
         workflow: copy_of(b"gate.yml"),
         ignored: Box::new([copy_of(b"docs")]),
         blocking: true,
+                        base: false,
     }
 }
 fn tree(object: u8, pairs: &[(&[u8], u8)]) -> Tree {
@@ -27,7 +28,7 @@ fn directory(root: &mut Tree, index: usize) {
     root.entries[index].kind = EntryKind::Tree;
 }
 fn keyed(trees: &[Tree], ignored: &[Box<[u8]>]) -> Keyed {
-    key(REPOSITORY, b"gate", b"definition", ignored, ROOT, trees, &LIMITS)
+    key(REPOSITORY, b"gate", b"definition", ignored, ROOT, trees, None, &LIMITS)
 }
 fn complete(value: Keyed) -> Key {
     match value {
@@ -80,12 +81,12 @@ fn a_change_outside_the_ignored_paths_changes_the_key() {
 #[test]
 fn keys_differ_by_repository_gate_and_definition() {
     let trees = [tree(1, &[(b"a", 2)])];
-    let original = complete(key(REPOSITORY, b"gate", b"definition", &[], ROOT, &trees, &LIMITS));
+    let original = complete(key(REPOSITORY, b"gate", b"definition", &[], ROOT, &trees, None, &LIMITS));
     for repository in [Repository { forge: 3, ..REPOSITORY }, Repository { repository: 3, ..REPOSITORY }] {
-        assert_ne!(original, complete(key(repository, b"gate", b"definition", &[], ROOT, &trees, &LIMITS)));
+        assert_ne!(original, complete(key(repository, b"gate", b"definition", &[], ROOT, &trees, None, &LIMITS)));
     }
-    assert_ne!(original, complete(key(REPOSITORY, b"other", b"definition", &[], ROOT, &trees, &LIMITS)));
-    assert_ne!(original, complete(key(REPOSITORY, b"gate", b"changed", &[], ROOT, &trees, &LIMITS)));
+    assert_ne!(original, complete(key(REPOSITORY, b"other", b"definition", &[], ROOT, &trees, None, &LIMITS)));
+    assert_ne!(original, complete(key(REPOSITORY, b"gate", b"changed", &[], ROOT, &trees, None, &LIMITS)));
 }
 #[test]
 fn entries_are_ordered_by_their_full_paths() {
@@ -115,7 +116,7 @@ fn the_encoding_is_landing_6_1s() {
     bytes.put(&[3; 32]).expect("first object");
     bytes.put(&[0, 1, b'b', 0, 0, 0x81, 0xa4]).expect("second entry");
     bytes.put(&[4; 32]).expect("second object");
-    assert_eq!(key(REPOSITORY, b"gate", b"defn", &[], ROOT, &trees, &LIMITS), Keyed::Key(digest(&bytes.finish())));
+    assert_eq!(key(REPOSITORY, b"gate", b"defn", &[], ROOT, &trees, None, &LIMITS), Keyed::Key(digest(&bytes.finish())));
 }
 #[test]
 fn a_filtered_tree_past_its_limits_is_too_large() {
@@ -125,7 +126,7 @@ fn a_filtered_tree_past_its_limits_is_too_large() {
         KeyLimits { entries: 1, path_bytes: 3 },
         KeyLimits { entries: 2, path_bytes: 2 },
     ] {
-        let result = key(REPOSITORY, b"gate", b"definition", &[], ROOT, &trees, &limits);
+        let result = key(REPOSITORY, b"gate", b"definition", &[], ROOT, &trees, None, &limits);
         if limits.entries == 2 && limits.path_bytes == 3 {
             assert_eq!(result, Keyed::Key(complete(result)));
         } else {
@@ -169,10 +170,10 @@ fn ignored_paths_do_not_consume_the_filtered_paths_budget() {
     directory(&mut root, 0);
     let empty = tree(2, &[(b"README.md", 3)]);
     let limits = KeyLimits { entries: 0, path_bytes: 0 };
-    let expected = key(REPOSITORY, b"gate", b"definition", &[], ROOT, &[tree(1, &[])], &limits);
-    assert_eq!(key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs")], ROOT, &[root.clone()], &limits), expected);
+    let expected = key(REPOSITORY, b"gate", b"definition", &[], ROOT, &[tree(1, &[])], None, &limits);
+    assert_eq!(key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs")], ROOT, &[root.clone()], None, &limits), expected);
     assert_eq!(
-        key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs/README.md")], ROOT, &[root, empty], &limits),
+        key(REPOSITORY, b"gate", b"definition", &[copy_of(b"docs/README.md")], ROOT, &[root, empty], None, &limits),
         expected
     );
 }
@@ -186,4 +187,49 @@ fn modes_and_whole_subtree_ids_are_part_of_the_key() {
     root.entries[0].object = [2; 32];
     root.entries[0].mode = 0o100_755;
     assert_ne!(original, complete(keyed(&[root], &[])));
+}
+
+#[test]
+fn a_base_definition_appends_only_the_true_flag() {
+    let mut gate = gate();
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01");
+    gate.base = true;
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01");
+}
+
+#[test]
+fn version_two_counts_and_encodes_the_filtered_base_before_the_candidate() {
+    let candidate = [tree(1, &[(b"z", 9)])];
+    let mut base_root = tree(2, &[(b"dir", 3)]);
+    directory(&mut base_root, 0);
+    let base = [base_root, tree(3, &[(b"ignored", 4), (b"a", 5)])];
+    let mut bytes = Writer::new(117);
+    bytes.put(&[2]).expect("version");
+    bytes.put(&1_u64.to_be_bytes()).expect("forge");
+    bytes.put(&2_u64.to_be_bytes()).expect("repository");
+    bytes.put(b"\0\x04gate\0\x04defn").expect("identity");
+    bytes.put(&1_u32.to_be_bytes()).expect("one filtered base entry");
+    bytes.put(b"\0\x05dir/a\0\0\x81\xa4").expect("base entry");
+    bytes.put(&[5; 32]).expect("base object");
+    bytes.put(b"\0\x01z\0\0\x81\xa4").expect("candidate entry");
+    bytes.put(&[9; 32]).expect("candidate object");
+    assert_eq!(
+        key(REPOSITORY, b"gate", b"defn", &[copy_of(b"dir/ignored")], ROOT, &candidate, Some(([2; 32], &base)), &LIMITS),
+        Keyed::Key(digest(&bytes.finish()))
+    );
+}
+
+#[test]
+fn base_keys_depend_on_the_filtered_tree_not_the_base_commit() {
+    let candidate = [tree(1, &[(b"lib.rs", 9)])];
+    let first = [tree(2, &[(b"docs", 3), (b"lib.rs", 4)])];
+    let equal = [tree(5, &[(b"lib.rs", 4), (b"docs", 6)])];
+    let changed = [tree(7, &[(b"lib.rs", 8)])];
+    let mut gate = gate();
+    gate.base = true;
+    let definition = definition(&gate);
+    let keyed = |commit, trees| complete(key(REPOSITORY, &gate.name, &definition, &gate.ignored, ROOT, &candidate, Some((commit, trees)), &LIMITS));
+    assert_eq!(keyed([2; 32], &first), keyed([5; 32], &equal));
+    assert_ne!(keyed([2; 32], &first), keyed([7; 32], &changed));
+    assert_eq!(key(REPOSITORY, &gate.name, &definition, &gate.ignored, ROOT, &candidate, Some(([2; 32], &[])), &LIMITS), Keyed::Need([2; 32]));
 }

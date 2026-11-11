@@ -341,6 +341,7 @@ fn landing_and_gates_read_the_configured_values() {
             workflow: b"tests.yml".as_slice().into(),
             ignored: Box::new([b"docs".as_slice().into(), b"notes".as_slice().into()]),
             blocking: false,
+            base: true,
         }]),
         tiers: [Follows::Landing, Follows::Branch(b"stable".as_slice().into()), Follows::Goals]
             .map(|follows| Tier {
@@ -359,7 +360,7 @@ fn landing_and_gates_read_the_configured_values() {
         (none, "gates of org/empty:\n  none\ntiers of org/empty:\n  none\n"),
         (
             SeeRepository { name: b"org/repo".as_slice().into(), checks },
-            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
+            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, base, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
         ),
     ] {
         assert_eq!(

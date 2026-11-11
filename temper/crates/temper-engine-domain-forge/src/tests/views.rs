@@ -47,9 +47,10 @@ fn setup() -> Domain {
                 name: Box::from(b"gate".as_slice()),
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
-                blocking: true
+                blocking: true,
+                base: false,
             }])
-        }]),
+        }]), temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
@@ -468,7 +469,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
                 span: None,
                 description: Box::default(),
             }]),
-        }]),
+        }]), temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,

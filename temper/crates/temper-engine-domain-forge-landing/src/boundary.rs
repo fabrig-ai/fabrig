@@ -30,12 +30,17 @@ pub struct Gate {
     /// Path prefixes of whole segments, never patterns.
     pub ignored: Box<[Box<[u8]>]>,
     pub blocking: bool,
+    pub base: bool,
 }
 
 /// The project's landing settings needed by the policy.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Project {
     pub gate_retries: u32,
+    pub gate_timeout: Duration,
+}
+impl Project {
+    pub const DEFAULT: Self = Self { gate_retries: 2, gate_timeout: Duration::from_millis(3_600_000) };
 }
 
 /// Whether a fact holds, as for a change.

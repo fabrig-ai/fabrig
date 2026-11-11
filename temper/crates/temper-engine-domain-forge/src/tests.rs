@@ -210,7 +210,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
     assert!(d.project_landing(
         5,
         temper_engine_domain_forge_change::Way::Turn,
-        Box::new([]),
+        Box::new([]), temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
@@ -3201,7 +3201,7 @@ fn turn_refuses_github_but_queue_remains_available() {
                     tiers: Box::new([]),
                     repository: skein_forge::api::Repository { forge, repository: 2 },
                     gates: Box::new([])
-                }]),
+                }]), temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
@@ -3233,6 +3233,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                     workflow: Box::from(b"gate.yml".as_slice()),
                     ignored: ignored.into_boxed(),
                     blocking: true,
+                    base: false,
                 })
                 .expect("test gates");
         }
@@ -3240,7 +3241,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
             d.project_landing(
                 5,
                 Way::Turn,
-                Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
+                Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]), temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,

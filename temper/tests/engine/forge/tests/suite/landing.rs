@@ -215,6 +215,7 @@ fn a_failed_dispatch_still_expires_after_restart() {
                 workflow: Box::from(b"missing.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                        base: false,
             }]),
         }]),
     ));

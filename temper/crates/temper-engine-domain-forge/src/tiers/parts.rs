@@ -43,7 +43,7 @@ pub(super) fn candidate(run: &p::Run) -> (Commit, p::Key, Option<&[p::TestId]>) 
     }
 }
 pub(super) fn part_inputs(commit: Commit, key: p::Key, tests: Option<&[p::TestId]>) -> Box<[api::Input]> {
-    let base = crate::landing::inputs(commit, key);
+    let base = crate::landing::inputs(commit, key, None);
     let Some(tests) = tests else { return base };
     let mut inputs = List::with_capacity(3);
     for input in base {

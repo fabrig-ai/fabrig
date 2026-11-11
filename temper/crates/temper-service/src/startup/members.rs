@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 112] = [
+pub static MEMBERS: [Member; 115] = [
     Member {
         shape: "document",
         name: "engine",
@@ -561,6 +561,24 @@ pub static MEMBERS: [Member; 112] = [
     },
     Member {
         shape: "landing-project",
+        name: "gate_retries",
+        kind: "integer",
+        bound: "0 to 255; 2 when absent",
+        required: false,
+        line: "How many runner faults a landing gate may retry.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "gate_timeout_ms",
+        kind: "integer",
+        bound: "60,000 to 86,400,000; 3,600,000 when absent",
+        required: false,
+        line: "How long a landing gate may run, in milliseconds.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
         name: "tier_retries",
         kind: "integer",
         bound: "0 to 255; 2 when absent",
@@ -647,6 +665,15 @@ pub static MEMBERS: [Member; 112] = [
         bound: "",
         required: true,
         line: "Whether a failing gate blocks landing.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-check",
+        name: "base",
+        kind: "true or false",
+        bound: "false when absent",
+        required: false,
+        line: "Whether the gate reads the round’s base, given as temper_base and included in its key.",
         gone: None,
     },
     Member {
