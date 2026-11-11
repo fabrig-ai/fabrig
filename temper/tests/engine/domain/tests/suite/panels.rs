@@ -650,3 +650,24 @@ fn a_party_without_a_role_is_refused_at_admission() {
             watcher, why: jig_domain_core::WatchRefusal::NotAllowed,
         }) if *watcher == WATCHER)));
 }
+
+#[test]
+fn a_service_is_refused_device_registration_at_its_own_admission() {
+    let mut driver = driver();
+    let session = driver.session();
+    // Keep the sign-in and role rows, with a deployment-authenticated party.
+    driver.store.seed(Box::new([root::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::Person {
+        number: 1,
+        identity: jig_domain_people::Identity {
+            key: jig_domain_people::IdentityKey { provider: 1, subject: b"push-service".as_slice().into() },
+            login: b"service".as_slice().into(), name: b"Service".as_slice().into(),
+        },
+    }))]), Box::new([]));
+    let mut driver = restarted_panels(&mut driver);
+    driver.delivered.clear();
+    panel_application(&mut driver, session, 121, ApplicationScope::Deployment, root::Application::AddDevice(forge::AddDevice {
+        endpoint: b"http://push.test:4000/push/service".as_slice().into(), p256dh: [4; 65], auth: [7; 16], label: b"service".as_slice().into(),
+    }));
+    driver.settle();
+    assert_eq!(panel_answers(&driver), [Some(root::ApplicationAnswer::Device(forge::DeviceAnswer::Refused(forge::DeviceRefusal::Person)))]);
+}

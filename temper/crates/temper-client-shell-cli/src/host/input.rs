@@ -438,3 +438,19 @@ mod wait_input_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod push_input_tests {
+    use crate::tests::fixtures::Frame;
+    #[test]
+    fn push_rejects_subscription_files_before_directory_or_network() {
+        for bytes in [b"not JSON".as_slice(), br#"{"endpoint":42,"keys":{}}"#, br#"{"endpoint":"http://push.test/sub","keys":{"p256dh":"AA==","auth":"AA"}}"#] {
+            let mut frame = Frame::read(&["push", "add", "subscription.json"]);
+            frame.link = bytes;
+            frame.drain();
+            assert!(frame.stderr().windows(b"Not a push subscription's JSON.".len()).any(|w| w == b"Not a push subscription's JSON."));
+            assert!(!frame.opened(b"directory"));
+            assert_eq!(frame.requests(), 0);
+        }
+    }
+}

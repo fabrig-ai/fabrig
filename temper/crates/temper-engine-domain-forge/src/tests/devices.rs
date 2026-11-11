@@ -104,4 +104,15 @@ fn devices_are_bounded_private_restored_and_not_a_projects() {
     refusal(&mut small, other, DeviceRefusal::TooMany);
     add(&mut small, PARTY, subscription()); assert_eq!(answer(&small), DeviceAnswer::Added { number: 1 });
     assert_eq!(small.devices.len(), 1);
+    let mut limits = LIMITS; limits.bindings = 1;
+    let mut family = domain_with_limits(&limits);
+    family.restore_begin(Wall::EPOCH);
+    let mut environment = env(); environment.limits = limits;
+    for party in 1..=u64::from(limits.devices()).saturating_add(1) {
+        let row = Device { party, number: 1, endpoint: format!("http://push.test/{party}").into_bytes().into_boxed_slice(), p256dh: [4; 65], auth: [7; 16], label: b"phone".as_slice().into(), at: Wall::EPOCH };
+        let mut out = Queue::uncapped();
+        step(&mut family, &environment, Event::Restore { record: Stored::Device(row) }, &mut out);
+    }
+    assert_eq!(family.devices.len(), limits.devices());
+    assert_eq!(family.restore_fit_failure().unwrap().family, Some(RecordKind::Device));
 }

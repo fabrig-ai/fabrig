@@ -24,7 +24,7 @@ pub const REMOVE: Tool = Tool {
 #[must_use]
 pub fn subscription(bytes: &[u8], label: &[u8]) -> Option<w::AddDevice> {
     if bytes.is_empty() || bytes.len() > 4096 || !valid_label(label) { return None; }
-    let doc = jig::json::document_depth(bytes, 16).ok()?;
+    let doc = jig::json::document_depth(bytes, 4096).ok()?;
     let endpoint = string(&doc, doc.member(0, b"endpoint")?)?;
     let keys = doc.member(0, b"keys")?;
     let p256dh = base64::decode(Alphabet::Url, string(&doc, doc.member(keys, b"p256dh")?)?, 65).ok()?;

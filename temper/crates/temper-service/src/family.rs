@@ -2093,7 +2093,5 @@ fn devices(value: forge::DevicesView, limits: &w::Limits) -> Option<Box<[u8]>> {
         rows.push(w::DeviceRow::new(limits, w::DeviceRowParts { number: row.number, label: row.label, at: row.at.as_nanos(), endpoint: row.endpoint }).ok()?).ok()?;
     }
     let document = w::Devices::new(limits, w::DevicesParts { rows }).ok()?;
-    let mut writer = Writer::new(usize::try_from(document.measure()).ok()?);
-    document.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    Some(wire::devices(&document))
 }
