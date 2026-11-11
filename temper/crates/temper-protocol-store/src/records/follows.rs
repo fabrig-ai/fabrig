@@ -61,13 +61,26 @@ fn encode_entry(entry: &d::FollowEntry) -> w::FollowEntry {
             more_files: entry.more_files,
             change: entry.change,
             state: encode_state(&entry.state),
+            word: entry.word,
+            remake: entry.remake,
         },
     )
     .expect(FITS)
 }
 fn decode_entry(entry: w::FollowEntry, bounds: &Bounds) -> Result<d::FollowEntry, Undecodable> {
-    let w::FollowEntryParts { before, after, pull, commits, more_commits, files, more_files, change, state } =
-        entry.into_parts();
+    let w::FollowEntryParts {
+        before,
+        after,
+        pull,
+        commits,
+        more_commits,
+        files,
+        more_files,
+        change,
+        state,
+        word,
+        remake,
+    } = entry.into_parts();
     let mut decoded = List::with_capacity(commits.len());
     for commit in commits.into_boxed() {
         let w::FollowCommitParts { id, message } = commit.into_parts();
@@ -86,6 +99,8 @@ fn decode_entry(entry: w::FollowEntry, bounds: &Bounds) -> Result<d::FollowEntry
         more_files,
         change,
         state: decode_state(state),
+        word,
+        remake,
     })
 }
 fn encode_parity(parity: Option<&d::FollowParity>) -> Option<w::FollowParity> {
@@ -132,6 +147,24 @@ pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
             )
             .expect(FITS);
     }
+    let mut questions = List::with_capacity(u32::try_from(row.questions.len()).expect(FITS));
+    for question in &row.questions {
+        questions
+            .push(
+                w::FollowQuestion::new(
+                    &w::CEILINGS,
+                    w::FollowQuestionParts {
+                        change: question.change,
+                        number: question.number,
+                        words: question.words.clone(),
+                        person: question.person,
+                        answer: question.answer.clone(),
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
+    }
     w::FollowRow::new(
         &w::CEILINGS,
         w::FollowRowParts {
@@ -145,12 +178,13 @@ pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
             queue,
             skips,
             parity: encode_parity(row.parity.as_ref()),
+            questions,
         },
     )
     .expect(FITS)
 }
 pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow, Undecodable> {
-    let w::FollowRowParts { project, follow, source, branch, heard, task, stopped, queue, skips, parity } =
+    let w::FollowRowParts { project, follow, source, branch, heard, task, stopped, queue, skips, parity, questions } =
         row.into_parts();
     let mut entries = List::with_capacity(queue.len());
     for entry in queue.into_boxed() {
@@ -160,6 +194,11 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
     for skip in skips.into_boxed() {
         let w::FollowSkipParts { after, reason } = skip.into_parts();
         decoded_skips.push(d::FollowSkip { after, reason }).expect(FITS);
+    }
+    let mut decoded_questions = List::with_capacity(questions.len());
+    for question in questions.into_boxed() {
+        let w::FollowQuestionParts { change, number, words, person, answer } = question.into_parts();
+        decoded_questions.push(d::FollowQuestion { change, number, words, person, answer }).expect(FITS);
     }
     Ok(d::FollowRow {
         project,
@@ -172,6 +211,7 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
         queue: entries.into_boxed(),
         skips: decoded_skips.into_boxed(),
         parity: decode_parity(parity),
+        questions: decoded_questions.into_boxed(),
     })
 }
 fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {

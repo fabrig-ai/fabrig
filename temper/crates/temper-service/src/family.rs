@@ -578,7 +578,7 @@ fn panel_gates(value: Box<[forge::PanelGate]>, limits: &w::Limits) -> Option<Lis
                         kind: match gate.kind {
                             change::GateKind::Agent => w::GateKind::Review,
                             change::GateKind::Person => w::GateKind::Approval,
-                            change::GateKind::Check => w::GateKind::Check,
+                            change::GateKind::Check | change::GateKind::Follow => w::GateKind::Check,
                         },
                         blocks: gate.blocking,
                         verdict: match gate.verdict {

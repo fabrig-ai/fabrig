@@ -82,6 +82,34 @@ pub fn key(
     trees: &[Tree],
     limits: &KeyLimits,
 ) -> Keyed {
+    key_with_source(repository, name, definition, ignored, candidate, trees, *limits, None)
+}
+
+/// A follow check includes the padded source commit immediately after its definition.
+#[must_use]
+pub fn follow_key(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    source: Commit,
+    candidate: Commit,
+    trees: &[Tree],
+    limits: &KeyLimits,
+) -> Keyed {
+    key_with_source(repository, name, definition, &[], candidate, trees, *limits, Some(source))
+}
+
+#[expect(clippy::too_many_arguments, reason = "the canonical key has one optional follow source component")]
+fn key_with_source(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    ignored: &[Box<[u8]>],
+    candidate: Commit,
+    trees: &[Tree],
+    limits: KeyLimits,
+    source: Option<Commit>,
+) -> Keyed {
     let (Ok(name_len), Ok(definition_len)) = (u16::try_from(name.len()), u16::try_from(definition.len())) else {
         return Keyed::TooLarge;
     };
@@ -93,7 +121,10 @@ pub fn key(
     hash.update(name);
     hash.update(&definition_len.to_be_bytes());
     hash.update(definition);
-    walk(hash, ignored, candidate, trees, *limits)
+    if let Some(source) = source {
+        hash.update(&source);
+    }
+    walk(hash, ignored, candidate, trees, limits)
 }
 
 fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tree], limits: KeyLimits) -> Keyed {

@@ -66,6 +66,7 @@ fn change_row() -> top::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -597,6 +598,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }

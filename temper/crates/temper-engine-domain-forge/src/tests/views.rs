@@ -50,6 +50,8 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
         more_files: 0,
         change,
         state,
+        word: false,
+        remake: false,
     })
     .into();
     saved.skips = Box::new([FollowSkip { after: [0x11; 32], reason: b"outside the port".as_slice().into() }]);

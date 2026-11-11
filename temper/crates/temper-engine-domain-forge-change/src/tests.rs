@@ -1313,6 +1313,7 @@ fn a_bare_authority_release_holds_again_and_a_funded_one_retries() {
         assert_eq!(retry.decision, Decision::Delegate(Delegate::Produce));
     }
 }
+mod follow;
 mod turn;
 
 #[test]

@@ -239,7 +239,20 @@ every setting is, its decision that project's owners'. Its value, a
   anyone but its follow, leaves its landings in the queue, its entry
   `ended without landing: WORDS`, its result's first line; jig holds the
   change after it for its dependency (jig's `domain/tasks/lifecycle.md`,
-  6), and the owner starts the entry again or skips it (section 5).
+  6), and the owner starts the entry again or skips it (section 5). The
+  follow never releases that hold: a procedure releases none (jig's
+  `domain/connectors.md`, 6.3). None of the follow changes after the
+  ended one has produced, as each waits on it, so the act that starts
+  or skips the ended entry remakes them: *the tail made again*, below.
+- **The tail made again:** the step cancels every follow change after
+  the ended entry, `made again after change M ended`, and marks their
+  entries, with the ended one when it is started, to be made again, each
+  keeping its owner's word and hold; the same step makes them as above,
+  in queue order, each depending on the one made before it and the
+  first on the live follow change before them, or on none (a step a
+  batch's bound stops leaves the rest to the next). So no follow change
+  stays held for an ended dependency, no hold is released, and no entry
+  has two live changes.
 
 ## 5. The owner's acts
 
@@ -252,11 +265,9 @@ every setting is, its decision that project's owners'. Its value, a
 - **`follow start --project P FOLLOW COMMIT`:** the entry whose `after`
   is COMMIT may produce once its dependency is done: its owner's word,
   under `owner`, or the end of its owner's hold, under either. On an
-  entry ended without landing, it makes the entry's follow change again,
-  depending on the change before it, and the same step amends the change
-  after it to depend on the new one, releasing its hold for the ended
-  dependency (jig's `domain/tasks/changes.md`, an amendment that
-  releases).
+  entry ended without landing, the step makes the entry's follow change
+  again, depending on the change before it, and the tail after it made
+  again (section 4) in the same decision; no hold is released.
 - **`follow hold --project P FOLLOW COMMIT --reason TEXT`:** an entry
   whose change hasn't started producing waits, and the lag shows its
   reason; `start` lifts it.
@@ -264,7 +275,8 @@ every setting is, its decision that project's owners'. Its value, a
   followed counts as followed, and the follow keeps it among its skips
   with its reason. Its change, if made, is cancelled with the reason, and
   the follow change after it is amended to depend on the change before
-  the skipped one, or on none, in the same step.
+  the skipped one, or on none, in the same step. A skipped entry ended
+  without landing has the tail after it made again instead (section 4).
 - **`follow merge --project P FOLLOW COMMIT COMMIT...`:** two to
   `follow_merge` consecutive entries, none followed, none skipped, none of
   their changes producing: the first's change is amended to follow them
@@ -278,7 +290,8 @@ every setting is, its decision that project's owners'. Its value, a
   cancelled changes are no one's dependency by the time they end, and no
   follow change is held for them.
 - **Refused,** naming the entry and why: a commit no entry has, one
-  followed or skipped, a started change for `hold` or `merge`, entries
+  followed or skipped, a started change for `hold` or `merge`, an entry
+  ended without landing for `merge` (start or skip it first), entries
   not consecutive or past `follow_merge`, a reason past
   `follow_reason_bytes`, a person neither the owner nor an owner of the
   project.

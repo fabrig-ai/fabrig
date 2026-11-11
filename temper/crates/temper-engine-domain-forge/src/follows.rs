@@ -3,6 +3,7 @@ use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};
 use skein_lib::{Env, List, Queue, Time, Token};
+pub mod words;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowRow {
@@ -16,6 +17,7 @@ pub struct FollowRow {
     pub queue: Box<[FollowEntry]>,
     pub skips: Box<[FollowSkip]>,
     pub parity: Option<FollowParity>,
+    pub questions: Box<[FollowQuestion]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowEntry {
@@ -28,6 +30,16 @@ pub struct FollowEntry {
     pub more_files: u32,
     pub change: Option<u64>,
     pub state: FollowState,
+    pub word: bool,
+    pub remake: bool,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowQuestion {
+    pub change: u64,
+    pub number: u64,
+    pub words: Box<[u8]>,
+    pub person: Option<u64>,
+    pub answer: Option<Box<[u8]>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowCommit {
@@ -95,7 +107,53 @@ pub(crate) struct Range {
 pub(crate) fn capacity(l: &Limits) -> Option<u32> {
     l.judge_projects.checked_mul(l.follows)
 }
+/// Refusals of the domain's owner-word entrance (follows.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FollowRefusal {
+    UnknownFollow,
+    Stopped,
+    UnknownEntry,
+    AlreadyStarted,
+}
 impl Domain {
+    pub fn follow_start(&self, project: u32, follow: u32, after: Commit) -> Result<FollowRow, FollowRefusal> {
+        let mut row = self.follow_row(project, follow).cloned().ok_or(FollowRefusal::UnknownFollow)?;
+        if row.stopped.is_some() {
+            return Err(FollowRefusal::Stopped);
+        }
+        let mut found = false;
+        for entry in &mut row.queue {
+            if entry.after != after {
+                continue;
+            }
+            found = true;
+            match &entry.state {
+                FollowState::Ended(_) => {
+                    entry.remake = true;
+                    entry.word = true;
+                }
+                FollowState::NotMade
+                | FollowState::WaitsWord
+                | FollowState::WaitsFor(_)
+                | FollowState::HeldByOwner(_) => {
+                    entry.word = true;
+                }
+                FollowState::Producing | FollowState::Held(_) => return Err(FollowRefusal::AlreadyStarted),
+            }
+        }
+        if found { Ok(row) } else { Err(FollowRefusal::UnknownEntry) }
+    }
+    #[must_use]
+    pub fn follow_task(&self, task: u64) -> Option<&FollowRow> {
+        let mut found = None;
+        for (_, row) in &self.follow_rows {
+            if row.task == Some(task) {
+                found = Some(row);
+                break;
+            }
+        }
+        found
+    }
     #[must_use]
     pub fn follow_row(&self, project: u32, follow: u32) -> Option<&FollowRow> {
         self.follow_rows.get(&(project, follow))
@@ -109,7 +167,24 @@ impl Domain {
         FollowLag { count: u32::try_from(entries.len()).expect("bounded follow queue"), entries }
     }
 }
+pub(crate) fn register(d: &mut Domain, row: FollowRow, out: &mut Queue<Request>) {
+    let key = (row.project, row.follow);
+    let Some(prior) = d.follow_rows.get(&key) else { return };
+    if prior == &row {
+        return;
+    }
+    for entry in &row.queue {
+        if let Some(change) = entry.change {
+            out.push(Request::WakeProcedure { task: change });
+        }
+    }
+    save(&row, out);
+    d.follow_rows.insert(key, row).expect("existing follow");
+}
 fn save(row: &FollowRow, out: &mut Queue<Request>) {
+    if let Some(task) = row.task {
+        out.push(Request::WakeProcedure { task });
+    }
     out.push(Request::Save { read_afresh: None, release: None, record: Stored::Follow(row.clone()) });
     out.push(Request::Marked { tasks: Box::new([crate::follows_subject(row.project)]) });
 }
@@ -127,9 +202,12 @@ pub fn followed(d: &mut Domain, project: u32, follow: u32, afters: &[Commit], ou
 }
 pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Request>) {
     let key = (project, follow);
-    if let Some(setting) = d.follow(project, follow) {
-        if d.follow_rows.contains_key(&key) {
-            out.push(Request::Marked { tasks: Box::new([crate::follows_subject(project)]) });
+    if let Some(setting) = d.follow(project, follow).cloned() {
+        if let Some(row) = d.follow_rows.get_mut(&key) {
+            if row.stopped.take().is_some() {
+                row.task = None;
+            }
+            save(row, out);
         } else {
             let row = FollowRow {
                 project,
@@ -145,11 +223,15 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
                 queue: Box::new([]),
                 skips: Box::new([]),
                 parity: None,
+                questions: Box::new([]),
             };
             save(&row, out);
             d.follow_rows.insert(key, row).expect("accepted follow bound");
         }
-    } else if d.follow_rows.remove(&key).is_some() {
+    } else if let Some(row) = d.follow_rows.remove(&key) {
+        if let Some(task) = row.task {
+            out.push(Request::CancelFollow { project, task });
+        }
         d.follow_retry.remove(&key);
         let mut owners = List::with_capacity(d.follow_reads.capacity());
         for (owner, read) in &d.follow_reads {
@@ -162,6 +244,12 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
         }
         out.push(Request::Erase { key: Key::Follow { project, follow } });
         out.push(Request::Marked { tasks: Box::new([crate::follows_subject(project)]) });
+    }
+    if let Some(row) = d.follow_rows.get(&key)
+        && row.task.is_none()
+        && row.stopped.is_none()
+    {
+        out.push(Request::FollowRun { project, follow });
     }
     d.tier_ops.dirty = true;
 }
@@ -405,6 +493,8 @@ fn finish_range(d: &mut Domain, env: &Env<Limits>, pending: Range, out: &mut Que
                 more_files,
                 change: None,
                 state: FollowState::NotMade,
+                word: false,
+                remake: false,
             })
             .expect("queue room reserved before read");
         row.queue = queue.into_boxed();
@@ -414,6 +504,15 @@ fn finish_range(d: &mut Domain, env: &Env<Limits>, pending: Range, out: &mut Que
 }
 pub(crate) fn row_bytes(row: &FollowRow) -> Option<u64> {
     let mut bytes = skein_lib::len_u64(row.branch.len());
+    bytes = bytes.checked_add(
+        skein_lib::len_u64(row.questions.len()).checked_mul(u64::try_from(size_of::<FollowQuestion>()).ok()?)?,
+    )?;
+    for question in &row.questions {
+        bytes = bytes.checked_add(skein_lib::len_u64(question.words.len()))?;
+        if let Some(answer) = &question.answer {
+            bytes = bytes.checked_add(skein_lib::len_u64(answer.len()))?;
+        }
+    }
     if let Some(stopped) = &row.stopped {
         bytes = bytes.checked_add(skein_lib::len_u64(stopped.len()))?;
     }

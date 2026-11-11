@@ -165,6 +165,8 @@ pub struct StoryLimits {
     pub notes: Option<authority::Scopes>,
     /// The chat may delegate to its owner's role before goal narrowing.
     pub person_executor: bool,
+    /// An external procedure makes a change through its committed batch.
+    pub procedure_batch: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
@@ -343,6 +345,7 @@ impl World {
             tools,
             notes,
             person_executor,
+            procedure_batch,
             brief,
             stall,
             spec_bytes,
@@ -705,6 +708,16 @@ impl World {
                     let executors = u32::try_from(rules.ceiling.delegation.kinds.len()).expect("fixture kinds fit");
                     limits.authority.executors = limits.authority.executors.max(executors);
                     limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(executors);
+                }
+                if procedure_batch {
+                    let grants = rules.ceiling.grants.clone();
+                    for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                        authority.grants.clone_from(&grants);
+                        authority.delegation.kinds =
+                            [authority.delegation.kinds.as_ref(), &[authority::Executor::Procedure(1)]].concat().into();
+                    }
+                    limits.authority.executors = limits.authority.executors.max(10);
+                    limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(10);
                 }
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
                 let mut facts = Queue::uncapped();
@@ -1097,6 +1110,14 @@ impl World {
             writes: Vec::new(),
             repository_writes: Vec::new(),
         }
+    }
+
+    /// The configured pages base, before a multi-project fixture rebuilds startup.
+    #[must_use]
+    pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.forges[0].web = Some(pages.into());
+        self
     }
 
     /// A second project with the same owner and policy, before startup.
@@ -1840,7 +1861,7 @@ impl World {
                     self.drained = Some(self.store.header().commits);
                 }
                 engine::Request::Worker(other) => panic!("forge fixture received an unexpected request {other:?}"),
-                engine::Request::Stop => panic!("root startup or store failure"),
+                engine::Request::Stop => panic!("root startup or store failure: {:?}", self.root.start_stop()),
             }
         }
     }

@@ -59,6 +59,7 @@ mod effect_words;
 mod forge_user;
 mod forges;
 pub use forge_user::{FORGE_PROVIDER, key_user, user_key};
+mod follow_check;
 pub mod follows;
 mod gates;
 mod held;
@@ -66,7 +67,8 @@ pub mod items;
 mod judge;
 mod kinds;
 pub use follows::{
-    FollowCommit, FollowEntry, FollowLag, FollowParity, FollowRow, FollowSkip, FollowState, FollowVerdict, followed,
+    FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow, FollowSkip,
+    FollowState, FollowVerdict, followed,
 };
 mod landing;
 mod landing_log;
@@ -685,6 +687,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.report))?
             .checked_add(match &row.follows {
                 Some(follows) => skein_lib::len_u64(follows.commits.len()).checked_mul(32)?,
+                None => 0,
+            })?
+            .checked_add(match &row.follow_check {
+                Some(check) => follow_check::stored_bytes(check)?,
                 None => 0,
             })?
             .checked_add(

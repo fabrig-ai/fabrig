@@ -13,6 +13,8 @@ fn entry(state: d::FollowState) -> d::FollowEntry {
         more_files: 2,
         change: Some(51),
         state,
+        word: false,
+        remake: false,
     }
 }
 fn row() -> d::FollowRow {
@@ -24,6 +26,7 @@ fn row() -> d::FollowRow {
         heard: Some([2; 32]),
         task: Some(71),
         stopped: Some(b"owner stopped".as_slice().into()),
+        questions: Box::new([]),
         queue: Box::new([entry(d::FollowState::NotMade)]),
         skips: Box::new([d::FollowSkip { after: [3; 32], reason: b"already done".as_slice().into() }]),
         parity: Some(d::FollowParity {
@@ -125,4 +128,42 @@ fn follow_decode_refuses_one_past_each_configured_bound() {
         let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller bounds");
         assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable), "one past {field}");
     }
+}
+
+#[test]
+fn a_changes_follow_workflow_progress_round_trips_with_its_allocated_bytes() {
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Gating {
+        head: [3; 32],
+        asked: Box::new([u64::MAX]),
+    });
+    row.follow_check = Some(d::FollowCheck {
+        follow: 1,
+        source: [2; 32],
+        head: [3; 32],
+        definition: b"definition".as_slice().into(),
+        key: Some([4; 32]),
+        page: 3,
+        faults: 2,
+        held: Some(b"runner fault".as_slice().into()),
+        flight: Some(d::TierFlight {
+            entry: 11,
+            start: Some(skein_lib::Time::from_nanos(10)),
+            since: Some(skein_lib::Time::from_nanos(11)),
+            waiting: true,
+            next: None,
+            run: Some(71),
+            fault: None,
+            pending: Box::new([skein_forge::api::JobAttempt { head: [3; 32], run: 71, job: 81, attempt: 2 }]),
+            report: Some(d::ReceiptRun { id: 71, number: 7, url: b"https://forge.example/run/71".as_slice().into() }),
+        }),
+    });
+    let record = d::Stored::Change(Box::new(row));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("bounds");
+    assert_eq!(records::decode(&records::encode(&record), &bounds), Ok(record.clone()));
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = record.clone();
+    let held = meter.end().held();
+    assert_eq!(d::stored_bytes(&cloned), Some(held));
+    drop(cloned);
 }

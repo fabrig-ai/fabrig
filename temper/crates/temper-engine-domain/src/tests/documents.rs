@@ -272,6 +272,7 @@ fn repair() -> forge::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 

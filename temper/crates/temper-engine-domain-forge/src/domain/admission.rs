@@ -314,7 +314,12 @@ pub(super) fn read_failed(
                 None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
             },
         ),
-        StepStage::Ci | StepStage::BaseCi | StepStage::Compare | StepStage::CatchUp | StepStage::Reviews(_) => {
+        StepStage::Ci
+        | StepStage::BaseCi
+        | StepStage::Compare
+        | StepStage::CatchUp
+        | StepStage::Reviews(_)
+        | StepStage::FollowCheck(_) => {
             return false;
         }
     };

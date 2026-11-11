@@ -296,6 +296,10 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         follow_row_branch: forge.name_bytes,
         follow_row_stopped_some: forge.follow_reason_bytes,
         follow_row_queue: forge.follow_queue,
+        // Only the head change produces, and it relays one question at a time.
+        follow_row_questions: 1,
+        follow_question_words: forge.client.op_bytes,
+        follow_question_answer_some: forge.client.op_bytes,
         follow_row_skips: forge.follow_skips,
         follow_entry_commits: forge.follow_commits,
         follow_files_files: forge.client.answer_bytes.checked_add(forge.follow_files.checked_mul(4)?)?,

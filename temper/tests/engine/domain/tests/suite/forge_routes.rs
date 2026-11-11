@@ -3938,3 +3938,6 @@ mod live_delegate;
 
 #[path = "forge_routes/close_change.rs"]
 mod close_change;
+
+#[path = "forge_routes/follow_changes.rs"]
+mod follow_changes;

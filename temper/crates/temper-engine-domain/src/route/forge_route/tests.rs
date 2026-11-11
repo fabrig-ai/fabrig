@@ -1249,6 +1249,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -3384,6 +3385,9 @@ fn follows_start(text: &[u8], route: Option<u64>) -> (bool, skein_lib::Queue<sup
         parameters.push(tasks::Parameter::Number { name: 14, value }).unwrap();
     }
     context.spec.parameters = parameters.into_boxed();
+    if let Some(follows) = super::change_follows(text, env.limits.forge.follow_merge) {
+        follow_fixture(&mut domain, &env, context.project, &follows.commits);
+    }
     (super::start_change(&mut domain, &env, &context), domain.work)
 }
 
@@ -4272,5 +4276,81 @@ fn a_close_jobs_spec_is_its_command_and_its_request() {
     assert_eq!(
         super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
         None
+    );
+}
+
+fn follow_fixture(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, project: u32, commits: &[[u8; 32]]) {
+    use super::forge;
+    let mut queue = skein_lib::List::uncapped();
+    for commit in commits {
+        queue
+            .push(forge::FollowEntry {
+                before: SHA1,
+                after: *commit,
+                pull: None,
+                commits: Box::new([]),
+                more_commits: 0,
+                files: None,
+                more_files: 0,
+                change: None,
+                state: forge::FollowState::NotMade,
+                word: true,
+                remake: false,
+            })
+            .unwrap();
+    }
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore {
+            record: forge::Stored::Follow(forge::FollowRow {
+                project,
+                follow: 3,
+                source: skein_forge::api::Repository { forge: 1, repository: 1 },
+                branch: b"main".as_slice().into(),
+                heard: Some(SHA1),
+                task: Some(33),
+                stopped: None,
+                queue: queue.into_boxed(),
+                skips: Box::new([]),
+                parity: None,
+                questions: Box::new([]),
+            }),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+#[test]
+fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
+    use super::{follow_route, forge, tasks};
+    let (mut domain, env, context) = change_start_fixture();
+    follow_fixture(&mut domain, &env, context.project, &[SHA1, SHA256]);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([SHA1]) };
+    let missing = forge::ChangeFollows { follow: 3, commits: Box::new([[0x11; 32]]) };
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &missing, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: 111111111111") && words.ends_with(b"the follow's queue lacks this commit"));
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(34), &follows, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: abcdef012345") && words.ends_with(b"the requester is not that follow's task"));
+    let mut change = change_row(None);
+    change.task = context.task;
+    change.repository = skein_forge::api::Repository { forge: 1, repository: 1 };
+    change.follows = Some(follows.clone());
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[]).unwrap_err();
+    assert!(
+        words.starts_with(b"follows: abcdef012345") && words.ends_with(b"another live follow change names this commit")
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[context.task]),
+        Ok(())
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, Some(context.task), &[]),
+        Ok(())
     );
 }

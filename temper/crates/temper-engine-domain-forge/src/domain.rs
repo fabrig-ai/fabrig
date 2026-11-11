@@ -79,14 +79,16 @@ enum StepStage {
     Compare,
     CatchUp,
     Reviews(u32),
+    FollowCheck(crate::follow_check::ReadKind),
 }
 
 /// One sequence of fresh reads before a level-triggered change step.
 #[expect(clippy::struct_excessive_bools, reason = "independent facts and progress of one fresh-read chain")]
-#[derive(Hash, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub(crate) struct PendingStep {
     task: u64,
     entry: u64,
+    follow_tree: List<temper_engine_domain_forge_landing::Entry>,
     stage: StepStage,
     heard: change::Heard,
     gates: Box<[change::GateReport]>,
@@ -1166,7 +1168,7 @@ impl Domain {
     #[must_use]
     pub fn repository_role(&self, project: u32, repository: skein_forge::api::Repository) -> Option<Role> {
         let row = self.repository(repository)?;
-        if row.project == project { Some(row.role) } else { None }
+        Some(row.for_project(project)?.role)
     }
 
     /// Resolve a deployment-wide saved repository tag within its project.
@@ -1341,6 +1343,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
         Event::StatusRefused { project } => crate::status::task(d, project, None, out),
         Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
+        Event::Follow { row } => crate::follows::register(d, row, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }
@@ -1790,6 +1793,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
             crate::landing::hinted(d, &hint, out);
+            crate::follow_check::hinted(d, &hint, out);
             crate::tiers::hinted(d, &hint, out);
             let changes = d.changes_for(hint.repository, env.limits.changes);
             // An unrecognised resource (for example after a rename) cannot
@@ -1997,6 +2001,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 let lost_comment = projection && outcome == skein_forge_client::Outcome::Held && posting(d, entry);
                 d.named_outcome(entry, outcome);
                 settled_facts(d, env, entry, task, outcome, out);
+                crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
                 let retain = crate::landing::outcome(d, entry, outcome, out);
                 match outcome {
@@ -3028,6 +3033,10 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
         emit(out, Request::Refused { task });
         return;
     }
+    if !crate::follow_check::select(d, &mut row, &env.limits) {
+        emit(out, Request::Refused { task });
+        return;
+    }
     row.change.way = d.landing.way(d.repositories.get(&row.repository).expect("adopted").project);
     d.changes.insert(task, row.clone()).expect("change capacity checked");
     save_queue_change(d, env, None, row, out);
@@ -3521,6 +3530,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     let pending = PendingStep {
         task,
         entry,
+        follow_tree: List::with_capacity(env.limits.key_entries),
         stage: StepStage::Branch,
         heard,
         gates: if gates.is_empty() { row.verdicts.clone() } else { gates },
@@ -3588,6 +3598,7 @@ fn step_verified(
     let pending = PendingStep {
         task,
         entry: 0,
+        follow_tree: List::with_capacity(env.limits.key_entries),
         stage: StepStage::Branch,
         heard,
         gates: Box::new([]),
@@ -3678,6 +3689,19 @@ fn step_read(
         }
         return;
     }
+    if let StepStage::FollowCheck(kind) = pending.stage {
+        let mut row = row.clone();
+        let action = crate::follow_check::answered(d, env, &mut row, kind, result, &mut pending.follow_tree, out);
+        if pending.woken {
+            // A hint during the workflow read asks for fresh branch and CI facts before another dispatch.
+            d.changes.insert(row.task, row.clone()).expect("known change");
+            save_change(d, out, row);
+            finish_step(d, env, pending, out);
+            return;
+        }
+        drive_check(d, env, row, &pending, action, out);
+        return;
+    }
     if result == Err(skein_forge::api::Error::Busy) {
         retry_step(env, pending.task, out);
         return;
@@ -3696,6 +3720,7 @@ fn step_read(
         None => &[],
     };
     let next = match pending.stage {
+        StepStage::FollowCheck(_) => unreachable!("workflow reads handled above"),
         StepStage::Branch => {
             match result {
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
@@ -4123,6 +4148,14 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     {
         accept_released_branch(d, env, &mut row, head, out);
     }
+    if !crate::follow_check::select(d, &mut row, &env.limits) {
+        emit(out, Request::Refused { task: row.task });
+        return;
+    }
+    // A workflow has its own runner-fault lifetime, not an agent's stall allowance.
+    if crate::follow_check::asked(&row).is_some() {
+        row.change.since = env.wall;
+    }
     let facts = change_facts(d, env, &row, pending, base_tip);
     let mut heard = change_standing(d, &row, pending);
     if row.delegate_status != change::Status::Unknown {
@@ -4137,6 +4170,14 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         row.change = stepped.change;
         let decision = stepped.decision;
         match decision {
+            change::Decision::Wait { .. } if crate::follow_check::asked(&row).is_some() => {
+                drive_check(d, env, row, pending, None, out);
+                return;
+            }
+            change::Decision::Delegate(change::Delegate::Gate { number: change::FOLLOW_CHECK_GATE, .. }) => {
+                drive_check(d, env, row, pending, None, out);
+                return;
+            }
             change::Decision::None if advanced => {}
             change::Decision::RepairEnded { head } => {
                 row.result.ci_passed(&head, env.limits.client.answer_bytes);
@@ -4148,7 +4189,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 // An approval wait keeps its turn (temper/docs/design/domain/forge/change/questions.md, 2).
                 let prior = match effect {
                     change::Effect::Merge { .. } => effect_prior,
-                    change::Effect::Open
+                    change::Effect::FollowCheck { .. }
+                    | change::Effect::Open
                     | change::Effect::CreateBranch { .. }
                     | change::Effect::Reopen
                     | change::Effect::Prepare { .. }
@@ -4203,6 +4245,65 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         }
     }
     emit(out, Request::Refused { task: row.task });
+}
+
+fn drive_check(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    mut row: ChangeRow,
+    pending: &PendingStep,
+    action: Option<crate::follow_check::Action>,
+    out: &mut Queue<Request>,
+) {
+    use crate::follow_check::Action;
+    let head = pending.branch.expect("follow check was asked at a read head");
+    let action = match action {
+        Some(action) => action,
+        None => crate::follow_check::advance(d, env, &mut row, head, out),
+    };
+    match action {
+        Action::Write => {
+            let prior = row.change.clone();
+            emit_change_effect(d, env, &mut row, pending, prior, change::Effect::FollowCheck { head }, out);
+        }
+        Action::Read { kind, read } => {
+            let mut pending = pending.clone();
+            pending.stage = StepStage::FollowCheck(kind);
+            d.sequence = d.sequence.checked_add(1).expect("follow check read sequence");
+            let owner = Token::new(d.sequence | (1_u64 << 62));
+            let repository = row.repository;
+            d.changes.insert(row.task, row.clone()).expect("known change");
+            save_change(d, out, row);
+            d.steps.insert(owner, pending).expect("one read per change");
+            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+        }
+        Action::Done | Action::Wait | Action::Held => {
+            let task = row.task;
+            let decision = match action {
+                Action::Held => {
+                    row.change.state =
+                        change::State::Held { was: Box::new(row.change.state), why: change::Hold::Failed };
+                    change::Decision::Hold(change::Hold::Failed)
+                }
+                Action::Wait => {
+                    let at = d.client.poll_at(&env.limits.client, env.now, row.repository, env.limits.client.poll);
+                    change::Decision::Wait {
+                        until: Some(skein_lib::Wall::from_nanos(
+                            env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())),
+                        )),
+                    }
+                }
+                Action::Done => change::Decision::Wait { until: None },
+                Action::Read { .. } | Action::Write => unreachable!("settled check action"),
+            };
+            d.changes.insert(task, row.clone()).expect("known change");
+            save_change(d, out, row);
+            emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
+            if let Action::Done = action {
+                emit(out, Request::WakeProcedure { task });
+            }
+        }
+    }
 }
 
 fn repair_poll(
@@ -4377,7 +4478,7 @@ fn change_facts(
             Some(_) => change::Status::Failed,
             None => change::Status::Unknown,
         },
-        gates: pending.gates.clone(),
+        gates: crate::follow_check::reports(row, &pending.gates, env.limits.change_policy.gates),
         live_gate: match row.delegate {
             Some((_, change::Delegate::Gate { head, .. })) => Some(head),
             Some(_) | None => None,
@@ -4422,7 +4523,21 @@ fn emit_change_effect(
     effect: change::Effect,
     out: &mut Queue<Request>,
 ) {
-    let Some(write) = change_write(row, effect, &env.limits) else {
+    if d.entries.contains_key(&pending.entry) || d.entries.len() == env.limits.entries {
+        emit(out, Request::Refused { task: row.task });
+        return;
+    }
+    let write = match effect {
+        change::Effect::FollowCheck { .. } => crate::follow_check::write(d, row, pending.entry),
+        change::Effect::Open
+        | change::Effect::CreateBranch { .. }
+        | change::Effect::Reopen
+        | change::Effect::Retarget
+        | change::Effect::Update { .. }
+        | change::Effect::Prepare { .. }
+        | change::Effect::Merge { .. } => change_write(row, effect, &env.limits),
+    };
+    let Some(write) = write else {
         emit(
             out,
             Request::ChangeDecision {
@@ -4434,17 +4549,14 @@ fn emit_change_effect(
         );
         return;
     };
-    if d.entries.contains_key(&pending.entry) || d.entries.len() == env.limits.entries {
-        emit(out, Request::Refused { task: row.task });
-        return;
-    }
     let condition = match effect {
         change::Effect::Update { head, base } | change::Effect::Prepare { head, main: base } => {
             skein_forge_client::Condition::Update { head, base }
         }
         change::Effect::Merge { .. } => skein_forge_client::Condition::Merge { base: row.base.clone() },
         // landing.md 3: the top's task
-        change::Effect::Open
+        change::Effect::FollowCheck { .. }
+        | change::Effect::Open
         | change::Effect::CreateBranch { .. }
         | change::Effect::Reopen
         | change::Effect::Retarget => skein_forge_client::Condition::None,
@@ -4522,7 +4634,7 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
         change::Effect::Prepare { .. } => {
             Some(skein_forge::api::Write::Update { number: row.pull?, style: skein_forge::api::UpdateStyle::Rebase })
         }
-        change::Effect::Retarget => None,
+        change::Effect::FollowCheck { .. } | change::Effect::Retarget => None,
         change::Effect::Update { .. } => {
             Some(skein_forge::api::Write::Update { number: row.pull?, style: skein_forge::api::UpdateStyle::Merge })
         }
@@ -4720,6 +4832,15 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
             | change::State::NoChange { .. }
             | change::State::Ended => {}
         }
+    }
+    if lifted
+        && let Some(check) = &mut row.follow_check
+        && check.held.is_some()
+    {
+        check.held = None;
+        check.faults = 0;
+        check.flight = None;
+        check.page = 1;
     }
     row.drift = None;
     let mut saved = row.clone();
@@ -5785,12 +5906,17 @@ fn veto_change(
     prior: change::Change,
     out: &mut Queue<Request>,
 ) {
+    let unsent = match d.entries.get(&entry) {
+        Some(kept) => kept.entry.effect.write.clone(),
+        None => return,
+    };
     let Some(row) = d.changes.get_mut(&task) else { return };
-    if row.pending != Some(entry) || !d.entries.contains_key(&entry) {
+    if row.pending != Some(entry) {
         return;
     }
     let before = crate::panel::ready(row);
     row.change = prior;
+    crate::follow_check::veto(row, entry, &unsent);
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.effect_account = None;
