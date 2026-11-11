@@ -472,10 +472,13 @@
     Done's "Home", and before *Decided for you*, wherever the page draws
     that, on a phone too: a `section-head`, the level-2 heading "Only you ·
     1", at its right "work goes on around it", muted. Then
-    `temper-only-item` an item, the mock's `.card`, gap 12:
-    - its from line, `.mono`: the chip `temper-chip` "Deployment", where
-      Accounts is (`settings.md`, 1), then "an LLM account";
-    - its question line, `.q`, 19 px, by its source as Accounts words it
+    `temper-only-item` an item, the mock's `.card`, gap 10, as `needs.html`
+    draws it (`../../draft/surfaces.md`, 13):
+    - its from line, the mock's `.from`, in the sans, 13 px and muted,
+      where a need card's is in the mono: the chip `temper-chip`
+      "Deployment", where Accounts is (`settings.md`, 1), then "an LLM
+      account";
+    - its question line, `.q`, 16.5 px, by its source as Accounts words it
       (`accounts.md`, 2, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
       signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
       expiring, "Your Claude Code login claude-alice is expiring. Sign in

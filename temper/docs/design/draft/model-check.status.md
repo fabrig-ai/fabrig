@@ -1,10 +1,7 @@
 # model-check: status
 
-2026-11-07. Where the design lags or departs from [model-check.md](model-check.md).
+2026-11-11. Where the design lags or departs from [model-check.md](model-check.md).
 
-- **Design lags:**
-  - 2, *Who pays*: `../client/pages/README.md`, *The try*, describes the person's cost but gives the pane no "one short message" line once the trial goes. The running line in `temper-client-view/src/pages/model_check.rs` draws "Trying: STEP" alone; the draft's spend notice is absent from both design and code.
-  - 3: `../client/pages/README.md`: the Model step's region, named "Forge", holds the forge's line alone, and Model's line stands in Ready's pane, named "Forge and model", where 3 has the pane hold both lines from the Model step on. The request `model-check-pane` draws Ready alone.
 - **Design departs:**
   - 2, *Leaving*: `../domain/trial.md`, 3.1 and 5: leaving a page cancels nothing, but a restart cancels every live trial before any run can be claimed and restores no row. This keeps a page's departure from spending or stopping work, and meets the request that a restart spend no second turn; its cost is losing a failed trial's line. Decided by the model-check plan's cut.
   - 2: `../domain/trial.md`, 2 and 4: a later account's trial names its account and the charter's first model offered with it, else the first it serves, where 2 has every trial name no `llm`. The first usable account's still names none, for 2's reason, and is the one a new chat takes; a later one would otherwise answer as an earlier account, giving no proof of the account just connected (the user, 2026-11-07, the request `ui-trial-account`). Each retry judges the offer again, so it stays on the account retried even when another has since become usable. Decided by the ui-trial-account plan's cut.
@@ -15,4 +12,4 @@
 - **Open:**
   - 5: an act on Settings' accounts.
 
-`../domain/trial.md`, 2 to 7, and `../client/pages/README.md`, carry `model-check.md`, sections 2 to 4 apart from the gaps and departures above; the draft remains in place. The code's concurrent-account and wait-reason gaps are in `../domain/trial.status.md`, 6. No outcome of the request's real-account walk is supplied for retirement.
+`../domain/trial.md`, 2 to 7, and `../client/pages/README.md`, carry `model-check.md`, sections 2 to 4 apart from the departures above; the draft remains in place. The code's concurrent-account and wait-reason gaps are in `../domain/trial.status.md`, 6. No outcome of the request's real-account walk is supplied for retirement.

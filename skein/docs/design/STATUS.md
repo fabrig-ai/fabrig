@@ -103,8 +103,7 @@ kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
 later review (`forge/README.md`); single departures stand in
 `net/channel.md`, `testing/fakes/forge.md`, `forge/README.md`, `forge/connection.md`, `runtime/io/README.md`,
 `data/json.md`, `data/kv.md`, `runtime/lib.md`, `net/link.md`, `llm/README.md`, `oauth/README.md`, `runtime/shell.md`,
-`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's loader draws no words for a
-stall before its module's answer, its compressor's crates build optimized in
+`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's compressor's crates build optimized in
 development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui/web/README.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no

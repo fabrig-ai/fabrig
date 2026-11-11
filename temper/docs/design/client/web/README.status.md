@@ -92,9 +92,6 @@ establish no rendered equality.
   loader removes the placeholder at 200 ms all the same. `#boot` also sets
   `letter-spacing: normal`, beyond that stylesheet, since an arriving `temper.css` would
   otherwise move its words by -0.18 px.
-- **Departs:** `look.md`, *The first paint*: "no byte for 15 s" holds only once the module's
-  answer has begun: a stall before that answer draws the mark and an empty bar, with no
-  line (skein's `ui/web/bundle.status.md`, 3).
 - **Design departs:** `testing.md`, 3, 6, from the request `browser-trim` of 2026-11-06, decided
   by its plan's cut. Goals' link's target is held by the view's
   `the_link_shows_with_a_tracked_template`, where the request has the client world,

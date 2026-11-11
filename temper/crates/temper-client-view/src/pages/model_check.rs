@@ -1,4 +1,4 @@
-//! Model’s line in Ready’s pane (temper/docs/design/client/pages/README.md, *The try*; temper/docs/design/domain/trial.md, 6.1–6.4).
+//! Model’s line in the welcome’s pane (temper/docs/design/client/pages/README.md, *The try*; temper/docs/design/domain/trial.md, 6.1–6.4).
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control, Mark},
@@ -302,8 +302,16 @@ pub(crate) fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         State::Running { at } => {
             let step = step(w, trial, *at);
             let trying = named(w, Word::WelcomeTryStep, &step);
-            let name = w.say(Word::WelcomeTryLine, &[Hole::Name(trial.account.clone()), Hole::Name(step)]);
+            let mut name = w.say(Word::WelcomeTryLine, &[Hole::Name(trial.account.clone()), Hole::Name(step)]);
             details.push(trying).expect("one running detail");
+            match trial.first {
+                First::Key => {
+                    let spend = w.say(Word::WelcomeTrySpend, &[]);
+                    name = crate::accounts::words::join(&[&name, " · ".as_bytes(), &spend]);
+                    details.push(spend).expect("key spend detail fits");
+                }
+                First::Subscription | First::Plan => {}
+            }
             (name, Mark::ToCome)
         }
         State::Usable | State::Answered { .. } => {
