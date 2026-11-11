@@ -907,6 +907,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 /// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge/change/repairs.md).

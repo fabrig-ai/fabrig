@@ -2161,6 +2161,12 @@ fn describe_change_effect(
     }
     let pull_what = pull_what(row.pull);
     let (kind, what, state) = match effect {
+        forge_change::Effect::FollowCheck { head } => {
+            let check = row.follow_check.as_ref()?;
+            let flight = check.flight.as_ref()?;
+            let kind = if flight.start.is_some() && flight.run.is_some() { 17 } else { 16 };
+            (kind, branch_what(&row.branch, env.limits.forge.name_bytes), head)
+        }
         forge_change::Effect::Open => {
             (3, branch_what(&row.branch, env.limits.forge.name_bytes), evidence.head.unwrap_or([0; 32]))
         }
@@ -2199,7 +2205,7 @@ fn describe_change_effect(
     Some(EffectDescription {
         waits_for_dependencies: forge::waits_for_dependencies(kind),
         connector: domain.config.forge_connector,
-        purpose: u64::from(kind),
+        purpose: if kind == 16 || kind == 17 { 18 } else { u64::from(kind) },
         effect,
         form,
         recovery,
@@ -2650,6 +2656,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 catch_up,
                 close,
                 merge_result: None,
+                follow_check: None,
             },
         }));
         let branch_name =
@@ -3764,6 +3771,7 @@ fn change_delegate(
                 match gate.kind {
                     forge_change::GateKind::Agent => row.review_llm.clone(),
                     forge_change::GateKind::Check => row.producing_llm.clone(),
+                    forge_change::GateKind::Follow => unreachable!("the forge dispatches a follow check"),
                     forge_change::GateKind::Person => None,
                 },
             )
@@ -3894,7 +3902,7 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
     let kind: &[u8] = match found? {
         forge_change::GateKind::Agent => b"review",
         forge_change::GateKind::Person => b"approval",
-        forge_change::GateKind::Check => b"check",
+        forge_change::GateKind::Check | forge_change::GateKind::Follow => b"check",
     };
     let number = skein_lib::Decimal::of(number);
     let parts: [&[u8]; 5] = [b"Repair gate ", number.as_bytes(), b" (", kind, b") at "];
@@ -4070,6 +4078,7 @@ fn gate_executor(row: &forge::ChangeRow, kind: forge_change::GateKind) -> tasks:
     match kind {
         forge_change::GateKind::Agent => tasks::Executor::Agent { charter: row.review_charter },
         forge_change::GateKind::Check => tasks::Executor::Agent { charter: row.producing_charter },
+        forge_change::GateKind::Follow => unreachable!("a dispatched check has no delegate"),
         forge_change::GateKind::Person => tasks::Executor::Person(tasks::PersonAddress::Role(1)),
     }
 }
@@ -4346,7 +4355,16 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     {
         return holds::decision_as(domain, env, task, category, words);
     }
-    let account = if why == forge_change::Hold::Questions {
+    let check_hold = match domain.forge.change(task) {
+        Some(row) => match &row.follow_check {
+            Some(check) => check.held.clone(),
+            None => None,
+        },
+        None => None,
+    };
+    let account = if why == forge_change::Hold::Failed && check_hold.is_some() {
+        check_hold
+    } else if why == forge_change::Hold::Questions {
         let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
         let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
         append(&mut words, b"its questions are spent: ");

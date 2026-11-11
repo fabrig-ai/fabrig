@@ -570,7 +570,7 @@ fn hold_changed_charter(
             match kind {
                 Some(GateKind::Agent) => (b"review", row.review_charter),
                 Some(GateKind::Check) => (b"producer", row.producing_charter),
-                Some(GateKind::Person) | None => return false,
+                Some(GateKind::Person | GateKind::Follow) | None => return false,
             }
         }
         Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {

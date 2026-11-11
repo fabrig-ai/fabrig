@@ -41,7 +41,12 @@ pub enum GateKind {
     Person,
     /// A configured check supplies a verdict.
     Check,
+    /// The follow workflow dispatched by the change itself.
+    Follow,
 }
+
+/// The follow gate is outside the configured gates' u32 namespace.
+pub const FOLLOW_CHECK_GATE: u64 = u64::MAX;
 
 /// One gate the change or its project asks for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -422,6 +427,8 @@ pub enum Delegate {
 /// The effect the top should commit after checking authority.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
+    /// Dispatch or retry the follow check at this head.
+    FollowCheck { head: Commit },
     /// Open a pull request for the pushed branch.
     Open,
     /// Recreate a deleted held branch at its last known head.

@@ -946,6 +946,19 @@ pub struct ChangeFollows {
     pub follow: u32,
     pub commits: Box<[skein_forge::api::Commit]>,
 }
+/// The change's durable exact-head workflow progress (domain/forge/follows.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowCheck {
+    pub follow: u32,
+    pub source: skein_forge::api::Commit,
+    pub head: skein_forge::api::Commit,
+    pub definition: Box<[u8]>,
+    pub key: Option<[u8; 32]>,
+    pub flight: Option<TierFlight>,
+    pub page: u32,
+    pub faults: u32,
+    pub held: Option<Box<[u8]>>,
+}
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
@@ -1004,6 +1017,7 @@ pub struct ChangeRow {
     /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
     pub follows: Option<ChangeFollows>,
+    pub follow_check: Option<FollowCheck>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge/change/README.md, 2).
     pub catch_up: Option<skein_forge::api::Commit>,
     /// The close request (temper/docs/design/domain/forge/change/README.md, 1).
