@@ -1,7 +1,9 @@
 # gallery: status
 
-2026-11-10. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
+- **Not yet:** 2: `home-begin-both-left`, `ask-first-run` and `home-begin-settings-left` draw To begin's rail without the hairline and "How work runs", and the line naming Settings. [in flight: change 372]
+- **Not yet:** 2: `rail-across` draws the rail's "Home" and "Needs you" on the project last open, with its count. [in flight: change 373]
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
