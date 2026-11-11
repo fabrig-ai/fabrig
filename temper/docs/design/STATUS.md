@@ -782,7 +782,7 @@ the box's group file holds a forge's kind alone
 (`protocol/setup/README.md`, `protocol/forge/README.md`, `protocol/README.md`) and
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
-box (`domain/forge/README.md`), a project's Delete (`client/README.md`),
+box (`domain/forge/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
 no engine (`protocol/credentials.md`), and a closed change whose
 repository a removal erased leaves no project the Changes document

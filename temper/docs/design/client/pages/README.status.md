@@ -64,10 +64,8 @@ and unchanged accounting. No real-provider result is supplied;
   account usable, since `accounts.md`, 2 has no words for it and no walk has ended so
   (`../README.md`, section 5); and any ending where `me` offers no ChatGPT plan's sign-in,
   since the function finds that way before it draws the ending's words.
-   a plan's first use, its card in the conversation. the whole document:
-  Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no such act in `temper-client-domain`. `README.md`, The welcome:
+   a plan's first use, its card in the conversation.
+  `README.md`, The welcome:
   for a person whose role does not hold the deployment's forges, the model
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a

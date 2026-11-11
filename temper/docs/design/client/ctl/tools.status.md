@@ -2,7 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
+- **Not yet:** 3: `project delete PROJECT`: the table's tool is `project remove`, its ask built through `me` by `shapes::remove_project` with the chat template's grace, so a number `me` no longer lists sends nothing and a rerun after the deletion never reaches jig's kept answer [in flight: change 634].
+- **Not yet:** 2: `project show` of a deleted project prints `unknown` or `gone`, never `project 3 was deleted` [in flight: change 634].
 
 - **Not yet:** 1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
