@@ -120,12 +120,13 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (10, false),
         (11, true),
         (12, true),
+        (13, false),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 {
+        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))
@@ -199,6 +200,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         (10, false),
         (11, true),
         (12, true),
+        (13, false),
     ] {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
@@ -208,7 +210,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 {
+        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))

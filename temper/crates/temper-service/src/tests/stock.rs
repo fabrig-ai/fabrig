@@ -508,6 +508,57 @@ fn the_drafter_is_charter_12_and_template_6() {
     }
 }
 
+#[test]
+fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
+    use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+    use jig_domain_tasks::{EndedBy, Flags, Reasons, Retention, ResultsWake};
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 13).expect("standing role charter");
+    let text = include_str!("../stock/role.md");
+    let mut sections = text.split("## ");
+    assert_eq!(sections.next(), Some(""));
+    let sections: Box<[_]> = sections.map(|section| section.split_once('\n').expect("heading line")).collect();
+    assert_eq!(sections.len(), 3);
+    assert_eq!(sections[0].0, "shared");
+    assert_eq!(sections[1].0, "part, on: first");
+    assert_eq!(charter.policy.instructions.as_ref(), sections[0].1.trim_matches('\n').as_bytes());
+    assert_eq!(charter.parts.len(), 2);
+    for ((part, reasons), (_, words)) in charter.parts.iter().zip([Reasons::FIRST, Reasons(Reasons::ALL.0 & !Reasons::FIRST.0)]).zip(&sections[1..]) {
+        assert_eq!(part.on, reasons);
+        assert_eq!(part.instructions.as_ref(), words.trim_matches('\n').as_bytes());
+    }
+    assert!(charter.policy.resume);
+    assert_eq!(charter.policy.waiting, skein_lib::Duration::ZERO);
+    assert_eq!(charter.policy.tools.0, 2047);
+    assert!(!charter.policy.inspect && !charter.policy.modify && !charter.policy.shell && !charter.policy.agents);
+    assert!(charter.documents.is_empty());
+    let coordinator = defaults.charters.iter().find(|charter| charter.number == 5).unwrap();
+    assert_eq!(charter.wake, jig_domain_tasks::WakePolicy { results: ResultsWake::Each, ..coordinator.wake });
+    assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
+    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(60)));
+    let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
+    assert_eq!(template.name.as_ref(), b"standing role");
+    assert_eq!(template.executor, TemplateExecutor::Chosen);
+    assert_eq!(template.budget, TemplateBudget::Given);
+    assert_eq!(template.deadline, TemplateDeadline::None);
+    assert_eq!(template.tracked, None);
+    assert_eq!(template.label, 3);
+    assert_eq!(template.flags, Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept });
+    assert_eq!(template.contract, defaults.templates[0].contract);
+    assert!(template.llm.is_none());
+    assert!(defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(13)));
+}
+
+#[test]
+fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
+    let models = crate::stock::models(&engine(&generated()).llm);
+    assert_eq!(models.len(), 8);
+    for model in models {
+        assert_eq!(model.model.cache_life_ms, if model.model.name.as_ref() == b"demo" { 0 } else { 300_000 });
+    }
+}
+
 fn ask_design_first_rules(words: &str) {
     assert!(words.contains("confirm all required design landed into g before dispatching coding"));
     assert!(words.contains("A push, delivery or designer report is insufficient"));
