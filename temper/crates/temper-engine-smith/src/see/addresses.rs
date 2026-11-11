@@ -149,6 +149,11 @@ pub(crate) const GROUPS: &[Group] = &[
                 next: "settings · revisions · help settings-fields",
             },
             Address {
+                form: "settings follow N",
+                line: "A follow of this project, whole, at the newest revision; no stock default.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
                 form: "settings template-goal N",
                 line: "Template work: whether its coordinator designs first and makes a close-out; with none stored, stock planning and no close-out, marked so.",
                 next: "settings template N · ways · help settings-fields",

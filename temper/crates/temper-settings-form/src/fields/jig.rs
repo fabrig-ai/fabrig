@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 65] = [
+pub static FORMS: [Form; 70] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -87,6 +87,11 @@ pub static FORMS: [Form; 65] = [
     Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The exact base segments, then an exact last segment or an open prefix and all below it. A project's rule may begin at `branch`, covering that branch in each of its repositories." },
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
+    Form { shape: Shape::Follow, name: b"follow", choice: Choice::Every, line: b"A project's follow from a context repository into an owned, writable repository. Selector: project and number, from 1 to forge.follows; no stock default." },
+    Form { shape: Shape::FollowSource, name: b"follow-source", choice: Choice::Every, line: b"A repository this project adopts as context. An absent or empty branch uses its adopted default branch; absent or empty paths cover every path." },
+    Form { shape: Shape::FollowTarget, name: b"follow-target", choice: Choice::Every, line: b"An owned, writable repository. An absent or empty branch uses its landing branch." },
+    Form { shape: Shape::FollowOwner, name: b"follow-owner", choice: Choice::Every, line: b"A person with any role in this project." },
+    Form { shape: Shape::FollowCheck, name: b"follow-check", choice: Choice::Every, line: b"The target workflow and its report artifact; both required, nonempty, at most 256 bytes each." },
     Form { shape: Shape::TemplateGoal, name: b"template-goal", choice: Choice::Every, line: b"A goal template's work: whether its coordinator designs first and makes a close-out. With none kept, it plans and makes no close-out." },
     Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0." },
     Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
@@ -100,7 +105,7 @@ pub static FORMS: [Form; 65] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"What the charter does: a JSON string of 1 to 120 UTF-8 bytes, no control characters. If absent, Roles uses its instructions' first sentence. Selector: charter number, no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"Both headline and lede for the project's own way in How work runs. If absent, it uses the way's words. Selector: project, no number." },
 ];
-pub static FIELDS: [Field; 228] = [
+pub static FIELDS: [Field; 245] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -139,6 +144,7 @@ pub static FIELDS: [Field; 228] = [
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
             Word { word: b"template-goal", line: b"" },
+            Word { word: b"follow", line: b"" },
             Word { word: b"project-ways", line: b"" },
             Word { word: b"project-questions", line: b"" },
             Word { word: b"project-classes", line: b"" },
@@ -157,7 +163,7 @@ pub static FIELDS: [Field; 228] = [
         null: false,
         line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for follow, project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Whether the other catalogue models follow the named first choices; false when absent." },
     Field {
         shape: Shape::Charter,
@@ -1270,6 +1276,23 @@ pub static FIELDS: [Field; 228] = [
     Field { shape: Shape::LandingPattern, name: b"last", value: Value::Shape(Shape::LandingLast), list: None, null: false, line: b"One more segment, equal to an exact value or beginning with an open value, with all below it." },
     Field { shape: Shape::LandingLast, name: b"exact", value: Value::Hex(Bound::Limit(Limit::LandingExact)), list: None, null: false, line: b"One last segment equal to these bytes." },
     Field { shape: Shape::LandingLast, name: b"open", value: Value::Hex(Bound::Limit(Limit::LandingOpen)), list: None, null: false, line: b"A final segment beginning with these bytes, with all below it." },
+    Field { shape: Shape::Follow, name: b"source", value: Value::Shape(Shape::FollowSource), list: None, null: false, line: b"The context source; its repository and branch are fixed after acceptance." },
+    Field { shape: Shape::Follow, name: b"target", value: Value::Shape(Shape::FollowTarget), list: None, null: false, line: b"The owned target; its repository and branch are fixed after acceptance." },
+    Field { shape: Shape::Follow, name: b"owner", value: Value::Shape(Shape::FollowOwner), list: None, null: false, line: b"The owner of follow changes; required." },
+    Field { shape: Shape::Follow, name: b"start", value: Value::Words(&[Word { word: b"owner", line: b"Wait for the owner; the default." }, Word { word: b"code", line: b"Start after the previous change lands." }]), list: None, null: false, line: b"When each change starts; owner if absent or empty." },
+    Field { shape: Shape::Follow, name: b"producer", value: Value::Text(Bound::Most(8192)), list: None, null: false, line: b"Change parameter 11, C;P;R. Absent or empty uses the change charter and its defaults." },
+    Field { shape: Shape::Follow, name: b"check", value: Value::Shape(Shape::FollowCheck), list: None, null: false, line: b"The follow check; required." },
+    Field { shape: Shape::FollowSource, name: b"forge", value: Value::Integer(Width::U16), list: None, null: false, line: b"The forge number." },
+    Field { shape: Shape::FollowSource, name: b"repository", value: Value::Integer(Width::U32), list: None, null: false, line: b"The repository id on that forge." },
+    Field { shape: Shape::FollowSource, name: b"branch", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"The source branch, or its adopted default branch if absent or empty." },
+    Field { shape: Shape::FollowSource, name: b"paths", value: Value::Text(Bound::Most(256)), list: Some(Bound::Most(256)), null: false, line: b"Whole-segment prefixes, at most forge.follow_paths; no leading, trailing or doubled slash and no empty path." },
+    Field { shape: Shape::FollowTarget, name: b"forge", value: Value::Integer(Width::U16), list: None, null: false, line: b"The forge number." },
+    Field { shape: Shape::FollowTarget, name: b"repository", value: Value::Integer(Width::U32), list: None, null: false, line: b"The repository id on that forge." },
+    Field { shape: Shape::FollowTarget, name: b"branch", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"The target branch, or its landing branch if absent or empty." },
+    Field { shape: Shape::FollowOwner, name: b"person", value: Value::Integer(Width::U64), list: None, null: false, line: b"A person of this project, by number." },
+    Field { shape: Shape::FollowCheck, name: b"workflow", value: Value::Text(Bound::Most(256)), list: None, null: false, line: b"A workflow file of the target, required and nonempty." },
+    Field { shape: Shape::FollowCheck, name: b"artifact", value: Value::Text(Bound::Most(256)), list: None, null: false, line: b"The uploaded artifact name, required and nonempty." },
+    Field { shape: Shape::FollowCheck, name: b"format", value: Value::Words(&[Word { word: b"junit", line: b"JUnit XML." }, Word { word: b"lines", line: b"Line-format report." }]), list: None, null: false, line: b"The report format; required." },
     Field { shape: Shape::TemplateGoal, name: b"design", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator delivers a design before planning its changes; required." },
     Field { shape: Shape::TemplateGoal, name: b"close_out", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator makes a close-out after the goal lands; required." },
     Field { shape: Shape::ProjectWays, name: b"drafts", value: Value::Boolean, list: None, null: false, line: b"Whether chats can write drafts." },

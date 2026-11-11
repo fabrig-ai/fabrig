@@ -11,7 +11,7 @@ use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
-    if call.tool != rows::SETTING_AT || call.form != 2 && call.form != 4 {
+    if call.tool != rows::SETTING_AT || call.form != 2 && call.form != 4 && call.form != 7 {
         return true;
     }
     let at = if call.form == 4 { 1 } else { 2 };
@@ -77,6 +77,7 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
+        12 => w::Follow::decode(&w::CEILINGS, &mut reader).is_ok(),
         11 => w::TemplateGoal::decode(&w::CEILINGS, &mut reader).is_ok(),
         6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
         7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
@@ -190,7 +191,7 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             number: 1,
         });
     }
-    if call.form == 2 || call.form == 3 || call.form == 5 || call.form == 6 {
+    if call.form == 2 || call.form == 3 || call.form == 5 || call.form == 6 || call.form == 7 {
         let scope = if call.form == 3 || call.form == 5 || call.form == 6 {
             0
         } else {
@@ -201,7 +202,9 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             }
         };
         return Some(c::Setting::Application {
-            kind: if call.form == 6 {
+            kind: if call.form == 7 {
+                12
+            } else if call.form == 6 {
                 11
             } else if call.form == 5 {
                 9
@@ -317,6 +320,12 @@ pub const SETTING: Tool = Tool {
             ),
             revision_flag(),
         ],
+        &[
+            positional(b"kind", b"follow", Kind::Word { set: &[b"follow"] }, Required, b"A project's follow"),
+            positional(b"number", b"NUMBER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Required, b"The follow's number"),
+            flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The follow's project"),
+            revision_flag(),
+        ],
     ],
     ..rows::SETTING
 };
@@ -329,6 +338,7 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     out.put(match kind {
         3 => b"forge-charter ",
         11 => b"template-goal ",
+        12 => b"follow ",
         6 => b"project-questions ",
         7 => b"project-ways ",
         8 => b"project-classes ",
@@ -337,7 +347,7 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         _ => b"landing-rule ",
     });
     out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 { scope } else { number }));
-    if kind == 2 {
+    if kind == 2 || kind == 12 {
         out.put(b" --project ");
         out.number(u64::from(scope));
     }
@@ -348,6 +358,7 @@ mod value;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
+        12 => return settings_form::render::application_value(kind, bytes, out),
         9 => {
             let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

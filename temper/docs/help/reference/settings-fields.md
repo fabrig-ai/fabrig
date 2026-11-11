@@ -17,16 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words` or `follow`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.
-- `project`: integer, 0 to 4,294,967,295. Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
+- `project`: integer, 0 to 4,294,967,295. Required for follow, project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -510,6 +510,48 @@ The final resource segment, in the same hex form as a pattern's last segment.
 ## forge-charter
 
 An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.
+
+## follow
+
+A project's follow from a context repository into an owned, writable repository. Selector: project and number, from 1 to forge.follows; no stock default.
+
+- `source`: `follow-source`. The context source; its repository and branch are fixed after acceptance.
+- `target`: `follow-target`. The owned target; its repository and branch are fixed after acceptance.
+- `owner`: `follow-owner`. The owner of follow changes; required.
+- `start`: `"owner"` or `"code"`. When each change starts; owner if absent or empty. `"owner"`: Wait for the owner; the default. `"code"`: Start after the previous change lands.
+- `producer`: text, at most 8,192 bytes. Change parameter 11, C;P;R. Absent or empty uses the change charter and its defaults.
+- `check`: `follow-check`. The follow check; required.
+
+## follow-source
+
+A repository this project adopts as context. An absent or empty branch uses its adopted default branch; absent or empty paths cover every path.
+
+- `forge`: integer, 0 to 65,535. The forge number.
+- `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
+- `branch`: text, at most 4,096 bytes. The source branch, or its adopted default branch if absent or empty.
+- `paths`: list of at most 256, each text, at most 256 bytes. Whole-segment prefixes, at most forge.follow_paths; no leading, trailing or doubled slash and no empty path.
+
+## follow-target
+
+An owned, writable repository. An absent or empty branch uses its landing branch.
+
+- `forge`: integer, 0 to 65,535. The forge number.
+- `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
+- `branch`: text, at most 4,096 bytes. The target branch, or its landing branch if absent or empty.
+
+## follow-owner
+
+A person with any role in this project.
+
+- `person`: integer. A person of this project, by number.
+
+## follow-check
+
+The target workflow and its report artifact; both required, nonempty, at most 256 bytes each.
+
+- `workflow`: text, at most 256 bytes. A workflow file of the target, required and nonempty.
+- `artifact`: text, at most 256 bytes. The uploaded artifact name, required and nonempty.
+- `format`: `"junit"` or `"lines"`. The report format; required. `"junit"`: JUnit XML. `"lines"`: Line-format report.
 
 ## template-goal
 
