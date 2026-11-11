@@ -3,6 +3,16 @@
 2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
 
 - **Not yet:**
+  - 2, *The panel's approval evidence* and *Enforced, and waited for*:
+    a step of a ready change hands the root no reviews
+    (`Request::Reviewed`), so review facts are kept from a merge's wait
+    alone [in flight: change 203].
+  - 2, *A rule by path*, *What a change touches*, *At that exact head*
+    and *What the procedure asks of the rules*: no `Touched`, `touched`
+    or `covers`; a step reads no comparison, and every reader selects
+    rules by their branch alone [in flight: change 206].
+  - 2, *At that exact head*, under the turn: a member's merge reads no
+    comparison of main's tip and its candidate [in flight: change 208].
   - 1: the user's N4 request of 2026-11-08 asks for focused and
     fuzzy tests. The focused story
     `a_persons_request_for_changes_repairs_with_its_remarks`

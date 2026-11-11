@@ -25,7 +25,7 @@ mod address;
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
 mod approvals;
-pub use approvals::ApprovalWait;
+pub use approvals::{ApprovalWait, ShortApproval};
 pub mod boundary;
 mod brief;
 mod brief_ci;
@@ -109,7 +109,7 @@ pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
-pub use gates::{GateCandidate, GateLast, GatePattern, Requires, covers_branch};
+pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
     BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
@@ -440,7 +440,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(
                         skein_lib::len_u64(rule.approvals.len())
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
-                    )
+                    )?
+                    .checked_add(bytes(&rule.sets))
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Classes(classes), .. }) => {
                 let mut held = skein_lib::len_u64(classes.items.len())

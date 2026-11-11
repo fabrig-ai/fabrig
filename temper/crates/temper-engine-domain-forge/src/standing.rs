@@ -7,23 +7,29 @@ use temper_engine_domain_forge_change as change;
 
 use crate::{
     ChangeEvidence, Criterion, Domain, GateCandidate, JudgeFreshness, JudgeVerdict, Limits, Repository, Requires,
-    Reviewer, domain::branch_resource_name, gates, judge, landing, settings,
+    Reviewer, Touched, domain::branch_resource_name, gates, judge, landing, settings,
 };
 
 impl Domain {
     /// Read the procedure's waits from the deployment's and project's held rules.
     #[must_use]
-    pub fn held_requires(&self, repository: &Repository, branch: &[u8]) -> Requires {
+    pub fn held_requires(&self, repository: &Repository, branch: &[u8], touched: Touched) -> Requires {
         let held = self.landing_rules(repository.project);
-        let Some(name) = branch_resource_name(repository, branch) else {
+        let Some(_) = branch_resource_name(repository, branch) else {
             return Requires { ci: true, up_to_date: true };
         };
-        settings::requires(&held, &name)
+        settings::requires(&held, repository, branch, touched)
     }
 
     /// Select every covering rule's gates, with advisory rules holding nothing.
     #[must_use]
-    pub fn held_gates(&self, limits: &Limits, repository: &Repository, branch: &[u8]) -> Option<Box<[change::Gate]>> {
+    pub fn held_gates(
+        &self,
+        limits: &Limits,
+        repository: &Repository,
+        branch: &[u8],
+        touched: Touched,
+    ) -> Option<Box<[change::Gate]>> {
         branch_resource_name(repository, branch)?;
         let held = self.landing_rules(repository.project);
         let capacity = limits.landing_rules.checked_mul(limits.change_policy.gates)?.checked_mul(2)?;
@@ -31,7 +37,7 @@ impl Domain {
         let mut required = List::with_capacity(capacity);
         for held in &held {
             let rule = &held.rule;
-            if !gates::covers_branch(&rule.pattern, repository, branch) {
+            if !gates::covers(rule, repository, branch, touched) {
                 continue;
             }
             for gate in &rule.gates {
@@ -63,6 +69,67 @@ impl Domain {
             }
         }
         Some(selected)
+    }
+
+    /// Keep the change's own gates beside the rules selected at this head.
+    pub(crate) fn step_gates(
+        &self,
+        limits: &Limits,
+        row: &crate::ChangeRow,
+        repository: &Repository,
+        touched: Touched,
+    ) -> Option<Box<[change::Gate]>> {
+        let selected = self.held_gates(limits, repository, &row.base, touched)?;
+        let rules = self.landing_rules(repository.project);
+        let mut gates: List<change::Gate> = List::with_capacity(limits.change_policy.gates);
+        for gate in &row.change.gates {
+            let mut by_path = false;
+            for held in &rules {
+                if held.rule.sets.is_empty() || !gates::covers(&held.rule, repository, &row.base, Touched::UNKNOWN) {
+                    continue;
+                }
+                for named in &held.rule.gates {
+                    let check = !repository.ci && repository.checks.contains(&named.number);
+                    let configured = change::Gate {
+                        number: u64::from(named.number),
+                        kind: if check { change::GateKind::Check } else { change::GateKind::Agent },
+                        blocking: check || (held.rule.enforce && named.blocking),
+                        freshness: if check {
+                            change::Freshness::Exact
+                        } else {
+                            match named.freshness {
+                                JudgeFreshness::Exact => change::Freshness::Exact,
+                                JudgeFreshness::Clean => change::Freshness::Clean,
+                            }
+                        },
+                        eager: false,
+                    };
+                    by_path |= *gate == configured;
+                }
+            }
+            if !by_path {
+                gates.push(*gate).ok()?;
+            }
+        }
+        for gate in selected {
+            let mut present = false;
+            for own in gates.iter_mut() {
+                if own.number == gate.number {
+                    present = true;
+                    own.blocking |= gate.blocking;
+                    if gate.freshness == change::Freshness::Exact {
+                        own.freshness = change::Freshness::Exact;
+                    }
+                    if gate.kind == change::GateKind::Check {
+                        own.kind = change::GateKind::Check;
+                    }
+                }
+            }
+            if !present {
+                gates.push(gate).ok()?;
+            }
+        }
+        Some(gates.into_boxed())
     }
 
     pub(crate) fn judge_held_landing(
@@ -129,10 +196,11 @@ impl Domain {
         let repository = self.repositories.get(&row.repository)?;
         branch_resource_name(repository, &row.base)?;
         let rules = self.landing_rules(repository.project);
+        let touched = if evidence.head == Some(head) { evidence.touched } else { Touched::UNKNOWN };
         let mut criteria = List::uncapped();
         for held in &rules {
             let rule = &held.rule;
-            if !rule.enforce || !gates::covers_branch(&rule.pattern, repository, &row.base) {
+            if !rule.enforce || !gates::covers(rule, repository, &row.base, touched) {
                 continue;
             }
             if up_to_date {
@@ -183,7 +251,7 @@ impl Domain {
         let Some(_) = branch_resource_name(repository, &row.base) else { return approvals.into_boxed() };
         let held = self.landing_rules(repository.project);
         for held in &held {
-            if !held.rule.enforce || !gates::covers_branch(&held.rule.pattern, repository, &row.base) {
+            if !held.rule.enforce || !gates::covers(&held.rule, repository, &row.base, self.touched_at(row)) {
                 continue;
             }
             for approval in &held.rule.approvals {
