@@ -617,8 +617,14 @@ fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
     );
     let applied = fixtures::answered(&mut world, agent, number);
     assert_eq!(applied.status, 0, "{applied:?}");
-    let shown = call(&mut world, agent, &[b"settings", b"show", b"landing-rule", b"1", b"--project", b"1", b"--json"]);
-    assert!(shown.contains("\"sets\":[1]"), "{shown}");
+    for json in [false, true] {
+        let mut words = vec![b"settings".as_slice(), b"show", b"landing-rule", b"1", b"--project", b"1"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains("\"sets\":[1]"), "{shown}");
+    }
 }
 
 #[test]
