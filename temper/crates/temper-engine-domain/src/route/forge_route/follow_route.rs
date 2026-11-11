@@ -131,6 +131,7 @@ fn delegate(domain: &Domain, env: &Env<Limits>, context: &tasks::DelegationConte
     call.questions = Some(crate::ChangeQuestions::None);
     let mut context = context.clone(); context.tasks_left = context.tasks_left.checked_div(count)?;
     let mut member = super::chat_change(domain, env, &context, &call, target, base, None, spend).ok()?;
+    member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true).ok()?;
     let mut parameters = List::with_capacity(env.limits.tasks.parameters); let mut bytes = 0_u32;
     for parameter in member.spec.parameters { if let tasks::Parameter::Bytes { value, .. } = &parameter { bytes = bytes.checked_add(u32::try_from(value.len()).ok()?)?; } parameters.push(parameter).ok()?; }
     let mut follows = List::uncapped(); append(&mut follows, &super::decimal(u64::from(row.follow))); append(&mut follows, b":"); append(&mut follows, &super::commit_text(&entry.after));
