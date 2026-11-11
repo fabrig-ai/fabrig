@@ -3,6 +3,7 @@ use super::{Answer, Condition, Domain, Env, Error, Limits, Made, Outcome, Phase,
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Listing {
     pub(super) more: bool,
+    pub(super) cut: bool,
     pub(super) now: Time,
 }
 pub(super) fn listed(
@@ -14,14 +15,14 @@ pub(super) fn listed(
     info: Listing,
     out: &mut Queue<Request>,
 ) {
-    let Listing { more, now } = info;
+    let Listing { more, cut, now } = info;
     match phase {
         Phase::Clock => {
             d.outbox.entries.get_mut(&number).expect("entry remains").clock = now;
             let phase = super::check_phase(&d.outbox.entries.get(&number).expect("entry remains").entry);
             super::next(d, number, phase);
         }
-        Phase::Find { page, after } => {
+        Phase::Find { after, .. } => {
             let expected = super::key(&d.outbox.entries.get(&number).expect("entry remains").entry.effect.write)
                 .expect("issue creation has key");
             let mut found = None;
@@ -39,7 +40,16 @@ pub(super) fn listed(
             }
             match found {
                 Some(item) => super::finished(d, env, number, Made::Created(item), true, out),
-                None if more => super::next(d, number, Phase::Find { page: page.saturating_add(1), after }),
+                None if more => {
+                    let w = d.outbox.entries.get_mut(&number).expect("entry remains");
+                    let position = w.items.as_mut().expect("issue search has a position");
+                    if position.next(items, cut, now).is_some() {
+                        let page = position.page;
+                        super::next(d, number, Phase::Find { page, after });
+                    } else {
+                        super::retry::not_found(d, env, number, out);
+                    }
+                }
                 None => super::retry::not_found(d, env, number, out),
             }
         }

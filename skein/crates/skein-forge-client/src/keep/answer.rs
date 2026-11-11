@@ -30,7 +30,7 @@ pub(crate) fn answered_repository(
         return;
     };
     match answer {
-        Answer::Items { items, more, now } => {
+        Answer::Items { items, more, cut, now } => {
             let row = d.keep.repos.get_mut(&key).expect("repository remains");
             row.record.clock = row.record.clock.max(now);
             let begun = progress.begun.unwrap_or(now);
@@ -42,25 +42,12 @@ pub(crate) fn answered_repository(
             }
             let row = d.keep.repos.get_mut(&key).expect("repository remains");
             if more && !progress.bootstrap {
-                progress.since = progress.since.min(now);
-                match items.last() {
-                    Some(last) if last.updated.min(now) > progress.since => {
-                        progress.since = last.updated.min(now);
-                        progress.page = 1;
-                    }
-                    Some(_) | None => {
-                        progress.tied = Some(progress.tied.unwrap_or(progress.since).min(now));
-                        progress.page = match progress.page.checked_add(1) {
-                            Some(page) => page,
-                            None => {
-                                let restart = Progress::first(row.record.mark);
-                                wait_repository(d, env, key, restart);
-                                return;
-                            }
-                        };
-                    }
-                }
-                row.state = Scan::Due(progress);
+                let Some(next) = next_page(progress, &items, cut, now) else {
+                    let restart = Progress::first(row.record.mark);
+                    wait_repository(d, env, key, restart);
+                    return;
+                };
+                row.state = Scan::Due(next);
             } else {
                 row.record.mark = Some(
                     (if progress.bootstrap {
@@ -112,6 +99,12 @@ pub(crate) fn answered_repository(
         | Answer::Located { .. }
         | Answer::Done => unreachable!("listing answer shape"),
     }
+}
+fn next_page(mut progress: Progress, items: &[api::Summary], cut: bool, now: Time) -> Option<Progress> {
+    if !progress.position.next(items, cut, now)? {
+        progress.tied = Some(progress.tied.unwrap_or(progress.position.since).min(now));
+    }
+    Some(progress)
 }
 fn wait_repository(d: &mut Domain, env: &Env<Limits>, key: Repository, progress: Progress) {
     let row = d.keep.repos.get_mut(&key).expect("repository remains");
@@ -625,7 +618,12 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     row.hinted = false;
     row.state = State::Idle;
     let next = env.now.saturating_add(interval);
-    let next = if row.presence != super::Presence::Missing && row.inbox.repair_at > env.now {
+    // A nonparticipating pull has no inbox repair to shorten its quiet CI rest.
+    let repairs = match key.what {
+        What::Pull(_) => row.record.watch.participating,
+        What::Issue(_) | What::Branch(_) | What::Repository => true,
+    };
+    let next = if repairs && row.presence != super::Presence::Missing && row.inbox.repair_at > env.now {
         next.min(row.inbox.repair_at)
     } else {
         next

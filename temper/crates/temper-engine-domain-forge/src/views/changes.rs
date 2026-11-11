@@ -218,6 +218,7 @@ fn ready_since(row: &ChangeRow) -> Wall {
         | State::Checking { .. }
         | State::Gating { .. }
         | State::CancellingGates { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
         | State::Landing { .. }

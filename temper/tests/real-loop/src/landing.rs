@@ -41,6 +41,9 @@ pub fn fixture() -> crate::forge::Fixture {
             for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
                 limits[format!("forge.client.{name}")] = millis.into();
             }
+            // Keep lost-delivery reconciliation on the story's clock too;
+            // the shipped five-minute fallback exceeds the judge's patience.
+            limits["forge.client.fallback_ms"] = 100.into();
             // Chat, repository polls and one fresh change chain share the client.
             limits["forge.client.pending"] = 8.into();
             limits["forge.client.calls"] = 4.into();
@@ -328,6 +331,20 @@ mod tests {
     fn call_arguments(turn: &Turn) -> Value {
         let Line::Call { arguments, .. } = &turn.lines[0] else { panic!("tool call") };
         serde_json::from_slice(arguments).expect("call JSON")
+    }
+
+    #[test]
+    fn landing_fallback_reconciliation_fits_the_story_clock() {
+        let forge = std::net::SocketAddr::from(([127, 0, 0, 1], 41_234));
+        let (mut agent, mut config) = crate::fixtures::documents(std::path::Path::new("/fixture"), forge, forge);
+        (super::fixture().configure)(&mut config, &mut agent, forge);
+        let (_, limits) = super::limits(&config);
+        assert!(
+            limits.forge.client.fallback <= limits.forge.client.slow,
+            "fallback {:?} must fit the story's slow reconciliation {:?}, not the shipped clock",
+            limits.forge.client.fallback,
+            limits.forge.client.slow,
+        );
     }
 
     #[test]

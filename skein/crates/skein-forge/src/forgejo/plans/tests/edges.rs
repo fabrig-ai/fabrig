@@ -845,7 +845,7 @@ fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
 
 #[test]
 fn items_need_a_date_only_after_resolution() {
-    let mut run = Run::new(Op::Read(Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }));
+    let mut run = Run::new(Op::Read(Read::Items { single: false, since: skein_lib::Time::ZERO, page: 1, kind: None }));
     run.begin();
     assert!(match run.answer_with(200, fixtures::REPOSITORY, fixtures::fields()) {
         Step::Send(_) => true,

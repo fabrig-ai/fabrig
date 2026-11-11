@@ -106,7 +106,7 @@ fn listed(body: &[u8]) -> Box<[u8]> {
 #[test]
 fn items_list_since_with_leastupdate_and_an_explicit_page() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }));
     answer(&mut h, &listed(ISSUE));
     last(&h, b"GET /api/v1/repos/fixture/specimen/issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=leastupdate&page=1&limit=2 HTTP/1.1");
     assert_eq!(
@@ -117,6 +117,7 @@ fn items_list_since_with_leastupdate_and_an_explicit_page() {
             free: 0,
             rate: None,
             result: Ok(Answer::Items {
+                cut: false,
                 items: Box::new([summary()]),
                 more: false,
                 now: Time::from_nanos(1_577_836_800_000_000_000)
@@ -157,7 +158,7 @@ fn comment(id: u64) -> api::Comment {
 #[test]
 fn a_call_without_a_kept_path_resolves_by_id_and_counts_it() {
     let mut h = fixtures::Harness::ready();
-    h.call(1, fixtures::REPO, Op::Read(Read::Items { since: Time::ZERO, page: 1, kind: None }));
+    h.call(1, fixtures::REPO, Op::Read(Read::Items { single: false, since: Time::ZERO, page: 1, kind: None }));
     answer(&mut h, br#"{"id":1,"owner":{"id":2,"login":"fixture"},"name":"specimen","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":false,"allow_rebase":false,"html_url":"http://127.0.0.1:3000/fixture/specimen"}"#);
     answer(&mut h, b"[]");
     let lines = h.request_lines(fixtures::FORGE);
@@ -165,7 +166,12 @@ fn a_call_without_a_kept_path_resolves_by_id_and_counts_it() {
     assert_eq!(h.answered(1).expect("resolved answer").cost, 2);
     assert_eq!(
         h.answered(1).expect("resolved answer").result,
-        Ok(Answer::Items { items: Box::from([]), more: false, now: Time::from_nanos(1_577_836_800_000_000_000) })
+        Ok(Answer::Items {
+            cut: false,
+            items: Box::from([]),
+            more: false,
+            now: Time::from_nanos(1_577_836_800_000_000_000)
+        })
     );
 }
 #[test]

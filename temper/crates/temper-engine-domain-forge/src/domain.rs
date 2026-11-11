@@ -19,6 +19,7 @@ use crate::{adoption, brief, held, topics};
 pub const DEFAULT_CHANGE_TITLE: &[u8] = b"Update repository";
 
 mod admission;
+mod ci_news;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
@@ -61,7 +62,7 @@ enum LostReadState {
     WaitingForRoom,
     WaitingForConnection,
 }
-/// One fresh verdict read for a commit with live CI subscribers.
+/// One fresh verdict read shared by commit news and live CI subscribers.
 #[derive(Hash, Debug)]
 pub(crate) struct PendingCi {
     repository: skein_forge::api::Repository,
@@ -203,6 +204,7 @@ pub struct Domain {
     landings: Map<Token, PendingLanding>,
     lost: Map<Token, PendingLost>,
     pending_ci: Map<Token, PendingCi>,
+    ci_news: Map<(u64, skein_forge::api::Commit), ci_news::Watch>,
     restart_fresh: Option<bool>,
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
@@ -743,7 +745,8 @@ impl Domain {
             landed: Map::with_capacity(l.landings.max(l.changes)),
             landings: Map::with_capacity(l.landings.max(l.client.resources)),
             lost: Map::with_capacity(l.holds),
-            pending_ci: Map::with_capacity(l.subscriptions),
+            pending_ci: Map::uncapped(),
+            ci_news: Map::uncapped(),
             restart_fresh: None,
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
@@ -846,6 +849,7 @@ impl Domain {
             (client, brief) => client.or(brief),
         }
         .into_iter()
+        .chain(if self.stopping { None } else { ci_news::deadline(self) })
         .chain(self.watch_due)
         .chain(self.playground_due)
         .chain(crate::tiers::deadline(self))
@@ -1777,7 +1781,15 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::settle::hinted(d, env, &hint, &changes);
             for task in changes {
                 if !matched || hints::concerns(d, d.changes.get(&task).expect("repository's change"), &hint) {
-                    d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                    let refreshing = match hint.change {
+                        skein_forge::api::Change::Commit(head) => ci_news::hint(d, env, task, head),
+                        skein_forge::api::Change::Item(_)
+                        | skein_forge::api::Change::Branch(_)
+                        | skein_forge::api::Change::BranchMoved { .. } => false,
+                    };
+                    if !refreshing {
+                        d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                    }
                 }
             }
             ci_hint(d, env, &hint, out);
@@ -1853,6 +1865,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     goal_branch::fire(d, env.now);
+    ci_news::fire(d, env, out);
     admission::fire(d, env, out);
     outage::fire(d, env, out);
     crate::tiers::fire(d, env, out);
@@ -2963,6 +2976,7 @@ fn before_relay_hold(state: &change::State) -> change::State {
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -3146,7 +3160,8 @@ fn delegate_wait(state: &change::State) -> bool {
         change::State::Producing { requested }
         | change::State::Repairing { requested, .. }
         | change::State::Resolving { requested, .. } => *requested,
-        change::State::Opening { .. }
+        change::State::WaitingProducer { .. }
+        | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
@@ -3182,6 +3197,9 @@ fn delegate_result(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.changes.get_mut(&task) else { return };
+    // A pushing child can end after a gate has replaced the delegate slot.
+    // Its terminal still releases the procedure's conflict wait.
+    d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
     if expected != child {
         return;
@@ -3249,9 +3267,6 @@ fn delegate_result(
     if ended {
         emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
     }
-    if agent {
-        d.procedure_wakes.insert(task, true).expect("one pending wake per change");
-    }
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -3309,6 +3324,7 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
         }
         change::State::Producing { .. }
         | change::State::Repairing { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -3525,6 +3541,7 @@ fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -3784,6 +3801,10 @@ fn step_read(
                         Some(pull) if required.is_empty() && Some(pull.commit) == pending.branch => status(pull.ci),
                         Some(_) | None => status(crate::ci::fold(&rows, required)),
                     };
+                    if let Some(head) = pending.branch {
+                        let ci = crate::ci::fold(&rows, required);
+                        ci_news::observe(d, env, pending.task, head, &rows, ci);
+                    }
                     if let Some(head) = pending.branch
                         && let Some(row) = d.changes.get_mut(&pending.task)
                         && row.result.checked(head, &rows, env.limits.client.answer_bytes)
@@ -3812,7 +3833,11 @@ fn step_read(
         StepStage::BaseCi => {
             match result {
                 Ok(skein_forge::api::Answer::Checks(rows)) => {
-                    pending.base_ci = status(crate::ci::fold(&rows, required));
+                    let ci = crate::ci::fold(&rows, required);
+                    pending.base_ci = status(ci);
+                    if let Some(head) = pending.base_tip {
+                        ci_news::observe(d, env, pending.task, head, &rows, ci);
+                    }
                 }
                 Ok(_) | Err(_) => pending.base_ci = change::Status::Unknown,
             }
@@ -3907,6 +3932,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             | change::State::Preparing { .. }
             | change::State::CancellingGates { .. }
             | change::State::Updating { .. }
+            | change::State::WaitingProducer { .. }
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }
@@ -4066,7 +4092,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             }
         }
     }
-    crate::settle::observe(d, env, &row, pending.pull.as_ref(), pending.ci, base_tip);
+    crate::settle::observe(d, env, &row, pending.pull.as_ref(), base_tip);
     if row.change.released == Some(change::Hold::BranchMoved)
         && let Some(head) = pending.branch
     {
@@ -4186,6 +4212,7 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::Preparing { .. }
         | change::State::CancellingGates { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -4655,6 +4682,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
             | change::State::Ready { .. }
             | change::State::Queued { .. }
             | change::State::First { .. }
+            | change::State::WaitingProducer { .. }
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }
@@ -5051,6 +5079,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -5091,6 +5120,7 @@ fn ended_change_state(
         | change::State::Queued { .. }
         | change::State::First { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -5811,7 +5841,7 @@ fn ci_refresh(
             return;
         }
     }
-    if d.pending_ci.len() == env.limits.subscriptions {
+    if d.pending_ci.len() == d.pending_ci.capacity() {
         return;
     }
     let Some(sequence) = d.sequence.checked_add(1) else { return };
@@ -5864,7 +5894,10 @@ fn ci_read(
             None => &[],
         };
         let ci = crate::ci::fold(&rows, required);
+        ci_news::read(d, env, pending.repository, pending.head, Some(&rows), ci);
         ci_observed(d, pending.repository, pending.head, ci, out);
+    } else {
+        ci_news::read(d, env, pending.repository, pending.head, None, skein_forge::api::Ci::None);
     }
     if pending.refresh && !d.stopping {
         ci_refresh(d, env, pending.repository, pending.head, out);
@@ -6721,7 +6754,7 @@ pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
     for owner in removed.into_boxed() {
         d.lost.remove(&owner);
     }
-    let mut ci = List::with_capacity(d.pending_ci.capacity());
+    let mut ci = List::with_capacity(d.pending_ci.len());
     for (owner, pending) in &d.pending_ci {
         if pending.repository.forge == forge {
             ci.push(*owner).expect("bounded CI reads");

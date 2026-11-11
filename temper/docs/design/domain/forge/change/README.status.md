@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-10. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2, step 6: a resolution and a merge job wait for no producer or repair to end, and are cut at the last head the change knew, not its latest push (`repairs.md`) [in flight: change 37].
 
 - **Not yet:** 1, 3: a goal's runs push to its run
   branch r, and a `"branch": "run"` change lands r into g; g records no

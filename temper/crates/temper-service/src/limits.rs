@@ -182,8 +182,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     slow: Duration::from_secs(40),
     // Bound Forgejo's settling of mergeability and hinted CI after a move.
     settle: Duration::from_secs(30),
-    // Fallback 0 stretches no pace (skein/docs/design/forge/client.md, 4.1).
-    fallback: Duration::ZERO,
+    // Events first; timed reads fall back while deliveries arrive (forge/client.md, 4.1).
+    fallback: Duration::from_secs(300),
     // Facts awaiting drain, from the engine forge world fixture.
     facts: 16,
 };
@@ -341,9 +341,9 @@ const CHECKOUT: Checkout = Checkout {
     name_bytes: 256,
     // Holds the agent's largest commit-message argument.
     message_bytes: 4096,
-    // Conflicted paths per repository, from the checkout merges world.
-    conflicts: 4,
-    // Bytes per conflicted path: four NUL-terminated paths fit stdout_bytes 1,024.
+    // Conflicted paths per repository, for a merge of a few hundred paths.
+    conflicts: 512,
+    // Bytes per conflicted path, with its NUL in the git component's stdout.
     path_bytes: 255,
     // Time for an operation reaching a forge, from the checkout world fixture.
     remote_timeout: Duration::from_secs(60),
@@ -554,7 +554,7 @@ const GIT: GitComponent = GitComponent {
     // One operation per cached workspace, plus the component's startup and sweep.
     operations: 3,
     // At least every conflict path including its terminating NUL.
-    stdout_bytes: 1024,
+    stdout_bytes: 131_072,
     // The tail retained for classification and the checkout's diagnostic.
     stderr_bytes: 512,
     // Each stdout/stderr demand, bounded further by io's read size.
@@ -686,6 +686,17 @@ pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn forge_fallback_defaults_and_dotted_overrides() {
+        for selected in [Profile::Small, Profile::Standard] {
+            let mut limits = profile(selected);
+            assert_eq!(limits.forge.client.fallback, Duration::from_secs(300));
+            for millis in [0, 1, 300_000] {
+                assert_eq!(apply(&mut limits, b"forge.client.fallback_ms", millis), Ok(()));
+                assert_eq!(limits.forge.client.fallback, Duration::from_millis(millis));
+            }
+        }
+    }
     use super::*;
     #[test]
     fn making_limits_default_to_thirty_two() {

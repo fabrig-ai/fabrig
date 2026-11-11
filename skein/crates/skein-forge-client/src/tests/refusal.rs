@@ -6,7 +6,7 @@ use skein_forge::api::{self, Answer, Change, Error, Op, Read};
 use skein_lib::Duration;
 
 fn empty_listing(now: u64) -> Answer {
-    Answer::Items { items: Box::new([]), more: false, now: at(now) }
+    Answer::Items { cut: false, items: Box::new([]), more: false, now: at(now) }
 }
 fn empty_object() -> Answer {
     Answer::Item { item: summary(), comments: Box::new([]), more: false }
@@ -17,7 +17,7 @@ fn changed_object() -> Answer {
     Answer::Item { item, comments: Box::new([]), more: false }
 }
 fn listing_read(since: u64) -> Read {
-    Read::Items { since: at(since), page: 1, kind: None }
+    Read::Items { single: false, since: at(since), page: 1, kind: None }
 }
 fn branch_read() -> Read {
     Read::Branch { branch: Box::from(*b"topic") }
@@ -325,7 +325,7 @@ fn refusal_row((resource, participating, errors, steps): RefusalCase) {
                 let mut item = summary();
                 item.updated = h.env.now;
                 let now = h.env.now;
-                h.answer(sent, Answer::Items { items: Box::new([item]), more: false, now });
+                h.answer(sent, Answer::Items { cut: false, items: Box::new([item]), more: false, now });
                 h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
             }
             UnchangedTip => {
@@ -407,7 +407,7 @@ fn pending_listing(h: &mut Harness) {
         match sent.op {
             Op::Read(Read::Items { .. }) => {
                 let now = h.env.now;
-                h.answer(sent, Answer::Items { items: Box::new([]), more: false, now });
+                h.answer(sent, Answer::Items { cut: false, items: Box::new([]), more: false, now });
             }
             Op::Read(_) | Op::Write(_) => h.calls.push(sent),
         }

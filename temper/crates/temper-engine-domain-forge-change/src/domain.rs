@@ -85,6 +85,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
     };
     if facts.writer_taken && !start_conflicted {
+        if let State::WaitingProducer { .. } = change.state {
+            return Stepped { change: next, decision: Decision::Wait { until: None } };
+        }
         return if let State::Ready { .. } = change.state {
             Stepped { change: next, decision: Decision::Wait { until: None } }
         } else {
@@ -115,6 +118,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             | State::CancellingGates { .. }
             | State::Preparing { .. }
             | State::Updating { .. }
+            | State::WaitingProducer { .. }
             | State::Resolving { .. }
             | State::Repairing { .. }
             | State::Landing { .. }
@@ -181,6 +185,7 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
         | State::Ready { .. }
         | State::Preparing { .. }
         | State::Updating { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
         | State::Landing { .. } => return None,
@@ -241,6 +246,7 @@ fn advance_phase(
             updating(next, *from, *base, *ready_since, facts, standing, now, limits)
         }
         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
+        State::WaitingProducer { base } => waiting_producer(next, *base, facts, standing, now, limits),
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
         State::Landing { head } => landing(next, *head, facts, standing, now, limits),
         State::Landed { .. }
@@ -268,6 +274,7 @@ fn closed_pull_holds(state: &State) -> bool {
         | State::Ready { .. }
         | State::Preparing { .. }
         | State::Updating { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
         | State::Landing { .. }
@@ -336,6 +343,7 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Ready { .. }
         | State::Preparing { .. }
         | State::Updating { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
         | State::Landing { .. }
@@ -458,6 +466,7 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         | State::Preparing { .. }
         | State::CancellingGates { .. }
         | State::Updating { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
         | State::Landing { .. } => was.clone(),
@@ -568,7 +577,7 @@ fn producing(
                     Stepped { change, decision: Decision::NoChange }
                 }
                 Some(Delegate::Merge { base, .. }) => {
-                    let mut stepped = resolving_due(change, base, now, limits);
+                    let mut stepped = resolving_due(change, base, facts, standing, now, limits);
                     if stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
                         stepped.change.state = State::Producing { requested: true };
                     }
@@ -990,7 +999,7 @@ fn first(
             change.state = State::Landing { head };
             Stepped { change, decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }) }
         }
-        Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, now, limits),
+        Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
     }
 }
@@ -1007,7 +1016,7 @@ fn updating(
     limits: &Limits,
 ) -> Stepped {
     match standing.effect {
-        EffectResult::Conflict => conflict_due(change, base, Some(from), facts, now, limits),
+        EffectResult::Conflict => conflict_due(change, base, Some(from), facts, standing, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::Made => {
             let Some(head) = facts.branch else { return waiting(change, now, limits) };
@@ -1109,17 +1118,31 @@ fn conflict_due(
     base: [u8; 32],
     from: Option<[u8; 32]>,
     facts: &Facts,
+    standing: &Heard,
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    let mut stepped = resolving_due(change, base, now, limits);
+    let mut stepped = resolving_due(change, base, facts, standing, now, limits);
     if facts.merge_job && stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
         stepped.decision = Decision::Delegate(Delegate::Merge { base, from });
     }
     stepped
 }
 
-fn resolving_due(mut change: Change, base: [u8; 32], now: Wall, limits: &Limits) -> Stepped {
+fn resolving_due(
+    mut change: Change,
+    base: [u8; 32],
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    if standing.delegate_live {
+        change.state = State::WaitingProducer { base };
+        change.owns_turn = false;
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    change.last_head = facts.branch;
     if change.resolutions >= limits.resolutions {
         return hold(change, Hold::Resolutions);
     }
@@ -1192,6 +1215,7 @@ fn ci_state(state: &State) -> bool {
         | State::Ready { .. }
         | State::Preparing { .. }
         | State::Updating { .. }
+        | State::WaitingProducer { .. }
         | State::Resolving { .. }
         | State::Landing { .. }
         | State::Landed { .. }
@@ -1201,6 +1225,34 @@ fn ci_state(state: &State) -> bool {
         | State::NoChange { .. }
         | State::Held { .. }
         | State::Ended => false,
+    }
+}
+
+fn waiting_producer(
+    mut change: Change,
+    base: [u8; 32],
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    if standing.delegate_live {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    let Some(head) = facts.branch else { return hold(change, Hold::BranchMissing) };
+    change.last_head = Some(head);
+    if change.way == Way::Turn {
+        // The pull targets the goal branch, not the preparation's main tip.
+        // Retry that preparation at the final pushed head to judge its conflict.
+        let ready_since = change.ready_since.unwrap_or(now);
+        change.state = State::Preparing { from: head, main: base, ready_since };
+        change.since = now;
+        return Stepped { change, decision: Decision::Effect(Effect::Prepare { head, main: base }) };
+    }
+    match facts.mergeable {
+        Status::Passed => take_pushed_head(change, head, now),
+        Status::Unknown | Status::Pending => settling(change, facts, now, limits),
+        Status::Failed => conflict_due(change, base, Some(head), facts, standing, now, limits),
     }
 }
 
@@ -1271,7 +1323,7 @@ fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
 
 fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     match standing.effect {
-        EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, now, limits),
+        EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, now, limits),
     }
@@ -1438,7 +1490,7 @@ fn preparing(
     limits: &Limits,
 ) -> Stepped {
     match standing.effect {
-        EffectResult::Conflict => resolving_due(change, main, now, limits),
+        EffectResult::Conflict => resolving_due(change, main, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::Made => prepared(change, from, main, ready_since, facts, now, limits),
         EffectResult::None => {

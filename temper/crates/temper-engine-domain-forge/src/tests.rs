@@ -14,7 +14,7 @@ mod completed_reads;
 mod connect;
 mod dismissed;
 mod early;
-mod fixtures;
+pub(crate) mod fixtures;
 mod flight;
 mod forge_user;
 mod goal_branch;
@@ -145,7 +145,7 @@ const LIMITS: Limits = Limits {
     client: CLIENT,
 };
 
-fn env() -> Env<Limits> {
+pub(crate) fn env() -> Env<Limits> {
     Env { now: Time::from_nanos(100_000_000_000), wall: Wall::from_nanos(100_000_000_000), limits: LIMITS }
 }
 
@@ -266,7 +266,7 @@ fn restoring_domain(started: Wall) -> Domain {
     d.restore_begin(started);
     d
 }
-fn domain() -> Domain {
+pub(crate) fn domain() -> Domain {
     domain_with_limits(&LIMITS)
 }
 fn domain_with_limits(limits: &Limits) -> Domain {
@@ -964,7 +964,12 @@ fn a_never_sent_write_is_committed_again_with_the_same_identity_after_growing_wa
         }
         let (clock, op) = fixtures::next_at(&mut d, &env);
         assert!(matches!(op, Op::Read(_)), "a new never-sent entry reads its clock");
-        fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+        fixtures::answer_at(
+            &mut d,
+            &env,
+            clock,
+            Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+        );
         let (next, op) = fixtures::next_at(&mut d, &env);
         assert_eq!(op, Op::Write(original.effect.write.clone()), "same purpose and key");
         call = next;
@@ -1004,7 +1009,12 @@ fn remaking_a_never_sent_entry_keeps_later_entry_numbers_and_makes_each_once() {
     outputs(&mut d, Event::Enqueue { entry: status(later, 7) });
     outputs(&mut d, Event::Committed { entry: later });
     let (clock, _) = fixtures::next_at(&mut d, &env);
-    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+    fixtures::answer_at(
+        &mut d,
+        &env,
+        clock,
+        Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+    );
     let (later_call, later_op) = fixtures::next_at(&mut d, &env);
     assert_eq!(later_op, Op::Write(status(later, 7).effect.write));
     let due = fixtures::advance(&mut d, &mut env, CLIENT.backoff);
@@ -1019,7 +1029,12 @@ fn remaking_a_never_sent_entry_keeps_later_entry_numbers_and_makes_each_once() {
     let mut out = Queue::uncapped();
     step(&mut d, &env, Event::Committed { entry: fixtures::OPEN }, &mut out);
     let (clock, _) = fixtures::next_at(&mut d, &env);
-    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+    fixtures::answer_at(
+        &mut d,
+        &env,
+        clock,
+        Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }),
+    );
     let (first_call, first_op) = fixtures::next_at(&mut d, &env);
     assert!(matches!(first_op, Op::Write(skein_forge::api::Write::OpenPull { .. })));
     let first = fixtures::answer_at(&mut d, &env, first_call, Ok(Answer::Created(1)));
@@ -1245,6 +1260,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
             call: Token::new(1),
             repository: REPO,
             op: skein_forge::api::Op::Read(skein_forge::api::Read::Items {
+                single: false,
                 since: Time::from_nanos(1),
                 page: 1,
                 kind: Some(skein_forge::api::Kind::Issue),
@@ -1753,7 +1769,7 @@ fn a_release_waits_for_its_lost_writers_read_until_its_forge_connects() {
     // The outbox looks for this cleanup effect before making it.
     fixtures::answer_next(
         &mut d,
-        Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+        Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }),
     );
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(
@@ -3258,7 +3274,7 @@ fn an_open_write_with_an_empty_title_uses_the_default() {
     outputs(&mut d, Event::Committed { entry });
     fixtures::answer_next(
         &mut d,
-        Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+        Ok(skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }),
     );
     let (_, op) = fixtures::next_call(&mut d);
     let skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { title, .. }) = op else { panic!("open pull") };

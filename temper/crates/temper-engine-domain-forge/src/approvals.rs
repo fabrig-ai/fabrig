@@ -50,6 +50,7 @@ impl Domain {
                 | State::CancellingGates { .. }
                 | State::Queued { .. }
                 | State::Updating { .. }
+                | State::WaitingProducer { .. }
                 | State::Resolving { .. }
                 | State::Repairing { .. }
                 | State::Landed { .. }

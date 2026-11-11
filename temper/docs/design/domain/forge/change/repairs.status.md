@@ -1,6 +1,8 @@
 # repairs: status
 
-2026-11-10. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
+
+- **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 37].
 
 - **Not yet:**
   - the whole document: the user's N4 request of 2026-11-08 asks for focused and

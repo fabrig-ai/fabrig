@@ -302,7 +302,16 @@ fn bounds(page_size: u32, l: &Limits, s: &Shared) -> Bounds {
 pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: &Limits, s: &Shared) -> u32 {
     let listing = match op {
         api::Op::Read(read) => match read {
-            api::Read::Items { .. } | api::Read::PullFor { .. } => Listing::Items,
+            api::Read::Items { single, .. } => {
+                if *single {
+                    return 1;
+                }
+                return match kind {
+                    crate::settings::Kind::Forgejo => limits::page_size(Listing::Items, cap, l, s),
+                    crate::settings::Kind::GitHub => limits::bounded_page_size(Listing::Items, cap, l, s),
+                };
+            }
+            api::Read::PullFor { .. } => return limits::bounded_page_size(Listing::Items, cap, l, s),
             api::Read::Reviews { .. } => Listing::Reviews,
             api::Read::Statuses { .. } | api::Read::Checks { .. } => Listing::Statuses,
             api::Read::Pull { .. } => match kind {

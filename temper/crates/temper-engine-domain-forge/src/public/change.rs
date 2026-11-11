@@ -110,7 +110,7 @@ impl Domain {
         let mut tiers = 0;
         let step = match state {
             c::State::NoChange { .. } | c::State::Ended => w::PublicStep::Ended,
-            c::State::Producing { .. } => w::PublicStep::Producing,
+            c::State::Producing { .. } | c::State::WaitingProducer { .. } => w::PublicStep::Producing,
             c::State::Opening { .. } => w::PublicStep::Opening,
             c::State::Recreating { .. } => w::PublicStep::Recreating,
             c::State::Reopening { .. } => w::PublicStep::Reopening,

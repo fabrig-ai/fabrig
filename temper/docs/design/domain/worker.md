@@ -95,6 +95,18 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   its relayed calls answered on the new channel (jig's
   `domain/hosts/hub.md`, 6). Nothing is cancelled and nothing starts
   again.
+- **A start that fails is the engine still away.** An engine that
+  exits before it admits a hello, refused at its start's checks or
+  failing as it starts, and is restarted, is one absence to the worker:
+  every failed dial, refused opening and channel lost before the
+  engine's first record leaves the grace's clock running from the first
+  loss (jig's `protocol/channel/README.md`, 9.1), and the start that
+  admits the hello within the grace adopts every run, as above, however
+  many starts failed before it. One of the worker's dials is due at the
+  grace's end less the link's handshake deadline (jig's
+  `protocol/channel/README.md`, 9.1), so an engine back by then, however
+  late in the grace, finds the worker's hello before the runs are
+  cancelled.
 - **Past the bound, an interruption.** A run cancelled for lost contact
   saves its work first and answers `Cancelled(Contact)`; the engine ends
   the attempt interrupted, with no try spent, and the next attempt, on

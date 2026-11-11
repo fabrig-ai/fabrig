@@ -20,6 +20,7 @@ mod keep;
 mod limits;
 pub mod measure;
 mod outbox;
+mod paging;
 #[cfg(test)]
 mod tests;
 pub use boundary::{

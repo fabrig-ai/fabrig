@@ -421,7 +421,12 @@ fn busy(moving: bool) {
         assert_eq!(world.delivery_hints(), 0);
         let nominal = if moving { [2508_u64, 4332, 6060] } else { [2508_u64, 4260, 6024] };
         let band = 12 * (7 * u64::try_from(count).expect("count") + 1);
-        assert!((total * 6).abs_diff(nominal[count - 1]) <= band, "N={count}: {table:?}");
+        // Nonparticipating pulls no longer shorten quiet rests for inbox
+        // repairs: at most one six-request pass/minute/pull leaves the old
+        // nominal floor. Keep the original upper traffic pin unchanged.
+        let removed_repairs = 360 * u64::try_from(count).expect("count");
+        let floor = nominal[count - 1].saturating_sub(band + removed_repairs);
+        assert!((floor..=nominal[count - 1] + band).contains(&(total * 6)), "N={count}: {table:?}");
         let exact = sharing(&world, read_start, 1);
         let second = sharing(&world, read_start, 1_000_000_000);
         assert_eq!(exact.0, table["Base branch tip"] + table["Base combined status"] + table["Base check-runs"]);
@@ -432,7 +437,9 @@ fn busy(moving: bool) {
             .collect();
         assert_eq!(offered, issued, "one base-tip read per offered chain at its actual instant");
         assert_eq!(exact.2, skein_lib::len_u64(offered.len()));
-        assert_eq!(exact.1 * 6, [36, 72, 162][count - 1]);
+        // Without nonparticipating inbox repairs, fewer keeping Checks
+        // coincide with N=3's fresh base cohort; the chains are unchanged.
+        assert_eq!(exact.1 * 6, [36, 72, 126][count - 1]);
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {
             if let forge::Stored::Change(row) = stored {

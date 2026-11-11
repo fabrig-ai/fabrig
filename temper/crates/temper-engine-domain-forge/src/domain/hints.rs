@@ -39,19 +39,24 @@ fn item(d: &Domain, row: &ChangeRow, number: u64) -> bool {
 }
 
 fn commit(d: &Domain, row: &ChangeRow, head: Commit) -> bool {
-    if head == [0; 32] || row.change.last_head.is_none() || row.change.last_head == Some(head) {
+    if head == [0; 32] || row.change.last_head.is_none() {
         return true;
     }
     let base = match d.settling.get(&row.task) {
-        Some(settle) => {
-            if settle.uses_base(head) {
-                return true;
-            }
-            settle.read_base()
-        }
+        Some(settle) => settle.read_base(),
         None => None,
     };
-    if base.is_none() || base == Some(head) {
+    base.is_none() || known_commit(d, row, head)
+}
+
+/// Known dependencies can refresh CI alone even before their first Checks answer.
+pub(super) fn known_commit(d: &Domain, row: &ChangeRow, head: Commit) -> bool {
+    if row.change.last_head == Some(head) {
+        return true;
+    }
+    if let Some(settle) = d.settling.get(&row.task)
+        && settle.uses_base(head)
+    {
         return true;
     }
     // A fresh chain may already know a newer head, base or pull than its

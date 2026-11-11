@@ -50,8 +50,6 @@ fn a_repository_hint_wakes_only_the_changes_it_concerns() {
         ),
         (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52]),
         (Change::Branch(Box::new([])), vec![51, 52]),
-        (Change::Commit(translate::commit(world.branch(b"temper/a"))), vec![51]),
-        (Change::Commit(translate::commit(world.branch(b"release"))), vec![52]),
         (Change::Item(1), vec![51]),
         (Change::Item(2), vec![52]),
     ] {
@@ -63,6 +61,13 @@ fn a_repository_hint_wakes_only_the_changes_it_concerns() {
             hint_step(&mut world, task, 100 + task);
             assert_eq!(world.take_calls(), expected, "fresh reads for {task}, {change:?}");
         }
+    }
+    // An unchanged commit's CI is read alone, not a reason to gather every
+    // procedure fact again (keeping-up.md, 2, A commit's news).
+    for branch in [b"temper/a".as_slice(), b"release"] {
+        let commit = translate::commit(world.branch(branch));
+        assert!(hint(&mut world, Change::Commit(commit)).is_empty());
+        assert_eq!(world.take_calls(), [Op::Read(Read::Checks { commit })]);
     }
 }
 
@@ -142,8 +147,10 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
     world.run_for(6);
     let calls = world.take_calls();
     assert!(calls.contains(&Op::Read(Read::Checks { commit: before })), "CI used the branch read's tip");
-    assert_eq!(hint(&mut world, Change::Commit(before)), [52], "the decision's CI/compare base");
-    assert_eq!(hint(&mut world, Change::Commit(after)), [52], "the pull's newer base");
+    for (commit, source) in [(before, "the decision's CI/compare base"), (after, "the pull's newer base")] {
+        assert!(hint(&mut world, Change::Commit(commit)).is_empty(), "CI is read before waking: {source}");
+        assert!(world.take_calls().contains(&Op::Read(Read::Checks { commit })), "read {source}");
+    }
 }
 
 #[test]
@@ -192,7 +199,11 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
         },
     });
     world.run_for(1);
-    assert_eq!(hint(&mut world, Change::Commit(head)), [51, 52]);
+    assert_eq!(
+        hint(&mut world, Change::Commit(head)),
+        [51],
+        "only the subscriber wakes before unchanged head CI answers"
+    );
 
     let Some(forge::Stored::Change(mut row)) = world.stored().get(&forge::Key::Change(51)).cloned() else {
         panic!("first live change")
@@ -205,7 +216,11 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
     row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
     world.event(forge::Event::Change { row: *row });
     assert_eq!(hint(&mut world, Change::Item(2)), [52, 53], "unknown pull cannot exclude its review hint");
-    assert_eq!(hint(&mut world, Change::Commit(head)), [51, 52, 53], "unknown head cannot exclude its CI hint");
+    assert_eq!(
+        hint(&mut world, Change::Commit(head)),
+        [51, 53],
+        "subscriber and unknown head wake; known head reads CI alone"
+    );
     assert_eq!(hint(&mut world, Change::Item(0)), [51, 52, 53], "unnamed item is repository-wide");
     assert_eq!(hint(&mut world, Change::Commit([0; 32])), [51, 52, 53], "unnamed commit is repository-wide");
 }

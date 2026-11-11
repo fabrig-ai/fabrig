@@ -172,6 +172,15 @@ The client holds the resources the owner names, and nothing else.
     reads no history.
   - **Paging.** A full page ending at a later time moves `since` there
     and restarts at page 1. A full page of one time goes to the next.
+    A page cut at the answer's bytes (`forgejo.md`, 1.3) is full: ending
+    at a later time, it moves `since` to its last row's time and restarts
+    at page 1, the stamps dropping the rows of that time it replays; of
+    one time, the listing goes on from the row after its last at pages
+    of one row, the page the rows before it number plus one, until a
+    page ends at a later time, so no row a cut left is skipped. Its
+    pages are as many rows as the bytes
+    hold, so the listing's cost follows the changes' count and size, not
+    the largest issue a repository could hold.
   - **The mark** is the newest time seen. If an item changed at or after
     the listing began, it is instead the time of the first full page of
     one time, when there was one. The next listing replays what may have

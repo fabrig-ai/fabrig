@@ -165,6 +165,8 @@ pub enum State {
     First { head: Commit, ready_since: Wall },
     /// A mechanical update of the branch is outstanding.
     Updating { from: Commit, base: Commit, ready_since: Wall },
+    /// A conflict keeps this base until every pushing child has ended.
+    WaitingProducer { base: Commit },
     /// A conflict resolution delegate is outstanding.
     Resolving { requested: bool, base: Commit },
     /// A repair delegate is outstanding.
@@ -390,7 +392,8 @@ pub struct Heard {
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge/change/repairs.md).
     pub delegate_running: bool,
-    /// The change's producer, repair, resolution or merge job is a live task (domain/forge/change/repairs.md).
+    /// Any pushing child (producer, repair, resolution or merge job) is still live,
+    /// independent of the current delegate slot (domain/forge/change/repairs.md).
     pub delegate_live: bool,
     pub effect: EffectResult,
     pub released: bool,

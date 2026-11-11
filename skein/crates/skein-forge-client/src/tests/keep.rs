@@ -88,8 +88,8 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
     assert!(!h.domain.is_ready());
     h.fire(105);
     let listing = h.one();
-    assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(105) });
+    assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(105) });
     let item = h.one();
     h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
     let ci = h.one();
@@ -98,6 +98,46 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
     h.answer(ci, Answer::Pull(failed));
     assert_eq!(h.domain.cached(&pull()).expect("pull kept").pull.as_ref().expect("pull read").ci, api::Ci::Failed);
 }
+#[test]
+fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() {
+    use skein_lib::Duration;
+    let mut h = Harness::with_limits(Limits {
+        rate: 100,
+        reserve: 0,
+        poll: Duration::from_secs(5),
+        poll_max: Duration::from_secs(30),
+        slow: Duration::from_secs(40),
+        ..LIMITS
+    });
+    h.keep(Box::new([watch(pull(), false)]));
+    let mut pulls = List::with_capacity(40);
+    for second in 100..400 {
+        h.fire(second);
+        for _ in 0_u32..8 {
+            let Some(read) = h.send() else { break };
+            let answer = if let Op::Read(Read::Items { .. }) = read.op {
+                Answer::Items { cut: false, items: Box::new([]), more: false, now: at(second) }
+            } else if let Op::Read(Read::Item { .. }) = read.op {
+                Answer::Item { item: summary(), comments: Box::new([]), more: false }
+            } else {
+                assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
+                pulls.push(second).unwrap();
+                Answer::Pull(current())
+            };
+            h.answer(read, answer);
+        }
+    }
+    for since in 220..340 {
+        let mut count = 0_u32;
+        for read in &pulls {
+            if *read >= since && *read < since + 60 {
+                count += 1;
+            }
+        }
+        assert!(count <= 3, "quiet minute at {since}: {pulls:?}");
+    }
+}
+
 #[test]
 fn own_pushes_and_held_writer_hints_are_not_drift_but_a_later_external_tip_is() {
     let mut h = Harness::new();
@@ -152,7 +192,7 @@ fn own_comment_echo_never_skips_an_intervening_unread_human_comment() {
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
     h.fire(101);
     let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(6), comment(7)]), more: false });
@@ -174,16 +214,16 @@ fn time_paging_keeps_the_tie_replay_point_when_an_item_moves_during_the_pass() {
     let _item_in_flight = h.one();
     h.fire(105);
     let first = h.one();
-    assert_eq!(first.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
-    h.answer(first, Answer::Items { items: Box::new([summary()]), more: true, now: at(105) });
+    assert_eq!(first.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
+    h.answer(first, Answer::Items { cut: false, items: Box::new([summary()]), more: true, now: at(105) });
     let tied = h.one();
-    assert_eq!(tied.op, Op::Read(Read::Items { since: at(100), page: 2, kind: None }));
+    assert_eq!(tied.op, Op::Read(Read::Items { single: false, since: at(100), page: 2, kind: None }));
     let mut moved = summary();
     moved.updated = at(105);
-    h.answer(tied, Answer::Items { items: Box::new([moved.clone()]), more: true, now: at(106) });
+    h.answer(tied, Answer::Items { cut: false, items: Box::new([moved.clone()]), more: true, now: at(106) });
     let next = h.one();
-    assert_eq!(next.op, Op::Read(Read::Items { since: at(105), page: 1, kind: None }));
-    h.answer(next, Answer::Items { items: Box::new([moved]), more: false, now: at(107) });
+    assert_eq!(next.op, Op::Read(Read::Items { single: false, since: at(105), page: 1, kind: None }));
+    h.answer(next, Answer::Items { cut: false, items: Box::new([moved]), more: false, now: at(107) });
     match h.records.get(&Key::Repository(REPO)).expect("repository saved") {
         Stored::Repository(record) => {
             assert_eq!(record.mark, Some(at(100)));
@@ -192,6 +232,99 @@ fn time_paging_keeps_the_tie_replay_point_when_an_item_moves_during_the_pass() {
         Stored::Live(_) | Stored::Writer(_) => panic!("repository row"),
     }
 }
+#[test]
+fn cut_time_pages_resume_after_every_kept_row_then_restore_full_pages() {
+    for full_before_cut in [false, true] {
+        let mut h = Harness::with_limits(Limits { rows: 8, rate: 100, reserve: 0, ..LIMITS });
+        h.keep(Box::new([watch(issue(), false)]));
+        h.clock();
+        let _item_in_flight = h.one();
+        h.fire(105);
+        let mut next_number = 1;
+        if full_before_cut {
+            let first = h.one();
+            let mut items = List::with_capacity(8);
+            for number in 1..=8 {
+                items.push(api::Summary { number, ..summary() }).unwrap();
+            }
+            let items = items.into_boxed();
+            h.answer(first, Answer::Items { items, more: true, cut: false, now: at(105) });
+            next_number = 9;
+        }
+        let cut = h.one();
+        assert_eq!(
+            cut.op,
+            Op::Read(Read::Items {
+                since: at(100),
+                page: if full_before_cut { 2 } else { 1 },
+                kind: None,
+                single: false
+            })
+        );
+        let mut items = List::with_capacity(3);
+        for number in next_number..next_number + 3 {
+            items.push(api::Summary { number, ..summary() }).unwrap();
+        }
+        let items = items.into_boxed();
+        h.answer(cut, Answer::Items { items, more: true, cut: true, now: at(105) });
+        for number in next_number + 3..=next_number + 4 {
+            let single = h.one();
+            assert_eq!(
+                single.op,
+                Op::Read(Read::Items {
+                    since: at(100),
+                    page: u32::try_from(number).unwrap(),
+                    kind: None,
+                    single: true
+                })
+            );
+            h.answer(
+                single,
+                Answer::Items {
+                    items: Box::new([api::Summary { number, ..summary() }]),
+                    more: true,
+                    cut: false,
+                    now: at(105),
+                },
+            );
+        }
+        let later = h.one();
+        assert_eq!(
+            later.op,
+            Op::Read(Read::Items {
+                since: at(100),
+                page: u32::try_from(next_number + 5).unwrap(),
+                kind: None,
+                single: true
+            })
+        );
+        let moved = api::Summary { number: next_number + 5, updated: at(104), ..summary() };
+        h.answer(later, Answer::Items { items: Box::new([moved.clone()]), more: true, cut: false, now: at(105) });
+        let full = h.one();
+        assert_eq!(full.op, Op::Read(Read::Items { since: at(104), page: 1, kind: None, single: false }));
+        h.answer(full, Answer::Items { items: Box::new([moved]), more: false, cut: false, now: at(105) });
+        assert!(h.calls.is_empty(), "a short uncut page ends the pass");
+        assert_eq!(h.repository().mark, Some(at(104)));
+    }
+}
+
+#[test]
+fn a_cut_page_ending_later_restarts_full_pages_at_its_last_time() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    let _item_in_flight = h.one();
+    h.fire(105);
+    let cut = h.one();
+    let later = api::Summary { updated: at(104), ..summary() };
+    h.answer(cut, Answer::Items { items: Box::new([later.clone()]), more: true, cut: true, now: at(105) });
+    let full = h.one();
+    assert_eq!(full.op, Op::Read(Read::Items { since: at(104), page: 1, kind: None, single: false }));
+    h.answer(full, Answer::Items { items: Box::new([later]), more: false, cut: false, now: at(105) });
+    assert!(h.calls.is_empty());
+    assert_eq!(h.repository().mark, Some(at(104)));
+}
+
 #[test]
 fn time_paging_bounds_future_items_by_each_answers_clock() {
     let mut h = Harness::new();
@@ -202,16 +335,16 @@ fn time_paging_bounds_future_items_by_each_answers_clock() {
     let first = h.one();
     let mut future = summary();
     future.updated = at(150);
-    h.answer(first, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(110) });
+    h.answer(first, Answer::Items { cut: false, items: Box::new([future.clone()]), more: true, now: at(110) });
     let next = h.one();
-    assert_eq!(next.op, Op::Read(Read::Items { since: at(110), page: 1, kind: None }));
-    h.answer(next, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(110) });
+    assert_eq!(next.op, Op::Read(Read::Items { single: false, since: at(110), page: 1, kind: None }));
+    h.answer(next, Answer::Items { cut: false, items: Box::new([future.clone()]), more: true, now: at(110) });
     let tied = h.one();
-    assert_eq!(tied.op, Op::Read(Read::Items { since: at(110), page: 2, kind: None }));
-    h.answer(tied, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(100) });
+    assert_eq!(tied.op, Op::Read(Read::Items { single: false, since: at(110), page: 2, kind: None }));
+    h.answer(tied, Answer::Items { cut: false, items: Box::new([future.clone()]), more: true, now: at(100) });
     let next = h.one();
-    assert_eq!(next.op, Op::Read(Read::Items { since: at(100), page: 3, kind: None }));
-    h.answer(next, Answer::Items { items: Box::new([future]), more: false, now: at(120) });
+    assert_eq!(next.op, Op::Read(Read::Items { single: false, since: at(100), page: 3, kind: None }));
+    h.answer(next, Answer::Items { cut: false, items: Box::new([future]), more: false, now: at(120) });
     assert_eq!(h.repository().mark, Some(at(100)));
 }
 
@@ -225,7 +358,7 @@ fn a_moved_listings_mark_stays_within_its_answers_clock() {
     let listing = h.one();
     let mut future = summary();
     future.updated = at(150);
-    h.answer(listing, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([future]), more: false, now: at(100) });
     assert_eq!(h.repository().mark, Some(at(100)));
     assert!(h.repository().mark <= Some(h.repository().clock));
 }
@@ -240,9 +373,9 @@ fn a_quiet_listings_mark_stays_within_its_final_answers_clock() {
     let first = h.one();
     let mut future = summary();
     future.updated = at(150);
-    h.answer(first, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(200) });
+    h.answer(first, Answer::Items { cut: false, items: Box::new([future.clone()]), more: true, now: at(200) });
     let last = h.one();
-    h.answer(last, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    h.answer(last, Answer::Items { cut: false, items: Box::new([future]), more: false, now: at(100) });
     assert_eq!(h.repository().mark, Some(at(100)));
 }
 
@@ -257,11 +390,11 @@ fn a_tied_listings_mark_stays_within_its_final_answers_clock() {
     future.updated = at(150);
     for _ in 0_u32..2 {
         let page = h.one();
-        h.answer(page, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(150) });
+        h.answer(page, Answer::Items { cut: false, items: Box::new([future.clone()]), more: true, now: at(150) });
     }
     let last = h.one();
-    assert_eq!(last.op, Op::Read(Read::Items { since: at(150), page: 2, kind: None }));
-    h.answer(last, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    assert_eq!(last.op, Op::Read(Read::Items { single: false, since: at(150), page: 2, kind: None }));
+    h.answer(last, Answer::Items { cut: false, items: Box::new([future]), more: false, now: at(100) });
     assert_eq!(h.repository().mark, Some(at(100)));
 }
 
@@ -283,7 +416,7 @@ fn a_restored_mark_is_bounded_by_its_rows_clock_before_listing() {
             h.step(Event::ReadAfresh);
         }
         let listing = h.one();
-        assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+        assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
     }
 }
 
@@ -306,7 +439,7 @@ fn a_pending_review_submitted_later_is_delivered_despite_its_older_id() {
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
     h.fire(101);
     let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) });
     participation(&mut h, Box::new([review(1, 101), review(2, 100)]));
     match h.news.as_slice() {
         [Answer::Reviews { reviews, .. }] => {
@@ -356,7 +489,7 @@ fn a_full_echo_ledger_blocks_new_writes_until_the_inbox_reads_past_it() {
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
     h.fire(101);
     let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(6)]), more: true });
     let read = h.one();
@@ -476,14 +609,14 @@ fn a_repeated_listing_item_cannot_overflow_a_tiny_decisions_output_bound() {
     let before = h.record(&issue()).clone();
     h.fire(105);
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+    assert_eq!(read.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
     let mut repeated = List::with_capacity(10);
     for _ in 0..10_u32 {
         let mut item = summary();
         item.updated = at(105);
         repeated.push(item).expect("bounded malformed page");
     }
-    h.answer(read, Answer::Items { items: repeated.into_boxed(), more: false, now: at(105) });
+    h.answer(read, Answer::Items { cut: false, items: repeated.into_boxed(), more: false, now: at(105) });
     assert_eq!(h.record(&issue()), &before);
     assert_eq!(h.domain.next_deadline(), Some(at(106)));
 }
@@ -530,8 +663,8 @@ fn a_reserved_background_share_is_admitted_even_with_one_pending_slot_and_replen
         assert_eq!(h.read_refusals.as_slice().last(), Some(&Error::Busy));
         let read = h.one();
         let since = if round == 0 { at(u64::MAX) } else { at(100) };
-        assert_eq!(read.op, Op::Read(Read::Items { since, page: 1, kind: None }));
-        h.answer(read, Answer::Items { items: Box::new([]), more: false, now: h.env.now });
+        assert_eq!(read.op, Op::Read(Read::Items { single: false, since, page: 1, kind: None }));
+        h.answer(read, Answer::Items { cut: false, items: Box::new([]), more: false, now: h.env.now });
         let read = h.one();
         assert_eq!(
             read.op,
@@ -672,7 +805,7 @@ fn a_first_inbox_read_never_hides_an_edited_or_unknown_completed_own_echo() {
         h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
         h.fire(101);
         let listing = h.one();
-        h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+        h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) });
         let read = h.one();
         let mut changed = comment(7);
         changed.author = 1;
@@ -930,8 +1063,8 @@ fn repository_listing_waits_for_hints_within_the_poll_interval() {
         h.take(&mut out);
     }
     let listing = h.one();
-    assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: h.env.now });
+    assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
+    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: h.env.now });
     assert!(h.send().is_none(), "one hint makes one listing");
 }
 
@@ -962,8 +1095,8 @@ fn timed_reads_fall_back_while_their_repository_hears() {
             h.fire(105);
             if resource != branch() && (hears || poll == LIMITS.poll) {
                 let read = h.one();
-                assert_eq!(read.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
-                h.answer(read, Answer::Items { items: Box::new([]), more: false, now: at(105) });
+                assert_eq!(read.op, Op::Read(Read::Items { single: false, since: at(100), page: 1, kind: None }));
+                h.answer(read, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(105) });
             }
             if !listing {
                 let read = h.one();
@@ -1036,13 +1169,13 @@ fn a_hint_still_reads_at_hinted_while_its_repository_hears() {
 }
 
 fn empty_listing(now: u64) -> Answer {
-    Answer::Items { items: Box::new([]), more: false, now: at(now) }
+    Answer::Items { cut: false, items: Box::new([]), more: false, now: at(now) }
 }
 fn empty_object() -> Answer {
     Answer::Item { item: summary(), comments: Box::new([]), more: false }
 }
 fn listing_read(since: u64) -> Read {
-    Read::Items { since: at(since), page: 1, kind: None }
+    Read::Items { single: false, since: at(since), page: 1, kind: None }
 }
 fn branch_read() -> Read {
     Read::Branch { branch: Box::from(*b"topic") }
@@ -1326,7 +1459,7 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
                 h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
                 h.fire(101);
                 let listing = h.one();
-                h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+                h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(101) });
             }
             Next::Listing | Next::Slow => {
                 let now = match next {
@@ -1338,7 +1471,7 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
                 let listing = h.one();
                 let mut item = summary();
                 item.updated = updated;
-                h.answer(listing, Answer::Items { items: Box::new([item]), more: false, now: at(now) });
+                h.answer(listing, Answer::Items { cut: false, items: Box::new([item]), more: false, now: at(now) });
                 h.fire(now + 1);
             }
         }

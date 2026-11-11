@@ -40,6 +40,7 @@ mod specification;
 mod goal_template;
 mod restore;
 
+mod project_remove;
 mod visibility;
 
 fn malformed_setting(

@@ -357,7 +357,12 @@ the routing in the step that routes the record:
 
 - **Within jig's ceilings.** Each must fit the ceiling jig's schema gives
   its field; `temper serve` refuses a start whose limits pass one, naming
-  the limit.
+  the limit. jig's ceiling for `saved`, 16 MiB, is above the most
+  temper's payload ceilings let two repositories' conflicts make,
+  8,396,832 bytes at 1,024 conflicts of 4,096 bytes, so a raise of the
+  checkout's meets the links' rooms before it, and the start names
+  every bound to raise with it at once
+  (`configuration/limits.md`, the checkout's capacity).
 - **Workspace bounds.** The worker wire's `CEILINGS` allow 64
   repositories, 1,024 bytes for each name, remote and save destination,
   and 4,096 bytes for each optional git program. Each repository pays

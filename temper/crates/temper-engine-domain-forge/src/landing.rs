@@ -482,6 +482,7 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         | change::State::Preparing { .. }
         | change::State::CancellingGates { .. }
         | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
@@ -926,6 +927,7 @@ pub(crate) fn answered(
                                 | change::State::Queued { .. }
                                 | change::State::First { .. }
                                 | change::State::Updating { .. }
+                                | change::State::WaitingProducer { .. }
                                 | change::State::Resolving { .. }
                                 | change::State::Repairing { .. }
                                 | change::State::Landing { .. }

@@ -56,7 +56,7 @@ pub struct Limits {
 pub const CEILINGS: Limits = Limits {
     directory_name: 1_024,
     directory_path: 4_096,
-    directory_conflicts: 64,
+    directory_conflicts: 1_024,
     directory_conflicts_item: 4_096,
     workspace_directories: 64,
     credential_value_bytes: 8_192,

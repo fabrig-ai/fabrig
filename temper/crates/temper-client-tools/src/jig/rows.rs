@@ -1046,6 +1046,19 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
+/// Appended position for removing an owned project (client/ctl/tools.md, 3).
+pub const PROJECT_REMOVE_AT: u8 = 71;
+pub const PROJECT_REMOVE: Tool = Tool {
+    name: b"project remove",
+    line: b"Remove your own project, closing it at once and deleting it whole after",
+    prints: b"`removed: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
+    result: b"project_removed",
+    forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Only an owner removes a project, a fresh store's default project among them. Each live chat is asked to finish within its chat template's grace from me; no chat template, no grace. No confirmation. A project not in your me sends nothing, exit 2. A member who is not its owner, or a project already being deleted, is refused, exit 2. A key replay prints the same removal while deletion lasts. A restored request prints kept: remove-project, removed: project N, with no name.\n",
+};
+
 /// Appended host position for claiming role-addressed person work.
 pub const TAKE_AT: u8 = 67;
 /// Appended host position for returning person work to its role.

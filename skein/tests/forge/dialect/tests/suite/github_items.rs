@@ -60,7 +60,7 @@ fn repository() -> document::Repository {
     }
 }
 fn items(kind: Option<api::Kind>) -> api::Read {
-    api::Read::Items { since: Time::from_nanos(u64::MAX), page: 3, kind }
+    api::Read::Items { single: false, since: Time::from_nanos(u64::MAX), page: 3, kind }
 }
 fn issues_request(per_page: u32) -> Request {
     Request::Issues {
@@ -149,7 +149,7 @@ fn item_answer(answer: api::Answer) -> (api::Summary, Box<[api::Comment]>, bool)
     (item, comments, more)
 }
 fn items_answer(answer: api::Answer) -> (Box<[api::Summary]>, bool, Time) {
-    let api::Answer::Items { items, more, now } = answer else {
+    let api::Answer::Items { items, more, now, .. } = answer else {
         panic!("expected Items");
     };
     (items, more, now)

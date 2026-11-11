@@ -236,7 +236,7 @@ fn a_second_signal_while_settling_aborts() {
         cost: 1,
         free: 0,
         rate: None,
-        result: Ok(Answer::Items { items: Box::new([]), more: false, now: skein_lib::Time::from_nanos(1) }),
+        result: Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: skein_lib::Time::from_nanos(1) }),
     }))));
     for _ in 0_u32..16 {
         fixtures::turn(&mut service);

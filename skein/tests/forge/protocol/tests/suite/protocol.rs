@@ -35,7 +35,7 @@ fn listings_follow_another_partys_changes() {
     let mut page = 1;
     loop {
         let Answer::Items { items, more, .. } =
-            world.read(Read::Items { since: Time::ZERO, page, kind: None }).expect("owner listing")
+            world.read(Read::Items { single: false, since: Time::ZERO, page, kind: None }).expect("owner listing")
         else {
             panic!("listing returns items")
         };

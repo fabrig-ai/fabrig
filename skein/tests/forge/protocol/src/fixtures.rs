@@ -109,7 +109,7 @@ pub fn mixed_calls(seed: u64) -> World {
     world.reconnect();
     let number = world.person_issue(b"mixed");
     for page in 1..=2 {
-        let _ = world.read(Read::Items { since: Time::ZERO, page, kind: None });
+        let _ = world.read(Read::Items { single: false, since: Time::ZERO, page, kind: None });
     }
     world.event(Event::Make {
         entry: Entry {

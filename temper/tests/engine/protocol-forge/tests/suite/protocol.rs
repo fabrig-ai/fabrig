@@ -1,4 +1,5 @@
 mod ci_poll;
+mod forgejo_ci;
 use skein_fake_forge_domain::{Observation, api::Kind};
 use skein_fake_forge_forgejo::Route;
 use skein_forge_kit::joint::REPO;
@@ -460,7 +461,7 @@ fn a_busy_pass_lists_at_most_changed_items_over_the_page_plus_one() {
     let passes = &world.listing_passes()[first..];
     assert_eq!(passes.iter().sum::<u64>(), pages, "every HTTP listing is in a pass");
     for (pass, pages) in passes.iter().enumerate() {
-        assert!(*pages <= 7, "pass {pass}: six changed items, page size one, plus one: {pages}");
+        assert!(*pages <= 4, "pass {pass}: six changed items, forge cap two, plus one: {pages}");
     }
 }
 

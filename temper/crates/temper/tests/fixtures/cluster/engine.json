@@ -182,7 +182,7 @@
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
         "forge_component.connections": 4,
-        "git_component.stdout_bytes": 2048,
+        "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 4194304,
         "root.loads.bytes": 1327718,
         "root.loads.read_bytes": 2654940,

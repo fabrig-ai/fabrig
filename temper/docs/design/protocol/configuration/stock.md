@@ -230,6 +230,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper init`'s models (`../../domain/agent/tools.md`) |
   | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
+  | conflicted paths in one merge | past 4, the bound then, on a goal's merge (2026-11-11) | `checkout.conflicts` 512 and `git_component.stdout_bytes` 131,072 in both profiles, for a merge of a few hundred conflicted paths (`limits.md`, the checkout's capacity) |
 
   The stock and the reference's whole delegation (`reference.md`) fit the
   sixteen entries ctl's settings form takes in an authority's list.

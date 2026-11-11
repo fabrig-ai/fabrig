@@ -988,6 +988,7 @@ impl ChangeRow {
             | change::State::Queued { .. }
             | change::State::First { .. }
             | change::State::Updating { .. }
+            | change::State::WaitingProducer { .. }
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }

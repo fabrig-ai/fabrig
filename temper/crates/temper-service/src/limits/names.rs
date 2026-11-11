@@ -156,6 +156,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.client.hinted_ms" => limits.forge.client.hinted = duration(value)?,
         b"forge.client.slow_ms" => limits.forge.client.slow = duration(value)?,
         b"forge.client.settle_ms" => limits.forge.client.settle = duration(value)?,
+        b"forge.client.fallback_ms" => limits.forge.client.fallback = duration(value)?,
         b"forge.client.facts" => limits.forge.client.facts = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.change_policy.repairs" => {
             limits.forge.change_policy.repairs = u32::try_from(value).or(Err(Refused::Range))?;
@@ -326,7 +327,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 169] = [
+pub static NAMES: [Name; 170] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -890,6 +891,12 @@ pub static NAMES: [Name; 169] = [
         unit: Unit::Milliseconds,
         line: "Bounds settling after a pull request's head or base moves, while hinted CI and mergeability are read again.",
         value: |limits| limits.forge.client.settle.as_millis(),
+    },
+    Name {
+        name: "forge.client.fallback_ms",
+        unit: Unit::Milliseconds,
+        line: "Timed reads fall back while repository deliveries arrive; 0 keeps the polling paces.",
+        value: |limits| limits.forge.client.fallback.as_millis(),
     },
     Name {
         name: "forge.client.facts",

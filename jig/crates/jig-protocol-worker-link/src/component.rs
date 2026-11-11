@@ -107,7 +107,7 @@ impl Component {
                         self.completed(out);
                         return;
                     }
-                    let span = self.redial_wait();
+                    let span = self.redial_wait(now);
                     self.phase = Phase::Idle { at: now.saturating_add(span) };
                     out.push(Request::Fact { why: Loss::Unreachable });
                 }
@@ -284,12 +284,12 @@ impl Component {
                 self.grace.lost(now, self.limits.grace);
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
-                let span = self.redial_wait();
+                let span = self.redial_wait(now);
                 now.saturating_add(span)
             }
             Phase::Opening { .. } => {
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
-                let span = self.redial_wait();
+                let span = self.redial_wait(now);
                 now.saturating_add(span)
             }
             Phase::Idle { at } => at,
@@ -634,14 +634,13 @@ impl Component {
             | Phase::Closing { .. } => {}
         }
     }
-    fn redial_wait(&mut self) -> Duration {
+    fn redial_wait(&mut self, now: Time) -> Duration {
         let span = self.backoff.next();
-        if self.grace.next().is_some() {
-            let quarter = self.limits.grace.as_nanos().checked_div(4).expect("nonzero divisor");
-            span.min(Duration::from_nanos(quarter))
-        } else {
-            span
-        }
+        let Some(end) = self.grace.next() else { return span };
+        let quarter = self.limits.grace.as_nanos().checked_div(4).expect("nonzero divisor");
+        let span = span.min(Duration::from_nanos(quarter));
+        let last = Time::from_nanos(end.as_nanos().saturating_sub(self.limits.handshake.as_nanos()));
+        if now < last { span.min(last.saturating_since(now)) } else { span }
     }
     fn send_logins(&mut self) {
         let Some(connection) = self.phase.connection() else { return };
@@ -723,7 +722,7 @@ impl Component {
                 connection.quiet();
                 connection.stall = None;
                 out.push(Request::Lost);
-                let span = self.redial_wait();
+                let span = self.redial_wait(now);
                 out.push(Request::Fact { why });
                 started = true;
                 Phase::Closing {
@@ -733,7 +732,7 @@ impl Component {
                 }
             }
             Phase::Opening { connection, .. } => {
-                let span = self.redial_wait();
+                let span = self.redial_wait(now);
                 out.push(Request::Fact { why });
                 started = true;
                 Phase::Closing {

@@ -96,6 +96,12 @@ temper ctl DIR task message TASK TEXT --key KEY
 
 `repository make` and `copy` answer `kept`; `--until adopted` waits.
 
+`project make NAME --key KEY` makes a project; `project show` reads it,
+`project fund` sets spend and `project amend` changes visibility.
+`project remove PROJECT --key KEY` removes your own project, a fresh
+store's default among them, with no confirmation. PROJECT is its number
+or name from `me` (temper help project).
+
 **Waits.** A read of one subject waits when given `--since DIGEST`,
 the digest a read of it printed, or `--until CONDITION`, or both:
 `--since` returns once the subject differs from that read; `--until`

@@ -62,12 +62,17 @@ you can change them as any setting (temper help settings).
   pull request shows what its agent wrote too.
   Opening visibility also needs anonymous admission configured;
   temper help open-public-reading walks every figure and the restart.
-- **Deleted:** its owners delete it with Delete on How work runs in the
-  client, confirmed by its name; the playground's reset deletes
-  `Demo`. It takes no new work at once and leaves every list;
-  its live tasks are cancelled, then erased, its own settings and roles
-  with them, and its repositories leave it. Its name is free again; its
-  number is never given again.
+- **Deleted:** an owner uses `project remove PROJECT --key KEY`, with
+  no confirmation, or Delete on How work runs in the client, confirmed
+  by its name; the playground's reset deletes `Demo`. ctl can remove a
+  fresh store's default project too. It takes no new work at once and
+  leaves every list. Each live chat is asked to finish within its chat
+  template's grace from `me`; no chat template, no grace. Its tasks are
+  then erased, its own settings and roles with them, and its repositories
+  leave it. Its name is free again; its number is never given again.
+  ctl prints `removed: project 3, fabrig`, the answer's number and the
+  name `me` gave at the call, or the number alone with no name. A restored
+  request prints `kept: remove-project, removed: project 3`.
 
 ## What temper guarantees
 
@@ -92,7 +97,7 @@ you can change them as any setting (temper help settings).
   `project fund` raises its period spend or a role's;
   `project amend PROJECT --visibility public|private --key KEY`
   changes its visibility. The public page is a path under the
-  deployment's address.
+  deployment's address. `project remove PROJECT --key KEY` removes it.
 - **The client:** How work runs on the rail opens the project's process;
   on a phone, choose How work runs for PROJECT in the project switcher.
   Delete there deletes the project, for its owners. The switcher's
@@ -112,12 +117,15 @@ For the configuration members that need a restart, read `temper help configurati
   never the rest of a specification, instructions, inputs, results,
   conversations, or people's names. A title can hold what was said in a
   chat; see **Made public or private** under **How it changes**.
-- ctl's group `project` makes a project, reads it and changes its spends and visibility:
+- ctl's group `project` makes or removes a project, reads it and changes its spends and visibility:
   no call renames a project or changes its roles.
 - `forge setup` sets up the one owned Forgejo with its first repository.
   For a second project, read `forge list`, use `project make NAME --key KEY`,
   then `repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY`.
-- ctl has no call that deletes a project.
+- Removal needs ownership: a member who is not its owner, or a project
+  already being deleted, is refused (exit 2). A project not in your `me`
+  sends nothing and exits 2. Reusing the key answers the same removal
+  while deletion lasts.
 - A deleted project's spend stays in the period's totals.
 - temper has no call that moves a task or a repository to another
   project.

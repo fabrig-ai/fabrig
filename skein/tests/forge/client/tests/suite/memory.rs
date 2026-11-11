@@ -100,7 +100,7 @@ impl Measured {
     fn answer(&mut self, call: Call) {
         let rows = self.env.limits.rows;
         let result = match call.asked {
-            Asked::Items => api::Answer::Items { items: Box::new([]), more: false, now: self.env.now },
+            Asked::Items => api::Answer::Items { cut: false, items: Box::new([]), more: false, now: self.env.now },
             Asked::Item(number) => api::Answer::Item {
                 item: summary(number, self.env.limits.answer_bytes.saturating_sub(256)),
                 comments: Box::new([]),

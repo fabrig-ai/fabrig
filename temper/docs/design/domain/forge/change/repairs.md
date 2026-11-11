@@ -134,7 +134,26 @@
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`../../worker.md`, section 5). Its instructions keep
+  parents, and pushes it (`../../worker.md`, section 5).
+  **It waits for its producer.** A resolution, and a merge job before it,
+  starts only once every task the change gave its branch to push, its
+  producer and each repair, has ended: its terminal heard, a successful
+  producer's result the head of its last push. The change keeps each such
+  task's number from its delegation to its terminal, whatever it delegates
+  meanwhile (a gate, a merge job), so a task no longer its current
+  delegate still counts. A conflict the change meets while one still lives
+  (a producer whose pull or title the change already held, a run whose
+  reported push or save freed the branch's writer, a lost attempt's reread)
+  is a wait, not a resolution: the change keeps the base it would resolve
+  against, counts no resolution and no stall, holds nothing, and the
+  task's terminal wakes it. Then it reads its branch, its base and its
+  pull afresh (`../keeping-up.md`, 3) and keeps the head it reads as its
+  last head, its own since the branch was held by its delegates alone.
+  Still in conflict, it is resolved there, at the change's latest pushed
+  head: the resolution's pull section is pinned at that head, and a merge
+  job merges the base into it. Clean, it goes on with no resolution, a
+  head that moved meanwhile checked again as any push of its own is.
+  Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
   The specification reserves its pinned parameters' bytes before its words.

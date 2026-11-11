@@ -55,6 +55,7 @@ pub struct Outcome {
     pub admitted_hellos: u32,
     pub cuts: u32,
     pub agent_starts: u32,
+    pub failed_starts: u32,
     pub activity_seen: bool,
     pub text_bytes: usize,
     pub text_prefixes: Vec<Box<[u8]>>,
@@ -189,6 +190,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         })
         .collect();
     Outcome {
+        failed_starts: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.failed_starts.ended) } else { None }).unwrap_or(0),
         durable_at_restart: views.durable_at_restart,
         held_at_restart: views.held_at_restart,
         query_submissions: views.query_submissions,
@@ -558,6 +560,7 @@ fn make_referee(
             | crate::stories::Story::Wait
             | crate::stories::Story::MidFrame
             | crate::stories::Story::Restart { .. }
+            | crate::stories::Story::FailedStarts { .. }
             | crate::stories::Story::HeldCommit
             | crate::stories::Story::DurableRestart
             | crate::stories::Story::Partition { .. } => script.leading_turns + 1,
@@ -622,11 +625,19 @@ fn launch(
             path: b"state".as_slice().into(),
         });
     }
+    let engine_factory = if matches!(script.story, crate::stories::Story::FailedStarts { .. }) {
+        for name in [b"failed-first".as_slice(), b"failed-second".as_slice()] {
+            roots.push(skein_world::StartupRoot { name: name.into(), path: b"state".as_slice().into() });
+        }
+        processes::engine_failed_starts
+    } else {
+        engine_factory
+    };
     harness.spawn_restartable(roots, engine_factory);
     if let Some(before) = before_cut {
         harness.cut(0, before, skein_world::Cut::Kill);
     }
-    if let crate::stories::Story::Restart { before } = script.story {
+    if let crate::stories::Story::Restart { before } | crate::stories::Story::FailedStarts { before } = script.story {
         harness.cut(0, before, skein_world::Cut::Kill);
     }
 
