@@ -163,7 +163,9 @@ fn a_start_without_a_worker_half_refuses_workers_before_opening_their_files() {
     .expect("fixture directories");
     for bytes in [b"{}".as_slice(), include_bytes!("../../../../docs/examples/owned.json").as_slice()] {
         let mut owned = Vec::new();
-        let why = super::prepare("temper-engine", None, &directories, bytes, &mut owned).err().expect("no worker half");
+        let why = super::prepare("temper-engine", &[], b"/", None, &directories, bytes, &mut owned)
+            .err()
+            .expect("no worker half");
         assert_eq!(why, "temper.json names a worker, and temper-engine runs none");
         assert!(owned.is_empty(), "refusal opens no startup descriptors");
     }

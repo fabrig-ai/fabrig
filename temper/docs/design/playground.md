@@ -27,7 +27,7 @@ desktop browsers are well supported (the user, 10-26).
   world; the one-process world composes it with its harness, so the gate
   runs the world the browser runs (section 3).
 - **The visitor signs in by the printed link,** which the world's
-  service prints as `temper serve` does; the page puts it in the
+  service prints as `temper-box serve` does; the page puts it in the
   address and the client spends it as a person's browser does
   (section 6).
 - **Stories are data** (section 5): the box's three requests first,
@@ -96,7 +96,7 @@ desktop browsers are well supported (the user, 10-26).
   pipe capture). Its build for wasm32 proves it.
 - **The composition,** moved out of `tests/one-process`: the service,
   the engine and one worker in one `iterate`, started from configuration
-  bytes as `temper serve` starts them; jig's store on skein-kv over the
+  bytes as `temper-box serve` starts them; jig's store on skein-kv over the
   fake machine's disk; smith's agents hosted (smith's `shell/README.md`, 2.5);
   the fake LLM and fake forge peers on simulated sockets; the fake git
   program; skein's visitor (skein's `playground.md`, 4). Its process
@@ -132,7 +132,7 @@ desktop browsers are well supported (the user, 10-26).
   seed, which the page draws and the log keeps.
 - **The printed link** reaches the page by the service's standard
   output: the composition's host of the service drains its links each
-  iteration and writes each as a line, as `temper serve`'s host does,
+  iteration and writes each as a line, as `temper-box serve`'s host does,
   to a pipe the world captures (skein's `testing/world.md`, 2), whose lines the
   bridge brings (skein's `playground.md`, 5).
 - **The clients' listener** is at the address the deployment's document

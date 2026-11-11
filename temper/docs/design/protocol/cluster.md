@@ -7,14 +7,14 @@ shape of the case of `../testing/reference-case.md` on fakes: an engine and
 its workers, one of them added later. It is a deployment's shape too: a
 deployment runs its engine alone on `temper-engine serve` and each
 worker alone on `temper-worker serve`, `temper-agent` its agents'
-program (`binaries.md`, 1), while `temper init` writes standalone and a box keeps its
-one worker inside `temper serve` (setup/box.md, 1). The cluster's stories
-run the box's `temper`, and one runs the deployment's binaries (6).
+program (`binaries.md`, 1), while `temper-box init` writes standalone and a box keeps its
+one worker inside `temper-box serve` (setup/box.md, 1). The cluster's stories
+run the box's `temper-box`, and one runs the deployment's binaries (6).
 TLS, containment and other hosts are later (7).
 
 ## 1. Its shapes
 
-`temper serve` takes its shape from its document's members, and from
+`temper-box serve` takes its shape from its document's members, and from
 nothing else: no flag, no command of its own. A deployment's binary
 serves its own shape alone and refuses the others by their nearest
 shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binaries.md`, 2), and
@@ -55,7 +55,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
   held transcripts and turns (`../domain/root.md`, 4.1). Memory budgets
   are not startup heap sums (configuration/limits.md); io's sockets
   belong to their own service.
-- **`temper program-login`** takes a worker alone's directories as it
+- **`temper-box program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
   (credentials.md, section 3). `temper-worker program-login` takes a
@@ -64,10 +64,10 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 ## 2. Its processes
 
 ```
-fake forge   temper fake forge ... --ready PREFIX    (setup/playground.md)
-fake llm     temper fake llm ... --ready PREFIX
-engine       temper serve DIRS     after both fakes: an engine alone
-w1, w2       temper serve DIRS     after the engine: each a worker alone
+fake forge   temper-box fake forge ... --ready PREFIX    (setup/playground.md)
+fake llm     temper-box fake llm ... --ready PREFIX
+engine       temper-box serve DIRS     after both fakes: an engine alone
+w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   agents, git                      its children, each a process group
 ```
 
@@ -89,7 +89,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   (4).
 - **The fakes are setup/playground.md's,** each a process of its own with its
   ready line. A worker's git is the program an assignment's repositories
-  name, `temper fake git` for a fake forge (channel.md, section 4): the
+  name, `temper-box fake git` for a fake forge (channel.md, section 4): the
   workers share the fake forge's machine, so its program's path and its
   loopback listener serve them as they serve standalone's worker.
 
@@ -117,9 +117,9 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   | `listening <listener> <address>` | each shape with an engine, for `clients`, `webhooks` and a socket's `workers` | once that listener is bound, with the address bound (`listening workers 127.0.0.1:41733`; an IPv6 one bracketed, `[::1]:41733`) |
   | `linked <worker> <address>` | a worker alone | at each opening of its link: the engine has taken its secret and its hello is sent, with the engine's address |
   | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
-  | `temper serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
-  | `temper serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
-  | `temper serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/README.md`, 8): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
+  | `temper-box serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
+  | `temper-box serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
+  | `temper-box serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/README.md`, 8): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
 
   **A link that drops is never silent** (jig's `protocol/channel/README.md`, 8,
   *A lost link says why*). `<why>` is the link's `Loss` in one word or
@@ -133,7 +133,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   `stopping`, `code-<n>`). Each loss of a linked link and each lost
   channel prints its line; an opening that ends prints once until that
   worker's reason changes or it links, as a refusal does. A workers'
-  listener that fails prints its line, `temper serve: worker listener
+  listener that fails prints its line, `temper-box serve: worker listener
   <address> failed: <why>`, when it fails, not only once the service has
   ended.
 
@@ -153,7 +153,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   The engine says why a hello is refused (jig's `domain/engine/fleet.md`
   ): the refusal's text, at most 256 bytes, is the fleet's reason
   in words, and the engine writes the same words on its own stderr,
-  `temper serve: hello refused channel=<n>: <words>`. An agent's shortfall
+  `temper-box serve: hello refused channel=<n>: <words>`. An agent's shortfall
   reads as a start's problem for it does, after its charter and model
   where it has them (`charter 11: needs 64 turns; the agent's
   profile.policy.max_turns allows 32`), so a charter set after the start,
@@ -203,7 +203,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 
 ## 5. Its description
 
-- **One fixture, `crates/temper/tests/fixtures/cluster/`,** whose
+- **One fixture, `bin/temper-box/tests/fixtures/cluster/`,** whose
   description, `experiment.json`, has the format `lab-experiment/1` and
   the cost label `temper-m1-calibration`. Each process keeps its `argv`, whole `env`, `ready`
   lines (3), `after`, `memory_bytes` (1) and `files`: its
@@ -211,7 +211,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   Templates name addresses by `{proc.P.ready.C}` and directories by
   `{proc.P.dir}`. The description is canonical JSON, with integers
   within ±(2^53−1); each process's `memory_bytes` matches its document.
-- **The process tier's reader,** `crates/temper/tests/support/cluster.rs`:
+- **The process tier's reader,** `bin/temper-box/tests/support/cluster.rs`:
   templates rendered; processes started by skein-world's `Binary`, in
   cgroups, by `after`, ties in name order, with no seed; ready lines
   awaited on streams; processes stopped in reverse, a termination signal,
@@ -231,7 +231,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   start, stopping 20 seconds per process. The stop bound stays above
   each worker's stop bound and the engine's drain. The reader's
   constants and the fixture's memory declarations are tested.
-- **The fake forge's setup** is `temper serve`'s handover and reconcile
+- **The fake forge's setup** is `temper-box serve`'s handover and reconcile
   at start, from records (setup/owned.md, 5). The fixture holds the fake
   forge, fake LLM, engine and workers; a story supplies its fake setup
   (`../testing/process-tier.md`). Its tasks are chats, its referee checks
@@ -254,7 +254,7 @@ Each where `../testing/README.md` puts it (2.4 to 2.6):
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 3 as printed |
 | the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
+| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
 
 The process tier's first stories, one slot on each worker: the
 cluster's fixtures give each worker one. Two tasks on two workers need
@@ -268,8 +268,8 @@ no more; the cluster's workers of several slots are later (7).
   story on the same description, its engine started by
   `temper-engine serve`, each worker by `temper-worker serve`, and each
   worker's agent `temper-agent AGENT.json` (configuration/README.md, section
-  4) in place of the box's `temper internal agent`; the fakes and the
-  client stay the box's `temper`. The process tier builds the three
+  4) in place of the box's `temper-box internal agent`; the fakes and the
+  client stay the box's `temper-box`. The process tier builds the three
   beside the box's binary (`tools/tiers/design.md`). Written and
   compiled in its plan, and run after landing
   (`../draft/deployment-binaries.md`, section 10).
@@ -343,4 +343,4 @@ worker added later, 4.6's hung worker.
   `../testing/reference-case.md` has: a worker hosts an agent per slot
   (`../domain/worker.md`, section 6), and the cluster's fixtures and
   stories still give each of its workers one slot.
-- **`temper init` for the cluster's shapes** (`README.md`, section 11).
+- **`temper-box init` for the cluster's shapes** (`README.md`, section 11).

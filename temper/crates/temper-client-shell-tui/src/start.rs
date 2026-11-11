@@ -53,10 +53,11 @@ pub fn address(argument: &[u8]) -> Result<SocketAddr, Refused> {
 }
 
 pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
-    let absolute = |name| lookup(environment, name).filter(|value| value.starts_with(b"/"));
-    let base = if let Some(state) = absolute(b"XDG_STATE_HOME") {
+    let absolute =
+        |variable: &skein_shell::Variable| variable.value(environment).filter(|value| value.starts_with(b"/"));
+    let base = if let Some(state) = absolute(skein_shell::Base::State.variable()) {
         path(state).to_path_buf()
-    } else if let Some(home) = absolute(b"HOME") {
+    } else if let Some(home) = absolute(&skein_shell::HOME) {
         path(home).join(".local/state")
     } else {
         return Err(Refused::Directory("TUI directory: XDG_STATE_HOME or HOME must be an absolute path".into()));
@@ -91,7 +92,7 @@ pub fn on_box(link: Option<&[u8]>, engine: SocketAddr) -> bool {
 #[must_use]
 pub fn link_path(environment: &[EnvironmentEntry], working: &[u8]) -> Option<PathBuf> {
     let data = link_file::deployment(environment, working)?;
-    link_file::path(&data, lookup(environment, b"XDG_RUNTIME_DIR"), cfg!(target_os = "linux"))
+    link_file::path(&data, temper_shell::environment::XDG_RUNTIME_DIR.value(environment), cfg!(target_os = "linux"))
 }
 
 #[must_use]
@@ -100,24 +101,22 @@ pub fn read_note(directory: &Path, engine: SocketAddr, user: u32) -> Option<Note
     Note::read(bytes.expose(), engine.to_string().as_bytes())
 }
 
-fn lookup<'a>(environment: &'a [EnvironmentEntry], name: &[u8]) -> Option<&'a [u8]> {
-    environment.iter().find(|(key, _)| key.as_ref() == name).map(|(_, value)| value.as_ref())
-}
-
 #[must_use]
 pub fn opener(
     environment: &[EnvironmentEntry],
     linux: bool,
     executable: &dyn Fn(&Path) -> bool,
 ) -> Option<crate::opener::Opener> {
-    if lookup(environment, b"SSH_CONNECTION").is_some()
-        || lookup(environment, b"SSH_TTY").is_some()
-        || (linux && lookup(environment, b"DISPLAY").is_none() && lookup(environment, b"WAYLAND_DISPLAY").is_none())
+    if temper_shell::environment::SSH_CONNECTION.value(environment).is_some()
+        || temper_shell::environment::SSH_TTY.value(environment).is_some()
+        || (linux
+            && temper_shell::environment::DISPLAY.value(environment).is_none()
+            && temper_shell::environment::WAYLAND_DISPLAY.value(environment).is_none())
     {
         return None;
     }
     let program = if linux { "xdg-open" } else { "open" };
-    for directory in lookup(environment, b"PATH")?.split(|byte| *byte == b':') {
+    for directory in temper_shell::environment::PATH.value(environment)?.split(|byte| *byte == b':') {
         if !directory.starts_with(b"/") {
             continue;
         }
@@ -140,7 +139,7 @@ pub fn opener(
 
 #[must_use]
 pub fn scheme(environment: &[EnvironmentEntry]) -> Option<Scheme> {
-    let background = lookup(environment, b"COLORFGBG")?.rsplit(|byte| *byte == b';').next()?;
+    let background = temper_shell::environment::COLORFGBG.value(environment)?.rsplit(|byte| *byte == b';').next()?;
     if background.is_empty() || !background.iter().all(u8::is_ascii_digit) {
         return None;
     }
@@ -152,7 +151,7 @@ pub fn scheme(environment: &[EnvironmentEntry]) -> Option<Scheme> {
 
 #[must_use]
 pub fn depth(environment: &[EnvironmentEntry]) -> Depth {
-    match lookup(environment, b"COLORTERM") {
+    match temper_shell::environment::COLORTERM.value(environment) {
         Some(b"truecolor" | b"24bit") => Depth::True,
         _ => Depth::Indexed,
     }

@@ -287,7 +287,7 @@ No local cause was fixed by this closing task.
 | Remaining public setup/context | Identifier engine fixture 236,030,770 Ir (1.77%); one owner parse ≈59 million (1.29%); M15 context 133,599,685 (1.06%) | Below local stop rule. Three identifier deployments retain tracked calibration and separate same-instant direct/proxy reads; sharing would exceed the eight-read burst or change that assertion. |
 | Remaining M15 matcher | Construction 920,860,241 Ir (7.27% of final M15); overlapping search 22.25% | Required search footprint is not a saving. Retaining separate matcher groups regressed by 7.37%; individual prepared finders regressed to 29,193,119,109 whole-story Ir. Both trials reverted. |
 | Callgrind-only forge observation cap and ending-attempt oracle | Partial repair/case runs in figures-before and real-loop-causes; closing outcomes above | Instrumentation alters scheduling and poll counts. These are failed prefixes, not accepted whole-story measurements; native confirmations pass. Observation capacity and journal promises remain intact. |
-| Ignored reference process 4.6, `temper/crates/temper/tests/process.rs` | CPU and Ir unknown; not run | Jig must remove a draining worker from placement before its runs end. It supplies no current replacement coverage. After-landing owns slow-tier outcomes. |
+| Ignored reference process 4.6, `temper/bin/temper-box/tests/process.rs` | CPU and Ir unknown; not run | Jig must remove a draining worker from placement before its runs end. It supplies no current replacement coverage. After-landing owns slow-tier outcomes. |
 
 Shares of R/P from unsuccessful profiles are diagnostic only. Allocator,
 parsing, encoding and their parent functions overlap; adding those shares

@@ -5,7 +5,7 @@ into a `temper fake llm --document` document (testing/fakes.md, 1).
 It is a developer tool, never shipped or published.
 
 ```sh
-env TEMPER_BUNDLE=none cargo run -p temper-twin --bin twin -- \
+env TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-twin --bin twin -- \
   --data /absolute/data/deployment --base /absolute/base.json \
   --out /absolute/twin.json \
   --cue '1=Add CSV export to widget' \
@@ -73,8 +73,8 @@ Task, question and pull numbers and fake-git identities recur. The scripts'
 forge reads infer their repository; no grant carries a listener address.
 
 ```sh
-env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin
-env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run \
+env TEMPER_INTERNAL_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin
+env TEMPER_INTERNAL_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run \
   -p temper-real-loop-world --profile fuzzy \
   --test suite -E 'test(fuzzy::green_light::)'
 ```

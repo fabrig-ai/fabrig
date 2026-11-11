@@ -302,7 +302,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   prints, with its normal newline:
 
   ```text
-  temper serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes
+  temper-box serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes
   ```
 
   Other commit failures retain their existing diagnostic. Earlier durable

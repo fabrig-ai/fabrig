@@ -820,7 +820,7 @@ process has exited and its tree is empty. temper's choices:
   when the engine and the worker share a process
   (`../protocol/README.md`, section 6); `smith-inline-agent` is not used
   (`../protocol/llm.md`, section 7).
-- **temper's binary is the agent:** the box's `temper internal agent`,
+- **temper's binary is the agent:** the box's `temper-box internal agent`,
   or a deployment's `temper-agent` (`../protocol/binaries.md`, 3, and `../protocol/README.md`, 5
   ), smith's agent shell. temper builds no code into it.
 - **No credentials in its environment.** The tokens its LLM calls use

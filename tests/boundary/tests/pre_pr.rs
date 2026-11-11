@@ -45,7 +45,7 @@ if side == 'base':
     assert os.environ['CARGO_TARGET_DIR'] == str(root / 'target')
 if name == 'cargo' and args[0] in ('clippy', 'nextest'):
     assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to build or tests'
-    assert os.environ.get('TEMPER_BUNDLE') == 'none'
+    assert os.environ.get('TEMPER_INTERNAL_BUNDLE') == 'none'
 fail = state.get('fail', '')
 def spend(cost, event):
     state['ms'] += cost

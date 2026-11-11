@@ -4,7 +4,7 @@
 
 - **Not yet:** 9: the real-box process story
   `a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`
-  (`temper/crates/temper/tests/process.rs`) awaits after-landing execution;
+  (`temper/bin/temper-box/tests/process.rs`) awaits after-landing execution;
   during a plan it is compiled, not run. The browser proof and the rows of
   the laptop's table it does not repeat are recorded in
   `temper/docs/development/ui-repo-link-review.md`.
@@ -33,7 +33,7 @@
   (`temper/crates/temper-service/src/tests/forge_sign_in.rs`) holds of a
   record with `web`, and
   `an_owned_forgejo_signs_its_member_in_through_temper`
-  (`temper/crates/temper/tests/process.rs`) of a managed `forge connect`
+  (`temper/bin/temper-box/tests/process.rs`) of a managed `forge connect`
   without `--web`. So `temper/docs/help/server.md`, 6 says the meta
   appears once `forge connect` has kept the forge and, if a page fetched
   after that still lacks it, to restart the engine once. No test

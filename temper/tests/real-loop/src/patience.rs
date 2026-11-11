@@ -287,7 +287,9 @@ mod tests {
     fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
-        let prepared = temper::prepare_in_with(
+        let prepared = temper_box_shell::prepare_in_with(
+            &[],
+            b"/",
             &crate::service::directories(scratch.path()),
             &crate::fixtures::given(scratch.path()),
         )
@@ -408,7 +410,7 @@ mod tests {
         let printed = b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
         let host = crate::terminal::compose(
             std::path::Path::new("/private-directory-must-not-appear"),
-            temper::open::target(printed).expect("synthetic link"),
+            temper_box_shell::open::target(printed).expect("synthetic link"),
             Fd::new(3),
             Fd::new(0),
             Fd::new(1),

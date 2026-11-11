@@ -2,7 +2,7 @@
 
 Kind: reference
 
-The engine and worker configuration members, their bounds and what temper init --box writes.
+The engine and worker configuration members, their bounds and what temper-box init --box writes.
 
 A seeded project's policy must be a number; inline policies are refused.
 
@@ -236,6 +236,6 @@ Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its
 
 Shape: `agent`. Paths: `workers[].agent`. The program a worker spawns for each run.
 
-- `program`: text, 4096 bytes; required; init writes "/opt/temper/bin/temper". Names the agent executable, passed as written.
+- `program`: text, 4096 bytes; required; init writes "/opt/temper/bin/temper-box". Names the agent executable, passed as written.
 - `arguments`: list of text, 4096 bytes per argument; required; init writes ["internal","agent","/etc/temper/agent.json"]. Gives the agent's arguments, passed as written.
 - `configuration`: text, 4096 bytes; configuration path; required; init writes "/etc/temper/agent.json". Names smith's agent configuration document, which jig does not read.

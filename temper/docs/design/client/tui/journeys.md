@@ -18,9 +18,9 @@ the look, 11 what is open.
   host each report and carries out the duties it asks back; the
   recorder keeps what crosses that seam, and the replay gives it back to
   the same host, natively.
-- **Recorded in a build of its own:** `temper` built with its `record`
+- **Recorded in a build of its own:** `temper-box-shell` built with its `record`
   feature records every TUI it runs, from its start, into the TUI's
-  directory; the shipped `temper` holds none of it (section 2).
+  directory; the shipped `temper-box` holds none of it (section 2).
 - **The browser's file, the TUI's records:** the same text, one record
   per line, the same shared records (the start's seed and clocks, a
   turn, a deadline, a mark, the small store's records), and records of
@@ -55,11 +55,11 @@ the look, 11 what is open.
   the walk's logic. With `record` the crate depends on
   `temper-client-shell-web`, natively, for the shared redaction and scan
   (section 5). It is ordinary Rust, as the browser's `journey` module is.
-- **The recording build:** `temper`'s feature `record`, which no other
+- **The recording build:** `temper-box-shell`'s feature `record`, which no other
   package enables, turns on the crate's and has the binary give the run
   a recording (`run::Settings.record`). A build of the workspace that
   compiles the journey module for `temper-client-journeys` gives the run
-  the code but never a recording, so a `temper` built without its own
+  the code but never a recording, so a `temper-box` built without its own
   `record` records nothing.
 - **Nothing else changes in the TUI:** the recorder adds no node, no
   paint, no request and no file but its own (3.1).
@@ -84,7 +84,7 @@ the look, 11 what is open.
   save key, for a terminal that drops the Shift from a Meta key it
   doesn't bind, as emacs' vterm does: it sends Alt+Shift+M as Alt+m.
   Only a recording takes them: a run without one, as the shipped
-  `temper`'s always is (section 2), gives Alt+m and Alt+s to the host as
+  `temper-box`'s always is (section 2), gives Alt+m and Alt+s to the host as
   any other key.
 - **A save** writes the file whole, `recording` in the TUI's directory
   (`README.md`, 2), `0o600`, a synced temporary replacing it,
@@ -94,7 +94,7 @@ the look, 11 what is open.
   `LEAVE`; a save that fails says nothing on the screen, and the next
   save tries again.
 - **One run, one recording:** a recording starts with the TUI and is
-  whole at each save; the next `temper` replaces it.
+  whole at each save; the next TUI run replaces it.
 - **The file keeps every original:** it is the person's, in their
   private directory, and `add` takes it (section 6). It is never
   committed as it is.
@@ -457,7 +457,7 @@ recording's (3.2).
 for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
-- **Built from the checkout:** `temper` with its `record` feature and
+- **Built from the checkout:** the client `temper` with recording enabled (2), and
   `fake-claude`, and the browser's bundle (`scripts/bundle.sh
   --loopback`), each copied into a fresh scratch directory under `/tmp`.
 - **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
@@ -497,16 +497,16 @@ ordinary Rust over skein's harness:
 
 ### 8.3 A box with the TUI in front
 
-What `again` does to record a journey of `temper box` with the TUI in
+What `again` does to record a journey of `temper-box` with the TUI in
 front of it (`box.md`; `../../protocol/setup/box.md`, 6),
 where 8.2 says otherwise:
 
-- **The box in the pseudo-terminal:** `temper box --fake-backends` from
+- **The box in the pseudo-terminal:** `temper-box --fake-backends` from
   the scratch copy is itself started in the pseudo-terminal of 80 by 24,
   in a session of its own, with the TUI's environment of 8.2 but
   `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
   the front opens that terminal and takes its foreground. The front is
-  the same `temper`, built with `record`, and records into the TUI's
+  the same `temper-box`, built with `record`, and records into the TUI's
   directory as bare `temper` does (3.1). No `temper` is started apart,
   and no approval is walked: the front signs in by the link the box
   hands it.

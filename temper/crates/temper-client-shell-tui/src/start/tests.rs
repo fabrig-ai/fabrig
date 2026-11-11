@@ -186,7 +186,8 @@ fn the_note_is_private_and_only_for_its_address() {
 fn an_opener_needs_a_local_display_and_an_executable_in_an_absolute_path_directory() {
     for (entries, linux, found, expected) in [
         (vec![("SSH_CONNECTION", "set"), ("DISPLAY", ":0"), ("PATH", "/bin")], true, vec!["/bin/xdg-open"], None),
-        (vec![("SSH_TTY", ""), ("PATH", "/bin")], false, vec!["/bin/open"], None),
+        (vec![("SSH_TTY", "set"), ("PATH", "/bin")], false, vec!["/bin/open"], None),
+        (vec![("SSH_TTY", ""), ("PATH", "/bin")], false, vec!["/bin/open"], Some("/bin/open")),
         (vec![("PATH", "/bin")], true, vec!["/bin/xdg-open"], None),
         (vec![("DISPLAY", ":0"), ("PATH", "/bin")], true, vec!["/bin/xdg-open"], Some("/bin/xdg-open")),
         (vec![("WAYLAND_DISPLAY", "wayland-0"), ("PATH", "/bin")], true, vec!["/bin/xdg-open"], Some("/bin/xdg-open")),

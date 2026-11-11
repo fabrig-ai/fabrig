@@ -1,6 +1,3 @@
-#[path = "../build/commit.rs"]
-mod commit;
-
 use super::{COMMANDS, Command, NAME, configure};
 use temper_shell::{commands::help, help::Request, rows};
 
@@ -59,6 +56,28 @@ fn every_row_parses_and_the_rest_is_refused() {
 }
 
 #[test]
+fn the_tui_refusals_explain_the_terminal_and_sign_in() {
+    use temper_client_shell_tui::start::{Refused, terminal_refusal};
+    for (why, line) in [
+        (Refused::NotATerminal, "temper-client: the TUI needs a terminal on stdin and stdout\n"),
+        (Refused::NotAnAddress(Box::from(b"ARG".as_slice())), "temper-client: not an address: ARG\n"),
+        (
+            Refused::Link,
+            "temper-client: a sign-in link is never an argument: run temper-client http://HOST:PORT and paste it\n",
+        ),
+        (Refused::NotLoopback, "temper-client: the engine's address must be on loopback\n"),
+        (
+            Refused::Directory("/s/temper/tui: cannot open its files".into()),
+            "temper-client: /s/temper/tui: cannot open its files\n",
+        ),
+    ] {
+        assert_eq!(why.line(NAME), line, "{why:?}");
+    }
+    assert_eq!(terminal_refusal(NAME, false), "temper-client: no command; temper-client --help lists them\n");
+    assert_eq!(terminal_refusal(NAME, true), Refused::NotATerminal.line(NAME));
+}
+
+#[test]
 fn the_help_lists_the_clients_rows() {
     let text = help(NAME, &COMMANDS);
     for (line, present) in [
@@ -74,33 +93,7 @@ fn the_help_lists_the_clients_rows() {
 }
 
 #[test]
-fn the_commit_word_is_twelve_hex_digits_dirty_or_unknown() {
-    const HEAD: &str = "0123456789abcdef0123456789abcdef01234567";
-    for (head, dirty, expected) in [
-        (Some(HEAD), false, "0123456789ab"),
-        (Some(HEAD), true, "0123456789ab-dirty"),
-        (None, false, "unknown"),
-        (None, true, "unknown"),
-        (Some("0123456789a"), false, "unknown"),
-        (Some("0123456789ag"), false, "unknown"),
-        (Some("0123456789aB"), false, "unknown"),
-        (Some("0123456789abg"), false, "unknown"),
-        (Some("0123456789ab"), false, "0123456789ab"),
-    ] {
-        assert_eq!(commit::word(head, dirty), expected, "head {head:?}, dirty {dirty}");
-    }
-}
-
-#[test]
 fn the_version_line_names_the_binary_its_version_and_commit() {
     let line = super::version();
-    let prefix = format!("temper-client {} (", env!("CARGO_PKG_VERSION"));
-    let word = line.strip_prefix(&prefix).and_then(|tail| tail.strip_suffix(")\n")).expect("version line");
-    let (head, dirty) = match word.strip_suffix("-dirty") {
-        Some(head) => (head, true),
-        None => (word, false),
-    };
-    let head = if head == "unknown" { None } else { Some(head) };
-    assert_eq!(word, commit::word(head, dirty));
-    assert_eq!(line, format!("{prefix}{})\n", env!("TEMPER_CLIENT_COMMIT")));
+    assert_eq!(line, format!("temper-client {} ({})\n", temper_version::VERSION, temper_version::COMMIT));
 }

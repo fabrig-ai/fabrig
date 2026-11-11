@@ -201,7 +201,7 @@ impl Worker {
 
     /// Give each agent the dump directory (temper/docs/design/draft/dogfood-hacks.md, 2.13).
     pub(crate) fn dump_llm(&mut self, directory: &[u8]) {
-        self.environment = Box::new([skein_lib::bytes::concat(&[b"TEMPER_DUMP_LLM=", directory])]);
+        self.environment = Box::new([skein_lib::bytes::concat(&[b"TEMPER_INTERNAL_DUMP_LLM=", directory])]);
     }
 
     pub fn configure_program_sources(

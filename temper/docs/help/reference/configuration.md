@@ -2,7 +2,7 @@
 
 Kind: reference
 
-The configuration document's top level and application members, their bounds and what temper init --box writes.
+The configuration document's top level and application members, their bounds and what temper-box init --box writes.
 
 Every member is read at startup; a change to any member needs a restart.
 

@@ -207,7 +207,7 @@ request, CI passed, review, landing and chat's last word.
 
 **Twin and fixtures:** `suite::fuzzy::green_light` in `temper/tests/real-loop`, with fixtures in
 `temper/tests/real-loop/tests/fixtures/b0/`. The live story is
-`rung_b0_a_person_agrees_a_plan_before_the_change_lands` in `temper/crates/temper/tests/live.rs`,
+`rung_b0_a_person_agrees_a_plan_before_the_change_lands` in `temper/bin/temper-box/tests/live.rs`,
 run by `temper/scripts/proof-live.sh rung-b0`, with its offline proofs `rung-b0-offline`
 (`../design/testing/real-loop.md` and `../design/testing/live-tier.md`).
 

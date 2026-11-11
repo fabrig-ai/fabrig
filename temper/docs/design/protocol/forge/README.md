@@ -249,10 +249,10 @@ alone (../setup/README.md, section 9).
   the component hints at once.
 - **A listener that fails** while the engine runs stops the engine, as
   the clients' listener's does: the service drains as at a shutdown, and
-  whatever starts `temper serve` again (the box, a service manager)
+  whatever starts `temper-box serve` again (the box, a service manager)
   starts it with a listener again.
 - **Not sent again.** Forgejo does not resend a failed delivery (skein's
-  `forge/README.md`, section 6): one lost while `temper serve` is down, refused
+  `forge/README.md`, section 6): one lost while `temper-box serve` is down, refused
   for its size or its signature, or never sent is found by polling. A
   hint that arrives before the engine's domain is ready is dropped, and
   the keep's first listing finds what it told of.

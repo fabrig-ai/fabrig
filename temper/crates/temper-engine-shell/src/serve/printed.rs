@@ -10,7 +10,7 @@ pub(crate) struct Machine<'a> {
     pub canonical: &'a dyn Fn(&[u8]) -> Option<Box<[u8]>>,
 }
 pub(crate) fn program_word(machine: &Machine<'_>) -> Box<[u8]> {
-    let Some(executable) = machine.executable else { return b"temper".as_slice().into() };
+    let Some(executable) = machine.executable else { return b"temper-box".as_slice().into() };
     let executable = executable.strip_suffix(b" (deleted)").unwrap_or(executable);
     if let Some(path) = machine.path {
         let first = path.split(|byte| *byte == b':').filter(|entry| entry.starts_with(b"/")).find_map(|entry| {
@@ -18,13 +18,13 @@ pub(crate) fn program_word(machine: &Machine<'_>) -> Box<[u8]> {
             if !candidate.ends_with(b"/") {
                 candidate.push(b'/');
             }
-            candidate.extend_from_slice(b"temper");
+            candidate.extend_from_slice(b"temper-box");
             (machine.canonical)(&candidate)
         });
         if let Some(first) = first
             && (machine.canonical)(executable).as_deref() == Some(first.as_ref())
         {
-            return b"temper".as_slice().into();
+            return b"temper-box".as_slice().into();
         }
     }
     path_word(executable, machine.home)
@@ -76,8 +76,8 @@ pub fn running_word(environment: &[temper_shell::directories::EnvironmentEntry])
     let executable = std::env::current_exe().ok();
     program_word(&Machine {
         executable: executable.as_ref().map(|path| path.as_os_str().as_bytes()),
-        path: environment.iter().find(|(name, _)| name.as_ref() == b"PATH").map(|(_, value)| value.as_ref()),
-        home: environment.iter().find(|(name, _)| name.as_ref() == b"HOME").map(|(_, value)| value.as_ref()),
+        path: temper_shell::environment::PATH.value(environment),
+        home: skein_shell::HOME.value(environment),
         canonical: &|bytes| {
             let path = std::path::Path::new(std::ffi::OsStr::from_bytes(bytes));
             let metadata = std::fs::metadata(path).ok()?;

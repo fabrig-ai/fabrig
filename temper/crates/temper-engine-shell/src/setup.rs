@@ -7,7 +7,7 @@ use temper_service::startup::Named;
 pub struct Deployment {
     pub named: Named,
     pub checked: Checked,
-    pub limits: temper_box::limits::Limits,
+    pub limits: temper_box_machine::limits::Limits,
     pub demo: Option<temper_fake::demo::Demo>,
 }
 
@@ -75,8 +75,8 @@ pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployme
     check_with(bytes, directories, &temper_service::stock::Given::Stock)
 }
 
-fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box::limits::Limits, String> {
-    use temper_box::limits::{self, Refused};
+fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limits::Limits, String> {
+    use temper_box_machine::limits::{self, Refused};
     let mut limits = limits::small();
     let mut problems = Vec::new();
     let prefix = "application.limits.overrides.";

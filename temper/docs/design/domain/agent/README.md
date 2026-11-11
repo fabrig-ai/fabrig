@@ -14,7 +14,7 @@ still open is listed in `README.md`, section 8.
 ## 1. In one page
 
 - **temper runs smith's stock agent,** on workers, one process per run:
-  temper's own binary run as `temper internal agent`, smith's agent shell
+  temper's own binary run as `temper-box internal agent`, smith's agent shell
   (`../../protocol/binaries.md`). temper builds no code into it. A
   run's charter and its host's answers are all that make it temper's.
 - **The engine writes the charter** (`charter.md`): the task's instructions,
@@ -245,7 +245,7 @@ host:
 
 - **Forge-read fallout with real agents** (`agents.md`): the existing
   ChatGPT and Claude Code owned-forge landing stories check that a real
-  run completes without losing `temper serve`. Refusal-rendering checks
+  run completes without losing `temper-box serve`. Refusal-rendering checks
   alone do not establish either outcome. Default: those live stories
   run after landing, with no change required by the refusal contract;
   `../forge/README.md`, section 11 keeps the routing proof's limits.
@@ -337,14 +337,14 @@ host:
   a user of a repository that run may already read; holding it would be a
   condition in `temper-engine-domain`'s render. Default: every such run.
 - **A person known by a login alone** (`agents.md`, 1), where no link vouches for them:
-  `temper serve` with several members, a managed Forgejo, a pasted App. Often
+  `temper-box serve` with several members, a managed Forgejo, a pasted App. Often
   no collaborator, adoption finds no person for them and the inventory's forge
   person has no forge user id; `read_permission` takes an id, so the agent
   cannot match them, and `propose_settings` refuses at the call, in
   acceptance's words, an approval only they could meet (`../forge/change/gates.md`, 3;
   `ask-temper.md`, 2), saying who to add on the forge before adopting again, in the browser the adoption
   form typed afresh (`../../client/forge/family.md`, 4). A family of links waits for
-  `temper serve`'s members (`../../protocol/sign-in.md`, section 9).
+  `temper-box serve`'s members (`../../protocol/sign-in.md`, section 9).
   Default: adoption's seeds and the refusal above; a configured login alone
   supplies no verified forge identity.
 - **Which host tools a charter offers.** jig's charter carries the host

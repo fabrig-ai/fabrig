@@ -56,7 +56,7 @@ deployment: every name here is an example, temper at
   with `sub` the identity, `<provider>:<address>`, which outlives the
   store (`openid-provider.md`, 4).
 - **The source is added on Forgejo's host by a printed command** (`openid-provider.md`, 5;
-  `setup/owned.md`, 8), for a managed Forgejo and `temper serve`'s owned one
+  `setup/owned.md`, 8), for a managed Forgejo and `temper-box serve`'s owned one
   alike. A box's owned Forgejo sets all of this up by itself (`openid-provider.md`, 9).
 - **No single sign-out** (`openid-provider.md`, 6): the signed-out page says that Forgejo
   keeps its own sign-in.
@@ -65,7 +65,7 @@ deployment: every name here is an example, temper at
 
 ### 2.1 The host
 
-`temper serve`, standalone, its clients' listener on loopback at a fixed
+`temper-box serve`, standalone, its clients' listener on loopback at a fixed
 port; a TLS proxy terminates TLS for temper's name and passes it on, the
 `Host` as the browser sent it; plain HTTP is answered with a redirect to
 HTTPS. The proxy denies the printed link's route,
@@ -543,7 +543,7 @@ its sockets tagged as the server's are.
   stored. Default: the preparation logs the failure and succeeds, the
   entry still serves, and Forgejo may send the press to the old address.
 
-- **`temper serve`'s owned Forgejo signing in with no command** (`openid-provider.md`, 9). Default: its
+- **`temper-box serve`'s owned Forgejo signing in with no command** (`openid-provider.md`, 9). Default: its
   printed command, until `auto`'s reasoning has been checked for several members.
 - **A box's owned Forgejo behind `machine.owned.public`** (`openid-provider.md`, 9). Default: the pair is
   refused, until a walk proves its redirect, its source and its off fact.

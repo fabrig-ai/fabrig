@@ -170,7 +170,7 @@ delivery hears every failure; the verdict is section 6's.
    existence in Rust comments as part of check 2, as before
    (`tools/old_forms/README.md`).
 
-**The environment** is the check's, with `TEMPER_BUNDLE=none` set where it
+**The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
 private index; their scratch repositories keep their own indexes. No
 `cargo clean`, no `--workspace`, no network
