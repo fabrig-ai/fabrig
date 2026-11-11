@@ -5376,6 +5376,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-test-env",
 ]
 
 [[package]]

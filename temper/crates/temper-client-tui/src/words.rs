@@ -149,8 +149,21 @@ pub enum Word {
     PaneFolds,
     PaneGoal,
     PaneLinkedGoal,
+    FindingBox,
+    DownloadingBox,
+    DownloadingBoxTotal,
+    StartingBox,
+    FailedBox,
+    FailedBoxHint,
+    StoppingBox,
+    StoppingBoxHint,
+    Stopping,
+    BoxStopped,
+    BoxExited,
+    BoxKilled,
+    BoxEndNote,
 }
-pub(crate) const ALL: [Word; 139] = [
+pub(crate) const ALL: [Word; 152] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -290,6 +303,19 @@ pub(crate) const ALL: [Word; 139] = [
     Word::PaneFolds,
     Word::PaneGoal,
     Word::PaneLinkedGoal,
+    Word::FindingBox,
+    Word::DownloadingBox,
+    Word::DownloadingBoxTotal,
+    Word::StartingBox,
+    Word::FailedBox,
+    Word::FailedBoxHint,
+    Word::StoppingBox,
+    Word::StoppingBoxHint,
+    Word::Stopping,
+    Word::BoxStopped,
+    Word::BoxExited,
+    Word::BoxKilled,
+    Word::BoxEndNote,
 ];
 
 #[derive(Clone, Copy)]
@@ -307,6 +333,8 @@ enum Slot {
     Step,
     Label,
     Title,
+    LogLine,
+    End,
 }
 impl Slot {
     const fn kind(self) -> HoleKind {
@@ -323,12 +351,16 @@ impl Slot {
             | Self::Clock
             | Self::Step
             | Self::Label
-            | Self::Title => HoleKind::Name,
+            | Self::Title
+            | Self::LogLine
+            | Self::End => HoleKind::Name,
         }
     }
     fn bytes(self, domain: &Limits) -> u32 {
         match self {
             Self::Step => crate::limits::STEP,
+            Self::LogLine => crate::limits::LOG_LINE.saturating_mul(3),
+            Self::End => 40,
             Self::Title => domain.client.domain.text,
             Self::Address => 64,
             Self::Code => 9,
@@ -486,6 +518,19 @@ impl Word {
             Self::PaneFolds => 139,
             Self::PaneGoal => 140,
             Self::PaneLinkedGoal => 141,
+            Self::FindingBox => 142,
+            Self::DownloadingBox => 143,
+            Self::DownloadingBoxTotal => 144,
+            Self::StartingBox => 145,
+            Self::FailedBox => 146,
+            Self::FailedBoxHint => 147,
+            Self::StoppingBox => 148,
+            Self::StoppingBoxHint => 149,
+            Self::Stopping => 150,
+            Self::BoxStopped => 151,
+            Self::BoxExited => 152,
+            Self::BoxKilled => 153,
+            Self::BoxEndNote => 154,
         }
     }
     const fn id(self) -> PhraseId {
@@ -532,6 +577,19 @@ impl Word {
             Self::WalkDone => (&[b"Nothing else needs you."], &[]),
             Self::OpenAt => (&[b"Open ", b" in your browser."], &[Slot::PageAddress]),
             Self::KeyWalk => (&[b"n walks what needs you"], &[]),
+            Self::FindingBox => (&[b"Finding temper-box\xe2\x80\xa6"], &[]),
+            Self::DownloadingBox => (&[b"Downloading temper-box, once for this build: ", b" MB"], &[Slot::Span]),
+            Self::DownloadingBoxTotal => (&[b"Downloading temper-box, once for this build: ", b" of ", b" MB"], &[Slot::Span, Slot::Span]),
+            Self::StartingBox => (&[b"Starting the box\xe2\x80\xa6"], &[]),
+            Self::FailedBox => (&[b"temper-box could not start: ", b""], &[Slot::LogLine]),
+            Self::FailedBoxHint => (&[b"Ctrl+C closes; temper then says what to do."], &[]),
+            Self::StoppingBox => (&[b"Stopping the box\xe2\x80\xa6"], &[]),
+            Self::StoppingBoxHint => (&[b"Ctrl+C again ends its steps at once."], &[]),
+            Self::Stopping => (&[b"stopping"], &[]),
+            Self::BoxStopped => (&[b"box stopped"], &[]),
+            Self::BoxExited => (&[b"exited ", b""], &[Slot::Number]),
+            Self::BoxKilled => (&[b"killed by signal ", b""], &[Slot::Number]),
+            Self::BoxEndNote => (&[b"The box stopped: ", b". /log shows why; Ctrl+C closes."], &[Slot::End]),
             Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
@@ -734,7 +792,7 @@ impl Words {
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,
-            hole_bytes: domain.client.domain.text.max(98),
+            hole_bytes: domain.client.domain.text.max(98).max(Slot::LogLine.bytes(domain)),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
         Ok(Words { book, view, notice_bytes: domain.client.domain.text })
