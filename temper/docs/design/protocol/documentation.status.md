@@ -18,7 +18,7 @@ gives an unknown address's line and each answer's `see:` line.
 
 ## Gaps and departures
 
-- **Not yet:** 4: `temper-engine`'s `help` alone printing its page, `help pages` the index and `help commands` its own table [in flight: change 88].
-- **Not yet:** 4 and 8: `temper-box`'s `help` alone printing its page, `help commands` its own table, and the page `commands` compiled from its table [in flight: change 91].
-- **Not yet:** 4: `temper-client`'s and `temper-worker`'s `help` alone prints the index, and their `help commands` the compiled page, until `../draft/cli.execution.md`'s C3 and C6 give them tables.
+- **Not yet:** 4: `temper-client`'s `help` alone prints the index, and its `help commands` the compiled page, until `../draft/cli.execution.md`'s C3 gives it a table.
+- **Not yet:** 4: `temper-worker`'s `help` alone printing its page, `help pages` the index and `help commands` its own table [in flight: change 196]
+- **Not yet:** 4: `temper-agent`'s `help` alone printing its page, `help pages` the index and `help commands` its own table [in flight: change 197]
 - **Not yet:** 9: every area's errors brought to the rule, each with its remedy: the forge's connect refusals that ctl renders still say a bare `busy` or `no key` (`temper-client-domain/src/forge/forges.rs`, `connect_refusal`).

@@ -2,5 +2,5 @@
 
 2026-11-11. Where the tree's code lags or departs from [components.md](components.md).
 
-- **Not yet:** `bin/temper-box`, `crates/temper-box-shell` and `crates/temper-box-machine`: the box's package and its renamed crates [in flight: change 87].
-- **Not yet:** `bin/temper-engine` and `crates/temper-engine-shell`'s table, reach and `main` [in flight: change 88].
+- **Not yet:** `crates/temper-worker-shell`'s table `WORKER`, its capture, reach and `main`, and `PROGRAM_LOGIN` the box's table holds too [in flight: change 196]
+- **Not yet:** `bin/temper-agent` and `crates/temper-agent-shell`: the agent's package and its crate, with its table, reach and `main`, and `crates/temper-box-shell`'s dependency on it [in flight: change 197]
