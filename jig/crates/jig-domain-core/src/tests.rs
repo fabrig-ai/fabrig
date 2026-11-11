@@ -1552,6 +1552,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

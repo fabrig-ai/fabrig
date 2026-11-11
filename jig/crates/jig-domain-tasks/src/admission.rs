@@ -107,6 +107,9 @@ fn finish_turn(
     crate::inbox::keep_refusals(domain, number, &refusals);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
+    if let Some(session) = &mut task.session {
+        session.last = environment.wall;
+    }
     task.turn = turn;
     crate::inbox::take(task, read, Some(&outstanding));
     task.ever_turned = true;

@@ -19,6 +19,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
     let new = task_creation(17);
     task::TaskRecord {
         session: None,
+        activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

@@ -285,6 +285,7 @@ pub fn task_record(
     wire::TaskRecord::new(
         limits,
         wire::TaskRecordParts {
+            activation_open: source.activation_open,
             session: match source.session {
                 Some(session) => Some(wire::Session::new(
                     limits,
@@ -449,6 +450,7 @@ fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
 #[expect(clippy::too_many_lines, reason = "one translation carries every retained task field")]
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
     let wire::TaskRecordParts {
+        activation_open,
         session,
         closer,
         history,
@@ -474,6 +476,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        activation_open,
         session: match session {
             Some(session) => {
                 let wire::SessionParts { first, reasons, last } = session.into_parts();

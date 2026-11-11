@@ -367,7 +367,7 @@ pub struct Core {
     /// Restored claims not yet reported by a host.
     pub(crate) unreported_restored: Map<u64, u64>,
     /// Claims awaiting completion of their route: attempt and prepared offered kinds.
-    pub claiming: Map<u64, (u64, tasks::Reasons)>,
+    pub claiming: Map<u64, (u64, tasks::Reasons, Option<tasks::SessionEnd>)>,
     /// Child work due to activation.
     pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.

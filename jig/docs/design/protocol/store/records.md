@@ -75,7 +75,7 @@ follow from the limits that bound each kind (4).
   carries them in place before the first release, its layout fingerprint
   changing (3).
 - **Standing task forms** (`../../domain/tasks/standing.md`, section 7) keep
-  `TaskRecord.session: Option<Session>`, with `Session { first: u64,
+  `TaskRecord.activation_open: bool` and `TaskRecord.session: Option<Session>`, with `Session { first: u64,
   reasons: u32, last: u64 }`: the first attempt, the choosing reason bits
   and the last wall time in nanoseconds. The tasks family's activity keeps
   `stood { attempt: u64, words: bytes }`, at most 512 bytes, and

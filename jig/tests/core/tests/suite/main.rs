@@ -50,6 +50,7 @@ mod orders;
 mod parties;
 mod peers;
 mod per_wake;
+mod sessions;
 mod person_reads;
 mod person_task;
 mod placed_holds;
