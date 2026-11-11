@@ -74,6 +74,7 @@ mod settings_proposals;
 mod settings_reads;
 mod settings_restore;
 mod simulation;
+mod standing_now;
 mod start;
 mod start_connectors;
 mod start_inbox;

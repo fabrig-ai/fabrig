@@ -361,6 +361,21 @@ fn the_tail_has_its_own_profile_budget_and_override() {
 }
 
 #[test]
+fn a_standing_now_has_its_own_profile_budget_and_override() {
+    for selected in [Profile::Small, Profile::Standard] {
+        assert_eq!(profile(selected).core.brief_core_budgets.now, 4096);
+    }
+    let mut expected = small();
+    expected.core.brief_core_budgets.now = 90;
+    assert_eq!(parse(br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":90}}"#), Ok(expected));
+    assert!(jig_domain_core::valid(&expected.core));
+    refused(
+        br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":4294967296}}"#,
+        b"core.brief_core_budgets.now",
+    );
+}
+
+#[test]
 fn settings_history_is_positive_and_can_override_the_profile() {
     assert_eq!(small().core.settings.history, 64);
     assert_eq!(
