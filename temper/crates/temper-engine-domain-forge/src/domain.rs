@@ -916,6 +916,7 @@ impl Domain {
         }
         self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
+            || goal_branch::room_waiting(self)
             || self.client.is_ready()
             || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self))
                 && self.client.has_room())
@@ -1870,6 +1871,9 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
+    if goal_branch::resume_room(d, out) {
+        return;
+    }
     let before = out.len();
     handoff_one(d, env, out);
     if out.len() != before {
