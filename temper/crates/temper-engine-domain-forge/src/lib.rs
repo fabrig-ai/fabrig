@@ -47,7 +47,9 @@ pub use status::{
 };
 mod away;
 mod devices;
-pub use devices::{AddDevice, Device, DeviceAnswer, DeviceRefusal, DeviceView, DevicesView, DEVICES, DEVICES_SUBJECT};
+pub use devices::{
+    AddDevice, DEVICES, DEVICES_SUBJECT, Device, DeviceAnswer, DeviceRefusal, DeviceView, DevicesView, Push, PushAnswer,
+};
 /// Connector configuration (temper/docs/design/protocol/configuration/engine.md, Config).
 #[derive(Clone, Debug)]
 pub struct Config {

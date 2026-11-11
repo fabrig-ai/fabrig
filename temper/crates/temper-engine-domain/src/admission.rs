@@ -98,6 +98,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StatusHeard { .. }
             | forge::Event::AddDevice { .. }
             | forge::Event::RemoveDevice { .. }
+            | forge::Event::Pushed { .. }
             | forge::Event::SetAway { .. }
             | forge::Event::Overturn { .. }
             | forge::Event::Decided { .. }

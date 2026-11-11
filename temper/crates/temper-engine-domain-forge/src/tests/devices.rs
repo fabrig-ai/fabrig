@@ -64,6 +64,49 @@ fn devices_validate_in_order_replace_in_place_and_transfer_atomically() {
     assert_eq!(got.as_ref(), [done()]);
     assert_eq!(answer(&d), DeviceAnswer::Refused(DeviceRefusal::Person));
 }
+#[test]
+fn pushed_erases_only_the_device_still_held_at_that_endpoint_and_marks_devices() {
+    let mut d = enabled();
+    add(&mut d, PARTY, subscription());
+    let sent_endpoint = subscription().endpoint;
+    outputs(&mut d, Event::RemoveDevice { request: REQUEST, token: ANSWER, party: PARTY, number: 1 });
+    add(
+        &mut d,
+        PARTY,
+        AddDevice { endpoint: b"http://push.test:4000/replacement".as_slice().into(), ..subscription() },
+    );
+    let before = d.devices_of(PARTY).next().unwrap().1.clone();
+    let mut outcomes = Vec::new();
+    for (party, device, endpoint, answer) in [
+        (PARTY, 1, before.endpoint.clone(), PushAnswer::Made),
+        (PARTY, 1, before.endpoint.clone(), PushAnswer::Failed),
+        (OTHER, 1, before.endpoint.clone(), PushAnswer::Gone),
+        (PARTY, 2, before.endpoint.clone(), PushAnswer::Gone),
+        (PARTY, 1, sent_endpoint, PushAnswer::Gone),
+    ] {
+        outcomes.extend(outputs(&mut d, Event::Pushed { party, device, endpoint, answer }));
+        assert_eq!(d.devices_of(PARTY).next().map(|(_, row)| row), Some(&before));
+    }
+    assert!(outcomes.is_empty(), "no save, erase or mark for any stale or non-Gone answer");
+    assert_eq!(
+        outputs(
+            &mut d,
+            Event::Pushed { party: PARTY, device: 1, endpoint: before.endpoint.clone(), answer: PushAnswer::Gone }
+        )
+        .as_ref(),
+        [
+            Request::Erase { key: Key::Device { party: PARTY, number: 1 } },
+            Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) },
+        ]
+    );
+    assert!(d.devices_of(PARTY).next().is_none());
+    assert!(
+        outputs(&mut d, Event::Pushed { party: PARTY, device: 1, endpoint: before.endpoint, answer: PushAnswer::Gone })
+            .is_empty(),
+        "duplicate Gone is inert"
+    );
+}
+
 fn outputs_service(d: &mut Domain) -> Box<[Request]> {
     outputs(d, Event::AddDevice { request: REQUEST, token: ANSWER, party: OTHER, person: false, call: subscription() })
 }

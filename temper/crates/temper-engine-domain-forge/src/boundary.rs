@@ -1378,6 +1378,13 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// The service's terminal for a push (attention.md, 7.2).
+    Pushed {
+        party: u64,
+        device: u32,
+        endpoint: Box<[u8]>,
+        answer: crate::PushAnswer,
+    },
     SetAway {
         request: Token,
         token: Token,

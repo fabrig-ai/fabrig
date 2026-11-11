@@ -140,6 +140,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.admission = None;
             }
             let event = match request {
+                // Push sending is the service's next change (attention.md, 7.3).
+                root::PartyRequest::Deliver(root::Delivery::Push(_)) => None,
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
                     engine.notes.push(crate::Note::Playground { line });
                     None
@@ -344,7 +346,8 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 engine.workers.down(engine.env.now, event, &mut engine.events);
             }
             root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
-            root::Delivery::PlaygroundNote { .. }
+            root::Delivery::Push(_)
+            | root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::Forges { .. }

@@ -1076,6 +1076,7 @@ impl World {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
             Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
             Delivery::Application { to, outcome } => {
                 assert_eq!(to.into_token(), ADOPTION);

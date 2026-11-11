@@ -1346,6 +1346,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::Pushed { party, device, endpoint, answer } => {
+            crate::devices::pushed(d, party, device, &endpoint, answer, out);
+        }
         Event::Closer { row } => crate::closer::save(d, row, out),
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {

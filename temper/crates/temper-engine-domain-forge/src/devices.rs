@@ -1,10 +1,30 @@
-//! A person's push devices (temper/docs/design/domain/forge/attention.md, 7.1).
+//! A person's push devices and deliveries (temper/docs/design/domain/forge/attention.md, 7.1–7.2).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Token, Wall};
 
 pub const DEVICES_SUBJECT: u64 = 1 << 59;
 pub const DEVICES: u32 = 8;
+
+/// One need's delivery to a device (attention.md, 7.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Push {
+    pub party: u64,
+    pub device: u32,
+    pub endpoint: Box<[u8]>,
+    pub p256dh: [u8; 65],
+    pub auth: [u8; 16],
+    pub topic: Box<[u8]>,
+    pub payload: Box<[u8]>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PushAnswer {
+    Made,
+    Gone,
+    Failed,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Device {
     pub party: u64,
@@ -93,7 +113,52 @@ pub(crate) fn remove(d: &mut Domain, request: Token, token: Token, party: u64, n
     } else { DeviceAnswer::Refused(DeviceRefusal::Unknown) };
     d.connect.answer(request, token, Answered::Device(answer), out);
 }
+/// Only the subscription named by this answer may be erased (attention.md, 7.2).
+pub(crate) fn pushed(
+    d: &mut Domain,
+    party: u64,
+    device: u32,
+    endpoint: &[u8],
+    answer: PushAnswer,
+    out: &mut Queue<Request>,
+) {
+    match answer {
+        PushAnswer::Made | PushAnswer::Failed => return,
+        PushAnswer::Gone => {}
+    }
+    let Some(row) = d.devices.get(&(party, device)) else { return };
+    if row.endpoint.as_ref() != endpoint {
+        return;
+    }
+    d.devices.remove(&(party, device));
+    out.push(Request::Erase { key: Key::Device { party, number: device } });
+    out.push(Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) });
+}
+
 impl Domain {
+    /// Read the arrival's deliveries without writing any connector state (attention.md, 7.2).
+    #[must_use]
+    pub fn pushes(&self, party: u64, topic: &[u8], payload: &[u8]) -> Box<[Push]> {
+        if self.push.is_none() {
+            return Box::new([]);
+        }
+        let mut pushes = List::with_capacity(DEVICES);
+        for (_, row) in self.devices_of(party) {
+            pushes
+                .push(Push {
+                    party,
+                    device: row.number,
+                    endpoint: row.endpoint.clone(),
+                    p256dh: row.p256dh,
+                    auth: row.auth,
+                    topic: Box::from(topic),
+                    payload: Box::from(payload),
+                })
+                .expect("bounded party devices");
+        }
+        pushes.into_boxed()
+    }
+
     /// This party's subscriptions in number order, including keys for the push decision.
     pub fn devices_of(&self, party: u64) -> impl Iterator<Item = (&(u64, u32), &Device)> {
         self.devices.range((party, 0)..=(party, u32::MAX))
