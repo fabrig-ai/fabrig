@@ -342,26 +342,50 @@ def clippy(packages, data, root, env):
     return code, errors
 
 
-def nextest(packages, root, env):
-    """Use an isolated JUnit overlay and nextest's exit verdict (section 4)."""
+def one_process(packages, root, env):
+    """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
-        directory = Path(directory)
-        junit = directory / 'junit.xml'
-        overlay = directory / 'nextest.toml'
-        overlay.write_text('[profile.default.junit]\npath = ' + json.dumps(str(junit)) + '\n')
-        arguments = ['cargo', 'nextest', 'run', '--profile', 'default']
-        arguments += package_args(packages) + ['--tool-config-file', f'temper-pre-pr:{overlay}']
-        arguments += ['--no-fail-fast', '--no-tests=warn']
+        directory = Path(directory) / 'tests'
+        arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory),
+                     'default'] + package_args(packages) + ['--no-tests=warn']
         code, log = run(arguments, root, env, stdout=True)
-        if code == 0:
-            return code, []
-        if code == 101:
-            return code, [failure('build', 'no tests ran\n' + log)]
-        if code != 100:
-            return code, [failure('check nextest', f'exit {code}\n' + log)]
-        errors = []
+        if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
+            return code, [failure('build', 'no tests ran\n' + log)], None
+        if code not in (0, 100):
+            return code, [failure('check one-process', f'exit {code}\n' + log)], None
+        starved = None
+        source = 'run.json'
         try:
-            document = ET.parse(junit)
+            state = json.loads((directory / source).read_text())
+            if not isinstance(state['starved'], bool):
+                raise ValueError('starved must be a boolean')
+            source = 'results.json'
+            results = json.loads((directory / source).read_text())
+            if not isinstance(results['tests'], list) or not isinstance(results['unobserved'], list):
+                raise ValueError('tests and unobserved must be lists')
+            entries = {}
+            count = 0
+            for test in results['tests']:
+                binary, name, outcome = test['binary_id'], test['test_name'], test['outcome']
+                if not all(isinstance(value, str) for value in (binary, name, outcome)):
+                    raise ValueError('binary_id, test_name and outcome must be strings')
+                if test.get('alone') not in (None, 'passed', 'failed'):
+                    raise ValueError('invalid alone result')
+                before = test.get('before', [])
+                if not isinstance(before, list) or not all(isinstance(name, str) for name in before):
+                    raise ValueError('before must be a list of names')
+                entries[binary, name] = test
+                count += outcome in ('starved', 'cancelled')
+            if state['starved'] or count:
+                starved = (f'pre-pr: tests starved: {count} starved or cancelled, '
+                           f'{len(results["unobserved"])} unobserved, a warning '
+                           '(skein/docs/foundation/testing-strategy.md, 8.1)')
+                print(starved, flush=True)
+            if code == 0:
+                return code, [], starved
+            source = 'junit.xml'
+            document = ET.parse(directory / source)
+            errors = []
             for suite in document.iter('testsuite'):
                 binary = suite.get('name', '')
                 for case in suite.findall('testcase'):
@@ -369,16 +393,21 @@ def nextest(packages, root, env):
                     if not faults:
                         continue
                     name = case.get('name', '')
+                    test = entries.get((binary, name), {})
+                    if test.get('outcome') == 'cancelled':
+                        continue
                     output = '\n'.join(''.join(node.itertext()) for node in faults +
                                        case.findall('system-out') + case.findall('system-err'))
+                    if test.get('alone') == 'passed':
+                        output += '\nmay depend on an earlier test: ' + ', '.join(test.get('before', []))
                     # Cargo's binary id starts with its owning package's name.
                     package = binary.split('::', 1)[0]
                     errors.append(failure(f'test {binary} {name}', output, (binary, name), package))
-        except (OSError, ET.ParseError) as error:
-            return code, [failure('check nextest', f'JUnit: {error}\n' + log)]
+        except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
+            return code or 1, [failure('check one-process', f'{source}: {error}\n' + log)], starved
         if not errors:
-            errors.append(failure('check nextest', 'exit 100 without JUnit failures\n' + log))
-        return code, errors
+            errors.append(failure('check one-process', 'exit 100 without JUnit failures\n' + log))
+        return code, errors, starved
 
 
 def known_reds(tree_id, root, env):
@@ -480,12 +509,14 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason):
+def summary(base_id, lints, tests, errors, reason, starved=None):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not e['inherited'] for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
     header = f'pre-pr: {"refused" if refused else "passed"} ({base_text})\n'
     header += f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
+    if starved:
+        header += starved + '\n'
     if reason:
         header += tail(reason)
     entries = [e['name'] + '\n' + e['log'] for e in errors if not e['inherited']]
@@ -513,6 +544,7 @@ def main():
     base_id, why = base(root, env)
     errors = []
     lints, tests = [], []
+    starved = None
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         cache = git_dir / 'pre-pr-passed'
@@ -580,7 +612,7 @@ def main():
                     _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                     errors += found
                 if tests:
-                    _, found = timed('tests', lambda: nextest(tests, root, env), pending)
+                    _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
                     errors += found
         if docs:
             _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
@@ -593,13 +625,13 @@ def main():
             if name == 'clippy':
                 prefixes = ('clippy ', 'check clippy')
             elif name == 'tests':
-                prefixes = ('test ', 'build', 'check nextest')
+                prefixes = ('test ', 'build', 'check one-process')
             else:
                 prefixes = (name,)
             found = [e for e in errors if e['name'].startswith(prefixes)]
             status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
             print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
-        verdict = summary(base_id, lints, tests, errors, why if base_id else None)
+        verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
         if not verdict:
             temporary = git_dir / 'pre-pr-passed.tmp'
             temporary.write_text(record + '\n')
