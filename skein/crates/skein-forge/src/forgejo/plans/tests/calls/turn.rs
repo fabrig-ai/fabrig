@@ -226,6 +226,36 @@ fn merge_fast_forward_and_rebase_update_spell_their_style() {
     }
 }
 #[test]
+fn recorded_merge_names_its_commit_and_reads_back_or_is_refused() {
+    let mut commit = [0; 32];
+    commit.fill(0xc1);
+    // The repository uses SHA-1: only its twenty bytes cross the wire.
+    commit.get_mut(20..).expect("SHA-1 padding").fill(0);
+    let write = Write::Merge { number: 7, head: HEAD, how: MergeHow::Recorded { commit } };
+    let mut plan = known(Op::Write(write.clone()));
+    round_request(plan.begin());
+    plan.assert_bodies(&[Some(
+        br#"{"Do":"manually-merged","MergeCommitID":"c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1"}"#,
+    )]);
+    round_request(plan.answer(200, b""));
+    let merged = br#"{"number":7,"state":"closed","head":{"repo_id":1,"ref":"work","sha":"0100000000000000000000000000000000000000"},"base":{"repo_id":1,"ref":"main","sha":"c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1"},"merged":true,"merge_commit_sha":"c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1","mergeable":false,"requested_reviewers":[]}"#;
+    assert_eq!(plan.answer(200, merged), Step::Done(Ok(Answer::Merged(commit))));
+    plan.assert_sent(&[
+        "POST /api/v1/repos/fixture/specimen/pulls/7/merge",
+        "GET /api/v1/repos/fixture/specimen/pulls/7",
+    ]);
+    for (status, message) in [
+        (409, b"Wrong commit ID".as_slice()),
+        (405, b"manually-merged is not an allowed merge style for this repository"),
+    ] {
+        let mut plan = known(Op::Write(write.clone()));
+        round_request(plan.begin());
+        let body = server_answer(&server::Answer::Error(d::ErrorBody { message: d::Body::Kept(Box::from(message)) }));
+        assert_eq!(plan.answer(status, &body), Step::Done(Err(Error::Refused)));
+    }
+}
+
+#[test]
 fn status_sends_description_and_link_only_when_present() {
     for (description, link, body) in [
         (
