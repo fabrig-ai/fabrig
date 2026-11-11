@@ -58,7 +58,7 @@ answers the asker. It decides nothing itself (jig's `domain/tasks/proposals.md`
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
-  `temper init`'s box runs, each below the 128 open questions a change's
+  `temper-box init`'s box runs, each below the 128 open questions a change's
   record keeps:
   `../../../protocol/configuration/limits.md`). The one past the bound,
   when its turn comes, is given no foreman and passed nowhere: the

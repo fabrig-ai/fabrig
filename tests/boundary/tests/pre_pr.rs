@@ -45,7 +45,7 @@ if side == 'base':
     assert os.environ['CARGO_TARGET_DIR'] == str(root / 'target')
 if name == 'cargo' and args[0] in ('clippy', 'nextest'):
     assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to build or tests'
-    assert os.environ.get('TEMPER_BUNDLE') == 'none'
+    assert os.environ.get('TEMPER_INTERNAL_BUNDLE') == 'none'
 fail = state.get('fail', '')
 def spend(cost, event):
     state['ms'] += cost
@@ -377,7 +377,7 @@ fn build_events(root: &Path) -> Vec<Value> {
 
 #[test]
 fn the_base_is_the_pins_merge_base() {
-    for row in ["no pin", "behind", "merge", "unrelated"] {
+    for row in ["no pin", "behind", "merge", "unrelated", "unchecked save"] {
         let scratch = fixture();
         let root = scratch.path();
         let ancestor = String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
@@ -388,6 +388,11 @@ fn the_base_is_the_pins_merge_base() {
             "behind" => {
                 pin(root);
                 git(root, &["commit", "--allow-empty", "-qm", "head"]);
+                expected.clone_from(&ancestor);
+            }
+            "unchecked save" => {
+                git(root, &["commit", "--allow-empty", "-qm", "Unchecked: work in progress, saved before a question"]);
+                pin(root);
                 expected.clone_from(&ancestor);
             }
             "merge" | "unrelated" => {

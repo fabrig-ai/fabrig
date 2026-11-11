@@ -326,7 +326,7 @@ pub static PAGES: [Page; 64] = [
         name: "commands",
         kind: Kind::Reference,
         title: "temper's commands",
-        summary: "Every command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.",
+        summary: "Every command of the temper-box binary, by who runs it: its usage, what it does, its arguments and its notes.",
         text: include_str!("../../../docs/help/reference/commands.md"),
     },
     Page {
@@ -487,14 +487,14 @@ pub static PAGES: [Page; 64] = [
         name: "configuration",
         kind: Kind::Reference,
         title: "Configuration",
-        summary: "The configuration document's top level and application members, their bounds and what temper init --box writes.",
+        summary: "The configuration document's top level and application members, their bounds and what temper-box init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration.md"),
     },
     Page {
         name: "configuration-engine",
         kind: Kind::Reference,
         title: "Engine configuration",
-        summary: "The engine and worker configuration members, their bounds and what temper init --box writes.",
+        summary: "The engine and worker configuration members, their bounds and what temper-box init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration-engine.md"),
     },
     Page {

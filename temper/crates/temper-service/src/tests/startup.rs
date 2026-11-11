@@ -1329,6 +1329,46 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     );
 }
 
+#[test]
+fn landing_check_timeout_is_optional_and_reads_milliseconds() {
+    for by in ["queue", "turn"] {
+        for (setting, expected) in [
+            ("", None),
+            (r#""check_timeout_ms":900000,"#, Some(skein_lib::Duration::from_secs(900))),
+            (r#""check_timeout_ms":1000,"#, Some(skein_lib::Duration::from_secs(1))),
+            (r#""check_timeout_ms":86400000,"#, Some(skein_lib::Duration::from_secs(86_400))),
+        ] {
+            let projects = tier_projects("[]", &format!(r#""by":"{by}",{setting}"#));
+            assert_landing_projects_start(&projects);
+            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+            let (members, problems) = application(&input, &fixtures::engine().jig);
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().check_timeout, expected);
+        }
+    }
+}
+
+#[test]
+fn landing_check_timeout_refuses_out_of_range_at_its_member() {
+    for milliseconds in [999_u64, 86_400_001] {
+        let projects = tier_projects("[]", &format!(r#""check_timeout_ms":{milliseconds},"#));
+        let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
+        let Err(problems) = fixtures::start(
+            &document,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        ) else {
+            panic!("out-of-range delivery bound started")
+        };
+        assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].check_timeout_ms: past its bound\n");
+    }
+}
+
 const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0,"description":"the slow suites"}"#;
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {

@@ -47,7 +47,7 @@ retained, ignored 4.6 story (../protocol/cluster.md, 6).
   workers, placement, a run moving between workers, a restart, a kill or
   a stop, since a behaviour is tested in the lowest world that owns it
   and the tiers above hold smokes. Only 4.6's case story exists in
-  `crates/temper/tests/`.
+  `bin/temper-box/tests/`.
 - **What a gap holds is named.** A step whose Must needs what temper
   lacks (the gaps below) runs the part that works; its story's name says
   what it shows, and the table below what it leaves out and what holds

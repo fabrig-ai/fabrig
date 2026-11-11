@@ -30,7 +30,7 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         }
         [runs] if &**runs == b"runs" => {
             let head = query_value(&target.query, b"head_sha").ok_or(Unrouted::Malformed)?;
-            if let Some(workflow) = query_value(&target.query, b"workflow") {
+            if let Some(workflow) = query_value(&target.query, b"workflow_id") {
                 if method != Method::Get {
                     return Err(Unrouted::Method);
                 }

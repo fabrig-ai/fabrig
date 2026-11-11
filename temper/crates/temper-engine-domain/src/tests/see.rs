@@ -405,6 +405,7 @@ fn chat(requester: jig_domain_tasks::Party) -> (crate::Domain, skein_lib::Env<cr
                 key: Some(key),
                 note_decoding: false,
                 job: None,
+                page: None,
                 render: crate::route::host_route::FlightRender::Plain,
                 name: b"read".as_slice().into(),
                 tool: b"see".as_slice().into(),

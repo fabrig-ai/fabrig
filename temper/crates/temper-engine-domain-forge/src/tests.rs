@@ -43,6 +43,7 @@ mod settings;
 mod standing;
 mod stopping;
 mod tiers;
+mod unpushed;
 mod views;
 mod workflows;
 use alloc::boxed::Box;
@@ -304,7 +305,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
     }
     values.into_boxed()
 }
-fn adopted() -> Repository {
+pub(crate) fn adopted() -> Repository {
     Repository {
         workflows: Box::default(),
         project: 5,

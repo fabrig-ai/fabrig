@@ -134,9 +134,20 @@ fn github_plans_locate_keeps_the_row() {
 }
 
 #[test]
-fn github_plans_settings_refresh_the_row() {
+fn github_plans_settings_reuse_the_row_until_dropped() {
     let mut tables = Tables::new(2, 2);
     keep(&mut tables);
+    let mut plan = read_plan(api::Read::Settings);
+    assert_eq!(
+        plan.begin(bounds(), b"example-app", &mut tables),
+        Ok(Step::Done(Ok(api::Answer::Settings(api::Settings {
+            default_branch: Box::from(*b"main"),
+            merge: true,
+            squash: false,
+            rebase: true,
+        }))))
+    );
+    tables.drop_repository(KEY);
     let mut plan = read_plan(api::Read::Settings);
     assert_eq!(plan.begin(bounds(), b"example-app", &mut tables), Ok(Step::send(Request::Repository { id: 7 })));
     head(&mut plan, false, bounds(), &mut tables);
@@ -168,7 +179,9 @@ fn github_plans_settings_refresh_the_row() {
             )),
         ),
     ] {
+        tables.drop_repository(KEY);
         let mut plan = started(api::Read::Settings, bounds(), &mut tables);
+        tables.keep_repository(KEY, tables::repository(&document));
         assert_eq!(done(&mut plan, Document::Repository(repository(id)), bounds(), &mut tables), ended(Err(error)));
         assert_eq!(tables.repository(KEY), Some(&tables::repository(&document)));
         assert_eq!(tables.repository(api::Repository { repository: 8, ..KEY }), None);
@@ -291,7 +304,6 @@ fn github_plans_branch_and_contents_missing_keep_the_row() {
 fn github_plans_repository_missing_drops_the_row() {
     for status in [404, 410] {
         for read in [
-            api::Read::Settings,
             api::Read::Branches { prefix: Box::from(&b"m"[..]) },
             api::Read::Item { number: 1, after: 0, since: skein_lib::Time::ZERO },
         ] {
@@ -310,7 +322,9 @@ fn github_plans_repository_missing_drops_the_row() {
                 Ok(Step::send(Request::Repository { id: 7 }))
             );
         }
-        for read in [branch(), api::Read::File { head: [1; 32], path: Box::from(*b"file"), max_bytes: 16 }] {
+        for read in
+            [api::Read::Settings, branch(), api::Read::File { head: [1; 32], path: Box::from(*b"file"), max_bytes: 16 }]
+        {
             let mut tables = Tables::new(2, 2);
             let mut plan = read_plan(read);
             assert_eq!(

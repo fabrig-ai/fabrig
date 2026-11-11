@@ -11,6 +11,7 @@ fn an_asking_chat_reads_the_forge() {
         .insert(
             PROJECT,
             engine::ProjectLanding {
+                check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,
                 merge_job: Some(b"scripts/merge".as_slice().into()),

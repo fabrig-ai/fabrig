@@ -178,6 +178,10 @@ fn a_producing_change_watches_only_its_base_until_a_head_is_known() {
 }
 
 fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
+    // A procedure replaces its own watches when fresh facts return. Keep the
+    // pressure under the chats, whose watches the scripted parent controls.
+    let tasks::Party::Task(first) = live_task(world, first).requester else { panic!("first chat") };
+    let tasks::Party::Task(second) = live_task(world, second).requester else { panic!("second chat") };
     let original = names(world, first);
     let mut expanded = original.to_vec();
     expanded.push(forge_top::Name {

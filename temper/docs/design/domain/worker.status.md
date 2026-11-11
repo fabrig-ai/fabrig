@@ -12,6 +12,7 @@ and outcomes on scripted output. The checkout world's `suite::delivery`
 checks the resulting fake object graph, preserved ids and messages, and
 refusal of an unpushed second parent. No deployment replay is on record.
 
+- **Not yet:** 4.1 and 5, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages [in flight: change 68].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
 
 Unchecked saves use the same snapshot. The checkout world's delivery rows
@@ -122,7 +123,7 @@ unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
 Section 6's agent program is the worker's named program: the box's
-`temper internal agent AGENT.json` or a deployment's `temper-agent
+`temper-box internal agent AGENT.json` or a deployment's `temper-agent
 AGENT.json`, with the same program used for a model list
 (`../protocol/README.status.md`, 5). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
@@ -182,9 +183,9 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   `workers[0].limits: past its bound`, naming none. The `worker-many-slots`
   request of 2026-11-05 has each start's refusal name what to raise; it asked
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
-  slots past `temper::prepare_in`: that request takes the next deployment at 8
+  slots past `temper_box_shell::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
-- **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
+- **Departs:** 5, 9: with `TEMPER_INTERNAL_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,
   sections 5 and 9 hold exactly. Any value counts as set, and it is read once.
@@ -226,7 +227,7 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   or a URL rewrite (`../protocol/git.md`, 10). That is acceptable only for one
   trusted person.
 
-  6: with `TEMPER_DUMP_LLM` in the worker's environment at its start, an agent
+  6: with `TEMPER_INTERNAL_DUMP_LLM` in the worker's environment at its start, an agent
   process's environment holds that one variable, an absolute directory, and its
   log's lines also go to `dump.log` there; unset, which is the default and the
   only shipped form, section 6 holds exactly. Because the deployment's

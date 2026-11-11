@@ -186,16 +186,17 @@ fn raw_ranges_use_206_and_literal_content_range() {
         )
         .expect("raw");
         assert_eq!((reply.status, &*reply.body), (status, body), "{range:?}");
-        let header = reply.headers.first();
-        assert_eq!(header_value(&reply.headers), content_range, "{range:?}");
-        if let Some(header) = header {
-            assert_eq!(&*header.name, b"content-range", "{range:?}");
-        }
+        assert_eq!(header_value(&reply.headers, b"content-range"), content_range, "{range:?}");
+        assert_eq!(header_value(&reply.headers, b"ETag").is_some(), status == 200 || status == 206);
     }
 }
-fn header_value(headers: &[skein_http::Header]) -> Option<&[u8]> {
-    let header = headers.first()?;
-    Some(&header.value)
+fn header_value<'a>(headers: &'a [skein_http::Header], name: &[u8]) -> Option<&'a [u8]> {
+    for header in headers {
+        if header.is(name) {
+            return Some(&header.value);
+        }
+    }
+    None
 }
 #[test]
 fn range_syntax_is_bounded_and_rejects_reversed_offsets() {
@@ -285,7 +286,8 @@ fn suffix_ranges_return_trailing_bytes_and_literal_coordinates() {
             )
             .expect("Suffix");
             assert_eq!((reply.status, &*reply.body), (206, row.body.as_ref()));
-            assert_eq!(header_value(&reply.headers), Some(row.header));
+            assert_eq!(header_value(&reply.headers, b"content-range"), Some(row.header));
+            assert_eq!(header_value(&reply.headers, b"ETag"), None, "only raw files carry validators");
         },
     );
 }
@@ -303,7 +305,8 @@ fn a_head_range_over_an_empty_log_answers_200() {
     )
     .expect("Head");
     assert_eq!((reply.status, &*reply.body), (200, b"".as_slice()));
-    assert_eq!(header_value(&reply.headers), None);
+    assert_eq!(header_value(&reply.headers, b"content-range"), None);
+    assert_eq!(header_value(&reply.headers, b"ETag"), None, "only raw files carry validators");
 }
 
 #[test]

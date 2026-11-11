@@ -13,7 +13,28 @@ const REPAIRS: u32 = 3;
 const LANDING_CALL: u64 = 95;
 
 fn world() -> World {
-    let mut world = World::configured_limits(true, true, true, STEPS, Gate::default(), None, StoryLimits::default());
+    world_with_brief(None)
+}
+
+fn world_with_brief(brief: Option<engine::BriefLimits>) -> World {
+    world_with_settings(brief, None)
+}
+
+pub(super) fn world_with_bound(bound: Option<Duration>) -> World {
+    world_with_settings(None, bound)
+}
+
+fn world_with_settings(brief: Option<engine::BriefLimits>, bound: Option<Duration>) -> World {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits { brief, ..StoryLimits::default() },
+    )
+    .with_check_timeout(bound);
     world.env.limits.forge.change_policy.repairs = REPAIRS;
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
@@ -57,6 +78,8 @@ fn checking(world: &mut World, landing: u64, head: u64) {
             matches!(op,
             skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit })
                 if *commit == translate::commit(head))
+                || matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: true })
+                    if row(world, landing).pull == Some(*number))
         });
         if read_ci && row(world, landing).change.state == (State::Checking { head: translate::commit(head) }) {
             break;
@@ -205,6 +228,138 @@ fn release(world: &mut World, goal: &engine::Assignment, landing: u64) {
         "G releases L through its running worker: {:?}",
         world.call_errors
     );
+}
+
+/// temper/docs/design/domain/agent/README.md, 5: a save also pins a goal landing's repair.
+#[expect(clippy::too_many_lines, reason = "one story follows the save, question, writer reread and resumed pull")]
+fn saving_repair_rebriefs(reported: bool) {
+    // The pull's identity, saved content and CI reason share the resumed brief.
+    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let mut world = world_with_brief(Some(small.root.brief));
+    let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    world.until(Until::Ready);
+    let head = land_into_goal(&mut world, &goal, &branch, LANDING_CALL + 1, b"plan");
+    world.until(Until::Ready);
+    let read = live_task(&world, goal.task).inbox.iter().map(|word| word.number).max();
+    world.send(protocol::turn(Token::new(7), goal.task, goal.attempt, 1, 0, read, b"The plan landed."));
+    world.until(Until::Ready);
+    status(&mut world, head, raw::Check::Pending);
+    let answer =
+        mine(&mut world, &goal, LANDING_CALL, br#"{"words":"Land the goal","branch":"mine","questions":"up"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("goal landing admitted: {answer:?}") };
+    let landing = made[0].task;
+    checking(&mut world, landing, head);
+    let assigned = world.assigned.len();
+    status(&mut world, head, raw::Check::Failed);
+    let repair = reviews::next_assignment(&mut world, assigned);
+    let delegate = Some((repair.task, Delegate::Repair(Repair::Ci)));
+    let state = State::Repairing { why: Repair::Ci, requested: true };
+    assert_eq!(row(&world, landing).delegate, delegate);
+    assert_eq!(row(&world, landing).change.state, state);
+    assert_eq!(repair.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
+    assert_eq!(writer(&world, &branch), Some(tasks::Writer::Run { task: repair.task, attempt: repair.attempt }));
+    assert_goal_holds(&world, goal.task, &branch);
+    let mut tree: Vec<_> = world
+        .fake
+        .object(head)
+        .expect("goal head")
+        .tree
+        .iter()
+        .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+        .collect();
+    tree.push(raw::File { path: b"repair".as_slice().into(), content: b"saved repair in progress".as_slice().into() });
+    let saved = fake::commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        head,
+        tree.into_boxed_slice(),
+        b"Unchecked: work in progress, saved before a question",
+    )
+    .expect("the worker commits its unchecked repair")
+    .expect("the repair changed the tree");
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(head) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    let question = questions::ask(&mut world, &repair, landing);
+    let pull_number = row(&world, landing).pull;
+    let writes = world.writes.len();
+    let merges = world.merges;
+    let parts = if reported {
+        engine::Parts {
+            pushed: Box::new([forge_top::Pushed {
+                tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                commit: translate::commit(saved),
+            }]),
+            ..engine::Parts::none()
+        }
+    } else {
+        engine::Parts::none()
+    };
+    let event = world.protocol.answer(Token::new(7), repair.task, repair.attempt, 0, tasks::End::Parked, parts);
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if writer(&world, &branch).is_none() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(row(&world, landing).change.state, state, "a save completes no repair");
+    assert_eq!(row(&world, landing).delegate, delegate);
+    assert_eq!(row(&world, landing).pull, pull_number);
+    assert_eq!(world.writes.len(), writes, "a save makes no forge effect");
+    assert_eq!(world.merges, merges);
+    assert_eq!(writer(&world, &branch), None, "the answer or reread frees the writer");
+    assert_goal_holds(&world, goal.task, &branch);
+    let assigned = world.assigned.len();
+    questions::answer(&mut world, &goal, landing, LANDING_CALL + 2);
+    assert_eq!(
+        row(&world, landing).change.last_head,
+        Some(translate::commit(saved)),
+        "the accepted save pins the next brief"
+    );
+    let resumed = reviews::next_assignment(&mut world, assigned);
+    assert_eq!(resumed.task, repair.task, "the same repair continues");
+    assert!(resumed.attempt > repair.attempt);
+    assert!(resumed.messages.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }));
+    let pull = resumed
+        .sections
+        .iter()
+        .find_map(|section| {
+            if section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull)
+                && let engine::BriefBody::Text(words) = &section.body
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .expect("the resumed repair reads its pull section");
+    let head = forge_top::commit_text(&translate::commit(saved));
+    assert!(contains(pull, &head), "{}", String::from_utf8_lossy(pull));
+    assert!(contains(pull, b"saved repair in progress"));
+    assert_eq!(row(&world, landing).change.last_head, Some(translate::commit(saved)));
+    assert_eq!(live_task(&world, repair.task).tries, tasks::Tries::NONE);
+    assert_eq!(row(&world, landing).change.state, state);
+    assert_eq!(row(&world, landing).delegate, delegate);
+    assert_eq!(row(&world, landing).pull, pull_number);
+    assert_eq!(world.writes.len(), writes);
+    assert_eq!(world.merges, merges);
+    assert_goal_holds(&world, goal.task, &branch);
+    world.close();
+}
+
+#[test]
+fn a_goal_landing_repair_that_reports_its_save_rebriefs_at_the_saved_head() {
+    saving_repair_rebriefs(true);
+}
+
+#[test]
+fn a_goal_landing_repair_whose_save_is_not_reported_rebriefs_at_the_reread_head() {
+    saving_repair_rebriefs(false);
 }
 
 #[test]

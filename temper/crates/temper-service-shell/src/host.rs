@@ -6,6 +6,7 @@ use std::io::{self, Write};
 use temper_service::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_service::{End, Service, Stop};
 use temper_shell::directories::Directories;
+use temper_shell::directories::EnvironmentEntry;
 
 pub struct Host {
     pub service: Service,
@@ -16,6 +17,7 @@ pub struct Host {
     output: Box<dyn Write>,
     output_failed: bool,
     wait_check: bool,
+    cut_at_listen: Option<std::path::PathBuf>,
     now: Time,
     watch: Watch,
     clock: skein_shell::Clock,
@@ -23,14 +25,15 @@ pub struct Host {
 impl Host {
     #[must_use]
     pub fn new(service: Service, directories: Directories) -> Self {
-        Self::with_binary("temper", service, directories)
+        Self::with_binary("temper", service, directories, &[])
     }
     #[must_use]
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C2: TEMPER_R8_WAIT_CHECK enables the service wait check; the binary's table will pass it"
-    )]
-    pub fn with_binary(binary: &str, service: Service, directories: Directories) -> Self {
+    pub fn with_binary(
+        binary: &str,
+        service: Service,
+        directories: Directories,
+        environment: &[EnvironmentEntry],
+    ) -> Self {
         let store = directories.data.clone();
         Self {
             service,
@@ -42,7 +45,8 @@ impl Host {
             output_failed: false,
             // QA launches sanitized child environments. Test/debug programs
             // always check; release programs can opt in with the same flag.
-            wait_check: cfg!(debug_assertions) || std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
+            wait_check: wait_check(environment, cfg!(debug_assertions)),
+            cut_at_listen: super::restart_fault::marker(environment),
             now: Time::ZERO,
             watch: Watch::new(),
             clock: skein_shell::Clock::new(),
@@ -56,6 +60,11 @@ impl Host {
         }
     }
 }
+
+pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool {
+    debug || crate::WAIT_CHECK.value(environment).is_some()
+}
+
 impl skein_shell::Host for Host {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
@@ -126,7 +135,7 @@ impl skein_shell::Host for Host {
             let lines = note_line(&self.binary, note);
             eprint!("{lines}");
             if self.wait_check && clients {
-                super::restart_fault::cut_at_listen();
+                super::restart_fault::cut_at_listen(self.cut_at_listen.as_deref());
             }
         }
         while let Some(note) = self.service.notes().pop() {

@@ -1,5 +1,6 @@
 //! Host the sign-in file effects; all printable bytes belong to forge-setup.
 //! Source serving follows temper/docs/design/protocol/openid-provider.md, 9.
+use temper_shell::directories::EnvironmentEntry;
 mod http;
 use jig_protocol_config as config;
 use std::{
@@ -14,19 +15,21 @@ use temper_service::startup::Named;
 use temper_service_shell::jig_directories;
 
 /// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: TEMPER_FORGE_NO_REGISTRATION selects first sign-in; temper-box's table will pass it"
-)]
-pub(crate) fn first_sign_in() -> sign_in::FirstSignIn {
-    if std::env::var_os("TEMPER_FORGE_NO_REGISTRATION").is_some_and(|value| !value.is_empty()) {
+pub(crate) fn first_sign_in(environment: &[EnvironmentEntry]) -> sign_in::FirstSignIn {
+    if NO_REGISTRATION.value(environment).is_some() {
         sign_in::FirstSignIn::LinksOnly
     } else {
         sign_in::FirstSignIn::MakesAccount
     }
 }
 
-pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named, number: u16) -> Result<u8, String> {
+pub(crate) fn run(
+    directories: &super::Directories,
+    bytes: &[u8],
+    named: &Named,
+    number: u16,
+    environment: &[EnvironmentEntry],
+) -> Result<u8, String> {
     let row = named
         .sign_in
         .as_ref()
@@ -47,7 +50,8 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
     let secret = client.secret.as_ref().ok_or("its client has no secret; a box adds its own source")?;
     let discovery = discovery(bytes, named)?;
-    let instructions = sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in());
+    let instructions =
+        sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in(environment));
     make_missing(super::path(&provider.key), true)?;
     make_missing(super::path(secret), false)?;
     std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;
@@ -181,3 +185,14 @@ pub(crate) fn discovery(bytes: &[u8], named: &Named) -> Result<Vec<u8>, String> 
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
     Ok(discovery)
 }
+
+/// First sign-in policy for the forge (cli/README.md, 8).
+pub const NO_REGISTRATION: skein_shell::Variable = skein_shell::Variable {
+    name: "TEMPER_INTERNAL_FORGE_NO_REGISTRATION",
+    set: skein_shell::Set::Internal,
+    form: "SWITCH",
+    line: "Use links only instead of registering a first account.",
+    absent: "Register the first account.",
+    notes: "",
+    way: skein_shell::Way::Reads,
+};

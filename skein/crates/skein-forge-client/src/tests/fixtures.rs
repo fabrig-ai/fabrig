@@ -39,15 +39,19 @@ impl Harness {
     }
     pub(in crate::tests) fn read(&mut self, owner: u64) {
         assert!(
-            self.step(Event::Read { owner: Token::new(owner), repository: REPO, read: Read::Pull { number: owner } })
-                .is_empty()
+            self.step(Event::Read {
+                owner: Token::new(owner),
+                repository: REPO,
+                read: Read::Pull { number: owner, ci: false }
+            })
+            .is_empty()
         );
     }
     pub(in crate::tests) fn queued(&mut self, owner: u64, priority: Priority) {
         let op = if priority == Priority::Write {
             Op::Write(Write::Close { number: owner })
         } else {
-            Op::Read(Read::Pull { number: owner })
+            Op::Read(Read::Pull { number: owner, ci: false })
         };
         crate::bounds::op(&op, &self.env.limits).expect("fits");
         calls::queue(&mut self.domain.calls, calls::Owner::Read(Token::new(owner)), REPO, op, priority);

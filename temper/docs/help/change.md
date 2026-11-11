@@ -102,7 +102,7 @@ refused, naming what it lacks or the forge's answer.
 - **Gates decide:** a blocking gate that asks for changes starts a
   repair; a person's rejection holds it; an advisory gate never blocks.
   No verdict: ask once more, then hold.
-  A reviewer unable to read fails saying why. `temper serve`'s
+  A reviewer unable to read fails saying why. `temper-box serve`'s
   unkept stderr names each refusal's task, tool and reason; Claude's
   Read denials are in the task's tool results.
 - **Gates are temper's:** they run in temper; `change show` prints each, `gate 1 · review · blocking · approved`. Temper posts none as forge reviews or statuses; the pull's reviews may be empty.

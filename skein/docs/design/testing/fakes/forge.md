@@ -411,6 +411,14 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists
   those not yet.
+- **Conditional reads, as Forgejo 17.0.1 answers them** (`../../forge/connection.md`,
+  4.6): a raw file's read (`GET R/raw/<path>?ref=<ref>`) answers an `ETag`
+  derived from the bytes it serves, the same for the same bytes, and a
+  read of it whose `If-None-Match` names that `ETag` answers `304` with
+  no body, after the read's own authorization and resource checks, a
+  `Range` read included. Every other route sends no validator and
+  ignores `If-None-Match` and `If-Modified-Since`, as Forgejo's branch
+  JSON does. The tally counts a `304` as the request it is.
 - **Forgejo's narrowing filters are honoured:** the open pull requests'
   listing keeps only rows whose head and base branches are its `head` and
   `base`, when given; an issue's comments keep only those updated at or

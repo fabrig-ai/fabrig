@@ -8,7 +8,7 @@
 
 2. **The fetched Claude Code launcher and its fetch** move out of `temper-forge-setup` into a crate that the worker's `program-login` and the agent's `claude` mode both link (9.3, second item).
 
-3. **A `temper-agent` package** on smith's agent shell and temper's thin agent glue (9.3, first item), holding every mode the agent runs in today: `temper-agent AGENT.json` for one run, its list mode, `--mcp-relay`, `--program-child`, and running as `claude`, the fetched launcher. Plus `--version` and its help. Each mode behaves as it does today from temper's binary (`temper/crates/temper/src/main.rs` and `internal agent`).
+3. **A `temper-agent` package** on smith's agent shell and temper's thin agent glue (9.3, first item), holding every mode the agent runs in today: `temper-agent AGENT.json` for one run, its list mode, `--mcp-relay`, `--program-child`, and running as `claude`, the fetched launcher. Plus `--version` and its help. Each mode behaves as it does today from temper's binary (`temper/crates/temper-box-shell/src/binary.rs` and `internal agent`).
 
 4. **Step tests of the package** (section 10): it prints `--version` and its help, it refuses an unknown command, and each mode starts as today's does. A row per mode in one table.
 

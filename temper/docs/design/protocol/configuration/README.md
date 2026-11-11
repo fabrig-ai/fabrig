@@ -1,10 +1,10 @@
 # Configuration
 
 Provisional, 2026-10-14, revised 2026-11-02. What temper's processes
-are told when they start: the one JSON document `temper serve` reads,
+are told when they start: the one JSON document `temper-box serve` reads,
 and the forge's setup's commands with it, with jig's parts as jig
 defines them and temper's own members beside them; the private files it
-names; the agent's configuration; what `temper open` and `temper
+names; the agent's configuration; what `temper-box open` and `temper-box
 program-login` are given; limits; what holds at a first start and at
 every start; and the formats an operator writes. A forge is not
 configuration: it is a record in temper's store, made at runtime
@@ -15,7 +15,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 
 ## 1. In one page
 
-- **One document per `temper serve`,** in jig's shape: three top-level
+- **One document per `temper-box serve`,** in jig's shape: three top-level
   members, `engine` (jig's engine part), `workers` (jig's worker parts)
   and `application` (temper's members). Nothing else at the top level.
   The forge's setup's commands read the same document (section 6). Its
@@ -45,17 +45,17 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   names no forge.
 - **The document keeps the machine's** (`engine.md`): the clients' and
   webhooks' listeners; `machine`, the places a box's owned Forgejo and
-  its fake forge bind, which `temper init --box` chooses and the box
+  its fake forge bind, which `temper-box init --box` chooses and the box
   holds from its start (../setup/box.md, 1), and GitHub's, github.com's unless it
   names a fake; `demo`'s fake LLM's port; and the limits, the forges
   kept among them as a count (`limits.md`). A forge set up or connected
   takes its place from `machine`, or from what the person gives.
 - **`demo`, the playground's scripted model** (../setup/playground.md): the fake
   LLM the box runs, its port, its LLM provider, its key and its
-  scripts; null for none. `temper serve` reads its key alone, at the
+  scripts; null for none. `temper-box serve` reads its key alone, at the
   playground's start.
 - **`welcome`, whether the document shows the welcome** (`engine.md`),
-  whoever wrote it: `true` from `temper init --box`, absent otherwise.
+  whoever wrote it: `true` from `temper-box init --box`, absent otherwise.
 - **Not configuration:** forges, which people set up or connect at
   runtime; repositories, which people adopt at runtime; the branch
   namespace, which the root derives from the deployment's id; the forge
@@ -84,13 +84,13 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **Standalone shape:** exactly one worker, joined to the engine by the
   in-process name `workers`; the clients' listener, and the webhooks'
   listener when configured, on loopback, the clients' at a fixed port
-  for a GitHub forge; the agent program is temper's own binary. `temper
+  for a GitHub forge; the agent program is temper's own binary. `temper-box
   init` writes it, and every deployment is it.
 - **The cluster's two shapes,** for tests on one machine
   (`../cluster.md`): an engine alone, with no worker and a workers'
   listener on loopback in plaintext, and a worker alone, with no engine,
   dialling it. A document of none of the three is refused (`README.md`, section 2).
-- **The agent's configuration is smith's** (section 4), and `temper open`
+- **The agent's configuration is smith's** (section 4), and `temper-box open`
   takes no file at all (section 7).
 - **Settings leave the document** (`settings.md`):
   jig's charters, templates, policies and rules, and temper's landing
@@ -212,7 +212,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   forge's permissions by number under the forge connector, 1: 1 read, 2
   write, 3 admin. An adoption gives a repository's collaborators the
   roles their permissions map to (`../../domain/forge/adoption.md`).
-- **Reading,** by `temper serve`, in this order:
+- **Reading,** by `temper-box serve`, in this order:
   1. the three directories, resolved and checked (`directories.md`); then
      the document, `temper.json` in the configuration directory, whole,
      with skein's startup kit, within the bound jig's reference binary
@@ -234,7 +234,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
      (section 5);
   5. the agent's configuration (section 4).
 
-  Every problem found is reported, one line each on stderr, and `temper
+  Every problem found is reported, one line each on stderr, and `temper-box
   serve` exits 1 before io starts. No forge is read here: the forge
   connector's records are restored from the store, and the engine's
   routing loads their credentials from jig's secrets' store, once io
@@ -254,9 +254,9 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 playground (../setup/playground.md); `false` or absent, none.
 
 - **The document alone says:** a start reads the member whoever wrote
-  the document. `temper init --box` writes `true`, `temper init` alone
+  the document. `temper-box init --box` writes `true`, `temper-box init` alone
   nothing (../setup/init.md, 2), and no flag of any command changes it,
-  `temper internal serve`'s `--box` among them (../setup/box.md, 4).
+  `temper-box internal serve`'s `--box` among them (../setup/box.md, 4).
 - **Its readers:** the client, from the deployment's read
   (`../../client/forge/records.md`), and `StartPlayground`'s offer (../setup/playground.md
   ).
@@ -268,7 +268,7 @@ have one, an engine alone none. Each:
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker.md`, section 5) |
-| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
+| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
 
 - **The worker's root takes the rest from jig's and smith's:** the hub's
   limits from jig's worker part; smith's host limits and the bounds its
@@ -288,7 +288,7 @@ have one, an engine alone none. Each:
 **The engine-away bound** is jig's worker member `graces.grace_ms`: how
 long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker.md`, section
-2). `temper init` writes 60,000, so that an engine's restart (its
+2). `temper-box init` writes 60,000, so that an engine's restart (its
 store's load, its switch, its listeners again) passes within it and
 each run is adopted where it stands; a deployment whose engine takes
 longer to start raises it.
@@ -296,7 +296,7 @@ longer to start raises it.
 - **It is ordered under the engine's grace.** The stop bound a worker
   states is its ping interval, its silence deadline, this grace, the
   longer of `agent_stop_ms` and `delivery_ms`, then `save_ms`: 86
-  seconds with jig's link profile (5 and 15 seconds) and `temper init`'s
+  seconds with jig's link profile (5 and 15 seconds) and `temper-box init`'s
   graces (60,000, 5,000, 1,000 and 1,000). It must stay below the
   engine's `fleet.grace`, 120 seconds in both of jig's profiles, or the
   hello is refused (jig's `domain/engine/fleet.md`); a deployment
@@ -326,8 +326,8 @@ longer to start raises it.
   `program` and `arguments` in one of two forms:
   - **the box's:** `program` the absolute path of temper's binary and
     `arguments` `["internal", "agent", <that same path>]`, so each agent
-    process is `temper internal agent AGENT.json` (../binaries.md
-    ); `temper init` writes them so, with smith's agent configuration
+    process is `temper-box internal agent AGENT.json` (../binaries.md
+    ); `temper-box init` writes them so, with smith's agent configuration
     as `agent.json` in the configuration directory (../setup/init.md, 2);
   - **a deployment's:** `program` the absolute path of `temper-agent`
     (../binaries.md, 3) and `arguments` `[<that same path>]`, so each agent
@@ -339,7 +339,7 @@ longer to start raises it.
   written, with no model list (../README.md, section 5). They are absolute
   because the worker spawns the agent with its arguments as written
   (jig's `protocol/configuration.md`, section 9).
-- **Read twice:** by `temper serve` at start, for smith's host limits,
+- **Read twice:** by `temper-box serve` at start, for smith's host limits,
   the channel's limits and the agent's bounds, as jig's reference binary
   reads it; and by each agent process as it starts.
 - **It holds no credential:** an agent's grants come over smith's
@@ -362,10 +362,10 @@ longer to start raises it.
   Claude Code's `path` `"fetched"`, temper's pinned build, which temper
   turns into its launcher's absolute path before smith reads the
   document (../setup/owned.md, 6); the
-  programs directory `temper init` writes is `programs` in the data
+  programs directory `temper-box init` writes is `programs` in the data
   directory (`directories.md`). The owned example's agent configures
   Claude Code's (../setup/init.md, 1). A programs directory need not exist
-  until `temper program-login` makes it; one that exists must be a
+  until `temper-box program-login` makes it; one that exists must be a
   directory of the user's own with no group or other bits, not reached
   through a link at its name, or the start is refused, naming it
   (skein's `runtime/io/files.md`, 3). A linked parent is accepted. temper reads
@@ -394,10 +394,10 @@ longer to start raises it.
 | File | Named by | Holds | Read by |
 |---|---|---|---|
 | an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (../setup/README.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (../setup/owned.md, 5); a fake forge, before binding (../setup/playground.md) |
-| a worker's secret, its digest | jig's parts, data paths: `worker.secret` and `worker.digest` in the data directory as `temper init` writes them (../setup/init.md, 2) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
-| Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper serve`, once, at start, within `sign_in.secret_bytes` |
-| the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper forge sign-in` (../setup/owned.md, 8) or a box's first run (`../openid-provider.md`, 9) | `temper serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
-| the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
+| a worker's secret, its digest | jig's parts, data paths: `worker.secret` and `worker.digest` in the data directory as `temper-box init` writes them (../setup/init.md, 2) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
+| Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper-box serve`, once, at start, within `sign_in.secret_bytes` |
+| the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned.md, 8) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
+| the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
 
 - **A secret file holds its bytes and nothing else** but a final
   newline, which is not part of the secret (jig's
@@ -418,9 +418,9 @@ longer to start raises it.
   up.
 - **A set-up forge's directory,** under data and named by its number,
   and its other files are ../setup/README.md, section 3's, made by the setup's
-  commands and removed with the forge (../forge/engine.md, 3); `temper serve`
+  commands and removed with the forge (../forge/engine.md, 3); `temper-box serve`
   reads none of them but the handover.
-- **Never written by `temper serve`,** but for the handover it removes
+- **Never written by `temper-box serve`,** but for the handover it removes
   once taken. An operator replaces a worker's secret and restarts; a
   forge's credentials are replaced from the client, with no restart
   (../credentials.md, section 5).
@@ -437,20 +437,20 @@ longer to start raises it.
 ## 6. First start and every start
 
 - **Every command that reads the document checks it,** once its three
-  directories are resolved and checked (`directories.md`). `temper serve`
-  checks it whole, as `README.md`, section 2 says. `temper program-login`, every
-  `temper forge` command and `temper box` check its structure, its
+  directories are resolved and checked (`directories.md`). `temper-box serve`
+  checks it whole, as `README.md`, section 2 says. `temper-box program-login`, every
+  `temper-box forge` command and `temper box` check its structure, its
   members, the limits and `machine`, and none of the checks that need
   a private file read, since a set-up forge's files do not exist before
-  its commands make them (../setup/init.md). A `temper forge`
+  its commands make them (../setup/init.md). A `temper-box forge`
   command finds its forge's kind in the box's group file, `fetch`,
   `prepare` and `run` taking an owned forge with none (../setup/box.md, 4),
   and its setup entry in `machine` (../binaries.md; ../setup/box.md, 1).
   Each reads
-  the private files its own part needs alone: a `temper forge` command
-  its forge's, by ../setup/owned.md; `temper box` and `temper
+  the private files its own part needs alone: a `temper-box forge` command
+  its forge's, by ../setup/owned.md; `temper box` and `temper-box
   program-login` none, the latter reading the agent's configuration
-  besides (`README.md`, section 4); `temper serve` every one the document names, and
+  besides (`README.md`, section 4); `temper-box serve` every one the document names, and
   of a forge's directory an owned or fake forge's handover alone
   (`README.md`, section 5).
 - **A deployment's first start** is jig's (jig's
@@ -519,7 +519,7 @@ longer to start raises it.
     engine serves (../setup/README.md, the setup host in the engine); an owned
     forge with neither a handover nor a record of one is not set up
     until the client asks the box for it (../setup/owned.md, 5);
-  - under the box, `temper internal serve` takes the listeners the box
+  - under the box, `temper-box internal serve` takes the listeners the box
     gives it, from fd 3, `LISTEN_FDS` of them, its clients' and webhooks'
     listeners claiming them by their addresses, and `--box` adopts the
     box's pipe, the two fds after them, refusing its start, naming the
@@ -553,21 +553,21 @@ longer to start raises it.
 
 ## 7. The client's arguments
 
-- **`temper open DIRECTORY LINK_OR_ADDRESS`** takes no configuration
+- **`temper-box open DIRECTORY LINK_OR_ADDRESS`** takes no configuration
   file: its two arguments are `../../client/line.md`, 1's, and its limits are
   constants of temper's client (`../../client/README.md`, section 2).
 - **`temper ctl DIRECTORY ...`** takes none either (`../../client/ctl/README.md`,
   section 6).
-- **`temper program-login [DIRECTORIES] NAME`** reads the same document
-  as `temper serve`, and the agent's configuration it names
+- **`temper-box program-login [DIRECTORIES] NAME`** reads the same document
+  as `temper-box serve`, and the agent's configuration it names
   (../credentials.md, section 3). `DIRECTORIES` is `[--config DIR] [--data
   DIR] [--cache DIR]`, each with its variable and its default (`directories.md`
   ), given anywhere among the command's arguments.
-- **`temper internal agent AGENT.json`** reads smith's agent configuration
+- **`temper-box internal agent AGENT.json`** reads smith's agent configuration
   (section 4).
-- **`temper forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
-  [DIRECTORIES]`** read the same document as `temper serve` (section 6;
-  ../setup/owned.md and ../setup/box.md); **`temper init [DIRECTORIES] [--box]`**
+- **`temper-box forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
+  [DIRECTORIES]`** read the same document as `temper-box serve` (section 6;
+  ../setup/owned.md and ../setup/box.md); **`temper-box init [DIRECTORIES] [--box]`**
   writes it (../setup/init.md, 2). Reconcile is no command: the
   engine's setup host runs it, at each start and at a connect (../setup/README.md,
   the setup host in the engine).
@@ -806,7 +806,7 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
 - **A Claude-only box on the small profile.** Its largest turn's store
   frame passes small's page ceiling (`settings.md`, 7), where `standard`'s holds any
   turn smith admits: a page decision of jig's or skein's profile.
-  Default: such a box runs `standard`, as `temper init`'s document does.
+  Default: such a box runs `standard`, as `temper-box init`'s document does.
 - **A message, a report or a person's spec past what a box takes**
   (`stock.md`, `settings.md`, 7). The user's request of 2026-11-03 sizes a message at
   128 kB and a report at 256 kB, and a box's are its agent's message,

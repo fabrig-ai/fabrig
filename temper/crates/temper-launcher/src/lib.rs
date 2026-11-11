@@ -14,6 +14,7 @@ use temper_fetch::{
     Origin,
     claude_code::{self, Libc},
 };
+use temper_shell::directories::EnvironmentEntry;
 
 /// A link named `claude` selects the launcher before temper reads its flags.
 #[must_use]
@@ -23,16 +24,12 @@ pub fn is_launcher(program: &OsStr) -> bool {
 
 /// Fetch the pinned build if missing and replace this process, preserving argv.
 #[must_use]
-pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>]) -> u8 {
-    let why = launch(program, arguments).expect_err("exec only returns on failure");
+pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> u8 {
+    let why = launch(program, arguments, environment).expect_err("exec only returns on failure");
     eprintln!("{name}: claude: {why}");
     1
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: SSL_CERT_FILE selects launcher download trust; temper-box's table will pass it"
-)]
-fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
+fn launch(program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> Result<(), String> {
     let directory = Path::new(program).parent().ok_or("launcher has no parent")?;
     let cache = fs::read_link(directory.join("cache")).map_err(|why| format!("cache: {why}"))?;
     let build = claude_code::build(
@@ -53,7 +50,7 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
     let file = claude_code::file(cache.as_os_str().as_bytes());
     temper_fetch_shell::fetch::claude_code(
         &IO,
-        &skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) },
+        &trust(environment),
         path(&file),
         pin,
         build.bytes,
@@ -113,6 +110,12 @@ pub const IO: skein_io::Limits = skein_io::Limits {
     close_timeout: skein_lib::Duration::from_secs(30),
     retry: skein_lib::Duration::from_millis(250),
 };
+
+fn trust(environment: &[EnvironmentEntry]) -> skein_shell::Trust {
+    skein_shell::Trust::Machine {
+        ssl_cert_file: temper_shell::environment::SSL_CERT_FILE.value(environment).map(|value| path(value).into()),
+    }
+}
 
 fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
@@ -194,6 +197,18 @@ fn substituted_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn download_trust_uses_the_given_certificate_file() {
+        let environment = [(Box::from(b"SSL_CERT_FILE".as_slice()), Box::from(b"/fixture/roots.pem".as_slice()))];
+        let skein_shell::Trust::Machine { ssl_cert_file } = trust(&environment) else { panic!("machine trust") };
+        assert_eq!(ssl_cert_file, Some(PathBuf::from("/fixture/roots.pem")));
+        let empty = [(Box::from(b"SSL_CERT_FILE".as_slice()), Box::from(b"".as_slice()))];
+        for environment in [&[][..], &empty[..]] {
+            let skein_shell::Trust::Machine { ssl_cert_file } = trust(environment) else { panic!("machine trust") };
+            assert_eq!(ssl_cert_file, None);
+        }
+    }
 
     #[test]
     fn place_links_claude_to_the_given_program() {

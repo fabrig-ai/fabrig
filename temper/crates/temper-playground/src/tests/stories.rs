@@ -424,6 +424,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
     let limits = smith_agent_world::LIMITS.run;
     let budget = run::Budget { turns: 4, spend: 10, time: Duration::from_secs(60) };
     let charter = run::Charter {
+        check_timeout: None,
         mode,
         resume: false,
         waiting: Duration::ZERO,

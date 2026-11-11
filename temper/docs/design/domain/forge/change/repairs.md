@@ -257,9 +257,9 @@
   Each read that fails, words or not, is one line in the engine's log, naming
   the task, the section, the stage and the forge's error, as a tool read's
   `read refused` line does:
-  `temper serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
+  `temper-box serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
   A brief that fails adds one more, naming how it counts and its reason:
-  `temper serve: brief failed task=T counts=permanent reason=pull: ...`.
+  `temper-box serve: brief failed task=T counts=permanent reason=pull: ...`.
 - **A verdict whose post is refused** (`gates.md`, 1) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that

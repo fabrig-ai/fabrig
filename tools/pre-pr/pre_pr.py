@@ -91,7 +91,14 @@ def base(root, env):
     result = git(['merge-base'] + heads, root, env)
     if result.returncode or not result.stdout.strip():
         return None, 'no merge base of refs/temper/landing and HEAD'
-    return result.stdout.decode().splitlines()[0], None
+    commit = result.stdout.decode().splitlines()[0]
+    while git(['log', '-1', '--format=%s', commit], root, env).stdout.decode().rstrip('\n') == (
+            'Unchecked: work in progress, saved before a question'):
+        parent = git(['rev-parse', '--verify', '--quiet', commit + '^1'], root, env)
+        if parent.returncode:
+            break
+        commit = parent.stdout.decode().strip()
+    return commit, None
 
 
 def tree(root, git_dir, index, env):
@@ -525,7 +532,7 @@ def summary(base_id, lints, tests, errors, reason):
 def main():
     root = Path.cwd()
     env = os.environ.copy()
-    env.setdefault('TEMPER_BUNDLE', 'none')
+    env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
     base_id, why = base(root, env)
     errors = []

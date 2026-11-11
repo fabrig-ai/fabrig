@@ -567,8 +567,16 @@ impl Common {
                     return false;
                 };
                 let authorization = github::credential::bearer(&secret).expect("bounded bearer");
+                c.identity = Some(match state {
+                    Active::Identity { .. } => data.recent.expect("identity installation"),
+                    Active::Listing { .. } | Active::Minting { .. } | Active::Ready { .. } => 0,
+                });
                 c.until(Some(env.now.saturating_add(env.limits.deadline)));
-                if gh.exchange.start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization)).is_err() {
+                if gh
+                    .exchange
+                    .start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization), &mut self.kept)
+                    .is_err()
+                {
                     Self::github_wait(base, gh, env);
                     return false;
                 }
@@ -939,7 +947,8 @@ impl Common {
                 continue;
             }
             let c = self.connection_slab.get_mut(id).expect("own connection");
-            gh.exchange.pump(c, env, io);
+            gh.exchange.pump(c, env, io, &mut self.kept);
+            let _free = c.take_free();
             if let Some(heard) = gh.exchange.heard(c) {
                 self.github_heard(base, gh, heard, env, up);
                 let c = self.connection_slab.get_mut(id).expect("own connection");

@@ -1,6 +1,6 @@
 # release: status
 
-2026-11-09. Where temper's code lags or departs from [release.md](release.md).
+2026-11-11. Where temper's code lags or departs from [release.md](release.md).
 
 5.1's workflow, `.github/workflows/release-macos.yml`, is built, its
 strip and ad hoc signature with it, and has not yet run: no dispatch
@@ -14,12 +14,12 @@ commit and whether tracked files differ, and reruns on `HEAD`, the
 branch it names, the packed refs and the index, a worktree's included;
 its library holds `VERSION`, `COMMIT` and `line`, and its tests hold
 the commit's word and the watched paths. `temper-engine --version` and
-`temper-agent --version` print from it. `temper-client --version`
-prints from a build script of its own (`protocol/binaries.status.md`).
+`temper-agent --version` print from it.
 
-- **Not yet:** 2: the release's file, its symbol check and checksum. 3:
-  `temper --version` and `temper version`: the box's binary prints no
-  version. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
-  its start; only `temper init` warns of a missing git
-  (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
+- **Not yet:** 3: `temper-client --version` from `temper-version`, under `TEMPER_INTERNAL_COMMIT`, in place of a build script of its own [in flight: change 93].
+
+- **Not yet:** 3: `temper-box --version` [in flight: change 91].
+- **Not yet:** 2: the release's file, its symbol check and checksum. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
+  its start; only `temper-box init` warns of a missing git
+  (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.

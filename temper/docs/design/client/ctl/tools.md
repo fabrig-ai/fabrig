@@ -600,7 +600,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 
 | Tool | What it does |
 |---|---|
-| `sign-in FILE\|-` | signs in by the link `temper serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (`README.md`, 6.1) |
+| `sign-in FILE\|-` | signs in by the link `temper-box serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (`README.md`, 6.1) |
 | `sign-out` | ends the sign-in and leaves `token` empty, zero bytes, read as signed out (`README.md`, 6.1) |
 | `pending` | lists what DIRECTORY's store keeps: each request's operation, its party and when it was first sent, and how many records these tools cannot read |
 | `help [GROUP [VERB]]` | the page `ctl`, then the tools (`testing.md`, 5); with GROUP, its rows; with GROUP VERB, its record of the table |

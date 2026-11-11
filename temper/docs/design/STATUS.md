@@ -134,8 +134,9 @@ quiet checks remain later work (`protocol/configuration/reference.md` and `proto
 `domain/forge/change/repairs.md` and `domain/forge/README.md`, 11). Containment read as a count of
 commits (skein's `Read::Range`) and a branch list's refusal naming its
 bound are designed and not built (`domain/forge/keeping-up.md`, 3;
-`domain/agent/tools.md`); the rest of the draft `forge-reads-targeted`
-lags in the design (`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
+`domain/agent/tools.md`); of the draft `forge-reads-targeted`, goal
+overlap's paths and GitHub's page sizes lag in the design
+(`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
 range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
@@ -222,8 +223,12 @@ failures, reds and words alone, with no landing, close-out or catch-up
 of its own (`domain/forge/branches.status.md`, 2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
-the worker's frozen landing pin, run changed-package lints and focused
-tests with direct dependents, and identify inherited failures. The
+the worker's frozen landing pin, or, for a repair or a resolution, the head
+its delivery replaces (`domain/worker.status.md`), run changed-package lints and focused
+tests with direct dependents, and identify inherited failures. A project
+may give its changes' checks a bound of its own, and a check that only ran
+out of time runs once more at twice its time
+(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`). The
 reference's coder and coordinator still ask for manual checks
 (`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
@@ -643,7 +648,7 @@ stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
 reply or failure, so authorization waits for room (`protocol/openid-provider.md`,
 3). Startup readiness beyond that local admission remains separate
-work (`protocol/sign-in.md`, section 9). `temper init`'s documents hold
+work (`protocol/sign-in.md`, section 9). `temper-box init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup/README.md`). A run reads a task's words
@@ -797,7 +802,7 @@ step test past one that delivers nothing asserts no read
 (`protocol/setup/README.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge/README.md`), and the adoption form draws no read-only line
-(`client/README.md`); `temper forge sign-in` prints an owned
+(`client/README.md`); `temper-box forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup/README.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
@@ -810,10 +815,10 @@ held task names no run's or job's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
 past a start (`domain/worker.md`); with
-`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+`TEMPER_INTERNAL_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
-with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+with `TEMPER_INTERNAL_DUMP_LLM` set, never a shipped default, an agent's
 environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
@@ -884,7 +889,7 @@ restored document, on no replay since, its cause unknown (`client/README.md`). T
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
-`temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
+`temper-box forge run`'s refusal and the terminal's `temper-box open` still say plain `temper-box` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
 account's trial names no model choice; a later trial and its retries name that
@@ -1078,8 +1083,8 @@ answer combines several causes (`client/ctl/areas.md` and `client/ctl/testing.md
 The deployment's client, `temper-client`, is built (M1 of
 `draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
 and `ctl`, run by the box's code from the shells both binaries link, its
-help, refusals and `--version`, on `temper-shell`, which the box's `temper`
-prints its table from. Its ctl story runs the box's `temper serve` as the
+help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
+prints its table from. Its ctl story runs the box's `temper-box serve` as the
 engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
 accounts protocol and engine-side crates through an unused line of ctl's
 manifest, and no test yet holds its closure: its boundary row is M5's; its
@@ -1092,7 +1097,7 @@ The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
 forge's commands, `internal forge-child`, `versions`, help and `--version`
 from `temper-version`, refusing a worker alone's and a standalone document
 by the binary that runs each, in a table step test of the built binary.
-Its commands are `temper-engine-shell`'s, which the box's `temper` runs too
+Its commands are `temper-engine-shell`'s, which the box's `temper-box` runs too
 with its worker's half; `temper-service`'s worker half is its `worker`
 feature, off in the engine's build; the brief's fitter is
 `temper-protocol-brief`'s. The boundary test holds its closure free of the
@@ -1123,8 +1128,19 @@ worker program, M5's box integration and remaining closure rows, M6's
 release job, and figures are not done by that plan; the parent's Later
 section is unchanged (`draft/deployment-binaries.status.md`).
 
+temper's command lines, `draft/cli.execution.md`'s C2: the box's binary is
+`temper-box`, a package under `bin/` whose crate is `temper-box-shell`, and
+the engine's, `temper-engine`, is one too, its crate `temper-engine-shell`;
+each holds a table on skein's, reached by `Table::reach`, with its help,
+`--version`, exit 2 for refused arguments, its pre-table modes as rows,
+and its reference documents generated beside `cli/README.md`. C2's
+internal variables are renamed `TEMPER_INTERNAL_*` and its twins dropped;
+the client's, the worker's and the agent's tables are C3's and C6's
+(`cli/README.status.md`; `draft/cli.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
+- [`cli/README.md`](cli/README.status.md)
 - [`playground.md`](playground.status.md)
 - [`release.md`](release.status.md)
 - [`domain/README.md`](domain/README.status.md)

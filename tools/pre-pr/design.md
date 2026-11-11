@@ -49,6 +49,20 @@ boundary (smith's run.md, 8.1).
 - **So the base is where the change starts on its landing branch:** the
   commit its branch started from, or the landing branch's tip when that
   is newer and already merged into the branch, or being merged.
+- **A repair's pin is the head it repairs.** A repair, a resolution and a
+  merge job name no landing branch, and the worker pins the head their
+  delivery replaces instead (`temper/docs/design/domain/worker.md`, section
+  5): the base is that head, so a repair of a goal's landing into main
+  checks what its own edits changed, not the goal's packages. A resolution's
+  base is its branch's head before the merge, so its check selects what the
+  merge and its edits change on the branch.
+- **An unchecked save is stepped past.** Where the base is temper's
+  unchecked save, a commit whose subject is `Unchecked: work in progress,
+  saved before a question` (`temper/docs/design/domain/agent/README.md`,
+  section 5), the base is its first parent instead, again until it is not
+  one, or it has none: a repair resumed after it saved checks the saved
+  edits with its new ones. The summary's base line names the commit
+  stepped to.
 - **Without it.** No reference, or no merge base: no base. The check runs
   section 4's checks 1 and 2 alone and prints one line saying why:
   `pre-pr: no base (no refs/temper/landing): the format check and the counted baselines alone`,
@@ -156,7 +170,7 @@ delivery hears every failure; the verdict is section 6's.
    existence in Rust comments as part of check 2, as before
    (`tools/old_forms/README.md`).
 
-**The environment** is the check's, with `TEMPER_BUNDLE=none` set where it
+**The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
 private index; their scratch repositories keep their own indexes. No
 `cargo clean`, no `--workspace`, no network
@@ -288,7 +302,7 @@ were asked and answer from a ledger: metadata with members, their
 directories and dependencies; clippy's JSON messages; nextest's exit and a
 JUnit file at the overlay's path, by worktree (head or base). It reads no
 real build. Its tables: the base (no pin, a pin, a merge in progress, no
-merge base); the selection (a package, its dependents, a path reader, a
+merge base, an unchecked save stepped to its parent); the selection (a package, its dependents, a path reader, a
 path in no package, a deletion); inherited and new failures of each kind;
 the cache by tree and base; the summary's bound.
 
@@ -298,7 +312,10 @@ private snapshots: new and inherited broken citations, a deleted cited
 document, and a design size violation. It checks that docs-only changes
 skip every code check even on a red baseline; unchanged red counts pass
 while a rising count or tighter limit refuses. Non-Markdown fixtures,
-declared docs inputs and check configuration select code.
+declared docs inputs and check configuration select code. A pin at one or
+two unchecked saves steps to the checked head: the summary names that head,
+and package selection includes both the saved edits and the delivery's new
+edits. Any other subject keeps the base, and the pin never moves.
 
 It also builds a dependency and its consumer with real offline cargo in a
 scratch workspace. A kept base checkout predates
@@ -323,6 +340,8 @@ does.
   or test package; the landing's CI checks its consumers.
 - **The gate's other checks** (wasm32 clippy, the fuzzy suite, the lint
   profiles) stay the landing's.
-- **Repairs, resolutions and merge jobs** are given no landing branch
-  (`temper/docs/design/domain/worker.md`, 4.1), so their checks run
-  without a base.
+- **A resolution's own edits.** A resolution's base is the branch's head
+  before the merge (section 2), so its selection holds what the merge
+  brings in as well as its hand edits; a merge of a far-moved landing
+  branch selects much. Selecting only the paths its edits changed against
+  both parents is not designed.

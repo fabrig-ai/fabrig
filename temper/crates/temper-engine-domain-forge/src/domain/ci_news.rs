@@ -9,6 +9,7 @@ mod tests;
 #[derive(Hash, Debug)]
 pub(super) struct Watch {
     status: Ci,
+    latest: Ci,
     concluded: u32,
     target: Option<u32>,
     end: Option<Time>,
@@ -48,10 +49,28 @@ fn concluded(rows: &[Status]) -> u32 {
 }
 
 pub(super) fn observe(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit, rows: &[Status], status: Ci) {
+    observed(d, env, task, head, Some(concluded(rows)), status);
+}
+
+pub(super) fn observe_verdict(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit, status: Ci) {
+    observed(d, env, task, head, None, status);
+}
+
+pub(super) fn seen(d: &Domain, task: u64, head: Commit, status: Ci) -> bool {
+    match d.ci_news.get(&(task, head)) {
+        Some(watch) => watch.latest == status,
+        None => false,
+    }
+}
+
+fn observed(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit, count: Option<u32>, status: Ci) {
     let key = (task, head);
     if let Some(watch) = d.ci_news.get_mut(&key) {
         watch.status = status;
-        watch.concluded = concluded(rows);
+        watch.latest = status;
+        if let Some(count) = count {
+            watch.concluded = count;
+        }
         if shown(watch.target, watch.concluded) {
             watch.target = None;
             watch.end = None;
@@ -78,7 +97,8 @@ pub(super) fn observe(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit
             key,
             Watch {
                 status,
-                concluded: concluded(rows),
+                latest: status,
+                concluded: count.unwrap_or(0),
                 target: None,
                 end: None,
                 due: None,
@@ -101,6 +121,7 @@ pub(super) fn hint(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit) -
                 (task, head),
                 Watch {
                     status: Ci::None,
+                    latest: Ci::None,
                     concluded: 0,
                     target: None,
                     end: None,
@@ -175,6 +196,22 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
 }
 
+/// A pull watch asks for the required-context verdict through the commit's checks.
+pub(super) fn refreshing(d: &mut Domain, repository: Provider, head: Commit) {
+    let mut keys = List::with_capacity(d.ci_news.len());
+    for ((task, commit), _) in &d.ci_news {
+        if *commit == head
+            && let Some(row) = d.changes.get(task)
+            && row.repository == repository
+        {
+            keys.push((*task, *commit)).expect("sized from watches");
+        }
+    }
+    for key in &keys {
+        d.ci_news.get_mut(key).expect("watch key").reading = true;
+    }
+}
+
 pub(super) fn read(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -200,6 +237,7 @@ pub(super) fn read(
         watch.reading = false;
         if let Some(rows) = rows {
             let changed = watch.status != status;
+            watch.latest = status;
             watch.concluded = concluded(rows);
             if changed {
                 wakes.push(*task).expect("one watch per task for a commit");

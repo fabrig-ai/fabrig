@@ -69,6 +69,7 @@ fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<r
     }
     let budget = charter.budget();
     Ok(run::Charter {
+        check_timeout: *charter.check_timeout(),
         mode: match charter.mode() {
             wire::Mode::Finite => run::Mode::Finite,
             wire::Mode::Open => run::Mode::Open,

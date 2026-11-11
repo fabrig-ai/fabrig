@@ -62,11 +62,11 @@ sys.exit(int(count > 0))
         self.command('git', 'commit', '-qm', 'base')
         self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
 
-    def deliver(self):
+    def deliver(self, packages=('api',), expected_bundle=None):
         calls = []
-        data = {'packages': [{'name': 'api', 'id': 'api', 'dependencies': [],
-                             'manifest_path': str(self.root / 'api/Cargo.toml')}],
-                'workspace_members': ['api'], 'target_directory': str(self.root / 'target')}
+        data = {'packages': [{'name': name, 'id': name, 'dependencies': [],
+                             'manifest_path': str(self.root / name / 'Cargo.toml')} for name in packages],
+                'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
 
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
@@ -91,7 +91,36 @@ sys.exit(int(count > 0))
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
             result = PRE_PR.main()
         log.flush()
+        if expected_bundle is not None:
+            self.assertTrue(clippy.called)
+            self.assertTrue(nextest.called)
+            self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
+            self.assertEqual(nextest.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, nextest.called)
+
+    def test_saved_edits_are_checked_with_new_edits(self):
+        title = 'Unchecked: work in progress, saved before a question'
+        for name in ('a', 'b'):
+            self.write(name + '/Cargo.toml', '[package]\nname = "' + name + '"\n')
+            self.write(name + '/src/lib.rs', 'pub fn initial() {}\n')
+        for count, subject in ((1, title), (2, title), (1, title + ' extra')):
+            with self.subTest(saves=count, subject=subject):
+                self.command('git', 'add', '.')
+                self.command('git', 'commit', '--allow-empty', '-qm', 'checked head')
+                head = self.command('git', 'rev-parse', 'HEAD').strip()
+                for number in range(count):
+                    self.write('a/src/lib.rs', f'pub fn saved_{count}_{number}() {{}}\n')
+                    self.command('git', 'add', 'a')
+                    self.command('git', 'commit', '--allow-empty', '-qm', subject)
+                saved = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'update-ref', 'refs/temper/landing', saved)
+                self.write('b/src/lib.rs', f'pub fn delivered_{count}() {{}}\n')
+                expected = head if subject == title else saved
+                result, log, _, _ = self.deliver(('a', 'b'))
+                self.assertEqual(result, 0, log)
+                self.assertIn(f'base {expected}, merge base', log)
+                self.assertIn('tests: a b\n' if subject == title else 'tests: b\n', log)
+                self.assertEqual(self.command('git', 'rev-parse', 'refs/temper/landing').strip(), saved)
 
     def test_docs_only(self):
         # Markdown inside a package still selects docs unless registered as an input.
@@ -113,6 +142,17 @@ sys.exit(int(count > 0))
         self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
         self.assertFalse(any('tools/citations/citations.py' in args for args, _ in calls))
         self.assertIn('code only:', log)
+
+    def test_bundle_defaults_to_none_and_keeps_the_callers_value(self):
+        for value in (None, 'embed'):
+            with self.subTest(value=value):
+                self.env.pop('TEMPER_INTERNAL_BUNDLE', None)
+                if value is not None:
+                    self.env['TEMPER_INTERNAL_BUNDLE'] = value
+                expected = 'none' if value is None else value
+                self.write('api/src/lib.rs', f'pub fn {expected}() {{}}\n')
+                result, log, _, _ = self.deliver(expected_bundle=expected)
+                self.assertEqual(result, 0, log)
 
     def test_both(self):
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
@@ -257,7 +297,7 @@ class SharedTarget(unittest.TestCase):
             env = os.environ.copy()
             for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR'):
                 env.pop(name, None)
-            env.update(TEMPER_BUNDLE='none', CARGO_TARGET_DIR=str(root / 'target'))
+            env.update(TEMPER_INTERNAL_BUNDLE='none', CARGO_TARGET_DIR=str(root / 'target'))
 
             def command(*args, cwd=root, command_env=env):
                 return subprocess.run(args, cwd=cwd, env=command_env, check=True,

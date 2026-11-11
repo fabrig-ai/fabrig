@@ -101,6 +101,7 @@ mod reviews;
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
 
+mod check_timeout;
 mod completed_change;
 mod completed_reads;
 mod saved_close;
@@ -315,7 +316,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
         task: producer.task,
         attempt: producer.attempt,
     })));
-    world.until(Until::Ready);
+    world.drain_cut();
     world.restart(true, true);
     for _ in 0..200 {
         world.tick();

@@ -24,6 +24,8 @@ use temper_engine_domain_forge as forge;
 /// `protocol/channel/README.md`, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
+    /// The change project's delivery checks' bound (domain/agent/charter.md, 4).
+    pub check_timeout: Option<skein_lib::Duration>,
     /// Root-issued durable task number.
     pub task: u64,
     pub attempt: u64,

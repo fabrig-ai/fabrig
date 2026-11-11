@@ -48,10 +48,10 @@ section 8.
   jig's promises: skein-lib's journal, jig's restart script, its
   conformance world and its referee, with temper's own wiring and its
   fake forge (jig's `README.md`, section 6).
-- **One binary, standalone first** (`protocol/README.md`). `temper
+- **One binary, standalone first** (`protocol/README.md`). `temper-box
   serve` runs the engine and one worker in one process on one person's
-  machine; `temper open` is the person's terminal; `temper internal
-  agent` is smith's agent, one process per run; `temper forge` and
+  machine; `temper-box open` is the person's terminal; `temper-box internal
+  agent` is smith's agent, one process per run; `temper-box forge` and
   `temper box` set a forge up and run it (`protocol/setup/README.md`). A
   deployment runs a binary per process, `temper-engine` among them
   (`protocol/binaries.md`, 1).
@@ -70,16 +70,16 @@ CI and an agent's review, and lands with no person in between.
 
 One story:
 
-1. `temper serve` runs on a deployment's directories,
+1. `temper-box serve` runs on a deployment's directories,
    configured for one Forgejo (with Actions, or with project checks), one
    git identity, one worker and its LLM providers, never an account
    (`protocol/configuration/README.md`; `protocol/credentials.md`, sections 3
    and 4). The forge is connected, managed, or owned on a box
    (`protocol/setup/README.md`).
-2. `temper open DIRECTORY LINK` signs the person in by the printed link
+2. `temper-box open DIRECTORY LINK` signs the person in by the printed link
    and shows their inbox (`client/line.md` and `client/README.md`, section 4). With
    no LLM account yet, a banner offers the ways to add one: a sign-in
-   with an LLM provider, a Claude Code login made with `temper
+   with an LLM provider, a Claude Code login made with `temper-box
    program-login`, or a key; the person adds one on the accounts page
    (`client/pages/README.md` and `client/pages/accounts.md`, 2).
 3. The person adopts a repository into the configured project, through
@@ -97,7 +97,7 @@ One story:
 7. The person sees what landed: the pull request and the merge commit,
    in the forge's words, with a link to each on the forge
    (`client/forge/README.md`, 2.5).
-8. `temper serve` is stopped and started again; nothing the person saw
+8. `temper-box serve` is stopped and started again; nothing the person saw
    is lost, and work in flight goes on.
 
 Not part of it: a person's approval of changes (a choice a person makes
@@ -107,11 +107,11 @@ live text, the forge's panels in full, GitHub, several people.
 ## 3. The system
 
 ```
-person    temper open: temper's terminal, its pages around jig's client (client/README.md)
-engine    temper serve: temper's root around jig's core and the forge connector (domain/root.md)
+person    temper-box open: temper's terminal, its pages around jig's client (client/README.md)
+engine    temper-box serve: temper's root around jig's core and the forge connector (domain/root.md)
 store     jig's store in the engine's process: jig's records and temper's, committed together (protocol/store.md)
 worker    standalone, in the engine's process: temper's worker root on jig's hub, the checkout (domain/worker.md)
-agents    smith's, one `temper internal agent` process per run, on the worker (domain/agent.md)
+agents    smith's, one `temper-box internal agent` process per run, on the worker (domain/agent.md)
 forge     Forgejo and its runner: polled, hinted by its webhooks (domain/forge.md; protocol/forge.md)
 ```
 
@@ -189,6 +189,11 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+- **`cli/`:** temper's command lines: each binary's package, crate,
+  table, help, exits and environment (`cli/README.md`), and the
+  reference documents generated from the tables beside it, each
+  binary's `<binary>-args.md` and `<binary>-env.md` and the tree's
+  common environment document.
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.
@@ -258,20 +263,21 @@ temper's side before the layer:
 - the forge's, of no side: skein's, `skein-forge` (its documents and
   call plans, which the forge component and the setup share) and
   `skein-forge-setup` (reconcile); its setup's rest, outside the
-  services, `temper-forge-setup`, `temper-forge-setup-shell` and
-  `temper-box`; a pinned binary's fetch and Claude Code's launcher, of
+  services, `temper-forge-setup`, `temper-forge-setup-shell` and the
+  box's machine, `temper-box-machine`; a pinned binary's fetch and Claude Code's launcher, of
   no side, `temper-fetch`, `temper-fetch-shell` and `temper-launcher`;
 - the user documentation's, of no side, `temper-docs`
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
-  `temper init`'s files, `temper-init`; the fakes the binary ships,
+  `temper-box init`'s files, `temper-init`; the fakes the binary ships,
   `temper-fake` and `temper-fake-git` (`testing/fakes.md`, 3);
 - the playground's, of no side: its composition, `temper-playground`,
   and the fake git program it hosts, `temper-fake-git-hosted`
   (`playground.md`, 3);
 - the client's, under `temper-client` (`client/README.md`, section 2);
-- the services, `temper-service`; the box's binary, `temper`, and the
-  engine's, `temper-engine`, with the shells they share,
-  `temper-engine-shell` and `temper-shell`, and `temper-version`; the
+- the services, `temper-service`; the box's binary, `temper-box`, and
+  the engine's, `temper-engine`, packages under `bin/` whose crates are
+  `temper-box-shell` and `temper-engine-shell`, with the shell they
+  share, `temper-shell`, and `temper-version` (`cli/README.md`, 2); the
   deployment's client, `temper-client`, and its agent, `temper-agent`
   (`protocol/binaries.md`).
 

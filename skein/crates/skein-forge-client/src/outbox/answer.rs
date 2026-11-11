@@ -46,7 +46,9 @@ pub(crate) fn answered(
             super::find::listed(d, env, number, phase, &items, super::find::Listing { more, cut, now }, out);
         }
         Answer::Item { comments, more, .. } => super::find::comments_found(d, env, number, phase, &comments, more, out),
-        Answer::Reviews { reviews, more } => super::find::reviews_found(d, env, number, phase, &reviews, more, out),
+        Answer::Reviews { reviews, more, cut } => {
+            super::find::reviews_found(d, env, number, phase, &reviews, (more, cut), out);
+        }
         Answer::Pull(pull) => pulled(d, env, number, phase, pull, out),
         Answer::Commit(commit) => branch_found(d, env, number, commit, out),
         Answer::Created(item) => super::finished(d, env, number, Made::Created(item), false, out),
