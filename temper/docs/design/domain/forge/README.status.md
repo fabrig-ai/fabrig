@@ -1,6 +1,12 @@
 # forge: status
 
-2026-11-10. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2: the follow procedure, its task making follow changes
+  (`follows.md`) [in flight: change 110].
+
+- **Not yet:** 5.1: follows reading the landings on a branch
+  [in flight: change 105].
 
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap
 in what reaches a person, the whole story's milestone N1,
