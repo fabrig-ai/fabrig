@@ -106,7 +106,7 @@
   live at once, never every change made. Each tier row of the store
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
   and a finding's blamed ones), within the store schema's ceiling for
-  them, 2049 (`../store.md`, 4), so `forge.changes` is at most 1024,
+  them, 759 (`../store.md`, 4), so `forge.changes` is at most 379,
   which the start checks (below). The forge's landed commits, the
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
@@ -248,12 +248,12 @@
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
     tier row's pending landings, a run's landings and a finding's blamed
-    ones (`../store.md`, 4), 1024 at their 2049, checked before the store's
+    ones (`../store.md`, 4), 379 at their 759, checked before the store's
     sizing, which would otherwise refuse it as past its codec's bounds,
     naming no limit:
-    `application.limits.overrides.forge.changes: 1025, past its bound of
-    1024, the most the store's tier rows hold (2 * forge.changes + 1
-    within 2049)`. Within it, a store bound the larger rows outgrow
+    `application.limits.overrides.forge.changes: 380, past its bound of
+    379, the most the store's tier rows hold (2 * forge.changes + 1
+    within 759)`. Within it, a store bound the larger rows outgrow
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;
