@@ -295,6 +295,9 @@ const USAGES: &[&[u8]] = &[
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
     b"project remove PROJECT --key KEY\n",
+    b"draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH --key KEY\n",
+    b"draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH --key KEY\n",
+    b"draft list --project PROJECT [--until CONDITION] [--timeout DURATION]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -517,6 +520,10 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
 #[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
+}
+#[test]
+fn the_draft_reference_is_what_the_table_renders() {
+    reference_matches(b"draft", b"ctl-draft");
 }
 #[test]
 fn the_forge_reference_is_what_the_table_renders() {
