@@ -207,7 +207,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::RESTORE_AT
         | rows::PROJECT_MAKE_AT
         | rows::PROJECT_FUND_AT
-        | rows::PROJECT_AMEND_AT => {
+        | rows::PROJECT_AMEND_AT
+        | rows::PROJECT_REMOVE_AT => {
             acts::start(runner, client, env, called, out);
         }
         rows::TREE_AT => reads::start(runner, client, env, called, out),
