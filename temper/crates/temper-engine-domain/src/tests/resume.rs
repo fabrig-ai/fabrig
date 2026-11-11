@@ -612,6 +612,7 @@ fn an_empty_store_opens_through_every_start_phase_in_order() {
 fn repository() -> temper_engine_domain_forge::Repository {
     use temper_engine_domain_forge as forge;
     forge::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: false,

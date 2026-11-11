@@ -45,6 +45,7 @@ fn head(d: &mut Domain, branch: &[u8], commit: skein_forge::api::Commit) {
 
 fn selection(d: &Domain, modify: bool, saved: bool) -> Option<items::Item> {
     d.workspace_item(items::Seed {
+        project: 5,
         modify,
         task: GOAL,
         parent: None,

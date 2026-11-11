@@ -113,6 +113,8 @@ pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
     pub project: u32,
+    /// Other projects reading this repository (domain/forge/follows.md, 8).
+    pub contexts: Box<[u32]>,
     /// This project's selected repository for goal issue projections and chats' saved work.
     pub home: bool,
     pub provider: skein_forge::api::Repository,
@@ -130,6 +132,43 @@ pub struct Repository {
     pub settings: skein_forge::api::Settings,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
+}
+impl Repository {
+    /// This project's adoption role (domain/forge/follows.md, 8).
+    #[must_use]
+    pub fn role_for(&self, project: u32) -> Option<Role> {
+        if self.project == project {
+            Some(self.role)
+        } else if self.contexts.contains(&project) {
+            Some(Role::Context)
+        } else {
+            None
+        }
+    }
+
+    /// Project-scoped facts; context never carries a writer's home or effects.
+    #[must_use]
+    pub fn for_project(&self, project: u32) -> Option<Self> {
+        let role = self.role_for(project)?;
+        let mut row = self.clone();
+        row.project = project;
+        row.role = role;
+        if role == Role::Context {
+            row.home = false;
+            row.kinds = Kinds {
+                read: self.kinds.read,
+                push: false,
+                open: false,
+                land: false,
+                review: false,
+                status: false,
+                comment: false,
+                issue: false,
+                branch: false,
+            };
+        }
+        Some(row)
+    }
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
 /// application credential numbered by the deployment's configuration

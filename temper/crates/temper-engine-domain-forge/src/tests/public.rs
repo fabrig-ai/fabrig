@@ -136,6 +136,7 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,

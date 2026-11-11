@@ -1150,19 +1150,21 @@ impl Domain {
 
     /// Resolve a deployment-wide saved repository tag within its project.
     #[must_use]
-    pub fn repository_tag(&self, project: u32, tag: u64) -> Option<&Repository> {
+    pub fn repository_tag(&self, project: u32, tag: u64) -> Option<Repository> {
         let (forge, repository) = untag(tag)?;
         let adopted = self.repository(skein_forge::api::Repository { forge, repository })?;
-        if adopted.project == project { Some(adopted) } else { None }
+        adopted.for_project(project)
     }
 
     /// All adopted repositories of this project on forges that have not ended.
     #[must_use]
-    pub fn readable_repositories(&self, project: u32) -> Box<[&Repository]> {
+    pub fn readable_repositories(&self, project: u32) -> Box<[Repository]> {
         let mut repositories = List::with_capacity(self.repositories.capacity());
         for (_, repository) in &self.repositories {
-            if repository.project == project && !self.forge_ended(repository.provider.forge) {
-                repositories.push(repository).expect("bounded adopted repositories");
+            if !self.forge_ended(repository.provider.forge)
+                && let Some(row) = repository.for_project(project)
+            {
+                repositories.push(row).expect("bounded adopted repositories");
             }
         }
         repositories.into_boxed()
@@ -1173,8 +1175,8 @@ impl Domain {
     pub fn writable_repositories(&self, project: u32) -> Box<[&Repository]> {
         let mut repositories = List::with_capacity(self.repositories.capacity());
         for (_, repository) in &self.repositories {
-            if repository.project == project
-                && repository.role != Role::Context
+            if repository.role_for(project).is_some()
+                && repository.role_for(project) != Some(Role::Context)
                 && repository.kinds.push
                 && !self.forge_ended(repository.provider.forge)
             {

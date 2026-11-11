@@ -189,6 +189,7 @@ pub(super) fn decode_settings(value: w::Settings) -> api::Settings {
 pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
     let d::Repository {
         project,
+        contexts,
         home,
         provider,
         host,
@@ -207,6 +208,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
         &w::CEILINGS,
         w::AdoptedParts {
             project: *project,
+            contexts: encode_checks(contexts),
             home: *home,
             provider: encode_repository(*provider),
             host: host.clone(),
@@ -227,6 +229,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
 pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Repository, Undecodable> {
     let w::AdoptedParts {
         project,
+        contexts,
         home,
         provider,
         host,
@@ -243,6 +246,7 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
     } = value.into_parts();
     Ok(d::Repository {
         project,
+        contexts: contexts.into_boxed(),
         home,
         provider: decode_repository(provider),
         host,

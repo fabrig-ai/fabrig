@@ -220,7 +220,7 @@ fn a_removed_forge_leaves_every_list_and_refuses_calls() {
     assert_eq!(d.home(5), None);
     assert_eq!(d.offer(1), Offer::NotOffered);
     assert_eq!(d.repository(REPO), Some(&home));
-    assert_eq!(d.repository_tag(5, tag(1, 2)), Some(&home));
+    assert_eq!(d.repository_tag(5, tag(1, 2)).as_ref(), Some(&home));
     assert!(outputs(&mut d, Event::Connection { forge: 1, state: Connection::Connecting }).is_empty());
     assert_eq!(d.connection(1), Connection::NotConnected);
     let sent = outputs(
