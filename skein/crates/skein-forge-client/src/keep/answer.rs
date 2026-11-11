@@ -190,6 +190,10 @@ pub(crate) fn answered_resource(
             let row = d.keep.live.get_mut(key).expect("resource remains");
             super::taken(row, phase);
             row.presence = super::Presence::Present;
+            // A size alone is not news (forge/client.md, 4).
+            if let Some(kept) = &mut row.record.cached.pull {
+                kept.size = pull.size;
+            }
             let changed = row.record.cached.pull.as_ref() != Some(&pull);
             row.record.cached.pull = Some(pull.clone());
             out.push(Request::Save { record: Stored::Live(row.record.clone()) });

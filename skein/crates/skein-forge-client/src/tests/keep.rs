@@ -1564,3 +1564,35 @@ fn hints_read_only_the_pulls_whose_branch_facts_can_move() {
         },
     );
 }
+
+#[test]
+fn pull_size_alone_is_saved_without_news_and_a_new_head_carries_it() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(pull(), false)]));
+    h.clock();
+    let item = h.one();
+    h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+    let read = h.one();
+    h.answer(read, Answer::Pull(current()));
+    h.news.clear();
+    let mut observed = current();
+    observed.size = Some(api::Size { files: 3, additions: 3, deletions: 0 });
+    for new_head in [false, true] {
+        h.restart();
+        let item = h.one();
+        h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+        let read = h.one();
+        assert_eq!(read.op, Op::Read(Read::Pull { number: 9, ci: true }));
+        if new_head {
+            observed.commit = [7; 32];
+        }
+        h.answer(read, Answer::Pull(observed.clone()));
+        assert_eq!(h.record(&pull()).cached.pull.as_ref(), Some(&observed));
+        assert_eq!(h.domain.cached(&pull()).expect("kept pull").pull.as_ref(), Some(&observed));
+        if new_head {
+            assert_eq!(h.news.as_slice(), &[Answer::Pull(observed.clone())]);
+        } else {
+            assert!(h.news.is_empty(), "a size alone is not watch news");
+        }
+    }
+}
