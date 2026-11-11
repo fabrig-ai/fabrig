@@ -31,13 +31,17 @@ start and stop are this section's own.
      most 8 KiB, is kept for the failure's words.
   2. **Starting:** on `found PATH` and exit 0, the run spawns `PATH
      --front ARGUMENT...`, the arguments unchanged, with the captured
-     environment and working directory, in `temper`'s own process group,
-     handing it four descriptors (`../../protocol/setup/box.md`, 6): 0,
+     environment and working directory, in a process group of its own as
+     skein's spawn makes every child's (skein-io's `kernel::Spawn`),
+     handing it five descriptors (`../../protocol/setup/box.md`, 6): 0,
      the read end of a pipe whose write end the run holds and never
-     writes, its life; 1 and 2, the write end of one pipe the run reads
-     into the box's tail, its last 8 KiB; 3 and 4, the write ends of the
-     link's pipe and the lines' pipe. The run keeps no write end it
-     handed.
+     writes, its life; 1 and 2, the write ends of two pipes the run reads
+     into the box's one tail, its last 8 KiB, in the order their reads
+     come; 3 and 4, the write ends of the link's pipe and the lines'
+     pipe. The run keeps no write end it handed. Since the box is not in
+     `temper`'s group, no signal sent to `temper`'s group or from its
+     terminal reaches it: it stops by its life pipe's end, or the second
+     stop's `SIGTERM`, alone.
   3. **Running:** the run reads the link's pipe to its end, at most
      4,096 bytes: the local link's URL, `http://HOST:PORT/...`, whose
      authority is the engine's address. The run makes no connection to
