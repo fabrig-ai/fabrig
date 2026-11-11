@@ -2881,6 +2881,14 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 #[test]
 fn changes_document_encodes_and_decodes() {
     let value = forge::ChangesView {
+        landed_default: Box::new([forge::ChangesLanded {
+            task: 49,
+            title: Box::from(b"Default landing".as_slice()),
+            at: skein_lib::Wall::from_nanos(900),
+            commit: [0xcd; 32],
+            default_branch: true,
+        }]),
+        landed_default_more: 2,
         project: 7,
         landing: Box::from(b"main".as_slice()),
         more: 3,
@@ -2905,6 +2913,8 @@ fn changes_document_encodes_and_decodes() {
             ]),
         }]),
         landed: Box::new([forge::ChangesLanded {
+            commit: [0xab; 32],
+            default_branch: true,
             task: 50,
             title: Box::from(b"Landed".as_slice()),
             at: skein_lib::Wall::from_nanos(987),
@@ -2935,6 +2945,14 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!(got.landed().len(), 1);
     let landed = got.landed().get(0).unwrap();
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
+    assert_eq!(*landed.commit(), [0xab; 32]);
+    assert!(landed.default_branch());
+    assert_eq!(got.landed_default_more(), 2);
+    assert_eq!(got.landed_default().len(), 1);
+    let default = got.landed_default().get(0).unwrap();
+    assert_eq!((default.task(), default.title(), default.at()), (49, b"Default landing".as_slice(), 900));
+    assert_eq!(*default.commit(), [0xcd; 32]);
+    assert!(default.default_branch());
 }
 #[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
@@ -3539,6 +3557,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
     for task in 0..limits.forge.changes_landed {
         landed
             .push(forge::ChangesLanded {
+                commit: [0xab; 32],
+                default_branch: true,
                 task: u64::from(task),
                 title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                 at: skein_lib::Wall::EPOCH,
@@ -3546,6 +3566,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
             .unwrap();
     }
     let document = forge::Document::Changes(forge::ChangesView {
+        landed_default: landed.clone().into_boxed(),
+        landed_default_more: 0,
         project: 1,
         landing: repeated(b'b', limits.forge.name_bytes),
         queues: queues.into_boxed(),
