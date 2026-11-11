@@ -229,7 +229,7 @@ impl ForgeStand {
     /// domain/forge/change/gates.md, 2: a person reviews the pull's current head outside temper's writer.
     pub fn review(&mut self, repository: u32, number: u64, user: u64, verdict: api::Verdict, commit: api::Commit) {
         let repository = api::Repository { forge: self.forge, repository };
-        let api::Answer::Pull(pull) = self.read(repository, api::Read::Pull { number }) else {
+        let api::Answer::Pull(pull) = self.read(repository, api::Read::Pull { number, ci: false }) else {
             panic!("pull to review");
         };
         assert_eq!(pull.commit, commit, "review at the named head");

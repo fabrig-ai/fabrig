@@ -81,6 +81,7 @@ pub fn github_repository(h: &mut Harness, repository: api::Repository, account: 
             name: Box::from(b"widgets".as_slice()),
             owner_id: account,
             organization: true,
+            settings: api::Settings { default_branch: Box::from(*b"main"), merge: true, squash: true, rebase: true },
             merge: Some(skein_forge::github::plans::tables::Method::Merge),
             html_url: Box::from(b"https://github.com/acme/widgets".as_slice()),
         },

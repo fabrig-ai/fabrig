@@ -22,6 +22,13 @@ makes each call to a forge and hears its deliveries, is
   of what the forge owns of the resources live tasks name (pull
   requests' heads and states, CI on those heads, landing branches'
   tips), kept up by listing what changed, sooner on a webhook's hint.
+- **Quiet on the forge.** temper reads what a reader needs, when it can
+  have moved (`keeping-up.md`, 2 and 3): a branch nothing has pushed
+  waits on its push, with `fallback` as its only poll; a hint wakes only
+  the changes it can concern; a gather reads each commit's CI once and
+  shares a fresh read its fellows ask with it; the repository's own
+  facts are read once and kept; pages hold as many real rows as their
+  bytes allow; and a read of something unchanged costs a `304`.
 - **The change procedure** takes a change from produced to landed:
   produce, open, CI, gates, its turn in its landing branch's queue, an
   update from its base when it lacks the base's tip, and a merge at

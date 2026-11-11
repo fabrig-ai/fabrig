@@ -250,7 +250,7 @@ fn a_reused_branch_lands_its_own_pull_after_an_earlier_deployment() {
     assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
     assert_ne!(landed, Some(old_merge));
     let calls = world.take_calls();
-    assert!(calls.contains(&skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: own })));
+    assert!(calls.contains(&skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: own, ci: false })));
     assert!(!calls.iter().any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFor { .. }))));
 }
 

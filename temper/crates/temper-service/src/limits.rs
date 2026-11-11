@@ -501,7 +501,13 @@ pub fn profile(profile: Profile) -> Limits {
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
-    names::apply(limits, name, value)
+    names::apply(limits, name, value)?;
+    if name == b"forge.client.calls" || name == b"forge.client.answer_bytes" {
+        limits.forge_component.kept_bytes = u64::from(limits.forge.client.calls)
+            .checked_mul(u64::from(limits.forge.client.answer_bytes))
+            .expect("two u32 limits fit u64");
+    }
+    Ok(())
 }
 /// Build the root's limits from jig's children and temper's own room.
 #[must_use]

@@ -52,7 +52,7 @@ impl Protocol {
             seed,
             chance,
             config,
-            fixtures::limits(),
+            fixtures::protocol_limits(),
             fixtures::writer_settings(),
             fixtures::protocol_shared(),
             joint::checks(1000),
@@ -73,7 +73,7 @@ impl Protocol {
         let joint = Joint::github(
             seed,
             0,
-            fixtures::limits(),
+            fixtures::protocol_limits(),
             fixtures::github_settings(),
             fixtures::protocol_shared(),
             checks,
@@ -88,7 +88,7 @@ impl Protocol {
             seed,
             0,
             fixtures::protocol_config(),
-            fixtures::limits(),
+            fixtures::limits_for(&limits.client),
             fixtures::writer_settings(),
             fixtures::protocol_shared_for(&limits.client),
             joint::checks(1000),
@@ -122,7 +122,7 @@ impl Protocol {
         // The story supplies each end and its status separately, with no second
         // delivery of the same jobs from the fake's automatic CI timers.
         checks.silent = 1000;
-        let mut component_limits = fixtures::limits();
+        let mut component_limits = fixtures::limits_for(&limits.client);
         component_limits.inner = 64;
         let joint = Joint::with(
             seed,
@@ -437,8 +437,9 @@ impl Protocol {
         self.merge_cut = None;
         self.cut_taken = false;
         self.cut_call = None;
-        let component = Component::new(self.fixture.settings(), &fixtures::limits(), &fixtures::protocol_shared())
-            .expect("fresh component");
+        let component =
+            Component::new(self.fixture.settings(), &fixtures::protocol_limits(), &fixtures::protocol_shared())
+                .expect("fresh component");
         self.joint.replace(component);
         self.accept_installations();
         self.top = Self::top(self.seed, self.fixture.writer, &self.env.limits);

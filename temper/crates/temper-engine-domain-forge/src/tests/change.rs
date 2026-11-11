@@ -29,7 +29,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     fixtures::step_change(&mut d);
     let mut pull = fixtures::open_pull();
     pull.ci = skein_forge::api::Ci::Pending;
-    for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(pull)] {
+    for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE)] {
         fixtures::answer_next(&mut d, Ok(answer));
     }
     let (call, checks) = fixtures::next_at(&mut d, &env);
@@ -37,7 +37,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     fixtures::advance(&mut d, &mut env, Duration::from_secs(100));
     let (again, op) = fixtures::next_at(&mut d, &env);
     assert_eq!(op, checks);
-    fixtures::answer_at(&mut d, &env, again, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+    fixtures::answer_at(&mut d, &env, again, Ok(Answer::Pull(pull)));
     let since = d.change(fixtures::CHANGE).expect("checking").change.since;
     assert_eq!(
         env.wall.as_nanos() - since.as_nanos(),
@@ -49,7 +49,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     for answer in [
         fixtures::checks(skein_forge::api::Check::Pending),
         Answer::Commits { commits: Box::new([]), more: false },
-        Answer::Reviews { reviews: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         let (call, _) = fixtures::next_at(&mut d, &env);
         out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
@@ -86,13 +86,17 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     outputs(&mut d, Event::SettleOutbox);
     fixtures::step_change(&mut d);
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    // With neither a recorded pull nor a pushed head, no history is read.
+    if !known && !pushed {
+        return d;
+    }
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     let mut pull = fixtures::open_pull();
     pull.state = State::Closed;
     pull.merged = if merged { Some(fixtures::BASE) } else { None };
     let (call, op) = fixtures::next_call(&mut d);
     let expected = if known {
-        skein_forge::api::Read::Pull { number: 1 }
+        skein_forge::api::Read::Pull { number: 1, ci: true }
     } else {
         skein_forge::api::Read::PullFor {
             head: Box::from(b"temper/51".as_slice()),
@@ -382,7 +386,8 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
-    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert!(
         finished.contains(&Request::ChangeDecision {
             task: fixtures::CHANGE,
@@ -451,7 +456,8 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
     let (pull, pull_read) = fixtures::next_call(&mut d);
     fixtures::answer(&mut d, pull, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
-    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert_eq!(overtaken.as_ref(), &[]);
     assert_eq!(
         [branch_read, base_read, pull_read],
@@ -534,7 +540,7 @@ fn merge_after_base_reads(d: &mut Domain) {
     assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
     fixtures::answer(d, call, Ok(fixtures::checks(Check::Passed)));
     fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut merging = false;
     for request in &finished {
         if let Request::ChangeDecision {
@@ -561,7 +567,8 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
         fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let mut proposed = None;
         for request in &finished {
             if let Request::ChangeDecision {
@@ -605,7 +612,8 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             d = first_change(Protection::Absent, Ci::Passed, true, false);
         }
         fixtures::finish_open(&mut d);
-        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let expected = if restart {
             change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
         } else {
@@ -627,7 +635,8 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
             fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
             fixtures::finish_open(&mut d);
-            let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+            let finished =
+                fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
             let mut merging = false;
             for request in &finished {
                 if let Request::ChangeDecision {
@@ -695,7 +704,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
     // At most a repository listing, the item, and the pull itself.
     for _ in 0_u32..3 {
         let (call, op) = fixtures::next_call(&mut d);
-        if op == Op::Read(Read::Pull { number }) {
+        if op == Op::Read(Read::Pull { number, ci: true }) {
             let mut pull = fixtures::open_pull();
             pull.number = number;
             pull.ci = Ci::Passed;
@@ -784,7 +793,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
             },
         );
         let (reviews, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
+        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
         if let Some(number) = watch {
             outputs(
                 &mut d,
@@ -798,7 +807,8 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 },
             );
         }
-        let finished = fixtures::answer(&mut d, reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer(&mut d, reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let until = Wall::from_nanos(env().wall.as_nanos() + delay.as_nanos());
         assert!(
             finished.contains(&Request::ChangeDecision {
@@ -1461,7 +1471,6 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
     fixtures::answer(
@@ -1476,7 +1485,7 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
             more: false,
         }),
     );
-    let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let effect = if preparing {
         change::Effect::Prepare { head: fixtures::HEAD, main: fixtures::BASE }
     } else {
@@ -1646,7 +1655,10 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
         fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
-        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Reviews { reviews: Box::new([]), more: false }));
+        fixtures::answer_next(
+            &mut d,
+            Ok(skein_forge::api::Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         assert_eq!(
             d.change(fixtures::CHANGE).expect("held change").change.state,
             change::State::Held { was: Box::new(was), why: change::Hold::Failed }
@@ -1701,4 +1713,98 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
     assert_eq!(row.change.repairs, 1);
     assert_eq!(row.repair_tasks.as_ref(), &[52, 53]);
     assert_eq!(row.resolution_tasks.as_ref(), &[90]);
+}
+
+/// One required context gives the gather a reason to read rows, not the pull's verdict.
+fn ci_protection(required: bool) -> Protection {
+    if !required {
+        return Protection::Absent;
+    }
+    Protection::Rule(skein_forge::api::Protection {
+        queue: false,
+        signatures: false,
+        linear: false,
+        code_owners: false,
+        bypass: skein_forge::api::Bypass::Never,
+        branch: Box::from(b"main".as_slice()),
+        contexts: Box::new([Box::from(b"ci".as_slice())]),
+        approvals: 0,
+        dismiss_stale: false,
+    })
+}
+
+#[test]
+fn head_ci_contexts_are_read_once_per_gather() {
+    use skein_forge::api::{Answer, Check, Ci, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    for (name, (required, numbered, at_head, same_base, head_checks)) in [
+        ("known pull serves head", (false, true, true, false, false)),
+        ("required context reads head", (true, true, true, false, true)),
+        ("found by branches reads head", (false, false, true, false, true)),
+        ("pull at another commit reads head", (false, true, false, false, true)),
+        ("head is base uses pull once", (false, true, true, true, false)),
+        ("required head is base reads checks once", (true, true, true, true, true)),
+    ] {
+        let mut d = domain();
+        let mut repository = adopted();
+        repository.protection = ci_protection(required);
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.pull = if numbered { Some(1) } else { None };
+        row.change.state = change::State::Checking { head: fixtures::HEAD };
+        outputs(&mut d, Event::Change { row });
+        if same_base {
+            let name = Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+            };
+            d.heads.insert(name.clone(), BranchHead { name, commit: fixtures::HEAD, owned: false }).unwrap();
+        }
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        let base = if same_base { fixtures::HEAD } else { fixtures::BASE };
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(base)));
+        let (call, op) = fixtures::next_call(&mut d);
+        let expected = if numbered {
+            Read::Pull { number: 1, ci: !required }
+        } else {
+            Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }
+        };
+        assert_eq!(op, Op::Read(expected), "{name}");
+        let mut pull = fixtures::open_pull();
+        pull.ci = if numbered && !required { Ci::Pending } else { Ci::None };
+        if !at_head {
+            pull.commit = [8; 32];
+        }
+        fixtures::answer(&mut d, call, Ok(Answer::Pull(pull)));
+        if head_checks {
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::HEAD }));
+            fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Pending)));
+        }
+        if !same_base {
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Checks { commit: base }));
+            fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(d.panel_ci.get(&fixtures::CHANGE).unwrap().status, change::Status::Pending, "{name}: head verdict");
+        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: base, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let mut waited = false;
+        for request in &finished {
+            if let Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. } = request {
+                waited = true;
+            }
+        }
+        assert!(waited, "{name}: {finished:?}");
+    }
 }
