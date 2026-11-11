@@ -1030,7 +1030,7 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
             unmapped: Box::new([]),
         };
         let prior = evidence.prior.clone();
-        outputs(&mut d, Event::VetoChange { task: CHANGE, entry: fixtures::OPEN + 1, prior });
+        outputs(&mut d, Event::VetoChange { task: CHANGE, entry: fixtures::OPEN + 1, prior, leaves_queue: false });
         assert!(d.keep_review_facts(env().wall, CHANGE, facts.clone()));
         assert_eq!(d.approval_waits(env().wall, &LIMITS)[0].size, expected);
         // A new head's facts replace the size rather than inheriting it.
