@@ -59,9 +59,12 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   time.
 - **One store per repository.** A bare repository on the worker's disk,
   outside every workspace, holds a repository's objects for every checkout
-  of it, which borrows them through its alternates file: a clone asks the
-  forge for nothing, and a fetch goes into the store and then points the
-  checkout's reference (4.2, 4.3, 4.11; `../domain/worker.md`, section 5).
+  of it, which borrows them through its alternates file: the store is made
+  once, a bare clone of the forge's default branch, which takes the
+  remote's object format; a checkout's clone asks the forge for nothing,
+  and takes the store's format; and a fetch goes into the store and then
+  points the checkout's reference (4.2, 4.3, 4.11;
+  `../domain/worker.md`, section 5).
 - **A deadline or a cancel kills the invocation's process group,** and
   the operation ends only once its process has closed, so nothing of it
   touches the workspace afterwards.
@@ -123,7 +126,7 @@ Every invocation has this shape:
 ```
 program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
 argv       git -c <setting> … <command> <options> [--] <operands>
-directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, or the store's for Store's init and Fetch's fetch
+directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `stores` for Store's clone
 environment  given whole (section 5)
 pipes      stdin (written, then closed), stdout, stderr
 ```
@@ -157,7 +160,7 @@ pipes      stdin (written, then closed), stdout, stderr
   (`../domain/worker.md`, 4.1), and a store's is `stores/<token>`.
 - **Operands.** Object ids are hex the component writes; branches appear
   only inside refspecs the component composes (`refs/heads/<branch>`);
-  the remote URL and Clone's directory come after `--`. So no operand can
+  the remote URL and Clone's and Store's directories come after `--`. So no operand can
   be read as an option.
 - **A renamed repository.** The remote is made from the owner and name
   the engine's root holds (channel.md, section 4). git follows Forgejo's
@@ -203,7 +206,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | Operation | Invocations | Ends in |
 |---|---|---|
 | `Make` | none: two file operations, and one for each store it names | `Succeeded` |
-| `Clone` | 2, and a file's write | `Succeeded` |
+| `Clone` | 3, and a file's write | `Succeeded` |
 | `Fetch` | 2: one in the store, one in the repository | `Fetched { commit }` |
 | `Create` | 1 | `Succeeded`, `Exists` |
 | `CheckOut` | 2 | `Succeeded` |
@@ -211,7 +214,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | `Commit` | 1 to 4; a delivery adds 2 to 5, and a scan of files for a merge | `Committed { commit }`, `Unchanged`, `Conflicted { files }` |
 | `Push` | 1, or 2 with an expected head | `Succeeded`, `Rejected` |
 | `IsAncestor` | 1 | `IsAncestor { contains }` |
-| `Store` | 1, and two or three file operations | `Succeeded` |
+| `Store` | 1, a clone, and two or three file operations | `Succeeded` |
 | `Point` | 1 | `Succeeded` |
 
 Each may also end failed, with the fault of section 6. Below, `<url>` is
@@ -263,24 +266,32 @@ for the next pass, which starts at the next `Make` or the next start.
 `Clone { at, remote, store }`: the repository, empty, borrowing the
 store's objects. It names no identity: nothing reaches the forge.
 
-1. In the workspace's directory, which `Make` left without it:
+1. In the store's directory, `stores/<store>`:
    ```
-   git init --quiet -- <dir>
+   git rev-parse --show-object-format
    ```
-2. The file `<dir>/.git/objects/info/alternates` written whole, holding
+   whose stdout is the store's format, `sha1` or `sha256`, and a newline;
+   anything else is `Broken`. A repository borrows only from a store of its
+   own format.
+2. In the workspace's directory, which `Make` left without it:
+   ```
+   git init --quiet --object-format=<format> -- <dir>
+   ```
+3. The file `<dir>/.git/objects/info/alternates` written whole, holding
    `../../../../../stores/<store>/objects` and a newline: git reads a
    relative alternate from the repository's object directory, so the file
    names no path of the machine, and a run's own git reads the store too.
-3. In the repository's directory:
+4. In the repository's directory:
    ```
    git remote add origin -- <url>
    ```
    so `remote.origin.url` is the remote, as `git clone` wrote it, and no
    reference is fetched.
 
-- **Exit 0 from both, and the file written:** `Succeeded`. Any other exit,
-  or a failed file operation, is `Broken`. A repository the forge lacks is
-  the first fetch's `Missing { Repository }` (4.3).
+- **Exit 0 from all three, and the file written:** `Succeeded`. Any other
+  exit, or a failed file operation, is `Broken`. A repository the forge
+  lacks is the store's `Missing { Repository }` (4.11), or, once its store
+  is made, the first fetch's (4.3).
 - **Full history, no checkout.** No `--depth` and no `--filter`: the store
   holds the whole history of what was fetched, and a partial clone would
   fetch missing objects later, from `CheckOut` and `Merge`, which carry no
@@ -613,30 +624,43 @@ git push --porcelain --force-with-lease=refs/heads/<branch>:<e> -- <url> <commit
 
 ### 4.11 Store
 
-`Store { store, aside, git }`, `git` the program (section 3): `stores/<store>` a bare repository,
-unless one is there, made whole before it is moved into place, so that two
-`Store`s of one store at once leave one, each `Succeeded`, and a fetch that
-follows either finds it whole (`../domain/worker.md`, section 5).
+`Store { store, aside, remote, identity, account, git }`, `git` the
+program (section 3): `stores/<store>` a bare clone of the remote's default
+branch, unless one is there, made whole before it is moved into place, so
+that two `Store`s of one store at once leave one, each `Succeeded`, and a
+fetch that follows either finds it whole (`../domain/worker.md`,
+section 5).
 
 1. Where `aside` names a store (one no workspace borrows, whose slot the
    cache gives another remote), `Rename` `stores/<aside>` to `trash/<n>`;
    one that does not exist is nothing to move.
 2. `MakeDirectory` `stores/new-<m>`, mode 0o700, `<m>` the component's next
-   serial number, the one `trash` names take, and in it:
+   serial number, the one `trash` names take, and in `stores`:
    ```
-   git init --bare --quiet
+   git clone --bare --single-branch --no-tags --quiet -- <url> new-<m>
    ```
+   which git accepts into the empty directory.
 3. `Rename` `stores/new-<m>` to `stores/<store>`, never replacing: where
    `stores/<store>` is there already, `stores/new-<m>` is renamed to
    `trash/<m>` instead.
 
 - **Exit 0 and the file operations done:** `Succeeded`, whichever rename
-  took. Any other exit, or a failed file operation, is `Broken`, and what
-  step 2 made is renamed to `trash` if it can be.
-- **Its configuration is `git init`'s alone:** no clone and no remote, and
-  every fetch names its URL on the command line (section 3). Nothing of a
-  workspace's reaches it but objects the forge sent and references under the
-  workspace's token.
+  took. A failed clone is classified by section 6's table, as a fetch is (a
+  repository the forge lacks is `Missing { Repository }`, a token it
+  refused `Refused`); any other failed file operation is `Broken`; and
+  what step 2 made is renamed to `trash` if it can be.
+- **A clone, for the object format.** `git init` makes a SHA-1 repository,
+  and git 2.47's fetch from a SHA-256 remote into it fails (`fatal:
+  mismatched algorithms: client sha1; server sha256`); a clone takes the
+  remote's format, an empty remote's too, which `Clone` then reads (4.2).
+  `--single-branch` brings the forge's default branch alone, the history a
+  first prepare most likely fetches next, so that fetch brings nothing
+  more; nothing else is fetched but what an assignment names (4.3).
+- **Its configuration is the clone's:** `remote.origin` names the remote
+  and its default branch, and no fetch reads it: every fetch names its URL
+  on the command line (section 3). Its `refs/heads/<default>` stays where
+  the clone put it. Nothing of a workspace's reaches it but objects the
+  forge sent and references under the workspace's token.
 - **Never maintained:** `gc.auto=0` and `maintenance.auto=false` hold for
   it as for every repository, so nothing prunes an object a checkout may
   borrow (`../domain/worker.md`, section 12).
@@ -669,7 +693,7 @@ variable of the worker's own process reaches git.
 | `GIT_ASKPASS` | empty | every invocation: no askpass program, whatever a repository's `core.askPass` says |
 | `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` | the identity's author; or `temper` and `temper@temper.invalid` for an operation that names no identity | every invocation: the committer of a commit, or of a reference's log entry |
 | `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL` | the identity's author | `Commit` |
-| `GIT_CONFIG_COUNT` | `1` | `Fetch`'s fetch, `Create`, `Push` |
+| `GIT_CONFIG_COUNT` | `1` | `Store`'s clone, `Fetch`'s fetch, `Create`, `Push` |
 | `GIT_CONFIG_KEY_0` | `http.extraHeader` | likewise |
 | `GIT_CONFIG_VALUE_0` | `Authorization: Basic ` and the base64 of `<login>:<token>` | likewise |
 
@@ -729,8 +753,8 @@ variable of the worker's own process reaches git.
 | `fatal: unable to access '…': ` and anything else: another status, a refused connection, a name not resolved, a TLS failure, a timeout | `Unreachable` |
 | `fatal: the remote end hung up unexpectedly`, `fatal: early EOF`, `error: RPC failed…` | `Unreachable` |
 
-- **Only invocations that reach the forge** (`Fetch`'s fetch, `Create`,
-  `Push`) are classified by the table. A local one that fails is `Broken`.
+- **Only invocations that reach the forge** (`Store`'s clone, `Fetch`'s
+  fetch, `Create`, `Push`) are classified by the table. A local one that fails is `Broken`.
 - **The faults** are the checkout's (`git::Fault`): `Missing` where the
   forge lacks what was asked, `Refused` where it refused the identity or
   the update, `Unreachable` where it could not be reached or failed,
@@ -876,7 +900,7 @@ checks this document's contract:
   process groups: an agent could read a running git's environment, or
   write a repository's configuration (a URL rewrite, a proxy) before the
   next invocation, or a store's, which sits beside the workspaces. A fetch
-  runs in the store, whose configuration only `git init` wrote, so a
+  runs in the store, whose configuration only `Store`'s clone wrote, so a
   checkout's own configuration reaches the forge only through a push and
   the delivery's second-parent fetch (4.7). Default: accepted on one person's machine
   (credentials.md, section 8); the command-line settings of section 3
