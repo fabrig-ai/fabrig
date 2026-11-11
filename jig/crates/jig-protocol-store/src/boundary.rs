@@ -337,7 +337,7 @@ macro_rules! older {
             concat!(
                 $clause,
                 $why,
-                ", and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                ", and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
             ),
             " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
         ]
@@ -414,7 +414,7 @@ impl OpenRefusal {
             ],
             Self::OlderBuild { why: Older::Unleveled } => &[
                 "",
-                " holds a store from before the first release, which records no patch levels, and this start has changed nothing in it. A store from before the first release is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
             Self::Ahead { .. } => &[
