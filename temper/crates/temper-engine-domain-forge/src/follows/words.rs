@@ -104,3 +104,35 @@ fn message_lines(out: &mut List<u8>, bytes: &[u8]) {
     if from < bytes.len() { add(out, b"  "); add(out, bytes.get(from..).expect("last message line")); add(out, b"\n"); }
 }
 fn page(out: &mut List<u8>, n: &Words) { add(out, n.pages.strip_suffix(b"/").unwrap_or(&n.pages)); add(out, b"/"); add(out, &n.source); }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{FollowCommit, FollowState};
+    use alloc::{format, vec};
+    fn entry(after: u8) -> FollowEntry {
+        FollowEntry { before: [1;32], after: [after;32], pull: Some(17),
+            commits: Box::new([FollowCommit { id: [after;32], message: format!("Whole head {after}\n{}", "body rest ".repeat(40)).into_bytes().into() }]),
+            more_commits: 2, files: Some(Box::new([vec![b'a';180].into(), vec![b'b';180].into()])), more_files: 1, change: None, state: FollowState::NotMade, word: false, remake: false }
+    }
+    #[test]
+    #[expect(clippy::disallowed_methods, reason = "the word-builder test inspects UTF-8 cuts in its ASCII fixtures and generated ellipses")]
+    fn briefs_cut_message_rest_before_files_keep_heads_and_merge_blocks() {
+        let names = Words { follow: 1, source: b"org/vsr".as_slice().into(), branch: b"main".as_slice().into(), target: b"org/vsr-rs".as_slice().into(), target_branch: b"main".as_slice().into(), pages: b"https://forge.example".as_slice().into(), paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]) };
+        let entries = [entry(2), entry(3)]; let full = build(&entries, &names, 4096).unwrap();
+        let spec_bytes = u32::try_from(full.len()).unwrap(); let parameters_bytes = 100;
+        let fitted = build(&entries, &names, spec_bytes - parameters_bytes).unwrap();
+        assert!(fitted.len() <= usize::try_from(spec_bytes - parameters_bytes).unwrap());
+        let text = core::str::from_utf8(&fitted).unwrap(); assert_eq!(text.matches("Port landing ").count(), 2);
+        assert!(text.starts_with("Follow org/vsr 030303030303 and 1 more: Whole head 3"));
+        assert!(text.contains("- 020202020202 Whole head 2\n") && text.contains("- 030303030303 Whole head 3\n"));
+        assert!(text.contains('…'));
+        assert_eq!(text.matches(&format!("- {}\n", "a".repeat(180))).count(), 2, "files survive the first cut");
+        let files_cut = build(&entries, &names, spec_bytes - 1000).unwrap(); let text = core::str::from_utf8(&files_cut).unwrap();
+        assert!(!text.contains("body rest"), "all message rest is cut before files");
+        assert!(text.contains("Whole head 2\n  …\n") && text.contains("Whole head 3\n  …\n"));
+        assert!(text.contains("Files in the follow's paths:\n…\n") || text.contains("\n…\nand 1 more files"));
+        assert!(files_cut.len() <= usize::try_from(spec_bytes - 1000).unwrap()); assert!(build(&entries, &names, 120).is_none(), "mandatory head lines are never cut");
+        let mut long = entry(4); long.commits[0].message = vec![b'x';200].into(); let title = build(&[long], &names, 4096).unwrap();
+        let title = core::str::from_utf8(&title).unwrap().lines().next().unwrap(); assert!(title.len() <= 120 && title.ends_with('…'));
+    }
+}
