@@ -76,41 +76,54 @@
     `domain/tasks/messages.md`, 3 and 4), a row each, in the document's
     order:
     - *a timer with a period:* "A timer", and its period: a week, the
-      weekday and clock of its `at`, "Mondays 06:00"; a day, "daily
-      06:00"; any other, "every" and the period, "every 4 hours";
+      weekday and clock of its `at` where the view keeps time, "Mondays
+      06:00"; a day, "daily 06:00"; any other, "every" and the period,
+      "every 4 hours"; its class the policy's `timers`: "at once" while
+      it is set, else "with its next wake";
     - *a timer without one:* "A timer", and "once, at" and its `at` as the
-      view says a time;
+      view says a clock time, "once, at 06:00" today, else with its date;
+      its class as a timer's with a period;
     - *another task's state:* "Task N held", "Task N's result", or "Task N
       held, or its result", by its `held` and `result`, N a link to the
-      task's page; its class the wake policy's rule for the kind of
-      message jig delivers it as;
-    - *a connector's topics:* one row for all the forge's, at the place of
-      the first, "News from the forge", or "News from the forge, on N
-      topics"; one for each other connector's, "News from connector N";
-      its class the policy's `news` rule. What a topic is, a landing on a
-      branch, a check or a pull, temper's forge keeps and no client read
-      gives (section 2).
+      task's page; jig delivers either as a notice (jig's
+      `domain/tasks/messages.md`, 1), so its class is the policy's
+      `notices` rule;
+    - *a connector's topics:* one row for all the forge's, connector
+      `temper_client_protocol_wire::FORGE`, at the place of the first,
+      "News from the forge", or "News from the forge, on N topics"; one
+      for each other connector's, at the place of its first, "News from
+      connector N"; its class the policy's `news` rule. What a topic is, a
+      landing on a branch, a check or a pull, temper's forge keeps and no
+      client read gives (section 2).
 
     A class says the policy's rule: immediate, "at once"; paced, "every"
     and its span, "every 30 minutes"; batched, "N at a time, or after" and
-    its age; never, "with its next wake". A span, a period or an age is
-    said in its largest whole unit of minutes, hours, days and weeks:
-    "every 90 minutes", "every 4 hours", and "every hour" or "every day"
-    for one.
+    its age, "5 at a time, or after 2 hours"; never, "with its next wake".
+    A span, a period or an age is said in the largest of minutes, hours,
+    days and weeks that it is a whole number of: "every 90 minutes",
+    "every 4 hours", and "every hour" or "every day" for one; one that is
+    no whole number of minutes in seconds, "every 45 seconds".
   - *Its sessions,* from the role's activity (jig's
     `domain/tasks/standing.md`, sections 5 and 7): a session holds the
     runs from the first `RunBegan` after a `SessionEnded`, or after none,
     up to the next `SessionEnded`, which jig commits at the claim that
-    begins the next session, so it can come hours after its last run; the
-    session is named by its first run's attempt. A row: its first run's
-    start, as a weekday and clock, and its length, from that start to its
-    last run's `RunEnded`, as the view words a span, "Sun 01:52 · 49 min";
-    while one of its runs is live, "Sun 01:52 · running"; what it did,
-    its runs' last `Stood` words on one line, while any; and at its right
-    its cost, the sum of its runs' `RunEnded` `spent`, as it comes. A
-    session is drawn once its first run is read. The read stops at a
-    line older than the seven days, at the eighth session's start, or
-    after 16 pages.
+    begins the next session where the session ended on a wake (`Quiet`,
+    `Bound`, `Unoffered`, `Fresh`), so it can come hours after its last
+    run, and at once where it was closed or its rules changed (`Closed`,
+    `Rules`); the session is named by its first run's attempt. A row: its
+    first run's start, as a short weekday and a clock, whatever the day,
+    and its length, from that start to its last run's `RunEnded`, as the
+    view words a span, "Sun 01:52 · 49 min"; while one of its runs is
+    live, its `RunBegan` read and no `RunEnded` of its attempt after it,
+    "Sun 01:52 · running"; what it did, its runs' last `Stood` words on
+    one line, their line breaks as spaces, while any; and at its right its
+    cost, the sum of its ended runs' `RunEnded` `spent`, as it comes. The
+    read runs from the newest line back, so every line after one read is
+    read. A session is drawn once what comes before its first run is read:
+    the `SessionEnded` before it, or the start of the role's activity, a
+    page with no `before`; the session the read stops inside is not. The read
+    stops at a `RunBegan` or a `SessionEnded` older than the seven days,
+    once eight sessions are known, or after 16 pages.
   - *People,* a section headed "People": a box for each of the project's
     members of kind person (jig's `domain/people/README.md`, section 4), the
     person reading first, then the others in the document's order, each
@@ -197,8 +210,10 @@
       `charter N` for its charter, as `Role`'s page reads it, again when
       the session's `settings` watch names a newer revision; and its
       activity, jig's `Read::Activity` pages, newest first, on opening the
-      card and again when its line's last activity moves. A refused or
-      failed read leaves its part undrawn.
+      card and again when its line's last activity moves, reading back
+      from the newest line until it reaches a line already read, by its
+      `position`, and keeping what it read before. A refused or failed
+      read leaves its part undrawn.
   - *In the rail* (`../view.md`, 3): "Team", after "Work", while the project has two
     people or more or a standing role, current on `Team` whatever its
     `role`. Its count of people is the project's document's, and its
