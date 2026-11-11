@@ -237,6 +237,7 @@ pub fn ending(key: &domain::Key) -> Option<u64> {
             | people::Key::EndedRead { .. }
             | people::Key::ReadConversation { .. }
             | people::Key::Roles(..)
+            | people::Key::Deleted(..)
             | people::Key::Deletion(..)
             | people::Key::Public(..)
             | people::Key::Policy(..)
