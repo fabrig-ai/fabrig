@@ -59,7 +59,7 @@ pub fn parts(facts: &Facts) -> Parts {
         work: !facts.beginning,
         team: !facts.beginning && (members || standing_roles),
         ask: facts.asking,
-        how: !facts.beginning,
+        how: true,
         away: facts.away,
         new: if facts.beginning {
             New::Hidden
