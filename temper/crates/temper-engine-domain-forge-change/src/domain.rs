@@ -454,6 +454,9 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         | State::Ended => {
             unreachable!("held state retains a live predecessor")
         }
+        // A release decides from branch, base and pull, not the ended resolution's
+        // status (temper/docs/design/domain/forge/change/repairs.md, A release).
+        State::Resolving { base, .. } if why == Hold::Failed => State::WaitingProducer { base: *base },
         State::Producing { requested: true } if why == Hold::Failed => State::Producing { requested: false },
         State::Repairing { why: repair, .. } if why == Hold::Failed => {
             State::Repairing { requested: false, why: *repair }
@@ -1252,7 +1255,16 @@ fn waiting_producer(
     match facts.mergeable {
         Status::Passed => take_pushed_head(change, head, now),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
-        Status::Failed => conflict_due(change, base, Some(head), facts, standing, now, limits),
+        Status::Failed => match facts.delegate {
+            // A released resolution asks directly at the base now read, with no
+            // merge job (temper/docs/design/domain/forge/change/repairs.md, A release).
+            Some(Delegate::Resolve { .. } | Delegate::Merge { .. }) => {
+                resolving_due(change, facts.base_tip, facts, standing, now, limits)
+            }
+            Some(Delegate::Produce | Delegate::Close | Delegate::Repair(_) | Delegate::Gate { .. }) | None => {
+                conflict_due(change, base, Some(head), facts, standing, now, limits)
+            }
+        },
     }
 }
 
