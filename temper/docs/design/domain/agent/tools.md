@@ -141,7 +141,7 @@
   `change` (1); with the authorised brief, its task section a whole
   spec (`../../protocol/configuration/limits.md`), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves a margin at `temper init`'s models
+  bytes each), it leaves a margin at `temper-box init`'s models
   (`../../protocol/configuration/README.md`, section 9); `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -419,7 +419,7 @@ zero when the non-brief part consumes the bound. A party's direct change or
 proposal is refused as a judged charter item, naming its item index; a run's
 proposal receives a host error with these words and its run continues. On
 restart, a stored current charter that fails the check ends startup with
-`temper serve: restart refused: ` and the same diagnostic (2026-11-04).
+`temper-box serve: restart refused: ` and the same diagnostic (2026-11-04).
 
 ## 1. A change, in the run's words
 

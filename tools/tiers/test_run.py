@@ -28,7 +28,7 @@ args = sys.argv[1:]
 with open(os.environ["CALLS"], "a") as output:
     output.write(json.dumps({"name": name, "args": args, "env": {
         key: os.environ.get(key) for key in (
-            "NEXTEST_DOUBLE_SPAWN", "TEMPER_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
+            "NEXTEST_DOUBLE_SPAWN", "TEMPER_INTERNAL_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
             "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
             "CARGO_TARGET_DIR", "TEMPER_TEST_CLAUDE")}}) + "\\n")
 if name == "cargo" and args[:1] == ["metadata"]:
@@ -116,9 +116,9 @@ class RunnerTests(unittest.TestCase):
             '[binaries]\n'
             'browser-skein = [{package="skein-ui-example-server", bin="skein-ui-example"}]\n'
             'browser-jig = [{package="jig-test", bin="jig-test"}]\n'
-            'browser-temper = [{package="temper", bin="temper"}]\n'
+            'browser-temper = [{package="temper-box", bin="temper-box"}]\n'
             'qa-temper = [{package="smith-fake-claude", bin="fake-claude"}, '
-            '{package="temper", bin="temper"}]\n'
+            '{package="temper-box", bin="temper-box"}]\n'
             'qa-smith = []\nprocess-jig = []\nexhaustive-skein = []\n')
         with self.packages.open('a') as output:
             output.write(self.binary_lists)
@@ -135,7 +135,7 @@ class RunnerTests(unittest.TestCase):
         self.calls = self.root / "calls.jsonl"
         self.env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
                         ARTIFACTS=str(self.target), CALLS=str(self.calls),
-                        TEMPER_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
+                        TEMPER_INTERNAL_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
         for key in ("FAIL_BUILD", "NEXTEST_EXIT", "BUNDLE_EXIT", "BAD_METADATA", "METADATA_EXIT",
                     "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
                     "BAD_LISTING", "MISMATCH", "TIERS_WRAPPER", "TIERS_DISK_BYTES"):
@@ -179,7 +179,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "wrap"] * 3)
         self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "smith-fake-claude", "--bin", "fake-claude"])
-        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper", "--bin", "temper"])
+        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper-box", "--bin", "temper-box"])
         self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
         self.assertIsNone(calls[5]['env']['TEMPER_TEST_BUNDLE'])
 
@@ -201,7 +201,7 @@ class RunnerTests(unittest.TestCase):
               "--noscript", "jig needs WebAssembly and scripts."]),
         )
         shell = "temper/crates/temper-client-shell-web"
-        cases += (("temper", "browser", "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
+        cases += (("temper", "browser", "temper-client-shell-web", "temper-box", "TEMPER_TEST_BUNDLE",
                    "temper-bundle", ["--features", "loopback-navigation,small-window"],
                    ["--title", "temper", "--placeholder", f"{shell}/loading.html",
                     "--placeholder-stylesheet", f"{shell}/loading.css",
@@ -237,7 +237,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(calls[9]['env'][variable], str(self.target / out))
                 for call in calls:
                     self.assertEqual(call['env']['NEXTEST_DOUBLE_SPAWN'], "0")
-                    self.assertEqual(call['env']['TEMPER_BUNDLE'], "none")
+                    self.assertEqual(call['env']['TEMPER_INTERNAL_BUNDLE'], "none")
 
     def test_playground_bundle_replaces_stale_path_only_for_browser_temper(self):
         for tier in ("browser", "qa"):

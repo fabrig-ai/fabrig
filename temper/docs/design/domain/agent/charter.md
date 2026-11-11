@@ -29,7 +29,7 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
   the sections about its own mechanics, and each repository's guide.
   The small profile admits 14,592 body bytes across at most 64 brief
   sections; the forge reviews budget is 4,608 bytes within that total;
-  `standard`, which `temper init`'s box runs, gathers what its host part
+  `standard`, which `temper-box init`'s box runs, gathers what its host part
   leaves the largest stock charter, its task section a whole spec
   (`../../protocol/configuration/limits.md`). Assignment and receiving
   fitting (`tools.md`) may shorten those gathered sections to the charter and

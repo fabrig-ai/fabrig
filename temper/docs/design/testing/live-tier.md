@@ -9,7 +9,7 @@ account import` and back by `account export`, never copied, which the
 owned-forge landing story and the ladder's rungs take when given one
 (below).
 
-`crates/temper/tests/live.rs`, after jig's (jig's `protocol/service.md`,
+`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
 section 8; skein/docs/foundation/testing-strategy.md, 2.9).
 
 - **What runs:** the process tier's binary, owned Forgejo, real git and
@@ -24,7 +24,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   account, Claude Code's login by default, since it needs nobody.
 - **Claude Code, unattended** (the default). The live configuration's
   programs directory is `~/.local/state/temper/live/programs`. The
-  developer runs `temper program-login --config LIVE live`, `LIVE` the
+  developer runs `temper-box program-login --config LIVE live`, `LIVE` the
   live configuration's directory, once on each
   machine that runs the tier, and signs in as Claude Code asks
   (../protocol/credentials.md, section 3). Each run's deployment declares
@@ -156,7 +156,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time.
 - **A chat's change lands on github.com, through a restart,** a test
-  of its own, `crates/temper/tests/live_github.rs`, run by
+  of its own, `bin/temper-box/tests/live_github.rs`, run by
   `scripts/proof-live-github.sh OWNER`, `OWNER` the org `fabrig-ai` and
   no other account, one repository a run: the process tier's story of `process-tier.md`
   ("a chat's change on connected GitHub, through a restart") on the
@@ -265,7 +265,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
 - **The ladder's rungs,** a live story of their own each once its
   acceptance story (`../../development/acceptance.md`) passes on real
   backends (`../draft/v0.1.0.md`, 3): the acceptance story's steps as a
-  test in `crates/temper/tests/live.rs`, run by
+  test in `bin/temper-box/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
   (`real-loop.md`). B0's offline proofs need no person: its setup and its walk on

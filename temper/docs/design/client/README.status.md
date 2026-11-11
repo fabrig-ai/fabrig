@@ -367,7 +367,7 @@ terminal has shown any of it: the check, emacs vterm among them, is
   `send`).
 - **Not yet:** `tui/pages.md`, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
-  `../../help/reference/commands.md` and held by `temper`'s
+  `../../help/reference/commands.md` and held by `temper-box-shell`'s
   `tests/help.rs`) say "`/exit` or Ctrl+C closes it", where
   `temper help tui` and the TUI's list name `/quit`.
 
@@ -1041,10 +1041,10 @@ presses the switch across projects: the render check and the walk remain
   case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** `forge/records.md`, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
-  to the person for this machine: `temper forge run`'s refusal
-  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
-  directory whole, and the terminal client says `temper open`
-  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
+  to the person for this machine: `temper-box forge run`'s refusal
+  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper-box forge prepare` and each
+  directory whole, and the terminal client says `temper-box open`
+  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper-box` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no
   reason is recorded. Seen by reading.
 - **Design departs:** `pages/README.md`, *The flows' paths* and *Workers*, from the request

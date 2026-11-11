@@ -10,7 +10,7 @@ fn client_crates_carry_the_client_prefix() {
         &root,
         "temper",
         &[
-            "temper",
+            "temper-box-shell",
             // Both binaries share their start helpers (temper/docs/design/client/README.md, 2).
             "temper-shell",
             // The engine's host composes the service and bundle (temper/docs/design/protocol/components.md).

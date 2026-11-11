@@ -43,10 +43,10 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   without its browser serves the page for no bundle, and the terminal
   works as before (2.2).
 - **The bundle is in the binary.** A plain `cargo build` (or `cargo
-  build --release`, or `cargo install --git`) makes a `temper` that
+  build --release`, or `cargo install --git`) makes a `temper-box` that
   holds its bundle, so that running it is the whole install. The
   machine's builds, temper's gate and its agents, build without it
-  (`TEMPER_BUNDLE=none`), as fast as before (2.6).
+  (`TEMPER_INTERNAL_BUNDLE=none`), as fast as before (2.6).
 - **Signed in by the printed link,** opened in a browser on the engine's
   machine: jig's sign-in part spends it, the credential is the
   mapping's cookie, and a reload signs in again by it (2.4).
@@ -79,7 +79,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
 - **Its pages,** the client's (`../pages/README.md`), each at an address of
   its own (2.3); and the forge's parts, from `../forge/README.md`, as the forge's
   side reads them.
-- **Signing in:** by the link `temper serve` prints (2.4). The forge as
+- **Signing in:** by the link `temper-box serve` prints (2.4). The forge as
   people's sign-in provider is temper's own routes (`../README.md`,
   section 5).
 - **The toolchain:** the standard library for `wasm32-unknown-unknown`,
@@ -180,7 +180,7 @@ replay says the same clocks (`../view.md`, 6).
      fixed HTML in the binary, under the page's policy, with no script,
      style or picture: the level-1 heading "temper", then "This temper
      was built without its browser client.", "Open the link in a
-     terminal with temper open DIRECTORY LINK." and "To serve the
+     terminal with temper-box open DIRECTORY LINK." and "To serve the
      browser, build temper with the wasm32-unknown-unknown target, or
      name a bundle's directory in application.clients.bundle, and
      restart temper." (`../../protocol/setup/init.md`, 2);
@@ -223,7 +223,7 @@ replay says the same clocks (`../view.md`, 6).
   wasm32, into a directory it prints. `application.clients.bundle` is
   `null` for the binary's own, or names a directory, whose bundle is
   served in place of the binary's (`../../protocol/configuration/engine.md`
-  ). `temper serve` makes it, at start, whole, into memory,
+  ). `temper-box serve` makes it, at start, whole, into memory,
   within the limits `clients.bundle_files` and `clients.bundle_bytes`
   (`../../protocol/configuration/limits.md`), and refuses the start
   past them, or when it is no bundle (its page and its digest's
@@ -478,7 +478,7 @@ replay says the same clocks (`../view.md`, 6).
 
 ### 2.6 The bundle in the binary
 
-The `temper` binary holds its bundle, so that `temper box` and `temper
+The `temper-box` binary holds its bundle, so that `temper box` and `temper-box
 serve` serve the browser with nothing beside the binary, and `cargo
 build` in a checkout makes that binary. The engine's binary,
 `temper-engine`, holds the same bundle through the same crate, the only
@@ -497,18 +497,16 @@ without it.
   --release` and `cargo install --git` of temper's repository.
 - **A crate of its own embeds it,** `temper-client-bundle`, ordinary
   Rust on the `binary` lint profile (`tools/lints/design.md`, 2.3), which
-  `temper` depends on. Its library is data: the bundle's files, each its path
+  `temper-box-shell` depends on. Its library is data: the bundle's files, each its path
   from the bundle's root (`index.html`, then `<digest>/…`) and its
   bytes by `include_bytes!`, in a directory read's order, and the
   digest, both written by its build script into `OUT_DIR`. A build
   without the embed has no files and no digest. The include sits in a
-  small crate, not in `temper`'s, because a build script that runs
-  makes its package build again, and `temper`'s is the slowest to
-  build; `main.rs` gets no package of its own, since `temper` builds
-  again after a client edit anyway (the terminal shell shares the
-  client's crates), and its integration tests run the binary by
-  `CARGO_BIN_EXE_temper`.
-- **Its build script,** unless `TEMPER_BUNDLE` is `none`, takes
+  small crate, not in `temper-box-shell`'s, because a build script that runs
+  makes its package build again, and `temper-box-shell`'s is the slowest to
+  build. `main.rs` and the integration tests live in the binary's
+  package, `bin/temper-box` (`../../cli/README.md`, 2).
+- **Its build script,** unless `TEMPER_INTERNAL_BUNDLE` is `none`, takes
   `scripts/bundle.sh`'s steps with the cargo running it (`CARGO`), from
   the workspace's root, into the nested build's directory (below):
   1. `build --locked --target wasm32-unknown-unknown -p
@@ -524,7 +522,7 @@ without it.
   It has no build dependencies: the bundler is built by the nested
   cargo and run, never compiled into the script, so a build without the
   embed compiles a script of `std` alone, and nothing of the bundler is
-  ever linked into `temper` (skein's `ui/README.md`: "never linked into a
+  ever linked into `temper-box` (skein's `ui/README.md`: "never linked into a
   service or a module"). One `Cargo.lock` still locks the bundler's
   `wasm-bindgen-cli-support` with the module's macros (skein's
   `ui/web/bundle.md`, 1). The script's logic (the dep-info's read, the
@@ -535,7 +533,7 @@ without it.
   cargo's `CACHEDIR.TAG`. The outer cargo holds its own directory's
   lock while build scripts run, so a nested build there would wait on
   it forever. It is one directory, not one under each `OUT_DIR`, so
-  that a check, a clippy run, a build and a test build of `temper`
+  that a check, a clippy run, a build and a test build of `temper-box`
   reuse one module and one bundler, and a build after a change is
   incremental. Under `cargo clippy`, cargo builds a member's build
   script apart, so the first clippy run and the first build after a
@@ -558,9 +556,9 @@ without it.
   `Cargo.toml`, the workspace's `Cargo.toml` and `Cargo.lock`, which
   pins the git dependencies; the shell's stylesheets, its placeholder and
   its `files/`;
-  and `TEMPER_BUNDLE`, by `cargo:rerun-if-env-changed`. The first run
+  and `TEMPER_INTERNAL_BUNDLE`, by `cargo:rerun-if-env-changed`. The first run
   has no dep-info yet, and runs regardless. An edit elsewhere never
-  runs the script, and a build that does not include `temper` (a
+  runs the script, and a build that does not include `temper-box` (a
   domain's tests, the client crates' own) never runs it.
 - **The module's profile:** a dev build embeds a dev module, as
   `scripts/bundle.sh` makes; a release build embeds one built with
@@ -568,7 +566,7 @@ without it.
   application's release module, which temper's workspace defines as
   skein's does. The script maps cargo's `PROFILE`, `debug` or
   `release`, to `dev` and `web`.
-- **`TEMPER_BUNDLE`:** unset or `embed`, the embed; `none`, no nested
+- **`TEMPER_INTERNAL_BUNDLE`:** unset or `embed`, the embed; `none`, no nested
   build and no bundle; any other value fails the build, naming the two.
   `embed` is for a build whose environment says `none` and wants the
   browser this once. The machine's builds set `none`: the gate's and
@@ -581,7 +579,7 @@ without it.
   message: `temper-client-bundle: the browser's bundle needs the
   wasm32-unknown-unknown target: add it (rustup target add
   wasm32-unknown-unknown), or build without the browser
-  (TEMPER_BUNDLE=none)`. Never a binary without its browser in
+  (TEMPER_INTERNAL_BUNDLE=none)`. Never a binary without its browser in
   silence. temper ships no `rust-toolchain.toml` naming the target: it
   would set the channel for every rustup user, which temper does not
   set (`rust-version` alone).
@@ -602,7 +600,7 @@ without it.
   change. `temper-service` adopts a bundle, wherever the binary got it.
   A directory configured is read as before, and the binary's is unused.
 - **The fake-backend bundle is provisioned separately.** Build it with
-  scripts/bundle.sh --loopback DIR, then start temper box --fake-backends
+  scripts/bundle.sh --loopback DIR, then start temper-box --fake-backends
   --bundle DIR even with an empty configuration (../../protocol/configuration/directories.md,
   1). An explicit --bundle overrides source application.clients.bundle;
   otherwise that configured directory is used.
@@ -611,7 +609,7 @@ without it.
   command and --bundle. Startup never builds or downloads the bundle.
   The second-embed prototype added 8,974,112 bytes in the measured dev build,
   exceeding its 5 MB limit; the provisioned path keeps that cost outside
-  ordinary builds. TEMPER_BUNDLE=none runs no nested browser build.
+  ordinary builds. TEMPER_INTERNAL_BUNDLE=none runs no nested browser build.
 - **`scripts/bundle.sh` stays,** for a bundle built apart: the browser
   tier's, which turns on `loopback-navigation` (`testing.md`, 3), and a
   developer's. The ordinary binary bundle never enables it. `scripts/install.sh PREFIX`
@@ -622,14 +620,14 @@ without it.
   is tested on samples in its crate; the in-memory read on fixture
   files beside the directory's read, the same `Bundle` and the same
   refusals; and a start with `bundle` `null` expects what its build
-  holds, which `temper`'s crate says (`temper::bundle::OWN`, the
+  holds, which `temper-box-shell` says (`temper_box_shell::bundle::OWN`, the
   binary's digest or none): the page for no bundle under `none`,
   otherwise the bundle's page at `/` and its files under
   `/bundle/<digest>/` (`../../testing/process-tier.md`). The page for no
   bundle stays proved where it is built, in `temper-service`. The embed
   itself is a person's build, which fails loudly when its steps do; a
-  change to it checks it with `TEMPER_BUNDLE=embed cargo nextest
-  run -p temper`, which the gate does not run.
+  change to it checks it with `TEMPER_INTERNAL_BUNDLE=embed cargo nextest
+  run -p temper-box`, which the gate does not run.
 
 ## 3. Open questions
 
@@ -771,7 +769,7 @@ without it.
   party's kept work, and kept work dropped at start, which the terminal
   says in lines of its own. Default: not shown; the small store lives
   as long as its tab, of one person.
-- **A bundle built apart, embedded:** `TEMPER_BUNDLE=DIR`, a bundle's
+- **A bundle built apart, embedded:** `TEMPER_INTERNAL_BUNDLE=DIR`, a bundle's
   directory embedded in place of building one, so that one wasm32
   build serves binaries for several hosts and a machine without the
   target can still make a whole binary. Default: none; it waits for

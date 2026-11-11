@@ -111,7 +111,7 @@ fn run_arguments(arguments: &[Box<[u8]>]) -> Result<Command, String> {
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "cli C6: TEMPER_DUMP_LLM selects the agent request dump directory; temper-agent's table will pass it"
+    reason = "cli C6: TEMPER_INTERNAL_DUMP_LLM selects the agent request dump directory; temper-agent's table will pass it"
 )]
 pub fn run(command: Command) -> Result<u8, String> {
     let exit = match command {
@@ -136,7 +136,7 @@ pub fn run(command: Command) -> Result<u8, String> {
                 use std::io::Write;
                 drop(writeln!(std::io::stderr(), "smith: {why}"));
             })
-            .and_then(|decoded| match dump_directory(std::env::var_os("TEMPER_DUMP_LLM")) {
+            .and_then(|decoded| match dump_directory(std::env::var_os("TEMPER_INTERNAL_DUMP_LLM")) {
                 Some(directory) => smith_agent_shell::run_dumping(
                     decoded,
                     smith_agent_shell::dump::Dumps::new(directory, DUMP_BOUND),
@@ -189,7 +189,7 @@ fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {
         Ok(directory) => Some(directory),
         Err(why) => {
             use std::io::Write;
-            drop(writeln!(std::io::stderr(), "temper-agent: TEMPER_DUMP_LLM: {why}"));
+            drop(writeln!(std::io::stderr(), "temper-agent: TEMPER_INTERNAL_DUMP_LLM: {why}"));
             None
         }
     }

@@ -167,7 +167,7 @@ own tests:
   stdin and stdout and a scripted transport: signing in by the link and
   by a kept token, a page printed after an act, the end of stdin, an
   interrupt, `q` drained. And, in a unit test, the terminal made from
-  `limits::native()`'s limits, as `temper open` makes it, so the gate
+  `limits::native()`'s limits, as `temper-box open` makes it, so the gate
   meets a refusal of temper's own limits before the process tier does.
 - **The TUI** (`tui/README.md`, 1 to 3 and `tui/pages.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
   skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
@@ -341,7 +341,7 @@ own tests:
   commands and reads printed pages, with a fake LLM, forge and git. Its
   live-text story: a reply held after its first piece is read printed
   before its "▍", then replaced by the committed turn.
-- **The process tier** (`../testing/process-tier.md`): the real `temper`
+- **The process tier** (`../testing/process-tier.md`): the real `temper-box`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and
   adopts a repository on an owned Forgejo
@@ -350,13 +350,13 @@ own tests:
   step, against the fake issuer, the person's root a browser's: its
   `Leave` followed through the issuer and the listener's `303` to
   `/welcome?at=ready`, Ready there naming the account, and the account
-  still signed in on the accounts page after a restart. And `temper open` itself, stdin and stdout
+  still signed in on the accounts page after a restart. And `temper-box open` itself, stdin and stdout
   piped: it signs in by the printed link, prints the inbox, adopts a
   repository by commands, and exits 0 on `q` after a drained close.
   The first run (`../draft/archive/first-run.md`, 2.1): the chat's card for the
   change it delegated read landed, with its words (`view.md`, 5). And
   jig's attack story that needs no browser, a rebound Host, against
-  `temper serve`'s clients' listener: a request naming a host off the
+  `temper-box serve`'s clients' listener: a request naming a host off the
   list is answered `421`, with nothing done (jig's
   `protocol/browser/testing.md`). The cross-site request and the
   framed page need a browser, and come with temper's browser tier

@@ -102,17 +102,17 @@ to the forge; a timer to the child that armed it. What temper adds:
   read holds its words, at
   most that room and no more than the source has left, and its metadata, from
   jig's answer until it is rendered; `fleet.calls` bounds the reads held at once.
-  At `temper init`'s figures (`../protocol/setup/init.md`, 1) one read holds at most
+  At `temper-box init`'s figures (`../protocol/setup/init.md`, 1) one read holds at most
   10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
   credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
   and about 4 MB at `fleet.calls`' 256, which a box's runs share.
   Where neither the run's worker nor a local agent names a reply bound,
   the read is in pieces of the deployment's `documents.text_bytes`: 512
-  at `temper init`'s figures since 2026-11-05, and 128 in a document made
+  at `temper-box init`'s figures since 2026-11-05, and 128 in a document made
   before, at which a goal on a worker that named none read a 30.5 KB report
   128 bytes a call, about 240 calls (the request `goal-call-faults` of
   2026-11-08, item 3). A temper worker names its agent's, so its runs read
-  in pages of that bound, 10,662 bytes at `temper init`'s figures.
+  in pages of that bound, 10,662 bytes at `temper-box init`'s figures.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked

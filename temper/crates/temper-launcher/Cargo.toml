@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-shell.workspace = true
 temper-fetch-shell.workspace = true
 temper-fetch.workspace = true
 smith-agent-document.workspace = true

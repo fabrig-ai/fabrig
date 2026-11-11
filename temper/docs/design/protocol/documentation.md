@@ -94,7 +94,7 @@ section 6) is the writer's and the review's.
 ## 3. `temper-docs`
 
 A crate of no side (`../README.md`, section 9), `#![no_std]` with `alloc`,
-that depends on nothing of temper's and that `temper`,
+that depends on nothing of temper's and that `temper-box-shell`,
 `temper-client-tools`, `temper-engine-smith` and `temper-client-view` depend
 on.
 
@@ -130,17 +130,23 @@ on.
 
 ## 4. `temper help`
 
-- `temper help` prints the page `index` whole.
-- `temper help NAME` prints the page whole, as its file holds it, and
-  exits 0; a name that is no page exits 1, printing `temper: no page
-  NAME; temper help lists them`.
-- `temper help --search WORDS...` prints at most 20 hits, a line each:
+Every binary's `help`, `BINARY` its name (`../cli/README.md`, 5):
+
+- `BINARY help pages` prints the page `index` whole.
+- `BINARY help NAME` prints the page whole, as its file holds it, and
+  exits 0; a name that is no page exits 1, printing `BINARY: no page
+  NAME; BINARY help lists them`.
+- `BINARY help --search WORDS...` prints at most 20 hits, a line each:
   `NAME: HEADING: LINE`, then `and more; narrow the words` when more
-  matched; none exits 1, printing `temper: nothing matches`.
-- It reads no directory and no configuration: it works before `temper
-  init`. `temper --help` prints the binary's table, its rows by who runs
-  them (`binaries.md`); `temper ctl help` prints the
-  page `ctl`, then the tools (`../client/ctl/testing.md`, 5).
+  matched; none exits 1, printing `BINARY: nothing matches`.
+- `BINARY help commands` prints the page `commands` for the binary's own
+  table (8).
+- It reads no directory and no configuration: it works before
+  `temper-box init`. `BINARY -h`, `--help` and `help` alone print the
+  binary's page from its table, its public commands, flags and
+  variables (`skein/docs/design/runtime/shell.md`, 14.2); `temper ctl
+  help` prints the page `ctl`, then the tools
+  (`../client/ctl/testing.md`, 5).
 
 ## 5. `read_docs`, for agents
 
@@ -179,7 +185,7 @@ on.
 | Where | What |
 |---|---|
 | `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
-| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/ctl/tools.md` 3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as `documentation.md`, section 4 says |
+| `temper-box-shell`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper-box ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/ctl/tools.md` 3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as `documentation.md`, section 4 says |
 | `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
 
@@ -199,19 +205,19 @@ to a suite's time beyond milliseconds.
 
 Each reference page is rendered from one table by the crate that holds
 the table, checked in under `docs/help/reference/`, and held equal to
-its rendering by `temper`'s step test (section 6), which prints the page
+its rendering by its crate's step test (section 6), which prints the page
 as it should be. A table's text (its lines and notes) is documentation,
 in `../draft/agent-docs.md` 6's voice.
 
 | Page | Its table | A row |
 |---|---|---|
-| `commands` | the binary's commands (`crates/temper`; `binaries.md`) | a command: its words, usage, line, arguments and notes |
+| `commands` | a binary's table: `temper-box`'s, as the page is compiled, and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
 | `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
-| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
+| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper-box init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a
@@ -237,7 +243,7 @@ in `../draft/agent-docs.md` 6's voice.
   decoder reads its members through its table, a member it asks for
   that the table lacks failing every test that decodes it, so that
   every member the decoder takes is a row; a step test holds that every member
-  `temper init --box` writes is a row, and that every row is a member the
+  `temper-box init --box` writes is a row, and that every row is a member the
   decoder takes or one of the members gone, which its decoder refuses
   naming where it went. Where the decoder is jig's, its members' rows
   are jig's, as `limits-engine`'s are.
@@ -262,7 +268,7 @@ point of use (`../draft/agent-docs.md`, section 3), and the most read.
   1, `temper-client-tools` and `temper-client-shell-cli`); the
   engine's refusals as ctl renders them (exit 2, jig's and the forge's
   words, `temper-client-domain` and `temper-client-tools`); the
-  binary's refusals at a command's start (`temper`, `temper-service`'s
+  binary's refusals at a command's start (`temper-box-shell`, `temper-service`'s
   startup, the box's and setup's); a run's host tools' error answers
   (`temper-engine-smith`).
 - **Typed refusals are rendered from one table** per area, a row per

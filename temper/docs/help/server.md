@@ -18,9 +18,9 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
   `profile`; a Web application client whose one redirect URI is
   `https://temper.example.com/sign-in/google/return`.
 - **The binary,** built at the commit you deploy, with its browser:
-  `TEMPER_BUNDLE=embed cargo build --release --locked -p temper`,
+  `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper-box`,
   which needs Rust's `wasm32-unknown-unknown` target; copy
-  `target/release/temper`, `docs/examples/owned.json` and
+  `target/release/temper-box`, `docs/examples/owned.json` and
   `docs/examples/owned/` of the same commit to both hosts.
 
 ## 1. Write the engine's configuration
@@ -54,11 +54,11 @@ For Forgejo sign-in through temper, add
 "forgejo", "secret": "forgejo-client.secret", "redirect_uri":
 "https://git.example.com/user/oauth2/temper/callback"}], "addresses":
 [3]}`, and in `application.sign_in`, `"forges": [{"forge": 1, "client":
-"forgejo"}]`. Before step 3, this creates both key and secret and prints the
-command to run once after step 4:
+"forgejo"}]`. Before step 3, this creates key and secret and prints the command
+to run once after step 4:
 
 ```
-temper forge sign-in --config CONFIG --data DATA --cache CACHE 1
+temper-box forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
 `engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, budgets
@@ -109,16 +109,16 @@ Units under `temper`, each with `UMask=0077`, `ProtectSystem=strict`,
 `strict` leaves `/tmp` read-only without `PrivateTmp`. Forgejo's:
 
 ```
-temper forge fetch --config CONFIG --data DATA --cache CACHE 1
-temper forge prepare --config CONFIG --data DATA --cache CACHE 1
-temper forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
+temper-box forge fetch --config CONFIG --data DATA --cache CACHE 1
+temper-box forge prepare --config CONFIG --data DATA --cache CACHE 1
+temper-box forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
-The engine connects kept forges at start; wait for Forgejo's
-`http://127.0.0.1:3000/api/v1/version` to answer:
+The engine connects kept forges at start; wait until
+`http://127.0.0.1:3000/api/v1/version` answers:
 
 ```
-temper serve --config CONFIG --data DATA --cache CACHE
+temper-box serve --config CONFIG --data DATA --cache CACHE
 ```
 
 Expect: `fetch` says how far each binary has gone, `fetched BINARY DONE
@@ -128,15 +128,14 @@ sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
 With `application.sign_in.forges` on a new store, `serve`'s stderr says
-`temper serve: forge 1: no sign-in through temper: no such forge is kept`
+`temper-box serve: forge 1: no sign-in through temper-box: no such forge is kept`
 until step 6 connects it.
 
-If not: a refused start names its member, file, address, or refusal
-reading `DATA` back (`temper serve: restore KIND: REASON`,
-`temper serve: restart refused during PHASE: REASON`, the reason naming
+If not: a refused start names its member, file, address, or restore
+refusal (`temper-box serve: restore KIND: REASON`,
+`temper-box serve: restart refused during PHASE: REASON`, the reason naming
 the store's cause and the record's family and key when it has one): keep
-`DATA` as it is and
-report that line as a finding.
+`DATA` unchanged and report that finding.
 
 ## 4. The TLS proxy
 
@@ -175,7 +174,7 @@ If not: 502 means the engine is down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-- The worker alone: `temper serve` on `worker`'s own three
+- The worker alone: `temper-box serve` on `worker`'s own three
   directories, its document the example's worker part, `workers[0]`
   with `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`, `agent` naming the binary and
@@ -190,7 +189,7 @@ If not: 502 means the engine is down or listening elsewhere; read its journal.
   `DATA/forge-1/runner/`; its jobs in rootless podman.
 
 ```
-temper serve --config CONFIG --data DATA --cache CACHE
+temper-box serve --config CONFIG --data DATA --cache CACHE
 ```
 
 Expect: `worker`'s stderr says `linked w1` and the engine's address;
@@ -204,7 +203,7 @@ it in engine.limits.overrides`; raise that override and start again.
 
 For a task held `out of tries: run failures`, the engine's journal names
 each run's failure,
-`temper serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
+`temper-box serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
 
 ```
 journalctl -u temper -o cat | grep 'task TASK run'
@@ -275,11 +274,11 @@ once it is out. An export
 refused or lost: the engine kept the account, and the store loses it;
 an owner signs in to it again. An import refused
 keeps `FILE`: leave it as it is. A key's account does not cross: add
-its key again. A worker's document from an older `temper init` stops the
+its key again. A worker's document from an older `temper-box init` stops the
 worker's start at `agent.arguments`,
 `"agent" is now "internal", "agent"`: write them
 `["internal", "agent", PATH]`, `PATH` its `agent.configuration`.
-A running build from before 10-27 answers `account list` with ctl's usage line (exit 1): before the stop, use its own names, `accounts` and `export`.
+Before 10-27, `account list` prints ctl's usage (exit 1): before stopping that build, use `accounts` and `export`.
 
 ## Clean up
 

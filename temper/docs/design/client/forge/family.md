@@ -413,7 +413,7 @@ client removes no account and closes no chat of its own.
   the draft offers Forgejo on this machine from the forges' rows, and a
   first run's store keeps none. Default: the deployment's read says
   `owned` (`records.md`), the document's member and the box both, so that
-  `temper serve` on a box's document draws no card its `SetUp` would
+  `temper-box serve` on a box's document draws no card its `SetUp` would
   refuse. The user's to decide: keep it; have `owned` read the document
   alone, the card then refused "not under the box"; or have the engine
   list an offered owned row from the machine at a first run, which

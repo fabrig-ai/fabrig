@@ -28,7 +28,7 @@ Three layers bound it, each within the one above:
 
 A numbered policy, the setting `policy N`, is what a project made from
 it starts with. The project keeps a copy, its own policy, which is not a
-setting. `temper init` seeds no project: each is made from policy 1
+setting. `temper-box init` seeds no project: each is made from policy 1
 when it is made. A project a configuration seeds names its policy by
 number; one written out in the configuration is refused.
 

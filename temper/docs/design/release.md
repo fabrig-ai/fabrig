@@ -13,7 +13,7 @@ file the site serves beside it (5.1). The site that links them is
 - **One file a release:** `temper-VERSION-x86_64-linux`, the whole
   product, its browser bundle embedded, with
   `temper-VERSION-x86_64-linux.sha256` beside it (section 2).
-- **It says what it is:** `temper --version` prints the version and the
+- **It says what it is:** `temper-box --version` prints the version and the
   commit it was built from, and the release's file name carries the
   same version (section 3).
 - **Its floors are said, not guessed:** Linux 6.12 or later, glibc
@@ -35,7 +35,7 @@ file the site serves beside it (5.1). The site that links them is
   (section 6).
 - **Apple Silicon's file, for the site:**
   `.github/workflows/release-macos.yml`, started by a dispatch alone on
-  GitHub's `macos-26`, builds `temper` for release at the commit it is
+  GitHub's `macos-26`, builds `temper-box` for release at the commit it is
   started on, strips it and signs it again ad hoc, checks that it runs,
   and leaves it with that commit as the run's artifact
   `temper-Darwin-arm64`, which the site's host fetches; no tag, no
@@ -44,7 +44,7 @@ file the site serves beside it (5.1). The site that links them is
 ## 2. The file
 
 - **Its target:** `x86_64-unknown-linux-gnu`, built with
-  `TEMPER_BUNDLE=embed` and the release profile, stripped; one file,
+  `TEMPER_INTERNAL_BUNDLE=embed` and the release profile, stripped; one file,
   nothing beside it at run time but section 4's programs.
 - **Its floors:** Linux 6.12, skein's (skein's `runtime/shell.md`, section 4 and `runtime/readiness.md`
   ); glibc 2.39, the oldest that has the process calls skein's
@@ -63,10 +63,15 @@ file the site serves beside it (5.1). The site that links them is
 
 ## 3. Its identity
 
-- **`temper --version`** (and `temper version`) prints one line,
-  `temper VERSION (COMMIT)`, before any configuration is read, exit 0.
-  Each of a deployment's binaries prints its own name the same way,
-  `temper-engine VERSION (COMMIT)` (`protocol/binaries.md`, 1).
+- **`--version`** prints one line, `NAME VERSION (COMMIT)`, NAME the
+  binary's, before any configuration is read, exit 0: `temper-box
+  VERSION (COMMIT)`, `temper-engine VERSION (COMMIT)`, each of a
+  deployment's binaries the same way (`protocol/binaries.md`, 1). It is
+  a flag, with no `version` command beside it
+  (`skein/docs/foundation/cli.md`, 7).
+- **The commit's build name,** `TEMPER_INTERNAL_COMMIT`, is the one
+  `temper-version`'s build script hands its library (`cli/README.md`,
+  8); every binary's line reads it there.
 - **VERSION** is the workspace's version in `Cargo.toml`, `0.1.0` at
   v0.1.0's tag and `0.0.0` between releases; **COMMIT** the commit it
   was built from, twelve hex digits, with `-dirty` when the tree had
@@ -121,7 +126,7 @@ file the site serves beside it (5.1). The site that links them is
   2. **The build:** entered with bubblewrap alone (`bwrap`, user
      namespaces, the network shared for the archives and crates), the
      checkout bound read-only, a target directory of the root's own;
-     `TEMPER_BUNDLE=embed cargo build --release --locked -p temper`,
+     `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper`,
      stripped.
   3. **The checks:** no `GLIBC_` symbol version newer than 2.39
      (`objdump -T`); `--version` printing VERSION and the tag's commit.
@@ -156,7 +161,7 @@ release's: no tag names it, and the workflow writes no checksum.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,
   and nothing is saved; the release's target is never cached, so each
   file is built from the commit and the registry's sources alone.
-- **The build:** `TEMPER_BUNDLE=embed cargo build --release --locked -p
+- **The build:** `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p
   temper --bin temper`, for the runner's own target,
   `aarch64-apple-darwin`, under the release profile exactly as the
   workspace's `Cargo.toml` has it: the workflow sets no profile, flag

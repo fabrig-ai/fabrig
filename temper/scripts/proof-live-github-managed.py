@@ -247,7 +247,7 @@ class Sitting:
         self.scanned = False
         self.retained = False
         self.last_request = None
-        self.binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/temper'
+        self.binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/temper-box'
         artifacts = [json.loads(line) for line in (self.scratch/'build.jsonl').read_text().splitlines()
                      if line.startswith('{')]
         self.harness = next(row['executable'] for row in artifacts
@@ -366,7 +366,7 @@ class Sitting:
         return address
 
     def configure(self, git, web):
-        template = (self.root/'crates/temper/tests/support/github/engine.json').read_text()
+        template = (self.root/'bin/temper-box/tests/support/github/engine.json').read_text()
         for name, value in {'proc.forge.ready.address': self.api, 'proc.llm.ready.address': '127.0.0.1:9',
                             'story.clients': '127.0.0.1:' + str(self.port)}.items():
             template = template.replace('{' + name + '}', value)
@@ -380,7 +380,7 @@ class Sitting:
             value['application']['clients']['bundle'] = str(self.scratch/'bundle')
         digests = self.scratch/'data/secrets'
         digests.mkdir(parents=True, mode=0o700)
-        private(digests/'w1.digest', (self.root/'crates/temper/tests/support/github/w1.digest').read_bytes())
+        private(digests/'w1.digest', (self.root/'bin/temper-box/tests/support/github/w1.digest').read_bytes())
         directory = self.scratch/'config'
         (directory/'charters').mkdir(parents=True, mode=0o700)
         private(directory/'charters/chat.txt', b'No model calls in this sitting.\n')
