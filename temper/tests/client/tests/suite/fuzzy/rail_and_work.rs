@@ -132,11 +132,16 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         facts.changes.push(Change { task: rng.between(1, CHANGE_ROWS), at, belongs }).expect("uncapped changes");
     }
     for _ in 0..rng.between(0, ROWS) {
-        let ready = rng.chance(500); let goal = rng.chance(500).then(|| rng.between(1, TASKS));
+        let ready = rng.chance(500);
+        let goal = rng.chance(500).then(|| rng.between(1, TASKS));
         let draft = Landed {
             forge: u16::try_from(rng.below(3)).expect("forge"),
-            owner: format!("owner{}", rng.below(2)).into_bytes().into(), name: format!("repo{}", rng.below(2)).into_bytes().into(),
-            path: format!("docs/draft{}.md", rng.below(TASKS)).into_bytes().into(), at: activity(rng, now), title: b"Draft".as_slice().into(), listed: ready && goal.is_none(),
+            owner: format!("owner{}", rng.below(2)).into_bytes().into(),
+            name: format!("repo{}", rng.below(2)).into_bytes().into(),
+            path: format!("docs/draft{}.md", rng.below(TASKS)).into_bytes().into(),
+            at: activity(rng, now),
+            title: b"Draft".as_slice().into(),
+            listed: ready && goal.is_none(),
         };
         facts.landed.push(draft).expect("uncapped landed drafts");
     }
@@ -144,7 +149,9 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
 }
 type DraftKey = (u16, Vec<u8>, Vec<u8>, Vec<u8>);
 type Activity = (Reverse<Wall>, u8, u64, DraftKey);
-fn draft_key(row: &Landed) -> DraftKey { (row.forge, row.owner.to_vec(), row.name.to_vec(), row.path.to_vec()) }
+fn draft_key(row: &Landed) -> DraftKey {
+    (row.forge, row.owner.to_vec(), row.name.to_vec(), row.path.to_vec())
+}
 
 // The oracle uses first-row maps and standard sorting, independent of place's
 // traversal and insertion order. No production placement helper is its oracle.
@@ -157,7 +164,8 @@ struct Oracle {
 
 impl Oracle {
     fn new(facts: &work::Facts) -> Self {
-        let mut oracle = Self { goals: BTreeMap::new(), changes: BTreeMap::new(), chats: BTreeMap::new(), landed: BTreeMap::new() };
+        let mut oracle =
+            Self { goals: BTreeMap::new(), changes: BTreeMap::new(), chats: BTreeMap::new(), landed: BTreeMap::new() };
         for row in &facts.goals {
             oracle.goals.entry(row.task).or_insert(*row);
         }
@@ -233,7 +241,9 @@ impl Oracle {
             }
         }
         for (index, row) in self.landed.values() {
-            if row.listed { drafts.push((item_key(Item::Landed(*index)), Vec::new())); }
+            if row.listed {
+                drafts.push((item_key(Item::Landed(*index)), Vec::new()));
+            }
         }
         flight.sort_unstable();
         drafts.sort_unstable();

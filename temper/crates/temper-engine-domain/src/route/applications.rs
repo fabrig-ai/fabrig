@@ -138,7 +138,15 @@ pub(super) fn admitted(
         }
         Application::Forge(forge::Ask::SetDraft(call)) => {
             if let Some(carried) = carried {
-                assert!(super::now(domain, crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused { number: carried.number }))), "carried value output door reserved");
+                assert!(
+                    super::now(
+                        domain,
+                        crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused {
+                            number: carried.number
+                        }))
+                    ),
+                    "carried value output door reserved"
+                );
             }
             domain.work.push(Work::Forge(forge::Event::SetDraft { request, token, party: person, call }));
         }

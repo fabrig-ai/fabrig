@@ -46,7 +46,10 @@ pub use status::{
     StatusView, status_paragraphs, status_subject,
 };
 mod drafts;
-pub use drafts::{DRAFTS, DraftRepository, DraftChange, SetDraft, LandedDraft, DraftRefusal, SetDraftAnswer, DraftView, DraftsView, draft_path, drafts_subject};
+pub use drafts::{
+    DRAFTS, DraftChange, DraftRefusal, DraftRepository, DraftView, DraftsView, LandedDraft, SetDraft, SetDraftAnswer,
+    draft_path, drafts_subject,
+};
 mod away;
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,

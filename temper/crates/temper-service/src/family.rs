@@ -59,15 +59,30 @@ pub fn to_root(
                 w::Request::SetDraft(value) => {
                     let value = value.into_parts();
                     let repository = match value.repository {
-                        Some(named) => { let named = named.into_parts(); Some(forge::DraftRepository { owner: named.owner, name: named.name }) }, None => None,
+                        Some(named) => {
+                            let named = named.into_parts();
+                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
+                        }
+                        None => None,
                     };
                     let change = match value.change {
                         w::DraftChange::Ready(value) => forge::DraftChange::Ready { chat: *value.chat() },
                         w::DraftChange::NotReady => forge::DraftChange::NotReady,
                         w::DraftChange::Started(value) => forge::DraftChange::Started { goal: value.goal() },
                     };
-                    return Ok(root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried,
-                        request: root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft { project: value.project, repository, path: value.path, change })),
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
+                            project: value.project,
+                            repository,
+                            path: value.path,
+                            change,
+                        })),
                     }));
                 }
                 w::Request::SetUp(value) => {
@@ -511,7 +526,8 @@ pub fn to_root(
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
                     w::Watch::Drafts(subject) => jig_domain_core::documents::Watched::Application {
-                        scope: jig_domain_people::ApplicationScope::Project(subject.project()), connector: wire::FORGE,
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
                         subject: Token::new(forge::drafts_subject(subject.project())),
                     },
                     w::Watch::Change(_) | w::Watch::Landing(_) => {
@@ -1631,11 +1647,30 @@ fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]
 
 fn landed_draft(view: forge::DraftView, limits: &w::Limits) -> Option<w::LandedDraft> {
     let row = view.row;
-    w::LandedDraft::new(limits, w::LandedDraftParts { forge: row.repository.forge, owner: view.owner, name: view.name, path: row.path, branch: row.branch, commit: forge::commit_text(&row.commit), title: row.title, writer: row.writer, at: row.at.as_nanos(), chat: row.chat, goal: row.goal, ready: row.ready }).ok()
+    w::LandedDraft::new(
+        limits,
+        w::LandedDraftParts {
+            forge: row.repository.forge,
+            owner: view.owner,
+            name: view.name,
+            path: row.path,
+            branch: row.branch,
+            commit: forge::commit_text(&row.commit),
+            title: row.title,
+            writer: row.writer,
+            at: row.at.as_nanos(),
+            chat: row.chat,
+            goal: row.goal,
+            ready: row.ready,
+        },
+    )
+    .ok()
 }
 fn drafts_panel(value: forge::DraftsView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut drafts = List::with_capacity(forge::DRAFTS);
-    for row in value.rows { drafts.push(landed_draft(row, limits)?).ok()?; }
+    for row in value.rows {
+        drafts.push(landed_draft(row, limits)?).ok()?;
+    }
     let panel = w::DraftsPanel::new(limits, w::DraftsPanelParts { project: value.project, drafts }).ok()?;
     Some(wire::drafts_panel(&panel))
 }

@@ -35,7 +35,13 @@ impl Drafts {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
     }
-    pub(super) fn told(&mut self, told: &Told, client: &Client, limits: forge::Limits, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(
+        &mut self,
+        told: &Told,
+        client: &Client,
+        limits: forge::Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
         match told {
             Told::Changed { handle } if Some(*handle) == self.handle => {
                 let panel = match client.document(*handle) {
@@ -47,7 +53,9 @@ impl Drafts {
                     },
                     None => return true,
                 };
-                if let Some(panel) = panel && panel.project() == self.project {
+                if let Some(panel) = panel
+                    && panel.project() == self.project
+                {
                     self.state = State::Shown(Box::new(panel));
                 } else {
                     self.end(out);
@@ -58,8 +66,15 @@ impl Drafts {
                 self.end(out);
                 true
             }
-            Told::Link { .. } | Told::Changed { .. } | Told::Ended { .. } | Told::Page { .. }
-            | Told::Text { .. } | Told::Pending { .. } | Told::Answered { .. } | Told::Kept { .. } | Told::Dropped { .. } => false,
+            Told::Link { .. }
+            | Told::Changed { .. }
+            | Told::Ended { .. }
+            | Told::Page { .. }
+            | Told::Text { .. }
+            | Told::Pending { .. }
+            | Told::Answered { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. } => false,
         }
     }
     fn end(&mut self, out: &mut Queue<Request>) {

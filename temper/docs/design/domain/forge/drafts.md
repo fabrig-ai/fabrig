@@ -80,7 +80,9 @@ ready ones and starts a goal from each (`../../client/pages/work.md`, 1,
     the same decision.
 - **A restart** while its reads are out loses the request: it is
   answered unknown, as a set up's is, and its writer says so again. A
-  restart after its commit answers it from the row.
+  restart after its commit answers it unknown too, as `SetAway`'s held
+  answer is; the row, restored whole and listed in `drafts`, says what
+  stands.
 - **Two at once** for one row each read and decide on their own; the
   later decision stands.
 

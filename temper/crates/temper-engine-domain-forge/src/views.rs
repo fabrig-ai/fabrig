@@ -344,7 +344,12 @@ impl Document {
             Self::Drafts(view) => {
                 size = size.saturating_add(size_of_val(view.rows.as_ref()));
                 for draft in &view.rows {
-                    size = size.saturating_add(draft.owner.len()).saturating_add(draft.name.len()).saturating_add(draft.row.path.len()).saturating_add(draft.row.branch.len()).saturating_add(draft.row.title.len());
+                    size = size
+                        .saturating_add(draft.owner.len())
+                        .saturating_add(draft.name.len())
+                        .saturating_add(draft.row.path.len())
+                        .saturating_add(draft.row.branch.len())
+                        .saturating_add(draft.row.title.len());
                 }
             }
             Self::Changes(view) => {
