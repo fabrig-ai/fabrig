@@ -1,6 +1,8 @@
 # channel: status
 
-2026-11-10. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 9.1: the dial due at the grace's end less the handshake's deadline; a redial waits at most a quarter of the grace, so an engine back in the grace's last quarter can miss the last dial (`jig-protocol-worker-link/src/component.rs`) [in flight: change 36].
 
 Sections 4.1 and 8 have no known gap in agreeing output rooms. The v9
 credential declares the worker component's room; the engine checks it

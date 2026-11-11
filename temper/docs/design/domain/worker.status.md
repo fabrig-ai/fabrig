@@ -12,6 +12,8 @@ and outcomes on scripted output. The checkout world's `suite::delivery`
 checks the resulting fake object graph, preserved ids and messages, and
 refusal of an unpushed second parent. No deployment replay is on record.
 
+- **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
+
 Unchecked saves use the same snapshot. The checkout world's delivery rows
 cover both checked and unchecked pushes. A checked delivery after an
 unchecked save keeps the fresh-commit requirement even for an equal tree;
