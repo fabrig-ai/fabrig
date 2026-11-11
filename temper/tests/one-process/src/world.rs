@@ -462,6 +462,11 @@ impl Person {
         crate::m15::observer::root(crate::m15::observer::Role::Client, root, b"client");
         person
     }
+    /// Add an account through the ordinary form, waiting for opening reads first.
+    pub(crate) fn with_account(mut self, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
+        self.provision = Some(skein_fake_person::Person::new(steps));
+        self
+    }
     pub(crate) fn saved(&mut self) {
         self.client = Some(
             NativeClient::new(
