@@ -12,10 +12,14 @@ pub(crate) struct Settle {
     base: Option<Commit>,
     read_base: Option<Commit>,
     open: Option<(Wall, Wall)>,
+    pub(crate) branch: crate::domain::BranchRead,
 }
 
 impl Settle {
-    pub(crate) const NEW: Settle = Settle { since: None, base: None, read_base: None, open: None };
+    pub(crate) const NEW: Settle = Settle {
+        since: None, base: None, read_base: None, open: None,
+        branch: crate::domain::BranchRead::NEW,
+    };
 
     /// The branch tip used for the last decision's base CI and comparison.
     pub(crate) fn read_base(self) -> Option<Commit> {

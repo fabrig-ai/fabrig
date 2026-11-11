@@ -903,35 +903,43 @@ fn a_branch_still_missing_on_its_read_after_our_push_drifts() {
 }
 #[test]
 fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
-    for cached in [false, true] {
+    for (seen, fallback) in [(false, 0), (false, 30), (false, 120), (true, 120)] {
         let mut h = Harness::new();
+        h.env.limits.fallback = skein_lib::Duration::from_secs(fallback);
         h.env.limits.poll = skein_lib::Duration::from_secs(1000);
         h.env.limits.poll_max = h.env.limits.poll;
         h.keep(Box::new([watch(branch(), false)]));
-        if cached {
-            h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
-        }
+        let start = if seen {
+            let read = h.one();
+            h.answer(read, Answer::Commit([1; 32]));
+            h.fire(160);
+            160
+        } else {
+            100
+        };
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-        assert_eq!(h.drift, u32::from(cached));
+        assert_eq!(h.drift, u32::from(seen));
         assert_eq!(h.record(&branch()).cached.tip, None);
-        for now in [160, 220, 280] {
+        let interval = if seen { 60 } else { 60.max(fallback) };
+        for now in [start + interval, start + interval * 2, start + interval * 3] {
             h.fire(now - 1);
-            assert!(h.send().is_none(), "absence waits the whole slow rest");
+            assert!(h.send().is_none(), "absence waits the whole slow/fallback rest");
             h.fire(now);
             let read = h.one();
             assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
             missing(&mut h, read);
             assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-            assert_eq!(h.drift, u32::from(cached));
+            assert_eq!(h.drift, u32::from(seen));
         }
-        h.fire(340);
+        let present = start + interval * 4;
+        h.fire(present);
         let read = h.one();
         h.answer(read, Answer::Commit([2; 32]));
-        assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
+        assert_eq!(h.news.as_slice().last(), Some(&Answer::Commit([2; 32])));
         let drift = h.drift;
-        h.fire(400);
+        h.fire(present + 60);
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing, Error::Missing]);
@@ -980,6 +988,23 @@ fn missing_issue_and_pull_rest_at_slow_and_suppress_repeated_news() {
 
 #[test]
 fn missing_uses_hinted_rest_and_unavailable_keeps_backoff() {
+    for pushed in [false, true] {
+        let mut h = Harness::with_limits(Limits { fallback: FALLBACK, ..LIMITS });
+        h.keep(Box::new([watch(branch(), false)]));
+        let read = h.one();
+        missing(&mut h, read);
+        let event = if pushed {
+            Event::Pushed { resource: branch(), commit: [1; 32] }
+        } else {
+            Event::Hint {
+                hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
+            }
+        };
+        h.event(event);
+        assert_eq!(h.domain.next_deadline(), Some(at(101)), "unseen branch, pushed={pushed}");
+        h.fire(101);
+        assert_eq!(h.one().op, Op::Read(branch_read()));
+    }
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
     let read = h.one();
@@ -1079,7 +1104,7 @@ fn timed_reads_fall_back_while_their_repository_hears() {
         ("listing repeat", issue(), false, LIMITS.poll, None, 110, true),
         ("pull rest", pull(), false, LIMITS.poll, None, 110, false),
         ("branch slow rest", branch(), false, LONG_POLL, None, 165, false),
-        ("missing rest", branch(), false, LONG_POLL, Some(Error::Missing), 165, false),
+        ("unseen missing rest", branch(), false, LONG_POLL, Some(Error::Missing), 225, false),
         ("participating repair", pull(), true, Duration::from_secs(100), None, 165, false),
         ("failure backoff", branch(), false, LONG_POLL, Some(Error::Unavailable), 106, false),
     ] {
@@ -1119,7 +1144,7 @@ fn timed_reads_fall_back_while_their_repository_hears() {
                 // Observe just this resource's armed deadline, not the listing.
                 h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
             }
-            let expected = if hears && result != Some(Error::Unavailable) { 220 } else { own };
+            let expected = if hears && result != Some(Error::Unavailable) { own.max(220) } else { own };
             assert_eq!(h.domain.next_deadline(), Some(at(expected)), "{name}, hears={hears}");
         }
     }
