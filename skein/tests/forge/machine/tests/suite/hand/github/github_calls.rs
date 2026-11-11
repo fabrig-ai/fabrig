@@ -448,15 +448,15 @@ fn every_additional_read_runs_through_the_component() {
         ),
         (
             "Remarks",
-            Read::Remarks { number: 7, review: 8, page: 1 },
+            Read::Remarks { number: 7, review: 8, page: 1, skip: 0 },
             &[b"[]".as_slice()][..],
-            Answer::Remarks { remarks: Box::from([]), more: false },
+            Answer::Remarks { remarks: Box::from([]), more: false, cut: false },
         ),
         (
             "Reviews",
-            Read::Reviews { number: 7, page: 1 },
+            Read::Reviews { number: 7, page: 1, skip: 0 },
             &[b"[]".as_slice()][..],
-            Answer::Reviews { reviews: Box::from([]), more: false },
+            Answer::Reviews { reviews: Box::from([]), more: false, cut: false },
         ),
     ] {
         let mut h = known();

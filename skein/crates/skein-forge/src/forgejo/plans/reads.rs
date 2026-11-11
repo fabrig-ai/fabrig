@@ -44,8 +44,8 @@ enum State {
     Settings,
     Delegated(Box<Delegate>),
     Items { rows: List<api::Summary>, now: Time, size: u64, cut: bool },
-    Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64 },
-    Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64 },
+    Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64, skip: u32, cut: bool },
+    Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64, skip: u32, cut: bool },
     Issue { row: Repository, after: u64, since: Option<Wall> },
     Comments { item: api::Summary, rows: List<api::Comment>, more: bool, size: u64, after: u64 },
     Pull { row: Repository },
@@ -86,7 +86,9 @@ impl Plan {
                 (State::Locating, self.send(Request::Repository { at: r::Repo { owner, name } }))
             }
             State::New { read: api::Read::Settings } => {
-                let _row = tables.repository(self.repository);
+                if let Some(row) = tables.repository(self.repository) {
+                    return terminal(api::Answer::Settings(row.settings.clone()), bounds);
+                }
                 (State::Settings, self.send(Request::RepositoryById { id: u64::from(self.repository.repository) }))
             }
             State::New { read } => match tables.repository(self.repository).cloned() {
@@ -201,12 +203,25 @@ impl Plan {
             api::Read::PullFor { head, base } => {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
             }
-            api::Read::Reviews { number, page } => (
-                State::Reviews { format: row.object_format, rows: List::with_capacity(bounds.page_size), size: 0 },
+            api::Read::Reviews { number, page, skip } => (
+                State::Reviews {
+                    format: row.object_format,
+                    rows: List::with_capacity(bounds.page_size),
+                    size: 0,
+                    skip,
+                    cut: false,
+                },
                 Request::Reviews { at, number, page: r::Page { page: Some(page), ..page_at } },
             ),
-            api::Read::Remarks { number, review, page } => (
-                State::Remarks { rows: List::with_capacity(bounds.page_size), more: false, page, size: 0 },
+            api::Read::Remarks { number, review, page, skip } => (
+                State::Remarks {
+                    rows: List::with_capacity(bounds.page_size),
+                    more: false,
+                    page,
+                    size: 0,
+                    skip,
+                    cut: false,
+                },
                 Request::ReviewComments { at, number, review },
             ),
             api::Read::Branch { branch: name } => {
@@ -471,22 +486,34 @@ impl Plan {
                     self.cut = true;
                 }
             }
-            State::Reviews { format, rows, size, .. } => {
+            State::Reviews { format, rows, size, skip, cut } => {
                 let review = match value {
                     d::Row::Review(review) => reading::review(word, review, *format)?,
                     _ => return Err(api::Error::InvalidAnswer),
                 };
                 if let Some(review) = review {
+                    if *skip > 0 {
+                        *skip = skip.saturating_sub(1);
+                        return Ok(state);
+                    }
                     let added = row_size(
                         crate::measure::REVIEW_BYTES,
                         body_size(&review.body, review.key.as_deref())?,
                         bounds,
                     )?;
-                    charge(size, added, rows.len(), rows.capacity(), bounds)?;
-                    rows.push(review).expect("room checked");
+                    match charge(size, added, rows.len(), rows.capacity(), bounds) {
+                        Ok(()) => {
+                            rows.push(review).expect("room checked");
+                        }
+                        Err(error) if rows.is_empty() => return Err(error),
+                        Err(_) => {
+                            *cut = true;
+                            self.cut = true;
+                        }
+                    }
                 }
             }
-            State::Remarks { rows, more, page, size } => match value {
+            State::Remarks { rows, more, page, size, skip: passed, cut } => match value {
                 d::Row::ReviewComment(remark) => {
                     let skip = page
                         .saturating_sub(1)
@@ -495,18 +522,23 @@ impl Plan {
                     if self.count > skip.saturating_add(bounds.page_size) {
                         *more = true;
                         self.cut = true;
-                    } else if self.count > skip {
+                    } else if self.count > skip.saturating_add(*passed) {
                         let remark = reading::remark(word, remark);
                         let added = row_size(
                             crate::measure::REMARK_BYTES,
                             body_size(&remark.body, Some(&remark.path))?,
                             bounds,
                         )?;
-                        if charge(size, added, rows.len(), rows.capacity(), bounds).is_ok() {
-                            rows.push(remark).expect("room checked");
-                        } else {
-                            *more = true;
-                            self.cut = true;
+                        match charge(size, added, rows.len(), rows.capacity(), bounds) {
+                            Ok(()) => {
+                                rows.push(remark).expect("room checked");
+                            }
+                            Err(error) if rows.is_empty() => return Err(error),
+                            Err(_) => {
+                                *more = true;
+                                *cut = true;
+                                self.cut = true;
+                            }
                         }
                     }
                 }
@@ -617,7 +649,7 @@ fn head(
             *missing = true;
             return Ok(state);
         }
-        State::Branch { .. } => super::failure::Asked::Leaf,
+        State::Branch { .. } | State::PullFor { .. } => super::failure::Asked::Leaf,
         State::Items { now, .. } => {
             if status == 200 {
                 *now = reading::time(fields.date.ok_or(api::Error::InvalidAnswer)?);
@@ -634,7 +666,6 @@ fn head(
         | State::Issue { .. }
         | State::Comments { .. }
         | State::Pull { .. }
-        | State::PullFor { .. }
         | State::Pulls { .. }
         | State::Status { .. }
         | State::ProtectionBranch { .. }

@@ -71,7 +71,7 @@ fn prepare_inbox(row: &mut Live, phase: Phase, priority: Priority, out: &mut Que
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchAncestry { .. } => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => {}
     }
 }
 fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
@@ -89,8 +89,8 @@ fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
             What::Pull(number) => Read::Pull { number },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("pull stage"),
         },
-        Phase::Reviews(page) => match key.what {
-            What::Pull(number) => Read::Reviews { number, page },
+        Phase::Reviews(page, skip) => match key.what {
+            What::Pull(number) => Read::Reviews { number, page, skip },
             What::Repository | What::Issue(_) | What::Branch(_) => unreachable!("reviews stage"),
         },
         Phase::Branch => match &key.what {
@@ -164,6 +164,10 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         row.record.pushed = Some(commit);
         row.record.cached.tip = Some(commit);
         out.push(Request::Save { record: Stored::Live(row.record.clone()) });
+        match row.state {
+            State::Idle => schedule_resource(&mut d.alarms, env, key, row),
+            State::Due(_, _) | State::Busy(_, _) | State::Waiting(_, _) => {}
+        }
     }
 }
 pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
@@ -259,6 +263,9 @@ pub(super) fn nudge_resource(
     row: &mut Live,
 ) {
     row.refused = super::Refusals::new();
+    schedule_resource(alarms, env, key, row);
+}
+fn schedule_resource(alarms: &mut skein_lib::Deadlines<Alarm>, env: &Env<Limits>, key: &Resource, row: &mut Live) {
     row.interval = env.limits.poll;
     match row.state {
         State::Idle => {

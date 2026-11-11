@@ -533,17 +533,14 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
 pub(crate) fn stack(stacked: Stacked, demand: u32, cap: u32) -> Result<(), Unusable> {
     if demand > cap { Err(Unusable::Stack { stacked, demand, cap }) } else { Ok(()) }
 }
-/// Items keep whole rows by bytes; other listings reserve their largest rows.
+/// Real-row pages keep rows whole by bytes; other listings reserve their largest rows.
 #[must_use]
 pub fn page_size(listing: Listing, cap: u32, l: &Limits, s: &Shared) -> u32 {
     match listing {
-        Listing::Items => s.rows.min(cap),
-        Listing::Reviews
-        | Listing::Statuses
-        | Listing::Remarks
+        Listing::Items | Listing::Reviews | Listing::Remarks | Listing::PullFiles => s.rows.min(cap),
+        Listing::Statuses
         | Listing::Branches
         | Listing::Collaborators
-        | Listing::PullFiles
         | Listing::Compare
         | Listing::Runs
         | Listing::Tree => bounded_page_size(listing, cap, l, s),

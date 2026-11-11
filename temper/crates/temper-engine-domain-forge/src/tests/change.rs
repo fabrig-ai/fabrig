@@ -49,7 +49,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     for answer in [
         fixtures::checks(skein_forge::api::Check::Pending),
         Answer::Commits { commits: Box::new([]), more: false },
-        Answer::Reviews { reviews: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         let (call, _) = fixtures::next_at(&mut d, &env);
         out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
@@ -86,6 +86,10 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     outputs(&mut d, Event::SettleOutbox);
     fixtures::step_change(&mut d);
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    // With neither a recorded pull nor a pushed head, no history is read.
+    if !known && !pushed {
+        return d;
+    }
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     let mut pull = fixtures::open_pull();
     pull.state = State::Closed;
@@ -382,7 +386,8 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
-    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert!(
         finished.contains(&Request::ChangeDecision {
             task: fixtures::CHANGE,
@@ -451,7 +456,8 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
     let (pull, pull_read) = fixtures::next_call(&mut d);
     fixtures::answer(&mut d, pull, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
-    let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     assert_eq!(overtaken.as_ref(), &[]);
     assert_eq!(
         [branch_read, base_read, pull_read],
@@ -534,7 +540,7 @@ fn merge_after_base_reads(d: &mut Domain) {
     assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
     fixtures::answer(d, call, Ok(fixtures::checks(Check::Passed)));
     fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let mut merging = false;
     for request in &finished {
         if let Request::ChangeDecision {
@@ -561,7 +567,8 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
         fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let mut proposed = None;
         for request in &finished {
             if let Request::ChangeDecision {
@@ -605,7 +612,8 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             d = first_change(Protection::Absent, Ci::Passed, true, false);
         }
         fixtures::finish_open(&mut d);
-        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let expected = if restart {
             change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
         } else {
@@ -627,7 +635,8 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
             fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
             fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
             fixtures::finish_open(&mut d);
-            let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+            let finished =
+                fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
             let mut merging = false;
             for request in &finished {
                 if let Request::ChangeDecision {
@@ -784,7 +793,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
             },
         );
         let (reviews, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
+        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
         if let Some(number) = watch {
             outputs(
                 &mut d,
@@ -798,7 +807,8 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 },
             );
         }
-        let finished = fixtures::answer(&mut d, reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let finished =
+            fixtures::answer(&mut d, reviews, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let until = Wall::from_nanos(env().wall.as_nanos() + delay.as_nanos());
         assert!(
             finished.contains(&Request::ChangeDecision {
@@ -1476,7 +1486,7 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
             more: false,
         }),
     );
-    let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let effect = if preparing {
         change::Effect::Prepare { head: fixtures::HEAD, main: fixtures::BASE }
     } else {
@@ -1646,7 +1656,10 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
         fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
-        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Reviews { reviews: Box::new([]), more: false }));
+        fixtures::answer_next(
+            &mut d,
+            Ok(skein_forge::api::Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        );
         assert_eq!(
             d.change(fixtures::CHANGE).expect("held change").change.state,
             change::State::Held { was: Box::new(was), why: change::Hold::Failed }

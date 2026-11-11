@@ -222,9 +222,9 @@
   on that resource (`../routing.md`, 2) and the run never names a number.
 - **The read's own members,** beside it: `read_branch` `branch`;
   `read_branches` `prefix`; `read_pull` `number`; `read_pull_for` `head`
-  and `base`, branch names; `read_pull_files` `number`, `head` and
-  `page`; `read_reviews` `number` and `page`; `read_remarks` `number`,
-  `review` and `page`; `read_statuses` `commit` and `page`;
+  and `base`, branch names; `read_pull_files` `number`, `head`,
+  `page` and `skip`; `read_reviews` `number`, `page` and `skip`;
+  `read_remarks` `number`, `review`, `page` and `skip`; `read_statuses` `commit` and `page`;
   `read_checks` `commit`; `read_compare` `before` and `after`;
   `read_file` `head`, `path` and `max_bytes`; `read_job` `head`, `run`,
   `job`, `attempt` and `max_bytes`, exactly as `read_checks` and
@@ -238,7 +238,14 @@
   id. A commit or a head is its id, 40 or 64 lowercase hexadecimal
   digits; `page` is from 1, and 1 when left out; `since` is a time in
   nanoseconds, 0 when left out; `after` a comment's id, 0 when left
-  out; `max_bytes`, the read's limit when left out.
+  out; `max_bytes`, the read's limit when left out; `skip`, the rows of
+  `page` already read, 0 when left out.
+- **A page the answer's bytes cut names how to read on.** A
+  `read_reviews`, `read_remarks` or `read_pull_files` page cut at
+  `forge.client.answer_bytes` (skein's `forge/README.md`, 3.2 and 3.3)
+  ends with `Page cut: read on with page P, skip S.`, its own page and
+  the rows read of it, so the next read loses no row; a page that ends
+  uncut and has more says `More pages available.`, as today.
 - **`read_permission` names the person:** its answer is the permission,
   the forge user's id and the login the forge names them by, as
   `Write; forge user 3, login ada` (skein's `forge/README.md`, 3.3), so that a

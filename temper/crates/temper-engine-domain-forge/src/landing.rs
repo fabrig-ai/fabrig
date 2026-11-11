@@ -978,7 +978,7 @@ pub(crate) fn answered(
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
                     fact.cancelled = p.heard.cancelled;
                     p.stage = Stage::Reviews(index, 1);
-                    api::Read::Reviews { number: member.pull, page: 1 }
+                    api::Read::Reviews { number: member.pull, page: 1, skip: 0 }
                 }
                 Stage::Reviews(_, _) | Stage::Collect | Stage::Run { .. } | Stage::Tree { .. } => {
                     unreachable!("member stage")
@@ -988,7 +988,7 @@ pub(crate) fn answered(
         }
         Stage::Reviews(index, page) => {
             let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
-            if let Ok(api::Answer::Reviews { reviews, more }) = answer {
+            if let Ok(api::Answer::Reviews { reviews, more, .. }) = answer {
                 let mut gathered = List::with_capacity(env.limits.client.inbox);
                 for review in &evidence.reviews {
                     gathered.push(review.clone()).expect("bounded reviews");
@@ -1005,7 +1005,15 @@ pub(crate) fn answered(
                     let member = row.landing.members.get(usize::from(index)).expect("member");
                     let page = page.checked_add(1).expect("bounded review pages");
                     p.stage = Stage::Reviews(index, page);
-                    ask(d, env, owner, p, repository(member), api::Read::Reviews { number: member.pull, page }, out);
+                    ask(
+                        d,
+                        env,
+                        owner,
+                        p,
+                        repository(member),
+                        api::Read::Reviews { number: member.pull, page, skip: 0 },
+                        out,
+                    );
                     return;
                 }
                 evidence.reviews_complete = fits && !more;

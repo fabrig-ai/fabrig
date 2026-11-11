@@ -342,10 +342,13 @@ and, on GitHub, its owner's account id, which chooses its installation
   owner, and drops it for a new owner, whose account may differ. Its
   repository names neither the account nor the settings, so it makes
   no row.
+- **Read once:** a row filled by the read by id or a locate holds the
+  settings they answered, and `Settings` is answered from it with no
+  request (forgejo.md, 1.2), until it is dropped.
 - **Dropped** when a call by its path ends on a `404` or is answered a
-  redirect, or a merge is refused its style (forgejo.md, 1.4); the next
-  call resolves the id again. A `404` that is an answer (forgejo.md, 1.2)
-  keeps it.
+  redirect, a merge is refused its style or a write `Forbidden`
+  (forgejo.md, 1.4); the next call resolves the id again. A `404` that
+  is an answer (forgejo.md, 1.4, a leaf's) keeps it.
 - **At most `repositories` rows;** the one used longest ago goes first.
 
 ### 4.3 Users

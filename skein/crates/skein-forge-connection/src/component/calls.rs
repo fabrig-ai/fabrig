@@ -347,7 +347,10 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
         },
         api::Op::Write(_) => return 1,
     };
-    limits::page_size(listing, cap, l, s)
+    match kind {
+        crate::settings::Kind::Forgejo => limits::page_size(listing, cap, l, s),
+        crate::settings::Kind::GitHub => limits::bounded_page_size(listing, cap, l, s),
+    }
 }
 
 impl Component {
