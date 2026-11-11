@@ -11,7 +11,8 @@ use skein_lib::{Env, List, Queue};
 /// in this save. The continuation crosses the roles decision's commit barrier.
 pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, requests: &Queue<core::Request>) {
     for request in requests {
-        let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Roles { project, .. }))) = request
+        let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Roles { project, .. }))) =
+            request
         else {
             continue;
         };
@@ -38,7 +39,11 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
                 break;
             }
         }
-        super::emit(decision, &env.limits, Delivery::MoveStanding { project: *project, owner: owner(domain, *project, asker) });
+        super::emit(
+            decision,
+            &env.limits,
+            Delivery::MoveStanding { project: *project, owner: owner(domain, *project, asker) },
+        );
     }
 }
 
@@ -90,23 +95,25 @@ fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks:
         }
         let revision = row.revisions.person;
         let message = core::fresh(&mut domain.core.counters, core::Family::Message)?;
-        operations.push(tasks::Operation::Amend(tasks::Amend {
-            task: delegate,
-            message,
-            stop_run: false,
-            amendment: Box::new(tasks::Amendment {
-                addressed: Some(tasks::AddressChange { revision, address: tasks::PersonAddress::Person(person) }),
-                tracked: None,
-                instructions: None,
-                release: None,
-                spec: None,
-                wake: None,
-                dependencies: None,
-                authority: None,
-                llm: None,
-                reason: Box::new([]),
-            }),
-        })).expect("uncapped operations");
+        operations
+            .push(tasks::Operation::Amend(tasks::Amend {
+                task: delegate,
+                message,
+                stop_run: false,
+                amendment: Box::new(tasks::Amendment {
+                    addressed: Some(tasks::AddressChange { revision, address: tasks::PersonAddress::Person(person) }),
+                    tracked: None,
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: None,
+                    authority: None,
+                    llm: None,
+                    reason: Box::new([]),
+                }),
+            }))
+            .expect("uncapped operations");
     }
     Some(operations)
 }

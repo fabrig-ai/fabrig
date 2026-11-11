@@ -22,7 +22,8 @@ fn cast() -> Cast {
         cheaper.policy.model.price_unit = 2000;
         config.core.settings.models = Box::new([cheaper.policy.model.clone()]);
         config.core.defaults.charters = Box::new([cheaper]);
-        let kinds: Box<[_]> = Box::new([authority::Executor::Charter(1), authority::Executor::Role(0), authority::Executor::Role(2)]);
+        let kinds: Box<[_]> =
+            Box::new([authority::Executor::Charter(1), authority::Executor::Role(0), authority::Executor::Role(2)]);
         config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
         config.core.defaults.rules.ceiling.delegation.tasks = 4;
         let policy = &mut config.core.seed_projects[0].policy.policy;
@@ -109,9 +110,13 @@ fn start(driver: &mut Driver, session: u64, key: u8, ended_by: people::EndedBy, 
     batch[0].authority.spend = spend;
     ask(driver, session, key, people::Ask::Create { project, batch });
     driver.settle();
-    assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(delivery,
         Delivery::WebReply { to, reply: people::Reply::Outcome(people::Outcome::Created { .. }) }
-        if *to == ReplyTo::new(Token::new(u64::from(key))))), "task {key} created: {:?}", driver.delivered);
+        if *to == ReplyTo::new(Token::new(u64::from(key))))),
+        "task {key} created: {:?}",
+        driver.delivered
+    );
     driver.last_assignment()
 }
 
@@ -132,17 +137,26 @@ fn inbox(driver: &mut Driver, session: u64) -> Vec<reads::PageRow> {
         },
     }));
     driver.settle();
-    driver.delivered.iter().rev().find_map(|delivery| {
-        if let Delivery::Read { answer: reads::Answer::Page(page), .. } = delivery {
-            Some(page.rows.iter().cloned().collect())
-        } else { None }
-    }).expect("person's person-task inbox")
+    driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let Delivery::Read { answer: reads::Answer::Page(page), .. } = delivery {
+                Some(page.rows.iter().cloned().collect())
+            } else {
+                None
+            }
+        })
+        .expect("person's person-task inbox")
 }
 
 fn has_question(rows: &[reads::PageRow], question: u64) -> bool {
-    rows.iter().any(|row| matches!(row, reads::PageRow::Inbox(entry)
+    rows.iter().any(|row| {
+        matches!(row, reads::PageRow::Inbox(entry)
         if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == question)
-        && entry.object == documents::InboxObject::PersonTask))
+        && entry.object == documents::InboxObject::PersonTask)
+    })
 }
 
 fn funding(driver: &Driver, person: u64, period: u64) -> tasks::Numbers {
@@ -176,26 +190,45 @@ fn a_roles_save_moves_only_the_leavers_standing_role_after_commit() {
     );
     for _ in 0..32 {
         driver.advance(false);
-        if !driver.store.pending.is_empty() { break; }
+        if !driver.store.pending.is_empty() {
+            break;
+        }
     }
     assert!(!driver.store.pending.is_empty(), "roles save has a commit");
-    for _ in 0..8 { driver.advance(false); }
+    for _ in 0..8 {
+        driver.advance(false);
+    }
     assert_eq!(live(&driver, role.task).requester, tasks::Party::Person(people[2]), "no move before commit");
     assert!(!driver.transactions[before..].iter().flatten().any(|write| matches!(write,
         Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
         if row.number == role.task && row.requester == tasks::Party::Person(people[1]))));
     driver.settle();
     let saves = &driver.transactions[before..];
-    let roster = saves.iter().position(|writes| writes.iter().any(|write| matches!(write,
-        Write::Save(Record::Core(core::Record::People(people::Stored::Roles { .. })))))).expect("roles decision");
-    let moved = saves.iter().position(|writes| writes.iter().any(|write| matches!(write,
+    let roster = saves
+        .iter()
+        .position(|writes| {
+            writes.iter().any(|write| {
+                matches!(write, Write::Save(Record::Core(core::Record::People(people::Stored::Roles { .. }))))
+            })
+        })
+        .expect("roles decision");
+    let moved = saves
+        .iter()
+        .position(|writes| {
+            writes.iter().any(|write| {
+                matches!(write,
         Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
-        if row.number == role.task && row.requester == tasks::Party::Person(people[1])))).expect("move decision");
+        if row.number == role.task && row.requester == tasks::Party::Person(people[1]))
+            })
+        })
+        .expect("move decision");
     assert_eq!(moved, roster + 1, "the move is the decision after the roles save");
-    assert!(saves[moved].iter().any(|write| matches!(write,
+    assert!(
+        saves[moved].iter().any(|write| matches!(write,
         Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
         if row.number == question && row.executor == tasks::Executor::Person(tasks::PersonAddress::Person(people[1])))),
-        "the person task is re-addressed in the move's decision");
+        "the person task is re-addressed in the move's decision"
+    );
     assert!(people[0] < people[1], "the saver is not the lowest owner");
     let row = live(&driver, role.task);
     assert_eq!(row.requester, tasks::Party::Person(people[1]));
@@ -206,9 +239,20 @@ fn a_roles_save_moves_only_the_leavers_standing_role_after_commit() {
     assert!(!has_question(&inbox(&mut driver, sessions[2]), question), "the leaver's inbox loses the person task");
     assert!(!has_question(&inbox(&mut driver, sessions[0]), question));
     assert_eq!(live(&driver, role_question).executor, tasks::Executor::Person(tasks::PersonAddress::Role(0)));
-    assert_eq!(live(&driver, role_question).revisions.person, role_revision, "role-addressed delegates are not re-addressed");
-    assert_eq!(live(&driver, others_question).executor, tasks::Executor::Person(tasks::PersonAddress::Person(people[3])));
-    assert_eq!(live(&driver, others_question).revisions.person, other_revision, "other people's delegates are not re-addressed");
+    assert_eq!(
+        live(&driver, role_question).revisions.person,
+        role_revision,
+        "role-addressed delegates are not re-addressed"
+    );
+    assert_eq!(
+        live(&driver, others_question).executor,
+        tasks::Executor::Person(tasks::PersonAddress::Person(people[3]))
+    );
+    assert_eq!(
+        live(&driver, others_question).revisions.person,
+        other_revision,
+        "other people's delegates are not re-addressed"
+    );
     assert_eq!(live(&driver, chat.task), &original_chat, "M's chat is not moved");
     assert_eq!(live(&driver, stays.task), &original_stays, "a remaining member's role is not moved");
 }

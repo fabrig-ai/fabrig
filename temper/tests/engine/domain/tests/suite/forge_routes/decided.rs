@@ -11,12 +11,7 @@ fn start(tracked: bool, words: &[u8]) -> (World, engine::Assignment) {
     start_as(tracked, !tracked, people::EndedBy::Result, words)
 }
 
-fn start_as(
-    tracked: bool,
-    conversation: bool,
-    ended_by: people::EndedBy,
-    words: &[u8],
-) -> (World, engine::Assignment) {
+fn start_as(tracked: bool, conversation: bool, ended_by: people::EndedBy, words: &[u8]) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
