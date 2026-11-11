@@ -79,6 +79,8 @@ pub struct Charter {
     /// The LLMs a sub-agent may be opened on, each named by its model, which
     /// it lists once.
     pub models: Box<[Llm]>,
+    /// Delivery checks' wall bound, from one second to one day; None uses the run's limit.
+    pub check_timeout: Option<Duration>,
 }
 
 impl Charter {
@@ -241,7 +243,13 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         resume: _,
         waiting,
         conventions,
+        check_timeout,
     } = charter;
+    if let Some(bound) = check_timeout
+        && (*bound < Duration::from_secs(1) || *bound > Duration::from_secs(86_400))
+    {
+        return Err(Invalid::MalformedCharter);
+    }
     if !valid_mode(*mode, grants) {
         return Err(Invalid::MalformedCharter);
     }

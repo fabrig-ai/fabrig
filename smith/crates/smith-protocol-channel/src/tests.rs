@@ -665,6 +665,7 @@ fn grant_charter() -> smith_domain::run::Charter {
     use skein_lib::Duration;
     use smith_domain::run::{self, charter, outcome};
     run::Charter {
+        check_timeout: None,
         mode: run::Mode::Finite,
         resume: false,
         waiting: Duration::from_secs(30),
