@@ -19,7 +19,5 @@ gives an unknown address's line and each answer's `see:` line.
 ## Gaps and departures
 
 - **Not yet:** 4: `temper-client`'s `help` alone prints the index, and its `help commands` the compiled page, until `../draft/cli.execution.md`'s C3 gives it a table.
-- **Not yet:** 8.1: the compiled page `commands` is `temper-box`'s table alone, rendered by `commands_page`, naming no command's other binaries [in flight: change 354]
 - **Not yet:** 8.1: the client's table is not among the page's: its rows are `temper-shell`'s `commands` module's, not skein's table, until `../draft/cli.execution.md`'s C3 gives it one, so the page holds the engine's, the worker's, the agent's and the box's.
-- **Not yet:** 2: `temper help server` builds the box's binary from a checkout and runs `temper-box serve` and `temper-box forge`, where a deployment fetches the engine's, the worker's, the agent's and the client's binaries and `examples.tar.gz` from one commit's directory (`../draft/deployment-binaries.md`, section 9, item 6); `temper help deployment` names `temper-box serve` alone; the pages' command check reads no `temper-engine` or `temper-worker` line [in flight: change 355]
 - **Not yet:** 9: every area's errors brought to the rule, each with its remedy: the forge's connect refusals that ctl renders still say a bare `busy` or `no key` (`temper-client-domain/src/forge/forges.rs`, `connect_refusal`).
