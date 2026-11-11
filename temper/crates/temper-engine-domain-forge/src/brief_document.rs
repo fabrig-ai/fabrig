@@ -384,7 +384,13 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         let Some(section) = expired else { break };
         let fetch = domain.document_fetches.remove(&section).expect("expired document");
         let stage = if fetch.head.is_none() { "branch" } else { "file" };
-        out.push(Request::BriefReadRefused { section: fetch.section, stage, reason: "the forge client is busy", heads: None, error: Some(Error::Busy) });
+        out.push(Request::BriefReadRefused {
+            section: fetch.section,
+            stage,
+            reason: "the forge client is busy",
+            heads: None,
+            error: Some(Error::Busy),
+        });
         crate::held::ready(domain, fetch.section, BriefRead::Failed(busy()), out);
     }
 }

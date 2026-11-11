@@ -1722,16 +1722,35 @@ fn read_job_refusal_line_names_the_asked_attempt() {
 fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
     use skein_forge::api::{Bound, Error, Excess};
     for (stage, reason, heads, error, expected) in [
-        ("item", "the forge's answer did not match its read", None, Some(Error::InvalidAnswer),
-         "temper serve: brief read refused task=7 section=pull stage=item reason=the forge's answer did not match its read error=InvalidAnswer\n"),
-        ("pull", "the change's head moved", Some(([1; 32], [99; 32])), None,
-         "temper serve: brief read refused task=7 section=pull stage=pull reason=the change's head moved pinned=0101010101010101010101010101010101010101010101010101010101010101 head=6363636363636363636363636363636363636363636363636363636363636363\n"),
-        ("files", "the answer is past", None, Some(Error::TooLarge(Excess::exact(Bound::Rows, 8, 22))),
-         "temper serve: brief read refused task=7 section=pull stage=files reason=the answer is past forge.client.rows (8): 22 rows error=TooLarge: past forge.client.rows (8): 22 rows\n"),
+        (
+            "item",
+            "the forge's answer did not match its read",
+            None,
+            Some(Error::InvalidAnswer),
+            "temper serve: brief read refused task=7 section=pull stage=item reason=the forge's answer did not match its read error=InvalidAnswer\n",
+        ),
+        (
+            "pull",
+            "the change's head moved",
+            Some(([1; 32], [99; 32])),
+            None,
+            "temper serve: brief read refused task=7 section=pull stage=pull reason=the change's head moved pinned=0101010101010101010101010101010101010101010101010101010101010101 head=6363636363636363636363636363636363636363636363636363636363636363\n",
+        ),
+        (
+            "files",
+            "the answer is past",
+            None,
+            Some(Error::TooLarge(Excess::exact(Bound::Rows, 8, 22))),
+            "temper serve: brief read refused task=7 section=pull stage=files reason=the answer is past forge.client.rows (8): 22 rows error=TooLarge: past forge.client.rows (8): 22 rows\n",
+        ),
     ] {
-        assert_eq!(note_line("temper", temper_service::Note::BriefReadRefused {
-            task: 7, section: b"pull", stage, reason, heads, error,
-        }), expected);
+        assert_eq!(
+            note_line(
+                "temper",
+                temper_service::Note::BriefReadRefused { task: 7, section: b"pull", stage, reason, heads, error }
+            ),
+            expected
+        );
     }
 }
 

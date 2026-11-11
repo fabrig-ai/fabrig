@@ -2798,7 +2798,9 @@ fn lost_read(
             Some(Writer::Run { task, attempt }) => task == pending.task && attempt > pending.attempt,
             Some(Writer::Lost { .. } | Writer::Entry(_)) | None => false,
         };
-        if pending.kind == LostWriterKind::Slot && later && row.drift.is_none()
+        if pending.kind == LostWriterKind::Slot
+            && later
+            && row.drift.is_none()
             && let Some(commit) = superseded_head(&pending, result)
         {
             record_delegate_head(d, pending.task, &pending.name, commit, out);
@@ -2952,13 +2954,37 @@ fn superseded_head(
     }
     match result {
         Ok(Answer::Commit(head)) => Some(head),
-        Ok(Answer::Located { .. } | Answer::Items { .. } | Answer::Item { .. } | Answer::Pull(_)
-            | Answer::Reviews { .. } | Answer::Statuses { .. } | Answer::Remarks { .. } | Answer::Branches(_)
-            | Answer::PullFiles { .. } | Answer::Compare { .. } | Answer::Checks(_) | Answer::Job { .. }
-            | Answer::File { .. } | Answer::Directory { .. } | Answer::Protection(_) | Answer::Settings(_)
-            | Answer::Collaborators { .. } | Answer::Permission(_) | Answer::Created(_) | Answer::Commented(_)
-            | Answer::Reviewed(_) | Answer::Merged(_) | Answer::Queued | Answer::Branch(_) | Answer::Runs { .. }
-            | Answer::Run(_) | Answer::Tree { .. } | Answer::Commits { .. } | Answer::Done)
+        Ok(
+            Answer::Located { .. }
+            | Answer::Items { .. }
+            | Answer::Item { .. }
+            | Answer::Pull(_)
+            | Answer::Reviews { .. }
+            | Answer::Statuses { .. }
+            | Answer::Remarks { .. }
+            | Answer::Branches(_)
+            | Answer::PullFiles { .. }
+            | Answer::Compare { .. }
+            | Answer::Checks(_)
+            | Answer::Job { .. }
+            | Answer::File { .. }
+            | Answer::Directory { .. }
+            | Answer::Protection(_)
+            | Answer::Settings(_)
+            | Answer::Collaborators { .. }
+            | Answer::Permission(_)
+            | Answer::Created(_)
+            | Answer::Commented(_)
+            | Answer::Reviewed(_)
+            | Answer::Merged(_)
+            | Answer::Queued
+            | Answer::Branch(_)
+            | Answer::Runs { .. }
+            | Answer::Run(_)
+            | Answer::Tree { .. }
+            | Answer::Commits { .. }
+            | Answer::Done,
+        )
         | Err(_) => None,
     }
 }

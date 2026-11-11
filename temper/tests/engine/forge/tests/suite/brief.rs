@@ -169,12 +169,13 @@ fn resolver_comparison_read_errors_still_fail_the_section() {
 )]
 fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
     type MakePull = fn(&mut World) -> (u64, api::Commit);
-    let rows: [(MakePull, &str, api::Error, Option<top::BriefUnread>); 2] = [
+    let rows: [(MakePull, &str, api::Error, &str, Option<top::BriefUnread>); 2] = [
         (
             // The fake has no such pull; its Item read answers Missing.
             |_| (17, translate::commit(1)),
             "item",
             api::Error::Missing,
+            "the forge has no such object",
             Some(top::BriefUnread {
                 fate: top::BriefFate::Permanent,
                 words: Box::from(b"the forge has no such object".as_slice()),
@@ -202,10 +203,11 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
             },
             "files",
             api::Error::TooLarge(api::Excess::at_least(api::Bound::AnswerBytes, 65_536, 65_537)),
+            "the answer is past",
             None,
         ),
     ];
-    for (make_pull, stage, error, failure) in rows {
+    for (make_pull, stage, error, reason, failure) in rows {
         let mut world = World::with_goal_room(246, 8, 65_536);
         world.adopt();
         let (pull, head) = make_pull(&mut world);
@@ -219,7 +221,14 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
             .seen()
             .iter()
             .position(|request| {
-                *request == top::Request::BriefReadRefused { section: SECTION, stage, error: Some(error) }
+                *request
+                    == top::Request::BriefReadRefused {
+                        section: SECTION,
+                        stage,
+                        reason,
+                        heads: None,
+                        error: Some(error),
+                    }
             })
             .unwrap_or_else(|| panic!("the refused read is logged: {:?}", world.seen()));
         let sizes: Vec<_> = world

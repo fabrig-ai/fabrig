@@ -566,7 +566,14 @@ pub enum Fact {
         job: Option<skein_forge::api::JobAttempt>,
     },
     /// A brief section's forge read failed (temper/docs/design/domain/forge/change/repairs.md).
-    BriefReadRefused { task: u64, section: &'static [u8], stage: &'static str, reason: &'static str, heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>, error: Option<skein_forge::api::Error> },
+    BriefReadRefused {
+        task: u64,
+        section: &'static [u8],
+        stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
+        error: Option<skein_forge::api::Error>,
+    },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.

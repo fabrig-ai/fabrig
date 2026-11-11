@@ -307,7 +307,14 @@ pub(crate) fn brief_answer(
             // this brief's task may have pushed beyond the recorded pin.
             if pull.commit != fetch.head.0 {
                 if !own_writer(domain, &fetch) {
-                    refused(fetch.owner, fetch.stage, "the change's head moved", Some((fetch.head.0, pull.commit)), None, out);
+                    refused(
+                        fetch.owner,
+                        fetch.stage,
+                        "the change's head moved",
+                        Some((fetch.head.0, pull.commit)),
+                        None,
+                        out,
+                    );
                     wake_change(domain, fetch.item);
                     crate::held::ready(domain, fetch.owner, BriefRead::Failed(moved()), out);
                     return true;
@@ -531,7 +538,9 @@ fn own_writer(domain: &Domain, fetch: &BriefFetch) -> bool {
             && crate::items::branch_matches(name, &row.branch)
         {
             return match hold.writer {
-                Some(crate::Writer::Run { task: writer, .. } | crate::Writer::Lost { task: writer, .. }) => writer == task,
+                Some(crate::Writer::Run { task: writer, .. } | crate::Writer::Lost { task: writer, .. }) => {
+                    writer == task
+                }
                 Some(crate::Writer::Entry(_)) | None => false,
             };
         }

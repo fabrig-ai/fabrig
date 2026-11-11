@@ -1723,12 +1723,25 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
         row.change.last_head = Some([1; 32]);
         row.delegate = Some((9, temper_engine_domain_forge_change::Delegate::Resolve { base: fixtures::BASE }));
         outputs(&mut d, Event::Change { row });
-        outputs(&mut d, Event::Restore { record: Stored::Hold(Hold {
-            name: name.clone(), task: fixtures::CHANGE, writer: Some(Writer::Run { task: 9, attempt: 1 }),
-            design_writers: Box::new([]), drift: None,
-        }) });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: name.clone(),
+                    task: fixtures::CHANGE,
+                    writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
         if comparing {
-            outputs(&mut d, Event::Restore { record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }) });
+            outputs(
+                &mut d,
+                Event::Restore {
+                    record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }),
+                },
+            );
         }
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
@@ -1741,18 +1754,28 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
         }
         let hold = d.holds.get_mut(&name).expect("hold");
         hold.writer = Some(writer);
-        hold.drift = drifted.then_some(Drift { at: env().wall, change: DriftChange::Branch { expected: [1; 32], observed: Some([88; 32]) } });
+        hold.drift = drifted.then_some(Drift {
+            at: env().wall,
+            change: DriftChange::Branch { expected: [1; 32], observed: Some([88; 32]) },
+        });
         let result = if comparing {
             skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }
         } else {
             skein_forge::api::Answer::Commit([99; 32])
         };
         let answered = fixtures::answer(&mut d, call, Ok(result));
-        assert_eq!(d.change(fixtures::CHANGE).expect("change").change.last_head, Some(if records { [99; 32] } else { [1; 32] }), "{writer:?}, drifted={drifted}");
+        assert_eq!(
+            d.change(fixtures::CHANGE).expect("change").change.last_head,
+            Some(if records { [99; 32] } else { [1; 32] }),
+            "{writer:?}, drifted={drifted}"
+        );
         assert_eq!(d.hold(&name).expect("hold").writer, Some(writer));
         assert_eq!(d.hold(&name).expect("hold").drift.is_some(), drifted);
         for request in &answered {
-            assert!(!matches!(request, Request::Save { record: Stored::Hold(_), .. }), "the later slot is neither freed nor rewritten");
+            assert!(
+                !matches!(request, Request::Save { record: Stored::Hold(_), .. }),
+                "the later slot is neither freed nor rewritten"
+            );
         }
     }
 }

@@ -55,13 +55,37 @@ fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
     use BriefFate::{Capacity, Permanent, Transient};
     let error = match result {
         Ok(Answer::Pull(_)) => return (Capacity, "the change's head moved"),
-        Ok(Answer::Located { .. } | Answer::Items { .. } | Answer::Item { .. } | Answer::Reviews { .. }
-            | Answer::Statuses { .. } | Answer::Remarks { .. } | Answer::Commit(_) | Answer::Branches(_)
-            | Answer::PullFiles { .. } | Answer::Compare { .. } | Answer::Checks(_) | Answer::Job { .. }
-            | Answer::File { .. } | Answer::Directory { .. } | Answer::Protection(_) | Answer::Settings(_)
-            | Answer::Collaborators { .. } | Answer::Permission(_) | Answer::Created(_) | Answer::Commented(_)
-            | Answer::Reviewed(_) | Answer::Merged(_) | Answer::Queued | Answer::Branch(_) | Answer::Runs { .. }
-            | Answer::Run(_) | Answer::Tree { .. } | Answer::Commits { .. } | Answer::Done) => {
+        Ok(
+            Answer::Located { .. }
+            | Answer::Items { .. }
+            | Answer::Item { .. }
+            | Answer::Reviews { .. }
+            | Answer::Statuses { .. }
+            | Answer::Remarks { .. }
+            | Answer::Commit(_)
+            | Answer::Branches(_)
+            | Answer::PullFiles { .. }
+            | Answer::Compare { .. }
+            | Answer::Checks(_)
+            | Answer::Job { .. }
+            | Answer::File { .. }
+            | Answer::Directory { .. }
+            | Answer::Protection(_)
+            | Answer::Settings(_)
+            | Answer::Collaborators { .. }
+            | Answer::Permission(_)
+            | Answer::Created(_)
+            | Answer::Commented(_)
+            | Answer::Reviewed(_)
+            | Answer::Merged(_)
+            | Answer::Queued
+            | Answer::Branch(_)
+            | Answer::Runs { .. }
+            | Answer::Run(_)
+            | Answer::Tree { .. }
+            | Answer::Commits { .. }
+            | Answer::Done,
+        ) => {
             return (Permanent, "the forge answered another read");
         }
         Err(error) => error,
@@ -77,8 +101,15 @@ fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
         Error::NotInstalled => (Permanent, "the forge App is not installed"),
         Error::Missing | Error::MissingJob => (Permanent, "the forge has no such object"),
         Error::TooLarge(_) => (Permanent, "the answer is past"),
-        Error::Empty | Error::Full | Error::Exists | Error::NothingToMerge | Error::Closed
-        | Error::Stale | Error::Conflict | Error::Protected | Error::Refused => (Permanent, "the forge refused this read"),
+        Error::Empty
+        | Error::Full
+        | Error::Exists
+        | Error::NothingToMerge
+        | Error::Closed
+        | Error::Stale
+        | Error::Conflict
+        | Error::Protected
+        | Error::Refused => (Permanent, "the forge refused this read"),
     }
 }
 
