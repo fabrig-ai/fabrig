@@ -224,7 +224,7 @@ class Sitting:
         self.person = person
         self.wide = mode == 'fake-wide'
         self.mode = 'fake' if self.wide else mode
-        self.wait_secs = int(os.environ.get('TEMPER_SITTING_WAIT_SECS', '0')) if self.mode == 'fake' else 0
+        self.wait_secs = int(os.environ.get('TEMPER_TEST_SITTING_WAIT_SECS', '0')) if self.mode == 'fake' else 0
         require(self.wait_secs >= 0)
         self.port = int(port)
         self.root = Path(__file__).resolve().parent.parent
@@ -424,7 +424,7 @@ class Sitting:
         self.step = 'signed-in Ready ' + mode
         # This test is not ignored: --ignored would select nothing and exit 0.
         self.command([self.harness, '--exact', 'managed_ready_client', '--nocapture'],
-                     data=(link + '\n').encode(), extra_env={'TEMPER_MANAGED_CLIENT': mode}, ready=True)
+                     data=(link + '\n').encode(), extra_env={'TEMPER_TEST_MANAGED_CLIENT': mode}, ready=True)
 
     def wait_ready(self):
         from cryptography.hazmat.primitives.serialization import load_der_private_key
@@ -668,9 +668,9 @@ class Sitting:
     def run_sitting(self):
         upstream = self.fake() if self.mode == 'fake' else ''
         relay = self.start([self.harness, '--ignored', '--exact', 'managed_relay', '--nocapture'], 'relay',
-                           {'TEMPER_MANAGED_MODE': self.mode, 'TEMPER_MANAGED_SCRATCH': str(self.scratch),
-                            'TEMPER_MANAGED_UPSTREAM': upstream, 'TEMPER_MANAGED_PREFIX': self.prefix,
-                            'TEMPER_MANAGED_EVIDENCE': str(self.evidence), 'TEMPER_MANAGED_PERSON': self.person})
+                           {'TEMPER_TEST_MANAGED_MODE': self.mode, 'TEMPER_TEST_MANAGED_SCRATCH': str(self.scratch),
+                            'TEMPER_TEST_MANAGED_UPSTREAM': upstream, 'TEMPER_TEST_MANAGED_PREFIX': self.prefix,
+                            'TEMPER_TEST_MANAGED_EVIDENCE': str(self.evidence), 'TEMPER_TEST_MANAGED_PERSON': self.person})
         self.relay = relay
         until = time.monotonic() + 30
         ready = self.scratch/'relay-ready.json'

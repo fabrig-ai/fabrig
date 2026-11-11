@@ -96,10 +96,6 @@ exec /bin/sleep 30
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the owned-slot story keeps its start and removal evidence together")]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: the child process environment, through temper's test table once it exists"
-)]
 fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
     let scratch = support::Scratch::new("box-owned-kind");
     let root = scratch.path();
@@ -140,11 +136,13 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         }
         group.remover = group.remover.as_ref().map(command);
     }
-    let environment = std::env::vars_os()
+    let environment = temper_test_env::environment()
+        .into_vec()
+        .into_iter()
         .map(|(key, value)| {
-            let mut entry = key.as_encoded_bytes().to_vec();
+            let mut entry = key.into_vec();
             entry.push(b'=');
-            entry.extend_from_slice(value.as_encoded_bytes());
+            entry.extend_from_slice(&value);
             entry.into_boxed_slice()
         })
         .collect();

@@ -496,21 +496,29 @@ fn redact(value: &Value, path: &str) -> Value {
         }
     }
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: the sitting supplies the relay's scratch, prefix, mode, person, upstream and evidence through its environment and runs it on owned threads"
-)]
+#[expect(clippy::disallowed_methods, reason = "the sitting's relay serves its listeners on owned threads")]
 pub fn run() -> io::Result<()> {
-    let directory = PathBuf::from(std::env::var_os("TEMPER_MANAGED_SCRATCH").ok_or_else(invalid)?);
-    let prefix = std::env::var("TEMPER_MANAGED_PREFIX").map_err(|_| invalid())?;
-    let mode = std::env::var("TEMPER_MANAGED_MODE").map_err(|_| invalid())?;
-    let person = std::env::var("TEMPER_MANAGED_PERSON").map_err(|_| invalid())?;
+    let directory = PathBuf::from(temper_test_env::value(&temper_test_env::MANAGED_SCRATCH).ok_or_else(invalid)?);
+    let prefix = temper_test_env::value(&temper_test_env::MANAGED_PREFIX)
+        .ok_or_else(invalid)?
+        .into_string()
+        .map_err(|_| invalid())?;
+    let mode = temper_test_env::value(&temper_test_env::MANAGED_MODE)
+        .ok_or_else(invalid)?
+        .into_string()
+        .map_err(|_| invalid())?;
+    let person = temper_test_env::value(&temper_test_env::MANAGED_PERSON)
+        .ok_or_else(invalid)?
+        .into_string()
+        .map_err(|_| invalid())?;
     if person.is_empty() {
         return Err(invalid());
     }
     let fake = match mode.as_str() {
         "fake" => Some(
-            std::env::var("TEMPER_MANAGED_UPSTREAM")
+            temper_test_env::value(&temper_test_env::MANAGED_UPSTREAM)
+                .ok_or_else(invalid)?
+                .into_string()
                 .map_err(|_| invalid())?
                 .parse::<SocketAddr>()
                 .map_err(|_| invalid())?,
@@ -518,7 +526,7 @@ pub fn run() -> io::Result<()> {
         "live" => None,
         _ => return Err(invalid()),
     };
-    let evidence = PathBuf::from(std::env::var_os("TEMPER_MANAGED_EVIDENCE").ok_or_else(invalid)?);
+    let evidence = PathBuf::from(temper_test_env::value(&temper_test_env::MANAGED_EVIDENCE).ok_or_else(invalid)?);
     let shared = Arc::new(Shared {
         fake: fake.is_some(),
         transport: Transport::new(fake)?,

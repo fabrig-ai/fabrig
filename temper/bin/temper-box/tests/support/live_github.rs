@@ -37,14 +37,14 @@ struct Inputs {
     scratch: PathBuf,
 }
 impl Inputs {
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "cli C4: TEMPER_LIVE_GITHUB_OWNER, TEMPER_LIVE_GITHUB_FIXTURES and PATH, through temper's test table once it exists"
-    )]
     fn read(scratch: &Path) -> Self {
-        let owner = std::env::var("TEMPER_LIVE_GITHUB_OWNER").expect("owner from proof-live-github.sh");
+        let owner = temper_test_env::value(&temper_test_env::LIVE_GITHUB_OWNER)
+            .expect("owner from proof-live-github.sh")
+            .into_string()
+            .expect("UTF-8 owner");
         assert_eq!(owner, "fabrig-ai", "probe owner only");
-        let fixtures = PathBuf::from(std::env::var_os("TEMPER_LIVE_GITHUB_FIXTURES").expect("fixtures path"));
+        let fixtures =
+            PathBuf::from(temper_test_env::value(&temper_test_env::LIVE_GITHUB_FIXTURES).expect("fixtures path"));
         let app: Value = serde_json::from_slice(&fs::read(fixtures.join("app.json")).expect("public App fixture"))
             .expect("App JSON");
         let installation = app["installations"]
@@ -55,7 +55,7 @@ impl Inputs {
             .expect("owner installation")["id"]
             .as_u64()
             .expect("installation id");
-        let git = std::env::split_paths(&std::env::var_os("PATH").expect("PATH"))
+        let git = std::env::split_paths(&temper_test_env::value(&temper_shell::environment::PATH).expect("PATH"))
             .map(|p| p.join("git"))
             .find(|p| p.is_file())
             .expect("real git on PATH")
@@ -96,11 +96,11 @@ impl Inputs {
     }
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C4: TMPDIR, through temper's test table once it exists")]
 pub fn run() {
     let clock = Clock::new();
     let started = clock.now().now;
-    let scratch = PathBuf::from(std::env::var_os("TMPDIR").expect("run through proof-live-github.sh"));
+    let scratch =
+        PathBuf::from(temper_test_env::value(&temper_test_env::TMPDIR).expect("run through proof-live-github.sh"));
     let inputs = Inputs::read(&scratch);
     inputs.manifest(false);
     eprintln!("live github run={}", inputs.run);
@@ -116,7 +116,7 @@ pub fn run() {
     relay.quiesce();
     let cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| teardown(&inputs, &relay)));
     eprintln!(
-        "live github run={} requests={} wall={}s state={} (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)",
+        "live github run={} requests={} wall={}s state={} (removed on exit unless TEMPER_TEST_LIVE_GITHUB_KEEP=1)",
         inputs.run,
         relay.count(),
         clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000,

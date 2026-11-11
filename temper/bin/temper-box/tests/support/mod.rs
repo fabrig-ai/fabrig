@@ -161,9 +161,8 @@ impl Scratch {
     }
     /// The live launcher supplies a new private TMPDIR, swept on every exit.
     #[must_use]
-    #[expect(clippy::disallowed_methods, reason = "cli C4: TMPDIR, through temper's test table once it exists")]
     pub fn live() -> Self {
-        let base = std::env::var_os("TMPDIR").expect("run live through scripts/proof-live.sh");
+        let base = temper_test_env::value(&temper_test_env::TMPDIR).expect("run live through scripts/proof-live.sh");
         let path = std::path::PathBuf::from(base).join(format!("temper-live-{}", std::process::id()));
         fs::create_dir(&path).expect("fresh live scratch");
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("private live scratch");

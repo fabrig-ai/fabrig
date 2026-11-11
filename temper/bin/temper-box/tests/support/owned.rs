@@ -380,13 +380,9 @@ pub fn await_answer(port: u16, path: &str, token: Option<&str>) -> serde_json::V
     }
 }
 #[must_use]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_FORGEJO and TEMPER_FORGEJO_RUNNER, through temper's test table once it exists"
-)]
 pub fn prepared_processes(directory: &Path) -> u16 {
-    let forgejo = std::env::var_os("TEMPER_FORGEJO").expect("TEMPER_FORGEJO");
-    let runner = std::env::var_os("TEMPER_FORGEJO_RUNNER").expect("TEMPER_FORGEJO_RUNNER");
+    let forgejo = temper_test_env::value(&temper_test_env::FORGEJO).expect("TEMPER_TEST_FORGEJO");
+    let runner = temper_test_env::value(&temper_test_env::FORGEJO_RUNNER).expect("TEMPER_TEST_FORGEJO_RUNNER");
     let [address] = super::free_addresses(&[]);
     let port = address.port();
     configuration(
@@ -494,13 +490,11 @@ pub fn configuration_value(directory: &Path, change: fn(&mut serde_json::Value))
 
 /// Both pinned executables are required before the process tier starts anything.
 #[must_use]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_FORGEJO and TEMPER_FORGEJO_RUNNER, through temper's test table once it exists"
-)]
 pub fn binaries() -> (PathBuf, PathBuf) {
-    let forgejo = std::env::var_os("TEMPER_FORGEJO").expect("TEMPER_FORGEJO must name the pinned Forgejo");
-    let runner = std::env::var_os("TEMPER_FORGEJO_RUNNER").expect("TEMPER_FORGEJO_RUNNER must name the pinned runner");
+    let forgejo =
+        temper_test_env::value(&temper_test_env::FORGEJO).expect("TEMPER_TEST_FORGEJO must name the pinned Forgejo");
+    let runner = temper_test_env::value(&temper_test_env::FORGEJO_RUNNER)
+        .expect("TEMPER_TEST_FORGEJO_RUNNER must name the pinned runner");
     (forgejo.into(), runner.into())
 }
 /// Writes the process tier's owned setup and engine configuration without starting a process.

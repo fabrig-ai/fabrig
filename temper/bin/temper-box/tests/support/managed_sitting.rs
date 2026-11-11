@@ -110,12 +110,15 @@ fn start_relay(root: &Path, upstream: SocketAddr, evidence: &Path) -> Process {
     command
         .args(["--ignored", "--exact", "managed_relay", "--nocapture"])
         .stdin(Stdio::piped())
-        .env("TEMPER_MANAGED_MODE", "fake")
-        .env("TEMPER_MANAGED_SCRATCH", root)
-        .env("TEMPER_MANAGED_UPSTREAM", upstream.to_string())
-        .env("TEMPER_MANAGED_PREFIX", format!("temper/live-{}/", root.file_name().expect("run name").to_string_lossy()))
-        .env("TEMPER_MANAGED_EVIDENCE", evidence)
-        .env("TEMPER_MANAGED_PERSON", "managed-person");
+        .env(temper_test_env::MANAGED_MODE.name, "fake")
+        .env(temper_test_env::MANAGED_SCRATCH.name, root)
+        .env(temper_test_env::MANAGED_UPSTREAM.name, upstream.to_string())
+        .env(
+            temper_test_env::MANAGED_PREFIX.name,
+            format!("temper/live-{}/", root.file_name().expect("run name").to_string_lossy()),
+        )
+        .env(temper_test_env::MANAGED_EVIDENCE.name, evidence)
+        .env(temper_test_env::MANAGED_PERSON.name, "managed-person");
     Process::start(&mut command)
 }
 
@@ -204,12 +207,11 @@ fn child_command(root: &Path, binary: &Path, name: &str) -> Command {
     command
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 fn environment(root: &Path, binary: &Path) -> Command {
     let mut command = Command::new(binary);
     command
         .env_clear()
-        .env("PATH", std::env::var_os("PATH").expect("child executable search path"))
+        .env("PATH", temper_test_env::value(&temper_shell::environment::PATH).expect("child executable search path"))
         .env("HOME", root)
         .env("TMPDIR", root)
         .env("LANG", "C.UTF-8")
