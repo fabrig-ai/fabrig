@@ -84,6 +84,27 @@ fn departing_watch_pressure_retries_without_a_persons_release() {
 }
 
 #[test]
+fn a_branch_first_watched_after_its_push_keeps_the_recorded_head_for_drift() {
+    let (mut d, env) = small();
+    let name = branch();
+    send(&mut d, &env, Event::Hold { entry: 0, task: TASK, resource: name.clone(), from: None });
+    send(&mut d, &env, Event::Claim {
+        task: TASK, attempt: 1, writes: Box::new([name.clone()]), designs: Box::new([]), holders: Box::new([]),
+    });
+    send(&mut d, &env, Event::Answered { task: TASK, attempt: 1, pushed: Box::new([(name.clone(), fixtures::HEAD)]) });
+    assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
+    let mut out = send(&mut d, &env, Event::Names { task: TASK, resources: Box::new([name]) });
+    resume(&mut d, &env, &mut out);
+    let mut seeded = false;
+    for request in &out {
+        if let Request::Save { record: Stored::Client(skein_forge_client::Stored::Live(row)), .. } = request {
+            seeded |= row.pushed == Some(fixtures::HEAD) && row.cached.tip == Some(fixtures::HEAD);
+        }
+    }
+    assert!(seeded, "the new keep must compare future reads with the head pushed before it was watched: {out:?}");
+}
+
+#[test]
 fn oversized_watch_sets_name_the_bound_and_required_usage() {
     let (mut d, env) = small();
     let names = Box::new([branch(), run_branch(b"8")]);

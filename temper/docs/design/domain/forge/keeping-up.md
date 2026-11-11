@@ -28,8 +28,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   - per issue of a live goal: what temper last wrote into it, so an
     unchanged projection is not written again.
 
-  A change watches its branch and its base until its pull is known, then
-  its branch and its pull. A change of the pull it owns wakes the change,
+  A change watches its base alone until its branch has a head (its producer's result, a handed branch, or a fresh read that finds one: `change/README.md`, 2, step 1), then its branch and its base until its pull is known, then its branch and its pull: a branch nothing has pushed is never polled. A goal's run branch (`branches.md`) is held and never watched, since nothing pushes it. A change of the pull it owns wakes the change,
   as a hint does. A pull observation that changes the gathered facts also
   invalidates any in-flight gather for that change. Before deciding, the
   gather restarts its fresh reads; a wake coalesced while the procedure is

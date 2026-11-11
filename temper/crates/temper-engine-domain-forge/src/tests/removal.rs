@@ -55,6 +55,103 @@ fn answer(d: &Domain, expected: RemoveAnswer) {
 }
 
 #[test]
+fn releasing_unpushed_change_and_run_branches_drops_their_holds_without_a_write() {
+    for (suffix, pushed) in [(b"c7".as_slice(), false), (b"r7", false), (b"c7", true), (b"r7", true)] {
+        let mut d = kept(Mode::Owned);
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let name = Name {
+            forge: 1,
+            repository: 2,
+            what: What::Branch(Box::new([b"temper".as_slice().into(), b"7".as_slice().into(), suffix.into()])),
+        };
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
+        if pushed {
+            outputs(
+                &mut d,
+                Event::Restore {
+                    record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }),
+                },
+            );
+        }
+        let closing = outputs(
+            &mut d,
+            Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 },
+        );
+        if pushed {
+            outputs(&mut d, Event::Committed { entry: 20 });
+            fixtures::answer_next(
+                &mut d,
+                Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+            );
+            let (call, op) = fixtures::next_call(&mut d);
+            let branch = [b"temper/7/".as_slice(), suffix].concat().into_boxed_slice();
+            assert_eq!(op, skein_forge::api::Op::Write(skein_forge::api::Write::DeleteBranch { branch }));
+            fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Done));
+            assert!(
+                outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 }).contains(&Request::Released { task: 7 })
+            );
+            assert!(d.hold(&name).is_none());
+            continue;
+        }
+        assert!(d.hold(&name).is_none(), "unpublished hold is dropped: {closing:?}");
+        assert!(closing.contains(&Request::Released { task: 7 }));
+        let mut writes = 0_usize;
+        for request in closing.iter().chain(ready(&mut d).iter()) {
+            if let Request::Save { record: Stored::Entry { .. }, .. }
+            | Request::Call { op: skein_forge::api::Op::Write(_), .. } = request
+            {
+                writes = writes.saturating_add(1);
+            }
+        }
+        assert_eq!(writes, 0);
+    }
+}
+
+#[test]
+fn an_unpushed_branch_release_waits_for_the_lost_writers_missing_answer() {
+    let mut d = kept(Mode::Owned);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let name = Name {
+        forge: 1,
+        repository: 2,
+        what: What::Branch(Box::new([b"temper".as_slice().into(), b"7".as_slice().into(), b"c7".as_slice().into()])),
+    };
+    outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
+    outputs(
+        &mut d,
+        Event::Claim {
+            task: 8,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            designs: Box::new([]),
+            holders: Box::new([7]),
+        },
+    );
+    outputs(&mut d, Event::Lost { task: 8, attempt: 1 });
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(
+        op,
+        skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"temper/7/c7".as_slice().into() })
+    );
+    let closing =
+        outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 });
+    assert!(!closing.contains(&Request::Released { task: 7 }));
+    assert!(d.hold(&name).is_some());
+    let answered = fixtures::answer(&mut d, call, Err(skein_forge::api::Error::Missing));
+    assert!(answered.contains(&Request::ContinueRelease { task: 7 }));
+    let continued = outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 });
+    assert!(continued.contains(&Request::Released { task: 7 }), "{continued:?}");
+    assert!(d.hold(&name).is_none());
+    for request in continued.iter().chain(ready(&mut d).iter()) {
+        assert!(!matches!(
+            request,
+            Request::Save { record: Stored::Entry { .. }, .. }
+                | Request::Call { op: skein_forge::api::Op::Write(_), .. }
+        ));
+    }
+}
+
+#[test]
 fn remove_ends_the_forge_in_one_decision_and_answers_removed() {
     let mut d = kept(Mode::Owned);
     outputs(&mut d, Event::Restore { record: Stored::Forge(record(2, Mode::Fake)) });
