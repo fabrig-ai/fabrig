@@ -200,26 +200,39 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   1. "Chat", "For each chat": the chat template's charter (template 1);
   2. "Ask temper", "When you ask": Ask temper's template's charter
      (template 5, the client's `ASKING_TEMPLATE`);
-  3. "Coordinator", "For each goal": the charter the project's path
+  3. "Drafter", "When you start a draft": the design session's
+     template's charter (template 6, the client's `DRAFTING_TEMPLATE`),
+     as templates 1 and 5 are, whatever kind 7's `drafts` says: a person
+     starts a draft from Ask temper's chat and from the terminal either
+     way (`../../../draft/surfaces.md`, section 11.2);
+  4. "Coordinator", "For each goal": the charter the project's path
      starts a goal with, while it starts one (step 1 above);
-  4. "Coding agent", "For each change": the producer, kind 3's number 1;
-  5. "Reviewer", "For each change": the reviews' charter, kind 3's
+  5. "Coding agent", "For each change": the producer, kind 3's number 1;
+  6. "Reviewer", "For each change": the reviews' charter, kind 3's
      number 2, while the project's path draws a "review";
-  6. "Foreman", "When a coding agent asks": the foreman's charter (the
+  7. "Foreman", "When a coding agent asks": the foreman's charter (the
      stock's 6), while kind 6 routes questions to it or the project's
      path starts a goal, whose coordinator names it
      (`../../../protocol/configuration/reference.md`);
-  7. "Status agent", "When you look at Home after landings": the status
+  8. "Status agent", "When you look at Home after landings": the status
      agent's charter (the stock's 9), on its triggers (`../attention.md`, 3).
   Never the deployment's model trial; a charter the settings lack is
-  left out. Each role is a card: `who` its line, `name` its name, and
-  the facts an agent's stop's card has, "Model", the model and effort a
-  run of it would take now for the reader, "Can" (*What an agent can*)
-  and "Asked to", its instructions' first sentence. What a role
-  does, past when it runs, its charter's words
-  (`../../../protocol/configuration/settings.md`, 2, kind 9), is no part of its card
-  (`../README.md`, section 11, *A role's words on its card*); a standing role, a drafter
-  and a close-out join as the settings come to hold them.
+  left out. Each role is a card: `name` its name; `who` when it runs,
+  then ": " and what it does, "For each chat: talks with you and asks
+  for the changes"; and the facts an agent's stop's card has, "Model",
+  the model and effort a run of it would take now for the reader, "Can"
+  (*What an agent can*) and "Asked to", its instructions' first
+  sentence. What it does is its charter's words as the settings hold
+  them (`../../../protocol/configuration/settings.md`, 2, kind 9; the
+  forge's `charter_words`); where none are kept, its instructions'
+  first sentence, as "Asked to" takes it but unquoted; where its
+  instructions give no sentence either, `who` is when it runs alone.
+  `who` keeps its 128 bytes: what it does is cut on a word to the room
+  left after when it runs and ": ", ending "…" where cut, as a first
+  sentence is (`temper-engine-domain-ways`' `cut_on_word`), so that a
+  path's cards and the view keep their bounds; every stock charter's
+  words fit whole. A standing role and a close-out join as the
+  settings come to hold them.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
