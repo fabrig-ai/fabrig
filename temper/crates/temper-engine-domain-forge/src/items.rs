@@ -60,9 +60,7 @@ impl Domain {
     pub fn context_repositories(&self, project: u32, limit: u32) -> Option<Box<[api::Repository]>> {
         let mut selected = List::with_capacity(limit);
         for (_, repository) in &self.repositories {
-            if repository.role_for(project) == Some(Role::Context)
-                && !self.forge_ended(repository.provider.forge)
-            {
+            if repository.role_for(project) == Some(Role::Context) && !self.forge_ended(repository.provider.forge) {
                 selected.push(repository.provider).ok()?;
             }
         }

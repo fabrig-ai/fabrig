@@ -1,6 +1,7 @@
 //! Core admission and the bounded retained application outcome.
 use super::*;
 use jig_domain_people as people;
+use skein_lib::List;
 
 #[test]
 fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
@@ -112,7 +113,9 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
     let mut shared = writer.clone();
     shared.contexts = Box::new([writer.project + 1]);
     assert!(requests.contains(&Request::Save {
-        record: Stored::Repository(shared.clone()), release: None, read_afresh: None,
+        record: Stored::Repository(shared.clone()),
+        release: None,
+        read_afresh: None,
     }));
     assert_eq!(d.repository(REPO), Some(&shared));
     assert_eq!(d.home(writer.project), Some(&shared));
@@ -159,18 +162,35 @@ fn assert_context_view(d: &Domain, project: u32) {
     assert_eq!(row.project, project);
     assert_eq!(row.role, Role::Context);
     assert!(!row.home);
-    assert_eq!(row.kinds, Kinds {
-        read: true, push: false, open: false, land: false, review: false,
-        status: false, comment: false, issue: false, branch: false,
-    });
+    assert_eq!(
+        row.kinds,
+        Kinds {
+            read: true,
+            push: false,
+            open: false,
+            land: false,
+            review: false,
+            status: false,
+            comment: false,
+            issue: false,
+            branch: false,
+        }
+    );
     assert_eq!(d.readable_repositories(project).as_ref(), core::slice::from_ref(&row));
     assert_eq!(d.context_repositories(project, 2).unwrap().as_ref(), &[REPO]);
     assert!(d.writable_repositories(project).is_empty());
     assert!(d.home(project).is_none());
-    let item = d.workspace_item(items::Seed {
-        project, modify: true, task: 9, parent: None, repository: REPO,
-        run_branch: b"temper/9/r9".as_slice().into(), saved_branch: None,
-    }).expect("context checkout");
+    let item = d
+        .workspace_item(items::Seed {
+            project,
+            modify: true,
+            task: 9,
+            parent: None,
+            repository: REPO,
+            run_branch: b"temper/9/r9".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("context checkout");
     assert!(item.push.is_none() && item.landing.is_none() && !item.delivers);
     assert_eq!(item.start, items::Start::Base(b"main".as_slice().into()));
 }
@@ -185,14 +205,19 @@ fn adopt_context(d: &mut Domain, project: u32, key: u64) -> Box<[Request]> {
     crate::adoption::making_asked(d, &env(), Token::new(key), request, REPO, &mut out);
     for answer in [
         skein_forge::api::Answer::Permission(skein_forge::api::UserPermission {
-            user: 1, login: Box::new([]), permission: skein_forge::api::Permission::Read,
+            user: 1,
+            login: Box::new([]),
+            permission: skein_forge::api::Permission::Read,
         }),
         skein_forge::api::Answer::Settings(settings),
         skein_forge::api::Answer::Protection(None),
     ] {
         fixtures::answer_next(d, Ok(answer));
     }
-    let requests = fixtures::answer_next(d, Ok(skein_forge::api::Answer::Collaborators { collaborators: Box::new([]), more: false }));
+    let requests = fixtures::answer_next(
+        d,
+        Ok(skein_forge::api::Answer::Collaborators { collaborators: Box::new([]), more: false }),
+    );
     if d.repository(REPO).unwrap().project == project {
         fixtures::workflows_absent(d);
     }
@@ -204,7 +229,10 @@ fn context_projects_are_bounded_including_the_first_context_and_readoption_is_fr
     for writer in [true, false] {
         let mut d = domain();
         let mut row = adopted();
-        if !writer { row.role = Role::Context; row.home = false; }
+        if !writer {
+            row.role = Role::Context;
+            row.home = false;
+        }
         outputs(&mut d, Event::Restore { record: Stored::Repository(row.clone()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
@@ -220,10 +248,23 @@ fn context_projects_are_bounded_including_the_first_context_and_readoption_is_fr
         request.project = first + LIMITS.judge_projects;
         request.role = Role::Context;
         request.home = false;
-        let mut refused = Queue::uncapped();
-        crate::adoption::making_asked(&mut d, &env(), Token::new(41), request, REPO, &mut refused);
-        assert!(matches!(refused.iter().last(), Some(Request::Adopted { result: Err(skein_forge::api::Error::TooLarge(excess)), .. })
-            if excess.limit == u64::from(LIMITS.judge_projects)));
+        let refused = fixtures::begin_adoption(&mut d, Token::new(41), request);
+        assert!(
+            matches!(refused.last(), Some(Request::Adopted { result: Err(skein_forge::api::Error::TooLarge(excess)), .. })
+            if *excess == skein_forge::api::Excess::exact(skein_forge::api::Bound::Forge,
+                u64::from(LIMITS.judge_projects), u64::from(LIMITS.judge_projects + 1)))
+        );
+        outputs(
+            &mut d,
+            Event::ApplicationAnswered {
+                request: Token::new(41),
+                outcome: people::Outcome::Refused(people::Refusal::Unknown),
+            },
+        );
+        assert_eq!(
+            d.application_outcome(Token::new(41)),
+            Some(&ApplicationOutcome::ForgeRefused(AdoptionRefusal::TooLarge))
+        );
         assert!(ready(&mut d).is_empty(), "one past the bound reaches no permission read");
         assert_eq!(d.repository(REPO).unwrap().project, row.project);
     }
@@ -244,7 +285,8 @@ fn releasing_a_context_project_saves_the_writer_without_its_context() {
     assert_context_view(&d, 7);
     let mut saved = false;
     for request in &out {
-        saved |= *request == Request::Save { record: Stored::Repository(expected.clone()), release: None, read_afresh: None };
+        saved |= *request
+            == Request::Save { record: Stored::Repository(expected.clone()), release: None, read_afresh: None };
         assert!(!matches!(request, Request::Erase { key: Key::Repository(_) | Key::Client(_), .. }));
     }
     assert!(saved);
@@ -288,18 +330,31 @@ fn restored_context_projects_fit_the_configured_bound_including_the_first_contex
         for extra in [0, 1] {
             let mut d = domain();
             let mut row = adopted();
-            if first_context { row.role = Role::Context; row.home = false; }
+            if first_context {
+                row.role = Role::Context;
+                row.home = false;
+            }
             let count = LIMITS.judge_projects + extra - u32::from(first_context);
-            row.contexts = (6..6 + count).collect::<Vec<_>>().into();
+            let mut contexts = List::with_capacity(count);
+            for project in 6..6 + count {
+                contexts.push(project).unwrap();
+            }
+            row.contexts = contexts.into_boxed();
             outputs(&mut d, Event::Restore { record: Stored::Repository(row.clone()) });
             if extra == 0 {
                 assert_eq!(d.restore_fit_failure(), None);
                 assert_eq!(d.repository(REPO), Some(&row));
             } else {
-                assert_eq!(d.restore_fit_failure(), Some(&RestoreFit {
-                    family: Some(RecordKind::Repository), set: RestoreSet::ContextProjects,
-                    held: u64::from(LIMITS.judge_projects + 1), additional: 0, limit: u64::from(LIMITS.judge_projects),
-                }));
+                assert_eq!(
+                    d.restore_fit_failure(),
+                    Some(&RestoreFit {
+                        family: Some(RecordKind::Repository),
+                        set: RestoreSet::ContextProjects,
+                        held: u64::from(LIMITS.judge_projects + 1),
+                        additional: 0,
+                        limit: u64::from(LIMITS.judge_projects),
+                    })
+                );
                 assert!(d.repository(REPO).is_none());
             }
         }

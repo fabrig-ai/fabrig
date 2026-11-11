@@ -292,7 +292,7 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         refused(d, out, reply_to, AdoptionRefusal::AnotherProject);
         return;
     }
-    let contexts = context_count(d.repositories.get(&repository), request);
+    let contexts = context_count(d.repository(repository), request);
     if contexts > u64::from(env.limits.judge_projects) {
         adopted(
             d,
@@ -595,7 +595,7 @@ fn finish_adoption(
     };
     let mut stored = row.clone();
     let mut contexts = List::with_capacity(env.limits.judge_projects);
-    if let Some(existing) = d.repositories.get(&row.provider) {
+    if let Some(existing) = d.repository(row.provider) {
         if row.role == Role::Context && existing.project != row.project {
             stored = existing.clone();
             if !existing.contexts.contains(&row.project) {
@@ -611,9 +611,9 @@ fn finish_adoption(
         }
     }
     stored.contexts = contexts.into_boxed();
-    let changed = d.repositories.get(&row.provider) != Some(&stored);
-    if changed {
-        d.repositories.insert(row.provider, stored.clone()).expect("adoption capacity checked");
+    let changed = d.repository(row.provider) != Some(&stored);
+    if changed || row.role != Role::Context {
+        d.repositories.insert(row.provider, Box::new(stored.clone())).expect("adoption capacity checked");
         d.tier_ops.dirty |= !crate::tiers::configured_all(d, row.provider).is_empty();
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(stored) });
     }
@@ -683,7 +683,10 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
                 }
             }
             row.contexts = contexts.into_boxed();
-            emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
+            emit(
+                out,
+                Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.as_ref().clone()) },
+            );
             changed = true;
         }
     }

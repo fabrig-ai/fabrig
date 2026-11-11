@@ -72,7 +72,11 @@ pub(crate) fn begin(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> boo
     for provider in &shared {
         let row = d.repositories.get_mut(provider).expect("selected repository");
         row.contexts = Box::default();
-        out.push(Request::Save { record: crate::Stored::Repository(row.clone()), read_afresh: None, release: None });
+        out.push(Request::Save {
+            record: crate::Stored::Repository(row.as_ref().clone()),
+            read_afresh: None,
+            release: None,
+        });
     }
     out.push(Request::MarkedForges);
     true

@@ -317,7 +317,7 @@ fn setup() -> Domain {
 }
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
-    d.repositories.insert(REPO, adopted()).expect("repository");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
     for task in [CHANGE, SECOND, QUEUED] {
         let mut row = change_row();
         row.task = task;
@@ -968,7 +968,7 @@ fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
         let mut foreign = adopted();
         foreign.project = 6;
         foreign.provider = other;
-        d.repositories.insert(other, foreign).expect("other project");
+        d.repositories.insert(other, Box::new(foreign)).expect("other project");
         let row = d.changes.get_mut(&SECOND).expect("second");
         row.repository = repository;
         row.change.way = way;
