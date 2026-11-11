@@ -72,6 +72,7 @@ pub enum PanelStands {
 /// Last judged reviews, unsaved and bound to the merge head (domain/forge/change/gates.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReviewFacts {
+    pub size: Option<skein_forge::api::Size>,
     pub head: Option<[u8; 32]>,
     pub reviews_complete: bool,
     pub reviewers: Box<[crate::Reviewer]>,
