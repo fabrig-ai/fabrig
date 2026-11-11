@@ -38,7 +38,7 @@
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
   over `style.css`): it is tuned on the journeys' prints
   (`journeys.md`, section 7), and the mockups are reconciled to it
-  (`../mockups/README.md`, 1); they are not shipped. What follows here
+  (`mockups/README.md`, 1); they are not shipped. What follows here
   says what it draws, and is the gallery's for the states no journey reaches (`gallery.md`).
   These are the bundle's three
   stylesheets; `jig.css` is not in it. `temper.css` holds the mockups'

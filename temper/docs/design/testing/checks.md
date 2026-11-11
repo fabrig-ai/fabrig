@@ -344,7 +344,7 @@ obligations missing.
 The golden's file holds each obligation with its id, its row, its kind,
 and for a setting its subject, member, test and any value of its own;
 its rows above are the design, the file their only encoding. The
-triage's charter's row (`../draft/reference-landing.md`, section 6;
+triage's charter's row (`../draft/archive/reference-landing.md`, section 6;
 `../protocol/configuration/reference.md`) cuts into its
 instructions (`judged`), its model, and `inspect` true with `modify`,
 `shell` and `agents` false. No field of the table is a gap: the design
@@ -386,7 +386,7 @@ the forge's API as an observer, the limits against the box's document):
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the
   walk's brief names, `../draft/reference-code-production.md` and
-  `../draft/reference-landing.md`, the person's process documents. It holds no
+  `../draft/archive/reference-landing.md`, the person's process documents. It holds no
   recipe of the reference either: a copy of fabrig keeps neither the
   profile, this crate nor the plans that describe them, and an agent
   found reading a description of the reference's settings elsewhere

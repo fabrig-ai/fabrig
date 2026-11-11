@@ -1,0 +1,5 @@
+# Keep the browser's assets with its surface; archive the completed landing draft.
+temper/docs/design/client/journeys/ -> temper/docs/design/client/web/journeys/
+temper/docs/design/client/mockups/ -> temper/docs/design/client/web/mockups/
+temper/docs/design/client/greenfield/ -> temper/docs/design/client/web/greenfield/
+temper/docs/design/draft/reference-landing.md -> temper/docs/design/draft/archive/reference-landing.md

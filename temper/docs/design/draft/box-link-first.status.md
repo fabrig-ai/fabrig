@@ -3,7 +3,7 @@
 2026-11-08. Where the design lags or departs from [box-link-first.md](box-link-first.md).
 
 - **Design lags:**
-  - 2, 5: `../client/greenfield/app.js`, the first run's terminal in the mock that is the client's target (`../client/greenfield/README.md`): it shows `First run`, `Logs:`, `Starting serve`, the block in its old words and `Ctrl-C stops temper.`, and says the box then writes a line when something starts, ends or fails. The plan's cut left the mock alone, the client's own work having priority over its files.
+  - 2, 5: `../client/web/greenfield/app.js`, the first run's terminal in the mock that is the client's target (`../client/web/greenfield/README.md`): it shows `First run`, `Logs:`, `Starting serve`, the block in its old words and `Ctrl-C stops temper.`, and says the box then writes a line when something starts, ends or fails. The plan's cut left the mock alone, the client's own work having priority over its files.
 - **Design departs:**
   - 2: `../protocol/setup/box.md`, 2: the block's footer says "It signs you in as this temper's owner, once, within 2 hours." and "Opened after that, it prints a fresh one here.", where this draft has "once and for a short while" and "Opened again once spent": an expired link draws a fresh one too, and it lives 2 hours (jig's `protocol/client/sign-in.md`). The user's, 2026-11-06, walking a real box.
   - 2: `../protocol/setup/box.md`, 2: a fresh link's blank line is on stderr, the link on stdout, where this draft's words can read as both on stdout: its own "the link alone on stdout, the other lines on stderr" and `temper help commands`' "its stdout" want a script reading stdout to read links alone. A terminal shows the same. Decided by the plan's cut.

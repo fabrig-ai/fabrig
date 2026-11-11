@@ -560,4 +560,4 @@ with failing tests by id and uploading their artifacts:
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing
   alone and the goal triages it (section 7;
-  `../draft/reference-landing.md`, section 11).
+  `../draft/archive/reference-landing.md`, section 11).

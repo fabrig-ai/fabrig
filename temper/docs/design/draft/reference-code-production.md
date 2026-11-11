@@ -6,7 +6,7 @@ of its roles in jig's primitives and temper's mechanisms, and the
 configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
-who make the code meet it. How the goal lands is `reference-landing.md`;
+who make the code meet it. How the goal lands is `archive/reference-landing.md`;
 `reference-case.md` walks both on one small goal; `notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
@@ -54,7 +54,7 @@ are named as theirs.
   keep landing (N5). Main's landings come in by catch-up changes, whose
   producer is the merge job (N6, N7).
 - **Done, landed, closed out.** The coordinator makes the goal's landing,
-  a change into main whose branch is the goal's (`reference-landing.md`).
+  a change into main whose branch is the goal's (`archive/reference-landing.md`).
   Once it has landed, the close-out, a change into main, writes what the
   goal leaves for the next one (N16, as `goal-as-designer.md`, section 2,
   moves it after the landing).
@@ -393,7 +393,7 @@ Main's tiers follow main only.
   live changes with what they own, to leave alone. The queue into g is
   not paused: other changes keep merging.
 - **Reds of this tier never hold the goal,** and judge no landing; L's
-  CI into main judges the whole (`reference-landing.md`).
+  CI into main judges the whole (`archive/reference-landing.md`).
 
 ## 11. Catching up with main
 
@@ -416,7 +416,7 @@ escalates to G as any change does.
   it when its last change's result wakes it.
 - **The landing, L:** the plan's last result wakes G, which makes L, a
   change into main whose branch is g (N3). L goes its own way into main
-  (`reference-landing.md`): CI at its head, queue, update, merge, tiers.
+  (`archive/reference-landing.md`): CI at its head, queue, update, merge, tiers.
 - **The close-out, X** (N16, after the landing as `goal-as-designer.md`,
   section 2, has it): once L's result says it landed, G makes X, a change
   into main, its producer under the designer's charter, its words what
@@ -452,8 +452,8 @@ arrives while G runs is relayed to that run instead.
 | a red of g's tier, as news | the tier, the failing tests, the log, the tree | a repair change into g, or an amendment (section 10) |
 | a landing into main that touches the goal's open work (`../domain/forge/README.md`, 5.3) | the landing | a catch-up change into g (section 11) |
 | X's result | the close-out's report | the goal's report, and it finishes (section 12) |
-| an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`reference-landing.md`) |
-| a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`reference-landing.md`) |
+| an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`archive/reference-landing.md`) |
+| a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`archive/reference-landing.md`) |
 | L's result: cleared | the landing | X, the close-out (section 12) |
 
 ## 14. Configuration
@@ -469,7 +469,7 @@ What the reference sets, as settings (jig's `domain/engine/settings.md`
 | a small goal's template | the stock's goal template, left as it is, no branch of its own |
 | the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15), and, where its change's words and the design leave a choice it cannot make, to push what it has and ask its change (section 8); retain the stock run: 800 turns and 28,800 s, with a reserve of 1 turn and 60 s (`../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`) |
 | the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate |
-| the triage's charter | read-only (inspect and the forge's reads), no shell, no sub-agents; instructions: for each failing test, the change or landing it fails in, whether new, inherited or a flake, and the repair it would make (`reference-landing.md`, section 6); gpt-6.1-sol |
+| the triage's charter | read-only (inspect and the forge's reads), no shell, no sub-agents; instructions: for each failing test, the change or landing it fails in, whether new, inherited or a flake, and the repair it would make (`archive/reference-landing.md`, section 6); gpt-6.1-sol |
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's |
 | each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort, on smith's direct backend with an OpenAI account's key (N20); a designer: section 4's choice; a foreman: gpt-6.1-sol, medium |
 | the project's policy and rules | tool families: the stock's with those the coordinator's row names, 1,983 in all, and no effect family for a role; notes in the goal's and the project's scopes (3); delegation to the coordinator's, the designer's, the coding agent's, the foreman's and the triage's charters, the change procedure, the merge job (job 3) and role 0, for person tasks; 1,024 tasks for the plan (N21), at the stock's depth; in the rules and the project's own policy, and in policy 1 too where the project is yet to be made, since a project keeps the copy it was made from |
@@ -488,7 +488,7 @@ What the reference sets, as settings (jig's `domain/engine/settings.md`
 
 - Several goals at once, their branches overlapping: a probe's report of
   the overlap to both coordinators, and checkpoint landings
-  (`reference-landing.md`, section 11).
+  (`archive/reference-landing.md`, section 11).
 - The order of work within one goal when capacity is short: repairs and
   resolutions before new producers (N9).
 - An LLM choice per kind of wake, so a change's result read costs less

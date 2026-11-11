@@ -154,7 +154,7 @@
 - **Every node a person acts on has a role and a name,** since skein's
   fake person finds nodes only by them; nothing a person must know is
   said by style alone (skein's `ui/README.md`, section 8).
-- **The look:** the mockups' (`mockups/style.css`),
+- **The look:** the mockups' (`web/mockups/style.css`),
   as style tokens each shell interprets or ignores; the terminal prints
   none, and the browser's stylesheet draws them (`web/look.md`).
   The composers are text areas that submit on Enter (skein-ui's
@@ -657,7 +657,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   time of the shell's iteration (`line.md`, 2; `web/README.md`, 2.1) and says each
   time the domain's documents carry against it, both nanoseconds since
   the epoch. The same documents at the same time give the same words.
-- **Four forms, the mockups' own** (`mockups/pages.js`). For a time T,
+- **Four forms, the mockups' own** (`web/mockups/pages.js`). For a time T,
   E is the whole minutes from T to now, and 0 when T is ahead of now,
   as a machine's clock behind the engine's makes it:
   - *ago,* when something last happened: "just now" while E is 0;

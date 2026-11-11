@@ -88,7 +88,7 @@
   `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
-  than on the `Accounts` tab. `greenfield/README.md` notes it.
+  than on the `Accounts` tab. `web/greenfield/README.md` notes it.
 
 - **Design departs:** 1, from the look request `outside-pages` of 2026-11-08,
   decided by its plan's cut: the top bar's link region holds the link's state in
