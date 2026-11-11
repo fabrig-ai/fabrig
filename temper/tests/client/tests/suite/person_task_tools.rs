@@ -249,19 +249,21 @@ fn role_configuration() -> engine::Config {
     let ceiling = &mut config.core.defaults.rules.ceiling;
     ceiling.delegation.kinds = Box::new([Executor::Charter(13)]);
     ceiling.notes = Scopes::GOAL;
+    ceiling.tools = stock.rules.ceiling.tools;
+    let stock_policy = &stock.policies.get(&1).expect("stock policy").policy;
     let policy = &mut config.core.seed_projects[0].policy.policy;
     policy.ceiling.delegation.kinds.clone_from(&ceiling.delegation.kinds);
     policy.ceiling.notes = Scopes::GOAL;
+    policy.ceiling.tools = stock_policy.ceiling.tools;
     policy.roles[0].authority.delegation.kinds.clone_from(&ceiling.delegation.kinds);
     policy.roles[0].authority.notes = Scopes::GOAL;
+    policy.roles[0].authority.tools = stock_policy.roles[0].authority.tools;
     config
 }
 
-#[test]
-fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+fn start_standing_role() -> (Ctl, u64) {
     use temper_client_world::front::engine_limits;
     use temper_engine_domain_world::{protocol, store::Store};
-    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
     let mut bounds = engine_limits();
     bounds.tasks.charters = 13;
     bounds.journal.run_bytes = 16_384;
@@ -292,6 +294,13 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     );
     assert_eq!(started.status, 0, "{started:?}");
     let task = fixtures::done_task(&started);
+    (ctl, task)
+}
+
+#[test]
+fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
+    let (mut ctl, task) = start_standing_role();
     let row = ctl.front.engine.task(task).expect("standing task");
     assert_eq!(row.label, 3);
     assert_eq!(row.flags.ended_by, tasks::EndedBy::Standing);
@@ -316,6 +325,100 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     }), "next brief: {:?}", next.sections);
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
     assert!(shown.contains(NOW));
+}
+
+fn role_read(ctl: &mut Ctl, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
+    const REPLY: skein_lib::Token = skein_lib::Token::new(2004);
+    let driver = &mut ctl.front.engine;
+    let sign_in = driver
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let engine::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::SignIn {
+                number,
+                person: fixtures::PARTY,
+                ..
+            })) = record
+            {
+                Some(*number)
+            } else {
+                None
+            }
+        })
+        .expect("owner's durable sign-in");
+    driver.send(engine::Event::Party(engine::PartyInput::Read {
+        reply_to: skein_lib::ReplyTo::new(REPLY),
+        sign_in,
+        read,
+    }));
+    driver.settle();
+    driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let engine::Delivery::Read { reply, answer } = delivery
+                && *reply == skein_lib::ReplyTo::new(REPLY)
+            {
+                return Some(answer.clone());
+            }
+            None
+        })
+        .expect("role read answered")
+}
+
+#[test]
+fn a_stock_owners_standing_role_sets_a_weekly_timer_and_writes_its_report() {
+    use jig_domain_core::{
+        documents::Document,
+        reads::{Answer, PageRow, Read},
+    };
+    use skein_lib::{Duration, Wall};
+    // The first Monday after the world's epoch, at 06:00 UTC.
+    const MONDAY: Duration = Duration::from_secs(4 * 24 * 60 * 60 + 6 * 60 * 60);
+    const WEEK: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+    const REPORT: &str = "This week: tests landed; chose focused checks for my owner; waiting on CI; spent 2.";
+    let (mut ctl, task) = start_standing_role();
+    let run = ctl.front.assignments.last().expect("standing role assigned").clone();
+    assert_eq!(run.task, task);
+    let input = format!(r#"{{"kind":"timer","at":{},"period":{}}}"#, MONDAY.as_nanos(), WEEK.as_nanos());
+    let (answer, failed) = temper_engine_domain_world::host_tool::host_tool(
+        &mut ctl.front.engine,
+        &run,
+        1,
+        b"subscribe",
+        input.as_bytes(),
+    );
+    assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    let Answer::Document(document) = role_read(&mut ctl, Read::Task { task }) else { panic!("role document") };
+    let Document::Task(document) = document.as_ref() else { panic!("task document") };
+    assert_eq!(document.subscriptions.len(), 1);
+    assert_eq!(
+        document.subscriptions.get(0).expect("weekly timer").kind,
+        tasks::SubscriptionKind::Timer { at: Wall::from_nanos(MONDAY.as_nanos()), period: Some(WEEK) }
+    );
+    let input =
+        format!(r#"{{"scope":{{"kind":"goal","project":1,"goal":{task}}},"description":"report","body":"{REPORT}"}}"#);
+    let (answer, failed) =
+        temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 2, b"note", input.as_bytes());
+    assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    let Answer::Page(page) = role_read(
+        &mut ctl,
+        Read::ScopedNotes {
+            scope: jig_domain_notes::Scope::Goal { project: 1, goal: task },
+            description: Some(b"report".as_slice().into()),
+            from: None,
+        },
+    ) else {
+        panic!("report notes")
+    };
+    assert_eq!(page.rows.len(), 1);
+    let PageRow::Note(note) = page.rows.get(0).expect("report row") else { panic!("report note") };
+    assert_eq!(note.description.bytes.as_ref(), b"report");
+    assert_eq!(note.body.bytes.as_ref(), REPORT.as_bytes());
+    assert!(!note.cut);
+    assert!(page.next.is_none());
 }
 
 fn sign_in_stranger(ctl: &mut Ctl) -> u64 {

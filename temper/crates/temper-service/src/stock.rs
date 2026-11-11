@@ -226,7 +226,8 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 /// Read (the forge's reads), Settings (Ask temper proposes)
 /// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration/stock.md.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
+const CHAT_TOOLS: authority::Tools =
+    authority::Tools(1 | 2 | 4 | ToolFamilies::JIG.subscribe.0 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 // A chat's families without delegate (temper/docs/design/protocol/configuration/stock.md).
