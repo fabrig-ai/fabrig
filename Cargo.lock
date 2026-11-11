@@ -5121,6 +5121,7 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-client-protocol-wire",
  "skein-fail-stop",
  "skein-lib",
@@ -5138,7 +5139,6 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
- "jig-client-protocol-wire",
  "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",

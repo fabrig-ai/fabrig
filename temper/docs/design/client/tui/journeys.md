@@ -455,8 +455,8 @@ recording's (3.2).
 
 ### 8.2 Again
 
-`cargo run -p temper-client-journeys -- again NAME`, in `crates/temper-client-journeys-tool`,
-for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
+`cargo run -p temper-client-journeys -- again NAME`, in
+`crates/temper-client-journeys-tool`, for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
 - **Built from the checkout:** `temper` with its `record` feature and

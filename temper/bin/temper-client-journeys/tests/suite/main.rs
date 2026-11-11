@@ -15,13 +15,13 @@ fn opening(text: &str) -> String {
 fn help(text: &str) -> bool {
     opening(text) == "temper-client-journeys: recorded walks, replayed through the shipped hosts and printed."
         && !text.split_whitespace().any(|word| ["add", "again"].contains(&word))
-        && text.split_once("environment:\n").is_some_and(|(_, environment)| {
-            environment.contains("PATH") && environment.contains("CARGO_TARGET_DIR")
-        })
+        && text
+            .split_once("environment:\n")
+            .is_some_and(|(_, environment)| environment.contains("PATH") && environment.contains("CARGO_TARGET_DIR"))
 }
 
 fn internal(text: &str) -> bool {
-    opening(text) == "internal: not part of temper-client-journeys' public command line; it may change without notice."
+    opening(text) == "internal: not part of temper-client-journeys's public command line; it may change without notice."
 }
 
 fn add_help(text: &str) -> bool {
@@ -49,7 +49,12 @@ const ROWS: &[Case] = &[
     (&["--version"], 0, version, ""),
     (&["add", "--help"], 0, add_help, ""),
     (&["again", "--help"], 0, internal, ""),
-    (&["again"], 2, empty, "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again NAME\n"),
+    (
+        &["again"],
+        2,
+        empty,
+        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again NAME\n",
+    ),
     (&["nope"], 2, empty, "temper-client-journeys: unexpected arguments\nusage:\n  temper-client-journeys\n"),
 ];
 
@@ -69,7 +74,10 @@ fn the_binary_answers_its_table_without_starting_children() {
         let out = String::from_utf8(output.stdout).expect("UTF-8 stdout");
         let err = String::from_utf8(output.stderr).expect("UTF-8 stderr");
         if output.status.code() != Some(*code) || !stdout(&out) || err != *stderr {
-            failures.push(format!("{arguments:?}: exit {:?}, stdout {out:?}, stderr {err:?}; expected exit {code}, stderr {stderr:?}", output.status.code()));
+            failures.push(format!(
+                "{arguments:?}: exit {:?}, stdout {out:?}, stderr {err:?}; expected exit {code}, stderr {stderr:?}",
+                output.status.code()
+            ));
         }
         if [Some(&"--help"), Some(&"-h"), Some(&"help")].contains(&arguments.first()) {
             if let Some(expected) = &page {

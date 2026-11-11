@@ -11,8 +11,8 @@ use skein_fake_person_browser::{
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use std::{
-    os::unix::ffi::OsStrExt,
     fs,
+    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
@@ -32,7 +32,12 @@ pub struct Paths {
 /// # Errors
 /// Refuses an unwalkable journey, a page that stays moving, a missing event,
 /// a different walk, an unproved save, or a browser, box or filesystem failure.
-pub fn again(journeys: &Path, name: &str, paths: &Paths, environment: &[crate::EnvironmentEntry]) -> Result<(), Refusal> {
+pub fn again(
+    journeys: &Path,
+    name: &str,
+    paths: &Paths,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<(), Refusal> {
     let steps = starting(journeys, name)?;
     let prepared = prepared(journeys, name)?;
     let downloads = paths.scratch.join("downloads");

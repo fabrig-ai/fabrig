@@ -94,10 +94,17 @@ pub fn again(
     unreachable!("the third attempt returns its result")
 }
 
-fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting, paths: &Paths, given: &[crate::EnvironmentEntry]) -> Result<(), Refusal> {
+fn record(
+    journeys: &Path,
+    tui_journeys: &Path,
+    name: &str,
+    starting: &Starting,
+    paths: &Paths,
+    given: &[crate::EnvironmentEntry],
+) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
-    let environment = environment(given, &paths.scratch)
-        .map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
+    let environment =
+        environment(given, &paths.scratch).map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
     for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime", "tui-runtime"] {
         let path = paths.scratch.join(directory);
         fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;

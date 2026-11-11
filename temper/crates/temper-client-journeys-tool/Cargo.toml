@@ -29,7 +29,6 @@ skein-shell.workspace = true
 
 [dev-dependencies]
 jig-client.workspace = true
-jig-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

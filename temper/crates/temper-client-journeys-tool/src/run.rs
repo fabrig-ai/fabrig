@@ -1,17 +1,21 @@
 //! The journeys binary's capture and dispatch (temper/docs/design/testing/tools.md, 3–4).
+use crate::again::{self, Paths};
+use crate::{
+    EnvironmentEntry, TABLE,
+    table::{ADD, AGAIN, CAUTION, CHROMIUM, REPRINT, TARGET},
+};
+use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
+use skein_shell::Front;
+use std::process::Command;
+use std::process::ExitCode;
 use std::{
     ffi::{OsStr, OsString},
     fs, io,
     os::unix::ffi::OsStrExt,
     os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
-    process::{self, Command, ExitCode},
 };
-use crate::again::{self, Paths};
-use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use temper_client_shell_web::journey;
-use skein_shell::Front;
-use crate::{EnvironmentEntry, TABLE, table::{ADD, AGAIN, REPRINT, CAUTION, CHROMIUM, TARGET}};
 
 /// Run the journeys binary (temper/docs/design/testing/tools.md, 4.2–4.3).
 #[must_use]
@@ -60,7 +64,7 @@ pub fn main() -> ExitCode {
 
 fn usage(command: &skein_shell::Command, why: &str) -> ! {
     eprint!("{}", TABLE.refusal(command, why));
-    process::exit(2);
+    std::process::exit(2);
 }
 
 fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
@@ -126,7 +130,9 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
         let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
         None
     };
-    let chromium = CHROMIUM.value(environment).map(OsStr::from_bytes)
+    let chromium = CHROMIUM
+        .value(environment)
+        .map(OsStr::from_bytes)
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
     let chromium = fs::canonicalize(chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
@@ -134,7 +140,8 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
     let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
     let result = build(&root, &scratch, chromium, is_tui, environment).and_then(|paths| {
         if let Some(steps) = tui_steps {
-            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths, environment).map_err(refusal)
+            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths, environment)
+                .map_err(refusal)
         } else {
             again::again(Path::new(JOURNEYS), name, &paths, environment).map_err(refusal)
         }
@@ -149,7 +156,7 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
 fn scratch() -> io::Result<PathBuf> {
     let base = Path::new("/tmp");
     for attempt in 0..1000 {
-        let path = base.join(format!("temper-journey-{}-{attempt}", process::id()));
+        let path = base.join(format!("temper-journey-{}-{attempt}", std::process::id()));
         match fs::DirBuilder::new().mode(0o700).create(&path) {
             Ok(()) => return Ok(path),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
@@ -159,8 +166,15 @@ fn scratch() -> io::Result<PathBuf> {
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
 }
 
-fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool, environment: &[EnvironmentEntry]) -> Result<Paths, String> {
+fn build(
+    root: &Path,
+    scratch: &Path,
+    chromium: PathBuf,
+    is_tui: bool,
+    environment: &[EnvironmentEntry],
+) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
+    cargo.env_clear().envs(environment.iter().map(|(name, value)| (OsStr::from_bytes(name), OsStr::from_bytes(value))));
     cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);
     if is_tui {
         cargo.args(["--features", "temper/record"]);
@@ -171,6 +185,9 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool, environme
     }
     let bundle = scratch.join("bundle");
     let mut bundler = Command::new(root.join("scripts/bundle.sh"));
+    bundler
+        .env_clear()
+        .envs(environment.iter().map(|(name, value)| (OsStr::from_bytes(name), OsStr::from_bytes(value))));
     bundler.current_dir(root).env("TEMPER_BUNDLE", "none").arg("--loopback");
     if !is_tui {
         bundler.arg("--record");
@@ -179,7 +196,10 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool, environme
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
-    let target = TARGET.value(environment).map(OsStr::from_bytes).map_or_else(|| root.join("../target"), |target| root.join(target));
+    let target = TARGET
+        .value(environment)
+        .map(OsStr::from_bytes)
+        .map_or_else(|| root.join("../target"), |target| root.join(target));
     for name in ["temper", "fake-claude"] {
         fs::copy(target.join("debug").join(name), scratch.join(name))
             .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
@@ -345,5 +365,5 @@ fn stale_message(name: &str, stale: &journey::Stale) -> String {
 
 fn fail(why: &str) -> ! {
     eprintln!("temper-client-journeys: {why}");
-    process::exit(1);
+    std::process::exit(1);
 }

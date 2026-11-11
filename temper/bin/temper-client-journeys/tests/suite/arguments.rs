@@ -87,10 +87,12 @@ fn help_says_what_is_left_to_the_person() {
     assert!(output.stderr.is_empty());
     let help = String::from_utf8(output.stdout).expect("help text");
     assert!(super::help(&help), "the bare page lists only public entries");
-    let output = Command::new(paths::binary("temper-client-journeys")).args(["add", "--help"]).output().expect("add help");
+    let output =
+        Command::new(paths::binary("temper-client-journeys")).args(["add", "--help"]).output().expect("add help");
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty());
-    let help = String::from_utf8(output.stdout).expect("add help text").split_whitespace().collect::<Vec<_>>().join(" ");
+    let help =
+        String::from_utf8(output.stdout).expect("add help text").split_whitespace().collect::<Vec<_>>().join(" ");
     for sentence in [
         "temper-client-journeys add [--redact TEXT]... NAME FILE",
         "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.",

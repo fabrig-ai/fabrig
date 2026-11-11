@@ -509,8 +509,8 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every committed
-  journey reprinted into a scratch directory equals its directory and
+- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
+  committed journey reprinted into a scratch directory equals its directory and
   the files beside it, byte for byte; one that differs or is stale
   fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
   journey's README.
@@ -527,8 +527,8 @@ python3 -m http.server 8766
   saves, an exchange or a write in flight among them; and the check
   refusing a new walk whose acts, values, events or key marks differ.
 - **A setup, natively,** in the journey module's tests and
-  `crates/temper-client-journeys-tool`'s own: a setup's lines read back, each record among
-  them, and another version, a line out of its place, a second `reload`
+  `crates/temper-client-journeys-tool`'s own: a setup's lines read back, each
+  record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
   name of its own refused; every committed setup read; and
@@ -649,8 +649,8 @@ reprint carries, since its acts are events, not controls.
 ### 8.1 Again
 
 `cargo run -p temper-client-journeys -- again NAME`, in
-`crates/temper-client-journeys-tool`. Its walk's logic is the journey module's, beside the
-recorder and the replay, natively and without io: it takes each save's
+`crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
+beside the recorder and the replay, natively and without io: it takes each save's
 bytes and answers what to do next. The program reads the saves from the
 person's downloads and drives the box and the browser, as ordinary Rust
 over skein's harness.
