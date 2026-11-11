@@ -144,9 +144,14 @@ question`, with no body, and a landed save's receipt reads `saved <head> to
 branch <branch>, unchecked: no check ran; your checkout stays detached, as
 expected`. Its other outcomes are the table's. A save's push moves the
 change's own branch as a delivery's does, so the engine hears of it as of
-any push the run left (../worker.md, 4.2). When it accepts that run's answer
-under the attempt's writer claim, it records the pushed head in the change
-as well as the branch; the next attempt's pull section pins that head
+any push the run left (../worker.md, 4.2). When it accepts the head the
+attempt left under its writer claim, it records that head in the change as
+well as the branch, however the head reached it: reported in the run's
+answer, or found by the read that frees the attempt's writer when no answer
+reported it (jig's `domain/tasks/holds.md`, 3; `../forge/change/README.md`, 1).
+That holds whatever the delegate: a producer, a repair or a resolution, a
+goal's landing's among them, whose branch is the goal's branch held under the
+goal's hold. The next attempt's pull section pins that head
 (`../forge/change/repairs.md`). Recording the head completes no production, repair or
 resolution: the save remains unchecked, and the forge opens no pull request
 on it (`../forge/change/README.md`, 1). In its hold, the next checked delivery, or the

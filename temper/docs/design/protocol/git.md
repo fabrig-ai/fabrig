@@ -279,8 +279,10 @@ and `refs/temper/landing` for `Into::Landing`.
 - **`refs/temper/fetched`** keeps what was fetched reachable, and is moved
   freely (`+`) by the next fetch.
 - **`refs/temper/landing`** is the landing pin: the landing branch's tip as
-  prepare fetched it, which the project's checks take their base from
-  (`tools/pre-pr/design.md`, section 2). Only prepare's one landing fetch
+  prepare fetched it, or, for a writable item that names no landing branch,
+  the head its push branch had (or its start's commit, where that branch
+  does not exist yet), which the project's checks take their base from
+  (`tools/pre-pr/design.md`, section 2). Only prepare's one pin fetch
   writes it (`../domain/worker.md`, section 5), forced (`+`), since a
   cached checkout's pin from an earlier hold may be anywhere; no other
   operation names it, so it stays where prepare put it for the hold.

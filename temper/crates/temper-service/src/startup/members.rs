@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 111] = [
+pub static MEMBERS: [Member; 112] = [
     Member {
         shape: "document",
         name: "engine",
@@ -548,6 +548,15 @@ pub static MEMBERS: [Member; 111] = [
         bound: "at most forge.repositories",
         required: false,
         line: "Each repository’s test gates and tiers.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "check_timeout_ms",
+        kind: "integer",
+        bound: "1,000 to 86,400,000; none when absent",
+        required: false,
+        line: "Delivery checks’ wall bound for change producers, repairs and resolutions, including goal landings; read each attempt, or the agent’s bound when absent.",
         gone: None,
     },
     Member {

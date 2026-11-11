@@ -1,6 +1,6 @@
 //! One exclusive snapshot for checked delivery and unchecked saving (smith/docs/design/domain/run.md,
 //! sections 8 and 9). State keeps opaque fields, durable name, caller deadline
-//! and its purpose: finishing Change, delivery or save; a running check keeps its given span.
+//! and its purpose: finishing Change, delivery or save; a running check keeps its given span and retry marker.
 //! It never knows receipt encoding,
 //! provider ids, callback identity or host delivery policy. Main's write batch
 //! waits while jobs settle, through checks and submission; children have already returned.
@@ -39,7 +39,7 @@ pub(crate) enum Purpose {
 #[derive(Debug)]
 enum Stage {
     Cancelling { why: Option<Withdrawal> },
-    Checking { check: u32, given: Duration },
+    Checking { check: u32, given: Duration, retry: bool },
     Aborting { why: Withdrawal },
     Delivering,
     Closed,
@@ -105,7 +105,18 @@ pub(crate) fn checked(
 ) -> Settled {
     let stage = mem::replace(&mut landing.stage, Stage::Closed);
     match stage {
-        Stage::Checking { check, given } => {
+        Stage::Checking { check, given, retry } => {
+            if ran.exit == Exit::TimedOut
+                && !retry
+                && may_finish
+                && let Some(until) = crate::run::check_retry_deadline(run)
+            {
+                let deadline = landing.deadline.min(until).min(env.now.saturating_add(given.saturating_add(given)));
+                if deadline.saturating_since(env.now) > given {
+                    landing.stage = start_check(id, run, check, deadline, true, env, out);
+                    return Settled::Going;
+                }
+            }
             let passed = match ran.exit {
                 Exit::Code { code: 0 } => true,
                 Exit::Code { .. } | Exit::Signalled { .. } | Exit::TimedOut | Exit::Unstarted | Exit::Cancelled => {
@@ -243,7 +254,7 @@ pub(crate) fn withdraw(landing: &mut Landing, id: Id<Call>, why: Withdrawal, out
 fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits>, out: &mut Queue<Request>) -> Stage {
     run.lease.assert_workspace(id.token());
     let check_index = if landing.purpose == Purpose::Save { None } else { run.found.checks.get(check) };
-    let Some(&index) = check_index else {
+    let Some(_) = check_index else {
         let deadline = landing.deadline.min(env.now.saturating_add(env.limits.delivery_timeout));
         assert!(env.now < deadline, "admission and completed checks refuse expired submission");
         if landing.purpose == Purpose::Save {
@@ -259,12 +270,29 @@ fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits
         });
         return Stage::Delivering;
     };
-    let root = repository_at(run, index).root;
-    let deadline = landing.deadline.min(env.now.saturating_add(env.limits.check_timeout));
+    let deadline = landing.deadline.min(run.deadline).min(env.now.saturating_add(checks_bound(run, env)));
+    start_check(id, run, check, deadline, false, env, out)
+}
+
+fn checks_bound(run: &Run, env: &Env<Limits>) -> Duration {
+    run.charter.check_timeout.unwrap_or(env.limits.check_timeout)
+}
+
+fn start_check(
+    id: Id<Call>,
+    run: &Run,
+    check: u32,
+    deadline: Time,
+    retry: bool,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) -> Stage {
+    run.lease.assert_workspace(id.token());
+    let root = repository(run, check).root;
     let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
     out.push(Request::Check { owner: id.token(), program, deadline, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
-    Stage::Checking { check, given: deadline.saturating_since(env.now) }
+    Stage::Checking { check, given: deadline.saturating_since(env.now), retry }
 }
 
 fn back(owner: Token, result: Returned, settled: Settled, out: &mut Queue<Request>) -> Settled {

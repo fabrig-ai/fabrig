@@ -780,6 +780,7 @@ pub fn assignment_with_settings(
 ) -> temper_engine_domain::Assignment {
     let task = task_record(7);
     temper_engine_domain::Assignment {
+        check_timeout: None,
         charter: 1,
         task: 7,
         attempt: 2,

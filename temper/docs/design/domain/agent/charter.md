@@ -108,11 +108,23 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   failing check refuses the delivery, its output's tail the run's feedback.
   A `save` runs none, and is marked unchecked (`tools.md`; `README.md`, section 5).
   The worker pins the landing branch's tip in each change producer's
-  checkout as `refs/temper/landing` (../worker.md, section 5), so a check can
-  take what the delivery changed against it; fabrig's checks the changed
+  checkout as `refs/temper/landing`, and the head a repair's or a
+  resolution's delivery replaces in theirs (../worker.md, section 5), so a
+  check can take what the delivery changed against it; fabrig's checks the changed
   packages' lints and the focused tests of those packages and their direct
   dependents, a failure the base has too reported as inherited
   (`../../protocol/configuration/reference.md`; `tools/pre-pr/design.md`).
+- **How long a check may take** is its project's too. A run delegated
+  for a change, its producer's, a repair's or a resolution's, a goal's
+  landing's among them, has the charter's checks' bound (smith's
+  `protocol/charter.md`, section 2) set to its project's `check_timeout_ms`
+  where the project sets one (`../../protocol/configuration/engine.md`),
+  and no bound otherwise, so the agent's `check_timeout` holds. Every
+  other run names none. The bound is read when the run's charter is
+  written, at each attempt, so a changed setting reaches the next
+  attempt. A check that runs out of time runs once more at twice its
+  bound (smith's `domain/run.md`, 8.1), so a check that only ran out of
+  time never ends the run's work by itself.
 - **No CI before a goal's branch.** A pull request into a goal's branch
   runs no CI: a change's delivery checks are all it meets before it lands
   there. The landing's CI into main, the project's full gate, is the

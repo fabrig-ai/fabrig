@@ -634,6 +634,10 @@ impl World {
         .expect("changed content");
     }
     pub fn inject_hooks(&mut self, count: usize) {
+        self.queue_hooks(count);
+        self.pass();
+    }
+    pub fn queue_hooks(&mut self, count: usize) {
         for _ in 0..count {
             self.forge.borrow_mut().pending.push(domain::Request::Hook {
                 queue: None,
@@ -647,7 +651,6 @@ impl World {
                 ended: None,
             });
         }
-        self.pass();
     }
     pub fn wire_posts(&self) -> &[Vec<u8>] {
         &self.posts

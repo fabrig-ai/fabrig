@@ -216,8 +216,12 @@ failures, reds and words alone, with no landing, close-out or catch-up
 of its own (`domain/forge/branches.status.md`, 2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
-the worker's frozen landing pin, run changed-package lints and focused
-tests with direct dependents, and identify inherited failures. The
+the worker's frozen landing pin, or, for a repair or a resolution, the head
+its delivery replaces (`domain/worker.status.md`), run changed-package lints and focused
+tests with direct dependents, and identify inherited failures. A project
+may give its changes' checks a bound of its own, and a check that only ran
+out of time runs once more at twice its time
+(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`). The
 reference's coder and coordinator still ask for manual checks
 (`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it

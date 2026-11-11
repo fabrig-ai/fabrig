@@ -1812,6 +1812,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
     };
     let llm = main_model(settings.window);
     run::Charter {
+        check_timeout: None,
         mode: run::Mode::Finite,
         reserve: finishing_reserve(settings, change),
         instructions: Box::new([]),

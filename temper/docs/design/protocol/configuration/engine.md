@@ -82,6 +82,17 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   P3e), kept in the document as the tier is until kind 5 holds tiers
   (`settings.md`, 2), so that whoever writes the tier writes them; Ask temper, which
   proposes no tier, writes none. The engine decides nothing by them.
+- **The delivery checks' bound,** beside `by`, by either way:
+  `check_timeout_ms`, a u64 of milliseconds from 1,000 to 86,400,000,
+  none when absent: the wall bound each delivery check is given in a run
+  delegated for one of the project's changes, its producers', repairs' and
+  resolutions', a goal's landing into the landing branch's among them, in
+  place of the agent's `check_timeout`
+  (`../../domain/agent/charter.md`, section 4; smith's `domain/run.md`,
+  8.1). A project whose landings are goal-sized sets it above the agent's,
+  so a landing's repair has room to check. It need not fit a charter's
+  reserve: a check is cut at its run's end. One past its bounds refuses the
+  start at its member, `application.landing.projects[i].check_timeout_ms`.
 - **The tiers' project settings,** beside `by`, by either way:
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent

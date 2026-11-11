@@ -380,6 +380,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
         .insert(
             PROJECT,
             engine::ProjectLanding {
+                check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,
                 merge_job: None,
@@ -752,6 +753,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 .insert(
                     PROJECT,
                     engine::ProjectLanding {
+                        check_timeout: None,
                         by: engine::Way::Queue,
                         close_job: None,
                         merge_job: Some(b"merge".as_slice().into()),
