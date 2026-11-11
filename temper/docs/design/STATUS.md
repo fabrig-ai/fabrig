@@ -89,10 +89,13 @@ and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
 (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
-design session, T2, is designed and not yet built: `/draft`, the draft
-in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
-design session*; `client/README.status.md`). The
+design session, T2, is built by goal 172: `/draft`, the draft in a side
+pane that skein's full-screen shell lays beside the body, folded, at
+half or at all by Ctrl-P, the sections the last turn wrote marked new,
+a reply's choices as a prompt, `/goal` with its prompt of ways, and the
+quiet line's pane and goal parts, with goldens and the journey
+`design-session` (`client/tui/pages.md`, *A design session*;
+`client/tui/journeys.md`, 9; `draft/tui-design-session.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
@@ -395,8 +398,8 @@ where `me` lists template 6, and opened again in Split (`domain/agent/charter.md
 ). A project made before it keeps a policy whose delegation names no
 charter 12 (`protocol/configuration/README.status.md`), `chat-draft`'s recording
 predates it (`client/web/journeys.status.md`), no walk on record has run a
-real model on its words, and the terminal's `/draft` is the milestone T2's
-(`draft/surfaces.status.md`, 11; `draft/whole-story.execution.md`).
+real model on its words, and the terminal's design session is the milestone T2's
+(`client/tui/pages.md`, *A design session*; `draft/whole-story.execution.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
