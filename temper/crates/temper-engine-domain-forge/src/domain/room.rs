@@ -8,9 +8,6 @@ impl Domain {
     #[must_use]
     pub fn droppable(&self, task: u64) -> bool {
         let Some(row) = self.changes.get(&task) else { return false };
-        if row.ending.is_none() || self.releases.contains_key(&task) {
-            return false;
-        }
         match row.change.state {
             change::State::Ended | change::State::Cleared { .. } | change::State::NoChange { .. } => {}
             change::State::Producing { .. }
@@ -34,6 +31,43 @@ impl Domain {
             | change::State::Uncleared { .. }
             | change::State::Held { .. } => return false,
         }
+        self.finished_unpinned(task, row)
+    }
+
+    /// Ended verifying changes give room only after every droppable settled change.
+    #[must_use]
+    pub fn droppable_last(&self, task: u64) -> bool {
+        let Some(row) = self.changes.get(&task) else { return false };
+        match row.change.state {
+            change::State::Landed { .. } | change::State::Red { .. } | change::State::Uncleared { .. } => {}
+            change::State::Ended
+            | change::State::Cleared { .. }
+            | change::State::NoChange { .. }
+            | change::State::Producing { .. }
+            | change::State::Opening { .. }
+            | change::State::Recreating { .. }
+            | change::State::Reopening { .. }
+            | change::State::Checking { .. }
+            | change::State::Gating { .. }
+            | change::State::CancellingGates { .. }
+            | change::State::Ready { .. }
+            | change::State::Preparing { .. }
+            | change::State::Queued { .. }
+            | change::State::First { .. }
+            | change::State::Updating { .. }
+            | change::State::WaitingProducer { .. }
+            | change::State::Resolving { .. }
+            | change::State::Repairing { .. }
+            | change::State::Landing { .. }
+            | change::State::Held { .. } => return false,
+        }
+        self.finished_unpinned(task, row)
+    }
+
+    fn finished_unpinned(&self, task: u64, row: &ChangeRow) -> bool {
+        if row.ending.is_none() || self.releases.contains_key(&task) {
+            return false;
+        }
         for (_, landing) in &self.landing.rows {
             for member in &landing.landing.members {
                 if member.change == task {
@@ -46,8 +80,18 @@ impl Domain {
 }
 
 pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
-    if d.changes.len() != env.limits.changes || !d.droppable(task) {
+    if d.changes.len() != env.limits.changes {
         return;
+    }
+    if !d.droppable(task) {
+        if !d.droppable_last(task) {
+            return;
+        }
+        for (number, _) in &d.changes {
+            if d.droppable(*number) {
+                return;
+            }
+        }
     }
     let row = d.changes.remove(&task).expect("droppable row exists");
     emit(out, Request::Erase { key: Key::Change(task) });

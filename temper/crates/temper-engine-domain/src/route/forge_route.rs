@@ -2498,8 +2498,10 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
         return true;
     }
     let mut oldest = None;
+    let mut oldest_last = None;
     for number in tasks {
-        if !domain.forge.droppable(number) {
+        let settled = domain.forge.droppable(number);
+        if !settled && !domain.forge.droppable_last(number) {
             continue;
         }
         let row = domain.forge.change(number).expect("enumerated change");
@@ -2512,12 +2514,13 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
         {
             continue;
         }
-        oldest = Some(match oldest {
+        let slot = if settled { &mut oldest } else { &mut oldest_last };
+        *slot = Some(match *slot {
             Some(prior) => number.min(prior),
             None => number,
         });
     }
-    if let Some(task) = oldest {
+    if let Some(task) = oldest.or(oldest_last) {
         domain.work.push(Work::Forge(forge::Event::DropChange { task }));
         return true;
     }

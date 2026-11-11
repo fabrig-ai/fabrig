@@ -33,9 +33,6 @@ fn only_settled_rows_with_finished_releases_can_be_dropped() {
         (change::State::Producing { requested: false }, true, false, false),
         (change::State::Ended, false, false, false),
         (change::State::Ended, true, true, false),
-        (change::State::Landed { merge: fixtures::HEAD, since: env().wall }, true, false, false),
-        (change::State::Red { merge: fixtures::HEAD, since: env().wall }, true, false, false),
-        (change::State::Uncleared { merge: fixtures::HEAD }, true, false, false),
         (change::State::Ended, true, false, true),
         (change::State::Cleared { merge: fixtures::HEAD }, true, false, true),
         (change::State::NoChange { words: b"already done".as_slice().into() }, true, false, true),
@@ -56,6 +53,7 @@ fn only_settled_rows_with_finished_releases_can_be_dropped() {
             d.releases.insert(row.task, row).unwrap();
         }
         assert_eq!(d.droppable(fixtures::CHANGE), allowed, "{state:?}, ending {ending}, releasing {releasing}");
+        assert!(!d.droppable_last(fixtures::CHANGE));
         let out = dropped(&mut d, &env);
         assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
         assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
@@ -65,41 +63,147 @@ fn only_settled_rows_with_finished_releases_can_be_dropped() {
 }
 
 #[test]
-fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
-    use temper_engine_domain_forge_landing as landing;
-    let (mut d, mut env) = full();
-    env.limits.changes = 2;
-    assert!(d.droppable(fixtures::CHANGE));
-    assert!(dropped(&mut d, &env).is_empty());
-    assert!(d.change(fixtures::CHANGE).is_some());
-    env.limits.changes = 1;
-    for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
-        let row = crate::LandingRow {
-            landing: landing::Landing {
-                task: 60,
-                project: 5,
-                phase,
-                members: Box::new([landing::Member {
-                    change: fixtures::CHANGE,
-                    repository: landing::Repository { forge: 1, repository: 2 },
-                    pull: 1,
-                    head: None,
-                    base: None,
-                    candidate: None,
-                    gates: Box::new([]),
-                    asked: None,
-                    landed: None,
-                }]),
-                preparation: 0,
-                stale_proofs: 0,
-            },
-            asks: Box::new([None]),
-            entries: Box::new([]),
-        };
-        d.landing.rows.insert(60, row).unwrap();
-        assert!(!d.droppable(fixtures::CHANGE));
+fn ended_verifying_rows_give_room_only_after_release() {
+    for state in [
+        change::State::Uncleared { merge: fixtures::HEAD },
+        change::State::Landed { merge: fixtures::HEAD, since: env().wall },
+        change::State::Red { merge: fixtures::HEAD, since: env().wall },
+    ] {
+        for (ending, releasing, allowed) in [(false, false, false), (true, true, false), (true, false, true)] {
+            let (mut d, env) = full();
+            let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+            row.change.state = state.clone();
+            row.ending = if ending { Some(Ending::Cancelled) } else { None };
+            if releasing {
+                let row = super::super::release_row(
+                    fixtures::CHANGE,
+                    fixtures::CHANGE,
+                    crate::ReleaseEnding::Done,
+                    None,
+                    true,
+                    true,
+                );
+                d.releases.insert(row.task, row).unwrap();
+            }
+            assert!(!d.droppable(fixtures::CHANGE));
+            assert_eq!(
+                d.droppable_last(fixtures::CHANGE),
+                allowed,
+                "{state:?}, ending {ending}, releasing {releasing}"
+            );
+            let out = dropped(&mut d, &env);
+            assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
+            assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
+        }
+    }
+    assert!(!domain().droppable_last(fixtures::CHANGE), "an unknown row cannot give room last");
+}
+
+#[test]
+fn live_states_never_give_room_even_with_an_ending() {
+    let head = fixtures::HEAD;
+    let base = fixtures::BASE;
+    let ready_since = env().wall;
+    for state in [
+        change::State::Producing { requested: false },
+        change::State::Opening { requested: false },
+        change::State::Recreating { head },
+        change::State::Reopening { requested: false, retarget: false },
+        change::State::Checking { head },
+        change::State::Gating { head, asked: Box::new([]) },
+        change::State::CancellingGates { head },
+        change::State::Ready { head, ready_since },
+        change::State::Preparing { from: head, main: base, ready_since },
+        change::State::Queued { head, ready_since },
+        change::State::First { head, ready_since },
+        change::State::Updating { from: head, base, ready_since },
+        change::State::WaitingProducer { base },
+        change::State::Resolving { requested: false, base },
+        change::State::Repairing { requested: false, why: change::Repair::Ci },
+        change::State::Landing { head },
+        change::State::Held { was: Box::new(change::State::Ended), why: change::Hold::Failed },
+    ] {
+        let (mut d, env) = full();
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state = state.clone();
+        assert!(!d.droppable(fixtures::CHANGE), "{state:?}");
+        assert!(!d.droppable_last(fixtures::CHANGE), "{state:?}");
         assert!(dropped(&mut d, &env).is_empty());
         assert!(d.change(fixtures::CHANGE).is_some());
+    }
+}
+
+#[test]
+fn dropped_last_rows_wait_until_no_settled_row_can_go() {
+    for state in [
+        change::State::Uncleared { merge: fixtures::HEAD },
+        change::State::Landed { merge: fixtures::HEAD, since: env().wall },
+        change::State::Red { merge: fixtures::HEAD, since: env().wall },
+    ] {
+        let (mut d, mut env) = full();
+        env.limits.changes = 2;
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state = state;
+        let mut other = settled();
+        other.task = 52;
+        other.change.task = 52;
+        d.changes.insert(52, other).unwrap();
+        assert!(d.droppable_last(fixtures::CHANGE));
+        assert!(d.droppable(52));
+        assert!(dropped(&mut d, &env).is_empty(), "a settled row goes first");
+        assert!(d.change(fixtures::CHANGE).is_some());
+        assert!(d.change(52).is_some());
+        d.changes.get_mut(&52).unwrap().ending = None;
+        let out = dropped(&mut d, &env);
+        assert!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }));
+        assert!(d.change(fixtures::CHANGE).is_none());
+        assert!(d.change(52).is_some(), "a task without its ending stays");
+    }
+}
+
+#[test]
+fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
+    use temper_engine_domain_forge_landing as landing;
+    for state in [
+        change::State::Ended,
+        change::State::Uncleared { merge: fixtures::HEAD },
+        change::State::Landed { merge: fixtures::HEAD, since: env().wall },
+        change::State::Red { merge: fixtures::HEAD, since: env().wall },
+    ] {
+        let (mut d, mut env) = full();
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state = state;
+        env.limits.changes = 2;
+        assert!(d.droppable(fixtures::CHANGE) || d.droppable_last(fixtures::CHANGE));
+        assert!(dropped(&mut d, &env).is_empty());
+        assert!(d.change(fixtures::CHANGE).is_some());
+        env.limits.changes = 1;
+        for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
+            let row = crate::LandingRow {
+                landing: landing::Landing {
+                    task: 60,
+                    project: 5,
+                    phase,
+                    members: Box::new([landing::Member {
+                        change: fixtures::CHANGE,
+                        repository: landing::Repository { forge: 1, repository: 2 },
+                        pull: 1,
+                        head: None,
+                        base: None,
+                        candidate: None,
+                        gates: Box::new([]),
+                        asked: None,
+                        landed: None,
+                    }]),
+                    preparation: 0,
+                    stale_proofs: 0,
+                },
+                asks: Box::new([None]),
+                entries: Box::new([]),
+            };
+            d.landing.rows.insert(60, row).unwrap();
+            assert!(!d.droppable(fixtures::CHANGE));
+            assert!(!d.droppable_last(fixtures::CHANGE));
+            assert!(dropped(&mut d, &env).is_empty());
+            assert!(d.change(fixtures::CHANGE).is_some());
+        }
     }
 }
 
