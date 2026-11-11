@@ -222,7 +222,14 @@ and no policy. Every type is a plain value.
   into the marker (section 5). A pull request's key is its branches, so
   `OpenPull` takes none.
 - **`PullFor { head, base }`** asks for the open pull request of a head
-  and a base, else the oldest.
+  and a base, else the oldest. It reads no CI.
+- **`Pull { number, ci }`** asks for a pull request and, when `ci`, its
+  head's CI, folded as `Checks` folds its rows. Without `ci` the forge is
+  asked for no status, and the answer's `ci` is `Ci::None`, as `PullFor`'s
+  is: a reader that uses CI asks `ci`, or reads `Checks`.
+- **`Reviews`, `Remarks` and `PullFiles` take `skip`,** the rows of their
+  page already read: a page the answer's bytes cut (3.3) is read on at
+  the same page past them, so a cut loses no row and repeats none.
 - **`Item { number, after, since }`** asks for an item and its comments
   with ids above `after`. `since` is a time at or before the update of
   every comment above `after`, which the dialect sends as its forge's own
@@ -315,7 +322,9 @@ and no policy. Every type is a plain value.
 
 - **A paged answer says whether more follows** (`more`): `Items`,
   `Item` (its comments), `Reviews`, `Statuses`, `Remarks`, `PullFiles`
-  and `Collaborators`. `Branches` and `Checks` carry none. The answer to
+  and `Collaborators`. `Items`, `Reviews`, `Remarks` and `PullFiles` say
+  too whether the answer's bytes cut their page (`cut`), with `more`
+  set: a cut page is never the last. `Branches` and `Checks` carry none. The answer to
   `Items` also carries `now`, the forge's clock when it answered.
 - **`Created`, `Commented` and `Reviewed`** carry the new object's
   number or id. `Merged` carries the merge's commit. `Branch` carries
