@@ -9,7 +9,7 @@
   owner. `temper-engine-domain-forge/src/link.rs`, `owner`, clears only a
   different person; `person_of` blocks new links outside the box, but
   `forges.rs`, `link`, still returns the retained one and the root's
-  `forge_person` uses it. No story covers that transition.
+  `forge_person` uses it. No story covers that transition [in flight: change 566].
 
 `change/repairs.md` has no known implementation gap in a pull's files page
 answering `TooLarge`: its identity and gathered content remain, the
