@@ -6499,6 +6499,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-scratch",
+ "temper-shell",
  "temper-worker-shell",
 ]
 
