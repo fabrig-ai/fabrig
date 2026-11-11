@@ -25,13 +25,6 @@ with Away off, Overturn, the unfiltered page, Keep asking or a member's
 Propose, which the domain's tables hold alone. Its render check and walk
 follow landing (`README.md`, section 5).
 
-- **Not yet:** `pages/README.md`, *Needs you*, *Why it reached you*, in the TUI (`tui/pages.md`, *The
-  launchpad*): its need lines and a need walked by `n` say no reason, though
-  `temper_client_view::shared::why` gives it and the view's terminal shell
-  prints it; milestone T1 of
-  [whole-story.execution.md](../draft/whole-story.execution.md), landed by
-  plan `tui-whole-t1`, drew none, so it stays temper/tui's.
-
 `tui/README.md`, section 3 and `tui/pages.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and
@@ -398,7 +391,7 @@ read-once requirement remains `README.md`, section 5's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
-`tui/README.md`, section 3 and `tui/pages.md` and `tui/theme.md` and `testing.md` have no known implementation gap in the
+`tui/README.md`, section 3 and `tui/launchpad.md` and `tui/theme.md` and `testing.md` have no known implementation gap in the
 launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
 11.4 and 11.5, less T2's and T3's parts), by the plan `tui-whole-t1`:
 the TUI's events `Own`, `Open`, `Walk` and `EndWalk`; the header's
@@ -428,11 +421,6 @@ of each screen in a real terminal against its mockup follows landing
 (`README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../draft/surfaces.status.md`.
 
-- **Not yet:** `tui/pages.md`, *The launchpad*: the blank row between the header
-  and the first section, which its illustration and the mockups draw;
-  the first section stands on the row under the header's frame (the
-  launchpad's goldens and `launchpad-drawn`), as the look request
-  `tui-launchpad`'s build left it (`../draft/tui.status.md`).
 
 `pages/README.md` and `forge/records.md` and `pages/goal.md`, section 2 and `pages/settings.md`, section 2 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

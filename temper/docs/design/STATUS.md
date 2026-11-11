@@ -95,13 +95,14 @@ half or at all by Ctrl-P, the sections the last turn wrote marked new,
 a reply's choices as a prompt, `/goal` with its prompt of ways, and the
 quiet line's pane and goal parts, with goldens and the journey
 `design-session` (`client/tui/pages.md`, *A design session*;
-`client/tui/journeys.md`, 9; `draft/tui-design-session.status.md`). The
-team lines, `/talk` and `/tell` are T3's, the brief
-and rows are one project's, not those of Home across projects, and the design
-departs from the mockups in "/chats N" and two of Pair's words
-(`draft/surfaces.status.md`, 11); the blank row under the header is not
-yet drawn (`client/tui/pages.status.md`), and the walk follows
-landing.
+`client/tui/journeys.md`, 9; `draft/tui-design-session.status.md`). T1's
+repair, goal 761, reads the brief, Where you left off and Needs you
+across the person's projects, says why a walked need reached the person
+and when each need asked, says a left-off row's day, and draws the blank
+row under the header (`client/tui/launchpad.md`). The team lines,
+`/talk` and `/tell` are T3's, Stop asking stays the web's, and the design
+departs from the mockups in "/chats N", a need's asker and the joined
+brief (`draft/surfaces.status.md`, 11); the walk follows landing.
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames, `launchpad-chat`'s four and
@@ -1189,6 +1190,7 @@ Design documents:
 - [`client/web/journeys.md`](client/web/journeys.status.md)
 - [`client/web/look-requests.md`](client/web/look-requests.status.md)
 - [`client/tui/journeys.md`](client/tui/journeys.status.md)
+- [`client/tui/launchpad.md`](client/tui/launchpad.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 
 Drafts:

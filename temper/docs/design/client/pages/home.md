@@ -303,7 +303,7 @@
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
 
-  **In the TUI** (`../tui/pages.md`, *The launchpad*), Home is the root's page under
+  **In the TUI** (`../tui/launchpad.md`), Home is the root's page under
   the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's
@@ -315,7 +315,11 @@
   no white space are the terminal's (`chat/terminal.md`, 1, *Commands*)
   where the look is the terminal's, as on the pages it draws. The
   browser's Home sends neither `ChatWords` nor `StartChat` and draws no
-  picker, so it is unmoved.
+  picker, so it is unmoved. Given `boundary::Event::Launchpad`, which
+  the TUI's host alone gives, Home also holds the launchpad's reads
+  across the person's projects: Home on All projects' statuses, the
+  inbox unfiltered, the decided documents of the needs' projects and
+  the person's chats and goals across projects (`../tui/launchpad.md`, 2).
 - **Home on All projects** (`../../draft/surfaces.md`, section 3; the whole
   story's `home.html` and `phone-home.html`, `web/whole-story/`):
   `AllHome`, at `/home`, Home for every project the person is in, as
