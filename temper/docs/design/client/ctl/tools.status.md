@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** 2: `role show`'s talk line and `--report`; 3: `role talk` and `role talk --leave` (`../../domain/agent/standing.md`, sections 7 and 8) [in flight: change 778].
+
 - **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6) [in flight: change 108].
 
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
