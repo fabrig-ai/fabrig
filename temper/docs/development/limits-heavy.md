@@ -44,7 +44,7 @@ and view limits with different remaining drawing costs.
 | Request row / selected test | Request CPU s | Before Ir | Task after Ir | Early merged Ir | Merged trunk Ir | Estimated CPU s after |
 |---|---:|---:|---:|---:|---:|---:|
 | box_listeners: `temper::suite::box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document` | 17.6 | 975,595,748 | 5,413,110,171 | 4,924,326,388 | 3,146,142,721 | 97.654 |
-| gallery: `temper-client-gallery::lib::tests::print_writes_every_page_and_the_bundle` | 12.1 | 31,170,701,091 | 8,292,374,426 | 8,292,406,046 | 8,293,436,601 | 3.219 |
+| gallery: `temper-client-gallery-tool::lib::tests::print_writes_every_page_and_the_bundle` | 12.1 | 31,170,701,091 | 8,292,374,426 | 8,292,406,046 | 8,293,436,601 | 3.219 |
 | fake_backends: `temper::lib::fake_backends::tests::retained_peer_edits_are_checked_without_replacement` | 11.5 | 19,892,711,440 | 2,481,957,851 | 2,287,284,908 | 1,637,101,265 | 1.435 |
 | view limits: `temper-client-view::lib::tests::limits::kept_words_at_the_threads_bytes_build` | 9.1 | 12,148,031,421 | 11,991,007,201 | 11,910,812,477 | 11,910,975,872 | 8.982 |
 | forge_land: `temper::suite::forge_land::the_launcher_gives_each_landing_story_its_own_store` | 4.0 | 79,217,172,205 | 211,172,655 | 200,883,688 | 203,251,483 | 0.011 |
@@ -141,7 +141,7 @@ ownership links and with different running descendants. Neither replaces
 the other. These are moves, not removed tests.
 
 Four gallery tests became rules in
-`temper-client-gallery::lib::tests::each_state_holds_what_its_name_says`,
+`temper-client-gallery-tool::lib::tests::each_state_holds_what_its_name_says`,
 which passed at `bbf0fb6cd3` before the separate processes went:
 
 - `tests::navigation_links_have_addresses_and_install_action_links_keep_their_binding`.
@@ -374,7 +374,7 @@ closing task, which changes documents only.
   preserves each state's bindings, clock and sign-in configuration, beyond
   sharing the gallery's checked inputs. This is about 0.53 CPU s when priced
   against the request's original test figures, so it is explicitly left here.
-  Files: `temper/tools/gallery/src/lib.rs`,
+  Files: `temper/crates/temper-client-gallery-tool/src/lib.rs`,
   `temper/crates/temper-client-view/src/root.rs`,
   `skein/crates/skein-ui/src/phrases.rs`.
 
@@ -407,7 +407,7 @@ closing task, which changes documents only.
   verification), about 0.31 CPU s together on that pricing. A world is stepped
   for its address and subsequent acts; this is not one identical root copied
   for every state. Sharing the mock-document/world construction would reorganize
-  `temper/tools/gallery/src/worlds.rs` and its dispatch with `src/samples.rs`.
+  `temper/crates/temper-client-gallery-tool/src/worlds.rs` and its dispatch with `src/samples.rs`.
   Leave that work until after `look-round-13`, as the task specifies.
 
 - **gallery-print; largest recorded count 989,777,800 Ir.** Repeated view validation: `Words::capacity` costs 989,777,800 Ir in each of

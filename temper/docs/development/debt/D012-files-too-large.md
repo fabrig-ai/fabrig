@@ -1,7 +1,7 @@
 # D012: The forge's domain and route files, and nine more, are too large to read
 
 - **Kind:** complexity
-- **Where:** `temper-engine-domain-forge/src/domain.rs`, `temper-engine-domain/src/route/forge_route.rs`, `temper-client-view/src/words.rs`, `temper/tools/gallery/src/worlds.rs`, `temper-engine-domain-forge/src/landing.rs`, `temper-engine-domain-forge/src/boundary.rs`, `temper-engine-domain-forge/src/tiers.rs`, `temper-settings-form/src/wire.rs`, `temper-worker-domain-checkout/src/hold.rs`, `temper-box/src/host.rs`, `temper-service/src/setup/lifecycle.rs`
+- **Where:** `temper-engine-domain-forge/src/domain.rs`, `temper-engine-domain/src/route/forge_route.rs`, `temper-client-view/src/words.rs`, `temper/crates/temper-client-gallery-tool/src/worlds.rs`, `temper-engine-domain-forge/src/landing.rs`, `temper-engine-domain-forge/src/boundary.rs`, `temper-engine-domain-forge/src/tiers.rs`, `temper-settings-form/src/wire.rs`, `temper-worker-domain-checkout/src/hold.rs`, `temper-box/src/host.rs`, `temper-service/src/setup/lifecycle.rs`
 - **Seen:** 2026-11-03 at `41d63da8c3`, while checking D002 and D011 (new here)
 - **Checked:** 2026-11-03 at `a6a8155d35`
 - **Value:** medium (the forge's core logic readable a module at a time; smaller diffs, fewer merge meetings)
@@ -22,7 +22,7 @@ Eleven hand-written production files are over 1,500 lines. Two stand out:
   holds eight of its parts and its tests.
 
 Then `temper-client-view/src/words.rs` (3,137, checked English data),
-the gallery's `temper/tools/gallery/src/worlds.rs` (2,592), the forge
+the gallery's `temper/crates/temper-client-gallery-tool/src/worlds.rs` (2,592), the forge
 domain's `landing.rs` (2,417), `boundary.rs` (2,106) and `tiers.rs`
 (1,894), `temper-settings-form/src/wire.rs` (1,692),
 `temper-worker-domain-checkout/src/hold.rs` (1,659),

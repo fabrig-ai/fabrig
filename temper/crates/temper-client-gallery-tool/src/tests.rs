@@ -3,7 +3,10 @@ use skein_fake_person::{Face, Find, Found, TreeFace};
 use skein_scratch::Scratch;
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "cli C8: SKEIN_CODEGEN_WRITE for the gallery tool's names golden")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn names_are_the_promised_ones() {
     let samples = samples::samples();
     let mut names = Vec::new();

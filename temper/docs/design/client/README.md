@@ -171,7 +171,7 @@ jig-client-fake-person-browser  jig's attack stories (jig's `protocol/browser/te
 temper-client-world             tests/client: temper's client joined to temper's engine root (section 10)
 skein-fake-person-browser       the person in Chromium, through skein-browser (web/testing.md)
 temper-client-browser-world     tests/client-browser: the browser tier (web/testing.md)
-temper-client-gallery           tools/gallery: the browser's pages in named states, as static documents (web/gallery.md)
+temper-client-gallery-tool      crates/temper-client-gallery-tool: the browser's pages in named states, as static documents (web/gallery.md)
 temper-client-journeys          tools/journeys: recorded walks replayed through the shipped host and printed as pages (journeys.md)
 ```
 

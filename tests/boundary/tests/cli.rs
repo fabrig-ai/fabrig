@@ -51,7 +51,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper-agent temper-agent", until: "cli C6" },
     Exception { what: "temper-client temper-client", until: "cli C3" },
     Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
-    Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
     Exception { what: "temper-engine temper-engine", until: "cli C2" },
     Exception { what: "temper-stage-one temper-stage-one", until: "cli C8" },
