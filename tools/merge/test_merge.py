@@ -151,7 +151,7 @@ class Merge(unittest.TestCase):
             '(job / "generator-call.json").write_text(json.dumps({\n'
             '    "args": sys.argv[1:], "cwd": str(root),\n'
             '    "write": os.environ.get("SKEIN_CODEGEN_WRITE"),\n'
-            '    "bundle": os.environ.get("TEMPER_BUNDLE")}))\n'
+            '    "bundle": os.environ.get("TEMPER_INTERNAL_BUNDLE")}))\n'
             f'target = root / {RECORDING!r}\n'
             'assert not target.exists(), "a fresh output is required"\n'
             f'outcome = {outcome!r}\n'

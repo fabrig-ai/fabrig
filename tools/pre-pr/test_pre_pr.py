@@ -62,7 +62,7 @@ sys.exit(int(count > 0))
         self.command('git', 'commit', '-qm', 'base')
         self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
 
-    def deliver(self):
+    def deliver(self, expected_bundle=None):
         calls = []
         data = {'packages': [{'name': 'api', 'id': 'api', 'dependencies': [],
                              'manifest_path': str(self.root / 'api/Cargo.toml')}],
@@ -91,6 +91,11 @@ sys.exit(int(count > 0))
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
             result = PRE_PR.main()
         log.flush()
+        if expected_bundle is not None:
+            self.assertTrue(clippy.called)
+            self.assertTrue(nextest.called)
+            self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
+            self.assertEqual(nextest.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, nextest.called)
 
     def test_docs_only(self):
@@ -113,6 +118,17 @@ sys.exit(int(count > 0))
         self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
         self.assertFalse(any('tools/citations/citations.py' in args for args, _ in calls))
         self.assertIn('code only:', log)
+
+    def test_bundle_defaults_to_none_and_keeps_the_callers_value(self):
+        for value in (None, 'embed'):
+            with self.subTest(value=value):
+                self.env.pop('TEMPER_INTERNAL_BUNDLE', None)
+                if value is not None:
+                    self.env['TEMPER_INTERNAL_BUNDLE'] = value
+                expected = 'none' if value is None else value
+                self.write('api/src/lib.rs', f'pub fn {expected}() {{}}\n')
+                result, log, _, _ = self.deliver(expected_bundle=expected)
+                self.assertEqual(result, 0, log)
 
     def test_both(self):
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
@@ -257,7 +273,7 @@ class SharedTarget(unittest.TestCase):
             env = os.environ.copy()
             for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR'):
                 env.pop(name, None)
-            env.update(TEMPER_BUNDLE='none', CARGO_TARGET_DIR=str(root / 'target'))
+            env.update(TEMPER_INTERNAL_BUNDLE='none', CARGO_TARGET_DIR=str(root / 'target'))
 
             def command(*args, cwd=root, command_env=env):
                 return subprocess.run(args, cwd=cwd, env=command_env, check=True,

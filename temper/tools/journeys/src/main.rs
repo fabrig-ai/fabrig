@@ -160,7 +160,13 @@ fn scratch() -> io::Result<PathBuf> {
 #[expect(clippy::disallowed_methods, reason = "cli C8: CARGO_TARGET_DIR for the journey tool's built binaries")]
 fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
-    cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper-box", "-p", "smith-fake-claude"]);
+    cargo.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none").args([
+        "build",
+        "-p",
+        "temper-box",
+        "-p",
+        "smith-fake-claude",
+    ]);
     if is_tui {
         cargo.args(["-p", "temper-client", "--features", "temper-client-shell-tui/record"]);
     }
@@ -170,7 +176,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
     }
     let bundle = scratch.join("bundle");
     let mut bundler = Command::new(root.join("scripts/bundle.sh"));
-    bundler.current_dir(root).env("TEMPER_BUNDLE", "none").arg("--loopback");
+    bundler.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none").arg("--loopback");
     if !is_tui {
         bundler.arg("--record");
     }

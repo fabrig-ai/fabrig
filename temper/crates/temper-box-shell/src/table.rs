@@ -17,6 +17,7 @@ pub const TABLE: Table = Table {
         &temper_engine_shell::forge_sign_in::NO_REGISTRATION,
         &super::fake_backends::FAKE_BOX_PORTS,
         &temper_version::INTERNAL_COMMIT,
+        &temper_client_bundle::INTERNAL_BUNDLE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
     ],

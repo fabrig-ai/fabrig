@@ -158,3 +158,13 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - The build's commit and tracked-file dirty mark.
 - **Notes:** Read at compile time from temper-version's build script alone; not a runtime override.
 - **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_BUNDLE`
+
+- **Set:** internal
+- **Reads**
+- **Form:** embed|none
+- **Absent:** Embed the browser's bundle.
+- Select whether the build embeds the browser's bundle.
+- **Notes:** Read by temper-client-bundle's build script; none skips the nested browser build. Not a runtime override.
+- **Read by:** temper-box, temper-engine

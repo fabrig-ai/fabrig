@@ -28,7 +28,7 @@ args = sys.argv[1:]
 with open(os.environ["CALLS"], "a") as output:
     output.write(json.dumps({"name": name, "args": args, "env": {
         key: os.environ.get(key) for key in (
-            "NEXTEST_DOUBLE_SPAWN", "TEMPER_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
+            "NEXTEST_DOUBLE_SPAWN", "TEMPER_INTERNAL_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
             "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
             "CARGO_TARGET_DIR", "TEMPER_TEST_CLAUDE")}}) + "\\n")
 if name == "cargo" and args[:1] == ["metadata"]:
@@ -135,7 +135,7 @@ class RunnerTests(unittest.TestCase):
         self.calls = self.root / "calls.jsonl"
         self.env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
                         ARTIFACTS=str(self.target), CALLS=str(self.calls),
-                        TEMPER_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
+                        TEMPER_INTERNAL_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
         for key in ("FAIL_BUILD", "NEXTEST_EXIT", "BUNDLE_EXIT", "BAD_METADATA", "METADATA_EXIT",
                     "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
                     "BAD_LISTING", "MISMATCH", "TIERS_WRAPPER", "TIERS_DISK_BYTES"):
@@ -237,7 +237,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(calls[9]['env'][variable], str(self.target / out))
                 for call in calls:
                     self.assertEqual(call['env']['NEXTEST_DOUBLE_SPAWN'], "0")
-                    self.assertEqual(call['env']['TEMPER_BUNDLE'], "none")
+                    self.assertEqual(call['env']['TEMPER_INTERNAL_BUNDLE'], "none")
 
     def test_playground_bundle_replaces_stale_path_only_for_browser_temper(self):
         for tier in ("browser", "qa"):

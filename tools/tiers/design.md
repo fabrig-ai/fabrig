@@ -131,7 +131,7 @@ define each fail the pair's setup: the message names the file and the field
 Every child inherits the caller's environment with `NEXTEST_DOUBLE_SPAWN=0`
 (skein/docs/foundation/testing-strategy.md, 8). The chosen bundle variable
 is set to the absolute output directory for nextest, replacing any inherited
-value. `TEMPER_BUNDLE=none` stays as the caller's environment sets it: temper's
+value. `TEMPER_INTERNAL_BUNDLE=none` stays as the caller's environment sets it: temper's
 native binary must not embed a person's browser bundle. Chromium, fonts and
 live sign-ins remain the caller's environment prerequisites; this tool
 installs nothing and performs no sign-in.

@@ -354,7 +354,9 @@ pub(crate) fn run(
         eprintln!("init: wrote {}", path.display());
     }
     if crate::bundle::OWN.is_none() {
-        eprintln!("init: this temper has no browser (built with TEMPER_BUNDLE=none): the browser is not served");
+        eprintln!(
+            "init: this temper has no browser (built with TEMPER_INTERNAL_BUNDLE=none): the browser is not served"
+        );
     }
     if let Some(why) = &written.no_sign_in {
         eprintln!("init: no sign-in through temper: {why}");
