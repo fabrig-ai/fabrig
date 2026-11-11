@@ -1,7 +1,7 @@
 //! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
 use crate::{
     limits,
-    run::{Run, Settings},
+    run::{Front, Run, Settings},
 };
 use skein_io::{
     file::Expect,
@@ -172,7 +172,7 @@ pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry]
         eprint!("{}", terminal_refusal(name, argument.is_some()));
         return 1;
     }
-    match start(argument, environment, working, clock) {
+    match start(argument, environment, working, clock, None) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line(name));
@@ -181,11 +181,41 @@ pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry]
     }
 }
 
+struct BoxStart {
+    executable: Box<[u8]>,
+    cache: Box<[u8]>,
+    arguments: Box<[Box<[u8]>]>,
+    link: Option<PathBuf>,
+    log: Box<[u8]>,
+}
+
+/// `temper box`'s terminal case; its arguments remain the box's to read.
+pub fn run_box(
+    executable: &[u8],
+    cache: &[u8],
+    arguments: &[Box<[u8]>],
+    data: &[u8],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    clock: &Clock,
+) -> u8 {
+    let front = BoxStart {
+        executable: executable.into(), cache: cache.into(), arguments: arguments.into(),
+        link: link_file::path(path(data), temper_shell::environment::XDG_RUNTIME_DIR.value(environment), cfg!(target_os = "linux")),
+        log: path(data).join("box/logs/box.log").as_os_str().as_bytes().into(),
+    };
+    match start(None, environment, working, clock, Some(front)) {
+        Ok(code) => code,
+        Err(why) => { eprint!("{}", why.line("temper")); 1 }
+    }
+}
+
 fn start(
     argument: Option<&[u8]>,
     environment: &[EnvironmentEntry],
     working: &[u8],
     clock: &Clock,
+    front: Option<BoxStart>,
 ) -> Result<u8, Refused> {
     let given = argument.map(address).transpose()?;
     let directory = directory(environment)?;
@@ -202,6 +232,7 @@ fn start(
         (engine, on_box(bytes, engine))
     };
     let note = read_note(&directory, engine, user);
+    let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
     let scheme = scheme(environment);
     let depth = depth(environment);
     let Ok(Input::Terminal { kept, size }) = skein_shell::raw_input(Fd::new(0), Keys::Pass) else {
@@ -229,9 +260,21 @@ fn start(
         })?);
         #[cfg(not(feature = "record"))]
         let record = None;
+        let front = front.map(|front| {
+            let directory = skein_shell::open_root(path(working)).map_err(|number|
+                Refused::Directory(format!("cannot open working directory: errno {number}")))?;
+            Ok(Front {
+                executable: front.executable, cache: front.cache, arguments: front.arguments, directory,
+                log: front.log,
+                environment: environment.iter().map(|(name, value)| {
+                    let mut entry = name.to_vec(); entry.push(b'='); entry.extend_from_slice(value); entry.into()
+                }).collect(),
+            })
+        }).transpose()?;
+        let in_front = front.is_some();
         let settings = Settings {
             record,
-            front: None,
+            front,
             engine: skein_io::Addr::Ip(engine),
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
@@ -251,7 +294,8 @@ fn start(
         let seed = skein_shell::seed().expect("kernel seed");
         let mut run = local_run(settings, root, user, seed, signals);
         let mut kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
-        let exit = skein_shell::drive(&mut kernel, clock, &mut run);
+        let exit = if in_front { drive_front(&mut kernel, clock, &mut run) }
+                   else { skein_shell::drive(&mut kernel, clock, &mut run) };
         Ok((run, exit, seed))
     })();
     skein_fail_stop::before_report(None);
@@ -260,6 +304,7 @@ fn start(
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }
+    if run.terminated() { return Ok(1); }
     if let Some(signed_in) = run.signed_in() {
         let mut bytes = b"http://".to_vec();
         bytes.extend_from_slice(signed_in);
@@ -267,17 +312,46 @@ fn start(
             keep_address(parent, bytes.into_boxed_slice(), user, seed, clock);
         }
     }
+    if let Some((code, words)) = run.box_exit() {
+        use std::io::Write;
+        let _ = std::io::stderr().lock().write_all(&words);
+        return Ok(code);
+    }
     Ok(match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
     })
 }
 
+// A termination signal is the process's shutdown path: the kernel may still own the box's
+// wait and pipe reads. Its buffers stay owned by Kernel's shutdown path until process exit.
+fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
+    loop {
+        kernel.reap(run.completions());
+        let skein_shell::Now { now, wall } = clock.now();
+        run.iterate(now, wall);
+        if run.terminated() { return Exit::Code(1); }
+        if run.is_empty() {
+            assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
+            return run.exit().expect("a drained run's exit");
+        }
+        let wait = if run.work_pending(now) { skein_shell::Wait::No }
+            else { run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until) };
+        kernel.submit(run.submissions(), wait);
+    }
+}
+
 #[must_use]
 pub fn local_run(mut settings: Settings, root: Fd, user: u32, seed: u64, signals: Fd) -> Run {
     let link = settings.link_file.take();
+    let front = settings.front.is_some();
     let run = Run::new(settings, root, user, seed, Fd::new(0), Fd::new(1), signals).expect("TUI descriptors");
     let Some(path) = link else { return run };
+    if front {
+        // The box may not have made its data directory yet. Open beneath / on later local duties.
+        let Ok(root) = skein_shell::open_root(Path::new("/")) else { return run };
+        return run.with_local_path(root, path.strip_prefix(b"/").expect("absolute link path"));
+    }
     let Some(parent) = self::path(&path).parent() else { return run };
     let Ok(root) = skein_shell::open_root(parent) else { return run };
     run.with_local_link(root, &path)

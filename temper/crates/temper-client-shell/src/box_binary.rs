@@ -15,12 +15,12 @@ pub const BOX: Command = Command {
     reach: Reach::Words(&["box"]),
     set: Set::Public,
     forms: &["[ARGUMENT...]"],
-    line: "Run this build's temper-box, fetching it if needed.",
+    line: "Run the TUI in front of this build's temper-box, fetching it if needed.",
     arguments: &[Argument { shown: "ARGUMENT...", line: "Arguments for temper-box, passed on unchanged." }],
     settings: &[&directories::SETTINGS],
     switches: &[],
     variables: &[],
-    notes: "Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. Runs the box in this process's place, including in a terminal.",
+    notes: "Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. In a terminal, runs the TUI in front of the box. Without a terminal, or with --echo steps, runs the box in this process's place.",
 };
 
 const CACHE: Settings = Settings {
@@ -186,6 +186,10 @@ impl Write for Fetching<'_> {
     }
 }
 
+fn terminal_front(resolved: &BoxArguments, input: &impl io::IsTerminal, output: &impl io::IsTerminal) -> bool {
+    !resolved.echo_steps && input.is_terminal() && output.is_terminal()
+}
+
 fn exec_command(file: &Path, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> std::process::Command {
     let mut command = std::process::Command::new(file);
     command
@@ -198,13 +202,19 @@ fn exec_command(file: &Path, arguments: &[Box<[u8]>], environment: &[Environment
 pub(crate) fn run(arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
     let working = captured.working.as_ref().map_err(failure)?;
     let resolved = resolve(arguments, &captured.environment, working.as_os_str().as_bytes())?;
+    if terminal_front(&resolved, &io::stdin(), &io::stdout()) {
+        let executable = captured.executable.as_ref().map_err(failure)?;
+        return Ok(temper_client_shell_tui::start::run_box(
+            executable.as_os_str().as_bytes(), &resolved.directories.cache, arguments, &resolved.directories.data,
+            &captured.environment, working.as_os_str().as_bytes(), &skein_shell::Clock::new(),
+        ));
+    }
     let inputs = Inputs::new(path(&resolved.directories.cache).into(), captured)?;
     let file = {
         let mut stderr = io::stderr().lock();
         let mut progress = Fetching { out: &mut stderr, started: false };
         find(&IO, &inputs.find(), &mut progress).map_err(|why| failure(why.words()))?
     };
-    // The terminal case uses the same exec, with descriptors inherited.
     let why = exec_command(&file, arguments, &captured.environment).exec();
     Err(failure(format!("{}: {why}", file.display())))
 }
