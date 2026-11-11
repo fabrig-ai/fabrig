@@ -1,13 +1,15 @@
 //! A box's person on its forges (temper/docs/design/domain/forge/adoption.md, 6).
+//! Only a connector built under a box keeps links. A closed pipe stops new links but clears none.
 use crate::{Domain, ForgeState, Kind, Link, LinkNote, Mode, PersonAnswer, Request, forges};
 use skein_lib::{List, Queue};
 
+/// Hand the sole owner: clear every link off-box, else those whose person is not that party.
 pub(crate) fn owner(d: &mut Domain, party: Option<u64>, out: &mut Queue<Request>) {
     d.owner = party;
     let mut cleared = List::with_capacity(d.records.len());
     for (_, record) in &d.records {
         if let Some(link) = record.person
-            && Some(link.person) != party
+            && (!d.built_under_box || Some(link.person) != party)
         {
             let mut record = record.clone();
             record.person = None;
