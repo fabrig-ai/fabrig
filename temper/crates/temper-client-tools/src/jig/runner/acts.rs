@@ -66,7 +66,10 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
-    if called.call.tool == rows::CHAT_CREATE_AT || called.call.tool == rows::GOAL_START_AT || called.call.tool == rows::ROLE_START_AT {
+    if called.call.tool == rows::CHAT_CREATE_AT
+        || called.call.tool == rows::GOAL_START_AT
+        || called.call.tool == rows::ROLE_START_AT
+    {
         let Some(me) = me(runner, client) else { return };
         let ask = creation(&called.call, me, &env.limits);
         prepared(runner, client, env, called, ask, out);

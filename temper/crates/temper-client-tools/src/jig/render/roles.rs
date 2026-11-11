@@ -8,7 +8,10 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 fn note(page: &c::NotePage) -> Option<&c::Note> {
     let mut found: Option<&c::Note> = None;
     for row in &page.rows {
-        let earlier = match found { Some(prior) => row.number < prior.number, None => true };
+        let earlier = match found {
+            Some(prior) => row.number < prior.number,
+            None => true,
+        };
         if row.description.bytes() == b"now" && earlier {
             found = Some(row);
         }
@@ -79,7 +82,10 @@ fn list_text(tasks: &c::TaskPage, reading: &Reading, out: &mut Text) {
 fn charter(executor: c::ChipExecutor, out: &mut Text) {
     match executor {
         c::ChipExecutor::Agent { charter } => out.number(u64::from(charter)),
-        c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } | c::ChipExecutor::Job { .. } => out.put(b"none"),
+        c::ChipExecutor::Procedure { .. }
+        | c::ChipExecutor::Party { .. }
+        | c::ChipExecutor::Role { .. }
+        | c::ChipExecutor::Job { .. } => out.put(b"none"),
     }
 }
 fn encode_list(tasks: &c::TaskPage, reading: &Reading, out: &mut Encoder) {
@@ -88,14 +94,20 @@ fn encode_list(tasks: &c::TaskPage, reading: &Reading, out: &mut Encoder) {
     out.array_start();
     for (index, row) in tasks.live.as_slice().iter().enumerate() {
         out.object_start();
-        out.key(b"task"); out.unsigned(row.chip.task);
+        out.key(b"task");
+        out.unsigned(row.chip.task);
         out.key(b"charter");
         match row.chip.executor {
             c::ChipExecutor::Agent { charter } => out.unsigned(u64::from(charter)),
-            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } | c::ChipExecutor::Job { .. } => out.null(),
+            c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. }
+            | c::ChipExecutor::Job { .. } => out.null(),
         }
-        out.key(b"state"); out.string(crate::jig::subject::phase_word(row.chip.phase));
-        out.key(b"left"); out.unsigned(row.budget.left);
+        out.key(b"state");
+        out.string(crate::jig::subject::phase_word(row.chip.phase));
+        out.key(b"left");
+        out.unsigned(row.budget.left);
         out.key(b"now");
         match selected(reading.pages.get(&slot(index))) {
             Some(now) => out.string(first_line(now.body.bytes())),
@@ -113,7 +125,9 @@ fn encode_list(tasks: &c::TaskPage, reading: &Reading, out: &mut Encoder) {
 }
 
 pub(crate) fn show(task: Printed, read: Option<&Readout>, json: bool, limits: &Limits) -> Printed {
-    if task.status != 0 { return task; }
+    if task.status != 0 {
+        return task;
+    }
     let Some(page) = page(read) else { return super::failure(b"Now could not be read", json, 1) };
     let now = note(page);
     let suffix = if json {
@@ -131,32 +145,55 @@ pub(crate) fn show(task: Printed, read: Option<&Readout>, json: bool, limits: &L
         now_text(now, &mut out);
         out.finish()
     };
-    let parts: &[&[u8]] = if json { &[b"{\"task\":", &task.stdout, b",\"now\":", &suffix, b"}"] } else { &[&task.stdout, &suffix] };
+    let parts: &[&[u8]] =
+        if json { &[b"{\"task\":", &task.stdout, b",\"now\":", &suffix, b"}"] } else { &[&task.stdout, &suffix] };
     let bytes = skein_lib::bytes::concat(parts);
-    if skein_lib::len_u64(bytes.len()) > limits.result_bytes { return super::failure(b"result limit", json, 1); }
+    if skein_lib::len_u64(bytes.len()) > limits.result_bytes {
+        return super::failure(b"result limit", json, 1);
+    }
     Printed { stdout: bytes, ..task }
 }
 fn now_text(now: Option<&c::Note>, out: &mut Text) {
-    let Some(now) = now else { out.put(b"no Now yet\n"); return };
-    out.put(b"Now: note "); out.number(now.number);
-    out.put(b" revision "); out.number(now.revision.value);
+    let Some(now) = now else {
+        out.put(b"no Now yet\n");
+        return;
+    };
+    out.put(b"Now: note ");
+    out.number(now.number);
+    out.put(b" revision ");
+    out.number(now.revision.value);
     out.put(b" written ");
     match now.changed {
         Some(at) => super::document::clock::deadline(at, out),
         None => out.put(b"unknown"),
     }
-    out.put(b"\n"); out.put(now.body.bytes());
-    if !now.body.bytes().ends_with(b"\n") { out.put(b"\n"); }
-    if now.body.cut { out.put(b"Now body cut; report it\n"); }
+    out.put(b"\n");
+    out.put(now.body.bytes());
+    if !now.body.bytes().ends_with(b"\n") {
+        out.put(b"\n");
+    }
+    if now.body.cut {
+        out.put(b"Now body cut; report it\n");
+    }
 }
 fn encode_now(now: Option<&c::Note>, out: &mut Encoder) {
-    let Some(now) = now else { out.null(); return };
+    let Some(now) = now else {
+        out.null();
+        return;
+    };
     out.object_start();
-    out.key(b"number"); out.unsigned(now.number);
-    out.key(b"revision"); out.unsigned(now.revision.value);
+    out.key(b"number");
+    out.unsigned(now.number);
+    out.key(b"revision");
+    out.unsigned(now.revision.value);
     out.key(b"written");
-    match now.changed { Some(at) => out.unsigned(at.as_nanos()), None => out.null() }
-    out.key(b"body"); out.string(now.body.bytes());
-    out.key(b"cut"); out.boolean(now.body.cut);
+    match now.changed {
+        Some(at) => out.unsigned(at.as_nanos()),
+        None => out.null(),
+    }
+    out.key(b"body");
+    out.string(now.body.bytes());
+    out.key(b"cut");
+    out.boolean(now.body.cut);
     out.object_end();
 }

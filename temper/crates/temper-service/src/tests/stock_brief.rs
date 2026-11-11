@@ -56,11 +56,16 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
             .0,
         1 | 2 | 4 | 128 | 256 | 512 | 1024 | 2048
     );
-    assignment.run.ended_by =
-        if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
+    assignment.run.ended_by = if number == 13 {
+        jig_domain_tasks::EndedBy::Standing
+    } else if open {
+        jig_domain_tasks::EndedBy::Requester
+    } else {
+        jig_domain_tasks::EndedBy::Result
+    };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 5 {
+    } else if number == 5 || number == 13 {
         jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
     } else if number == 10 {
         jig_domain_tasks::Contract::Report { words: 64 }

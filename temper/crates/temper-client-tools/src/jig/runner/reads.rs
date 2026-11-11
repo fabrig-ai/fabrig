@@ -167,8 +167,15 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 return;
             };
             let query = c::TaskQuery {
-                project: Some(project), requester: None, root: None, parent: None,
-                label: Some(3), phase: None, executor: None, tracked: None, order: c::QueryOrder::Number,
+                project: Some(project),
+                requester: None,
+                root: None,
+                parent: None,
+                label: Some(3),
+                phase: None,
+                executor: None,
+                tracked: None,
+                order: c::QueryOrder::Number,
             };
             let live = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
@@ -315,7 +322,11 @@ pub(super) fn page(
         person_page(runner, client, env, reading, page, out);
         return;
     }
-    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::TASK_TEXT_AT || reading.called.call.tool == rows::ROLE_SHOW_AT) && local == 7 {
+    if (reading.called.call.tool == rows::TASK_AT
+        || reading.called.call.tool == rows::TASK_TEXT_AT
+        || reading.called.call.tool == rows::ROLE_SHOW_AT)
+        && local == 7
+    {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
         return;
@@ -563,7 +574,8 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     let printed = if reading.called.call.tool == rows::ROLE_SHOW_AT {
         let now = reading.pages.remove(&8);
         reading.called.call.tool = rows::TASK_AT;
-        let task = render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
+        let task =
+            render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
         render::roles::show(task, now.as_ref(), reading.called.json, &env.limits)
     } else {
         render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall)

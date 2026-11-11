@@ -13,7 +13,12 @@ fn me() -> c::Me {
     template.executor = c::TemplateExecutor::Chosen;
     template.budget = c::TemplateBudget::Given;
     template.deadline = c::TemplateDeadline::None;
-    template.flags = c::TaskFlags { ended_by: c::EndedBy::Standing, conversation: false, listed: true, retention: c::Retention::Kept };
+    template.flags = c::TaskFlags {
+        ended_by: c::EndedBy::Standing,
+        conversation: false,
+        listed: true,
+        retention: c::Retention::Kept,
+    };
     template.tracked = None;
     template.label = 3;
     let creating = project.creating.as_mut().unwrap();
@@ -52,40 +57,69 @@ fn notes(bodies: &[(u64, &[u8])]) -> c::ReadResult {
     let mut rows = List::with_capacity(u32::try_from(bodies.len()).unwrap());
     for (number, body) in bodies {
         rows.push(c::Note {
-            number: *number, revision: c::Revision { value: 4 },
+            number: *number,
+            revision: c::Revision { value: 4 },
             scope: c::NoteScope::Task { project: f::PROJECT, task: f::TASK },
             description: f::document_text(b"now"),
             body: c::DocumentText::complete(c::Text::new((*body).into(), crate::limits::LONG_TEXT).unwrap()),
             writer: c::NoteAuthor::Task { task: f::TASK, attempt: 1 },
-            tasks: List::with_capacity(0), changed: Some(Wall::EPOCH), acts: List::with_capacity(0), cut: false,
-        }).unwrap();
+            tasks: List::with_capacity(0),
+            changed: Some(Wall::EPOCH),
+            acts: List::with_capacity(0),
+            cut: false,
+        })
+        .unwrap();
     }
     c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage { rows, cut: false, before: None, after: None })))
 }
 fn assert_now(root: &f::Harness, call: u32, task: u64) {
-    assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Notes {
-        scope: c::NoteScope::Task { project: f::PROJECT, task },
-        description: Some(c::Text::new(b"now".as_slice().into(), 3).unwrap()), after: None,
-    });
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Notes {
+            scope: c::NoteScope::Task { project: f::PROJECT, task },
+            description: Some(c::Text::new(b"now".as_slice().into(), 3).unwrap()),
+            after: None,
+        }
+    );
 }
 #[test]
 fn role_list_reads_label_three_and_each_now_headline() {
     for json in [false, true] {
         let mut root = f::signed_in(f::PARTY);
-        let argv = f::extended(&["role", "list", "--project", "shop", "--after", "1122"], if json { &["--json"] } else { &[] });
+        let argv = f::extended(
+            &["role", "list", "--project", "shop", "--after", "1122"],
+            if json { &["--json"] } else { &[] },
+        );
         let call = root.submit(argv.as_slice());
-        assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Tasks {
-            query: c::TaskQuery { project: Some(f::PROJECT), requester: None, root: None, parent: None,
-                label: Some(3), phase: None, executor: None, tracked: None, order: c::QueryOrder::Number },
-            live: Some(f::cursor()), ended: None,
-        });
+        assert_eq!(
+            root.reads.get(&call).unwrap().1,
+            c::Read::Tasks {
+                query: c::TaskQuery {
+                    project: Some(f::PROJECT),
+                    requester: None,
+                    root: None,
+                    parent: None,
+                    label: Some(3),
+                    phase: None,
+                    executor: None,
+                    tracked: None,
+                    order: c::QueryOrder::Number
+                },
+                live: Some(f::cursor()),
+                ended: None,
+            }
+        );
         let mut row = f::task_line();
         row.chip.executor = c::ChipExecutor::Agent { charter: 13 };
         row.chip.phase = c::Phase::Idle;
         row.budget.left = 47;
         let mut second = row.clone();
         second.chip.task = 42;
-        let tasks = c::TaskPage { live: List::from_boxed(Box::new([row, second])), live_after: Some(f::cursor()), ended: c::EndedGroup::None };
+        let tasks = c::TaskPage {
+            live: List::from_boxed(Box::new([row, second])),
+            live_after: Some(f::cursor()),
+            ended: c::EndedGroup::None,
+        };
         root.serve(call, c::ReadResult::Value(c::ReadValue::Tasks(Box::new(tasks))));
         assert_now(&root, call, 41);
         root.serve(call, notes(&[(9, b"Not this later note"), (2, b"Waiting for CI\nThen check the tests")]));
@@ -103,7 +137,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
 }
 #[test]
 fn role_show_prints_the_task_and_its_whole_now_or_none() {
-    let body = String::from("Where things stand\n") + &"Next: check the tests.\n".repeat(4000);
+    let body = "Where things stand\nNext: check the tests.\n".repeat(2500);
     for json in [false, true] {
         for written in [false, true] {
             let mut root = f::signed_in(f::PARTY);
@@ -127,13 +161,17 @@ fn role_show_prints_the_task_and_its_whole_now_or_none() {
                         whole |= document.text(document.token(at).unwrap()) == Some(body.as_bytes());
                     }
                     assert!(whole);
-                } else { assert!(printed.stdout.ends_with(br#","now":null}"#)); }
+                } else {
+                    assert!(printed.stdout.ends_with(br#","now":null}"#));
+                }
             } else {
                 assert!(printed.stdout.starts_with(b"task 41"));
                 if written {
                     assert!(f::has(&printed, b"Now: note 2 revision 4 written 1970-01-01 00:00 UTC"));
                     assert!(printed.stdout.ends_with(body.as_bytes()));
-                } else { assert!(printed.stdout.ends_with(b"no Now yet\n")); }
+                } else {
+                    assert!(printed.stdout.ends_with(b"no Now yet\n"));
+                }
             }
         }
     }

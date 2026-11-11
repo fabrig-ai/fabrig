@@ -12,8 +12,8 @@ pub mod application;
 mod moves;
 pub(crate) mod proposal;
 pub(crate) mod reads;
-mod role;
 mod recovery;
+mod role;
 pub(crate) mod specification;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {

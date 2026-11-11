@@ -511,7 +511,7 @@ fn the_drafter_is_charter_12_and_template_6() {
 #[test]
 fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
-    use jig_domain_tasks::{EndedBy, Flags, Reasons, Retention, ResultsWake};
+    use jig_domain_tasks::{EndedBy, Flags, Reasons, ResultsWake, Retention};
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 13).expect("standing role charter");
@@ -524,7 +524,9 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!(sections[1].0, "part, on: first");
     assert_eq!(charter.policy.instructions.as_ref(), sections[0].1.trim_matches('\n').as_bytes());
     assert_eq!(charter.parts.len(), 2);
-    for ((part, reasons), (_, words)) in charter.parts.iter().zip([Reasons::FIRST, Reasons(Reasons::ALL.0 & !Reasons::FIRST.0)]).zip(&sections[1..]) {
+    for ((part, reasons), (_, words)) in
+        charter.parts.iter().zip([Reasons::FIRST, Reasons(Reasons::ALL.0 & !Reasons::FIRST.0)]).zip(&sections[1..])
+    {
         assert_eq!(part.on, reasons);
         assert_eq!(part.instructions.as_ref(), words.trim_matches('\n').as_bytes());
     }
@@ -544,7 +546,10 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!(template.deadline, TemplateDeadline::None);
     assert_eq!(template.tracked, None);
     assert_eq!(template.label, 3);
-    assert_eq!(template.flags, Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept });
+    assert_eq!(
+        template.flags,
+        Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept }
+    );
     assert_eq!(template.contract, defaults.templates[0].contract);
     assert!(template.llm.is_none());
     assert!(defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(13)));
