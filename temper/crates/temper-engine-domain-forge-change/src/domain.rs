@@ -96,14 +96,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
     };
     if facts.writer_taken && !start_conflicted {
-        if let State::WaitingProducer { .. } = change.state {
-            return Stepped { change: next, decision: Decision::Wait { until: None } };
-        }
-        return if let State::Ready { .. } = change.state {
-            Stepped { change: next, decision: Decision::Wait { until: None } }
-        } else {
-            waiting(next, now, limits)
-        };
+        return waiting_on_agent(next, facts, standing, now, limits);
     }
     if let Some(why) = facts.drift {
         return hold(next, why);
@@ -280,7 +273,7 @@ fn advance_phase(
             preparing(next, *from, *main, *ready_since, facts, standing, now, limits)
         }
         State::CancellingGates { head } => cancelling_gates(next, *head, facts, now, limits),
-        State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts),
+        State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts, now),
         State::First { head, ready_since } => first(next, *head, *ready_since, facts, standing, now, limits),
         State::Updating { from, base, ready_since } => {
             updating(next, *from, *base, *ready_since, facts, standing, now, limits)
@@ -539,10 +532,11 @@ fn waiting_on_agent(mut change: Change, facts: &Facts, standing: &Heard, now: Wa
 }
 
 fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    let stall = Wall::from_nanos(change.since.as_nanos().saturating_add(limits.stall.as_nanos()));
     if let Some(end) = facts.settling
-        && now < end
+        && now < end.min(stall)
     {
-        Stepped { change, decision: Decision::Wait { until: Some(end) } }
+        Stepped { change, decision: Decision::Wait { until: Some(end.min(stall)) } }
     } else {
         waiting(change, now, limits)
     }
@@ -729,6 +723,7 @@ fn opening(
         }
         Pull::Missing if !requested => {
             change.state = State::Opening { requested: true };
+            change.since = now;
             Stepped { change, decision: Decision::Effect(Effect::Open) }
         }
         Pull::Missing => match standing.effect {
@@ -805,6 +800,7 @@ fn checking(
     match facts.ci.status {
         Status::Passed => {
             change.state = State::Gating { head, asked: Box::new([]) };
+            change.since = now;
             Stepped { change, decision: Decision::None }
         }
         Status::Failed => {
@@ -929,6 +925,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                 }
                 collected.push(gate.number).expect("gate admission checked");
                 change.state = State::Gating { head, asked: collected.into_boxed() };
+                change.since = now;
                 return Stepped { change, decision: Decision::Delegate(Delegate::Gate { number: gate.number, head }) };
             }
             Status::Unknown | Status::Pending if gate.blocking => waiting_gate = true,
@@ -955,6 +952,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
     } else {
         change.state = State::Queued { head, ready_since: since };
     }
+    change.since = now;
     Stepped { change, decision: Decision::Ready }
 }
 
@@ -972,7 +970,7 @@ fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, li
     repair_due(change, why, facts, now, limits)
 }
 
-fn queued(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts) -> Stepped {
+fn queued(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: Wall) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -987,6 +985,7 @@ fn queued(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts) 
     }
     if facts.first {
         change.state = State::First { head, ready_since };
+        change.since = now;
         change.owns_turn = true;
         Stepped { change, decision: Decision::None }
     } else {
@@ -1045,6 +1044,7 @@ fn first(
                 return Stepped { change, decision: Decision::Wait { until: None } };
             }
             change.state = State::Landing { head };
+            change.since = now;
             Stepped { change, decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }) }
         }
         Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),

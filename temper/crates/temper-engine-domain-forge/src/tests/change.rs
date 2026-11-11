@@ -1698,6 +1698,47 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
 }
 
 #[test]
+fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    const NEW: skein_forge::api::Commit = [5; 32];
+    const BASE2: skein_forge::api::Commit = [6; 32];
+    for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
+        let (mut d, _) = updating_entry(false);
+        settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+        let base = Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: What::Branch(Box::new([b"main".as_slice().into()])),
+        };
+        d.heads.insert(base.clone(), BranchHead { name: base, commit: BASE2, owned: false }).unwrap();
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(BASE2)));
+        let mut pull = fixtures::open_pull();
+        pull.commit = NEW;
+        pull.ci = skein_forge::api::Ci::Pending;
+        fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+        fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: NEW, after: fixtures::BASE, page: 1 }), "{error:?}");
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.state, change::State::Checking { head: NEW });
+        assert_eq!(row.change.clean.as_ref(), &[fixtures::HEAD]);
+        assert_eq!(
+            d.branch_head(&Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()]))
+            }),
+            Some(NEW)
+        );
+    }
+}
+
+#[test]
 fn a_let_go_update_is_decided_again() {
     for preparing in [false, true] {
         let (mut d, _) = updating_entry(preparing);

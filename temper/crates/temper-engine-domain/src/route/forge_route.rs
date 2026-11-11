@@ -4427,7 +4427,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
     } else {
-        None
+        holds::change_account(domain, env, task, why)
     };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)

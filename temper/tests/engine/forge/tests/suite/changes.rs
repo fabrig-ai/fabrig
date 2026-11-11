@@ -137,7 +137,7 @@ fn a_contained_catch_up_ends_without_a_producer() {
 }
 
 #[test]
-fn a_catch_up_retries_uncertain_ancestry_without_a_restart() {
+fn a_catch_up_with_uncertain_ancestry_stalls_and_a_release_retries_it() {
     use skein_forge::api::{Answer, Error};
     for result in
         [Err(Error::Refused), Err(Error::InvalidAnswer), Ok(Answer::Commits { commits: Box::new([]), more: true })]
@@ -152,14 +152,12 @@ fn a_catch_up_retries_uncertain_ancestry_without_a_restart() {
         assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: false });
         assert_catch_up_range(&mut world, commit, tip);
         world.run_for(31);
-        let change::Decision::Wait { until: Some(retry) } =
-            changes::change_step(&mut world, 2, change::Status::Unknown, Box::new([]))
-        else {
-            panic!("read failure must not consume the producer stall allowance")
-        };
-        assert!(retry > world.wall());
+        assert_eq!(
+            changes::change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
+            change::Decision::Hold(change::Hold::Stalled)
+        );
         world.script_ancestry(None);
-        world.run_to(retry);
+        world.event(top::Event::ReleaseChange { task: CHANGE });
         assert_eq!(
             changes::change_step(&mut world, 3, change::Status::Unknown, Box::new([])),
             change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None }),
