@@ -5089,9 +5089,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-scratch",
- "skein-shell",
- "temper-client-shell-cli",
- "temper-client-shell-tui",
+ "temper-client-shell",
  "temper-shell",
  "temper-version",
 ]
@@ -5215,6 +5213,16 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-client-shell"
+version = "0.0.0"
+dependencies = [
+ "skein-shell",
+ "temper-client-shell-cli",
+ "temper-client-shell-tui",
+ "temper-shell",
 ]
 
 [[package]]

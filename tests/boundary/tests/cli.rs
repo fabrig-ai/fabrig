@@ -47,7 +47,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench test-peer", until: "smith's round" },
     Exception { what: "smith-fake-claude fake-claude", until: "smith's round" },
     Exception { what: "smith-fake-claude fake-claude-server", until: "smith's round" },
-    Exception { what: "temper-client temper-client", until: "cli C3" },
     Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
     Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
     Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },

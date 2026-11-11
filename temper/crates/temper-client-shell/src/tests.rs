@@ -93,7 +93,6 @@ fn the_help_lists_the_clients_rows() {
 }
 
 #[test]
-fn the_version_line_names_the_binary_its_version_and_commit() {
-    let line = super::version();
-    assert_eq!(line, format!("temper-client {} ({})\n", temper_version::VERSION, temper_version::COMMIT));
+fn the_version_command_succeeds_with_the_given_line() {
+    assert_eq!(super::run(Command::Version, "temper-client 0.0.0 (0123456789ab)"), Ok(0));
 }
