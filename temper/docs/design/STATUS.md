@@ -5,9 +5,13 @@ its design from its drafts, from the status files below. A standing
 role is the stock's charter 13 and template 7, jig's task that stands,
 started with `temper ctl role start` and read with `role list` and
 `role show`, its person its requester, moved to an owner when that
-person leaves the project (`domain/agent/standing.status.md`); its
-areas, routing, talk and reports are the standing-roles draft's later
-milestones (`draft/standing-roles.status.md`). The TUI's
+person leaves the project (`domain/agent/standing.status.md`); a
+person talks with one through `role talk`, an instruction for every
+case becoming a rule by a proposal of settings, and it reports by its
+Now, a line a session and a weekly `report` note, its Now in Home's
+brief's words; its areas and routing are the standing-roles draft's
+later milestone, and Team's and the terminal's drawing of a talk and a
+report are the pages' (`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
