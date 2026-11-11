@@ -35,7 +35,7 @@ fn serve_help(text: &str) -> bool {
     text.starts_with("usage: temper-worker serve [DIRECTORIES]\n")
         && text.contains("worker alone")
         && text.contains("temper-engine serve")
-        && text.contains("temper serve")
+        && text.contains("temper-box serve")
 }
 
 fn login_help(text: &str) -> bool {
@@ -85,7 +85,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker serve: temper.json holds an engine and its worker in one process; the box's temper serve runs it\n",
+            "temper-worker serve: temper.json holds an engine and its worker in one process; the box's temper-box serve runs it\n",
         ),
     ),
     (
@@ -101,7 +101,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker program-login: temper.json holds an engine and its worker in one process; the box's temper serve runs it\n",
+            "temper-worker program-login: temper.json holds an engine and its worker in one process; the box's temper-box serve runs it\n",
         ),
     ),
     (

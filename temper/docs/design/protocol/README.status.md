@@ -44,7 +44,7 @@ incident's unexplained 503 (`../domain/root.md`, section 12).
 `binaries.md`, section 5's `temper-worker` is present on `temper-worker-shell` and
 `temper-service-shell`, with its step test (`bin/temper-worker/tests/suite/main.rs`).
 `cluster.md`, 6's story on the deployment's binaries is written and compiled, and runs
-after landing (`crates/temper/tests/process.rs`,
+after landing (`bin/temper-box/tests/process.rs`,
 `a_task_runs_on_each_worker_of_the_deployments_binaries`).
 
 `binaries.md`'s `temper [ADDRESS]` command is present, including bare
@@ -54,11 +54,11 @@ The TUI's later passes and post-landing walk are the client's section
 
 `binaries.md`'s smith's agent modes are present: `main` gives
 `--mcp-relay` and `--program-child` to smith's agent shell after its
-`argv[0]` dispatches and before the table (`crates/temper/src/main.rs`).
+`argv[0]` dispatches and before the table (`crates/temper-box-shell/src/binary.rs`).
 The `suite` binary's table runs the built binary in each, the program
 child over a scripted Claude Code's `auth status`, read `Usable` and
 not signed in by smith's status check
-(`crates/temper/tests/suite/agent_modes.rs`).
+(`bin/temper-box/tests/suite/agent_modes.rs`).
 
 Section 6 has no known gap in orderly worker shutdown: serve cancels the
 runs and waits for every agent process, including a spawn in flight,
@@ -103,7 +103,7 @@ stall deadline of the close (jig's `protocol/channel/README.md`, 9.2), but no
 stop test of temper's shows the whole stop within a bound, and the
 engine has no stop deadline of its own (`README.md`, section 11).
 
-- **Not yet:**  `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 8.1). 4: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 7: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
+- **Not yet:**  `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/commands.rs`). A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 8.1). 4: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 7: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
 - **Departs:**  a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge/engine.status.md`, 8). 4, 5: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded.  the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
 
 `binaries.md`, section 2's `temper-engine` is present, with `binaries.md`, 1's rules: its
@@ -117,7 +117,7 @@ reads the document. Its step test runs the built binary over a table of
 those cases (`crates/temper-engine/tests/suite/main.rs`). `serve` and
 the forge's commands are `temper-engine-shell`'s, which the box's
 `temper` runs too, under its own name and with its worker's half
-(`crates/temper/src/worker_half.rs`). `temper-service`'s `worker`
+(`crates/temper-box-shell/src/worker_half.rs`). `temper-service`'s `worker`
 feature is on in the box's build and the worlds' and off in
 `temper-engine`'s, where a start of any shape but an engine alone is
 refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s

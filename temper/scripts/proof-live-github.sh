@@ -14,7 +14,7 @@ fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
 # The App key is the only credential; app.json supplies public App/installation ids.
 python3 -c 'from cryptography.hazmat.primitives.serialization import load_pem_private_key'
 export NEXTEST_DOUBLE_SPAWN=0
-${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --no-run
+${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
 cleanup() {
     status=$?
@@ -182,6 +182,6 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 status=0
 TEMPER_LIVE_GITHUB_OWNER=$owner TEMPER_LIVE_GITHUB_FIXTURES=$fixtures TMPDIR=$scratch \
-    ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --ignore-default-filter --run-ignored only --no-capture \
+    ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter --run-ignored only --no-capture \
     -E 'binary(=live_github) & test(=a_chat_lands_a_change_on_github_com_through_a_restart)' || status=$?
 exit "$status"

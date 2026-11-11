@@ -620,7 +620,7 @@ them as it does any Forgejo.
   fixtures also name `skein-forge-client`,
   `temper-engine-domain-forge-change` and
   `temper-engine-domain-forge-issues`. The binary's
-  `crates/temper/src/fake.rs` hosts the peers on skein-shell, reads the
+  `crates/temper-box-shell/src/fake.rs` hosts the peers on skein-shell, reads the
   check's files and opens the store's copy at the limits
   `temper-service`'s `startup::store_limits` derives from the document,
   and `temper fake git` is `temper-fake-git`'s core on the real file

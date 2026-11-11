@@ -23,7 +23,7 @@ reads the document. Its step test runs the built binary over a table of
 those cases (`crates/temper-engine/tests/suite/main.rs`). `serve` and
 the forge's commands are `temper-engine-shell`'s, which the box's
 `temper` runs too, under its own name and with its worker's half
-(`crates/temper/src/worker_half.rs`). `temper-service`'s `worker`
+(`crates/temper-box-shell/src/worker_half.rs`). `temper-service`'s `worker`
 feature is on in the box's build and the worlds' and off in
 `temper-engine`'s, where a start of any shape but an engine alone is
 refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s

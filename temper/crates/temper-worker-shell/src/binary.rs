@@ -15,10 +15,10 @@ const SERVE: Row = Row {
     words: &["serve"],
     who: Who::Deployment,
     forms: &["[DIRECTORIES]"],
-    line: "Run a worker alone's document until stopped; temper-engine serve runs an engine alone, and the box's temper serve runs an engine and its worker in one process.",
+    line: "Run a worker alone's document until stopped; temper-engine serve runs an engine alone, and the box's temper-box serve runs an engine and its worker in one process.",
     arguments: &[DIRECTORIES],
     settings: &[&directories::SETTINGS],
-    notes: "Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper serve.",
+    notes: "Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper-box serve.",
 };
 
 #[expect(
@@ -103,7 +103,7 @@ fn refuse_document(row: &Row, directories: &Directories) -> Result<(), String> {
     let Ok(bytes) = directories.read() else { return Ok(()) };
     let why = match nearest(&bytes) {
         Some(Shape::EngineAlone) => "an engine alone; temper-engine serve runs it",
-        Some(Shape::Standalone) => "an engine and its worker in one process; the box's temper serve runs it",
+        Some(Shape::Standalone) => "an engine and its worker in one process; the box's temper-box serve runs it",
         Some(Shape::WorkerAlone) | None => return Ok(()),
     };
     Err(format!("{} {}: temper.json holds {why}\n", WORKER.binary, row.words.join(" ")))

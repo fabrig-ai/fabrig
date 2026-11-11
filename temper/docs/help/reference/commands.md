@@ -2,11 +2,11 @@
 
 Kind: reference
 
-Every command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.
+Every command of the temper-box binary, by who runs it: its usage, what it does, its arguments and its notes.
 
-## temper help
+## temper-box help
 
-`temper help [NAME | --search WORDS...]`
+`temper-box help [NAME | --search WORDS...]`
 
 Print the index of temper's pages, one page whole, or the sections that hold every word.
 
@@ -15,9 +15,9 @@ Print the index of temper's pages, one page whole, or the sections that hold eve
 
 Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then "and more; narrow the words" when more matched.
 
-## temper init
+## temper-box init
 
-`temper init [DIRECTORIES] [--box]`
+`temper-box init [DIRECTORIES] [--box]`
 
 Write a deployment that starts, with temper's default configuration, into the three directories.
 
@@ -38,9 +38,9 @@ a gap between selection and startup.
 
 Refused, changing nothing, when the configuration directory already holds temper.json.
 
-## temper serve
+## temper-box serve
 
-`temper serve [DIRECTORIES]`
+`temper-box serve [DIRECTORIES]`
 
 Run the deployment's services, as its configuration's shape names them, until stopped.
 
@@ -48,11 +48,11 @@ Run the deployment's services, as its configuration's shape names them, until st
 
 Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.
 
-## temper box
+## temper-box box
 
-`temper box [DIRECTORIES] [--echo none|steps] [--no-tui]`
+`temper-box box [DIRECTORIES] [--echo none|steps] [--no-tui]`
 
-`temper box [DIRECTORIES] --fake-backends [--bundle BUNDLE] [--no-tui]`
+`temper-box box [DIRECTORIES] --fake-backends [--bundle BUNDLE] [--no-tui]`
 
 Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.
 
@@ -64,9 +64,9 @@ Run a deployment as one box: the setup steps of each forge it sets up, then temp
 
 In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
-## temper program-login
+## temper-box program-login
 
-`temper program-login [DIRECTORIES] NAME`
+`temper-box program-login [DIRECTORIES] NAME`
 
 Sign a program source in on this host, through the program's own sign-in.
 
@@ -75,9 +75,9 @@ Sign a program source in on this host, through the program's own sign-in.
 
 Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.
 
-## temper forge fetch
+## temper-box forge fetch
 
-`temper forge fetch [DIRECTORIES] FORGE`
+`temper-box forge fetch [DIRECTORIES] FORGE`
 
 Download an owned forge's Forgejo and runner binaries into the cache.
 
@@ -86,9 +86,9 @@ Download an owned forge's Forgejo and runner binaries into the cache.
 
 Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
 
-## temper forge prepare
+## temper-box forge prepare
 
-`temper forge prepare [DIRECTORIES] FORGE`
+`temper-box forge prepare [DIRECTORIES] FORGE`
 
 Prepare an owned forge before its Forgejo first runs.
 
@@ -97,9 +97,9 @@ Prepare an owned forge before its Forgejo first runs.
 
 A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
 
-## temper forge run
+## temper-box forge run
 
-`temper forge run [DIRECTORIES] FORGE forgejo|runner`
+`temper-box forge run [DIRECTORIES] FORGE forgejo|runner`
 
 Run an owned forge's Forgejo or its runner.
 
@@ -108,9 +108,9 @@ Run an owned forge's Forgejo or its runner.
 
 Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
 
-## temper forge remove
+## temper-box forge remove
 
-`temper forge remove [DIRECTORIES] FORGE`
+`temper-box forge remove [DIRECTORIES] FORGE`
 
 Remove a stopped box slot's forge directory, keeping the cache.
 
@@ -119,9 +119,9 @@ Remove a stopped box slot's forge directory, keeping the cache.
 
 Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.
 
-## temper forge source
+## temper-box forge source
 
-`temper forge source [DIRECTORIES] FORGE`
+`temper-box forge source [DIRECTORIES] FORGE`
 
 Add the box’s public temper sign-in source to its owned Forgejo.
 
@@ -130,9 +130,9 @@ Add the box’s public temper sign-in source to its owned Forgejo.
 
 Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.
 
-## temper forge sign-in
+## temper-box forge sign-in
 
-`temper forge sign-in [DIRECTORIES] FORGE`
+`temper-box forge sign-in [DIRECTORIES] FORGE`
 
 Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.
 
@@ -141,9 +141,9 @@ Make what people need to sign in to temper through a Forgejo, and print the Forg
 
 For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
-## temper [ADDRESS]
+## temper-box [ADDRESS]
 
-`temper [ADDRESS]`
+`temper-box [ADDRESS]`
 
 Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.
 
@@ -151,15 +151,15 @@ Run temper's full-screen terminal client, the TUI, on an engine; temper help tui
 
 Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
 
-## temper ctl
+## temper-box ctl
 
-`temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`
+`temper-box ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper-box ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
 
-`temper ctl DIR --call FILE [--json]`
+`temper-box ctl DIR --call FILE [--json]`
 
-`temper ctl help [GROUP [VERB]]`
+`temper-box ctl help [GROUP [VERB]]`
 
 Act in a deployment as one party, one call a process: the agents' command line.
 
@@ -170,9 +170,9 @@ Act in a deployment as one party, one call a process: the agents' command line.
 
 temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
 
-## temper open
+## temper-box open
 
-`temper open DIR LINK_OR_ADDRESS`
+`temper-box open DIR LINK_OR_ADDRESS`
 
 Open a person's terminal client on a deployment.
 
@@ -181,71 +181,71 @@ Open a person's terminal client on a deployment.
 
 For people; an agent works through temper ctl.
 
-## temper internal agent
+## temper-box internal agent
 
-`temper internal agent AGENT.json`
+`temper-box internal agent AGENT.json`
 
-Run one agent for a worker's run, on smith's agent configuration. Spawned by temper; never run by hand.
-
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
-
-## temper internal agent-list
-
-`temper internal agent-list AGENT.json`
-
-Read one endpoint's model list, on smith's agent configuration. Spawned by temper; never run by hand.
+Run one agent for a worker's run, on smith's agent configuration. Spawned by temper-box; never run by hand.
 
 - `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
 
-## temper internal serve
+## temper-box internal agent-list
 
-`temper internal serve [DIRECTORIES] --box`
+`temper-box internal agent-list AGENT.json`
 
-Run temper serve as the box's step, on the listeners and the pipe the box gives it. Spawned by temper; never run by hand.
+Read one endpoint's model list, on smith's agent configuration. Spawned by temper-box; never run by hand.
+
+- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+
+## temper-box internal serve
+
+`temper-box internal serve [DIRECTORIES] --box`
+
+Run temper serve as the box's step, on the listeners and the pipe the box gives it. Spawned by temper-box; never run by hand.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-## temper internal forge-child
+## temper-box internal forge-child
 
-`temper internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...`
+`temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...`
 
-Run an owned forge's program, sent SIGNAL when its parent PID ends. Spawned by temper; never run by hand.
+Run an owned forge's program, sent SIGNAL when its parent PID ends. Spawned by temper-box; never run by hand.
 
 - `PID`: The process whose end ends the program.
 - `PROGRAM`: The program to run, with its ARGS.
 
-## temper internal tui
+## temper-box internal tui
 
-`temper internal tui --box ADDRESS`
+`temper-box internal tui --box ADDRESS`
 
-Run the TUI in front of the box that started it, signed in by the link the box hands it. Spawned by temper; never run by hand.
+Run the TUI in front of the box that started it, signed in by the link the box hands it. Spawned by temper-box; never run by hand.
 
 - `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
 
-## temper fake llm
+## temper-box fake llm
 
-`temper fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`
 
-`temper fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
 
 Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-## temper fake forge
+## temper-box fake forge
 
-`temper fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`
 
-`temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
 
 Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-## temper fake forge check
+## temper-box fake forge check
 
-`temper fake forge check [DIRECTORIES] FORGE OBSERVATIONS STORE`
+`temper-box fake forge check [DIRECTORIES] FORGE OBSERVATIONS STORE`
 
 Judge a fake forge's observations against a stopped deployment's store.
 
@@ -254,14 +254,14 @@ Judge a fake forge's observations against a stopped deployment's store.
 - `OBSERVATIONS`: The observations file the fake forge wrote.
 - `STORE`: A copy of the deployment's store.
 
-## temper fake oauth
+## temper-box fake oauth
 
-`temper fake oauth --document FILE [--ready PREFIX] [--seed N]`
+`temper-box fake oauth --document FILE [--ready PREFIX] [--seed N]`
 
 Serve a fake OAuth issuer from a JSON document.
 
-## temper fake git
+## temper-box fake git
 
-`temper fake git ARGS...`
+`temper-box fake git ARGS...`
 
 Run temper's fake git with git's arguments, as the demo's git does.

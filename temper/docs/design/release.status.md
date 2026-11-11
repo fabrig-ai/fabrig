@@ -21,5 +21,5 @@ the commit's word and the watched paths. `temper-engine --version` and
 - **Not yet:** 3: `temper-box --version` [in flight: change 91].
 - **Not yet:** 2: the release's file, its symbol check and checksum. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
   its start; only `temper init` warns of a missing git
-  (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
+  (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
