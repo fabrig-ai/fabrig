@@ -191,8 +191,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
-    pub(crate) drafts: Map<(skein_forge::api::Repository, Box<[u8]>), crate::LandedDraft>,
-    pub(crate) draft_reads: Map<Token, crate::drafts::Pending>,
+    pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
@@ -755,8 +754,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
-            drafts: Map::with_capacity(crate::DRAFTS.saturating_mul(l.judge_projects)),
-            draft_reads: Map::with_capacity(l.applications),
+            drafts: None,
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
@@ -1549,7 +1547,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             d.making_acts.remove(&key);
         }
         Event::SetDraft { request, token, party, call } => {
-            crate::drafts::start(d, env, request, token, party, call, out)
+            crate::drafts::start(d, env, request, token, party, call, out);
         }
         Event::SetAway { request, token, party, project, on, until } => {
             crate::away::set_away(d, env, request, token, party, project, on, until, out);
@@ -2104,7 +2102,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     crate::capabilities::answered(d, env, owner, result, out);
                 } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
                     brief::brief_answer(d, owner, result, env.limits.client.rows, out);
-                } else if d.draft_reads.contains_key(&owner) {
+                } else if crate::drafts::reading(d, owner) {
                     crate::drafts::answer(d, env, owner, result, out);
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
@@ -7101,7 +7099,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
         Stored::LandedDraft(row) => {
-            d.drafts.insert((row.repository, row.path.clone()), row).expect("restored draft room checked");
+            crate::drafts::restore(d, &env.limits, row);
         }
         Stored::Away(row) => {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");

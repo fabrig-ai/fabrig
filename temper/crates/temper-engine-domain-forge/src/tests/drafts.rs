@@ -92,7 +92,7 @@ fn reads_distinguish_files_directories_missing_and_unreachable() {
         begin(&mut d, PATH);
         let out = file(&mut d, PATH, result);
         refused(&d, why);
-        assert!(d.drafts.is_empty());
+        assert!(crate::drafts::len(&d) == 0);
         assert_eq!(out.as_ref(), [Request::ApplicationDone { request: REQUEST, token: TOKEN }]);
     }
     let mut d = setup();
@@ -131,12 +131,12 @@ fn full_projects_evict_only_the_oldest_unlisted_row_and_replace_existing_paths()
         row.at = Wall::from_nanos(u64::from(n));
         outputs(&mut d, Event::Restore { record: Stored::LandedDraft(row) });
     }
-    d.drafts.get_mut(&(REPO, b"62.md".as_slice().into())).unwrap().at = Wall::from_nanos(63);
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"62.md".as_slice().into())).unwrap().at = Wall::from_nanos(63);
     assert_eq!(drafts(&d).rows.len(), 64);
     assert_eq!(drafts(&d).rows[0].row.path.as_ref(), b"62.md");
     ready_row(&mut d, PATH);
     refused(&d, DraftRefusal::Full);
-    assert_eq!(d.drafts.len(), 64);
+    assert_eq!(crate::drafts::len(&d), 64);
     let out = ready_row(&mut d, b"63.md");
     assert!(matches!(d.application_answer(TOKEN), Some(Answered::SetDraft(SetDraftAnswer::Kept(_)))));
     for request in out {
@@ -144,7 +144,7 @@ fn full_projects_evict_only_the_oldest_unlisted_row_and_replace_existing_paths()
             panic!("existing path erased a row");
         }
     }
-    d.drafts.get_mut(&(REPO, b"00.md".as_slice().into())).unwrap().ready = false;
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"00.md".as_slice().into())).unwrap().ready = false;
     let out = ready_row(&mut d, PATH);
     assert!(
         out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: b"00.md".as_slice().into() } })
@@ -152,17 +152,17 @@ fn full_projects_evict_only_the_oldest_unlisted_row_and_replace_existing_paths()
     let mut expected = row(PATH);
     expected.chat = None;
     assert!(out.contains(&Request::Save { record: Stored::LandedDraft(expected), release: None, read_afresh: None }));
-    assert_eq!(d.drafts.len(), 64);
-    assert!(!d.drafts.contains_key(&(REPO, b"00.md".as_slice().into())));
-    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().goal = Some(40);
-    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
-    d.drafts.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().ready = false;
-    d.drafts.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
+    assert_eq!(crate::drafts::len(&d), 64);
+    assert!(!d.drafts.as_ref().unwrap().rows.contains_key(&(REPO, b"00.md".as_slice().into())));
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().goal = Some(40);
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().ready = false;
+    d.drafts.as_mut().unwrap().rows.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
     let out = ready_row(&mut d, b"another.md");
     assert!(
         out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: b"01.md".as_slice().into() } })
     );
-    assert_eq!(d.drafts.len(), 64);
+    assert_eq!(crate::drafts::len(&d), 64);
     let out = ready_row(&mut d, b"03.md");
     for request in out {
         if let Request::Erase { .. } = request {
@@ -207,7 +207,7 @@ fn draft_rows_are_erased_with_their_project_and_forge() {
         };
         assert!(out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: PATH.into() } }));
         assert!(out.contains(&Request::Marked { tasks: Box::new([drafts_subject(PROJECT)]) }));
-        assert!(d.drafts.is_empty());
+        assert!(crate::drafts::len(&d) == 0);
     }
 }
 #[test]
@@ -230,5 +230,5 @@ fn restart_refuses_the_sixty_fifth_draft_in_one_project() {
             limit: 64
         })
     );
-    assert_eq!(d.drafts.len(), 64);
+    assert_eq!(crate::drafts::len(&d), 64);
 }

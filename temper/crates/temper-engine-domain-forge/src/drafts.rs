@@ -67,6 +67,39 @@ pub struct DraftsView {
     pub project: u32,
     pub rows: Box<[DraftView]>,
 }
+/// Absent until the first draft read or restored row.
+#[derive(Hash, Debug)]
+pub(crate) struct State {
+    pub(crate) rows: Map<(api::Repository, Box<[u8]>), LandedDraft>,
+    reads: Map<Token, Pending>,
+}
+fn state<'a>(d: &'a mut Domain, limits: &Limits) -> &'a mut State {
+    if d.drafts.is_none() {
+        d.drafts = Some(Box::new(State {
+            rows: Map::with_capacity(DRAFTS.saturating_mul(limits.judge_projects)),
+            reads: Map::with_capacity(limits.applications),
+        }));
+    }
+    d.drafts.as_deref_mut().expect("draft tables initialized")
+}
+pub(crate) fn held<'a>(d: &'a Domain, key: &(api::Repository, Box<[u8]>)) -> Option<&'a LandedDraft> {
+    d.drafts.as_ref()?.rows.get(key)
+}
+pub(crate) fn len(d: &Domain) -> u32 {
+    match &d.drafts {
+        Some(state) => state.rows.len(),
+        None => 0,
+    }
+}
+pub(crate) fn reading(d: &Domain, request: Token) -> bool {
+    match &d.drafts {
+        Some(state) => state.reads.contains_key(&request),
+        None => false,
+    }
+}
+pub(crate) fn restore(d: &mut Domain, limits: &Limits, row: LandedDraft) {
+    state(d, limits).rows.insert((row.repository, row.path.clone()), row).expect("restored draft room checked");
+}
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
     token: Token,
@@ -149,7 +182,7 @@ pub(crate) fn start(
     let key = (repository, call.path.clone());
     match call.change {
         DraftChange::NotReady | DraftChange::Started { .. } => {
-            let Some(mut row) = d.drafts.get(&key).cloned() else {
+            let Some(mut row) = held(d, &key).cloned() else {
                 return refused(d, request, token, DraftRefusal::Unknown, out);
             };
             match call.change {
@@ -169,11 +202,16 @@ pub(crate) fn start(
                 | crate::Connection::Connecting
                 | crate::Connection::Stopped { .. } => false,
             };
-            if !connected || d.draft_reads.len() == d.draft_reads.capacity() {
+            let flights = match &d.drafts {
+                Some(state) => state.reads.len(),
+                None => 0,
+            };
+            if !connected || flights == env.limits.applications {
                 return refused(d, request, token, DraftRefusal::Unreachable, out);
             }
             let read = Read::Branch { branch: branch.clone() };
-            d.draft_reads
+            state(d, &env.limits)
+                .reads
                 .insert(request, Pending { token, party, call, repository, branch, head: None })
                 .expect("draft read room checked");
             crate::domain::child(d, env, skein_forge_client::Event::Read { owner: request, repository, read }, out);
@@ -187,13 +225,19 @@ pub(crate) fn answer(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let Some(mut pending) = d.draft_reads.remove(&request) else { return };
+    let Some(tables) = d.drafts.as_deref_mut() else { return };
+    let Some(mut pending) = tables.reads.remove(&request) else { return };
     match result {
         Ok(Answer::Commit(head)) if pending.head.is_none() => {
             pending.head = Some(head);
             let repository = pending.repository;
             let read = Read::File { head, path: pending.call.path.clone(), max_bytes: 4096 };
-            d.draft_reads.insert(request, pending).expect("same draft read");
+            d.drafts
+                .as_deref_mut()
+                .expect("pending draft tables")
+                .reads
+                .insert(request, pending)
+                .expect("same draft read");
             crate::domain::child(d, env, skein_forge_client::Event::Read { owner: request, repository, read }, out);
         }
         Ok(Answer::File { head, path, bytes, .. }) if pending.head == Some(head) && path == pending.call.path => {
@@ -201,7 +245,7 @@ pub(crate) fn answer(
                 return refused(d, request, pending.token, DraftRefusal::NoRepository, out);
             }
             let key = (pending.repository, path.clone());
-            let held = d.drafts.get(&key);
+            let held = held(d, &key);
             let chat = match pending.call.change {
                 DraftChange::Ready { chat } => chat,
                 DraftChange::NotReady | DraftChange::Started { .. } => unreachable!("only ready reads"),
@@ -215,7 +259,7 @@ pub(crate) fn answer(
             };
             if held.is_none() && count(d, pending.call.project) >= DRAFTS {
                 let mut oldest: Option<LandedDraft> = None;
-                for (_, row) in &d.drafts {
+                for (_, row) in &d.drafts.as_ref().expect("draft rows present").rows {
                     if row.project != pending.call.project || (row.ready && row.goal.is_none()) {
                         continue;
                     }
@@ -246,7 +290,7 @@ pub(crate) fn answer(
             keep(d, request, pending.token, row, out);
         }
         Ok(Answer::Directory { .. }) if pending.head.is_some() => {
-            refused(d, request, pending.token, DraftRefusal::NotAFile, out)
+            refused(d, request, pending.token, DraftRefusal::NotAFile, out);
         }
         Err(Error::Missing) => refused(d, request, pending.token, DraftRefusal::Missing, out),
         Ok(_) | Err(_) => refused(d, request, pending.token, DraftRefusal::Unreachable, out),
@@ -254,8 +298,9 @@ pub(crate) fn answer(
 }
 fn keep(d: &mut Domain, request: Token, token: Token, row: LandedDraft, out: &mut Queue<Request>) {
     let key = (row.repository, row.path.clone());
-    if d.drafts.get(&key) != Some(&row) {
-        d.drafts.insert(key, row.clone()).expect("project draft bound checked");
+    let tables = d.drafts.as_deref_mut().expect("read or restored draft tables");
+    if tables.rows.get(&key) != Some(&row) {
+        tables.rows.insert(key, row.clone()).expect("project draft bound checked");
         out.push(Request::Save { record: Stored::LandedDraft(row.clone()), release: None, read_afresh: None });
         out.push(Request::Marked { tasks: Box::new([drafts_subject(row.project)]) });
     }
@@ -264,8 +309,9 @@ fn keep(d: &mut Domain, request: Token, token: Token, row: LandedDraft, out: &mu
     d.connect.answer(request, token, Answered::SetDraft(SetDraftAnswer::Kept(view)), out);
 }
 pub(crate) fn count(d: &Domain, project: u32) -> u32 {
+    let Some(tables) = &d.drafts else { return 0 };
     let mut count = 0_u32;
-    for (_, row) in &d.drafts {
+    for (_, row) in &tables.rows {
         if row.project == project {
             count = count.saturating_add(1);
         }
@@ -273,13 +319,14 @@ pub(crate) fn count(d: &Domain, project: u32) -> u32 {
     count
 }
 fn erase(d: &mut Domain, row: &LandedDraft, out: &mut Queue<Request>) {
-    d.drafts.remove(&(row.repository, row.path.clone()));
+    d.drafts.as_deref_mut().expect("erased draft tables").rows.remove(&(row.repository, row.path.clone()));
     out.push(Request::Erase { key: Key::LandedDraft { repository: row.repository, path: row.path.clone() } });
     out.push(Request::Marked { tasks: Box::new([drafts_subject(row.project)]) });
 }
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
-    let mut rows = List::with_capacity(d.drafts.len());
-    for (_, row) in &d.drafts {
+    let Some(tables) = &d.drafts else { return };
+    let mut rows = List::with_capacity(tables.rows.len());
+    for (_, row) in &tables.rows {
         if row.project == project {
             rows.push(row.clone()).expect("draft count");
         }
@@ -289,8 +336,9 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
     }
 }
 pub(crate) fn erase_repository(d: &mut Domain, repository: api::Repository, out: &mut Queue<Request>) {
-    let mut rows = List::with_capacity(d.drafts.len());
-    for (_, row) in &d.drafts {
+    let Some(tables) = &d.drafts else { return };
+    let mut rows = List::with_capacity(tables.rows.len());
+    for (_, row) in &tables.rows {
         if row.repository == repository {
             rows.push(row.clone()).expect("draft count");
         }
@@ -303,7 +351,8 @@ impl Domain {
     pub(crate) fn drafts_view(&self, project: u32) -> DraftsView {
         let mut sorted = Map::with_capacity(DRAFTS);
         let mut rows = List::with_capacity(DRAFTS);
-        for (_, row) in &self.drafts {
+        let Some(tables) = &self.drafts else { return DraftsView { project, rows: rows.into_boxed() } };
+        for (_, row) in &tables.rows {
             if row.project == project
                 && let Some(repo) = self.repository(row.repository)
             {
