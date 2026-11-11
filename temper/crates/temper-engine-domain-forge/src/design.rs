@@ -14,7 +14,15 @@ pub(super) fn design_claim_permitted(
     out: &mut Queue<Request>,
 ) -> bool {
     if names.len() > skein_lib::usize_of(env.limits.resources_per_task) {
-        emit(out, Request::Refused { task });
+        crate::refusal::resource_limit(
+            out,
+            task,
+            b"claim design",
+            names.first().cloned(),
+            "forge.resources_per_task",
+            env.limits.resources_per_task,
+            skein_lib::len_u64(names.len()),
+        );
         return false;
     }
     for name in names {
@@ -44,7 +52,15 @@ pub(super) fn design_claim_permitted(
             }
         }
         if !replacing && hold.design_writers.len() >= skein_lib::usize_of(env.limits.holds) {
-            emit(out, Request::Refused { task });
+            crate::refusal::resource_limit(
+                out,
+                task,
+                b"claim design",
+                Some(name.clone()),
+                "forge.holds",
+                env.limits.holds,
+                skein_lib::len_u64(hold.design_writers.len()).saturating_add(1),
+            );
             return false;
         }
     }

@@ -402,7 +402,7 @@ fn tree_answer(
         d.tier_ops.walks.insert(key, walk).expect("replaces walk");
         return;
     }
-    let mut keyed = landing::Keyed::TooLarge;
+    let mut keyed = landing::Keyed::TooLarge { bound: None, needed: 0 };
     if let Ok(api::Answer::Tree { entries, more }) = answer {
         let mut fits = true;
         for entry in entries {
@@ -457,7 +457,7 @@ fn tree_answer(
             return;
         }
         landing::Keyed::Key(key) => key,
-        landing::Keyed::Need(_) | landing::Keyed::TooLarge => walk.commit,
+        landing::Keyed::Need(_) | landing::Keyed::TooLarge { .. } => walk.commit,
     };
     let Some(row) = d.tiers.get_mut(&key) else { return };
     if let Some(baseline) = &mut row.baseline
