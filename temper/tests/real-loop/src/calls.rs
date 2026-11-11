@@ -148,8 +148,17 @@ struct Bounds {
     answer: Option<Duration>,
     timeout: Option<Duration>,
     success: bool,
+    last_activity: bool,
 }
 impl Step {
+    /// Read the last observation page only if its source supplies a cursor.
+    /// This must be the final step so an absent call cannot shift later indices.
+    #[must_use]
+    pub fn if_activity_remains(mut self) -> Self {
+        let Self::Call { argv, .. } = &mut self else { panic!("only a call can read an optional activity page") };
+        argv.1.last_activity = true;
+        self
+    }
     /// Stop the story if this prerequisite call exits unsuccessfully.
     #[must_use]
     pub fn succeeds(mut self) -> Self {
@@ -558,6 +567,12 @@ pub(crate) struct Caller {
     fixture_calls: usize,
     settings_files: fixtures::SettingsFiles,
 }
+fn activity_cursor(stdout: &[u8]) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(stdout).expect("activity JSON");
+    let page = value.get("activity").unwrap_or(&value);
+    let before = page.get("before").expect("activity pagination");
+    if before.is_null() { None } else { Some(before["value"].as_str().expect("activity cursor").to_owned()) }
+}
 fn is_settings(argv: &Argv) -> bool {
     matches!(argv.0.as_slice(), [Arg::Lit("settings"), Arg::Lit("apply"), ..])
 }
@@ -939,15 +954,7 @@ impl Caller {
                     value["task"]["digest"].as_str().expect("task digest").as_bytes().into()
                 }
                 Arg::ActivityBefore(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("activity JSON");
-                    value
-                        .pointer("/activity/before/value")
-                        .or_else(|| value.pointer("/before/value"))
-                        .and_then(serde_json::Value::as_str)
-                        .expect("previous activity page")
-                        .as_bytes()
-                        .into()
+                    activity_cursor(&self.calls[*call].stdout).expect("previous activity page").into_bytes().into()
                 }
                 Arg::InboxAfter(call) => {
                     let value: serde_json::Value =
@@ -1317,6 +1324,19 @@ impl Caller {
         let step = &self.steps[self.next];
         let Some(index) = self.current else {
             assert!(self.running.iter().flatten().count() < fixtures::CALLS_AT_ONCE as usize);
+            if let Step::Call { argv, .. } = step
+                && argv.1.last_activity
+            {
+                assert_eq!(self.next + 1, self.steps.len(), "an optional activity page must be the final step");
+                let source = argv
+                    .0
+                    .iter()
+                    .find_map(|arg| if let Arg::ActivityBefore(source) = arg { Some(*source) } else { None })
+                    .expect("optional activity source");
+                if activity_cursor(&self.calls[source].stdout).is_none() {
+                    return true;
+                }
+            }
             let index = self.calls.len();
             self.spawn(now, index);
             self.current = Some(index);
@@ -1660,6 +1680,37 @@ mod read_condition_tests {
         // The deadline's remaining time cannot exceed the CLI's five seconds.
         assert!(deadline.remaining() <= Duration::from_secs(TIMEOUT_SECONDS));
         assert!(matches!(Verdict::finish(&Deadline::arm("in-time call", Duration::from_secs(20))), Verdict::InTime));
+    }
+    #[test]
+    fn the_final_activity_read_follows_only_a_supplied_cursor() {
+        for page in [json!({"before":null}), json!({"before":{"value":"17"}})] {
+            for source in [&page, &json!({"activity":page})] {
+                let mut caller = Caller::new(
+                    vec![
+                        call(D1, crate::argv!["task", "activity", "1", "--before", activity_before(0), "--json"])
+                            .if_activity_remains(),
+                    ],
+                    PathBuf::new(),
+                    Fd::new(0),
+                );
+                let mut prior = bounded_call();
+                prior.stdout = serde_json::to_vec(source).expect("activity JSON");
+                caller.calls.push(prior);
+                caller.running.push(None);
+                let complete = caller.command_act(Time::ZERO);
+                if page["before"].is_null() {
+                    assert!(complete, "a complete journal needs no further command");
+                    assert_eq!(caller.calls.len(), 1);
+                    assert!(caller.submissions.is_empty());
+                } else {
+                    assert!(!complete, "the previous page must be awaited");
+                    let submit = caller.submissions.pop().expect("activity command");
+                    let Op::Spawn { spawn } = submit.kind else { panic!("spawn activity command") };
+                    assert_eq!(&*spawn.args[5], b"17", "use the supplied cursor");
+                    assert_eq!(caller.calls.len(), 2);
+                }
+            }
+        }
     }
     #[test]
     fn project_absence_requires_a_complete_list_and_keeps_other_projects() {

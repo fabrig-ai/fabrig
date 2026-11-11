@@ -939,7 +939,8 @@ pub fn step_5_4() -> Vec<calls::Step> {
                 "--json"
             ],
         ),
-        // The first attempt's beginning is on the next bounded page.
+        // Run endings can put the first attempt's beginning on a fourth page;
+        // follow that page only when the third supplies a cursor.
         call(
             D1,
             argv![
@@ -950,7 +951,8 @@ pub fn step_5_4() -> Vec<calls::Step> {
                 calls::activity_before(STORY_OWNER_FIRST),
                 "--json"
             ],
-        ),
+        )
+        .if_activity_remains(),
     ]
 }
 
