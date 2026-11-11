@@ -69,7 +69,7 @@ pub enum Receipt {
 /// A tier's record, the top's (store family 25, `Tier`).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Record {
-    /// Judged runs so far; the next run is numbered `sequence + 1`.
+    /// Runs numbered so far, judged or dropped; the next run is numbered `sequence + 1`.
     pub sequence: u64,
     /// The last judged tip and the tier's key there; none before the baseline.
     pub judged: Option<Judged>,

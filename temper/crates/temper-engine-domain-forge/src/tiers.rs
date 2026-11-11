@@ -541,11 +541,14 @@ fn append(d: &Domain, env: &Env<Limits>, row: &mut TierRow, commit: Commit) {
         return;
     }
     let bound = env.limits.changes.checked_mul(2).expect("twice changes").checked_add(1).expect("range bound");
+    push_pending(d, row, TierLanding { commit, key: None }, bound);
+}
+fn push_pending(d: &Domain, row: &mut TierRow, incoming: TierLanding, bound: u32) {
     let mut pending = List::with_capacity(bound.checked_add(1).expect("incoming landing"));
     for landing in &row.pending {
         pending.push(*landing).expect("existing range");
     }
-    pending.push(TierLanding { commit, key: None }).expect("incoming landing");
+    pending.push(incoming).expect("incoming landing");
     let mut skip = None;
     if pending.len() > bound {
         for (index, pair) in pending.as_slice().windows(2).enumerate() {
@@ -974,7 +977,6 @@ fn cleanup_probe(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: u6
     let Some(probe) = &row.probe else { return false };
     let run = row.record.run.as_ref().expect("probe run");
     let cleanup = row.result.is_some()
-        || row.cancelled
         || match &run.part {
             p::Part::Probe { landing, .. } => *landing != probe.landing,
             p::Part::Whole | p::Part::Rerun { .. } => true,
@@ -1069,11 +1071,6 @@ pub(crate) fn step(
         d.tier_ops.follows.remove(&key);
         save(&row, out);
     }
-    if heard.cancelled {
-        row.cancelled = true;
-        // Cancellation closes the task after its branch is released, with no verdict.
-        row.held = None;
-    }
     if row.flight.is_some() && !d.tier_ops.follows.contains_key(&key) && row.result.is_none() && row.held.is_none() {
         d.tier_ops.follows.insert(key.clone(), following(d, &row)).expect("one follower per tier");
     }
@@ -1088,7 +1085,7 @@ pub(crate) fn step(
         held(&row, out);
     } else if cleanup_probe(d, env, &mut row, entry, out) {
         // A completed probe releases its branch before the next part starts.
-    } else if row.result.is_some() || row.cancelled {
+    } else if row.result.is_some() {
         match row.branch {
             TierBranch::Made => {
                 if room(d, env, entry) {
@@ -1104,11 +1101,7 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                if row.cancelled {
-                    cancelled(d, &mut row, task, out);
-                } else {
-                    finish(d, env, &mut row, out);
-                }
+                finish(d, env, &mut row, out);
             }
         }
     } else {
@@ -1521,6 +1514,8 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     for key in keys.into_boxed() {
         remember_tip(d, &key);
         let row = d.tiers.get(&key).expect("restored tier");
+        // A repaired row is saved even when its tier is no longer configured.
+        save(row, out);
         if row.flight.is_some() && row.task.is_some() && row.result.is_none() && row.held.is_none() {
             d.tier_ops.follows.insert(key.clone(), following(d, row)).expect("bounded followers");
         }
@@ -1539,6 +1534,26 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     watch(d, env, out);
 }
 impl Domain {
+    /// Drop restored runs whose task is absent (temper/docs/design/domain/after-landing.md, 3).
+    pub fn link_tiers(&mut self, tasks: &jig_domain_tasks::Domain, limits: &Limits) {
+        if self.restore_fit_failure().is_some() {
+            return;
+        }
+        let mut absent = List::with_capacity(self.tiers.capacity());
+        for (key, row) in &self.tiers {
+            if let Some(task) = row.task
+                && tasks.task(task).is_none()
+            {
+                absent.push(key.clone()).expect("bounded restored tiers");
+            }
+        }
+        for key in absent.into_boxed() {
+            let mut row = self.tiers.remove(&key).expect("restored tier");
+            drop_run(self, &mut row, limits);
+            self.tiers.insert(key, row).expect("replaces restored tier");
+        }
+    }
+
     /// The top owns each tier task's deadline (temper/docs/design/domain/after-landing.md, 10).
     pub fn wait_tier(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>) {
         let until = match until {
@@ -1903,23 +1918,59 @@ fn inherited_tests(verdict: &p::Verdict) -> u64 {
 #[path = "tests/tiers/verdict.rs"]
 mod verdict_tests;
 
-fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
+fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
     red::forget(d, row);
-    row.record.run = None;
+    let key = (row.repository, row.tier.clone());
+    d.tier_ops.follows.remove(&key);
+    d.tier_ops.walks.remove(&key);
+    let mut reads = List::with_capacity(d.tier_ops.reads.capacity());
+    for (owner, reading) in &d.tier_ops.reads {
+        if reading == &key {
+            reads.push(*owner).expect("bounded tier reads");
+        }
+    }
+    for owner in reads.into_boxed() {
+        d.tier_ops.reads.remove(&owner);
+    }
+    if let Some(task) = row.task.take() {
+        d.offered_tier(task);
+    }
+    if let Some(run) = row.record.run.take() {
+        row.record.sequence = run.number;
+        let pending = core::mem::replace(&mut row.pending, Box::new([]));
+        let bound = limits.changes.checked_mul(2).expect("twice changes").checked_add(1).expect("range bound");
+        for landing in run.landings {
+            push_pending(d, row, TierLanding { commit: landing.commit, key: Some(landing.key) }, bound);
+        }
+        for landing in pending {
+            push_pending(d, row, landing, bound);
+        }
+    }
     row.goal = None;
-    row.task = None;
-    d.offered_tier(task);
-    row.requested = false;
     row.flight = None;
     row.result = None;
     row.purpose = None;
     row.received = false;
-    let projection = Some(core::mem::replace(&mut row.observations, Box::new([])));
-    save(row, out);
-    out.push(Request::TierDecision {
-        task,
-        decision: crate::TierDecision::Done { words: joined(&[b"Tier ", &row.tier, b" cancelled"]) },
-        entry: None,
-        projection,
-    });
+    row.requested = false;
+    row.branch = TierBranch::Absent;
+    row.probe = None;
+    row.held = None;
+    row.cancelled = false;
+    row.baseline = None;
+    row.observations = Box::new([]);
+}
+
+pub(crate) fn closing(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    _ending: crate::ReleaseEnding,
+    out: &mut Queue<Request>,
+) {
+    let Some(key) = task_key(d, task) else { return };
+    let mut row = d.tiers.remove(&key).expect("closing tier");
+    drop_run(d, &mut row, &env.limits);
+    save(&row, out);
+    d.tiers.insert(key.clone(), row).expect("replaces closing tier");
+    start_due(d, env, key.0, out);
 }

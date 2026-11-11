@@ -25,7 +25,7 @@ const LAST_TIP: api::Commit = [7; 32];
 const READ: Token = Token::new(1_u64 << 59);
 const RETRIES: u32 = 2; // The fixture's configured tier_retries.
 const SMALL_RANGE: usize = 3; // 2 * one live change + 1.
-fn restoring(branch: Option<&[u8]>) -> Domain {
+pub(super) fn restoring(branch: Option<&[u8]>) -> Domain {
     restoring_following(match branch {
         Some(branch) => Follows::Branch(branch.into()),
         None => Follows::Landing,
@@ -64,7 +64,7 @@ fn configured(branch: Option<&[u8]>) -> Domain {
     outputs(&mut d, Event::ReadAfresh);
     d
 }
-fn row(d: &Domain) -> &TierRow {
+pub(super) fn row(d: &Domain) -> &TierRow {
     d.tiers.get(&(REPO, TIER.into())).expect("tier row")
 }
 fn main_name() -> Name {
@@ -84,7 +84,7 @@ fn collect(mut out: Queue<Request>) -> Box<[Request]> {
     }
     values.into_boxed_slice()
 }
-fn key_trees(d: &mut Domain) -> Box<[Request]> {
+pub(super) fn key_trees(d: &mut Domain) -> Box<[Request]> {
     let mut all = Vec::new();
     // A fixture has at most the baseline plus the range's tips to key.
     for _ in 0..LIMITS.changes * 2 + 2 {
@@ -126,14 +126,7 @@ fn attach(d: &mut Domain, number: u64, task: u64) {
     outputs(d, Event::TierTask { repository: REPO, tier: TIER.into(), number, task });
 }
 fn tier_step(d: &mut Domain, entry: u64, released: bool) -> Box<[Request]> {
-    outputs(
-        d,
-        Event::StepTier {
-            task: row(d).task.expect("tier task"),
-            entry,
-            heard: TierHeard { released, cancelled: false },
-        },
-    )
+    outputs(d, Event::StepTier { task: row(d).task.expect("tier task"), entry, heard: TierHeard { released } })
 }
 fn made(d: &mut Domain, entry: u64, made: skein_forge_client::Made) {
     if let Some(kept) = d.entries.get_mut(&entry) {
@@ -143,7 +136,7 @@ fn made(d: &mut Domain, entry: u64, made: skein_forge_client::Made) {
     crate::tiers::outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false }, &mut out);
     d.entries.remove(&entry);
 }
-fn dispatched() -> Domain {
+pub(super) fn dispatched() -> Domain {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
@@ -286,10 +279,8 @@ fn ignored_documentation_is_judged_by_receipt_without_dispatch() {
     let out = key_trees(&mut d);
     assert_eq!(requests(&out), [(2, HEAD)]);
     attach(&mut d, 2, NEXT_TASK);
-    let out = outputs(
-        &mut d,
-        Event::StepTier { task: NEXT_TASK, entry: RELEASE + 2, heard: TierHeard { released: false, cancelled: false } },
-    );
+    let out =
+        outputs(&mut d, Event::StepTier { task: NEXT_TASK, entry: RELEASE + 2, heard: TierHeard { released: false } });
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landing".as_slice().into() })
@@ -660,18 +651,153 @@ fn offered_tier_spends_only_its_own_wait() {
     assert!(!collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
 }
 
+fn close_tier(d: &mut Domain, task: u64, ending: ReleaseEnding) -> Box<[Request]> {
+    outputs(d, Event::SettleEffects { task, root: task, ending })
+}
+
+#[test]
+fn closing_a_tier_task_saves_its_drop_in_the_same_decision() {
+    for ending in [ReleaseEnding::Cancelled, ReleaseEnding::Failed, ReleaseEnding::Done] {
+        let mut d = dispatched();
+        d.wait_tier(&env(), TIER_TASK, None);
+        let out = close_tier(&mut d, TIER_TASK, ending);
+        assert!(out.iter().any(|request| matches!(request,
+            Request::Save { record: Stored::Tier(saved), .. }
+                if saved.task.is_none() && saved.record.run.is_none() && saved.record.sequence == 1)));
+        assert_eq!(row(&d).record.sequence, 1);
+        assert!(row(&d).record.run.is_none());
+        assert!(row(&d).task.is_none());
+        assert!(row(&d).flight.is_none());
+        assert!(row(&d).observations.is_empty());
+        assert!(row(&d).held.is_none());
+        assert_eq!(row(&d).branch, TierBranch::Absent);
+        assert!(!d.tier_ops.follows.contains_key(&(REPO, TIER.into())));
+        assert_eq!(d.next_wall_deadline(), None);
+        assert!(choice(&out).is_none());
+        let out = key_trees(&mut d);
+        assert_eq!(requests(&out), [(2, BASE)]);
+    }
+}
+
+#[test]
+fn a_dropped_runs_landings_still_verify_in_the_next_numbered_run() {
+    let mut d = dispatched();
+    seen(&mut d, Some(BASE), NEXT_TIP);
+    seen(&mut d, Some(NEXT_TIP), LAST_TIP);
+    key_trees(&mut d);
+    completed(&mut d, api::Conclusion::Success, None);
+    finish(&mut d);
+    attach(&mut d, 2, NEXT_TASK);
+    let landings = row(&d).record.run.as_ref().unwrap().landings.clone();
+    assert_eq!(landings.len(), 2);
+    for landing in &landings {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Verification(Verification {
+                    repository: REPO,
+                    commit: landing.commit,
+                    changes: Box::new([CHANGE]),
+                    tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+                }),
+            },
+        );
+    }
+    let out = close_tier(&mut d, NEXT_TASK, ReleaseEnding::Cancelled);
+    assert_eq!(row(&d).record.sequence, 2);
+    assert_eq!(requests(&out), [(3, LAST_TIP)]);
+    let run = row(&d).record.run.as_ref().unwrap();
+    assert_eq!(run.landings, landings);
+    assert!(d.verifications.iter().all(|(_, verification)| verification.tiers[0].verdict.is_none()));
+    attach(&mut d, 3, TIER_TASK + 2);
+    tier_step(&mut d, OPEN, false);
+    assert_eq!(
+        d.entries.get(&OPEN).unwrap().entry.effect.write,
+        api::Write::CreateBranch { branch: b"temper/tier/browser.3".as_slice().into(), commit: LAST_TIP }
+    );
+}
+
+#[test]
+fn dropping_a_full_range_compacts_only_adjacent_outside_landings() {
+    let mut d = dispatched();
+    let owned = [12; 32];
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Verification(Verification {
+                repository: REPO,
+                commit: owned,
+                changes: Box::new([CHANGE]),
+                tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+            }),
+        },
+    );
+    let kept = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+    kept.record.judged = Some(p::Judged { tip: BASE, key: BASE });
+    kept.record.run.as_mut().unwrap().landings = Box::new([
+        p::Landing { commit: [10; 32], key: [20; 32] },
+        p::Landing { commit: [11; 32], key: [21; 32] },
+        p::Landing { commit: owned, key: [22; 32] },
+    ]);
+    kept.pending = Box::new([
+        TierLanding { commit: [13; 32], key: Some([23; 32]) },
+        TierLanding { commit: [14; 32], key: Some([24; 32]) },
+        TierLanding { commit: [15; 32], key: Some([25; 32]) },
+    ]);
+    let mut small = env();
+    small.limits.changes = 1;
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &small,
+        Event::SettleEffects { task: TIER_TASK, root: TIER_TASK, ending: ReleaseEnding::Cancelled },
+        &mut out,
+    );
+    let out = collect(out);
+    let expected = [
+        p::Landing { commit: [11; 32], key: [21; 32] },
+        p::Landing { commit: owned, key: [22; 32] },
+        p::Landing { commit: [15; 32], key: [25; 32] },
+    ];
+    assert_eq!(row(&d).record.run.as_ref().unwrap().landings.as_ref(), &expected);
+    assert!(out.iter().all(|request| match request {
+        Request::Save { record: Stored::Tier(row), .. } => row.pending.len() <= SMALL_RANGE,
+        _ => true,
+    }));
+}
+
+#[test]
+fn late_dispatch_and_read_answers_cannot_revive_a_closed_tier_task() {
+    let mut d = dispatched();
+    // Keep one dispatch and its listing read in flight at the close.
+    tier_step(&mut d, DISPATCH + 1, false);
+    let key = (REPO, TIER.into());
+    let owner = *d.tier_ops.reads.iter().next().expect("listing read").0;
+    d.tiers.get_mut(&key).unwrap().flight.as_mut().unwrap().waiting = true;
+    close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(!d.tier_ops.reads.contains_key(&owner), "close forgets the old run's read");
+    key_trees(&mut d);
+    attach(&mut d, 2, NEXT_TASK);
+    let before = row(&d).clone();
+    let mut late = Queue::uncapped();
+    crate::tiers::outcome(
+        &mut d,
+        DISPATCH,
+        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
+        &mut late,
+    );
+    crate::tiers::veto(&mut d, TIER_TASK, DISPATCH, &mut late);
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Runs { runs: Box::new([]), more: false }), &mut late);
+    assert!(collect(late).is_empty());
+    assert_eq!(row(&d), &before);
+}
+
 #[test]
 fn cancelling_a_tier_task_drops_its_wait() {
     let mut d = dispatched();
     d.wait_tier(&env(), TIER_TASK, None);
-    outputs(
-        &mut d,
-        Event::StepTier { task: TIER_TASK, entry: RELEASE, heard: TierHeard { released: false, cancelled: true } },
-    );
-    assert!(d.next_wall_deadline().is_some());
-    made(&mut d, RELEASE, skein_forge_client::Made::Set);
-    let out = tier_step(&mut d, RELEASE + 1, false);
-    assert_eq!(choice(&out), Some(&TierDecision::Done { words: b"Tier browser cancelled".as_slice().into() }));
+    let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
+    assert!(choice(&out).is_none());
     assert!(row(&d).task.is_none());
     assert_eq!(d.next_wall_deadline(), None);
 }
