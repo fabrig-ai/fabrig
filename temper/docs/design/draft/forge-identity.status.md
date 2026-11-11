@@ -1,6 +1,6 @@
 # forge-identity: status
 
-2026-11-09. Where the design lags or departs from [forge-identity.md](forge-identity.md).
+2026-11-11. Where the design lags or departs from [forge-identity.md](forge-identity.md).
 
 Section 6 is decided by the user, 2026-11-07, "accept it for now": on an
 owned Forgejo the rule stops an agent's mistakes, not one trying, until
@@ -10,11 +10,6 @@ approval in the client remain section 12's later work, rather than gaps
 in this round's one-person design.
 
 - **Design lags:**
-  - 9: `../domain/forge/adoption.md`, 6 and `../domain/root.md`, 8.1 require a sole
-    owner at each start but do not explicitly clear a restored link when
-    starting outside the box with that same owner. The draft requires
-    clearing when its scope stops holding; the code retains that link
-    (`../domain/forge/adoption.status.md`, 6).
   - 10: the real human GitHub review is deferred in `../testing/README.md`,
     section 7, rather than supplied as a written live story: it needs
     the user's authorized review credential. The full fake-GitHub box

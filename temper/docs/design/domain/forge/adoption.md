@@ -593,7 +593,13 @@ bound and no restore of its own, and it goes with the forge if that's removed.
   person isn't that party is cleared and logged, and while the root has
   handed none, no link is made.
 - **Only under a box** (`../../protocol/setup/box.md`, 1): a forge connector built
-  without `--box` makes no link, whatever it's told.
+  without `--box` makes no link, whatever it's told, and keeps none: in the
+  owner's decision above, every link it restored is cleared and logged,
+  whoever the owner is, so a box's data started by plain `temper serve` keeps
+  no link and its lookups fall back to seeds (`../../draft/forge-identity.md`,
+  section 9). It is the `--box` the connector was built with that decides,
+  not the box's pipe: `BoxClosed` (section 1) stops new links for the rest of
+  the run but clears none, and the next start judges them again.
 - **From an owned Forgejo's `Reconcile`** (`../../protocol/setup/reconcile.md`, 2): given
   the owned forge's person's login, it answers that account's id or none for
   an account gone. An id links that user to the person; the same link again
