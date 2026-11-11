@@ -228,7 +228,12 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   tasks up, which a delegate works for, is later (`README.md`, section 10).
 - **Read by those runs, whole in their brief:** the core section
   `preferences` (section 1), present where the run's task's requester is a
-  person and its authority holds the asking family: the scope's index lines,
+  person and the asking family is one its run's charter names and its
+  authority holds, as a host family is offered (`executors.md`, 1), so that
+  a run whose charter names no asking family reads no person's preferences,
+  whatever its authority holds; a charter whose record carries no mask
+  names every family, the asking one among them, as it decodes
+  (`RunPolicy::EVERY_FAMILY`). The section holds the scope's index lines,
   every one, in name order, the oldest first, each `N. DESCRIPTION`, `N` its
   place from 1, or the one line `None kept.`. It is required, and its budget
   holds `notes.party_entries` lines of `notes.party_bytes` numbered, so it is
