@@ -11,7 +11,11 @@ pub const TABLE: Table = Table {
     commit: temper_version::COMMIT,
     commands: &COMMANDS,
     settings: &[],
-    variables: &[],
+    variables: &[
+        &temper_version::INTERNAL_COMMIT,
+        &environment::INTERNAL_DUMP_LLM,
+        &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
+    ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
 pub const TREE: [&Table; 2] = [&TABLE, &temper_engine_shell::ENGINE];

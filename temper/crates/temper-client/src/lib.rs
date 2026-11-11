@@ -68,7 +68,7 @@ pub fn run(command: Command) -> Result<u8, String> {
 /// The binary's version and build commit (temper/docs/design/release.md, section 3).
 #[must_use]
 pub fn version() -> String {
-    format!("{NAME} {} ({})\n", env!("CARGO_PKG_VERSION"), env!("TEMPER_CLIENT_COMMIT"))
+    format!("{}\n", temper_version::line(NAME))
 }
 
 #[cfg(test)]

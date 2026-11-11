@@ -56,10 +56,6 @@ landing.
   (`bin/temper-box/tests/suite/client_binary.rs`), written before `temper-engine`
   was built; M5 switches it to `temper-engine`
   (`../draft/deployment-binaries.execution.md`, M5).
-- **Departs:** the whole document: `temper-client`'s COMMIT is its own build script's
-  (`crates/temper-client/build/main.rs`, `TEMPER_CLIENT_COMMIT`), a second copy
-  of `temper-version`'s, which it doesn't link: M1 built it while `temper-version`
-  was being built beside it, and no plan has switched it yet.
 - **Departs:** the whole document: beyond the crates `binaries.md` says it links, `temper-client` links:
   - `jig-protocol-accounts`, an engine crate of jig's (`components.md`), and through it
     `jig-protocol-config`, `jig-protocol-engine-clients`,

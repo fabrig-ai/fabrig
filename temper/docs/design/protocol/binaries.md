@@ -471,13 +471,13 @@ spawned        temper-agent AGENT.json
 - **One run:** AGENT.json read as `temper` reads an agent's document,
   its bytes with a `"fetched"` program's path replaced by its launcher
   (setup/owned.md, 6; `temper-launcher`'s), then smith's decode; then
-  smith's agent shell, `run_dumping` into `TEMPER_DUMP_LLM`'s directory
+  smith's agent shell, `run_dumping` into `TEMPER_INTERNAL_DUMP_LLM`'s directory
   when the variable names one (`../draft/dogfood-hacks.md`, 2.13),
   `run_decoded` otherwise, what `temper internal agent` does. A
   document that doesn't read prints `smith: ` and the reason, then each
   line of the reason after `temper-agent: `; a run that fails prints
-  each line of its reason after `temper-agent: `. A `TEMPER_DUMP_LLM`
-  that can't be made absolute prints `temper-agent: TEMPER_DUMP_LLM: `
+  each line of its reason after `temper-agent: `. A `TEMPER_INTERNAL_DUMP_LLM`
+  that can't be made absolute prints `temper-agent: TEMPER_INTERNAL_DUMP_LLM: `
   and why, and the run goes on without its dumps.
 - **The list mode:** the same read, then smith's `list::run_decoded`,
   what `temper internal agent-list` does; a failure prints each line of

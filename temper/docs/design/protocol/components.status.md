@@ -4,8 +4,3 @@
 
 - **Not yet:** `bin/temper-box`, `crates/temper-box-shell` and `crates/temper-box-machine`: the box's package and its renamed crates [in flight: change 87].
 - **Not yet:** `bin/temper-engine` and `crates/temper-engine-shell`'s table, reach and `main` [in flight: change 88].
-
-- **Departs:** the whole document: `temper-client`'s COMMIT is its own build script's
-  (`crates/temper-client/build/main.rs`, `TEMPER_CLIENT_COMMIT`), a second copy
-  of `temper-version`'s, which it doesn't link: M1 built it while `temper-version`
-  was being built beside it, and no plan has switched it yet.

@@ -5082,6 +5082,7 @@ dependencies = [
  "temper-client-shell-cli",
  "temper-client-shell-tui",
  "temper-shell",
+ "temper-version",
 ]
 
 [[package]]
@@ -6484,6 +6485,9 @@ dependencies = [
 [[package]]
 name = "temper-version"
 version = "0.0.0"
+dependencies = [
+ "skein-shell",
+]
 
 [[package]]
 name = "temper-worker"
