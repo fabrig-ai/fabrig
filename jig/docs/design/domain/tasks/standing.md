@@ -144,6 +144,14 @@ standing task's Now alone.
   waiting for its decision, or a timer. A retry, the continuation of a run
   parked kept (`lifecycle.md`, 8), and an attempt interrupted or lost and
   due again go on within their session, unjudged.
+- **The open activation tells them apart.** The task's record keeps
+  `activation_open`, set at the claim that begins an activation and
+  cleared only when that activation ends idle (`lifecycle.md`, 2): a
+  claim while it is clear is a wake's, and judged; one while it is set
+  continues the activation, unjudged. The task's reasons cannot tell
+  them apart, for an activation woken by an always-offered message alone
+  has none. It is restored with the task, so an attempt interrupted at a
+  restart still goes on.
 
 ### 5.2 Its ends
 
@@ -256,7 +264,8 @@ Each is a contract the changes that build this document share:
 
 - **The tasks child** (`jig-domain-tasks`): `EndedBy::Standing`; a
   `Session { first: u64, reasons: Reasons, last: Wall }` and
-  `TaskRecord.session: Option<Session>`; `SessionEnd`, one of `Quiet`,
+  `TaskRecord.session: Option<Session>`; `TaskRecord.activation_open:
+  bool` (5.1); `SessionEnd`, one of `Quiet`,
   `Bound`, `Unoffered`, `Fresh`, `Closed` and `Rules`; and the activity
   lines `Line::Stood { attempt: u64, words: Box<[u8]> }` and
   `Line::SessionEnded { attempt: u64, end: SessionEnd }`.
