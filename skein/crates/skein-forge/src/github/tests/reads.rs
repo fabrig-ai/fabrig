@@ -117,14 +117,16 @@ impl RealRows {
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "the table checks only the three real-row answers")]
 fn github_items_keep_whole_rows_until_the_answer_bytes_and_name_the_cut() {
-    for (listing, width) in [(RealRows::Items, 130_u32), (RealRows::Reviews, 129), (RealRows::Remarks, 66)] {
+    for (listing, width, large) in
+        [(RealRows::Items, 130_u32, 128), (RealRows::Reviews, 129, 128), (RealRows::Remarks, 66, 64)]
+    {
         // The third row overflows, but the smaller fourth would fit: keep only the prefix.
         for (lengths, room, skip, next, expected, cut) in [
             (&[1, 1][..], width * 2, 0, false, &[1, 2][..], false),
             (&[1, 1][..], width * 2, 0, true, &[1, 2][..], false),
             (&[1, 1, 1, 1][..], width * 4, 0, false, &[1, 2, 3, 4][..], false),
-            (&[1, 1, 128, 1][..], width * 3, 0, false, &[1, 2][..], true),
-            (&[1, 1, 128, 1][..], 512, 2, false, &[3, 4][..], false),
+            (&[1, 1, large, 1][..], width * 3, 0, false, &[1, 2][..], true),
+            (&[1, 1, large, 1][..], width * 3, 2, false, &[3, 4][..], false),
             (&[1][..], width - 1, 0, false, &[][..], false),
         ] {
             if let RealRows::Items = listing
