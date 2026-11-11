@@ -219,6 +219,8 @@ pub enum Note {
         task: u64,
         section: &'static [u8],
         stage: &'static str,
+        reason: &'static str,
+        heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).

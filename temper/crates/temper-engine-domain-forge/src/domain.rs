@@ -1592,7 +1592,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 "one bounded planned section"
             );
         }
-        Event::GatherPlanned { section, parts, bytes, ci_budget, deadline } => {
+        Event::GatherPlanned { section, task, parts, bytes, ci_budget, deadline } => {
             let Some(planned) = d.brief_planned.remove(&section) else {
                 out.push(Request::BriefSized { section, size: Err(crate::brief_words::bounds()) });
                 return;
@@ -1608,7 +1608,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             held::gather(d, section, source, planned.partner, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
             d.brief_documents.remove(&section);
-            brief::set_deadline(d, section, deadline);
+            brief::set_context(d, section, task, deadline);
         }
         Event::GatherBrief { owner, source, parts, bytes, max_job_bytes } => {
             brief::gather(d, owner, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
@@ -2795,6 +2795,20 @@ fn lost_read(
     let Some(mut pending) = d.lost.remove(&owner) else { return };
     let Some(row) = d.holds.get(&pending.name) else { return };
     if !pending_writer(row, &pending) {
+        // temper/docs/design/domain/forge/change/repairs.md, pinned pull
+        // sections: a superseded lost reread still records its delegate's
+        // head, undrifted, without freeing the later attempt's writer slot.
+        let later = match row.writer {
+            Some(Writer::Run { task, attempt }) => task == pending.task && attempt > pending.attempt,
+            Some(Writer::Lost { .. } | Writer::Entry(_)) | None => false,
+        };
+        if pending.kind == LostWriterKind::Slot
+            && later
+            && row.drift.is_none()
+            && let Some(commit) = superseded_head(&pending, result)
+        {
+            record_delegate_head(d, pending.task, &pending.name, commit, out);
+        }
         return;
     }
     // The writer slot is freed only once the branch is read afresh (jig's
@@ -2930,6 +2944,53 @@ fn lost_read(
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
     lost_release(d, &pending.name, false, out);
+}
+
+/// A later attempt keeps its slot while the lost read's branch or successful
+/// ancestry answer still pins the delegate's next brief (domain/forge/change/repairs.md).
+fn superseded_head(
+    pending: &PendingLost,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Option<skein_forge::api::Commit> {
+    use skein_forge::api::Answer;
+    if let Some((_, head)) = pending.comparison {
+        return if ancestry_status(result) == change::Status::Passed { Some(head) } else { None };
+    }
+    match result {
+        Ok(Answer::Commit(head)) => Some(head),
+        Ok(
+            Answer::Located { .. }
+            | Answer::Items { .. }
+            | Answer::Item { .. }
+            | Answer::Pull(_)
+            | Answer::Reviews { .. }
+            | Answer::Statuses { .. }
+            | Answer::Remarks { .. }
+            | Answer::Branches(_)
+            | Answer::PullFiles { .. }
+            | Answer::Compare { .. }
+            | Answer::Checks(_)
+            | Answer::Job { .. }
+            | Answer::File { .. }
+            | Answer::Directory { .. }
+            | Answer::Protection(_)
+            | Answer::Settings(_)
+            | Answer::Collaborators { .. }
+            | Answer::Permission(_)
+            | Answer::Created(_)
+            | Answer::Commented(_)
+            | Answer::Reviewed(_)
+            | Answer::Merged(_)
+            | Answer::Queued
+            | Answer::Branch(_)
+            | Answer::Runs { .. }
+            | Answer::Run(_)
+            | Answer::Tree { .. }
+            | Answer::Commits { .. }
+            | Answer::Done,
+        )
+        | Err(_) => None,
+    }
 }
 
 fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
