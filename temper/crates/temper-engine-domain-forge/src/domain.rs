@@ -3627,11 +3627,19 @@ fn step_read(
     if d.stopping {
         return;
     }
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    if row.terminal() {
+        if let Some(decision) = change_terminal(row) {
+            emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
+        } else if let Some(merge) = landed_commit(&row.change.state) {
+            step_verified(d, env, pending.task, merge, pending.heard, out);
+        }
+        return;
+    }
     if result == Err(skein_forge::api::Error::Busy) {
         retry_step(env, pending.task, out);
         return;
     }
-    let Some(row) = d.changes.get(&pending.task) else { return };
     if admission::read_failed(row, &pending, &result, out) {
         return;
     }
@@ -6002,6 +6010,15 @@ fn wake_head_dependents(
     }
 }
 
+fn completed_branch(d: &Domain, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    for (_, row) in &d.changes {
+        if row.repository == repository && row.branch.as_ref() == branch && row.terminal() {
+            return true;
+        }
+    }
+    false
+}
+
 fn branch_changed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -6047,7 +6064,7 @@ fn branch_changed(
         crate::workflows::first_tip(d, env, resource.repository, &branch, commit, out);
         return;
     };
-    if before == commit {
+    if before == commit || completed_branch(d, resource.repository, &branch) {
         return;
     }
     let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
@@ -6084,6 +6101,11 @@ fn landing_read(
     out: &mut Queue<Request>,
 ) {
     let Some(pending) = d.landings.remove(&owner) else { return };
+    if let Topic::Landings { repository, branch } = &pending.topic
+        && completed_branch(d, *repository, branch)
+    {
+        return;
+    }
     let files = match result {
         Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
             if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>

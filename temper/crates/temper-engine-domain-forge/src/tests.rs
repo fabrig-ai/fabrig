@@ -10,6 +10,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod closer;
+mod completed_reads;
 mod connect;
 mod dismissed;
 mod early;

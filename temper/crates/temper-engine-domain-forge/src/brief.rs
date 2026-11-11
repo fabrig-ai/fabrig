@@ -258,6 +258,10 @@ pub(crate) fn brief_answer(
         return crate::brief_document::answer(domain, owner, result, out);
     }
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
+    if completed_item(domain, fetch.item) {
+        drop_section(domain, fetch.owner);
+        return true;
+    }
     if result == Err(skein_forge::api::Error::Busy) {
         fetch.refused = Some(domain.brief_reclaim);
         domain.brief_fetches.insert(owner, fetch).expect("same refused brief room");
@@ -607,6 +611,17 @@ pub(crate) fn gather(
     limit: u32,
     out: &mut Queue<Request>,
 ) {
+    let completed = match source {
+        BriefSource::Ci { item, .. }
+        | BriefSource::Reviews { item, .. }
+        | BriefSource::Request { item, .. }
+        | BriefSource::Pull { item, .. } => completed_item(domain, item),
+        BriefSource::Document | BriefSource::Home { .. } => false,
+    };
+    if completed {
+        drop_section(domain, owner);
+        return;
+    }
     if bytes > limit {
         crate::held::ready(domain, owner, BriefRead::Failed(bounds()), out);
         return;
@@ -856,6 +871,13 @@ fn decimal(number: u64) -> Box<[u8]> {
     forward.into_boxed()
 }
 
+fn completed_item(domain: &Domain, item: BriefItem) -> bool {
+    match domain.change_for_pull(item.repository, item.number) {
+        Some(row) => row.terminal(),
+        None => false,
+    }
+}
+
 /// Admission refusals wait across the client's reclamation boundary.
 fn waiting_owner(domain: &Domain) -> Option<Token> {
     for (owner, fetch) in &domain.brief_fetches {
@@ -877,11 +899,16 @@ pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
         crate::brief_document::retry(domain, out);
         return;
     };
-    let fetch = domain.brief_fetches.get_mut(&owner).expect("waiting brief");
+    let mut fetch = domain.brief_fetches.remove(&owner).expect("waiting brief");
+    if completed_item(domain, fetch.item) {
+        drop_section(domain, fetch.owner);
+        return;
+    }
     fetch.refused = None;
     out.push(Request::BriefClient {
         event: skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() },
     });
+    domain.brief_fetches.insert(owner, fetch).expect("same waiting brief room");
 }
 
 fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
