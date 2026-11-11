@@ -23,7 +23,8 @@ use directories::Directories;
 
 pub mod box_command;
 pub mod claude_code;
-pub mod commands;
+pub mod table;
+pub use table::{TABLE, TREE};
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
@@ -37,7 +38,6 @@ pub use temper_shell::link_file;
 pub mod open;
 mod program_login;
 pub use temper_engine_shell::setup;
-mod tui;
 mod tui_front;
 mod worker_half;
 use json::CONFIG_BYTES;
@@ -47,7 +47,15 @@ use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Usage(&'static commands::Row),
+    Overview,
+    Version,
+    Usage(&'static skein_shell::Command),
+    Claude {
+        program: OsString,
+        arguments: Box<[Box<[u8]>]>,
+    },
+    Relay,
+    ProgramChild,
     Init {
         directories: Directories,
         boxed: bool,
@@ -76,9 +84,6 @@ pub enum Command {
     },
     AgentList {
         configuration: PathBuf,
-    },
-    Tui {
-        address: Option<Box<[u8]>>,
     },
     TuiFront {
         address: Box<[u8]>,
@@ -121,39 +126,75 @@ fn prefixed(command: &str, why: &str) -> String {
     }
     lines
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment resolves standalone commands; temper-box's table will pass it"
-)]
-pub fn configure(args: impl Iterator<Item = OsString>) -> Result<Command, String> {
-    let arguments: Vec<Box<[u8]>> = args.map(|arg| Box::from(arg.as_bytes())).collect();
-    let working = std::env::current_dir().map_err(|why| why.to_string())?;
-    configure_with(&arguments, &skein_shell::environment(), working.as_os_str().as_bytes())
-}
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub fn configure_with(
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
 ) -> Result<Command, String> {
-    // smith's host half prefixes list launches with its selector.
-    let arguments = match arguments {
-        [flag, internal, list, ..]
-            if flag.as_ref() == b"--list" && internal.as_ref() == b"internal" && list.as_ref() == b"agent-list" =>
-        {
-            &arguments[1..]
-        }
-        _ => arguments,
-    };
-    let row = commands::find(arguments).ok_or_else(|| commands::unknown(arguments))?;
-    let arguments = &arguments[row.words.len()..];
-    if arguments.len() == 1 && arguments[0].as_ref() == b"--help" {
-        return Ok(Command::Usage(row));
-    }
-    configure_row(row, arguments, environment, working).map_err(|why| commands::refused(row, &why))
+    configure_as(b"temper-box", arguments, environment, working)
 }
+fn configure_as(
+    run_as: &[u8],
+    arguments: &[Box<[u8]>],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+) -> Result<Command, String> {
+    match TABLE.reach(run_as, arguments) {
+        skein_shell::Reached::Help => Ok(Command::Overview),
+        skein_shell::Reached::Version => Ok(Command::Version),
+        skein_shell::Reached::CommandHelp(command) => Ok(Command::Usage(command)),
+        skein_shell::Reached::Unknown(why) => Err(why),
+        skein_shell::Reached::Command(command, rest) => {
+            configure_command(command, rest, arguments, environment, working)
+        }
+    }
+}
+fn configure_command(
+    command: &skein_shell::Command,
+    rest: &[Box<[u8]>],
+    arguments: &[Box<[u8]>],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+) -> Result<Command, String> {
+    if command.reach == skein_shell::Reach::Words(&[]) {
+        return configure_box(arguments, environment, working);
+    }
+    configure_row(command, rest, environment, working)
+        .map_err(|why| temper_shell::table::refused(&TABLE, command, &why))
+}
+fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], working: &[u8]) -> Result<Command, String> {
+    let refused = |why: &str| temper_shell::table::refused(&TABLE, &table::BOX, why);
+    if arguments.first().is_some_and(|word| !word.starts_with(b"-")) {
+        return Err(TABLE.unknown(arguments));
+    }
+    let (directories, rest) =
+        directories::resolve(arguments, environment, working).map_err(|why| refused(&why.to_string()))?;
+    let no_tui_count = rest.iter().filter(|word| word.as_ref() == b"--no-tui").count();
+    if no_tui_count > 1 {
+        return Err(refused("invalid arguments"));
+    }
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect();
+    let (echo, rest) = box_command::echo(&rest, environment).map_err(|why| refused(&why))?;
+    let no_tui = no_tui_count == 1;
+    if rest.is_empty() {
+        return Ok(Command::Box { directories, echo, no_tui });
+    }
+    let mut words = rest.iter();
+    while let Some(word) = words.next() {
+        if word.as_ref() == b"--bundle" {
+            words.next();
+        } else if !word.starts_with(b"-") {
+            return Err(TABLE.unknown(arguments));
+        }
+    }
+    let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
+    let bundle = fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
+    Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
+}
+
 fn configure_row(
-    row: &commands::Row,
+    row: &skein_shell::Command,
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -161,14 +202,17 @@ fn configure_row(
     let invalid = || "invalid arguments".to_string();
     let os =
         |args: &[Box<[u8]>]| args.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect::<Vec<_>>();
-    match row.words {
-        [] => {
-            return match arguments {
-                [] => Ok(Command::Tui { address: None }),
-                [address] => Ok(Command::Tui { address: Some(address.clone()) }),
-                _ => Err(invalid()),
-            };
+    let words = match row.reach {
+        skein_shell::Reach::RunAs("git") => return Ok(Command::FakeGit { arguments: arguments.into() }),
+        skein_shell::Reach::RunAs("claude") => {
+            return Ok(Command::Claude { program: "claude".into(), arguments: arguments.into() });
         }
+        skein_shell::Reach::RunAs(_) => return Err(invalid()),
+        skein_shell::Reach::Words(words) => words,
+    };
+    match words {
+        ["--mcp-relay"] => return Ok(Command::Relay),
+        ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
         ["ctl"] => return Ok(Command::Ctl { arguments: os(arguments) }),
         ["help"] => return help::request(arguments).map(|request| Command::Help { request }).ok_or_else(invalid),
@@ -179,7 +223,7 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
-        ["internal", "agent-list"] => {
+        ["internal", "agent-list"] | ["--list", "internal", "agent-list"] => {
             return match arguments {
                 [configuration] => Ok(Command::AgentList { configuration: path(configuration).into() }),
                 _ => Err(invalid()),
@@ -192,7 +236,17 @@ fn configure_row(
             };
         }
         ["forge", _] | ["internal", "forge-child"] => {
-            return temper_engine_shell::forge::configure(row, arguments, environment, working).map(|command| {
+            let legacy = match words {
+                ["forge", "fetch"] => &forge::FETCH,
+                ["forge", "prepare"] => &forge::PREPARE,
+                ["forge", "run"] => &forge::RUN,
+                ["forge", "remove"] => &forge::REMOVE,
+                ["forge", "source"] => &forge::SOURCE,
+                ["forge", "sign-in"] => &forge::SIGN_IN,
+                ["internal", "forge-child"] => &forge::FORGE_CHILD,
+                _ => unreachable!("the table dispatches forge commands"),
+            };
+            return temper_engine_shell::forge::configure(legacy, arguments, environment, working).map(|command| {
                 match command {
                     forge::Command::Forge { directories, arguments, ssl_cert_file } => {
                         Command::Forge { directories, arguments, ssl_cert_file }
@@ -206,36 +260,12 @@ fn configure_row(
         _ => {}
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
-    let no_tui = row.words == ["box"] && rest.iter().any(|word| word.as_ref() == b"--no-tui");
-    let rest = if no_tui {
-        if rest.iter().filter(|word| word.as_ref() == b"--no-tui").count() != 1 {
-            return Err(invalid());
-        }
-        rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect()
-    } else {
-        rest
-    };
-    let (echo, rest) = if row.words == ["box"] {
-        if rest.iter().any(|word| word.as_ref() == b"--fake-backends") {
-            let (echo, _) = box_command::echo(&[], environment)?;
-            (echo, rest)
-        } else {
-            box_command::echo(&rest, environment)?
-        }
-    } else {
-        (temper_box_machine::host::Echo::None, rest)
-    };
     let rest = os(&rest);
-    match row.words {
+    match words {
         ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
-        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo, no_tui }),
-        ["box"] => {
-            let bundle = fake_backends::configure(&rest, working)?;
-            Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
-        }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
     }
@@ -243,8 +273,18 @@ fn configure_row(
 
 pub fn run(command: Command) -> Result<u8, String> {
     let exit = match command {
+        Command::Overview => {
+            print!("{}", TABLE.help());
+            return Ok(0);
+        }
+        Command::Version => {
+            print!("{}", TABLE.version_line());
+            return Ok(0);
+        }
+        Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments)),
+        Command::Relay | Command::ProgramChild => unreachable!("smith modes are dispatched by main"),
         Command::Usage(row) => {
-            print!("{}", commands::row(row));
+            print!("{}", TABLE.command_help(row));
             return Ok(0);
         }
         Command::Init { directories, boxed } => {
@@ -253,10 +293,10 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Serve { directories, boxed } => serve::run("temper", &directories, boxed, Some(&worker_half::Half))?,
         Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
             fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
-                .map_err(|why| prefixed("temper box", &why))?
+                .map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Box { directories, echo, no_tui } => {
-            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper box", &why))?
+            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => temper_worker_shell::agent::decoded(&configuration)
             .inspect_err(|why| {
@@ -299,7 +339,6 @@ pub fn run(command: Command) -> Result<u8, String> {
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
-        Command::Tui { address } => return Ok(tui::run(address, &Clock::new())),
         Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };

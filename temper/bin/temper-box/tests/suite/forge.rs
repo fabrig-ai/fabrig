@@ -465,7 +465,7 @@ fn forge_fetch_command() {
             command.arg("3");
         }
         let result = command.env("SSL_CERT_FILE", &root).current_dir(scratch.path()).output().expect("fetch command");
-        assert_eq!(result.status.code(), Some(1), "{row}");
+        assert_eq!(result.status.code(), Some(if row == "usage" { 2 } else { 1 }), "{row}");
         let expected_stdout =
             if row == "digest" { "fetched forgejo 0 of 3 bytes\nfetched forgejo 3 of 3 bytes\n" } else { "" };
         assert_eq!(result.stdout, expected_stdout.as_bytes(), "{row}");
@@ -511,7 +511,7 @@ fn forge_fetch_command() {
             }
             _ => unreachable!(),
         };
-        assert_eq!(result.status.code(), Some(1), "{row}");
+        assert_eq!(result.status.code(), Some(if row == "usage" { 2 } else { 1 }), "{row}");
         assert_eq!(result.stdout, expected_stdout.as_bytes(), "{row}");
         assert_eq!(String::from_utf8_lossy(&result.stderr), expected, "{row}");
         assert!(!file.with_file_name("forgejo.part").exists(), "{row}");
@@ -526,9 +526,10 @@ fn forge_fetch_command() {
         scratch.remove();
     }
     assert_eq!(
-        temper_box_shell::commands::COMMANDS
+        temper_box_shell::TABLE
+            .commands
             .iter()
-            .find(|row| row.words == ["forge", "fetch"])
+            .find(|row| row.reach == skein_shell::Reach::Words(&["forge", "fetch"]))
             .expect("fetch row")
             .forms,
         ["[DIRECTORIES] FORGE"]

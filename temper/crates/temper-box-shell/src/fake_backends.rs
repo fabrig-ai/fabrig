@@ -1,4 +1,4 @@
-//! Retained isolated startup for `box --fake-backends` (protocol/configuration/directories.md, 1).
+//! Retained isolated startup for `temper-box --fake-backends` (protocol/configuration/directories.md, 1).
 use crate::directories::jig_directories;
 mod import;
 pub(crate) mod json;
@@ -455,7 +455,7 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
 }
 fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clients) -> Result<PathBuf, String> {
     let instructions =
-        "run scripts/bundle.sh --loopback DIR && temper box --fake-backends --bundle BUNDLE (directory flags as usual)";
+        "run scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
     let path =
         path.ok_or_else(|| format!("application.clients.bundle: no provisioned loopback bundle; {instructions}"))?;
     let page = path.join("index.html");

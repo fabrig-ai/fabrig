@@ -23,7 +23,7 @@ pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
         about: "Show errors and a failed step's log, or every step's lines too.",
         fallback: skein_shell::Fallback::Text("none"),
         set: skein_shell::Set::Public,
-        twin: Some("TEMPER_ECHO"),
+        twin: None,
         notes: "",
     }],
 };
@@ -38,14 +38,7 @@ pub(crate) fn echo(
         b"none" => Echo::None,
         b"steps" => Echo::Steps,
         _ => {
-            let name = match value.origin {
-                skein_shell::Origin::Flag => "--echo",
-                skein_shell::Origin::Variable => "TEMPER_ECHO",
-                skein_shell::Origin::Default | skein_shell::Origin::Base | skein_shell::Origin::Home => {
-                    unreachable!("fixed echo fallback")
-                }
-            };
-            return Err(format!("{name}: expected none or steps"));
+            return Err("--echo: expected none or steps".into());
         }
     };
     Ok((echo, resolved.rest().into()))

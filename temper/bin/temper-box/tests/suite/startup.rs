@@ -535,7 +535,7 @@ fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
     document["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
     support::write_private(&path, &serde_json::to_vec(&document).expect("JSON"));
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
-    command.arg("box").args(support::configuration::flags(scratch.path()));
+    command.args(support::configuration::flags(scratch.path()));
     let ended = listeners::probe(command, address, "secret=");
     assert!(ended.ready.is_some(), "box ready: {:?}", ended.stderr);
     assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
@@ -550,13 +550,13 @@ fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
     let address = listener.local_addr().expect("unmatched address");
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
-    command.arg("box").args(support::configuration::flags(scratch.path()));
+    command.args(support::configuration::flags(scratch.path()));
     let ended = command.output().expect("box refusal");
     assert_eq!(ended.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(ended.stderr).expect("diagnostic"),
         format!(
-            "temper box: {}: inherited listener fd 3 at {address}: no step names this listener\n",
+            "temper-box: {}: inherited listener fd 3 at {address}: no step names this listener\n",
             scratch.path().join("temper.json").display()
         )
     );
@@ -574,7 +574,7 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             no_tui: true,
         }),
         Err(format!(
-            "temper box: configuration {}: absent; temper init writes one\n",
+            "temper-box: configuration {}: absent; temper init writes one\n",
             scratch.path().join("temper.json").display()
         ))
     );
@@ -585,7 +585,7 @@ fn a_box_configuration_missing_members_is_refused_one_line_each() {
     let scratch = support::Scratch::startup("box-members");
     assert_eq!(
         refused_box(&scratch, &serde_json::json!({})),
-        "temper box: engine: missing\ntemper box: workers: missing\ntemper box: application: missing\n"
+        "temper-box: engine: missing\ntemper-box: workers: missing\ntemper-box: application: missing\n"
     );
     scratch.remove();
 }
@@ -595,7 +595,7 @@ fn a_setup_naming_no_forge_refuses_the_box_before_it_starts() {
     let mut value = box_document(&scratch);
     value["application"]["setup"] = serde_json::json!([{ "forge":7 }]);
     value["application"]["setup"][0]["forge"] = 7.into();
-    assert_eq!(refused_box(&scratch, &value), "temper box: application.setup: unknown member\n");
+    assert_eq!(refused_box(&scratch, &value), "temper-box: application.setup: unknown member\n");
     assert!(!scratch.path().join("forge-7").exists());
     scratch.remove();
 }
@@ -606,7 +606,7 @@ fn a_box_maximum_backoff_below_its_base_is_refused() {
     value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 100.into();
     assert_eq!(
         refused_box(&scratch, &value),
-        "temper box: application.limits.overrides.box.backoff_ms: must agree with box.backoff_max_ms\n"
+        "temper-box: application.limits.overrides.box.backoff_ms: must agree with box.backoff_max_ms\n"
     );
     scratch.remove();
 }
@@ -617,7 +617,7 @@ fn a_box_maximum_backoff_reaching_its_window_is_refused() {
     value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 300_000.into();
     assert_eq!(
         refused_box(&scratch, &value),
-        "temper box: application.limits.overrides.box.backoff_max_ms: must agree with box.window_ms\n"
+        "temper-box: application.limits.overrides.box.backoff_max_ms: must agree with box.window_ms\n"
     );
     scratch.remove();
 }
@@ -628,7 +628,7 @@ fn a_box_restart_count_past_its_bound_is_refused() {
     value["application"]["limits"]["overrides"]["box.restarts"] = 65.into();
     assert_eq!(
         refused_box(&scratch, &value),
-        "temper box: application.limits.overrides.box.restarts: past its bound\n"
+        "temper-box: application.limits.overrides.box.restarts: past its bound\n"
     );
     scratch.remove();
 }
@@ -639,7 +639,7 @@ fn a_box_restart_count_outside_its_type_is_refused() {
     value["application"]["limits"]["overrides"]["box.restarts"] = 4_294_967_296_u64.into();
     assert_eq!(
         refused_box(&scratch, &value),
-        "temper box: application.limits.overrides.box.restarts: outside its type\n"
+        "temper-box: application.limits.overrides.box.restarts: outside its type\n"
     );
     scratch.remove();
 }
@@ -650,7 +650,7 @@ fn an_unknown_box_limit_is_refused() {
     value["application"]["limits"]["overrides"]["box.nope"] = 1.into();
     assert_eq!(
         refused_box(&scratch, &value),
-        "temper box: application.limits.overrides.box.nope: no limit of temper's has this name\n"
+        "temper-box: application.limits.overrides.box.nope: no limit of temper's has this name\n"
     );
     scratch.remove();
 }
@@ -1002,7 +1002,7 @@ fn every_command_checks_setup_before_reading_files() {
                 .expect("serve refused"),
         ),
         (
-            "box",
+            "temper-box",
             temper_box_shell::run(temper_box_shell::Command::Box {
                 directories: support::configuration::directories(scratch.path()),
                 echo: temper_box_machine::host::Echo::None,
@@ -1011,7 +1011,11 @@ fn every_command_checks_setup_before_reading_files() {
             .expect_err("box refused"),
         ),
     ] {
-        assert_eq!(refused, format!("temper {command}: {line}"), "{command}");
+        assert_eq!(
+            refused,
+            format!("{}: {line}", if command == "serve" { "temper serve" } else { command }),
+            "{command}"
+        );
     }
     for verb in ["prepare", "run"] {
         support::owned::refused(scratch.path(), verb, format!("temper forge {verb}: forge 1: {line}").as_bytes());
@@ -2307,7 +2311,7 @@ fn box_logs_must_hold_one_whole_record_and_tails_at_least_one_line() {
         document["application"]["limits"]["overrides"][format!("box.{name}")] = value.into();
         assert_eq!(
             refused_box(&scratch, &document),
-            format!("temper box: application.limits.overrides.box.{name}: past its bound\n")
+            format!("temper-box: application.limits.overrides.box.{name}: past its bound\n")
         );
         scratch.remove();
     }

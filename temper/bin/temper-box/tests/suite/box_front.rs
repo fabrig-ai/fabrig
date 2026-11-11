@@ -34,8 +34,8 @@ impl Terminal {
         reason = "cli C4: TERM and the child process environment, through temper's test table once it exists"
     )]
     fn start(root: &Path) -> Self {
-        let mut command = box_link::command(root, "box");
-        command.env("XDG_STATE_HOME", root.join("state")).env_remove("TEMPER_ECHO");
+        let mut command = box_link::command(root, "");
+        command.env("XDG_STATE_HOME", root.join("state"));
         if std::env::var_os("TERM").is_none() {
             command.env("TERM", "xterm-256color");
         }

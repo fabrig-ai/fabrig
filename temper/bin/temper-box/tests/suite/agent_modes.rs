@@ -76,15 +76,3 @@ fn the_binary_serves_smiths_agent_modes() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
-
-#[test]
-fn an_unknown_command_names_the_box_binary_and_refuses_with_one() {
-    let output = Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("bogus")
-        .stdin(Stdio::null())
-        .output()
-        .expect("box command refusal");
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
-    assert_eq!(output.stderr, b"temper-box: no command bogus; temper-box --help lists them\n");
-}

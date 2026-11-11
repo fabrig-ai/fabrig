@@ -162,7 +162,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
     let mut cargo = Command::new("cargo");
     cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper-box", "-p", "smith-fake-claude"]);
     if is_tui {
-        cargo.args(["--features", "temper-box-shell/record"]);
+        cargo.args(["-p", "temper-client", "--features", "temper-client-shell-tui/record"]);
     }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
@@ -182,6 +182,10 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result
     for name in ["temper-box", "fake-claude"] {
         fs::copy(target.join("debug").join(name), scratch.join(name))
             .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
+    }
+    if is_tui {
+        fs::copy(target.join("debug/temper-client"), scratch.join("temper-client"))
+            .map_err(|error| format!("cannot copy temper-client into {}: {error}", scratch.display()))?;
     }
     Ok(Paths { temper: scratch.join("temper-box"), bundle, chromium, scratch: scratch.to_owned() })
 }

@@ -33,7 +33,7 @@ pub const LLM_SETTINGS: Settings = Settings {
             about: "The fake LLM's JSON document.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_DOCUMENT"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -42,7 +42,7 @@ pub const LLM_SETTINGS: Settings = Settings {
             about: "Print PREFIX and the bound address once.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_READY"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -51,7 +51,7 @@ pub const LLM_SETTINGS: Settings = Settings {
             about: "The domain and credential seed, a decimal u64.",
             fallback: Fallback::Text("0"),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_SEED"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -60,7 +60,7 @@ pub const LLM_SETTINGS: Settings = Settings {
             about: "Create the LLM's JSON lines query stream.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_OBSERVATIONS"),
+            twin: None,
             notes: "",
         },
     ],
@@ -75,7 +75,7 @@ pub const FORGE_SETTINGS: Settings = Settings {
             about: "The fake forge's JSON document.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_DOCUMENT"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -84,7 +84,7 @@ pub const FORGE_SETTINGS: Settings = Settings {
             about: "Print PREFIX and the bound address once.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_READY"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -93,7 +93,7 @@ pub const FORGE_SETTINGS: Settings = Settings {
             about: "The domain and credential seed, a decimal u64.",
             fallback: Fallback::Text("0"),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_SEED"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -102,7 +102,7 @@ pub const FORGE_SETTINGS: Settings = Settings {
             about: "Create the forge's JSON lines observation stream.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_OBSERVATIONS"),
+            twin: None,
             notes: "",
         },
     ],
@@ -117,7 +117,7 @@ pub const OAUTH_SETTINGS: Settings = Settings {
             about: "The fake OAuth issuer's JSON document.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_DOCUMENT"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -126,7 +126,7 @@ pub const OAUTH_SETTINGS: Settings = Settings {
             about: "Print PREFIX and the bound address once.",
             fallback: Fallback::Text(""),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_READY"),
+            twin: None,
             notes: "",
         },
         Setting {
@@ -135,7 +135,7 @@ pub const OAUTH_SETTINGS: Settings = Settings {
             about: "The signed-in model credential seed, a decimal u64.",
             fallback: Fallback::Text("0"),
             set: skein_shell::Set::Internal,
-            twin: Some("TEMPER_SEED"),
+            twin: None,
             notes: "",
         },
     ],
@@ -178,18 +178,22 @@ pub struct Check {
 type Bytes = Box<[u8]>;
 type EnvironmentEntry = (Bytes, Bytes);
 pub(crate) fn configure(
-    row: &crate::commands::Row,
+    row: &skein_shell::Command,
     arguments: &[Bytes],
     environment: &[EnvironmentEntry],
     working: &[u8],
 ) -> Result<super::Command, String> {
-    let (kind, table) = match row.words {
-        ["fake", "git"] => return Ok(super::Command::FakeGit { arguments: arguments.into() }),
-        ["fake", "forge", "check"] => return check_command(arguments, environment, working),
-        ["fake", "llm"] => (Kind::Llm, &LLM_SETTINGS),
-        ["fake", "forge"] => (Kind::Forge, &FORGE_SETTINGS),
-        ["fake", "oauth"] => (Kind::Oauth, &OAUTH_SETTINGS),
-        _ => unreachable!("the command table dispatches fake rows"),
+    let (kind, table) = match row.reach {
+        skein_shell::Reach::Words(["fake", "git"]) => {
+            return Ok(super::Command::FakeGit { arguments: arguments.into() });
+        }
+        skein_shell::Reach::Words(["fake", "forge", "check"]) => return check_command(arguments, environment, working),
+        skein_shell::Reach::Words(["fake", "llm"]) => (Kind::Llm, &LLM_SETTINGS),
+        skein_shell::Reach::Words(["fake", "forge"]) => (Kind::Forge, &FORGE_SETTINGS),
+        skein_shell::Reach::Words(["fake", "oauth"]) => (Kind::Oauth, &OAUTH_SETTINGS),
+        skein_shell::Reach::Words(_) | skein_shell::Reach::RunAs(_) => {
+            unreachable!("the command table dispatches fake rows")
+        }
     };
     let resolved = skein_shell::resolve(table, arguments, environment).map_err(|why| why.to_string())?;
     let source = if resolved.value(0).origin == Origin::Default {
@@ -230,7 +234,7 @@ pub(crate) fn configure(
         .ok()
         .filter(|text| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
         .and_then(|text| text.parse::<u64>().ok())
-        .ok_or_else(|| "--seed N (TEMPER_SEED): expected a decimal u64".to_string())?;
+        .ok_or_else(|| "--seed N: expected a decimal u64".to_string())?;
     // skein/docs/design/runtime/shell.md 6.5 has no absent setting; Default alone means absent.
     // In particular --ready "" is a present, empty prefix.
     let ready = if resolved.value(1).origin == Origin::Default { None } else { Some(resolved.value(1).bytes.clone()) };

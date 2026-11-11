@@ -50,7 +50,6 @@ pub fn again(journeys: &Path, name: &str, paths: &Paths) -> Result<(), Refusal> 
     let mut args = vec![
         path_argument,
         paths.temper.clone().into_os_string(),
-        "box".into(),
         "--fake-backends".into(),
         "--bundle".into(),
         paths.bundle.clone().into_os_string(),

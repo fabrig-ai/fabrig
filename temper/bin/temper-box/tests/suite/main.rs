@@ -15,6 +15,7 @@ mod inbox_reply;
 mod ports;
 mod relay;
 mod startup;
+mod table;
 
 mod admission_edges;
 mod producer_policy;
