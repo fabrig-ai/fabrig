@@ -13,7 +13,7 @@ use skein_lib::{
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
-    pages::{chats, home},
+    pages::{all_home, chats, home},
 };
 use temper_client_view::{
     shared::{self, NeedMark},
@@ -64,7 +64,7 @@ pub(crate) struct Line {
     pub style: Option<Style>,
 }
 fn push(lines: &mut List<Line>, role: Role, words: &[u8], style: Option<Style>) {
-    lines.push(Line { role, words: copy_of(words), style }).expect("header has at most three lines");
+    lines.push(Line { role, words: copy_of(words), style }).expect("launchpad lines fit their header or brief bound");
 }
 fn project(root: &Domain, me: &c::Me) -> Option<u32> {
     match root.pages().address() {
@@ -108,23 +108,12 @@ fn name(me: &c::Me, number: u32) -> Option<Box<[u8]>> {
     }
     None
 }
-fn left_off(
-    root: &Domain,
-    project: u32,
-    me: &c::Me,
-    words: &Words,
-    wall: Wall,
-    tick: &mut Option<Wall>,
-) -> List<LeftOff> {
+fn left_off(root: &Domain, me: &c::Me, words: &Words, wall: Wall, tick: &mut Option<Wall>) -> List<LeftOff> {
     let mut lines = List::with_capacity(3);
-    let tasks = match root.pages().chats() {
-        Some(chats) => chats.live(root.client()),
-        None => None,
-    };
+    let Some(reads) = root.pages().left_off() else { return lines };
+    let tasks = reads.chats(root.client());
     let mut goal: Option<&c::TaskLine> = None;
-    if let Some(goals) = root.pages().goals()
-        && let Some(tasks) = goals.live(root.client())
-    {
+    if let Some(tasks) = reads.goals(root.client()) {
         for row in &tasks.rows {
             if row.requester != c::Requester::Person(me.party.number) || chats::ended(&row.chip) {
                 continue;
@@ -153,7 +142,7 @@ fn left_off(
         }
         if let Some(tasks) = tasks {
             for row in &tasks.rows {
-                if row.project != project || chats::ended(&row.chip) {
+                if chats::ended(&row.chip) {
                     continue;
                 }
                 if let Some(previous) = previous
@@ -202,37 +191,44 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
     if root.pages().address() != &(Address::Home { project }) {
         return;
     }
-    let facts = home::facts(root, project, wall);
-    if !part.playground {
-        if let Some(brief) = facts.brief() {
-            push(&mut part.lines, Role::Paragraph, brief.sentence(), None);
-            let (clock, tick) = words.view().time(TimeForm::Clock, Wall::from_nanos(brief.at()), wall);
+    let facts = all_home::facts(root, wall);
+    if !part.playground && facts.needs != home::Needs::Unknown {
+        let (headline, tick) = shared::all_home_headline(words.view(), &facts, wall);
+        push(&mut part.lines, Role::Paragraph, &headline, None);
+        part.tick = tick;
+        if let Some(brief) = all_home::brief(&facts) {
+            push(&mut part.lines, Role::Paragraph, &shared::joined_brief(words.view(), &brief), None);
+            let (clock, tick) = words.view().time(TimeForm::Clock, brief.at, wall);
             part.tick = [part.tick, tick].into_iter().flatten().min();
             let byline = words.say(Word::Byline, &[Hole::Name(clock)]);
-            let more = if brief.lede().is_empty() { Box::default() } else { words.say(Word::BriefMore, &[]) };
-            push(&mut part.lines, Role::Paragraph, &concat(&[&byline, &more]), Some(look::BYLINE));
+            push(
+                &mut part.lines,
+                Role::Paragraph,
+                &concat(&[&byline, &words.say(Word::BriefMore, &[])]),
+                Some(look::BYLINE),
+            );
             if shown {
-                for line in [brief.sentence(), brief.lede(), &byline] {
-                    push(&mut part.brief, Role::Paragraph, line, Some(look::NOTE));
+                for line in &brief.lines {
+                    for project in &facts.projects {
+                        if project.project == line.project
+                            && let home::Status::Shown(document) = &project.status
+                            && let Some(brief) = document.brief()
+                        {
+                            push(
+                                &mut part.brief,
+                                Role::Paragraph,
+                                &concat(&[&line.name, b": ", brief.sentence()]),
+                                Some(look::NOTE),
+                            );
+                            push(&mut part.brief, Role::Paragraph, brief.lede(), Some(look::NOTE));
+                        }
+                    }
                 }
-            }
-        } else {
-            match facts.needs {
-                home::Needs::Unknown => {}
-                home::Needs::Count { .. } => {
-                    let (line, tick) = shared::home_headline(
-                        words.view(),
-                        part.project.as_deref().expect("project has a name"),
-                        &facts,
-                        wall,
-                    );
-                    push(&mut part.lines, Role::Paragraph, &line, None);
-                    part.tick = tick;
-                }
+                push(&mut part.brief, Role::Paragraph, &byline, Some(look::NOTE));
             }
         }
     }
-    part.left_off = left_off(root, project, me, words, wall, &mut part.tick);
+    part.left_off = left_off(root, me, words, wall, &mut part.tick);
     let mut needs = List::with_capacity(5);
     for prompt in shared::need_prompts(root, words.view()).into_iter().take(5) {
         let project = match prompt.project {
@@ -267,11 +263,11 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         },
         address: crate::place(tui.address(), tui.front()),
         playground: front::playground(root, number),
-        lines: List::with_capacity(3),
+        lines: List::with_capacity(4),
         left_off: List::with_capacity(3),
         selected: tui.left_off(),
         needs: Box::default(),
-        brief: List::with_capacity(3),
+        brief: List::with_capacity(9),
         columns: tui.columns(),
         notes: foot::read_notes(root, tui, words),
         tick: None,

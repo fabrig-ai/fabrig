@@ -212,9 +212,13 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         paused,
         session,
         launchpad: chat.is_none(),
-        needs: match project {
-            Some(project) => root.pages().needs().count(root.client(), root.forge().approvals(), project),
-            None => Count::default(),
+        needs: if chat.is_none() {
+            root.pages().needs().count_across(root.client(), root.forge().approvals())
+        } else {
+            match project {
+                Some(project) => root.pages().needs().count(root.client(), root.forge().approvals(), project),
+                None => Count::default(),
+            }
         },
         closed: if project.is_some() && root.pages().choice().context.is_some() {
             Some(shared::closed_line(root, task, words.view()))

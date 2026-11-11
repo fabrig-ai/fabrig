@@ -1,11 +1,13 @@
 ╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 3 changes landed overnight.                                                  │
-│                                   written by the status agent 07:42 · /brief │
+│ 4 changes landed across two projects. One thing needs you.                   │
+│ shop: Coupons are two of three in. Hello: csv-export is two of three tasks   │
+│ in; one waits on you.                                                        │
+│                                   written by the status agent 08:00 · /brief │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Where you left off
-   Hello   Away mode, a chat · today 08:12 · waiting on you            /chats 1
-   Hello   csv-export, a goal · today 07:42 · Working
+   shop    Away mode, a chat · today 08:12 · waiting on you            /chats 1
+   shop    csv-export, a goal · today 07:42 · Working
 
  Needs you
    ? Hello   csv-export: comma or semicolon? · asked 20 min ago    n walks them
@@ -16,14 +18,14 @@
    /ask      Ask temper
 
 
-
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
  Hello · Claude Opus 5.5 · high · ● Live                1 needs you · n to walk
 --
 aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
+a..............................................................................a
+a..............................................................................a
 a..............................................................................a
 a...................................dddddddddddddddddddddddddddddddddddddddddd.a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -39,8 +41,6 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ...ccccccccccdddddddddddddddddddddddddddddddddddddddddddddddd...................
 ...ccccccccccddddddddddddddddddddddddddddddddddd................................
 ...ccccccccccdddddddddd.........................................................
-................................................................................
-................................................................................
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
