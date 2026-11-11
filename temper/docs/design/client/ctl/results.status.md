@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [results.md](results.md).
 
-- **Not yet:** 1: a removal's outcome, `removed: project 3, fabrig`, and its kept form, `kept: remove-project, removed: project 3`; a kept removal prints `done: remove-project`, numberless (`render/outcome.rs`, `done_text`) [in flight: change 35].
+- **Not yet:** 1: a removal's outcome, `removed: project 3, fabrig`, and its kept form, `kept: remove-project, removed: project 3`; a kept removal prints `done: remove-project`, numberless (`render/outcome.rs`, `done_text`).
 
 - **Not yet:** 3: the accepted `core-after-project` not-ready watch
   refusal and ctl deadline diagnostic are absent. Jig has no

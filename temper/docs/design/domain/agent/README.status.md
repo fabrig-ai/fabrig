@@ -7,8 +7,7 @@
   recorded in the change (`temper-engine-domain-forge/src/domain.rs`,
   `lost_read`), so a repair's or a resolution's next brief, a goal's
   landing's among them, fails `the change's head moved`; only a head the
-  answer reports is recorded (`answered`, `record_delegate_head`)
-  [in flight: change 67].
+  answer reports is recorded (`answered`, `record_delegate_head`).
 
 `tools.md`'s `decided`, `agents.md`, 1, and `ask-temper.md`, 1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone
@@ -140,7 +139,7 @@ Stock and reference instructions remain separate work (`README.md`, section 8 an
 - **Not yet:** `agents.md`, *A coordinator hears its changes while it
   designs*: the coordinator-result gap remains `agents.status.md` (Not yet,
   A coordinator hears its changes while it designs); smith's offer between
-  two completions is built [in flight: change 100].
+  two completions is built.
 `tools.md` has no known implementation gap in task and forge reads
 fitting to the live attempt's worker reply bound, else the local agent's.
 Task reads use `documents.text_bytes` where neither names a bound; forge

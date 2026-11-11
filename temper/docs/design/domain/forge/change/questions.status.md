@@ -4,7 +4,7 @@
 
 - **Not yet:**
   - 2, *Who can still sign*: an `approvals` row has no `signed`,
-    `can_sign` or `can_sign_more` [in flight: change 847].
+    `can_sign` or `can_sign_more`. [in flight: change 847]
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
   -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.
   - `README.md`, 2, step 3: the base-first deployment proof remains `README.status.md`, 2, step 3.

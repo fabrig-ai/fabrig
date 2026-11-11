@@ -5,4 +5,4 @@
 - **Not yet:** *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts, is no role, and a
   role's `who` says when it runs alone, not what it does, its charter's
-  words or its instructions' first sentence [in flight: change 314].
+  words or its instructions' first sentence.

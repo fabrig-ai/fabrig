@@ -30,7 +30,7 @@ does. temper's `temper-box` and `temper-engine` are the first binaries on
 a table (`temper/docs/design/cli/README.md`); temper's others are the
 milestones C3 to C8 of `temper/docs/design/draft/cli.execution.md`.
 
-- **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown` [in flight: change 86].
+- **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup.
