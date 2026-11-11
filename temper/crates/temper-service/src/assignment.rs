@@ -332,7 +332,10 @@ mod tests {
             },
         ];
         let messages = messages(1, &words);
-        assert_eq!(messages[0].sender.as_ref(), b"2 asks (question 4)");
+        assert_eq!(
+            messages[0].sender.as_ref(),
+            b"2 asks (question 4; answer with message target=2, form=answer, question=4)"
+        );
         assert_eq!(messages[0].words.as_ref(), b"The plan?");
         assert_eq!(messages[1].sender.as_ref(), b"1 answers question 4");
         assert_eq!(messages[1].words.as_ref(), b"Approved.");
