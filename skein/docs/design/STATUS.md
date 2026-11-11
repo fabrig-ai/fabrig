@@ -30,8 +30,6 @@ The forge kit's targeted reads are designed and not built: `Range` for
 containment and emptiness, `Item`'s `since`, `PullFor`'s `head` and `base`
 filters and branch names bounded by bytes
 (`forge/README.md`, `forge/github.md`, `forge/client.md`, `testing/fakes/forge.md`).
-GitHub's review and pull-file pages stay sized for their largest row, as
-its dialect designs them (`forge/github.md`).
 No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`runtime/shell.md`). json, tls and http's collector have no fuzz target
 (`data/json.md`, `net/tls.md`, `http.md`). A few items lag in `runtime/lib.md`,
 `examples.md`, `forge/setup/README.md`, `data/kv.md` and `ui/README.md`, and the LLM live
@@ -105,8 +103,7 @@ kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
 later review (`forge/README.md`); single departures stand in
 `net/channel.md`, `testing/fakes/forge.md`, `forge/README.md`, `forge/connection.md`, `runtime/io/README.md`,
 `data/json.md`, `data/kv.md`, `runtime/lib.md`, `net/link.md`, `llm/README.md`, `oauth/README.md`, `runtime/shell.md`,
-`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's loader draws no words for a
-stall before its module's answer, its compressor's crates build optimized in
+`testing/README.md`, `ui/README.md` and `ui/web/README.md`. The bundler's compressor's crates build optimized in
 development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui/web/README.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
@@ -117,9 +114,9 @@ its checks' exceptions and the `expect`s naming a round or milestone
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
-`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts, `component-kit.md` waits on
-`runtime/lib.md` and `runtime/io/README.md` to name its items, the design departs from
-`redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
+`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts,
+`component-kit.md` leaves the forwarding `Host` and component-kit role open,
+the design departs from `redb.md`: the store is `data/kv.md`'s own machine, and `progress-value.md`'s
 status holds a departure the user has not answered, a progress's text
 as runs of its own.
 

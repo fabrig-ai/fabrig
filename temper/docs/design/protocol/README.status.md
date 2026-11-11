@@ -8,16 +8,15 @@ dispatch, the launcher and the substitution `temper-launcher`'s, and
 `--version` from `temper-version`, with no build script of its own
 (`crates/temper-agent-shell`'s tests, and its package's suite at
 `bin/temper-agent`). Its parser
-table and twenty-row suite cover its forms, refusals and modes. `binaries.md`, 1's
-two closure tests are present, each with its row, and `components.md`'s
-crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since
+table and twenty-row suite cover its forms, refusals and modes. The engine's and the
+agent's rows of `binaries.md`, 4's closure test hold, and `components.md`'s
+crates hold them: the engine's, since
 `temper-fetch-shell` links no smith crate and the forge's setup links
-no launcher; and `closure.rs`'s `temper-agent` row, `binaries.md`, 4's seven temper
+no launcher; and the agent's, its row's temper
 crates, no jig crate and no exception, since `temper-shell` links
 skein's crates and `temper-docs` alone and jig's form of the three
 directories is `temper-service-shell`'s `jig_directories`, which the
-box's `temper_box_shell::directories` re-exports. The client's and the worker's
-rows remain M5's. `README.md`, section 5's model-list launch uses the worker's named
+box's `temper_box_shell::directories` re-exports. `README.md`, section 5's model-list launch uses the worker's named
 agent program, with the box's `internal agent-list AGENT.json` or the
 deployment's `AGENT.json` arguments, and smith's `--list` before them
 (`temper-service/src/worker.rs`, `list_launch`). The service's

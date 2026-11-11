@@ -1,4 +1,4 @@
-use super::{HELP, commands_page, help, refused};
+use super::{HELP, commands_page, commands_reference, help, refused};
 use skein_shell::{Argument, Command, Reach, Set, Table};
 
 const PUBLIC: Command = Command {
@@ -94,4 +94,78 @@ fn commands_page_keeps_the_reference_shape_and_sets_order() {
     assert!(page.find(public) < page.find(internal));
     assert!(page.contains("\n## temper-demo\n\n`temper-demo`\n"));
     assert!(page.contains("\n## run as git\n\n`git`\n"));
+}
+
+#[test]
+fn commands_reference_names_each_binary_and_shares_equal_rows() {
+    const RUN_AS: Command = Command { reach: Reach::RunAs("git"), ..INTERNAL };
+    const FIRST: Table =
+        Table { binary: "first", line: "The first binary.", commands: &[INTERNAL, PUBLIC, RUN_AS], ..DEMO };
+    const SECOND: Table = Table {
+        binary: "second",
+        line: "The second binary.",
+        commands: &[RUN_AS, Command { line: "Run a different child.", ..INTERNAL }, PUBLIC],
+        ..DEMO
+    };
+    assert_eq!(
+        commands_reference(&[&FIRST, &SECOND]),
+        "# temper's commands
+
+Kind: reference
+
+Every command of temper's binaries, a section each: its usage, what it does, its arguments and its notes. A command two binaries share is written under the first and named under the others.
+
+## first
+
+The first binary.
+
+### first show
+
+`first show NAME`
+
+`first show --all`
+
+Show one item or all items.
+
+- `NAME`: The item to show.
+
+Reads no store.
+
+### first internal child
+
+`first internal child`
+
+Run a child. Internal: it may change without notice.
+
+### run as git
+
+`git`
+
+Run a child. Internal: it may change without notice.
+
+## second
+
+The second binary.
+
+### second show
+
+`second show NAME`
+
+`second show --all`
+
+As first show, above.
+
+### run as git
+
+`git`
+
+As first's run as git, above.
+
+### second internal child
+
+`second internal child`
+
+Run a different child. Internal: it may change without notice.
+"
+    );
 }

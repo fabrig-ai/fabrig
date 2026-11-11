@@ -331,6 +331,17 @@ impl Cluster {
                 .collect(),
         }
     }
+    /// Render the engine alone for a client story, without starting its peers or rendering workers.
+    #[must_use]
+    pub fn engine_alone(scratch: &Path) -> PathBuf {
+        let mut cluster = Self::description(scratch);
+        // These peers are unused by sign-in and me; the engine still reads its LLM trust file.
+        cluster.bind("proc.forge.ready.address", "127.0.0.1:3");
+        cluster.bind("proc.llm.ready.address", "127.0.0.1:1");
+        super::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
+        cluster.render_files("engine");
+        cluster.dir("engine")
+    }
     /// Render the documents without a process or cgroup probe, with explicit ready captures.
     #[must_use]
     pub fn documents(scratch: &Path, captures: &[(&str, &str, &str)]) -> Self {

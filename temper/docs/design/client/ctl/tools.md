@@ -14,16 +14,17 @@
   help [GROUP [VERB]]`, the JSON of arguments and results, and the tool
   names the pages may use (`testing.md`, 5). A test checks that each derivation
   names every tool. Its lines and notes are documentation, in the voice
-  of `../../draft/agent-docs.md`, section 6.
+  of `../../protocol/documentation.md`, section 2.3.
 - **A call is a value:** a tool's name and its arguments, decoded from
   argv or from JSON and checked against the table before anything is
   sent. The runner takes a call and gives back its result; the host
   interprets neither.
-- **A tool's name is its words** (`../../draft/agent-docs.md`, 7.2): a
-  group, one of the map's nouns (`task`, `chat`, `goal`, `change`,
+- **A tool's name is its words:** a group, one of the map's nouns
+  (`task`, `chat`, `goal`, `change`,
   `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
   `repository`, `playground`, `hold`, `landing`, `finding`, `qa`, and
-  area 3's `project`, `party` and `deployment`), then a verb of the closed vocabulary, `task show`; or
+  area 3's `project`, `party` and `deployment`; `../../protocol/documentation.md`,
+  2.4), then a verb of the closed vocabulary, `task show`; or
   one of the six names of the client and the party, `me`, `inbox`,
   `sign-in`, `sign-out`, `pending` and `help`. A read of a part of the
   group's noun is the part's name: `task tree`, `task run`, `task
@@ -31,8 +32,9 @@
   `qa marks`, `qa passes`. `help GROUP` lists a
   group's rows; `--call`'s `tool` is the name's words, one space
   between (`README.md`, 6.1).
-- **One vocabulary of placeholders** shows the arguments, in the usage
-  and in the pages alike (`../../draft/agent-docs.md`, section 5): `TASK`,
+- **The table's vocabulary of placeholders** shows the arguments in
+  the usage; written pages use `../../protocol/documentation.md`, 2.1.
+  The table's `shown` names are `TASK`,
   `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `PROVIDER`, `ADAPTER`,
   `SOURCE`, `POSITION`, `NAME` (a program source's), `HOLD` (a placed
   hold's number), `LANDING`, `FINDING`, `REVISION` (a
@@ -43,8 +45,7 @@
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
-  `REASON`, `KEY`. The table's `shown` names are these; a step test refuses any
-  other.
+  `REASON`, `KEY`. A step test refuses any other `shown` name.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one
   (jig's `domain/model.md`, 6.1), so an argument is a number or a name,

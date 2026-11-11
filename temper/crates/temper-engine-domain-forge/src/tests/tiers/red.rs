@@ -96,7 +96,7 @@ fn run(d: &Domain) -> api::Run {
     run
 }
 fn read(d: &Domain) -> Token {
-    *d.tier_ops.reads.iter().find(|(_, key)| key == &&(REPO, TIER.into())).expect("pending red read").0
+    *d.tier_ops.reads.iter().find(|(_, key)| key.tier == (REPO, TIER.into())).expect("pending red read").0
 }
 fn respond(d: &mut Domain, answer: Result<api::Answer, api::Error>) -> Box<[Request]> {
     let owner = read(d);
@@ -371,14 +371,11 @@ fn cancelling_during_log_reads_discards_the_pending_news() {
     tier_step(&mut d, RELEASE, false);
     let owner = read(&d);
     let run = run(&d);
-    let out = outputs(
-        &mut d,
-        Event::StepTier { task: TIER_TASK, entry: RELEASE + 1, heard: TierHeard { released: false, cancelled: true } },
-    );
+    let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
     let mut late = Queue::uncapped();
     crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Run(run)), &mut late);
     assert!(news(&out).is_empty());
     assert!(collect(late).is_empty());
-    assert!(d.tier_ops.reads.is_empty());
-    assert!(row(&d).record.run.is_none());
+    assert!(row(&d).task.is_none());
+    assert_eq!(row(&d).record.sequence, 1);
 }

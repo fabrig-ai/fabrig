@@ -66,6 +66,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   replayed natively through the shipped host and printed as the
   client's pages, where the look is tuned and kept current by a test
   (`journeys.md`).
+- **Look requests** carry the person's changes from the prints into a
+  landing, an account and an after-landing render check (`look-requests.md`).
 
 ## 2. What temper brings to the browser
 
@@ -634,7 +636,7 @@ without it.
 - **The two-step Home and night comparison** (`look.md`, `gallery.md`, 2): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` after
   landing, including their named states, open menus and disclosures at
-  1440, 1000 and 420 px (`../../draft/look-requests.md`, section 4).
+  1440, 1000 and 420 px (`look-requests.md`, section 4).
   Include `home-begin-*`, Home with a need and a chat left out with
   either step left, and their return after the last step or a skip.
   Check Ask temper's restricted rail, its three tabs at 420 with the
@@ -655,7 +657,7 @@ without it.
   "T9 · Ask temper", and at 420 px as "Ask temper" alone, with the
   spend paragraph still hidden. Include the first-run states' rail row
   and phone tab, and reference chats without a false Ask temper tag or
-  current row (`../../draft/look-requests.md`, section 4). Default: the
+  current row (`look-requests.md`, section 4). Default: the
   stylesheet and gallery fixtures; their checks establish no rendered
   equality. The Ask page's secondary heading, "How should temper run
   Hello?", stays until a later look round with the user.
@@ -676,7 +678,7 @@ without it.
   ; `../forge/served.md`, 1; `../../protocol/sign-in.md`, 4.3): temper/ui
   compares the look request `outside-pages`'s pages 01 to 10 under their
   overlay with the reprint after landing, at 1440, 1000 and 420 px
-  (`../../draft/look-requests.md`, section 4), with the states its message
+  (`look-requests.md`, section 4), with the states its message
   names in words: the top bar while `me` is read, offline and behind; the
   public pages' "Sign in"; every approval state, deciding and signed out
   with and without Google; each `Authorize` state; out of date; no
@@ -696,7 +698,7 @@ without it.
   ): temper/ui compares the four `chat-terminal` requests' pages,
   rules and named states with the nine gallery states and live page
   after landing, at 1440, 1000 and 420 px, with menus and disclosures
-  open (`../../draft/look-requests.md`, sections 4 and 5). Include dark
+  open (`look-requests.md`, sections 4 and 5). Include dark
   and light, both fonts, phone Split, a draft being written, tables,
   changed-section flash, the figure, questions, proposals, delegations
   and failures. Include the phone Split conversation and composer's dark
@@ -722,7 +724,7 @@ without it.
 - **Settings, Models comparison** (`look.md`; `../pages/README.md`): temper/ui owns
   page 07 of `model-picker` beside the shipped page, its named states and
   screenshots at 1440, 1280, 1000 and 420 px after landing
-  (`../../draft/look-requests.md`, section 4). Default: host view and client
+  (`look-requests.md`, section 4). Default: host view and client
   world checks; compilation alone establishes no rendered equality.
   Include Provider's select chevron, the add form's single row and the
   Provider and Add headings. The shared Settings H1 and open project
@@ -737,7 +739,7 @@ without it.
 - **The connect-flows proof** (`look.md`, `testing.md`, 6): temper/ui owns the comparison
   of request pages 01–23 with main, at 1440, 1000 and 420 px with
   disclosures and menus open, and screenshots also at 1280 px
-  (`../../draft/look-requests.md`, 4). The retained browser stories check
+  (`look-requests.md`, 4). The retained browser stories check
   Accounts return/history and sheet scroll, search, adoption and phone
   geometry; they do not compare all request pages. Default: findings
   after landing, with a passing repaired-story run and the unchanged

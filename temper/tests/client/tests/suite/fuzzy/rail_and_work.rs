@@ -59,7 +59,6 @@ fn rail_oracle(facts: &rail::Facts) -> rail::Parts {
         parts.needs_you = false;
         parts.work = false;
         parts.team = false;
-        parts.how = false;
         parts.new = rail::New::Hidden;
     }
     parts

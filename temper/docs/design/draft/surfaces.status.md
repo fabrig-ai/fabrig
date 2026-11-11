@@ -3,20 +3,6 @@
 2026-11-11. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
-  - 2: `../client/view.md`, 3, *While To begin shows*, keeps the rail
-    to "Home" and "Ask temper", with no hairline and no "How work runs",
-    where this section, redrawn after the plan `ui-p1-rail` was cut, adds
-    both (`pair/first-run.html`); and 3.5, *To begin*'s card and *The
-    work's account and model*'s All models still send the person to
-    Settings, which the rail
-    no longer names: "they stay in Settings and Ask temper", "it stays in
-    Settings" and "Choose what the list shows, in Settings". On a page
-    across projects the rail's "Needs you" counts
-    the open project's needs, where this section counts across what it
-    shows (`surfaces.md`, sections 3 and 4); under All projects the rail's "Home" and
-    "Needs you" open the open project's pages (5.3, *All projects*),
-    where `surfaces.md`, section 1 has both read every project and this section makes
-    only Work, Team and How work runs a project's.
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who
@@ -27,15 +13,8 @@
     you" lede, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
-    A need's why ends with "Stop asking" alone, which opens the offers
-    and "Keep asking" under the line (*Why it reached you*, *Stop
-    asking*), where this section and `needs.html` put "Keep asking" and
-    the narrower rule, "Stop asking: let goals decide …", on the line
-    itself; and a path set's why names the set, not its paths. Its
-    **Only you** draws an item's from line in the mono, its question at
-    19 px and the card's gap at 12, where `needs.html` has `.from` in the
-    sans, `.q` at 16.5 px and `.card`'s gap at 10; and its question names
-    the source as Accounts does, "Your Claude Code login NAME is
+    A path set's why names the set, not its paths. Its
+    **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).
@@ -137,6 +116,24 @@
     the act "Sign in again", where `needs.html` has "Sign in", so that the
     act says what its question asks, as the run wait's link to Accounts
     does (5.5, *A run's wait*). Decided by the cut of `ui-n3a-only`.
+  - 4 and 13: `../client/pages/needs-you.md`, 1, *Stop asking*, words a
+    need's narrower rule "Stop asking: let agents decide …", where this
+    section and `needs.html` have "let goals decide …", and
+    `../client/pages/home.md`, 1, *Decided for you*, keeps Needs you's
+    head "for 24 hours, then in each task's history", where `needs.html`
+    has "each goal's history": a project's classes and its Decided rows
+    are any task's, a chat's and a delegate's as well as a goal's, so the
+    narrowed table lets every agent of the project decide. A set's rule
+    reads "some changes to NAME", since the person words the narrowing
+    once it opens and nothing gives `needs.html`'s "fixes that keep the
+    wire format" before. Decided by goal 367's design, 2026-11-11.
+  - 4, 10 and 13: `../client/pages/needs-you.md`, 1, *Stop asking*,
+    draws a need's reason line on a phone as on a wide page, its sentence
+    then "Keep asking" and the narrower rule, where `phone-need.html` has
+    a short form, "Protocol core always asks you." and "Stop asking"
+    alone: the page is one tree at every width, and no design gives a
+    short form's words for each reason. Decided by goal 367's design,
+    2026-11-11.
   - 11.1, 13 and 15: `../client/tui/pages.md`, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and

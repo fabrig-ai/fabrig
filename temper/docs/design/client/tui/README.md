@@ -496,7 +496,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   refines the look on them
   (`journeys.md`, sections 9 and 10), and the look requests
   `tui-launchpad` and `tui-chat-title-below` are checked against them
-  (`../../draft/look-requests.md`, sections 4 and 5). Simulated closing, client-world
+  (`../web/look-requests.md`, sections 4 and 5). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
 - **The TUI in front of a box after landing** (`box.md`): run `temper box`
@@ -504,7 +504,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   and given back, Ctrl+C with and without work, a restart and a give up
   on the quiet line, `/log`, and the welcome's link copied whole from
   its wrapped rows; the look request `tui-box-front` is checked against
-  its frames, the light theme among them (`../../draft/look-requests.md`,
+  its frames, the light theme among them (`../web/look-requests.md`,
   sections 4 and 5). The user's requests of 2026-11-09 are checked
   there too, in emacs vterm at 150 by 39 on a brand-new box: keys typed
   on the welcome before the sign-in lands drawn at once and kept, Enter

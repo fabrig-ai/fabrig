@@ -6,26 +6,39 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
 
 ## Before you start
 
-- **Two hosts:** `engine`, which faces the world (the proxy, the
-  engine, Forgejo), and `worker` (the worker, Forgejo's runner), joined
-  by WireGuard. On `engine`, a service user `temper`, home
-  `/var/lib/temper` (0700, no login shell): `CONFIG`, `DATA` and
-  `CACHE` are its `config/`, `data/` and `cache/`.
-- **Two names,** one for temper and one for Forgejo, here
-  `temper.example.com` and `git.example.com`.
-- **Google's client:** a project whose OAuth consent is in Testing,
-  your members its test users, the scopes `openid`, `email` and
-  `profile`; a Web application client whose one redirect URI is
+- **Two hosts:** `engine` (public proxy, engine, Forgejo) and `worker`
+  (worker, Forgejo's runner), joined by WireGuard. On `engine`, user
+  `temper`, home `/var/lib/temper` (0700, no login shell): `CONFIG`,
+  `DATA`, `CACHE` are its `config/`, `data/`, `cache/`.
+- **Names:** `temper.example.com` for temper, `git.example.com` for Forgejo.
+- **Google's client:** OAuth consent in Testing, members its test users,
+  scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
   `https://temper.example.com/sign-in/google/return`.
-- **The binary,** built at the commit you deploy, with its browser:
-  `TEMPER_INTERNAL_BUNDLE=embed cargo build --release --locked -p temper-box`,
-  which needs Rust's `wasm32-unknown-unknown` target; copy
-  `target/release/temper-box`, `docs/examples/owned.json` and
-  `docs/examples/owned/` of the same commit to both hosts.
+- `COMMIT`: the build's twelve hex digits. Use one commit's set on both
+  Linux x86-64 hosts: on `engine`, `temper-engine` and `temper` (the
+  client, for ctl); on `worker`, `temper-worker` and `temper-agent`.
+  Set `binaries='temper-engine temper'` on `engine`, or
+  `binaries='temper-worker temper-agent'` on `worker`, then on each:
+
+```
+set -e; set -o pipefail
+mkdir -p COMMIT/Linux-x86_64
+cd COMMIT
+curl -fLO https://fabrig.ai/temper/v0/COMMIT/SHA256SUMS
+curl -fLO https://fabrig.ai/temper/v0/COMMIT/examples.tar.gz
+for name in $binaries; do curl -fL https://fabrig.ai/temper/v0/COMMIT/Linux-x86_64/"$name" -o Linux-x86_64/"$name"; done
+sha256sum -c --ignore-missing SHA256SUMS
+for name in $binaries; do cat Linux-x86_64/"$name" | gunzip | sudo tee /usr/local/bin/"$name" > /dev/null; sudo chmod 0755 /usr/local/bin/"$name"; done
+tar -xzf examples.tar.gz --strip-components=3
+```
+
+Binaries are gzipped without a suffix; keep this layout for checksums. Stripping the archive's
+`temper/docs/examples/` prefix leaves `owned.json` and `owned/`.
 
 ## 1. Write the engine's configuration
 
-In `CONFIG/temper.json`, change these from `owned.json`:
+Copy the unpacked `owned.json` to `CONFIG/temper.json` and `owned/`'s
+files to `CONFIG/`; change these:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
@@ -58,23 +71,17 @@ For Forgejo sign-in through temper, add
 to run once after step 4:
 
 ```
-temper-box forge sign-in --config CONFIG --data DATA --cache CACHE 1
+temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
-`engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, budgets
-held transcripts and turns, never process memory. At or past it, due tasks
-wait to start runs until earlier runs reach a worker and their turns are
-saved, also after restart. People's reads, calls starting no run and
-started runs' turns never wait. A start refuses only `0`:
-`engine.memory_bytes: past its bound`. Far above held bytes it rarely
-binds; small budgets start runs one at a time. Older documents keep their
-figure; workers' `memory_bytes` are read and unused.
+`engine.memory_bytes` (1 GiB, `1073741824` in the example) budgets held
+transcripts and turns, not process memory. At its bound, due tasks wait
+for earlier turns to be saved, also after restart. Only `0` refuses a
+start: `engine.memory_bytes: past its bound` (temper help configuration).
 
-To run more at once, raise `workers[0].slots` with the worker's `hub.slots`,
-the engine's `fleet.slots`, and `checkout.workspaces` and
-`git_component.operations`: a start names any that is short
-(`temper help configuration`). Each slot is an agent process, up to
-`agent.json`'s `declared.memory`.
+For more runs, raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
+`checkout.workspaces` and `git_component.operations`. A start names short
+limits. A slot is an agent process, up to `agent.json`'s `declared.memory`.
 
 Expect: valid JSON; nothing runs yet.
 
@@ -83,15 +90,15 @@ If not: step 3 names the refused member.
 ## 2. Keep the secrets
 
 As `temper`, type Google's client secret without echo, never through
-chat or a copied file:
+chat or a copy:
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
 ```
 
-The worker's secret on `worker`, in its data's `secrets/w1.secret`, and
-its digest, the SHA-256 of its digits without the line end, copied to
-`engine`'s `DATA/secrets/w1.digest`:
+On `worker`, make its data's `secrets/w1.secret`; copy its digest,
+SHA-256 of the digits without the line end, to `engine`'s
+`DATA/secrets/w1.digest`:
 
 ```
 umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/w1.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
@@ -109,37 +116,36 @@ Units under `temper`, each with `UMask=0077`, `ProtectSystem=strict`,
 `strict` leaves `/tmp` read-only without `PrivateTmp`. Forgejo's:
 
 ```
-temper-box forge fetch --config CONFIG --data DATA --cache CACHE 1
-temper-box forge prepare --config CONFIG --data DATA --cache CACHE 1
-temper-box forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
+temper-engine forge fetch --config CONFIG --data DATA --cache CACHE 1
+temper-engine forge prepare --config CONFIG --data DATA --cache CACHE 1
+temper-engine forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
-The engine connects kept forges at start; wait until
-`http://127.0.0.1:3000/api/v1/version` answers:
+Wait for `http://127.0.0.1:3000/api/v1/version` before starting the
+engine, which connects kept forges:
 
 ```
-temper-box serve --config CONFIG --data DATA --cache CACHE
+temper-engine serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `fetch` says how far each binary has gone, `fetched BINARY DONE
-of TOTAL bytes`, and nothing for one already there; `prepare` prints
-nothing; each exits 0. `run` is Forgejo's own output; `serve` prints its
-sign-in link,
+Expect: `fetch` prints `fetched BINARY DONE of TOTAL bytes`, nothing for
+one already there; `prepare` prints nothing; both exit 0. `run` prints
+Forgejo's output; `serve` prints its sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
 With `application.sign_in.forges` on a new store, `serve`'s stderr says
-`temper-box serve: forge 1: no sign-in through temper-box: no such forge is kept`
+`temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: a refused start names its member, file, address, or restore
-refusal (`temper-box serve: restore KIND: REASON`,
-`temper-box serve: restart refused during PHASE: REASON`, the reason naming
-the store's cause and the record's family and key when it has one): keep
-`DATA` unchanged and report that finding.
+If not: a refused start names its member, file, address or restore:
+`temper-engine serve: restore KIND: REASON` or
+`temper-engine serve: restart refused during PHASE: REASON`.
+The reason names the store's cause, record family and key when available.
+Keep `DATA` unchanged and report it.
 
 ## 4. The TLS proxy
 
-Caddy, the only listener facing the world, on 80 and 443:
+Caddy alone faces the world, on 80 and 443:
 
 ```
 git.example.com {
@@ -157,14 +163,13 @@ temper.example.com {
 }
 ```
 
-Keep the `Host` header: temper sets `Secure` on its cookies by it.
-Add no retry.
+Keep `Host`: it sets cookies' `Secure`. Add no retry.
 
 Expect: `https://temper.example.com/` answers 200; a `POST` to
 `/jig/v1/sign-in/link` answers 403; `/sign-in/google` answers 303 to
 `accounts.google.com` with your redirect URI.
 
-If not: 502 means the engine is down or listening elsewhere; read its journal.
+If not: 502: engine down or listening elsewhere; read its journal.
 
 ## 5. The workers' host
 
@@ -174,11 +179,14 @@ If not: 502 means the engine is down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-- The worker alone: `temper-box serve` on `worker`'s own three
+- The worker alone: `temper-worker serve` on `worker`'s own three
   directories, its document the example's worker part, `workers[0]`
   with `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
-  `secret` `"secrets/w1.secret"`, `agent` naming the binary and
-  `agent.json` by absolute paths; its unit as step 3's,
+  `secret` `"secrets/w1.secret"`; omit `engine`, keep only `workers`
+  and `application`'s `workers` and `limits`. Set `agent.program` to
+  `"/usr/local/bin/temper-agent"`, `agent.configuration` to the absolute
+  path of its `agent.json`, and `agent.arguments` to a one-element list
+  holding that same path. Its unit as step 3's,
   `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
   run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
   `agent.json`'s `environment` is a list of entries,
@@ -189,21 +197,19 @@ If not: 502 means the engine is down or listening elsewhere; read its journal.
   `DATA/forge-1/runner/`; its jobs in rootless podman.
 
 ```
-temper-box serve --config CONFIG --data DATA --cache CACHE
+temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
 Expect: `worker`'s stderr says `linked w1` and the engine's address;
 Forgejo's site administration lists the runner online.
 
-If not: a limit below what the stock's settings need is refused
-before any listener opens, naming the limit, the setting and the size
-it needs: `engine.limits.overrides.core.policy_bytes:
+If not: a limit short of stock settings refuses before listeners open,
+naming limit, setting and required size: `engine.limits.overrides.core.policy_bytes:
 core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
 it in engine.limits.overrides`; raise that override and start again.
 
-For a task held `out of tries: run failures`, the engine's journal names
-each run's failure,
-`temper-box serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
+For `out of tries: run failures`, read the engine's journal,
+`temper-engine serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
 
 ```
 journalctl -u temper -o cat | grep 'task TASK run'
@@ -218,11 +224,10 @@ origin instead, on `engine` as `temper`:
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in/link?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
 ```
 
-In a browser, open the same link through `ssh -L
-8367:127.0.0.1:8367 engine`.
+In a browser, open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-Connect step 3's Forgejo. Without a box it has no record yet:
-`forge list` is empty and `forge setup` refuses. On a new store it is forge 1:
+Connect Forgejo: `forge list` is empty and `forge setup` refuses until
+it has a record. On a new store it is forge 1:
 
 ```
 temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY
@@ -245,16 +250,17 @@ nothing to do. Other refusals: as temper help forgejo says in its step 2.
 
 ## 7. Redeploy from main
 
-A redeploy resets the store, keeping Forgejo, secrets and members.
-Before stopping, export each account whose source is
-`sign_in` and `granted` to a file the reset keeps:
+Redeploy resets the store, keeping Forgejo, secrets and members.
+Before stopping, export each `sign_in` or `granted` account to a file
+the reset keeps:
 
 ```
 temper ctl DIR account list
 temper ctl DIR account export ACCOUNT FILE
 ```
 
-Then stop the units; install the new binary and documents; remove
+Then stop the units; fetch, check, install and unpack the new commit's
+set on both hosts as in Before you start; edit its documents as above; remove
 `DATA` but `DATA/secrets/` and `DATA/forge-1/` and, with Forgejo's sign-in
 through temper, the provider's key and the client's secret, and on
 `worker` its data but `secrets/`; start Forgejo, the engine, the worker
@@ -267,24 +273,17 @@ temper ctl DIR account import FILE --key KEY
 Expect: `moved out: account ACCOUNT to FILE`; after the start,
 `moved in: account ACCOUNT`, and `FILE` removed.
 
-If not: an export answered `the engine holds its N answers of the last
-day; room again at TIME` (exit 2) or `unsent` (exit 1) moved nothing:
-keep `DATA`, export again after TIME or later, and remove `DATA` only
-once it is out. An export
-refused or lost: the engine kept the account, and the store loses it;
-an owner signs in to it again. An import refused
-keeps `FILE`: leave it as it is. A key's account does not cross: add
-its key again. A worker's document from an older `temper-box init` stops the
-worker's start at `agent.arguments`,
-`"agent" is now "internal", "agent"`: write them
-`["internal", "agent", PATH]`, `PATH` its `agent.configuration`.
-Before 10-27, `account list` prints ctl's usage (exit 1): before stopping that build, use `accounts` and `export`.
+If not: `the engine holds its N answers of the last day; room again at
+TIME` (exit 2) or `unsent` (exit 1) moved nothing: keep `DATA`, export
+after TIME or later, remove `DATA` only once it is out. An export refused
+or lost kept the account in the engine; resetting loses it, so an owner
+signs in again. A refused import keeps `FILE`: leave it. A key's account
+does not cross: add its key again.
 
 ## Clean up
 
 - `temper ctl DIR sign-out`, then remove `DIR`.
-- Check an exported `FILE` by `stat` alone; never print it or copy
-  it off `engine`.
+- `stat` an exported `FILE` only; never print it or copy it off `engine`.
 
 ## Next
 

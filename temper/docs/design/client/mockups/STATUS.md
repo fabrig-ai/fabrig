@@ -24,7 +24,7 @@ The hand-made request’s 01–23 are not committed mockups or journeys;
 checks, with no new visual audit: the retained browser stories share
 setups within twelve tests, and no passing result for their repaired
 versions is supplied here. temper/ui’s comparison follows landing
-(`../../draft/look-requests.md`, 4). Home’s own sheet and the two unmocked
+(`../web/look-requests.md`, 4). Home’s own sheet and the two unmocked
 entry paths remain in `../../draft/repository-copies.status.md`, 9.
 
 ## 1. Under the rules

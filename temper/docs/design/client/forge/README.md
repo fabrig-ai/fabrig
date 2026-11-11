@@ -496,7 +496,7 @@ above:
   are pinned beside their digests (`../../protocol/setup/README.md`, section 9).
 - **The connect-flows comparison** (`repositories.md`, 1, `deployment.md`): temper/ui checks the
   request's forge panels, setup rows and repository sheet after landing
-  (`../../draft/look-requests.md`, 4; `../README.md`, section 5). Default:
+  (`../web/look-requests.md`, 4; `../README.md`, section 5). Default:
   retain the shared welcome panels and the sheet's search and scroll;
   Home's sheet unification and its two unmocked entry drawings belong to
   the repository-copies follow-up (`../../draft/repository-copies.md`, 11).

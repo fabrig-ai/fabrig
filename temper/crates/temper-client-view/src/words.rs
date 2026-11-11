@@ -13,6 +13,8 @@ use skein_ui::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     StopAsking,
+    StopAskingRule,
+    ReachSomeChanges,
     StopAskingDecide,
     StopAskingWords,
     StopAskingSplit,
@@ -627,6 +629,8 @@ pub enum Word {
     HomeNeedsMany,
     HomeNeedsCut,
     HomeNeedsCount,
+    HomeStillNeedsCount,
+    HomeStillNeedsCountMore,
     HomeQuestion,
     HomeProposal,
     HomeHeld,
@@ -1558,6 +1562,7 @@ pub enum Word {
     WelcomeForgeAndModel,
     WelcomeTryStep,
     WelcomeTryLine,
+    WelcomeTrySpend,
     WelcomeTryAnswered,
     WelcomeTryNoAnswer,
     WelcomeTrySubscription,
@@ -1773,7 +1778,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2326;
+const PHRASES: u32 = 2331;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1800,11 +1805,13 @@ const PHRASES: u32 = 2326;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4177;
+const SEGMENTS: u32 = 4190;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56431;
-const ALL: [Word; 1642] = [
+const ENGLISH_BYTES: u32 = 56546;
+const ALL: [Word; 1647] = [
     Word::StopAsking,
+    Word::StopAskingRule,
+    Word::ReachSomeChanges,
     Word::StopAskingDecide,
     Word::StopAskingWords,
     Word::StopAskingSplit,
@@ -2406,6 +2413,8 @@ const ALL: [Word; 1642] = [
     Word::HomeNeedsMany,
     Word::HomeNeedsCut,
     Word::HomeNeedsCount,
+    Word::HomeStillNeedsCount,
+    Word::HomeStillNeedsCountMore,
     Word::HomeQuestion,
     Word::HomeProposal,
     Word::HomeHeld,
@@ -3306,6 +3315,7 @@ const ALL: [Word; 1642] = [
     Word::WelcomeForgeAndModel,
     Word::WelcomeTryStep,
     Word::WelcomeTryLine,
+    Word::WelcomeTrySpend,
     Word::WelcomeTryAnswered,
     Word::WelcomeTryNoAnswer,
     Word::WelcomeTrySubscription,
@@ -3633,6 +3643,8 @@ impl Word {
             Self::ReachPathSet => 4332,
             Self::ReachUnder => 4333,
             Self::StopAsking => 4400,
+            Self::StopAskingRule => 5670,
+            Self::ReachSomeChanges => 5671,
             Self::StopAskingDecide => 4401,
             Self::StopAskingWords => 4402,
             Self::StopAskingSplit => 4403,
@@ -4088,6 +4100,8 @@ impl Word {
             Self::HomeNeedsMany => 3147,
             Self::HomeNeedsCut => 3148,
             Self::HomeNeedsCount => 3149,
+            Self::HomeStillNeedsCount => 5660,
+            Self::HomeStillNeedsCountMore => 5661,
             Self::HomeQuestion => 3152,
             Self::HomeProposal => 3153,
             Self::HomeHeld => 3154,
@@ -5025,6 +5039,7 @@ impl Word {
             Self::WelcomeForgeAndModel => 3867,
             Self::WelcomeTryStep => 3868,
             Self::WelcomeTryLine => 3869,
+            Self::WelcomeTrySpend => 3886,
             Self::WelcomeTryAnswered => 3728,
             Self::WelcomeTryNoAnswer => 3729,
             Self::WelcomeTrySubscription => 3730,
@@ -5910,6 +5925,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgeAndModel => (&[b"Forge and model"], &[]),
         Word::WelcomeTryStep => (&[b"Trying: ", b""], &[Name]),
         Word::WelcomeTryLine => (&[b"", b" \xc2\xb7 trying: ", b""], &[Name, Name]),
+        Word::WelcomeTrySpend => (&[b"one short message"], &[]),
         Word::WelcomeTryAnswered => (&[b"answered in ", b" s"], &[Number]),
         Word::WelcomeTryNoAnswer => (&[b"", b" didn\xe2\x80\x99t answer"], &[Name]),
         Word::WelcomeTrySubscription => (&[b"Signed in to your subscription"], &[]),
@@ -6020,6 +6036,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeedsCountMore => (&[b"Still needs you \xc2\xb7 ", b"+"], &[Number]),
         Word::HomeQuestion => (&[b"a question"], &[]),
         Word::HomeProposal => (&[b"a proposal"], &[]),
         Word::HomeHeld => (&[b"held"], &[]),
@@ -6043,8 +6061,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeProjectReady => (&[b"", b" is ready."], &[Name]),
         Word::HomeOptional => (&[b"Optional"], &[]),
         Word::HomeSkip => (&[b"Skip"], &[]),
-        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in Settings and Ask temper."], &[]),
-        Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in Settings."], &[]),
+        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in How work runs and Ask temper."], &[]),
+        Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in How work runs."], &[]),
         Word::HomeSkipRefused => (&[b"temper couldn't keep that. Try Skip again."], &[]),
         Word::HomeBegin => (&[b"To begin"], &[]),
         Word::HomeHow => (&[b"Tell temper how you work"], &[]),
@@ -6457,7 +6475,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllModels => (&[b"All models"], &[]),
         Word::ModelsBack => (&[b"\xe2\x80\xb9 Models"], &[]),
         Word::FindModel => (&[b"Find a model"], &[]),
-        Word::ModelsAccounts => (&[b"Choose what the list shows, in Settings"], &[]),
+        Word::ModelsAccounts => (&[b"Choose what the list shows, in Deployment"], &[]),
         Word::ModelNextTurn => (&[b"A change applies from the next turn."], &[]),
         Word::ModelChanging => (&[b"Changing\xe2\x80\xa6"], &[]),
         Word::ModelSubscription => (&[b"your subscription"], &[]),
@@ -6695,6 +6713,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
         Word::StopAsking => (&[b"Stop asking"], &[]),
+        Word::StopAskingRule => (&[b"Stop asking: let agents decide ", b""], &[Name]),
+        Word::ReachSomeChanges => (&[b"some changes to ", b""], &[Name]),
         Word::StopAskingDecide => (&[b"Let agents decide ", b", then tell you."], &[Name]),
         Word::StopAskingWords => (&[b"Let agents decide changes to ", b" that are:"], &[Name]),
         Word::StopAskingSplit => (&[b"Let agents decide changes to ", b", apart from the rest of ", b"."], &[Name, Name]),

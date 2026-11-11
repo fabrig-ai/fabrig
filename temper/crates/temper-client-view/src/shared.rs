@@ -5,7 +5,7 @@ mod needs;
 mod question;
 mod reach;
 mod refusal;
-pub use reach::{allowed, object, offer, why};
+pub use reach::{allowed, object, offer, rule, why};
 mod words;
 pub use cards::{DelegationLine, delegation_line, proposal_line};
 pub use lists::{Choice, Confirmation, chats, confirmation, efforts, list_head, models};

@@ -1,24 +1,16 @@
 # deployment-binaries: status
 
-2026-11-09. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
+2026-11-11. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
 
-M4's agent binary and modes, the smith document/profile split, the shared
-fetch and launcher, and the agent's dependency-closure row are present.
-M3 is present: `temper-worker` with `serve`, `program-login`, `help` and
-`--version`, and the worker naming the agent's program for list launches
-and the `claude` link. M5's box integration, remaining closure rows and
-help, M6's release job, and figures remain incomplete. The draft is kept
-for that work, not retired. Section 11's Later items are unchanged;
-nothing from M3 moves there.
+M1 to M5 are designed: the four binaries, the box linking them and
+sharing their rows and code, the dependency rule's one test with a row
+per binary (`../protocol/binaries.md`, 4), the compiled `commands` page
+naming each command's binary (`../protocol/documentation.md`, 8.1), and
+the server's walk on the deployment's set. M6's release job and figures
+remain. The draft is kept for that work, not retired. Section 11's Later
+items are unchanged; nothing from M5 moves there.
 
 - **Design lags:**
-  - 4 and 10: `../protocol/binaries.md`, 1 and 4, hold the binaries'
-    closures in two table tests of two shapes, `binaries.rs` by the
-    crates a row excludes (the engine's) and `closure.rs` by the temper
-    crates and trees a row allows (the agent's), where the draft has one
-    boundary test hold each binary's closure. Which shape the rule's test
-    keeps is M5's (`deployment-binaries.execution.md`, 1).
-  - 1 and 4: `../README.md`, section 1, heads its binary's point "One binary" and names `temper-engine` alone of a deployment's binaries.
   - 3 and 4: `../client/forge/records.md`, prints the placeholder
     `temper program-login --config CONFIG --data DATA --cache CACHE NAME`
     for a deployment whose workers are elsewhere. An engine-alone
@@ -27,9 +19,7 @@ nothing from M3 moves there.
     set, the command is `temper-worker program-login`, run on each
     worker's host. The CLI draft's renames (`cli.execution.md`) take this
     lag, not deployment-binaries M3.
-  - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets.
-  - 3: `../../help/server.md` builds and copies one binary, runs `temper serve`, and copies the example documents from a checkout.
-  - 3: `../protocol/documentation.md`, section 8: the `commands` page is the box's table alone and names no command's binary, and `temper-client help commands` prints that page.
+  - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets. The server's walk (`../../help/server.md`) reads a commit's directory as `https://fabrig.ai/temper/v0/COMMIT/`, holding `SHA256SUMS`, `examples.tar.gz` and `Linux-x86_64/NAME`; checks it by `sha256sum -c --ignore-missing SHA256SUMS`, so each of its lines names a served file by its path from the commit's directory; and unpacks `examples.tar.gz` to `owned.json` and `owned/`, so its entries are paths under `temper/docs/examples/`. M6's release design keeps those forms.
   - 6: `../protocol/README.md`, section 7: `CLIENT_VERSION`'s row has `temper open` "from the same binary" as the engine.
   - 6 and 8: `../release.md`, section 5: the release script publishes nothing, and a tag's files go among its releases. Here the site's job publishes each build's set under `v{MAJOR}`.
 - **Design departs:**
@@ -41,8 +31,10 @@ nothing from M3 moves there.
     worker links no engine domain: until `cli.execution.md`'s C5 makes
     the worker's half crates of its own, the service composes both
     halves, and the switch is one of `tests/boundary/tests/cli.rs`'s
-    feature exceptions until C5; M5's row names it as the worker's
-    exception (`../protocol/binaries.md`, 5). Decided 2026-11-09.
+    feature exceptions until C5; the worker's row in
+    `../protocol/binaries.md`, 4 names the engine's half it brings as the
+    worker's exceptions, for that reason (`../protocol/binaries.md`, 5).
+    Decided 2026-11-09.
   - 4 and 9, item 2: two crates stand under the engine's and the worker's
     packages, `temper-service-shell`, serve's run and host, on which the
     engine's shell runs, and `temper-worker-shell`, the worker's half

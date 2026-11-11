@@ -43,7 +43,6 @@ pub fn dump_llm(environment: &[EnvironmentEntry]) -> Option<PathBuf> {
         }
     }
 }
-pub const DUMP_BOUND: u64 = 4_294_967_296;
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }

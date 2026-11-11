@@ -594,7 +594,8 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL);
     let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
     b.name(&name);
-    crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(PageAct::Go { address: Address::Home { project } }));
+    let (home, _) = targets(root, project);
+    crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(PageAct::Go { address: home }));
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
@@ -774,20 +775,14 @@ pub(crate) fn tabbar(
     use crate::words::Word;
     let tabs = rail::tabs(&rail::parts(&rail::facts(root, project, wall)));
     let current = shown(root);
+    let (home, needs) = targets(root, project);
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(Word::Sections, &[]));
-    action(
-        b,
-        Role::Link,
-        &w.say(Word::RailHome, &[]),
-        PageAct::Go { address: Address::Home { project } },
-        current.home,
-        bindings,
-    );
+    action(b, Role::Link, &w.say(Word::RailHome, &[]), PageAct::Go { address: home }, current.home, bindings);
     if tabs.needs {
         let name = needs_name(w, tabs.count, tabs.cut, [Word::NeedsTab, Word::NeedsTabCount, Word::NeedsTabCountCut]);
-        needs_link(b, bindings, project, &name, tabs.count, tabs.cut, current.inbox);
+        needs_link(b, bindings, needs, &name, tabs.count, tabs.cut, current.inbox);
     }
     if tabs.work {
         action(
@@ -810,6 +805,11 @@ pub(crate) fn tabbar(
         deployment_link(b, root, w, bindings);
     }
     b.close();
+}
+
+/// Home and Needs you stay across projects together (temper/docs/design/client/view.md, 3).
+fn targets(root: &Domain, project: u32) -> (Address, Option<u32>) {
+    if rail::across(root) { (Address::AllHome, None) } else { (Address::Home { project }, Some(project)) }
 }
 
 #[expect(clippy::struct_excessive_bools, reason = "one current state per navigation entry")]
@@ -862,17 +862,11 @@ fn entries(
 ) {
     use crate::words::Word;
     let Shown { home, inbox, work, how, team } = shown(root);
-    action(
-        b,
-        Role::Link,
-        &w.say(Word::RailHome, &[]),
-        PageAct::Go { address: Address::Home { project } },
-        home,
-        bindings,
-    );
+    let (home_address, needs) = targets(root, project);
+    action(b, Role::Link, &w.say(Word::RailHome, &[]), PageAct::Go { address: home_address }, home, bindings);
     if parts.needs_you {
         let name = needs_name(w, parts.count, parts.cut, [Word::NeedsYou, Word::NeedsYouCount, Word::NeedsYouCountCut]);
-        needs_link(b, bindings, project, &name, parts.count, parts.cut, inbox);
+        needs_link(b, bindings, needs, &name, parts.count, parts.cut, inbox);
     }
     if parts.work {
         action(
@@ -922,7 +916,7 @@ fn needs_name(w: &crate::words::Words, count: u32, cut: bool, words: [crate::wor
 fn needs_link(
     b: &mut Builder,
     bindings: &mut Bindings,
-    project: u32,
+    project: Option<u32>,
     name: &[u8],
     count: u32,
     cut: bool,
@@ -933,7 +927,7 @@ fn needs_link(
         name,
         bindings.insert(PageAct::Go {
             address: Address::Inbox {
-                filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
+                filter: temper_client_domain::address::Filter { project, kind: None, goal: None },
             },
         }),
     );

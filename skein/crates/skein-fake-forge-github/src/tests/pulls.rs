@@ -91,18 +91,27 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
     let (number, commit) = r::pull(&mut h);
     let token = r::token(&mut h);
     let first = r::object(h.first);
-    for (page, count, more) in [(1, 2, true), (2, 1, false)] {
-        let api::Answer::PullFiles { files, more: actual, .. } =
-            r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page, skip: 0 })
-                .expect("pull file plan")
-        else {
+    for (page, count, more, sides) in [(1, 2, true, true), (2, 1, false, true), (1, 2, true, false)] {
+        let paths_only_requests = [
+            Request::Repository { id: 2 },
+            Request::Pull { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number },
+            Request::PullFiles { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number, page, per_page: 2 },
+        ];
+        let expected = if sides { None } else { Some(paths_only_requests.as_slice()) };
+        let api::Answer::PullFiles { files, more: actual, .. } = r::read_expecting(
+            &mut h,
+            &token,
+            api::Read::PullFiles { number, head: r::object(commit), page, skip: 0, sides },
+            expected,
+        )
+        .expect("pull file plan") else {
             panic!("pull files")
         };
         assert_eq!(files.len(), count);
         assert_eq!(actual, more);
         for file in files {
             assert!(file.before.is_none());
-            assert!(file.after.is_some());
+            assert_eq!(file.after.is_some(), sides);
         }
     }
     let api::Answer::Compare { files, ahead, behind, changed, .. } =
@@ -129,7 +138,7 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
         Err(api::Error::Missing)
     );
     assert_eq!(
-        r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1, skip: 0 }),
+        r::read(&mut h, &token, api::Read::PullFiles { number, head: first, page: 1, skip: 0, sides: true }),
         Err(api::Error::Stale)
     );
     assert_eq!(h.hooks, 0);
@@ -161,9 +170,12 @@ fn github_fake_compare_uses_the_merge_base_on_divergent_branches() {
     let (_, Document::Compare(row)) = h.decode(Kind::Compare, &response) else { panic!("compare") };
     assert_eq!(row.merge_base, None, "names-only Compare keeps no merge base id");
     assert_eq!((row.ahead_by, row.behind_by), (1, 1));
-    let api::Answer::PullFiles { files, .. } =
-        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0 }).unwrap()
-    else {
+    let api::Answer::PullFiles { files, .. } = r::read(
+        &mut h,
+        &token,
+        api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0, sides: true },
+    )
+    .unwrap() else {
         panic!("files")
     };
     for file in &files {

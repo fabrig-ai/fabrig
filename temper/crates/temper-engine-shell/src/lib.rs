@@ -9,7 +9,7 @@ pub use temper_shell::directories;
 
 mod binary;
 pub mod commands;
-pub use binary::main;
+pub use binary::{main, versions};
 pub use commands::ENGINE;
 
 pub mod forge;

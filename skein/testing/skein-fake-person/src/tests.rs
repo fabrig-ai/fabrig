@@ -1,7 +1,7 @@
 use super::*;
 use skein_ui::Binding;
 use skein_ui::Limits;
-use skein_ui::{Builder, DrawingKind, Owner, Role, Run, State, View};
+use skein_ui::{Builder, DrawingKind, Fraction, Owner, Role, Run, State, View};
 
 use skein_lib::{Queue, Token};
 
@@ -159,6 +159,30 @@ fn text_queries_join_runs_and_ignore_case() {
         b.close();
     });
     assert!(matches!(TreeFace::new(unnamed.tree()).find(&Find::named(Role::Button, b"continue")), Found::Node(_)));
+}
+
+#[test]
+fn progress_is_found_and_seen_by_its_words() {
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.open(Role::Region);
+        b.name(b"Downloads");
+        b.open(Role::Progress);
+        b.fraction(Fraction { done: 3, total: 10 });
+        b.run(Run::Plain, b"Fetching 3 of 10 files");
+        b.close();
+        b.close();
+        b.close();
+    });
+    let mut face = TreeFace::new(view.tree());
+    assert!(matches!(face.find(&Find::text(b"3 of 10")), Found::Node(_)));
+    assert!(matches!(face.find(&Find::text(b"FETCHING 3 OF 10 FILES")), Found::Node(_)));
+    assert_eq!(face.find(&Find::text(b"30%")), Found::Absent);
+    let find = Find::text(b"3 of 10").within(Box::from([region(b"Downloads")]));
+    assert!(matches!(face.find(&find), Found::Node(_)));
+    let mut person = Person::<u8>::new(Box::from([Step::See { find, within: Duration::from_nanos(0) }]));
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Wait { until: None });
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Done);
 }
 
 fn drawings_are_found_by_name_and_fallback_never_by_data() {

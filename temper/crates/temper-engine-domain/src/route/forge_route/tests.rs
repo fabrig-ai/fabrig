@@ -1,6 +1,8 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod room;
+
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2131,7 +2133,7 @@ fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
         panic!("first tier step")
     };
     assert_eq!(got, task);
-    assert!(!heard.released && !heard.cancelled);
+    assert!(!heard.released);
     let words = b"Tier fuzzy run 7 held after 3 runner faults, last: dispatch";
     forge_request(
         &mut domain,
@@ -2561,11 +2563,8 @@ fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
         jig_domain_core::Event::Tasks(event),
     ));
     offer_tier(&mut domain, &env, task);
-    let Some(Work::Forge(forge::Event::StepTier {
-        task: got,
-        heard: forge::TierHeard { released: false, cancelled: false },
-        ..
-    })) = domain.work.pop()
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard: forge::TierHeard { released: false }, .. })) =
+        domain.work.pop()
     else {
         panic!("step woken tier")
     };
@@ -2708,7 +2707,7 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
         panic!("released tier step")
     };
     assert_eq!(got, task);
-    assert!(heard.released && !heard.cancelled);
+    assert!(heard.released);
 }
 
 fn repairs_call(control: bool) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
@@ -4205,4 +4204,39 @@ fn a_close_jobs_spec_is_its_command_and_its_request() {
         super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
         None
     );
+}
+
+#[test]
+fn a_configured_resource_limit_reaches_the_held_tasks_words() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::ResourceRefused {
+        task,
+        operation: b"subscribe",
+        resource: None,
+        cause: forge::RefusalCause::Limit { member: "forge.paths_per_subscription", configured: 4, needed: 5 },
+    });
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+        panic!("resource refusal routes a hold");
+    };
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        panic!("refused task is held");
+    };
+    assert_eq!(*why, tasks::Hold::ResourceUnavailable);
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
+    for text in [
+        b"subscribe".as_slice(),
+        b"forge.paths_per_subscription = 4; required usage 5",
+        b"deployment configuration, restart, then release",
+    ] {
+        let mut found = false;
+        for part in words.windows(text.len()) {
+            found |= part == text;
+        }
+        assert!(found, "missing {text:?} in {words:?}");
+    }
 }

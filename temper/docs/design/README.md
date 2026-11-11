@@ -48,13 +48,16 @@ section 8.
   jig's promises: skein-lib's journal, jig's restart script, its
   conformance world and its referee, with temper's own wiring and its
   fake forge (jig's `README.md`, section 6).
-- **One binary, standalone first** (`protocol/README.md`). `temper-box
-  serve` runs the engine and one worker in one process on one person's
-  machine; `temper-box open` is the person's terminal; `temper-box internal
-  agent` is smith's agent, one process per run; `temper-box forge` and
-  `temper box` set a forge up and run it (`protocol/setup/README.md`). A
-  deployment runs a binary per process, `temper-engine` among them
-  (`protocol/binaries.md`, 1).
+- **One binary for the box, one per process for a deployment,
+  standalone first** (`protocol/README.md`; `protocol/binaries.md`).
+  `temper-box serve` runs the engine and one worker in one process on
+  one person's machine; `temper-box open` is the person's terminal;
+  `temper-box internal agent` is smith's agent, one process per run;
+  `temper-box forge` and `temper box` set a forge up and run it
+  (`protocol/setup/README.md`). A deployment runs four binaries, each
+  holding its process's code alone: `temper-engine`, `temper-worker`,
+  `temper-agent` and the client, `temper-client`; the box links them all
+  (`protocol/binaries.md`, 1 and 4).
 - **Tested at every tier** (`testing/README.md`): domains and fakes in worlds,
   then through bytes, then the standalone service, hosted agents and
   fake peers on one real ring, then the real binary with an owned
@@ -181,7 +184,9 @@ forge, temper adds:
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the
   forge's part of the client, `client/web/README.md` the browser shell,
-  `client/web/journeys.md` its pages recorded and printed, `client/ctl/README.md`
+  `client/web/journeys.md` its pages recorded and printed,
+  `client/web/look-requests.md` the look requests' round trip,
+  `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and

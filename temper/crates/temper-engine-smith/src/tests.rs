@@ -2515,7 +2515,7 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
             (
                 b"read_pull_files",
                 "\"number\":1,\"head\":\"0000000000000000000000000000000000000000000000000000000000000000\"",
-                skein_forge::api::Read::PullFiles { number: 1, head: [0; 32], page: 3, skip },
+                skein_forge::api::Read::PullFiles { number: 1, head: [0; 32], page: 3, skip, sides: true },
             ),
         ] {
             let input = format!("{{{members},\"page\":3,\"skip\":{skip}}}");

@@ -57,11 +57,15 @@
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
     "Skip"; under them a line by what is left: "Two steps left. Skip
-    them if you like; they stay in Settings and Ask temper." with both
-    left, "One step left. Skip it if you like; it stays in Settings."
+    them if you like; they stay in How work runs and Ask temper." with both
+    left, "One step left. Skip it if you like; it stays in How work runs."
     with the repository left, and "One step left. Skip it if you like; it
     stays in Ask temper." with "Tell temper how you work" left (the look
-    request `to-begin-two-steps`, the user's word of 2026-11-07). Then one
+    request `to-begin-two-steps`, the user's word of 2026-11-07), each
+    naming where the rail keeps the step: the repository on How work
+    runs' Repositories tab, the way of working in Ask temper, the rail
+    naming no Settings (`../../draft/surfaces.md`, section 2;
+    `../view.md`, 3). Then one
     row a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
@@ -131,14 +135,19 @@
        and land work. temper proposes how it will run that, and nothing
        changes until you accept.", with "Start", filled, the act of
        *The first chat* (`ask-temper.md`, 1). Done once an Ask temper chat runs or ran
-       in the project, or a line of the `settings` document follows a
-       change; done, its title alone. An Ask temper chat is a row of the
+       in the project, or a setting of the project's own follows a change:
+       a line of the `settings` document whose setting is an application's
+       of the project's scope (jig's `client/domain/contract/documents.md`,
+       1), following a change, which a proposal is not until it is
+       accepted. Another project's setting or the deployment's marks
+       nothing, since it says nothing of how this project works. Done,
+       its title alone. An Ask temper chat is a row of the
        project's chats, as `Chats` reads them, whose chip's executor is
        the charter of template 5 as `me` lists it
        (`../../protocol/configuration/stock.md`): a row names its label,
        which is a chat's, and no template. With no template 5 in `me`
-       the page it opens cannot start a chat, and only a setting's change marks
-       the step done. A person who cannot read that document sees no
+       the page it opens cannot start a chat, and only a change of the
+       project's own setting marks the step done. A person who cannot read that document sees no
        change.
   - *The rail and the tab bar,* while the card shows: on Home and on Ask
     temper's page, "Home" and "Ask temper", with "Deployment" at the rail's
@@ -229,6 +238,9 @@
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
         an approval's question as on *Needs you*;
+      - *its reason line,* under the question, as *Needs you*'s on the
+        signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
+        *Why it reached you* and *Stop asking*);
       - *its acts* in a row, min-height 40, the recommended one first and
         primary, the others quiet: a question's choices, the recommended
         one first as *Needs you* orders them, then "Tell it something
@@ -457,7 +469,10 @@
     heading "Decided for you · 4", every row showing counted, "4+" where a
     document is `cut` or, unfiltered, `me` holds more projects than are
     watched; at its right "Limits", to the project's Settings, on Home and on
-    a filtered *Needs you*. Then `temper-decided` (the mock's `.decided`, a
+    a filtered *Needs you*, and on the unfiltered *Needs you* "for 24 hours,
+    then in each task's history", muted, as the whole story's `needs.html`
+    draws its head, a row being any task's. The region is named by that
+    heading on both pages. Then `temper-decided` (the mock's `.decided`, a
     top rule), a `temper-decision` a row (`.decision`), at most 7, the newest
     kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
     `../view.md`, 6's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
@@ -486,7 +501,7 @@
   - *On Home* (1, *Home on any project*), the first region after the
     intro. While the party's Away row there is on, or its spell ended less
     than 24 hours before the wall, the intro takes the spell's form, in the
-    intro's one function:
+    intro's one function, whether or not a row shows:
     - *the kicker:* "While you were away · 23:10 to now", or "· 23:10 to
       08:03" once off, by `../view.md`, 6's *clock*: `since`, then `off`, or `until` once
       past;
@@ -494,7 +509,9 @@
       `landed` is above 0, "One change landed." for 1, nothing for 0; then
       "Four things were decided for you." in number words to "Nine", digits
       after, or "One thing was decided for you." in place of the needs
-      sentence. The lede and the byline as *Home on any project* has them;
+      sentence; with no row showing, the needs sentence keeps its place,
+      so "57 changes landed. Nothing needs you.", or the needs sentence
+      alone where nothing landed. The lede and the byline as *Home on any project* has them;
     - *Needs' head:* "Still needs you · 2", or "Still needs you" with none,
       and the rest of *Needs you* as it is.
 

@@ -274,6 +274,25 @@ impl Session {
         }
         Count { count, cut: inbox.next.is_some() || approvals.more() > 0 }
     }
+    /// The rail's count across projects, each need once, with all approvals.
+    #[must_use]
+    pub fn count_across(&self, client: &Client, approvals: &Approvals) -> Count {
+        let Some(document) = client.document(handle()) else { return Count::default() };
+        if !self.watching || document.state == State::Ended {
+            return Count::default();
+        }
+        let Some(Latest::Jig(contract::Delivery::Inbox(inbox))) = document.latest else { return Count::default() };
+        let mut count = 0_u32;
+        for row in &inbox.needs {
+            if self.line(row.card_key()).is_none() {
+                count = count.checked_add(1).expect("inbox rows fit");
+            }
+        }
+        for _row in approvals.rows() {
+            count = count.checked_add(1).expect("approval rows fit");
+        }
+        Count { count, cut: inbox.next.is_some() || approvals.more() > 0 }
+    }
     #[must_use]
     pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]> {
         let mut cards = List::with_capacity(inbox.cards.len());

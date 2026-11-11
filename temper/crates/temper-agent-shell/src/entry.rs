@@ -50,9 +50,13 @@ fn run(captured: &Capture) -> Result<ExitCode, (u8, String)> {
             &arguments,
             &captured.environment,
         ))),
-        Command::Run { configuration } => crate::run(&configuration, &captured.environment, &captured.working)
-            .map(ExitCode::from)
-            .map_err(|why| (1, why)),
-        Command::List { configuration } => crate::list(&configuration).map(ExitCode::from).map_err(|why| (1, why)),
+        Command::Run { configuration } => {
+            crate::run(AGENT.binary, &configuration, &captured.environment, &captured.working)
+                .map(ExitCode::from)
+                .map_err(|why| (1, why))
+        }
+        Command::List { configuration } => {
+            crate::list("temper-agent --list", &configuration).map(ExitCode::from).map_err(|why| (1, why))
+        }
     }
 }

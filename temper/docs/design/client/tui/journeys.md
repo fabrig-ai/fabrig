@@ -558,7 +558,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   whose NAME starts `tui-`, kept on `main` by the same
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
-  `../../draft/look-requests.md`, 2).
+  `../web/look-requests.md`, 2).
 - **Never landed:** the journeys' test refuses a request's frames, which
   differ from the reprint, and its overlay, so `main`'s overlay stays
   empty.
@@ -578,7 +578,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   section 3). The look requests `tui-launchpad` and
   `tui-chat-title-below` have their render check and
   walk after landing, owned by temper/tui's after-landing check; differences
-  return as repairs carrying its trailer (`../../draft/look-requests.md`,
+  return as repairs carrying its trailer (`../web/look-requests.md`,
   sections 4 and 5). A replay and byte-equal print establish no real
   terminal's look. A growing answer, calls and a question's choices
   remain for a journey that catches them; the joint world and goldens

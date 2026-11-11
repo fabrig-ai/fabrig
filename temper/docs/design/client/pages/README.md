@@ -234,7 +234,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **The two-step Home and night look after landing** (`README.md`, `../view.md`, 3): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
   main at 1440, 1000 and 420 px, with menus and disclosures open and
-  each state their messages name (`../../draft/look-requests.md`, 4).
+  each state their messages name (`../web/look-requests.md`, 4).
   Include both steps left, each alone, done and skipped, Home with a need
   and a chat left out while either step remains, and their return after
   the last step or a skip. Check the restricted navigation on Home
@@ -260,7 +260,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **The connect-flows comparison** (`README.md`, `../forge/family.md`, 4, `../view.md`, 2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
   and disclosures at 1440, 1000 and 420 px, with screenshots also at
-  1280 px (`../../draft/look-requests.md`, 4). Default: the source and print
+  1280 px (`../web/look-requests.md`, 4). Default: the source and print
   account is distinct from rendered equality; differences return as
   findings after landing. Compare the request-owned parts, including
   Settings' select chevrons, the sheet's chooser, captions, list and empty

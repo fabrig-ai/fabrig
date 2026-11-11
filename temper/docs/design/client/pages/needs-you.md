@@ -119,13 +119,16 @@
       (`../../draft/surfaces.md`, 4);
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 19px on a
       phone;
-    - `temper-why`, the reason line (*Why it reached you,* below), 14px,
-      `--gf-ink-2`, 8px nearer the question than the card's gap, with
-      "Stop asking" at its end and its offers under it when open;
     - `.ctx`, `--gf-ink-2`, if it has a context;
     - a disclosure "What the agent saw", if the agent said: its summary
       width fit-content, 14px muted, its paragraph margin-top 6; closed
       at first;
+    - `temper-why`, the reason line (*Why it reached you,* below), over
+      the choices, as the whole story's `needs.html` draws its `.why`:
+      13px, `--gf-signal-ink` on the signal ground, `--gf-signal-pale`,
+      radius 6, padding 7px 10px, its acts `--gf-signal-ink`, underlined
+      in `--gf-signal-line`; "Keep asking" and the narrower rule at its
+      end, and the offers under it when open (*Stop asking,* below);
     - `.choices` in a column: min-height 54, padding 10 18, radius 12,
       16px; the recommended one, with none the first, primary, and on a
       question alone `.rec`, "recommended", at the far right, 12px, 400,
@@ -219,7 +222,9 @@
     in words. On the terminal's inbox "Later" marks it and moves on, the
     toast saying "Later: it stays in Needs you, after the others."
   - *Why it reached you* (`../../draft/what-reaches-you.md`, section 5): one
-    line under a card's question, in `temper-why`, from one domain function
+    line of a card, in `temper-why`, over its choices on this page and
+    under its question on Home's cards (`home.md`, 1, *The cards*), as the
+    whole story's `needs.html` and `home.html` place it, from one domain function
     every shell calls (`pages::needs::why`), its words the view's shared ones
     (`temper_client_view::shared::why`), so that the TUI's launchpad can say
     it too. By the card's kind:
@@ -261,22 +266,43 @@
       draws once its project's `decided` document is delivered or its watch
       refused or ended, as the column waits for the inbox, so that a line
       never moves the choices under a finger.
-  - *Stop asking,* at the reason line's end, a button in the `.link`'s
-    look, `State::Expanded` while open, offered where the reach asked and
+  - *Stop asking,* at the reason line's end, offered where the reach asked and
     the kit offers something for it (`offers`, `../../domain/forge/attention.md`, 6:
     none for a fixed kind, for `always`, or where the table has no room),
     the card's project's classes are read (`settings.md`, 2), the person's dismissals
     are delivered, and no Keep asking of the reach's subject in that
-    project is less than 7 days old. It opens in place, under the line,
-    `temper-why-offers`: a column, gap 8, a row an offer in the kit's order,
-    its words at the left and its act at the right, `.btn.small`, then
-    "Keep asking", quiet and small. One is open at a time; pressing it
-    again, another card's, an answer, Later or leaving the card closes it.
+    project is less than 7 days old; with none of it offered the line is
+    its sentence alone.
+    - *On this page,* as the whole story's `needs.html` draws it, the
+      line's sentence is followed by two acts, buttons in the `.link`'s
+      look, joined by " · ": "Keep asking" (*Keep asking,* below), then
+      the narrower rule, "Stop asking: let agents decide RULE",
+      `State::Expanded` while open. RULE names what the kit's first offer
+      narrows to: for `Decide(subject)`, OBJECT (*Its offers in words,*
+      below), so "Stop asking: let agents decide new dependencies"; for
+      `Words(set)` or `Split(set)`, "some changes to NAME", NAME the set's
+      name in the project's classes, so "Stop asking: let agents decide
+      some changes to vsr’s protocol core", since the person words that
+      narrowing, or takes the split, once it opens. On a phone the line is
+      the same.
+    - *On Home's cards* (`home.md`, 1, *The cards*) and the terminal's
+      inbox (1, *A card that needs the person*), as the whole story's
+      `home.html` draws it, the line ends in "Stop asking" alone, a button
+      in the `.link`'s look, `State::Expanded` while open, and "Keep
+      asking" stands under the offers.
+    - *Its offers,* opened in place by the narrower rule or "Stop
+      asking", under the line, `temper-why-offers`: a column, gap 8, a row
+      an offer in the kit's order, its words at the left and its act at
+      the right, `.btn.small`; then, on Home's cards and the terminal's
+      inbox alone, "Keep asking", quiet and small. One is open at a time;
+      pressing its act on the line again, another card's, an answer,
+      Later, Keep asking or leaving the card closes it.
     - *Its offers in words,* each the narrowed table's change
       (`narrowed`): `Decide(subject)`, "Let agents decide OBJECT, then tell
-      you."; `Words(set)`, "Let agents decide changes to NAME that are:"
-      over a `.text` field, "Which changes", its placeholder "fixes that keep
-      the wire format", 1 to 120 bytes, its act off until it holds;
+      you."; `Words(set)`, "Let agents decide changes to NAME that are:",
+      then under that sentence a `.text` field, "Which changes", its
+      placeholder "fixes that keep the wire format", 1 to 120 bytes, the
+      two together at the row's left, its act off until the field holds;
       `Split(set)`, "Let agents decide changes to PATTERNS, apart from the
       rest of NAME.", PATTERNS the matched patterns joined by ", ". OBJECT
       is the subject's plural: "wording choices", "retries and splits",
@@ -295,21 +321,23 @@
       which a party with a role in the project may make and the owners
       decide (jig's `domain/people/acts.md`, 1, and `jig/docs/design/domain/engine/settings.md`, 6);
       it is the person's own proposal, never a procedure's. While one is out
-      every act of the open offers is off. Applied, the toast "Applied: the
+      every act of the open offers, and the line's own, is off. Applied, the toast "Applied: the
       next one is decided and listed. This one still waits for you.";
       proposed, "Proposed: it applies once an owner accepts it. This one
       still waits for you."; refused, jig's words under the offers, as a
       settings row's refusal (`settings.md`, 2), the offers staying open. The need in
       hand waits for its answer whatever is applied: the rule changes what
       comes next, never what was asked.
-  - *Keep asking* sends the FORGE request `Dismiss { keep_asking(project,
-    subject, at) }` (`../forge/records.md`), `subject` the reach's (the kind for a reason
+  - *Keep asking,* on the line or under the offers, one act of the card's
+    own, `stop_asking::Act::Keep { object }`, the card's object, whether or
+    not its offers are open, sends the FORGE request `Dismiss { keep_asking(project,
+    subject, at) }` (`../forge/records.md`), `subject` the card's reach's (the kind for a reason
     `kind`, the set for a reason `set`), `at` the wall, one act, one request
-    (`../README.md`, 3.6), and closes the offers. Answered, the toast "It keeps asking.
+    (`../README.md`, 3.6), and closes the offers where they are open. Answered, the toast "It keeps asking.
     Stop asking comes back in 7 days."; refused or lost, "temper couldn't
     keep that. Try Keep asking again."; *unknown,* the subject `dismissed`
-    answers it. While it is out, and once kept, the line offers no Stop
-    asking for that subject in that project, on every card and device,
+    answers it. While it is out, and once kept, the line offers neither
+    Keep asking nor Stop asking for that subject in that project, on every card and device,
     until 7 days after its `at`; a later Keep asking of the same replaces
     it (`../../domain/forge/attention.md`, 1).
 - **Tell temper** (`../../draft/surfaces.md`, section 9; the whole story's
@@ -402,6 +430,11 @@
     deployment's in each the person owns; "N+" where its document is cut, and no
     count before it is delivered. A card marked later still counts. The open
     project's rows of `approvals` add to it, "N+" where that document is cut too.
+    On a page across projects (`../view.md`, 3, *All projects*) it counts
+    what *Needs you* across them shows: each of the needs' rows once,
+    whatever projects it shows in, less those answered, and every row of
+    `approvals`, "N+" where either document is cut; so it is never the sum
+    of the projects' counts, which counts a row of several projects in each.
     `me`'s `needs_total`, with every row of `approvals` added, is shown
     nowhere outside a project: the top bar offers no navigation (`../view.md`, 1).
   - *The approvals,* the forge side's watch of the subject `approvals` (`../forge/records.md`),
@@ -439,10 +472,13 @@
     Done's "Home", and before *Decided for you*, wherever the page draws
     that, on a phone too: a `section-head`, the level-2 heading "Only you ·
     1", at its right "work goes on around it", muted. Then
-    `temper-only-item` an item, the mock's `.card`, gap 12:
-    - its from line, `.mono`: the chip `temper-chip` "Deployment", where
-      Accounts is (`settings.md`, 1), then "an LLM account";
-    - its question line, `.q`, 19 px, by its source as Accounts words it
+    `temper-only-item` an item, the mock's `.card`, gap 10, as `needs.html`
+    draws it (`../../draft/surfaces.md`, 13):
+    - its from line, the mock's `.from`, in the sans, 13 px and muted,
+      where a need card's is in the mono: the chip `temper-chip`
+      "Deployment", where Accounts is (`settings.md`, 1), then "an LLM
+      account";
+    - its question line, `.q`, 16.5 px, by its source as Accounts words it
       (`accounts.md`, 2, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
       signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
       expiring, "Your Claude Code login claude-alice is expiring. Sign in

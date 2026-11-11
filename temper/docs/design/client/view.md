@@ -229,12 +229,15 @@
 `web/whole-story/`, each page's `nav.rail`), on a project page (1): a
 navigation named by the open project, in this order:
 
-- temper's name, a link to the open project's `Home`, named "temper
+- temper's name, a link to where "Home" goes, named "temper
   home";
 - the switcher (*Projects in the rail,* below);
-- "Home", to the open project's `Home`; "Needs you", to *Needs you*
-  filtered by the open project, with the count of what needs the person
-  there (`pages/needs-you.md`, 1, *What the client keeps*), omitted when zero; "Work", to
+- "Home", to the open project's `Home`, and to `AllHome` on a page across
+  projects; "Needs you", to *Needs you* filtered by the open project, and
+  on a page across projects to *Needs you* across them, `Inbox` with no
+  project, with the count of what needs the person there
+  (`pages/needs-you.md`, 1, *What the client keeps*), omitted when zero
+  (*All projects,* below); "Work", to
   `Work { project, filter: All }` (`pages/work.md`, 1, *Work*); "Team", while the rail's
   parts show it (*The rail's parts,* below), to Team's page
   (`../draft/surfaces.md`, section 6); "Ask temper", to the person's newest
@@ -301,10 +304,14 @@ navigation named by the open project, in this order:
   terminal has none.
 
 **While To begin shows** (`pages/home.md`, 1, *To begin*), on `Home` and on `Ask { project }`
-alone: the rail's navigation holds "Home" and "Ask temper", while `me` offers
-template 5, and no other entry; `div.temper-rail-new` is not drawn; the foot is
-as above, "Deployment" among it. The tab bar holds "Home", "Ask" and
-"Deployment", three equal tabs. Both shells draw the
+alone: the rail's navigation holds "Home", "Ask temper", while `me` offers
+template 5, the hairline and "How work runs", and no other entry
+(`../draft/surfaces.md`, section 2; `web/whole-story/pair/first-run.html`);
+`div.temper-rail-new` is not drawn; the foot is as above, "Deployment" among
+it, so that today's Settings is "How work runs" and "Deployment" there too.
+The tab bar holds "Home", "Ask" and "Deployment", three equal tabs, How work
+runs reached by the switcher's menu as on any phone page (*On a phone,*
+below). Both shells draw the
 rail so, the terminal reading its entries as the browser does. The view asks
 `temper_client_domain::pages::home::beginning(root, project, wall)`, true on
 those two addresses while `facts(..).to_begin()` holds; every other page draws
@@ -321,13 +328,14 @@ and what is current is the view's. Its rules:
 | Part | Shows when | Its fact |
 |---|---|---|
 | "All projects", the switcher's first row | the person is in two projects or more | `me`'s projects |
-| "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above |
+| "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above; on a page across projects, the count across them (`pages/needs-you.md`, 1, *What the client keeps*) |
 | "Team" | the project has a second member or a standing role | the project's people, from its document (`pages/team.md`, 1), and standing roles, none gathered |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
 | the Away switch and chip | `pages/README.md`, 2's *Away* shows it; on All projects, it shows for any of the person's projects (`pages/README.md`, 2, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
 | To begin's cut, above | `home::beginning` holds | `home::beginning(root, project, wall)` |
-| "Home", "Needs you", "Work", "How work runs", "Deployment" | always, To begin's cut aside | |
+| "Home", the hairline, "How work runs", "Deployment" | always | |
+| "Needs you", "Work" | always, To begin's cut aside | |
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
 rail's navigation: they are Deployment's tabs and the Repositories tab's (`pages/README.md`).
@@ -348,6 +356,9 @@ rail's parts, which the browser draws from and decides nothing again:
 | "Ask", named "Ask temper" | the rail's "Ask temper" shows | as the rail's "Ask temper": Ask temper's page, an Ask temper chat and `Tell` |
 | "Deployment" | To begin's cut holds, the rail's "Work" not shown | as the rail's "Deployment" |
 
+Each tab goes where its rail entry goes, so on a page across projects "Home"
+opens `AllHome` and "Needs" *Needs you* across them, with the rail's count
+(*All projects,* below).
 So four tabs in four columns as wide as their words, or To begin's three,
 "Home", "Ask" and "Deployment", equal, and one fewer while `me` offers no Ask
 temper. Team, How work runs and Deployment are reached by the switcher's "Team
@@ -410,11 +421,17 @@ goes to a page across projects: on `Inbox`, its filter with the project
 taken out, where a sign-in lands, `/`, having none; anywhere else
 `AllHome` (`pages/home.md`, 1, *Home on All projects*). While the page is one across
 projects, `AllHome` or `Inbox` with no project, the switcher's summary
-names "All projects" and its row is the one pressed; the rail's other
-entries keep the open project, the one last open, so that "Work" and "How
-work runs" open on it, and the switcher names it again there. Whether the
-page is across projects is one function,
-`temper_client_domain::pages::rail::across(root)`.
+names "All projects" and its row is the one pressed. "Home" and "Needs you"
+stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home",
+temper's name and the phone's "Home" go to `AllHome`, current on it; "Needs
+you" and the phone's "Needs" go to `Inbox` with no project, current on it,
+their count across the person's projects (`pages/needs-you.md`, 1, *What the
+client keeps*). The rail's other entries keep the open project, the one last
+open, so that "Work", "Team" and "How work runs" open on it, and the switcher
+names it again there; "Team" shows by that project's parts. Whether the page
+is across projects is one function,
+`temper_client_domain::pages::rail::across(root)`, which the rail's facts and
+both shells' entries read.
 
 The acts of both, each one act and one request (`README.md`, 3.6):
 

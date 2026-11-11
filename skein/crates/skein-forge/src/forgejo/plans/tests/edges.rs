@@ -6,10 +6,12 @@ use crate::forgejo::tests::fixtures::{ATTEMPT, JOB, PULL, RAW_BYTES, RUN, Run};
 
 #[test]
 fn pull_files_stops_at_a_stale_head() {
-    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0 }));
-    run.begin();
-    assert_eq!(run.answer(200, PULL), Step::Done(Err(Error::Stale)));
-    run.assert_sent(&["GET /api/v1/repos/fixture/specimen/pulls/1"]);
+    for sides in [true, false] {
+        let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0, sides }));
+        run.begin();
+        assert_eq!(run.answer(200, PULL), Step::Done(Err(Error::Stale)));
+        run.assert_sent(&["GET /api/v1/repos/fixture/specimen/pulls/1"]);
+    }
 }
 
 #[test]
@@ -542,7 +544,10 @@ fn read_inner_overflow_is_too_large() {
     let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
         panic!("expected a typed size refusal");
     };
-    for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0 }, Read::Checks { commit: HEAD }] {
+    for read in [
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0, sides: true },
+        Read::Checks { commit: HEAD },
+    ] {
         let mut run = bounded_run(Op::Read(read));
         let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
             panic!("expected a typed size refusal");
@@ -646,7 +651,7 @@ fn file_sides_past_remaining_room_are_too_large() {
     for skip in [0, 1] {
         let mut run = Run::with(
             super::super::plan::Bounds { answer_bytes, ..BOUNDS },
-            Op::Read(Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip }),
+            Op::Read(Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip, sides: true }),
         );
         run.begin();
         run.answer(200, PULL);
@@ -698,7 +703,7 @@ fn file_sides_past_remaining_room_are_too_large() {
 type SideCase = (Read, &'static [(u16, &'static [u8])], &'static [&'static str]);
 fn side_cases() -> [SideCase; 1] {
     [(
-        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0 },
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0, sides: true },
         &[(200, PULL), (200, CHANGED_FILES)],
         &[
             "GET /api/v1/repos/fixture/specimen/pulls/1",

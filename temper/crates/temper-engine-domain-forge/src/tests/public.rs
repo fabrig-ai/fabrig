@@ -954,6 +954,32 @@ fn list_from(items: &[u16]) -> List<u16> {
     list
 }
 #[test]
+fn a_public_merge_keeps_a_dropped_member_from_its_log() {
+    let mut d = queue_history();
+    let public = ended_public();
+    install_log(&mut d, Box::new([logged(MERGE, 100, &[CHANGE, SECOND])]));
+    d.changes.get_mut(&SECOND).unwrap().ending = Some(Ending::Landed);
+    let mut clock = env();
+    clock.limits.changes = d.changes.len();
+    step(&mut d, &clock, Event::DropChange { task: SECOND }, &mut skein_lib::Queue::uncapped());
+    assert!(d.change(SECOND).is_none());
+    let made = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &public);
+    assert_eq!(made.tasks.as_ref(), &[CHANGE, SECOND]);
+    let record = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).unwrap();
+    assert_eq!(record, expected_merge(&[0, 1]));
+    assert_eq!(landings(&d, &public).landings(), &list([expected_merge_line(list([0, 1]), MERGE)]));
+    assert!(d.public(&ask(w::PUBLIC_CHANGE, Some(SECOND), &public), &LIMITS).is_none());
+    assert!(d.public(&ask(w::PUBLIC_LANDING, Some(SECOND), &public), &LIMITS).is_none());
+    let log = d.landing_logs.get(&REPO).unwrap();
+    assert_eq!(
+        log.landings[0].changes[1],
+        LoggedChange { task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
+    );
+    // Handed tasks still bound the public projection, even without a change row.
+    assert!(landings(&d, &public[..1]).landings().is_empty());
+}
+
+#[test]
 fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
     let other = skein_forge::api::Repository { forge: REPO.forge, repository: 3 };
     let public = ended_public();

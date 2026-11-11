@@ -362,14 +362,14 @@ pub const CEILINGS: Limits = Limits {
     tier_flake_test: 4_096,
     tier_tests_tests: 1_024,
     tier_finding_flakes: 1_024,
-    tier_finding_blamed: 257,
-    tier_run_landings: 257,
+    tier_finding_blamed: 759,
+    tier_run_landings: 759,
     tier_record_flakes: 1_024,
     tier_flight_pending: 65_536,
     tier_goal_branch: 4_096,
     tier_row_observations: 8_192,
     tier_row_tier: 32,
-    tier_row_pending: 257,
+    tier_row_pending: 759,
     tier_row_goals: 256,
     address_host: 255,
     address_tls_some: 255,
@@ -14437,6 +14437,8 @@ pub enum TierFault {
     OtherCommit,
     /// `lost` without a payload.
     Lost,
+    /// `missing_workflow` without a payload.
+    MissingWorkflow,
 }
 
 impl TierFault {
@@ -29457,7 +29459,7 @@ impl TierFault {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Setup | Self::Completion | Self::NoStep | Self::Cancelled | Self::OtherCommit | Self::Lost => 1,
+            Self::Setup | Self::Completion | Self::NoStep | Self::Cancelled | Self::OtherCommit | Self::Lost | Self::MissingWorkflow => 1,
         }
     }
 
@@ -29470,6 +29472,7 @@ impl TierFault {
             Self::Cancelled => writer.put(&[3_u8])?,
             Self::OtherCommit => writer.put(&[4_u8])?,
             Self::Lost => writer.put(&[5_u8])?,
+            Self::MissingWorkflow => writer.put(&[6_u8])?,
         }
         Ok(())
     }
@@ -29490,6 +29493,7 @@ impl TierFault {
             3 => Self::Cancelled,
             4 => Self::OtherCommit,
             5 => Self::Lost,
+            6 => Self::MissingWorkflow,
             _ => return Err(Problem { path: Path::TierFaultTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -44471,7 +44475,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 324] = [
+    static GOLDEN_1: [Case; 326] = [
         ("enum_blame_suspect_smallest", || { let value = Blame::Suspect(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_blame_suspect_full", || { let value = Blame::Suspect(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_tier_verdict_smallest", || { let value = TierVerdict::new(&CEILINGS, TierVerdictParts { run: 0_u64, blame: Blame::Cleared }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierVerdict::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -44530,6 +44534,8 @@ mod golden_tests {
         ("enum_tier_fault_other_commit_full", || { let value = TierFault::OtherCommit; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_tier_fault_lost_smallest", || { let value = TierFault::Lost; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_tier_fault_lost_full", || { let value = TierFault::Lost; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_tier_fault_missing_workflow_smallest", || { let value = TierFault::MissingWorkflow; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_tier_fault_missing_workflow_full", || { let value = TierFault::MissingWorkflow; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_tier_probe_branch_smallest", || { let value = TierProbeBranch::new(&CEILINGS, TierProbeBranchParts { landing: 0_u32, branch: TierBranch::Absent }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierProbeBranch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_tier_probe_branch_full", || { let value = TierProbeBranch::new(&CEILINGS, TierProbeBranchParts { landing: u32::MAX, branch: TierBranch::Absent }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierProbeBranch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_tier_flight_smallest", || { let value = TierFlight::new(&CEILINGS, TierFlightParts { entry: 0_u64, start: None, since: None, waiting: false, next: None, run: None, pending: skein_lib::List::with_capacity(0), fault: None, report: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierFlight::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

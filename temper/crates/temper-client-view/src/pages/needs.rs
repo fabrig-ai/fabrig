@@ -217,9 +217,9 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
-    why_line(b, root, w, bindings, needs::Need::Card(card));
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
+    why_line(b, root, w, bindings, needs::Need::Card(card), WhyForm::Rule);
     if let Some(outcome) = session.refused(card.object) {
         crate::confirm::outcome_words(b, w, outcome);
     }
@@ -483,8 +483,22 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
     b.close();
 }
 
-/// The reason and its offers share one drawing on Home, Needs you and the terminal.
-pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, need: needs::Need<'_>) {
+/// Needs you names the narrower rule; Home and the terminal inbox keep the short act.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WhyForm {
+    Rule,
+    Short,
+}
+
+#[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
+pub(crate) fn why_line(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    need: needs::Need<'_>,
+    form: WhyForm,
+) {
     let Some(why) = crate::shared::why(root, w, need) else { return };
     let offers = stop_asking::offered(root, need, bindings.model_times.now);
     let open = match root.pages().stop_asking() {
@@ -500,9 +514,31 @@ pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
         b.name(&why);
         b.text(Run::Plain, &why);
     }
-    if offers.is_some() {
+    if let Some(offers) = &offers
+        && let Some(first) = offers.first()
+    {
+        let label = match form {
+            WhyForm::Rule => {
+                let Some(needs::Why::Reach { project, reach }) = needs::why(root, need) else { return };
+                let Some(classes) = root.forge().classes(project) else { return };
+                keep_button(
+                    b,
+                    w,
+                    bindings,
+                    need.object(),
+                    match open {
+                        Some(open) => open.busy(),
+                        None => false,
+                    },
+                    false,
+                );
+                b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+                crate::shared::rule(w, classes, &reach, *first)
+            }
+            WhyForm::Short => w.say(Word::StopAsking, &[]),
+        };
         b.open(Role::Button);
-        b.name(&w.say(Word::StopAsking, &[]));
+        b.name(&label);
         b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Open { object: need.object() })));
         if let Some(open) = open {
             b.state(State::Expanded);
@@ -522,6 +558,9 @@ pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
         b.open(Role::Slot);
         b.style(look::WHY_OFFERS);
         for offer in &offers {
+            b.open(Role::Slot);
+            b.open(Role::Slot);
+            ask::text(b, Role::Paragraph, &crate::shared::offer(w, classes, &reach, *offer), look::WHY);
             match offer {
                 temper_protocol_reaches::Offer::Words(_) => {
                     b.open(Role::TextField);
@@ -536,8 +575,7 @@ pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
                 }
                 temper_protocol_reaches::Offer::Decide(_) | temper_protocol_reaches::Offer::Split(_) => {}
             }
-            b.open(Role::Slot);
-            ask::text(b, Role::Paragraph, &crate::shared::offer(w, classes, &reach, *offer), look::WHY);
+            b.close();
             let owner = stop_asking::owner(root, project);
             b.open(Role::Button);
             b.name(&w.say(if owner { Word::StopAskingApply } else { Word::StopAskingPropose }, &[]));
@@ -562,14 +600,9 @@ pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
             b.close();
             b.close();
         }
-        b.open(Role::Button);
-        b.style(look::ASK_QUIET);
-        b.name(&w.say(Word::KeepAsking, &[]));
-        b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Keep)));
-        if open.busy() {
-            b.state(State::Disabled);
+        if form == WhyForm::Short {
+            keep_button(b, w, bindings, need.object(), open.busy(), true);
         }
-        b.close();
         if let Some(refused) = open.refused() {
             b.open(Role::Alert);
             crate::cards::refusal(b, w, refused);
@@ -577,4 +610,24 @@ pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
         }
         b.close();
     }
+}
+
+fn keep_button(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut Bindings,
+    object: jig_client::contract::ObjectKey,
+    busy: bool,
+    quiet: bool,
+) {
+    b.open(Role::Button);
+    if quiet {
+        b.style(look::ASK_QUIET);
+    }
+    b.name(&w.say(Word::KeepAsking, &[]));
+    b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Keep { object })));
+    if busy {
+        b.state(State::Disabled);
+    }
+    b.close();
 }

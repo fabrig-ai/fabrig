@@ -117,10 +117,11 @@ fn fixture_with_limits(frame: c::Me, limits: crate::Limits) -> Fixture {
     }
 }
 fn settings(fixture: &mut Fixture, follows: c::SettingFollows) -> Queue<Request> {
+    setting(fixture, c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 }, follows)
+}
+fn setting(fixture: &mut Fixture, setting: c::Setting, follows: c::SettingFollows) -> Queue<Request> {
     let mut lines = List::with_capacity(ONE);
-    lines
-        .push(c::SettingLine { setting: c::Setting::Rules, name: None, follows, last: None, application: None })
-        .unwrap();
+    lines.push(c::SettingLine { setting, name: None, follows, last: None, application: None }).unwrap();
     deliver(
         &mut fixture.root,
         fixture.settings,
@@ -287,6 +288,40 @@ fn refused_and_ended_settings_are_not_configured() {
         settings(&mut f, c::SettingFollows::Change);
         up(&mut f.root, Up::WatchEnded { watch: f.settings, end });
         assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "{end:?}");
+    }
+}
+#[test]
+fn only_the_projects_own_application_change_marks_the_way_of_working_done() {
+    const PROJECT: u32 = 3;
+    const OWN: c::Setting = c::Setting::Application { kind: 2, scope: PROJECT, number: 1 };
+    use c::SettingFollows::{Change, Default};
+    for (item, follows, end, done) in [
+        (Some(OWN), Change, None, true),
+        (Some(OWN), Default, None, false),
+        (Some(c::Setting::Application { kind: 2, scope: 4, number: 1 }), Change, None, false),
+        (Some(c::Setting::Rules), Change, None, false),
+        (Some(c::Setting::Application { kind: 2, scope: 0, number: 1 }), Change, None, false),
+        (Some(c::Setting::Charter(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Template(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Policy(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Model(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::ProjectPolicy { project: PROJECT }), Change, None, false),
+        (None, Change, None, false),
+        (Some(OWN), Change, Some(c::WatchEnd::SubjectEnded), false),
+        (Some(OWN), Change, Some(c::WatchEnd::NotAllowed), false),
+    ] {
+        let mut f = fixture();
+        if let Some(item) = item {
+            setting(&mut f, item, follows.clone());
+        }
+        if let Some(end) = end {
+            up(&mut f.root, Up::WatchEnded { watch: f.settings, end });
+        }
+        assert_eq!(
+            home::facts(&f.root, PROJECT, Wall::EPOCH).configured,
+            done,
+            "setting={item:?}, follows={follows:?}, end={end:?}"
+        );
     }
 }
 #[test]
@@ -2162,12 +2197,45 @@ fn expires_is_when_the_oldest_stops_showing() {
 fn no_form_while_to_begin_shows() {
     let mut f = fixture();
     ready(&mut f);
+    spell(&mut f, None, None, 0);
     let out = decisions(&mut f, &[decision(1, 100)]);
     assert!(away_form(&f, 100).is_none());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::from_nanos(100)).spell, None);
     assert!(task_reads(&out).is_empty());
     let (_, out) = skip(&mut f);
     assert!(away_form(&f, 100).is_some());
     assert_eq!(task_reads(&out).len(), 1);
+}
+#[test]
+fn spell_does_not_require_a_showing_decision() {
+    for (off, until, wall, end, recent) in [
+        (None, None, 100, None, true),
+        (Some(150), None, 150 + DAY - 1, Some(150), true),
+        (Some(150), None, 150 + DAY, Some(150), false),
+        (None, Some(200), 200 + DAY - 1, Some(200), true),
+        (None, Some(200), 200 + DAY, Some(200), false),
+    ] {
+        let mut f = fixture();
+        status_document(&mut f, &crate::tests::status::document(9, 2, None));
+        spell(&mut f, off, until, 3);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall));
+        assert!(facts.decided.is_none());
+        assert_eq!(
+            facts.spell,
+            if recent {
+                Some(home::Spell {
+                    since: Wall::from_nanos(10),
+                    end: match end {
+                        Some(end) => Some(Wall::from_nanos(end)),
+                        None => None,
+                    },
+                    landed: Some(6),
+                })
+            } else {
+                None
+            }
+        );
+    }
 }
 #[test]
 fn span_is_since_and_its_end() {

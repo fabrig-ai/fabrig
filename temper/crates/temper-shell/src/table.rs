@@ -74,32 +74,64 @@ pub fn commands_page(table: &Table) -> String {
     );
     for set in [Set::Public, Set::Internal] {
         for command in table.commands.iter().filter(|command| command.set == set) {
-            let name = name(table, command);
-            let heading = match command.reach {
-                Reach::Words(_) => name.clone(),
-                Reach::RunAs(program) => format!("run as {program}"),
-            };
-            write!(text, "\n## {heading}\n").expect("writing into a string");
-            for form in command.forms {
-                write!(text, "\n`{}`\n", with_form(&name, form)).expect("writing into a string");
-            }
-            write!(text, "\n{}", command.line).expect("writing into a string");
-            if set == Set::Internal {
-                text.push_str(" Internal: it may change without notice.");
-            }
-            text.push('\n');
-            if !command.arguments.is_empty() {
-                text.push('\n');
-                for argument in command.arguments {
-                    writeln!(text, "- `{}`: {}", argument.shown, argument.line).expect("writing into a string");
-                }
-            }
-            if !command.notes.is_empty() {
-                write!(text, "\n{}\n", command.notes).expect("writing into a string");
-            }
+            command_section(&mut text, table, command, "##", None);
         }
     }
     text
+}
+
+/// The compiled reference for several binaries (protocol/documentation.md, 8.1).
+#[must_use]
+pub fn commands_reference(tables: &[&Table]) -> String {
+    let mut text = String::from(
+        "# temper's commands\n\nKind: reference\n\nEvery command of temper's binaries, a section each: its usage, what it does, its arguments and its notes. A command two binaries share is written under the first and named under the others.\n",
+    );
+    let mut earlier: Vec<&Table> = Vec::new();
+    for table in tables {
+        write!(text, "\n## {}\n\n{}\n", table.binary, table.line).expect("writing into a string");
+        for set in [Set::Public, Set::Internal] {
+            for command in table.commands.iter().filter(|command| command.set == set) {
+                let first = earlier.iter().find(|table| table.commands.contains(command)).copied();
+                command_section(&mut text, table, command, "###", first);
+            }
+        }
+        earlier.push(table);
+    }
+    text
+}
+
+fn command_section(text: &mut String, table: &Table, command: &Command, level: &str, first: Option<&Table>) {
+    let name = name(table, command);
+    let heading = match command.reach {
+        Reach::Words(_) => name.clone(),
+        Reach::RunAs(program) => format!("run as {program}"),
+    };
+    write!(text, "\n{level} {heading}\n").expect("writing into a string");
+    for form in command.forms {
+        write!(text, "\n`{}`\n", with_form(&name, form)).expect("writing into a string");
+    }
+    if let Some(first) = first {
+        let original = match command.reach {
+            Reach::Words(_) => self::name(first, command),
+            Reach::RunAs(program) => format!("{}'s run as {program}", first.binary),
+        };
+        write!(text, "\nAs {original}, above.\n").expect("writing into a string");
+        return;
+    }
+    write!(text, "\n{}", command.line).expect("writing into a string");
+    if command.set == Set::Internal {
+        text.push_str(" Internal: it may change without notice.");
+    }
+    text.push('\n');
+    if !command.arguments.is_empty() {
+        text.push('\n');
+        for argument in command.arguments {
+            writeln!(text, "- `{}`: {}", argument.shown, argument.line).expect("writing into a string");
+        }
+    }
+    if !command.notes.is_empty() {
+        write!(text, "\n{}\n", command.notes).expect("writing into a string");
+    }
 }
 
 fn name(table: &Table, command: &Command) -> String {

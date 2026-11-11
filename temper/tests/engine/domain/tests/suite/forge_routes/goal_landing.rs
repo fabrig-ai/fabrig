@@ -658,31 +658,6 @@ fn finish_goal(world: &mut World, goal: &engine::Assignment) {
     world.until(Until::Ready);
 }
 
-fn cancel_task(world: &mut World, task: u64) {
-    world.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(951)),
-        sign_in: world.signed_in.expect("owner signed in"),
-        key: [96; 16],
-        ask: people::Ask::Cancel { project: 1, task, reason: b"stop the landing".as_slice().into(), grace: None },
-    }));
-    if let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned() {
-        // The scripted worker drains its cancelled run and returns its racing result.
-        finish_run(world, &run, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
-    }
-    for _ in 0..STEPS {
-        world.tick();
-        if ended(world, task).is_some() {
-            break;
-        }
-    }
-    assert!(matches!(
-        ended(world, task).expect("cancelled task ended").phase,
-        tasks::Phase::Ended(tasks::Ending::Cancelled { .. })
-    ));
-    world.until(Until::Ready);
-}
-
 #[test]
 fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() {
     let (mut world, goal, branch, landing, old) = checking_landing();

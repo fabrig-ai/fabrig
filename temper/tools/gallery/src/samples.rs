@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 402;
+pub const N: usize = 404;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -388,6 +388,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample {
+            name: "needs-decided-project",
+            world: FirstRun { step: 7 },
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
             name: "needs-only-you",
             world: Reference,
             address: Address::Inbox { filter: Filter::ALL },
@@ -400,6 +406,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "home-away", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-away-quiet",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "home-away-overturned",
             world: FirstRun { step: 7 },
@@ -1344,7 +1356,7 @@ fn special_mockup(name: &str) -> Option<String> {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
-        "home-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
+        "home-decided" | "home-away" | "home-away-one" | "home-away-overturned" | "home-away-quiet" => {
             return Some("../greenfield/home.html".to_owned());
         }
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
@@ -1838,7 +1850,7 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chat-goal-linked" {
         return crate::worlds::linked_chat_world(sample.world, sample.address.clone());
     }
-    if sample.name == "needs-decided" {
+    if matches!(sample.name, "needs-decided" | "needs-decided-project") {
         return home_domain(sample.name);
     }
     if sample.name.starts_with("needs-") {
@@ -2553,14 +2565,23 @@ fn home_domain(name: &str) -> Domain {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let away_sample = matches!(name, "rail-away-on" | "rail-away-off");
-    let home_away =
-        matches!(name, "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned");
-    let needs_decided = name == "needs-decided";
+    let home_away = matches!(
+        name,
+        "home-decided"
+            | "needs-decided"
+            | "needs-decided-project"
+            | "home-away"
+            | "home-away-one"
+            | "home-away-overturned"
+            | "home-away-quiet"
+    );
+    let needs_decided = matches!(name, "needs-decided" | "needs-decided-project");
+    let needs_project = name == "needs-decided-project";
     let away_name = name;
     let status_name = if away_sample { "home-morning" } else { name };
     let name = match name {
         "rail-away-on" | "rail-away-off" => "home-morning",
-        "home-decided" | "needs-decided" => "home-one-need",
+        "home-decided" | "needs-decided" | "needs-decided-project" | "home-away-quiet" => "home-one-need",
         "home-away"
         | "home-away-one"
         | "home-away-overturned"
@@ -2590,7 +2611,7 @@ fn home_domain(name: &str) -> Domain {
     if home_away {
         me.projects.get_mut(0).expect("Away project").name = home_text("fabrig");
     }
-    if needs_decided {
+    if needs_decided && !needs_project {
         let mut other = me.projects.get(0).expect("first project").clone();
         other.project = 2;
         other.name = home_text("Widget");
@@ -2631,7 +2652,11 @@ fn home_domain(name: &str) -> Domain {
     step(
         &mut root,
         Event::Start {
-            address: if needs_decided { Address::Inbox { filter: Filter::ALL } } else { Address::Home { project: 1 } },
+            address: if needs_decided {
+                Address::Inbox { filter: Filter { project: if needs_project { Some(1) } else { None }, ..Filter::ALL } }
+            } else {
+                Address::Home { project: 1 }
+            },
             kept: List::with_capacity(0),
             with: None,
         },
@@ -2680,7 +2705,7 @@ fn home_domain(name: &str) -> Domain {
                         let mut lines = List::with_capacity(1);
                         lines
                             .push(c::SettingLine {
-                                setting: c::Setting::Rules,
+                                setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
                                 name: None,
                                 follows: if everyday || matches!(name, "home-ready" | "home-begin-settings-left") {
                                     c::SettingFollows::Change

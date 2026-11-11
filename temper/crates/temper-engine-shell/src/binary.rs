@@ -72,7 +72,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             if !arguments.is_empty() {
                 return Err(refused("invalid arguments"));
             }
-            versions();
+            print!("{}", versions());
             Ok(0)
         }
         Reach::Words(["serve"]) => {
@@ -148,19 +148,23 @@ fn refuse_document(command: &Command, directories: &Directories) -> Result<(), S
     Err(format!("{} {words}: temper.json holds {why}\n", ENGINE.binary))
 }
 
-/// The store's patch levels and versions, then its worker wires (protocol/binaries.md, 2).
-fn versions() {
+/// The store's patch levels and versions, then its worker wires (protocol/binaries.md, 2),
+/// each line ending in a newline.
+#[must_use]
+pub fn versions() -> String {
+    use std::fmt::Write;
+    let mut text = String::new();
     let levels = jig_protocol_store::levels(&jig_protocol_store::PatchSets::NONE);
     for (owner, level) in
         [("skein", levels.skein), ("smith", levels.smith), ("jig", levels.jig), ("temper", levels.application)]
     {
         match level {
-            Some(level) => println!("level {owner} {level}"),
-            None => println!("level {owner} none"),
+            Some(level) => writeln!(text, "level {owner} {level}").expect("writing into a string"),
+            None => writeln!(text, "level {owner} none").expect("writing into a string"),
         }
     }
     let format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [0; 16]);
-    println!("store {}", format.component);
+    writeln!(text, "store {}", format.component).expect("writing into a string");
     for (family, version) in [
         ("core", u32::from(format.core)),
         ("tasks", u32::from(format.tasks)),
@@ -170,9 +174,10 @@ fn versions() {
         ("settings", u32::from(format.settings)),
         ("temper", format.application),
     ] {
-        println!("family {family} {version}");
+        writeln!(text, "family {family} {version}").expect("writing into a string");
     }
     for wire in temper_service::store::WIRES {
-        println!("wire {} {}", wire.name, wire.version);
+        writeln!(text, "wire {} {}", wire.name, wire.version).expect("writing into a string");
     }
+    text
 }

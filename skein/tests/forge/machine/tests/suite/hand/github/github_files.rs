@@ -69,7 +69,7 @@ fn each_contents_operation_answers_through_the_github_fake() {
             },
         ),
         (
-            Read::PullFiles { number: fake.number, head, page: 1, skip: 0 },
+            Read::PullFiles { number: fake.number, head, page: 1, skip: 0, sides: true },
             4,
             Answer::PullFiles { head, files: Box::new([file]), more: false, cut: false },
         ),
@@ -104,7 +104,7 @@ fn pull_files_reads_before_sides_at_the_merge_base() {
     let mut h = harness(&fake);
     let head = object(fake.head);
     let number = fake.number;
-    let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1, skip: 0 });
+    let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1, skip: 0, sides: true });
     // main has this path, but the merge base has an empty tree.
     assert_eq!(
         (answer.cost, answer.result),
@@ -135,7 +135,7 @@ fn whole_file_bodies_fit_the_answer_bound_and_refuse_one_byte_past_it() {
         let mut h = harness_with(&fake, skein_forge_connection::Shared { answer_bytes: ANSWER, ..f::shared() });
         let head = object(fake.head);
         let number = fake.number;
-        let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1, skip: 0 });
+        let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1, skip: 0, sides: true });
         if extra == 1 {
             let Err(Error::TooLarge(_)) = answer.result else {
                 panic!("expected a typed size refusal");
@@ -208,7 +208,7 @@ fn measure_files_page(comparison: bool, ceiling: u64) {
     let read = if comparison {
         Read::Compare { before: object(fake.first), after: head }
     } else {
-        Read::PullFiles { number: fake.number, head, page: 1, skip: 0 }
+        Read::PullFiles { number: fake.number, head, page: 1, skip: 0, sides: true }
     };
     let mut call_heap = CallHeap { peak: 0, held: 0 };
     let span = skein_heap::Span::start();

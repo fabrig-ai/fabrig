@@ -182,21 +182,30 @@ impl Home {
     }
 }
 
-pub(crate) fn configured(client: &Client) -> bool {
+pub(crate) fn configured(client: &Client, project: u32) -> bool {
     let Some(document) = client.document(forge::ways::handle()) else { return false };
     if document.state == jig_client::State::Ended {
         return false;
     }
     let Some(Latest::Jig(c::Delivery::Settings(settings))) = document.latest else { return false };
     for line in &settings.settings {
-        if line.follows == c::SettingFollows::Change {
+        let own = match line.setting {
+            c::Setting::Application { scope, .. } => scope == project,
+            c::Setting::Charter(_)
+            | c::Setting::Template(_)
+            | c::Setting::Policy(_)
+            | c::Setting::Model(_)
+            | c::Setting::Rules
+            | c::Setting::ProjectPolicy { .. } => false,
+        };
+        if own && line.follows == c::SettingFollows::Change {
             return true;
         }
     }
     false
 }
 
-/// The recent Away spell accompanying Home's decisions (client/pages/README.md, Decided for you).
+/// The recent Away spell shaping Home's intro (client/pages/home.md, 1, Decided for you).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Spell {
     pub since: Wall,
@@ -495,7 +504,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
         None => false,
     };
-    let configured = asking || configured(root.client());
+    let configured = asking || configured(root.client(), project);
     let repository = repository(root, project);
     let delivered = repository != Repository::Unknown
         && match root.forges() {
@@ -535,9 +544,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         Facts { configured, repository, needs, delivered, skip, skip_refused, status, decided: None, spell: None };
     if !facts.to_begin() && home.is_some() {
         facts.decided = root.pages().decided(Some(project), wall);
-        if facts.decided.is_some()
-            && let Some(row) = root.forge().away(project)
-        {
+        if let Some(row) = root.forge().away(project) {
             let end = row.ended(wall);
             let recent = match end {
                 Some(end) => wall.as_nanos().saturating_sub(end.as_nanos()) < super::decided::DAY,

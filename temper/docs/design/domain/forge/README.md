@@ -389,9 +389,10 @@ LLM:
   landing wakes it, and so lifts it, when one of its files lies under a
   prefix, or with none named, or when the overlap is unknown.
 
-The files are read from the forge (a pull request's files, or the
-comparison of the branch's old and new tips, by names alone: skein's
-`forge/README.md`, 3.2 and 3.3), cached per head and cut at a limit past which
+The files are read from the forge (a pull request's files by their paths
+alone, `PullFiles` without `sides`, or the comparison of the branch's
+old and new tips, by names alone: skein's `forge/README.md`, 3.2 and
+3.3), cached per head and cut at a limit past which
 the overlap is unknown. A comparison names at most `forge.client.rows`
 paths and counts the rest (`changed`): one that leaves a path out, an
 unusable answer or an uncertain completeness makes the overlap unknown

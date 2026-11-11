@@ -31,20 +31,6 @@ follow landing (`README.md`, section 5).
   prints it; milestone T1 of
   [whole-story.execution.md](../draft/whole-story.execution.md), landed by
   plan `tui-whole-t1`, drew none, so it stays temper/tui's.
-- **Not yet:** `pages/README.md`, *Decided for you*, *The region*, on *Needs you*: the
-  head's right says "for 24 hours, then in each task's history" where a
-  filtered page has "Limits"; the region is named "Decided for you", not by
-  its heading; and a filtered page's rows say "PROJECT · TITLE · 01:05" as
-  well (`temper-client-view`'s `pages/decided.rs`), which the view's and
-  the gallery's tests hold.
-- **Not yet:** `pages/README.md`, *Decided for you*, *On Home*: the intro takes the
-  spell's form only while a row shows too (`temper-client-domain`'s
-  `pages/home.rs`), so Away on, or ended less than a day ago, with no row
-  showing draws *Home on any project*'s intro.
-- **Not yet:** `pages/README.md`, *Needs you*, *Stop asking*, *Its offers in words*: a
-  path set's words offer draws its "Which changes" field above "Let agents
-  decide changes to NAME that are:", where the sentence stands over it
-  (`temper-client-view`'s `pages/needs.rs`).
 
 `tui/README.md`, section 3 and `tui/pages.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
@@ -519,7 +505,7 @@ The four request accounts are `2f653fffa3`
 (`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
 (`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
-render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
+render comparison follows landing (`web/look-requests.md`, 4 and 5;
 `README.md`, section 5). The ground, scrollbar and foot repairs are recorded in
 `web/look.status.md`. The ordinary bar's two-row title at 1000 px
 remains intentional: `>_` and the status words leave the path less than
@@ -878,8 +864,7 @@ landing; its later failures are `web/testing.status.md`'s, 3 and 6.
   but the first trial request, and account rows share one running task's
   wait and last wait, so a stopped row can say another trial's reason or
   lose its earlier reason (`../domain/trial.status.md`, 6). No reason for
-  these limits is recorded. The draft's missing "one short message" spend
-  notice remains a design gap (`../draft/model-check.status.md`, 2).
+  these limits is recorded.
 - **Design departs:** `pages/README.md`, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads

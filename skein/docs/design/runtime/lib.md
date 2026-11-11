@@ -46,6 +46,16 @@ hands them what its platform streams. Nothing in them assumes a 64-bit
 skein's gate checks them for that target with the other portable
 crates (../testing/README.md, section 10).
 
+**`enum Lifecycle { Live, Closing, Aborting, Closed }`** is the component
+lifecycle its owner drives (../../foundation/programming-model.md, 5.2).
+`Live` admits new work; `Closing` refuses it as closed, closes what the
+component keeps, and lets each held request end with its own terminal;
+`Aborting` refuses new work as closed, cancels held requests and aborts
+what it keeps. Another close changes nothing; an abort moves a live or
+closing component to `Aborting`, where another abort changes nothing.
+`Closed` means everything below has settled and the component has
+reported its last event, `Closed`, once; its owner sends it nothing more.
+
 ## 3. Handles and slabs
 
 - **`Id<T>`** is a slot index plus a generation, typed by the entity it
@@ -68,6 +78,12 @@ crates (../testing/README.md, section 10).
   - `retire` marks a slot; `reclaim`, at the iteration's reclaim point,
     frees every retired one, so an entity can be looked up until the
     iteration ends.
+  - **`Slab::iter(&self) -> Iter<'_, T>`** returns its entities with
+    their handles in slot order, including those retired since the last
+    `reclaim`: their handles still reach them.
+- **`struct Iter<'a, T>`**, re-exported as **`SlabIter`**, is the iterator
+  `Slab::iter` returns: its `Iterator::Item` is `(Id<T>, &'a T)`, and it
+  visits entities retired but not yet reclaimed as well as the others.
 
 ## 4. Names across boundaries
 
@@ -102,6 +118,9 @@ exactly and never past the cap. A B-tree allocates as it fills, so its
 `price(capacity)` counts its nodes at capacity, not its entries.
 `List`, `Queue`, `Intake`, `Map`, `Set`, `Lru`, `Stack` and `Buffer` give this
 allocation price through `price(capacity)`.
+The shared growth rule for `Queue`, `List`, `Stack`, `Slab`'s lists and
+`Intake` grows storage to twice its length (its storage capacity for
+`Intake`), at least the needed size and a floor of 4, never past its cap.
 
 `Lru::get` makes an entry the most recently used. `Lru::insert` does too, and
 hands back what left: the old value under that key, the entry it evicted, or at
@@ -112,6 +131,12 @@ clock saturates; at the end of it, equal uses still fall to the least key.
 and `List::into_boxed` moves them into a box of exactly their number.
 `List::swap_remove` takes one item out, the last taking its place, and
 `List::iter_mut` hands each item to change in place.
+
+**`Queue::clear(&mut self)`** drops every item, keeping the capacity and
+the grown buffer: refilling to the previous length allocates nothing.
+
+**`Stack::clear(&mut self)`** drops every item, keeping the capacity and
+the grown buffer: refilling to the previous depth allocates nothing.
 
 **`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
 start empty and grow, with `u32::MAX` as their capacity. They hold the
@@ -189,6 +214,12 @@ where it holds it.
   time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
   and `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
   below a byte count: the one place skein and its users check text.
+- **`bytes::decimal(digits: &[u8]) -> Option<u64>`** reads `1*DIGIT` as a
+  `u64`, or returns `None` for no digits, a byte other than an ASCII digit,
+  or a number past `u64::MAX`; leading zeros are read as zeros.
+- **`bytes::hex_value(byte: u8) -> Option<u8>`** is a `const fn` returning
+  the value of an ASCII hex digit in either case, or `None` for any other
+  byte.
 - **`Reader`** reads a delivery without trusting any length in it: every
   read (`u8`, `u16`, `u32`, `u64`, `bytes`, `skip`) returns an `Option`,
   and a short one is a framing error for the caller, never a panic.
@@ -520,6 +551,9 @@ cannot manufacture independent room.
   a date are their readers': RFC 3339 and the HTTP date's reading in
   skein-forge (../forge/README.md, 4.4), IMF-fixdate's writing in skein-http
   (http.md, 5.4), and `YYYY-MM-DD` in skein-ui (../ui/README.md, 9).
+- **`earliest(left: Option<Time>, right: Option<Time>) -> Option<Time>`**
+  is a `const fn` returning the earlier of two optional deadlines, `None`
+  only when both are: an absent deadline never falls due.
 - **`Deadlines`** is a layer's own timer table, bounded: `arm` a deadline
   for a key, `cancel` it, ask for the `next` one, and `expire` those that
   have passed, each removed before its handler runs. It is a pair of

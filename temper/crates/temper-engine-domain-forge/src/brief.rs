@@ -323,7 +323,13 @@ pub(crate) fn brief_answer(
             }
             fetch.base = pull.base_commit;
             fetch.stage = BriefStage::Files;
-            Some(skein_forge::api::Read::PullFiles { number: fetch.item.number, head: fetch.head.0, page: 1, skip: 0 })
+            Some(skein_forge::api::Read::PullFiles {
+                number: fetch.item.number,
+                head: fetch.head.0,
+                page: 1,
+                skip: 0,
+                sides: true,
+            })
         }
         Ok(skein_forge::api::Answer::PullFiles { head, files, more, cut })
             if fetch.stage == BriefStage::Files && head == fetch.head.0 =>
@@ -385,6 +391,7 @@ pub(crate) fn brief_answer(
                         head: fetch.head.0,
                         page: fetch.file_page,
                         skip: fetch.file_skip,
+                        sides: true,
                     };
                     fetch.read = read.clone();
                     let repository = fetch.repository;

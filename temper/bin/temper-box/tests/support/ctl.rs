@@ -1186,8 +1186,17 @@ impl Referee<Process> for Judge {
 }
 #[must_use]
 pub fn run(story: Story<'_>) -> Seen {
+    let serve = super::serve(story.scratch);
+    run_with_serve(story, serve)
+}
+/// Read the engine's stdout sign-in link and drive the same ctl steps as the box's path.
+#[must_use]
+pub fn run_on_engine(story: Story<'_>) -> Seen {
+    let serve = super::serve_engine(story.scratch);
+    run_with_serve(story, serve)
+}
+fn run_with_serve(story: Story<'_>, mut serve: skein_world::end_to_end::Binary) -> Seen {
     let clock = Clock::new();
-    let mut serve = super::serve(story.scratch);
     let streams = serve.take_streams().expect("serve pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(story.scratch).expect("scratch root");

@@ -585,6 +585,11 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
         f::deliver_me(&mut root, watch, me);
         let team = current == "Team";
+        let (home, needs) = if address == (Address::Inbox { filter: d::address::Filter::ALL }) {
+            (b"/home".as_slice(), b"/".as_slice())
+        } else {
+            (b"/projects/1".as_slice(), b"/?project=1".as_slice())
+        };
         if team {
             with_people(&mut root, 2);
         }
@@ -615,7 +620,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NEW]);
             assert_eq!(parts[4].styles.as_slice(), [look::RAIL_FOOT]);
             let brand = parts[0].id;
-            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
+            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(home));
             let nav = children(styled(view.tree(), look::RAIL_NAV));
             let mut names = vec![Some(b"Home".as_slice()), Some(b"Needs you"), Some(b"Work")];
             if team {
@@ -634,7 +639,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 "{address:?}"
             );
             let rows: Vec<_> = nav.into_iter().filter(|n| n.role == Role::Link).map(|n| n.id).collect();
-            let mut hrefs = vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/work"];
+            let mut hrefs = vec![home, needs, b"/projects/1/work"];
             if team {
                 hrefs.push(b"/projects/1/team");
             }
@@ -651,12 +656,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let links = children(styled(view.tree(), look::TABBAR));
                 assert_eq!(f::nodes_text(styled(view.tree(), look::TABBAR)).as_ref(), b"HomeNeedsWorkAsk");
                 let ids: Vec<_> = links.iter().map(|n| n.id).collect();
-                for (id, href) in ids.into_iter().zip([
-                    b"/projects/1".as_slice(),
-                    b"/?project=1",
-                    b"/projects/1/work",
-                    b"/projects/1/ask",
-                ]) {
+                for (id, href) in ids.into_iter().zip([home, needs, b"/projects/1/work", b"/projects/1/ask"]) {
                     assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
                 }
                 assert_eq!(

@@ -151,11 +151,13 @@
   - **The figure says what travels:** where the module's answer says
     `Content-Encoding: gzip`, its total is the compressed sizes' and its
     count the fraction of that; otherwise the plain sizes'. Until the
-    module's answer is in, the line says nothing.
+    module's answer is in, the line holds no figure.
   - **The line:** the figure; with `data-left` once 3 s of data gives an
     estimate over 5 s; `data-waiting` after 15 s with no byte, which is no
-    failure; `data-starting` once every byte is in. `#boot-note`: after
-    8 s, `data-keeps`, and nothing while the line waits.
+    failure, whether or not the module's answer has begun, so that a server
+    holding that answer's head says it is waiting too; `data-starting` once
+    every byte is in. `#boot-note`: after 8 s, `data-keeps`, and nothing
+    while the line waits.
   - **A failure** is a fetch's error, an answer that isn't OK, a stylesheet
     that didn't load, no WebAssembly, or an `init` that threw:
     `data-state="failed"` on `#boot`, `data-failed` as the line, why as

@@ -476,7 +476,7 @@ fn home_documents_with_status(
     let mut lines = List::with_capacity(1);
     lines
         .push(c::SettingLine {
-            setting: c::Setting::Rules,
+            setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
             name: None,
             follows: if configured { c::SettingFollows::Change } else { c::SettingFollows::Default },
             last: None,
@@ -1764,9 +1764,9 @@ fn ask_line_reads_back_types_and_sends_on_both_homes() {
 #[test]
 fn home_notes_name_where_the_remaining_steps_stay() {
     for (configured, repository, note) in [
-        (false, false, "Two steps left. Skip them if you like; they stay in Settings and Ask temper."),
+        (false, false, "Two steps left. Skip them if you like; they stay in How work runs and Ask temper."),
         (false, true, "One step left. Skip it if you like; it stays in Ask temper."),
-        (true, false, "One step left. Skip it if you like; it stays in Settings."),
+        (true, false, "One step left. Skip it if you like; it stays in How work runs."),
     ] {
         let (root, _) = home_root(forge_rows(repository), configured, false);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -2653,7 +2653,7 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
         }
         let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
         settle_home(&mut root, &mut out, None, Some(&chat_fixture(0, 0, false, false)), None);
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             if address == (Address::Home { project: f::PROJECT }) && !skipped {
                 let styles = section_styles(view.tree());
                 for style in [crate::look::HOME_NEEDS, crate::look::HOME_CHATS, crate::look::GOALS_SECTION] {
@@ -2661,14 +2661,21 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
                 }
             }
             let nav = styled(view.tree(), crate::look::RAIL_NAV);
-            let entries: Vec<_> =
-                children(subtree(view.tree(), nav.id)).iter().filter_map(|node| node.name.as_deref()).collect();
-            let expected = if cut {
-                vec![b"Home".as_slice(), b"Ask temper"]
-            } else {
-                vec![b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper", b"How work runs"]
-            };
+            let rows = children(subtree(view.tree(), nav.id));
+            let entries: Vec<_> = rows.iter().map(|node| (node.role, node.name.as_deref())).collect();
+            let mut expected = vec![(Role::Link, Some(b"Home".as_slice()))];
+            if !cut {
+                expected.extend([(Role::Link, Some(b"Needs you".as_slice())), (Role::Link, Some(b"Work".as_slice()))]);
+            }
+            expected.extend([
+                (Role::Link, Some(b"Ask temper".as_slice())),
+                (Role::Slot, None),
+                (Role::Link, Some(b"How work runs".as_slice())),
+            ]);
             assert_eq!(entries, expected, "{address:?}, skipped={skipped}");
+            let separator = rows.get(rows.len().checked_sub(2).unwrap()).unwrap();
+            assert_eq!(separator.styles.as_slice(), &[crate::look::RAIL_SEP]);
+            let how = rows.last().unwrap().id;
             assert_eq!(
                 view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::RAIL_NEW)),
                 !cut
@@ -2678,6 +2685,10 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
                 subtree(view.tree(), foot.id)
                     .iter()
                     .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Deployment"))
+            );
+            assert_eq!(
+                crate::act(&mut view, how, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Settings { project: f::PROJECT } }))
             );
         }
         let view = f::browser_page_view(&root);
@@ -3248,6 +3259,14 @@ fn away_fixture(count: u32) -> AwayFixture {
     }
 }
 fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts: w::ProjectStatusParts) -> d::Domain {
+    away_home_with_needs(away, beginning, NeedsFixture { objects, cut: false, read: true, decided: true }, parts)
+}
+fn away_home_with_needs(
+    away: AwayFixture,
+    beginning: bool,
+    needs: NeedsFixture<'_>,
+    parts: w::ProjectStatusParts,
+) -> d::Domain {
     let fixture = StatusFixture {
         document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
         answered: true,
@@ -3260,7 +3279,7 @@ fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts
         forge_rows(true),
         !beginning,
         !beginning,
-        Some(NeedsFixture { objects, cut: false, read: true, decided: true }),
+        Some(needs),
         None,
         Some(&[]),
         true,
@@ -3364,7 +3383,71 @@ fn lede_and_byline_stand() {
     }
 }
 #[test]
-fn no_form_with_no_row_showing() {
+fn spell_intro_without_decisions_uses_the_needs_sentence() {
+    for (landed, objects, off, headline, kicker_words) in [
+        (
+            58,
+            &QUESTIONS[..1],
+            false,
+            "57 changes landed. One thing needs you.",
+            "While you were away · Sun 23:10 to now",
+        ),
+        (
+            58,
+            &QUESTIONS[..0],
+            true,
+            "57 changes landed. Nothing needs you.",
+            "While you were away · Sun 23:10 to Sun 23:50",
+        ),
+        (1, &QUESTIONS[..1], false, "One thing needs you.", "While you were away · Sun 23:10 to now"),
+        (1, &QUESTIONS[..0], true, "Nothing needs you.", "While you were away · Sun 23:10 to Sun 23:50"),
+    ] {
+        let mut away = away_fixture(0);
+        if off {
+            let mut spell = away.spell.take().unwrap().into_parts();
+            spell.off = Some(STATUS_NOW - 10 * STATUS_MINUTE);
+            away.spell = Some(w::AwayRow::new(&w::CEILINGS, spell).unwrap());
+        }
+        let mut parts = status_parts();
+        parts.landed = landed;
+        let root = away_home(away, false, objects, parts);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            assert_eq!(kicker(&root, browser).as_ref(), kicker_words.as_bytes());
+            main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+            for node in main_nodes(view.tree()) {
+                assert!(!node.styles.as_slice().contains(&crate::look::DECIDED));
+            }
+        }
+    }
+}
+#[test]
+fn needs_head_is_still_during_the_spell_with_or_without_decisions() {
+    for rows in [0, 1] {
+        for (spell, cut, heading) in [
+            (true, false, "Still needs you · 2"),
+            (true, true, "Still needs you · 2+"),
+            (false, false, "Needs you · 2"),
+            (false, true, "Needs you · 2+"),
+        ] {
+            let mut away = away_fixture(rows);
+            if !spell {
+                away.spell = None;
+            }
+            let root = away_home_with_needs(
+                away,
+                false,
+                NeedsFixture { objects: &QUESTIONS[..2], cut, read: true, decided: true },
+                status_parts(),
+            );
+            for browser in [false, true] {
+                main_find(status_view(&root, browser).tree(), Role::Heading { level: 2 }, heading.as_bytes());
+            }
+        }
+    }
+}
+#[test]
+fn no_decided_region_with_no_row_or_to_begin() {
     for beginning in [false, true] {
         let root = away_home(away_fixture(u32::from(beginning)), beginning, &[], status_parts());
         let view = status_view(&root, true);
@@ -3553,10 +3636,10 @@ fn ended_and_overturned_says_landed_and_strikes_took() {
     );
 }
 #[test]
-fn away_needs_head_keeps_the_shared_title() {
+fn away_needs_head_is_still_only_while_needs_show() {
     for objects in [&[][..], &QUESTIONS[..2]] {
         let root = away_home(away_fixture(1), false, objects, status_parts());
-        let heading = "Needs you · 2";
+        let heading = "Still needs you · 2";
         for browser in [false, true] {
             let view = status_view(&root, browser);
             assert_eq!(

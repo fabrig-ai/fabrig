@@ -100,7 +100,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let (step, _) = steps.split_once("\n## 4. ").expect("step 4");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let line = crate::host::note_line(
-        "temper-box",
+        "temper-engine",
         temper_service::Note::ForgeSignIn {
             number: 1,
             client: b"forgejo".as_slice().into(),
@@ -411,61 +411,130 @@ fn box_help_creates_the_first_project_before_using_its_number() {
     }
 }
 
+// The deployment dispatchers are private. Reach their own table first; shared
+// rows use the box parser, while serve takes only the resolved directories.
+fn deployment_page_command(table: &skein_shell::Table, arguments: &[Box<[u8]>]) -> Result<(), String> {
+    use skein_shell::{Reach, Reached};
+    let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
+    match table.reach(table.binary.as_bytes(), arguments) {
+        Reached::Unknown(why) => Err(why),
+        Reached::Help | Reached::Version | Reached::CommandHelp(_) => Ok(()),
+        Reached::Command(command, rest) => {
+            if command.reach == Reach::Words(&["serve"]) {
+                assert_eq!(command.forms, ["[DIRECTORIES]"]);
+                let (_, rest) =
+                    temper_shell::directories::resolve(rest, &environment, b"/").map_err(|why| why.to_string())?;
+                if rest.is_empty() { Ok(()) } else { Err("invalid arguments".into()) }
+            } else {
+                let shared = crate::TABLE.commands.iter().find(|row| row.reach == command.reach);
+                assert_eq!(shared, Some(command), "a shared row must have the same arguments");
+                configure_with(arguments, &environment, b"/").map(|_| ())
+            }
+        }
+    }
+}
+
+fn page_command(line: &str) -> Result<Option<&'static str>, String> {
+    if !matches!(
+        line.split_ascii_whitespace().next(),
+        Some("temper" | "temper-box" | "temper-engine" | "temper-worker")
+    ) {
+        return Ok(None);
+    }
+    let parse = || {
+        let words = command_words(line).map_err(String::from)?;
+        let words = words.iter().map(String::as_str).collect::<Vec<_>>();
+        let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
+        match words.as_slice() {
+            ["temper", "ctl", arguments @ ..] => {
+                let arguments = arguments.iter().map(|word| word.as_bytes()).collect::<Vec<_>>();
+                match crate::ctl::parse(&arguments) {
+                    Ok((_, Parsed::Call { .. } | Parsed::File { .. })) => Ok(Some("ctl")),
+                    Err(why) => Err(why),
+                }
+            }
+            ["temper-box", arguments @ ..] | ["temper", "box", arguments @ ..] => {
+                let arguments = arguments.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
+                configure_with(&arguments, &environment, b"/")?;
+                Ok(Some(if words[0] == "temper-box" { "box" } else { "front" }))
+            }
+            [binary @ ("temper-engine" | "temper-worker"), arguments @ ..] => {
+                let (table, kind) = if *binary == "temper-engine" {
+                    (&temper_engine_shell::ENGINE, "engine")
+                } else {
+                    (&temper_worker_shell::WORKER, "worker")
+                };
+                let arguments = arguments.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
+                deployment_page_command(table, &arguments)?;
+                Ok(Some(kind))
+            }
+            ["temper"] => Ok(None),
+            // The ADDRESS placeholder becomes "1" in command_words.
+            ["temper", address]
+                if *address == "1" || address.starts_with("http://") || address.starts_with("https://") =>
+            {
+                Ok(None)
+            }
+            _ => Err("not a documented binary command".into()),
+        }
+    };
+    parse().map_err(|why| format!("{line}: {why}"))
+}
+
 #[test]
 fn every_command_line_in_the_pages_parses() {
-    let mut ctl = 0;
-    let mut binary = 0;
-    let mut front = 0;
+    let mut counts = std::collections::BTreeMap::new();
     let mut failures = Vec::new();
-    let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
     for page in &temper_docs::PAGES {
         for (at, line) in fenced_lines(page.text) {
-            if !matches!(line.split_ascii_whitespace().next(), Some("temper" | "temper-box")) {
-                continue;
-            }
-            let words = match command_words(line) {
-                Ok(words) => words,
-                Err(why) => {
-                    failures.push(format!("{}:{at}: {line}: {why}", page.name));
-                    continue;
-                }
-            };
-            let words = words.iter().map(String::as_str).collect::<Vec<_>>();
-            let result = match words.as_slice() {
-                ["temper", "ctl", arguments @ ..] => {
-                    ctl += 1;
-                    let arguments = arguments.iter().map(|word| word.as_bytes()).collect::<Vec<_>>();
-                    match crate::ctl::parse(&arguments) {
-                        Ok((_, Parsed::Call { .. } | Parsed::File { .. })) => Ok(()),
-                        Err(why) => Err(why),
-                    }
-                }
-                ["temper-box", arguments @ ..] | ["temper", "box", arguments @ ..] => {
-                    if words[0] == "temper-box" {
-                        binary += 1;
-                    } else {
-                        front += 1;
-                    }
-                    let arguments = arguments.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
-                    configure_with(&arguments, &environment, b"/").map(|_| ())
-                }
-                ["temper"] => continue,
-                // The ADDRESS placeholder becomes "1" in command_words.
-                ["temper", address]
-                    if *address == "1" || address.starts_with("http://") || address.starts_with("https://") =>
-                {
-                    continue;
-                }
-                _ => Err("not a documented binary command".into()),
-            };
-            if let Err(why) = result {
-                failures.push(format!("{}:{at}: {line}: {why}", page.name));
+            match page_command(line) {
+                Ok(Some(kind)) => *counts.entry(kind).or_insert(0) += 1,
+                Ok(None) => {}
+                Err(why) => failures.push(format!("{}:{at}: {why}", page.name)),
             }
         }
     }
     assert!(failures.is_empty(), "{} command lines refused:\n{}", failures.len(), failures.join("\n"));
-    assert!(ctl > 0 && binary > 0 && front > 0, "checked {ctl} ctl, {binary} box and {front} front lines");
-    println!("checked {ctl} ctl, {binary} box and {front} front command lines");
+    for kind in ["ctl", "box", "front", "engine", "worker"] {
+        assert!(counts.get(kind).is_some_and(|count| *count > 0), "no {kind} lines checked: {counts:?}");
+    }
+    println!("checked command lines: {counts:?}");
+}
+
+#[test]
+fn page_commands_use_each_binarys_table_and_take_its_arguments() {
+    for (line, expected) in [
+        ("temper ctl DIR me", Some("ctl")),
+        ("temper-box serve --config CONFIG", Some("box")),
+        ("temper box --config CONFIG", Some("front")),
+        ("temper-engine forge fetch --config CONFIG --data DATA --cache CACHE 1", Some("engine")),
+        ("temper-worker program-login --config CONFIG claude", Some("worker")),
+        ("temper-engine serve --config CONFIG --data DATA --cache CACHE", Some("engine")),
+        ("temper-worker serve --config CONFIG --data DATA --cache CACHE", Some("worker")),
+        ("curl https://example.com", None),
+    ] {
+        assert_eq!(page_command(line), Ok(expected), "{line}");
+    }
+    for line in [
+        "temper-worker forge fetch --config CONFIG --data DATA --cache CACHE 1",
+        "temper-engine program-login --config CONFIG claude",
+        "temper-engine forge fetch --config CONFIG",
+        "temper-worker program-login --config CONFIG",
+        "temper-engine serve --config CONFIG extra",
+        "temper-worker serve --box",
+        "temper-worker serve --config CONFIG --config CONFIG",
+    ] {
+        let why = page_command(line).expect_err(line);
+        assert!(why.contains(line), "refusal must name the line: {why}");
+    }
+}
+
+#[test]
+fn server_walk_runs_only_the_deployments_binaries() {
+    let page = temper_docs::find(b"server").expect("server walk");
+    for (at, line) in fenced_lines(page.text) {
+        assert_ne!(line.split_ascii_whitespace().next(), Some("temper-box"), "server:{at}: {line}");
+    }
 }
 
 #[test]
@@ -830,7 +899,7 @@ fn help_search_names_the_server_section_or_says_nothing_matches() {
 fn help_search_finds_port_selection_in_init_and_the_box_walk() {
     let text =
         help::answer(&configured(&["help", "--search", "ports", "init"])).expect("help explains init's port selection");
-    for section in ["box: 1. Write the configuration: ", "commands: temper-box init: "] {
+    for section in ["box: 1. Write the configuration: ", "commands: temper-box: "] {
         assert!(text.lines().any(|line| line.starts_with(section)), "{section} missing from {text}");
     }
 }

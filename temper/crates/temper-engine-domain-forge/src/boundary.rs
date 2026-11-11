@@ -1750,6 +1750,10 @@ pub enum Event {
         entry: u64,
         goal: u64,
     },
+    /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
+    DropChange {
+        task: u64,
+    },
     /// Register one activated change task with its held branch.
     Change {
         row: ChangeRow,
@@ -2203,7 +2207,7 @@ pub enum Request {
         resource: Name,
         by: u64,
     },
-    /// A request exceeds the connector's configured bounds.
+    /// A request cannot proceed for a cause without its own typed refusal.
     Refused {
         task: u64,
     },
@@ -2366,7 +2370,6 @@ pub enum TierDecision {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
-    pub cancelled: bool,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

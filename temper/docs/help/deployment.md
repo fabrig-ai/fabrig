@@ -9,9 +9,10 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 - **The engine** keeps state and decides acts. A **worker** checks out
   repositories and runs agents. `temper-box init` writes one worker in the
   engine's process, with 4 slots.
-- **`temper-box serve`** runs the configured engine, workers or both.
+- **`temper-box serve`** runs any shape: engine, workers or both.
   **`temper box`** runs serve and each managed forge's setup processes
-  on this machine (temper help box). A **server** separates engine and workers (temper help server).
+  on this machine (temper help box). A **server** runs `temper-engine serve` for its engine alone and
+  `temper-worker serve` for each worker alone (temper help server).
 
 **The three directories:** `CONFIG` holds `temper.json` and
 `agent.json`; `DATA` holds the store under `deployment`, workspaces,
@@ -67,10 +68,12 @@ temper ctl settings apply`.
 
 ## Acting on it
 
-- **The binary:** `temper-box init` writes a deployment; `temper box` runs
-  one on this machine; `temper-box serve` runs one, or a worker alone;
-  `temper-box program-login` signs a program in on this host. Each
-  command's arguments are its row: `temper-box help commands`.
+- **The binaries:** the box's `temper-box init` writes a deployment;
+  `temper box` runs it; `temper-box serve` runs any shape;
+  `temper-box program-login` signs a program in on this host. A server's
+  `temper-engine serve` runs its engine, `temper-worker serve` each worker,
+  and `temper-worker program-login` signs a program in on each worker's
+  host. Each binary's `help commands` lists its own commands.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
 - **The client:** Deployment, at the rail's foot, holds Accounts, Forges,
