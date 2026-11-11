@@ -1,2 +1,1 @@
 POST git-upload-pack (347 bytes)
-fatal: mismatched algorithms: client sha1; server sha256

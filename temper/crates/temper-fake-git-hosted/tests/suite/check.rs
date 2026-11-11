@@ -13,6 +13,7 @@ fn an_argument_vector_the_builders_did_not_make_exits_129() {
 fn a_token_outside_the_header_or_a_path_variable_is_refused() {
     for (name, extra) in [("PATH", b"PATH=/usr/bin".as_slice()), ("token", b"HOME=/fake-git-identity-token")] {
         let mut spawn = fixtures::spawn_of(&Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote: b"https://forge.example/acme/app".as_slice().into(),
             source: Source::Default,
@@ -33,6 +34,7 @@ fn a_remote_over_plaintext_off_loopback_is_refused() {
         (b"https://forge.example/acme/app", None),
     ] {
         let spawn = fixtures::spawn_of(&Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: temper_worker_domain_checkout::git::Into::Fetched,
             remote: url.into(),
             source: Source::Default,
@@ -48,10 +50,11 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
     let two = invocation::object(&temper_fake_git_hosted::id::id(2)).expect("counted id");
     let rows = [
         ("version", Command::Version),
-        ("clone", Command::Clone { remote: remote.into(), directory: b"app".as_slice().into() }),
+        ("clone", Command::Store { remote: remote.into(), directory: b"app".as_slice().into() }),
         (
             "fetch default",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Fetched,
                 remote: remote.into(),
                 source: Source::Default,
@@ -60,6 +63,7 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
         (
             "fetch branch",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Fetched,
                 remote: remote.into(),
                 source: Source::Branch(b"main".as_slice().into()),
@@ -68,6 +72,7 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
         (
             "fetch landing",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Landing,
                 remote: remote.into(),
                 source: Source::Branch(b"main".as_slice().into()),
@@ -76,6 +81,7 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
         (
             "fetch commit",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Fetched,
                 remote: remote.into(),
                 source: Source::Commit(one),
@@ -121,6 +127,7 @@ fn a_missing_or_reordered_setting_names_the_broken_contract() {
 fn an_admitted_credential_is_absent_from_debug_output() {
     let remote = b"https://forge.example/acme/app".as_slice();
     let spawn = fixtures::spawn_of(&Command::Fetch {
+        workspace: skein_lib::Token::new(1),
         into: temper_worker_domain_checkout::git::Into::Fetched,
         remote: remote.into(),
         source: Source::Default,

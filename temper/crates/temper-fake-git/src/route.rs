@@ -33,6 +33,7 @@ pub enum Missing {
 /// past the command; each run starts at cursor zero, while writes enter the log once.
 #[derive(Debug)]
 pub struct Route {
+    formats: std::collections::BTreeMap<Vec<u8>, skein_fake_checkout::git::ObjectFormat>,
     limits: Limits,
     objects: BTreeMap<u64, git::Object>,
     parents: BTreeMap<u64, git::Parents>,
@@ -42,10 +43,15 @@ pub struct Route {
     authenticated: bool,
 }
 impl Route {
+    pub fn set_object_format(&mut self, remote: &[u8], format: skein_fake_checkout::git::ObjectFormat) {
+        self.formats.insert(remote.to_vec(), format);
+    }
+
     /// The route's encoding/decoding limits, held for this whole command.
     #[must_use]
     pub fn new(limits: Limits) -> Self {
         Self {
+            formats: std::collections::BTreeMap::new(),
             limits,
             objects: BTreeMap::new(),
             parents: BTreeMap::new(),
@@ -119,6 +125,16 @@ impl Route {
     }
 }
 impl Remote for Route {
+    fn clone_default(&mut self, remote: &[u8]) -> Result<skein_fake_checkout::git::CloneInfo, Fault> {
+        let Answer::Cloned { default, branches } = self.faulting(Call::Clone { repository: repository(remote) })?
+        else {
+            panic!("clone metadata")
+        };
+        let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
+        let format = self.formats.get(remote).copied().unwrap_or(skein_fake_checkout::git::ObjectFormat::Sha1);
+        Ok(skein_fake_checkout::git::CloneInfo { format, default: default.into_vec(), tip })
+    }
+
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
         let Answer::Cloned { branches, .. } = self.faulting(Call::Clone { repository: repository(remote) })? else {
             panic!("clone answer");

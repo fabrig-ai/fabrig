@@ -327,6 +327,14 @@ impl Forge {
 }
 
 impl Remote for Forge {
+    fn clone_default(&mut self, remote: &[u8]) -> Result<git::CloneInfo, Fault> {
+        let Answer::Cloned { default, branches } = self.call(remote, WORKER, Git::Clone)? else {
+            panic!("clone metadata")
+        };
+        let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
+        Ok(git::CloneInfo { format: git::ObjectFormat::Sha1, default: default.into_vec(), tip })
+    }
+
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
         let Answer::Cloned { default: _, branches } = self.call(remote, WORKER, Git::Clone)? else {
             panic!("a clone is answered with the branches");

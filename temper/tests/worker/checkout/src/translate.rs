@@ -62,12 +62,12 @@ pub fn workspace(op: &Op) -> Option<Token> {
 #[must_use]
 pub fn identity(op: &Op) -> Option<u32> {
     match op {
-        Op::Fetch { identity, .. }
+        Op::Store { identity, .. }
+        | Op::Fetch { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Store { .. }
-        | Op::Clone { .. }
+        Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
@@ -81,12 +81,11 @@ pub fn identity(op: &Op) -> Option<u32> {
 #[must_use]
 pub fn remote(op: &Op) -> Option<&[u8]> {
     match op {
-        Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
+        Op::Store { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
             Some(remote)
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
-        Op::Store { .. }
-        | Op::Clone { .. }
+        Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
@@ -107,7 +106,9 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             disk.remove(&dir);
             disk.mkdir(&dir);
             for store in stores {
-                disk.remove(&[store_path(store).as_slice(), b"/refs/temper/", workspace.raw().to_string().as_bytes()].concat());
+                disk.remove(
+                    &[store_path(store).as_slice(), b"/refs/temper/", workspace.raw().to_string().as_bytes()].concat(),
+                );
             }
             Done::Succeeded
         }
@@ -117,14 +118,21 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),
             }
         }
-        Op::Store { store, aside, .. } => {
-            if let Some(aside) = aside { disk.remove(&store_path(aside)); }
-            if !disk.exists(&store_path(store)) { git::init(disk, &store_path(store), true); }
+        Op::Store { store, aside, remote, .. } => {
+            if let Some(aside) = aside {
+                disk.remove(&store_path(aside));
+            }
+            if !disk.exists(&store_path(store))
+                && let Err(fault) = git::clone_bare(forge, disk, &remote, &store_path(store))
+            {
+                return failed(fault);
+            }
             Done::Succeeded
         }
         Op::Clone { at, remote, store } => {
             assert!(disk.exists(&dir(at.workspace)), "a workspace made before its clone");
-            git::init(disk, &path(&at), false);
+            let format = git::object_format(disk, &store_path(store));
+            git::init_with_format(disk, &path(&at), false, format);
             let alternate = format!("../../../../../stores/{}/objects\n", store.raw());
             disk.write(&[path(&at).as_slice(), b"/.git/objects/info/alternates"].concat(), alternate.as_bytes());
             disk.write(&[path(&at).as_slice(), b"/.git/temper-remote"].concat(), &remote);
@@ -143,7 +151,13 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                         temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
                         temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
                     };
-                    let store_ref = [b"refs/temper/".as_slice(), at.workspace.raw().to_string().as_bytes(), b"/", reference.strip_prefix(b"refs/temper/").expect("fixed ref")].concat();
+                    let store_ref = [
+                        b"refs/temper/".as_slice(),
+                        at.workspace.raw().to_string().as_bytes(),
+                        b"/",
+                        reference.strip_prefix(b"refs/temper/").expect("fixed ref"),
+                    ]
+                    .concat();
                     git::update_ref(disk, &store_path(store), &store_ref, fetched).expect("fetched into store");
                     git::update_ref(disk, &path(&at), reference, fetched).expect("borrowed from store");
                     Done::Fetched { commit: commit(fetched) }
@@ -326,4 +340,6 @@ fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
 
 /// A shared bare repository on the world's fake disk.
 #[must_use]
-pub fn store_path(store: Token) -> Vec<u8> { format!("stores/{}", store.raw()).into_bytes() }
+pub fn store_path(store: Token) -> Vec<u8> {
+    format!("stores/{}", store.raw()).into_bytes()
+}

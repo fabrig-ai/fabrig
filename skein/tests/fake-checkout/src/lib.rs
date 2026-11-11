@@ -20,6 +20,7 @@ struct Commit {
 /// (testing/fakes/checkout.md, section 5).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Store {
+    pub format: skein_fake_checkout::git::ObjectFormat,
     commits: BTreeMap<u64, Commit>,
     branches: BTreeMap<Vec<u8>, u64>,
     next: u64,
@@ -33,10 +34,19 @@ pub struct Store {
 }
 
 impl Store {
+    #[must_use]
+    pub fn empty(format: skein_fake_checkout::git::ObjectFormat) -> Self {
+        let mut store = Self::new(Tree::new());
+        store.format = format;
+        store.branches.clear();
+        store
+    }
+
     /// One root commit, ID 1, at the fixture's `main` branch (testing/fakes/checkout.md, section 5).
     #[must_use]
     pub fn new(tree: Tree) -> Store {
         Store {
+            format: skein_fake_checkout::git::ObjectFormat::Sha1,
             commits: BTreeMap::from([(1, Commit { parent: None, merging: None, tree, message: Vec::new() })]),
             branches: BTreeMap::from([(b"main".to_vec(), 1)]),
             next: 2,
@@ -70,6 +80,15 @@ impl Store {
 }
 
 impl Remote for Store {
+    fn clone_default(&mut self, remote: &[u8]) -> Result<skein_fake_checkout::git::CloneInfo, Fault> {
+        self.check(remote)?;
+        Ok(skein_fake_checkout::git::CloneInfo {
+            format: self.format,
+            default: b"main".to_vec(),
+            tip: self.branch(b"main"),
+        })
+    }
+
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
         self.check(remote)?;
         Ok(self.branches.values().copied().collect())

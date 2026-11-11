@@ -50,16 +50,22 @@ pub trait Transport: Remote {
 /// The known tokens and logins stay solely on this side of the boundary.
 #[derive(Debug, Clone)]
 pub struct Typed {
+    formats: std::collections::BTreeMap<Vec<u8>, skein_fake_checkout::git::ObjectFormat>,
     pub forge: Rc<RefCell<Forge>>,
     tokens: Rc<Vec<(Secret, u64)>>,
     users: Rc<Vec<(u64, Box<[u8]>)>>,
     user: Option<u64>,
 }
 impl Typed {
+    pub fn set_object_format(&mut self, remote: &[u8], format: skein_fake_checkout::git::ObjectFormat) {
+        self.formats.insert(remote.to_vec(), format);
+    }
+
     /// Copy the protocol scenario's identity tables before it takes ownership.
     #[must_use]
     pub fn new(forge: Rc<RefCell<Forge>>, table: &skein_fake_forge_forgejo::Config) -> Self {
         Self {
+            formats: std::collections::BTreeMap::new(),
             forge,
             tokens: Rc::new(table.tokens.iter().cloned().collect()),
             users: Rc::new(table.users.iter().cloned().collect()),
@@ -150,6 +156,15 @@ impl Typed {
     }
 }
 impl Remote for Typed {
+    fn clone_default(&mut self, remote: &[u8]) -> Result<skein_fake_checkout::git::CloneInfo, Fault> {
+        let api::Answer::Cloned { default, branches } = self.call(remote, api::Git::Clone)? else {
+            panic!("clone metadata")
+        };
+        let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
+        let format = self.formats.get(remote).copied().unwrap_or(skein_fake_checkout::git::ObjectFormat::Sha1);
+        Ok(skein_fake_checkout::git::CloneInfo { format, default: default.into_vec(), tip })
+    }
+
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
         let api::Answer::Cloned { branches, .. } = self.call(remote, api::Git::Clone)? else {
             panic!("clone answer");

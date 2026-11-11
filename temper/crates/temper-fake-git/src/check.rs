@@ -46,7 +46,9 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     if invocation::arguments(&command) != spawn.args {
         return Err(Refusal::Usage);
     }
-    if let Some(remote) = remote(&command).or_else(|| if let Command::Remote { remote } = &command { Some(remote.as_ref()) } else { None }) {
+    if let Some(remote) = remote(&command)
+        .or_else(|| if let Command::Remote { remote } = &command { Some(remote.as_ref()) } else { None })
+    {
         check_remote(remote)?;
     }
     let mut env = BTreeMap::new();
@@ -91,6 +93,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::Clone { .. }
             | Command::Remote { .. }
             | Command::Store { .. }
+            | Command::Format
             | Command::UpdateRef { .. }
             | Command::SnapshotFetch { .. }
             | Command::Fetch { .. }
@@ -198,8 +201,8 @@ fn check_remote(url: &[u8]) -> Result<(), Refusal> {
 }
 pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
     match command {
-        Command::SnapshotFetch { remote, .. }
-        
+        Command::Store { remote, .. }
+        | Command::SnapshotFetch { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
@@ -210,7 +213,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Version
         | Command::Clone { .. }
         | Command::Remote { .. }
-        | Command::Store { .. }
+        | Command::Format
         | Command::UpdateRef { .. }
         | Command::CheckOut { .. }
         | Command::Clean
@@ -251,12 +254,27 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
             Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
         }
-        [b"init", b"--quiet", b"--", dir] => Command::Clone { directory: (*dir).into() },
-        [b"init", b"--bare", b"--quiet"] => Command::Store { directory: Box::new([]) },
+        [b"rev-parse", b"--show-object-format"] => Command::Format,
+        [b"init", b"--quiet", format, b"--", dir] => Command::Clone {
+            directory: (*dir).into(),
+            format: match format.strip_prefix(b"--object-format=")? {
+                b"sha1" => invocation::Format::Sha1,
+                b"sha256" => invocation::Format::Sha256,
+                _ => return None,
+            },
+        },
+        [b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory] => {
+            Command::Store { remote: (*remote).into(), directory: (*directory).into() }
+        }
         [b"remote", b"add", b"origin", b"--", remote] => Command::Remote { remote: (*remote).into() },
-        [b"update-ref", reference, commit] => Command::UpdateRef { into: match *reference {
-            b"refs/temper/fetched" => git::Into::Fetched, b"refs/temper/landing" => git::Into::Landing, _ => return None,
-        }, commit: invocation::object(commit)? },
+        [b"update-ref", reference, commit] => Command::UpdateRef {
+            into: match *reference {
+                b"refs/temper/fetched" => git::Into::Fetched,
+                b"refs/temper/landing" => git::Into::Landing,
+                _ => return None,
+            },
+            commit: invocation::object(commit)?,
+        },
         [
             b"fetch",
             b"--porcelain",
@@ -274,7 +292,11 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             let destination = &spec[split + b":refs/temper/".len()..];
             let slash = destination.iter().position(|byte| *byte == b'/')?;
             let workspace = skein_lib::Token::new(std::str::from_utf8(&destination[..slash]).ok()?.parse().ok()?);
-            let into = match &destination[slash + 1..] { b"fetched" => git::Into::Fetched, b"landing" => git::Into::Landing, _ => return None };
+            let into = match &destination[slash + 1..] {
+                b"fetched" => git::Into::Fetched,
+                b"landing" => git::Into::Landing,
+                _ => return None,
+            };
             let source = if from == b"HEAD" {
                 Source::Default
             } else if let Some(branch) = from.strip_prefix(b"refs/heads/") {

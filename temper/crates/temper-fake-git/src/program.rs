@@ -99,10 +99,10 @@ impl<T: Transport> Git<T> {
             }
             match &checked.command {
                 Command::Version => {}
-                Command::Origin { directory } | Command::Clone { directory, .. } => {
+                Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
-                Command::Store { .. }
+                Command::Format
                 | Command::Remote { .. }
                 | Command::UpdateRef { .. }
                 | Command::SnapshotHead
@@ -216,7 +216,10 @@ impl<T: Transport> Git<T> {
             self.file_complete(pending, complete.kind, complete.result);
         }
     }
-    #[expect(clippy::too_many_lines, reason = "the file completion table includes discovering alternate object directories")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the file completion table includes discovering alternate object directories"
+    )]
     fn file_complete(&mut self, pending: Pending, kind: Op, result: Result<Done, k::Error>) {
         match (pending, kind, result) {
             (Pending::Scan(path), _, Ok(Done::Fd(fd))) => {

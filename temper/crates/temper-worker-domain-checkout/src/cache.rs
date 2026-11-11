@@ -60,12 +60,23 @@ pub(crate) struct Cloned {
 }
 /// Shared bare objects by remote, never spoiled by a workspace fault (worker.md, 5).
 #[derive(Debug)]
-pub(crate) struct Store { remote: Box<[u8]>, made: bool, aside: Option<Token> }
+pub(crate) struct Store {
+    remote: Box<[u8]>,
+    made: bool,
+    aside: Option<Token>,
+}
 #[derive(Debug)]
-pub(crate) struct Granted { pub workspace: Id<Workspace>, pub cached: Cached, pub stores: Box<[Borrowed]> }
+pub(crate) struct Granted {
+    pub workspace: Id<Workspace>,
+    pub cached: Cached,
+    pub stores: Box<[Borrowed]>,
+}
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Borrowed { pub store: Id<Store>, pub make: bool, pub aside: Option<Token> }
-
+pub(crate) struct Borrowed {
+    pub store: Id<Store>,
+    pub make: bool,
+    pub aside: Option<Token>,
+}
 
 /// Whether a workspace is held, or idle since the release that `since`
 /// counts, its place in the order of eviction.
@@ -139,7 +150,9 @@ impl Cache {
     pub(crate) fn hold(&mut self, key: Box<[u8]>, repositories: &[Repository]) -> Result<Granted, Refusal> {
         let (workspace, cached) = self.workspace(key, repositories)?;
         let mut remotes = List::with_capacity(count(repositories.len()));
-        for repository in repositories { remotes.push(copy_of(&repository.remote)).expect("spec room"); }
+        for repository in repositories {
+            remotes.push(copy_of(&repository.remote)).expect("spec room");
+        }
         self.workspaces.get_mut(workspace).expect("held workspace").borrowing = remotes.into_boxed();
         let mut stores = List::with_capacity(count(repositories.len()));
         for repository in repositories {
@@ -151,13 +164,18 @@ impl Cache {
     }
     fn store(&mut self, remote: &[u8]) -> Id<Store> {
         for (id, store) in &self.stores {
-            if store.remote.as_ref() == remote { return id; }
+            if store.remote.as_ref() == remote {
+                return id;
+            }
         }
         let mut aside = None;
         if self.stores.is_full() {
             let mut unborrowed = None;
             for (id, store) in &self.stores {
-                if !self.borrowed(id, &store.remote) { unborrowed = Some(id); break; }
+                if !self.borrowed(id, &store.remote) {
+                    unborrowed = Some(id);
+                    break;
+                }
             }
             let id = unborrowed.expect("a new remote displaces a store no workspace can borrow");
             aside = Some(id.token());
@@ -171,12 +189,18 @@ impl Cache {
             match workspace.used {
                 Use::Held => {
                     for name in &workspace.borrowing {
-                        if name.as_ref() == remote { return true; }
+                        if name.as_ref() == remote {
+                            return true;
+                        }
                     }
                 }
                 Use::Idle { .. } => match &workspace.disk {
                     Disk::Holds { repositories } => {
-                        for repository in repositories { if repository.store == store { return true; } }
+                        for repository in repositories {
+                            if repository.store == store {
+                                return true;
+                            }
+                        }
                     }
                     Disk::Unknown => {}
                 },
@@ -194,11 +218,7 @@ impl Cache {
     /// `repositories`: its own if it has one, a new one, or the least
     /// recently used idle one, evicted. Refused if its own is held, or if
     /// every workspace is.
-    fn workspace(
-        &mut self,
-        key: Box<[u8]>,
-        repositories: &[Repository],
-    ) -> Result<(Id<Workspace>, Cached), Refusal> {
+    fn workspace(&mut self, key: Box<[u8]>, repositories: &[Repository]) -> Result<(Id<Workspace>, Cached), Refusal> {
         if let Some(found) = self.keys.get(&*key) {
             let id = *found;
             let workspace = self.workspaces.get_mut(id).expect("a key names a workspace of the cache");
@@ -217,7 +237,8 @@ impl Cache {
             return Ok((id, Cached::Rebuilt));
         }
         if !self.workspaces.is_full() {
-            let workspace = Workspace { key: copy_of(&key), disk: Disk::Unknown, used: Use::Held, borrowing: Box::new([]) };
+            let workspace =
+                Workspace { key: copy_of(&key), disk: Disk::Unknown, used: Use::Held, borrowing: Box::new([]) };
             let id = self.workspaces.insert(workspace).expect("checked for room above");
             let made = self.keys.insert(key, id).expect("a key for each workspace");
             assert!(made.is_none(), "a workstream has one workspace");
@@ -245,7 +266,8 @@ impl Cache {
         let workspace = self.workspaces.get_mut(id).expect("a hold's workspace is of the cache");
         let mut cloned = List::with_capacity(count(repositories.len()));
         for (repository, borrowed) in repositories.iter().zip(stores) {
-            let clone = Cloned { name: copy_of(&repository.name), remote: copy_of(&repository.remote), store: borrowed.store };
+            let clone =
+                Cloned { name: copy_of(&repository.name), remote: copy_of(&repository.remote), store: borrowed.store };
             cloned.push(clone).expect("room for every repository");
         }
         workspace.disk = Disk::Holds { repositories: cloned.into_boxed() };

@@ -1,18 +1,37 @@
 //! Shared objects and private workspace references (protocol/git.md, 4.1–4.3, 4.11).
 use super::{Action, Directories, close, fd, mkdir, open};
-use crate::{Settings, invocation::{self, Command}, sequence::Next};
+use crate::{
+    Settings,
+    invocation::{self, Command},
+    sequence::Next,
+};
 use alloc::boxed::Box;
 use skein_io::kernel::{Done, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, Token};
 use temper_worker_domain_checkout::git;
-fn broken() -> Action { Action::Operation(Next::End(git::Done::Failed { fault: git::Fault::Broken })) }
-fn name(token: Token) -> Box<[u8]> { Box::from(Decimal::of(token.raw()).as_bytes()) }
-#[derive(Debug)]
-pub(crate) struct Make {
-    workspace: Box<[u8]>, stores: Box<[Token]>, index: usize, phase: MakePhase, fd: Option<Fd>, failed: bool,
+fn broken() -> Action {
+    Action::Operation(Next::End(git::Done::Failed { fault: git::Fault::Broken }))
+}
+fn name(token: Token) -> Box<[u8]> {
+    Box::from(Decimal::of(token.raw()).as_bytes())
 }
 #[derive(Debug)]
-enum MakePhase { Aside, Create, Open, Move, Close }
+pub(crate) struct Make {
+    workspace: Box<[u8]>,
+    stores: Box<[Token]>,
+    index: usize,
+    phase: MakePhase,
+    fd: Option<Fd>,
+    failed: bool,
+}
+#[derive(Debug)]
+enum MakePhase {
+    Aside,
+    Create,
+    Open,
+    Move,
+    Close,
+}
 impl Make {
     pub fn new(workspace: Token, stores: Box<[Token]>) -> Self {
         Self { workspace: name(workspace), stores, index: 0, phase: MakePhase::Aside, fd: None, failed: false }
@@ -21,29 +40,59 @@ impl Make {
         Action::Run(dirs.rename(dirs.workspaces.expect("layout"), self.workspace.clone()))
     }
     fn next(&mut self, settings: &Settings, stop: bool) -> Action {
-        if self.failed { return broken(); }
-        let Some(store) = self.stores.get(self.index) else { return Action::Operation(Next::End(git::Done::Succeeded)); };
-        if stop { return broken(); }
+        if self.failed {
+            return broken();
+        }
+        let Some(store) = self.stores.get(self.index) else {
+            return Action::Operation(Next::End(git::Done::Succeeded));
+        };
+        if stop {
+            return broken();
+        }
         self.phase = MakePhase::Open;
-        Action::Run(open(settings.root, invocation::joined(&[b"stores/", &name(*store), b"/refs/temper"]), OpenHow::DirectoryNoFollow))
+        Action::Run(open(
+            settings.root,
+            invocation::joined(&[b"stores/", &name(*store), b"/refs/temper"]),
+            OpenHow::DirectoryNoFollow,
+        ))
     }
-    pub fn complete(&mut self, result: Result<Done, Error>, dirs: &mut Directories, settings: &Settings, stop: bool) -> Action {
+    pub fn complete(
+        &mut self,
+        result: Result<Done, Error>,
+        dirs: &mut Directories,
+        settings: &Settings,
+        stop: bool,
+    ) -> Action {
         match self.phase {
             MakePhase::Aside => {
-                if result.is_err() && result != Err(Error::NotFound) { return broken(); }
-                if stop { return broken(); }
+                if result.is_err() && result != Err(Error::NotFound) {
+                    return broken();
+                }
+                if stop {
+                    return broken();
+                }
                 self.phase = MakePhase::Create;
                 Action::Run(mkdir(dirs.workspaces.expect("layout"), &self.workspace))
             }
-            MakePhase::Create => { if result.is_err() { return broken(); } self.next(settings, stop) }
+            MakePhase::Create => {
+                if result.is_err() {
+                    return broken();
+                }
+                self.next(settings, stop)
+            }
             MakePhase::Open => {
                 if result == Err(Error::NotFound) {
                     self.index = self.index.checked_add(1).expect("spec length");
                     return self.next(settings, stop);
                 }
-                let Ok(fd) = fd(result) else { return broken(); };
+                let Ok(fd) = fd(result) else {
+                    return broken();
+                };
                 self.fd = Some(fd);
-                if stop { self.phase = MakePhase::Close; return close(fd); }
+                if stop {
+                    self.phase = MakePhase::Close;
+                    return close(fd);
+                }
                 self.phase = MakePhase::Move;
                 Action::Run(dirs.rename(fd, self.workspace.clone()))
             }
@@ -62,54 +111,94 @@ impl Make {
     }
 }
 #[derive(Debug)]
-pub(crate) struct Store { token: Token, temporary: Box<[u8]>, phase: StorePhase, done: Box<git::Done> }
+pub(crate) struct Store {
+    token: Token,
+    temporary: Box<[u8]>,
+    remote: Box<[u8]>,
+    phase: StorePhase,
+    done: Box<git::Done>,
+}
 #[derive(Debug)]
-enum StorePhase { Aside(Token), Create, Install, Discard }
+enum StorePhase {
+    Aside(Token),
+    Create,
+    Install,
+    Discard,
+}
 impl Store {
-    pub fn new(store: Token, aside: Option<Token>, dirs: &mut Directories) -> Self {
-        let temporary = invocation::joined(&[b"new-", Decimal::of(dirs.serial).as_bytes()]);
-        dirs.serial = dirs.serial.checked_add(1).expect("serial lifetime");
-        let phase = match aside { Some(aside) => StorePhase::Aside(aside), None => StorePhase::Create };
-        Self { token: store, temporary, phase, done: Box::new(git::Done::Succeeded) }
+    pub fn new(store: Token, aside: Option<Token>, remote: Box<[u8]>, dirs: &mut Directories) -> Self {
+        let (temporary, phase) = match aside {
+            Some(aside) => (Box::from(&b""[..]), StorePhase::Aside(aside)),
+            None => (temporary(dirs), StorePhase::Create),
+        };
+        Self { token: store, temporary, remote, phase, done: Box::new(git::Done::Succeeded) }
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Self {
         let phase = if *done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
-        Self { token: store, temporary: Box::from(directory.strip_prefix(b"stores/").expect("store invocation directory")), phase, done }
+        Self { token: store, temporary: Box::from(directory), remote: Box::new([]), phase, done }
     }
     pub fn first(&self, dirs: &mut Directories) -> Action {
         let stores = dirs.stores.expect("layout");
         Action::Run(match self.phase {
             StorePhase::Aside(aside) => dirs.rename(stores, name(aside)),
             StorePhase::Create => mkdir(stores, &self.temporary),
-            StorePhase::Install => Op::Rename { from_dir: stores, from: self.temporary.clone(), to_dir: stores, to: name(self.token), no_replace: true },
-            StorePhase::Discard => dirs.rename(stores, self.temporary.clone()),
+            StorePhase::Install => Op::Rename {
+                from_dir: stores,
+                from: self.temporary.clone(),
+                to_dir: stores,
+                to: name(self.token),
+                no_replace: true,
+            },
+            StorePhase::Discard => Op::Rename {
+                from_dir: stores,
+                from: self.temporary.clone(),
+                to_dir: dirs.trash.expect("layout"),
+                to: Box::from(self.temporary.strip_prefix(b"new-").expect("temporary name")),
+                no_replace: false,
+            },
         })
     }
     pub fn complete(&mut self, result: Result<Done, Error>, dirs: &mut Directories, stop: bool) -> Action {
         match self.phase {
             StorePhase::Aside(_) => {
-                if result.is_err() && result != Err(Error::NotFound) { return broken(); }
-                if stop { return broken(); }
+                if result.is_err() && result != Err(Error::NotFound) {
+                    return broken();
+                }
+                if stop {
+                    return broken();
+                }
+                self.temporary = temporary(dirs);
                 self.phase = StorePhase::Create;
                 self.first(dirs)
             }
             StorePhase::Create => {
-                if result.is_err() { return broken(); }
+                if result.is_err() {
+                    return broken();
+                }
                 if stop {
                     *self.done = git::Done::Failed { fault: git::Fault::Broken };
                     self.phase = StorePhase::Discard;
                     return self.first(dirs);
                 }
-                Action::Operation(Next::Run(Command::Store { directory: invocation::joined(&[b"stores/", &self.temporary]) }))
+                Action::Operation(Next::Run(Command::Store {
+                    directory: self.temporary.clone(),
+                    remote: self.remote.clone(),
+                }))
             }
             StorePhase::Install => {
-                if result.is_ok() { return Action::Operation(Next::End(git::Done::Succeeded)); }
-                if result != Err(Error::Exists) { *self.done = git::Done::Failed { fault: git::Fault::Broken }; }
+                if result.is_ok() {
+                    return Action::Operation(Next::End(git::Done::Succeeded));
+                }
+                if result != Err(Error::Exists) {
+                    *self.done = git::Done::Failed { fault: git::Fault::Broken };
+                }
                 self.phase = StorePhase::Discard;
                 self.first(dirs)
             }
             StorePhase::Discard => {
-                if result.is_err() { return broken(); }
+                if result.is_err() {
+                    return broken();
+                }
                 Action::Operation(Next::End(*self.done.clone()))
             }
         }
@@ -117,14 +206,24 @@ impl Store {
 }
 #[derive(Debug)]
 pub(crate) struct Alternates {
-    path: Box<[u8]>, bytes: Box<[u8]>, remote: Box<[u8]>, fd: Option<Fd>, written: u32, closing: bool, failed: bool,
+    path: Box<[u8]>,
+    bytes: Box<[u8]>,
+    remote: Box<[u8]>,
+    fd: Option<Fd>,
+    written: u32,
+    closing: bool,
+    failed: bool,
 }
 impl Alternates {
     pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>) -> Self {
         Self {
             path: invocation::joined(&[&invocation::place(at), b"/.git/objects/info/alternates"]),
             bytes: invocation::joined(&[b"../../../../../stores/", &name(store), b"/objects\n"]),
-            remote, fd: None, written: 0, closing: false, failed: false,
+            remote,
+            fd: None,
+            written: 0,
+            closing: false,
+            failed: false,
         }
     }
     pub fn first(&self, settings: &Settings) -> Action {
@@ -133,16 +232,22 @@ impl Alternates {
     pub fn complete(&mut self, result: Result<Done, Error>, stop: bool) -> Action {
         if self.closing {
             self.fd = None;
-            return if self.failed || result.is_err() || stop { broken() } else {
+            return if self.failed || result.is_err() || stop {
+                broken()
+            } else {
                 Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone() }))
             };
         }
         if self.fd.is_none() {
-            let Ok(fd) = fd(result) else { return broken(); };
+            let Ok(fd) = fd(result) else {
+                return broken();
+            };
             self.fd = Some(fd);
         } else if let Ok(count) = super::count(result) {
             self.written = self.written.checked_add(count).expect("alternates length");
-        } else { self.failed = true; }
+        } else {
+            self.failed = true;
+        }
         let fd = self.fd.expect("alternates opened");
         if stop || self.failed || usize::try_from(self.written).expect("small file") == self.bytes.len() {
             self.closing = true;
@@ -150,4 +255,10 @@ impl Alternates {
         }
         Action::Run(Op::Write { fd, bytes: self.bytes.clone(), from: self.written, at: u64::from(self.written) })
     }
+}
+
+fn temporary(dirs: &mut Directories) -> Box<[u8]> {
+    let result = invocation::joined(&[b"new-", Decimal::of(dirs.serial).as_bytes()]);
+    dirs.serial = dirs.serial.checked_add(1).expect("serial lifetime");
+    result
 }

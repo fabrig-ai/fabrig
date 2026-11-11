@@ -177,7 +177,10 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
-    Store { repository: u32, look: bool },
+    Store {
+        repository: u32,
+        look: bool,
+    },
     Look {
         repository: u32,
     },
@@ -361,7 +364,9 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     let first = match cached {
         Cached::Looking => stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, true),
         Cached::Reused | Cached::Kept => PrepareStep::Fetch { repository: 0 },
-        Cached::Rebuilt | Cached::Evicted | Cached::New => stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, false),
+        Cached::Rebuilt | Cached::Evicted | Cached::New => {
+            stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, false)
+        }
     };
     let hold = domain.holds.get_mut(id).expect("inserted above");
     hold.state = prepare_step(&hold.holding, id, first, env, out);
@@ -623,9 +628,16 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 Next::Step(stores_step(holding, after(repository), look))
             }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
-            Done::Paths { .. } | Done::Looked { .. } | Done::IsAncestor { .. }
-            | Done::Merged | Done::Conflicted { .. } | Done::Fetched { .. }
-            | Done::Committed { .. } | Done::Unchanged | Done::Exists | Done::Rejected => unreachable!("store terminals"),
+            Done::Paths { .. }
+            | Done::Looked { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. }
+            | Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected => unreachable!("store terminals"),
         },
         PrepareStep::Look { repository } => match done {
             Done::Paths { .. } => unreachable!("a look has its own terminals"),
@@ -1316,13 +1328,23 @@ fn prepare_step(
         }
         PrepareStep::Store { repository, .. } => {
             let store = borrowed(holding, repository);
-            Op::Store { store: store.store.token(), aside: store.aside, git: nth(holding, repository).git.clone() }
+            let spec = nth(holding, repository);
+            Op::Store {
+                store: store.store.token(),
+                aside: store.aside,
+                remote: spec.remote.clone(),
+                identity: spec.identity,
+                account: spec.account,
+                git: spec.git.clone(),
+            }
         }
         PrepareStep::Make => {
             let mut stores = List::with_capacity(count(holding.stores.len()));
-            for borrowed in &holding.stores { stores.push(borrowed.store.token()).expect("spec room"); }
+            for borrowed in &holding.stores {
+                stores.push(borrowed.store.token()).expect("spec room");
+            }
             Op::Make { workspace, stores: stores.into_boxed() }
-        },
+        }
         PrepareStep::Clone { repository } => {
             let store = borrowed(holding, repository).store.token();
             let repository = nth(holding, repository);
@@ -1819,7 +1841,20 @@ fn verify(
     let remote = copy_of(&spec.remote);
     let identity = spec.identity;
     let account = spec.account;
-    io(id, Op::Fetch { store: borrowed(holding, repository).store.token(), into: Into::Fetched, at, remote, want, identity, account }, env, out);
+    io(
+        id,
+        Op::Fetch {
+            store: borrowed(holding, repository).store.token(),
+            into: Into::Fetched,
+            at,
+            remote,
+            want,
+            identity,
+            account,
+        },
+        env,
+        out,
+    );
     State::Pushing { push, step: PushStep::Verify { repository, failure }, asked }
 }
 
@@ -2141,7 +2176,9 @@ fn borrowed(holding: &Holding, repository: u32) -> &crate::cache::Borrowed {
 }
 fn stores_step(holding: &Holding, from: u32, look: bool) -> PrepareStep {
     for repository in from..count(holding.stores.len()) {
-        if borrowed(holding, repository).make { return PrepareStep::Store { repository, look }; }
+        if borrowed(holding, repository).make {
+            return PrepareStep::Store { repository, look };
+        }
     }
     if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make }
 }

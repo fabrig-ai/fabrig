@@ -384,6 +384,7 @@ impl Below {
         }
         kernel::Done::Count(u32::try_from(count).expect("page of two"))
     }
+    #[expect(clippy::too_many_lines, reason = "the scripted file table includes creating and writing alternates")]
     fn file(&mut self, op: &mut kernel::Op) -> Result<kernel::Done, kernel::Error> {
         use kernel::{Done, Error, Op};
         match op {
@@ -399,6 +400,12 @@ impl Below {
                         return Err(Error::TooManyLinks);
                     }
                 }
+                if matches!(how, kernel::OpenHow::CreateNoFollow { .. }) {
+                    if self.tree.contains_key(&path) {
+                        return Err(Error::Exists);
+                    }
+                    self.tree.insert(path.clone(), Node::File(Box::new([])));
+                }
                 let node = self.tree.get(&path).ok_or(Error::NotFound)?;
                 if *how == kernel::OpenHow::DirectoryNoFollow && !matches!(node, Node::Directory) {
                     return Err(Error::NotADirectory);
@@ -406,6 +413,18 @@ impl Below {
                 let fd = kernel::Fd::new(i32::try_from(self.token().raw()).expect("small descriptor"));
                 self.files.insert(fd, path);
                 Ok(Done::Fd(fd))
+            }
+            Op::Write { fd, bytes, from, at } => {
+                let Node::File(content) = self.tree.get_mut(&self.files[fd]).expect("opened file") else {
+                    return Err(Error::IsADirectory);
+                };
+                let from = usize::try_from(*from).expect("bounded write");
+                let at = usize::try_from(*at).expect("bounded offset");
+                let mut updated = content.to_vec();
+                updated.resize(at + bytes.len() - from, 0);
+                updated[at..].copy_from_slice(&bytes[from..]);
+                *content = updated.into_boxed_slice();
+                Ok(Done::Count(u32::try_from(bytes.len() - from).expect("small write")))
             }
             Op::Read { fd, buf, at } => {
                 let node = self.tree.get(&self.files[fd]).expect("open file");
@@ -460,7 +479,6 @@ impl Below {
             | Op::Recv { .. }
             | Op::Send { .. }
             | Op::Shutdown { .. }
-            | Op::Write { .. }
             | Op::Append { .. }
             | Op::Truncate { .. }
             | Op::Sync { .. }

@@ -222,8 +222,7 @@ pub fn version(stdout: &[u8]) -> Option<Version> {
 #[must_use]
 pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     match kind {
-        git::Kind::Store
-        | git::Kind::Clone
+        git::Kind::Clone
         | git::Kind::Look
         | git::Kind::DiffPaths
         | git::Kind::IsAncestor
@@ -233,7 +232,7 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
         | git::Kind::Commit => {
             return git::Fault::Broken;
         }
-        git::Kind::Fetch | git::Kind::Create | git::Kind::Push => {}
+        git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Push => {}
     }
     let mut end = tail.len();
     for (at, byte) in tail.iter().enumerate().rev() {

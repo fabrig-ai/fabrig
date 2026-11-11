@@ -86,7 +86,7 @@ fn nul_lists_are_complete_for_commits_and_bounded_prefixes_for_merges() {
 #[test]
 fn stderr_lines_decide_last_to_first_the_first_match_wins() {
     let rows: &[(&[u8], Kind, Fault)] = &[
-        (b"fatal: Authentication failed for 'x'\nfatal: early EOF\n", Kind::Clone, Fault::Unreachable),
+        (b"fatal: Authentication failed for 'x'\nfatal: early EOF\n", Kind::Store, Fault::Unreachable),
         (b"fatal: early EOF\nfatal: Authentication failed for 'x'\nerror: unrelated\n", Kind::Fetch, Fault::Refused),
         (
             b"fatal: unable to access 'x': The requested URL returned error: 404\n",
@@ -95,15 +95,15 @@ fn stderr_lines_decide_last_to_first_the_first_match_wins() {
         ),
         (b"fatal: unable to access 'x': The requested URL returned error: 401\n", Kind::Create, Fault::Refused),
         (b"fatal: unable to access 'x': The requested URL returned error: 403\n", Kind::Fetch, Fault::Refused),
-        (b"fatal: unable to access 'x': The requested URL returned error: 500\n", Kind::Clone, Fault::Unreachable),
-        (b"fatal: couldn't find remote ref x\n", Kind::Clone, Fault::Broken),
+        (b"fatal: unable to access 'x': The requested URL returned error: 500\n", Kind::Store, Fault::Unreachable),
+        (b"fatal: couldn't find remote ref x\n", Kind::Store, Fault::Broken),
         (b"fatal: couldn't find remote ref x\n", Kind::Fetch, Fault::Missing { missing: Missing::Branch }),
         (
             b"fatal: remote error: upload-pack: not our ref x\n",
             Kind::Fetch,
             Fault::Missing { missing: Missing::Commit },
         ),
-        (b"fatal: repository 'x' not found\n", Kind::Clone, Fault::Missing { missing: Missing::Repository }),
+        (b"fatal: repository 'x' not found\n", Kind::Store, Fault::Missing { missing: Missing::Repository }),
         (b"fatal: could not read Username for 'x'\n", Kind::Fetch, Fault::Refused),
         (b"fatal: the remote end hung up unexpectedly\n", Kind::Push, Fault::Unreachable),
         (b"error: RPC failed; x\n", Kind::Push, Fault::Unreachable),

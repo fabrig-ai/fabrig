@@ -28,6 +28,16 @@ impl Git<'_> {
     }
 }
 impl Remote for Git<'_> {
+    fn clone_default(&mut self, _: &[u8]) -> Result<temper_fake_checkout::git::CloneInfo, Fault> {
+        let raw::Answer::Cloned { default, branches } = self.call(raw::Git::Clone) else { panic!("clone metadata") };
+        let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
+        Ok(temper_fake_checkout::git::CloneInfo {
+            format: temper_fake_checkout::git::ObjectFormat::Sha1,
+            default: default.into_vec(),
+            tip,
+        })
+    }
+
     fn heads(&mut self, _: &[u8]) -> Result<Vec<u64>, Fault> {
         let raw::Answer::Cloned { branches, .. } = self.call(raw::Git::Clone) else { panic!("clone") };
         Ok(branches.iter().map(|head| head.commit).collect())
