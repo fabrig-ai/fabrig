@@ -507,7 +507,7 @@ fn invalid_reads_make_no_call() {
         Read::Reviews { number: 9, page: 0, skip: 0 },
         Read::Statuses { commit: [1; 32], page: 0 },
         Read::Remarks { number: 9, review: 1, page: 0, skip: 0 },
-        Read::PullFiles { number: 9, head: [1; 32], page: 0, skip: 0 },
+        Read::PullFiles { number: 9, head: [1; 32], page: 0, skip: 0, sides: true },
         Read::Collaborators { page: 0 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: 0 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: fixture::EXCESS_ANSWER_BYTES },

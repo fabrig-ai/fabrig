@@ -1060,7 +1060,7 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
     };
     assert_eq!(observed.commit, head);
     let Answer::PullFiles { head: observed, files, more, .. } =
-        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0 })
+        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0, sides: true })
     else {
         panic!("pull files matched by the client")
     };

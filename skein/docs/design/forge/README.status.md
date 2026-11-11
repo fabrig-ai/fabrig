@@ -19,6 +19,8 @@ transcript lists its three commits newest first, as the plan reads them.
 - **Not yet:** 3.2, 3.3: `skip` on `Reviews`, `Remarks` and `PullFiles`,
   and `cut` on their answers [in flight: change 161].
 - **Not yet:** 3.2: `Item`'s `since`, which neither dialect sends.
+- **Not yet:** 3.2: `PullFiles`' `sides`, which neither dialect reads:
+  every page reads both sides [in flight: change 436].
  
 - **Not yet:** 3.7: `Branches`' names bounded by `rows`
   (`skein-forge/src/forgejo/plans/reads.rs`, and `measure.rs`'s row count).

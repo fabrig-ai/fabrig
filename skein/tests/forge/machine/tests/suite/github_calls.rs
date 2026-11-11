@@ -98,7 +98,7 @@ fn github_item_reads_its_comments() {
         vec![
             Answer::served(LOCATE),
             bytes("GET /repos/acme/widgets/issues/7", ISSUE),
-            bytes("GET /repos/acme/widgets/issues/7/comments?per_page=1&page=1", COMMENTS),
+            bytes("GET /repos/acme/widgets/issues/7/comments?per_page=8&page=1", COMMENTS),
         ],
     );
     located(&mut w);
