@@ -193,6 +193,110 @@ fn time_paging_keeps_the_tie_replay_point_when_an_item_moves_during_the_pass() {
     }
 }
 #[test]
+fn time_paging_bounds_future_items_by_each_answers_clock() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    let _item_in_flight = h.one();
+    h.fire(105);
+    let first = h.one();
+    let mut future = summary();
+    future.updated = at(150);
+    h.answer(first, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(110) });
+    let next = h.one();
+    assert_eq!(next.op, Op::Read(Read::Items { since: at(110), page: 1, kind: None }));
+    h.answer(next, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(110) });
+    let tied = h.one();
+    assert_eq!(tied.op, Op::Read(Read::Items { since: at(110), page: 2, kind: None }));
+    h.answer(tied, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(100) });
+    let next = h.one();
+    assert_eq!(next.op, Op::Read(Read::Items { since: at(100), page: 3, kind: None }));
+    h.answer(next, Answer::Items { items: Box::new([future]), more: false, now: at(120) });
+    assert_eq!(h.repository().mark, Some(at(100)));
+}
+
+#[test]
+fn a_moved_listings_mark_stays_within_its_answers_clock() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    let _item_in_flight = h.one();
+    h.fire(105);
+    let listing = h.one();
+    let mut future = summary();
+    future.updated = at(150);
+    h.answer(listing, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    assert_eq!(h.repository().mark, Some(at(100)));
+    assert!(h.repository().mark <= Some(h.repository().clock));
+}
+
+#[test]
+fn a_quiet_listings_mark_stays_within_its_final_answers_clock() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    let _item_in_flight = h.one();
+    h.fire(105);
+    let first = h.one();
+    let mut future = summary();
+    future.updated = at(150);
+    h.answer(first, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(200) });
+    let last = h.one();
+    h.answer(last, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    assert_eq!(h.repository().mark, Some(at(100)));
+}
+
+#[test]
+fn a_tied_listings_mark_stays_within_its_final_answers_clock() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    let _item_in_flight = h.one();
+    h.fire(105);
+    let mut future = summary();
+    future.updated = at(150);
+    for _ in 0_u32..2 {
+        let page = h.one();
+        h.answer(page, Answer::Items { items: Box::new([future.clone()]), more: true, now: at(150) });
+    }
+    let last = h.one();
+    assert_eq!(last.op, Op::Read(Read::Items { since: at(150), page: 2, kind: None }));
+    h.answer(last, Answer::Items { items: Box::new([future]), more: false, now: at(100) });
+    assert_eq!(h.repository().mark, Some(at(100)));
+}
+
+#[test]
+fn a_restored_mark_is_bounded_by_its_rows_clock_before_listing() {
+    use super::fixtures::{Harness, recovery};
+    use crate::RecoveryClock;
+
+    for fresh in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let mut live = recovery::live();
+        live.watch = watch(issue(), false);
+        h.step(Event::Restore { record: Stored::Live(live) });
+        h.step(Event::Restore {
+            record: Stored::Repository(crate::RepositoryRecord { mark: Some(at(200)), ..recovery::repository() }),
+        });
+        h.step(Event::Restored { clock: RecoveryClock::Monotonic });
+        if fresh {
+            h.step(Event::ReadAfresh);
+        }
+        let listing = h.one();
+        assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+    }
+}
+
+#[test]
+fn the_first_listing_probes_past_time_but_marks_only_its_answers_clock() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(issue(), false)]));
+    h.clock();
+    assert_eq!(h.repository().mark, Some(at(100)));
+    assert_eq!(h.repository().clock, at(100));
+}
+
+#[test]
 fn a_pending_review_submitted_later_is_delivered_despite_its_older_id() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(pull(), true)]));
