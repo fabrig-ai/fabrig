@@ -31,7 +31,7 @@ fn main() {
         None
     };
     let status = answer(git(&package, &["status", "--porcelain", "--untracked-files=no"]));
-    println!("cargo:rustc-env=TEMPER_COMMIT={}", commit::word(head.as_deref(), status.as_deref()));
+    println!("cargo:rustc-env=TEMPER_INTERNAL_COMMIT={}", commit::word(head.as_deref(), status.as_deref()));
     for path in commit::watched_paths(&package, git_dir.as_deref(), common_dir.as_deref(), head_ref.as_deref()) {
         println!("cargo:rerun-if-changed={}", path.display());
     }

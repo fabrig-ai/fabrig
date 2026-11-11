@@ -6,7 +6,6 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
-build = "build/main.rs"
 
 [lib]
 name = "temper_client"
@@ -22,6 +21,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-version.workspace = true
 temper-shell.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-shell-cli.workspace = true

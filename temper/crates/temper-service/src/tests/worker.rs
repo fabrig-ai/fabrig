@@ -232,7 +232,7 @@ fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
             Scheme::Key,
             jig_domain_link::Scheme::Key,
             Some(b"/request-dumps".as_slice()),
-            Box::new([Box::from(b"TEMPER_DUMP_LLM=/request-dumps".as_slice())]),
+            Box::new([Box::from(b"TEMPER_INTERNAL_DUMP_LLM=/request-dumps".as_slice())]),
         ),
     ] {
         let mut worker = fixtures::started_worker().worker;
@@ -387,7 +387,7 @@ fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
         [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::AGENT_JSON)]
     );
     assert_eq!(launched.root, io::kernel::Fd::new(9));
-    assert_eq!(launched.env.as_ref(), [Box::from(b"TEMPER_DUMP_LLM=/request-dumps".as_slice())]);
+    assert_eq!(launched.env.as_ref(), [Box::from(b"TEMPER_INTERNAL_DUMP_LLM=/request-dumps".as_slice())]);
 }
 
 #[test]

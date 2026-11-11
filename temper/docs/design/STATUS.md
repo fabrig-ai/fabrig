@@ -804,10 +804,10 @@ held task names no run's or job's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
 past a start (`domain/worker.md`); with
-`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+`TEMPER_INTERNAL_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
-with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+with `TEMPER_INTERNAL_DUMP_LLM` set, never a shipped default, an agent's
 environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'

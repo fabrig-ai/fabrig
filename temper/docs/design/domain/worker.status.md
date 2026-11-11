@@ -184,7 +184,7 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
   slots past `temper::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
-- **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
+- **Departs:** 5, 9: with `TEMPER_INTERNAL_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,
   sections 5 and 9 hold exactly. Any value counts as set, and it is read once.
@@ -226,7 +226,7 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   or a URL rewrite (`../protocol/git.md`, 10). That is acceptable only for one
   trusted person.
 
-  6: with `TEMPER_DUMP_LLM` in the worker's environment at its start, an agent
+  6: with `TEMPER_INTERNAL_DUMP_LLM` in the worker's environment at its start, an agent
   process's environment holds that one variable, an absolute directory, and its
   log's lines also go to `dump.log` there; unset, which is the default and the
   only shipped form, section 6 holds exactly. Because the deployment's
