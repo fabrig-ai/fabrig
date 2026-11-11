@@ -1,6 +1,8 @@
 # stock: status
 
-2026-11-10. Where the tree's code lags or departs from [stock.md](stock.md).
+2026-11-11. Where the tree's code lags or departs from [stock.md](stock.md).
+
+- **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`) [in flight: change 41].
 
 - **Not yet:** the whole document: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

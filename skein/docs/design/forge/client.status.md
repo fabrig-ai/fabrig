@@ -1,6 +1,8 @@
 # forge-client: status
 
-2026-11-10. Where skein's code lags or departs from [client.md](client.md).
+2026-11-11. Where skein's code lags or departs from [client.md](client.md).
+
+- **Not yet:** 4: the paging of a page cut at the answer's bytes, no listing page being cut [in flight: change 44].
 
 - **Not yet:** 2.3: `Branches`' names are checked against `rows`
   (`skein-forge/src/measure.rs`, `answer_rows`).
