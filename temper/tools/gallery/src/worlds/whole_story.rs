@@ -463,18 +463,26 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                 let value = match subject {
                     c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
                     c::Subject::Accounts => c::Delivery::Accounts(Box::new(super::accounts(World::Solo, Then::Shown))),
-                    c::Subject::Settings => c::Delivery::Settings(Box::new(c::SettingsDocument {
-                        newest: 1,
-                        settings: List::from_boxed(Box::new([c::SettingLine {
-                            setting: c::Setting::Rules,
-                            name: None,
-                            follows: c::SettingFollows::Change,
-                            last: None,
-                            application: None,
-                        }])),
-                        held: List::with_capacity(0),
-                        pending: List::with_capacity(0),
-                    })),
+                    c::Subject::Settings => {
+                        let mut settings = List::with_capacity(me.projects.len());
+                        for project in &me.projects {
+                            settings
+                                .push(c::SettingLine {
+                                    setting: c::Setting::Application { kind: 2, scope: project.project, number: 1 },
+                                    name: None,
+                                    follows: c::SettingFollows::Change,
+                                    last: None,
+                                    application: None,
+                                })
+                                .expect("one setting per project");
+                        }
+                        c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 1,
+                            settings,
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))
+                    }
                     c::Subject::Tasks { .. } => {
                         c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false }))
                     }
