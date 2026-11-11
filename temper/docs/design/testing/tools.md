@@ -156,10 +156,10 @@ Their forms are today's:
   `TABLE.refusal`'s words and exit 2, where each tool printed a usage
   line of its own. Past its arguments, a run's output, its words for
   what failed or what it refused, and its exit codes are the tool's, as
-  before, under the binary's new name where they print one. The one
-  failure Rust's `Result` reported, the transcripts' tool's
-  `Error: "WHY"` with exit 1, is `temper-git-transcripts: WHY` with
-  exit 1.
+  before, under the binary's new name where they print one. A failure
+  that Rust's `Result` from `main` reported, `Error: "WHY"` or `Error:
+  WHY` with exit 1, as the transcripts' tool and the playground's host
+  did, is `BINARY: WHY` with exit 1.
 - **Help is the table's:** a binary's page lists no internal entry, so
   a tool's page is its line, the three flags of every binary, its public
   variables and its last line; a command's page, `COMMAND --help`, says
