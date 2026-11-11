@@ -285,6 +285,16 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             caption(b, words, P::Decided);
             number(b, words, P::Revision, *revision);
         }
+        Activity::Stood { attempt, words: text } => {
+            caption(b, words, P::Parked);
+            number(b, words, P::Attempt, *attempt);
+            caption(b, words, P::WholeWords);
+            crate::words::literal_segment::render(b, text.bytes());
+        }
+        Activity::SessionEnded { attempt, .. } => {
+            caption(b, words, P::RunEnded);
+            number(b, words, P::Attempt, *attempt);
+        }
         Activity::Kept { attempt, pending, question } => {
             if let Some(question) = question {
                 number(b, words, P::KeptQuestion, *question);

@@ -237,7 +237,7 @@ fn check_set(
             }
             Value::Template(template) => {
                 match template.flags.ended_by {
-                    tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
+                    tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
                     tasks::EndedBy::Closer(closer) => {
                         if !connectors.contains(&closer.connector) {
                             return Err(Failure { setting, fault: Fault::Reference, detail: None });

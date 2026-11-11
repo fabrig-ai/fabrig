@@ -597,3 +597,45 @@ fn a_closer_ended_task_record_round_trips() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+
+#[test]
+fn standing_sessions_and_activity_round_trip_at_the_words_bound() {
+    for session in [
+        None,
+        Some(domain::Session {
+            first: 3,
+            reasons: domain::Reasons::FIRST.union(domain::Reasons::WORDS),
+            last: Wall::from_nanos(7),
+        }),
+    ] {
+        let mut record = current_record();
+        record.flags.conversation = false;
+        record.flags.ended_by = domain::EndedBy::Standing;
+        record.tracked = None;
+        record.session = session;
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+    let words = Box::from([b'w'; 512]);
+    let row = activity(domain::Line::Stood { attempt: 3, words });
+    assert_eq!(saved_tasks(&row), Ok(row));
+    for end in [
+        domain::SessionEnd::Quiet,
+        domain::SessionEnd::Bound,
+        domain::SessionEnd::Unoffered,
+        domain::SessionEnd::Fresh,
+        domain::SessionEnd::Closed,
+        domain::SessionEnd::Rules,
+    ] {
+        let row = activity(domain::Line::SessionEnded { attempt: 3, end });
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+    let limits = tasks_limits();
+    let words = Box::from([b'w'; 513]);
+    let row = activity(domain::Line::Stood { attempt: 3, words });
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::StoodLineWords)));
+    let row = activity(domain::Line::Stood { attempt: 3, words: Box::from([b'w'; 512]) });
+    let bytes = tasks::encode(&row, &limits, &[]).unwrap();
+    let narrower = wire::Limits { stood_line_words: domain::STOOD_WORDS - 1, ..limits };
+    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::StoodLineWords)));
+}

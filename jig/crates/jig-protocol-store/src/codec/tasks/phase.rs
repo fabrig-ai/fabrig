@@ -852,6 +852,7 @@ pub(super) fn flags(source: domain::Flags, limits: &wire::Limits) -> Result<wire
             ended_by: match source.ended_by {
                 domain::EndedBy::Result => wire::EndedBy::Result,
                 domain::EndedBy::Requester => wire::EndedBy::Requester,
+                domain::EndedBy::Standing => wire::EndedBy::Standing,
                 domain::EndedBy::Closer(closer) => wire::EndedBy::Closer(wire::Closer::new(
                     limits,
                     wire::CloserParts { connector: closer.connector, code: closer.code },
@@ -874,6 +875,7 @@ pub(super) fn read_flags(source: wire::Flags) -> domain::Flags {
         ended_by: match source.ended_by {
             wire::EndedBy::Result => domain::EndedBy::Result,
             wire::EndedBy::Requester => domain::EndedBy::Requester,
+            wire::EndedBy::Standing => domain::EndedBy::Standing,
             wire::EndedBy::Closer(closer) => {
                 domain::EndedBy::Closer(domain::Closer { connector: closer.connector(), code: closer.code() })
             }

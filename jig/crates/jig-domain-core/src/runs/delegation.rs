@@ -324,7 +324,7 @@ impl Core {
 /// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle.md, 11).
 pub(crate) fn missing_closer(flags: tasks::Flags, authority: &tasks::Authority) -> Option<tasks::Closer> {
     match flags.ended_by {
-        tasks::EndedBy::Result | tasks::EndedBy::Requester => None,
+        tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => None,
         tasks::EndedBy::Closer(closer) => {
             if authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Procedure(closer.code)) {
                 None

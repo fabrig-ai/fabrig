@@ -1107,6 +1107,8 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
+    pub session: Option<crate::Session>,
     /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 11).
     pub closer: Option<u64>,
     /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).

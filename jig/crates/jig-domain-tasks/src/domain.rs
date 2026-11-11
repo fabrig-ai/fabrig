@@ -501,7 +501,7 @@ impl Domain {
         Some(crate::DelegationContext {
             project: record.project,
             requester: record.requester,
-            deciding: record.flags.ended_by != crate::EndedBy::Requester
+            deciding: !crate::run::ends::pending(&[], record.flags.ended_by).open
                 && !crate::run::ends::kept(self, task).blocks_claims()
                 && match record.phase {
                     Phase::Waiting | Phase::Active(_) => match record.executor {
@@ -1478,6 +1478,7 @@ pub(crate) fn make_admitted(
     for new in batch {
         let number = new.number;
         let task = Task::new(TaskRecord {
+            session: None,
             closer: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,

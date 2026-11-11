@@ -579,7 +579,7 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     }
     let contract = match record.ended_by {
         tasks::EndedBy::Result | tasks::EndedBy::Closer(_) => contract_text(&record.contract),
-        tasks::EndedBy::Requester => Box::new([]),
+        tasks::EndedBy::Requester | tasks::EndedBy::Standing => Box::new([]),
     };
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =
