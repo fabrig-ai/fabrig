@@ -265,12 +265,7 @@ pub(super) fn nudge_resource(
     row.refused = super::Refusals::new();
     schedule_resource(alarms, env, key, row);
 }
-fn schedule_resource(
-    alarms: &mut skein_lib::Deadlines<Alarm>,
-    env: &Env<Limits>,
-    key: &Resource,
-    row: &mut Live,
-) {
+fn schedule_resource(alarms: &mut skein_lib::Deadlines<Alarm>, env: &Env<Limits>, key: &Resource, row: &mut Live) {
     row.interval = env.limits.poll;
     match row.state {
         State::Idle => {
