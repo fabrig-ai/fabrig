@@ -19,7 +19,6 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
-import tomllib
 import xml.etree.ElementTree as ET
 
 name = Path(sys.argv[0]).name
@@ -37,7 +36,7 @@ if name == 'git':
     os.execv('/usr/bin/git', ['git'] + args)
 state = json.loads(state_path.read_text())
 side = 'base' if 'temper-pre-pr/base' in str(Path.cwd()) else 'head'
-if name == 'cargo' and args[0] in ('clippy', 'nextest'):
+if name == 'one-process' or (name == 'cargo' and args[0] == 'clippy'):
     assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to build or tests'
     assert os.environ.get('TEMPER_INTERNAL_BUNDLE') == 'none'
 fail = state.get('fail', '')
@@ -92,26 +91,36 @@ elif name == 'cargo':
                 'spans': [{'is_primary': True, 'file_name': str(Path.cwd() / error['file']),
                            'line_start': error['line']}], 'rendered': error['rendered']}}))
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
-    assert args[:2] == ['nextest', 'run']
-    assert '--profile' in args and args[args.index('--profile') + 1] == 'default'
-    assert '--no-fail-fast' in args and '--no-tests=warn' in args
-    assert '--no-run' not in args and '-E' not in args
-    overlay = args[args.index('--tool-config-file') + 1]
-    assert overlay.startswith('temper-pre-pr:')
-    config = tomllib.loads(Path(overlay.split(':', 1)[1]).read_text())
-    assert list(config) == ['profile']
-    junit = config['profile']['default']['junit']['path']
+    assert kind != 'nextest', 'pre-pr must not run cargo nextest'
+    raise AssertionError('unexpected cargo command: ' + str(args))
+elif name == 'one-process':
+    assert Path.cwd() == root, 'tests start at the root'
+    assert args[:1] == ['--out']
+    directory = Path(args[1])
+    assert directory.name == 'tests' and not directory.exists()
+    packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
+    assert args[2:] == ['default'] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
+    spend(100, ['one-process', side, packages, args])
+    ledger = state.get('head', {})
+    directory.mkdir(mode=0o700)
     tests = [t for t in ledger.get('tests', []) if t['package'] in packages]
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
         case = ET.SubElement(suite, 'testcase', name=test['name'])
-        if test.get('failed', True):
+        if test['outcome'] in ('failed', 'crashed', 'cancelled'):
             ET.SubElement(case, 'failure', message='ledger failure')
         ET.SubElement(case, 'system-out').text = test['output']
-    Path(junit).write_bytes(ET.tostring(document))
+    (directory / 'junit.xml').write_bytes(ET.tostring(document))
+    (directory / 'results.json').write_text(json.dumps({
+        'tests': [dict(binary_id=t['binary'], test_name=t['name'], outcome=t['outcome'],
+                       alone=t.get('alone'), before=t.get('before', [])) for t in tests],
+        'unobserved': ledger.get('unobserved', [])}))
+    (directory / 'run.json').write_text(json.dumps({'starved': ledger.get('starved', False)}))
     print('last streamed line: ' + side, flush=True)
-    sys.exit(ledger.get('nextest_exit', 100 if any(t.get('failed', True) for t in tests) else 0))
+    if ledger.get('output'):
+        print(ledger['output'], flush=True)
+    sys.exit(ledger.get('one_process_exit', 100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0))
 else:
     tree = Path.cwd().name
     if Path('delivery.rs').exists():
@@ -170,6 +179,9 @@ fn fixture() -> skein_scratch::Scratch {
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
     }
+    write(root, "tools/tiers/one-process", PROGRAM);
+    fs::set_permissions(root.join("tools/tiers/one-process"), fs::Permissions::from_mode(0o700))
+        .expect("executable one-process");
     for tree in TREES {
         write(root, &format!("{tree}/scripts/old_forms.py"), PROGRAM);
         write(root, &format!("{tree}/rustfmt.toml"), "edition = \"2024\"\n");
@@ -343,7 +355,7 @@ fn build_events(root: &Path) -> Vec<Value> {
         .as_array()
         .expect("events")
         .iter()
-        .filter(|event| event[0] == "clippy" || event[0] == "nextest")
+        .filter(|event| event[0] == "clippy" || event[0] == "one-process")
         .cloned()
         .collect()
 }
@@ -468,7 +480,7 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
         assert!(output.status.success(), "{row}: {log}");
         let events = build_events(root);
         let actual_lints: Vec<_> = events.iter().filter(|e| e[0] == "clippy").map(|e| e[2].clone()).collect();
-        let actual_tests: Vec<_> = events.iter().filter(|e| e[0] == "nextest").map(|e| e[2].clone()).collect();
+        let actual_tests: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[2].clone()).collect();
         assert_eq!(actual_lints, if lints.is_empty() { vec![] } else { vec![json!(lints)] }, "{row}: {log}");
         assert_eq!(actual_tests, if tests.is_empty() { vec![] } else { vec![json!(tests)] }, "{row}: {log}");
         if lints.is_empty() && tests.is_empty() && !log.contains("docs only:") {
@@ -481,7 +493,7 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
 }
 
 fn test_failure(name: &str, output: &str) -> Value {
-    json!({"package": "A", "binary": "A::rules", "name": name, "output": output})
+    json!({"package": "A", "binary": "A::rules", "name": name, "output": output, "outcome": "failed"})
 }
 
 fn lint_failure(line: u32, message: &str) -> Value {
@@ -495,6 +507,7 @@ fn changed_field(mut value: Value, field: &str, replacement: Value) -> Value {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "One ledger table compares failure and starvation verdicts")]
 fn only_what_the_delivery_broke_refuses() {
     for (row, head, known_reds, accepted, named) in [
         (
@@ -542,7 +555,7 @@ fn only_what_the_delivery_broke_refuses() {
         ),
         (
             "build with entries",
-            json!({"nextest_exit": 101}),
+            json!({"one_process_exit": 2, "output": "one-process: nextest listing exited with 101"}),
             Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
             false,
             "build\nno tests ran",
@@ -550,12 +563,28 @@ fn only_what_the_delivery_broke_refuses() {
         (
             "lint test and build failures",
             json!({"clippy": [lint_failure(2, "lint fault")],
-                "tests": [test_failure("rule", "head junit tail")], "nextest_exit": 101}),
+                "tests": [test_failure("rule", "head junit tail")], "one_process_exit": 2, "output": "one-process: nextest listing exited with 101"}),
             Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
             false,
             "build\nno tests ran",
         ),
-        ("head check error", json!({"nextest_exit": 102}), Some("- test A::rules rule\n"), false, "check nextest"),
+        (
+            "head check error",
+            json!({"one_process_exit": 2}),
+            Some("- test A::rules rule\n"),
+            false,
+            "check one-process",
+        ),
+        (
+            "starved",
+            json!({"starved": true, "one_process_exit": 0,
+                "tests": [changed_field(test_failure("rule", "cancelled"), "outcome", json!("cancelled"))],
+                "unobserved": [{"binary_id": "A::rules", "test_name": "later"},
+                    {"binary_id": "A::rules", "test_name": "last"}]}),
+            Some("- test A::rules rule\n"),
+            true,
+            "pre-pr: tests starved: 1 starved or cancelled, 2 unobserved, a warning (skein/docs/foundation/testing-strategy.md, 8.1)",
+        ),
     ] {
         let scratch = fixture();
         let root = scratch.path();
@@ -571,7 +600,10 @@ fn only_what_the_delivery_broke_refuses() {
         assert!(log.contains(named), "{row}: missing {named}: {log}");
         assert_eq!(passed(root), accepted, "{row}: cache only passes");
         let events = build_events(root);
-        assert!(events.iter().any(|e| e[0] == "nextest" && e[1] == "head"), "tests run even after clippy fails: {row}");
+        assert!(
+            events.iter().any(|e| e[0] == "one-process" && e[1] == "head"),
+            "tests run even after clippy fails: {row}"
+        );
         let state = budget(root);
         for event in state["events"].as_array().expect("events") {
             let side = if event[0] == "metadata" { &event[2] } else { &event[1] };
@@ -587,6 +619,11 @@ fn only_what_the_delivery_broke_refuses() {
         }
         if row == "inherited clippy" {
             assert!(log.contains("pre-pr: clippy: inherited,"), "inherited check timed: {log}");
+        }
+        if row == "starved" {
+            assert_eq!(log.matches(named).count(), 2, "warning after run and in summary: {log}");
+            assert!(log.contains("pre-pr: tests: passed,"), "starvation passes: {log}");
+            assert!(!log.contains("inherited: test"), "cancelled tests are not failures: {log}");
         }
     }
 }
