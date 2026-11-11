@@ -191,7 +191,7 @@ from the engine's own answers, is where the look is tuned.
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
 | `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; What reaches you from Agents review's stock classes, "While you’re away, they are decided with the recommended choice and listed."; the foot's switches (`../pages/settings.md`, 2, *The page*) |
 | `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line; What reaches you from You approve's classes: no "Agents decide, then tell you", every movable kind under "Asks you", "They ask even while you’re away.", and no "Away until" |
-| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer with the coordinator and the foreman, Budgets' row "Goals", "80" |
+| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer as `whole-story/how.html` draws them: the chat, Ask temper, the drafter, the coordinator, the coding agent, the foreman and the status agent, each `who` saying when it runs and what it does, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
 | `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
@@ -445,8 +445,8 @@ from the engine's own answers, is where the look is tuned.
 | `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
-| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, the person reading the project's owner with two questions and a review waiting, and Sam, a member, with a question waiting on one of Sam's chats; "Two of you."; a service member left out |
-| `team-alone` | one person, nothing waiting: "Just you." and one box, "Nothing waits on you." |
+| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, both owners of the project, the person reading with two questions and a review waiting, "Three things wait on you.", and Sam with a question waiting on one of Sam's chats, "One question waits on Sam."; "Two of you."; "owners of shop" at People's head's right, and each box "Owner"; a service member left out |
+| `team-alone` | one person, the project's owner, nothing waiting: "Just you.", People's head its title alone, and one box, "Owner" and "Nothing waits on you." |
 | `night-team` | `team` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |

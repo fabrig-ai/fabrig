@@ -594,7 +594,9 @@
     charter, the role its card opens), `tier` (`name`), `queue` or
     `turn`;
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
-    change until it approves"; `name`, at most 64, as "the reviewer",
+    change until it approves", or a role's "For each chat: talks with
+    you and asks for the changes"
+    (`../../domain/forge/change/branch-path.md`, *The project's roles*); `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
     at most 32 bytes and `value` at most 184, as "Model" and "Opus `../pages/accounts.md`, 2 ·
     high", "Can", "Asked to": the engine makes every value at most 128

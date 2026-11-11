@@ -1,4 +1,4 @@
-//! Team's page (temper/docs/design/client/pages/README.md, Team;
+//! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
 use crate::{
     cards::text,
@@ -32,6 +32,23 @@ pub(crate) fn draw(b: &mut Builder, w: &Words, project_name: &[u8], shown: &team
     }
     b.close();
     super::settings::section_head(b, &w.say(Word::TeamPeople, &[]));
+    if let team::Shown::Read(facts) = shown
+        && let Some(role) = team::parts(facts).shared
+    {
+        let word = match role {
+            HeldRole::Owner => Word::TeamOwners,
+            HeldRole::Maintainer => Word::TeamMaintainers,
+            HeldRole::Member => Word::TeamMembers,
+            HeldRole::Observer => Word::TeamObservers,
+            HeldRole::Policy { role: _ } => unreachable!("a shared role is built-in"),
+        };
+        b.open(Role::Text);
+        b.style(look::TEAM_SHARED);
+        let shared = w.say(word, &[Hole::Name(project_name.into())]);
+        b.name(&shared);
+        b.text(Run::Plain, &shared);
+        b.close();
+    }
     b.close();
     match shown {
         team::Shown::Reading => {}
@@ -43,7 +60,7 @@ pub(crate) fn draw(b: &mut Builder, w: &Words, project_name: &[u8], shown: &team
                 b.open(Role::Slot);
                 b.style(look::TEAM_PEOPLE);
                 for person in &facts.people {
-                    person_box(b, w, project_name, person);
+                    person_box(b, w, person);
                 }
                 b.close();
             }
@@ -74,7 +91,7 @@ fn lede(w: &Words, facts: &team::Facts) -> Box<[u8]> {
     w.say(if you { Word::TeamOfYou } else { Word::TeamPeopleCount }, &[Hole::Name(count)])
 }
 
-fn person_box(b: &mut Builder, w: &Words, project_name: &[u8], person: &team::Person) {
+fn person_box(b: &mut Builder, w: &Words, person: &team::Person) {
     b.open(Role::Slot);
     b.style(look::TEAM_PERSON);
     let name = if person.you { w.say(Word::TeamYou, &[]) } else { person.name.clone() };
@@ -83,7 +100,7 @@ fn person_box(b: &mut Builder, w: &Words, project_name: &[u8], person: &team::Pe
     b.text(Run::Strong, &name);
     b.close();
     let role = match person.role {
-        HeldRole::Owner => w.say(Word::TeamOwner, &[Hole::Name(project_name.into())]),
+        HeldRole::Owner => w.say(Word::TeamOwner, &[]),
         HeldRole::Maintainer => w.say(Word::TeamMaintainer, &[]),
         HeldRole::Member => w.say(Word::TeamMember, &[]),
         HeldRole::Observer => w.say(Word::TeamObserver, &[]),
@@ -117,7 +134,16 @@ fn line(w: &Words, waits: &team::Waits, whom: Box<[u8]>) -> Box<[u8]> {
         }
     }
     let kind = if mixed { Word::TeamThings } else { kind.expect("a positive total has a kind") };
-    let number = w.say(if waits.cut { Word::TeamCountCut } else { Word::TeamCount }, &[Hole::Number(u64::from(total))]);
+    let number = if waits.cut {
+        w.say(Word::TeamCountCut, &[Hole::Number(u64::from(total))])
+    } else if total == 1 {
+        w.say(Word::TeamOne, &[])
+    } else {
+        match super::home::number_word(total) {
+            Some(word) => w.say(word, &[]),
+            None => w.say(Word::TeamCount, &[Hole::Number(u64::from(total))]),
+        }
+    };
     w.say(
         if total == 1 { Word::TeamWaits } else { Word::TeamWait },
         &[Hole::Name(number), Hole::Name(w.say(kind, &[])), Hole::Name(whom)],

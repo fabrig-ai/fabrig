@@ -44,9 +44,9 @@ forge and job completions; they establish no deployment outcome.
 - **Not yet:** 1, quiet on the forge: review and pull-file pages are sized for their largest row [in flight: change 161].
 - **Not yet:** 1, quiet on the forge: no read is conditional [in flight: change 155].
 - **Not yet:** `change/branch-path.md`, *The project's roles*: the drafter, charter 12,
-  which the stock holds and its template 6 starts since P6 landed after
-  `look-round-25`'s cut, is no role, and the list gives it no place or
-  line (`../../draft/surfaces.status.md`, 7).
+  which the stock holds and its template 6 starts, is no role, and a
+  role's `who` says when it runs alone, not what it does, its charter's
+  words or its instructions' first sentence [in flight: change 314].
 
 `adoption.md` have no known gap in a repository's CI workflows:
 `temper-engine-domain-forge`'s `workflows.rs` reads `.github/workflows`,

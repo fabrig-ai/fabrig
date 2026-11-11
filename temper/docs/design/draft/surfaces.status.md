@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-09. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-11. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 2: `../client/view.md`, 3, *While To begin shows*, keeps the rail
@@ -17,15 +17,10 @@
     "Needs you" open the open project's pages (5.3, *All projects*),
     where `surfaces.md`, section 1 has both read every project and this section makes
     only Work, Team and How work runs a project's.
-  - 3: `../client/pages/README.md`, *Home on All projects*, has no owners'
+  - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who
-    decided, and its cards, as a project's Home's, name no asker (4). Its byline says "Written by the status agent at 07:52",
-    where this section, redrawn after the plan `ui-p2-home` was cut, says
-    "Each project's brief, its first line · the newest, vsr's, by the
-    status agent at 07:52"; and on a phone its headline is the wide
-    page's, "31 changes landed across four projects.", where
-    `phone-home.html` says "31 changes landed.". `../domain/forge/attention.md`,
+    decided, and its cards, as a project's Home's, name no asker (4). `../domain/forge/attention.md`,
     3, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
   - 4: `../client/pages/README.md`, *Needs you*, has no "What reaches
@@ -44,42 +39,25 @@
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).
-  - 6: `../client/pages/README.md`, *Team*, holds a project's people and
+  - 6: `../client/pages/team.md`, 1 holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
     areas on their box, a role's card or "Hand an area to a role"
     (`standing-roles.md` has no design yet either), and its lede counts
-    the people alone. Redrawn after the plan `ui-p4a-team` was cut, this
-    section has the triager as Who routes, a chip under the areas, where
-    *Team* has a line at People's foot, "Findings with no area go to
-    NAME.", which nothing draws yet; and `team/team.html` gives a box the
-    role "Owner", with "owners of shop" at People's head's right, where
-    *Team* has "Owner of PROJECT" and nothing at the head's right, and
+    the people alone. This section has the triager as Who routes, a chip
+    under the areas, where `../client/pages/team.md`, 1 has a line at
+    People's foot, "Findings with no area go to NAME.", which nothing
+    draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
     gives a person's line what they can still sign, signed and asked for,
     which waits for sign-offs by path and kept sign-offs
-    (`whole-story.execution.md`, N2, N5 and N6). *Team* counts a line in
-    digits, "2 questions wait on you.", where this section writes "Two
-    questions wait on you.".
+    (`whole-story.execution.md`, N2, N5 and N6).
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
-    classes, Roles by when each runs, and a goal's
+    classes, Roles by when each runs and what it does, and a goal's
     budget; its heading names the way without its chief departure,
-    which waits for rules by path; and `../domain/forge/change/branch-path.md`, *The
-    project's roles*, gives the drafter no place among Roles, though the
-    stock holds it and template 6 starts it since P6, which landed
-    after the cut of `look-round-25`. Rules by path,
+    which waits for rules by path. Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3c and P3d). What a role does, past when it runs, is kept
-    since P3e, a charter's words (`../protocol/configuration/settings.md`, 2,
-    kind 9), but no design says it on Roles: the view `roles` carries no
-    such fact, and `../domain/forge/README.md`, section 11, *A role's words on
-    its card*, and `../client/README.md`, section 5, defer it, though the
-    help's settings page and a run's "none kept" answer say Roles says a
-    charter by them. The plan `ui-p3e-words` left it out, Roles not having
-    landed at its cut, so a role's "Asked to", its instructions' first
-    sentence, stays the only words of what it does, which the audit of
-    2026-11-08 found reads badly for some charters ("Read only what the
-    change needs…"). Its section 11 also
+    section 3, P3c and P3d). `../client/pages/settings.md`, section 3, also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.
