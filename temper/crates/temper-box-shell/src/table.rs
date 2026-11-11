@@ -23,7 +23,8 @@ pub const TABLE: Table = Table {
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
-pub const TREE: [&Table; 3] = [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER];
+pub const TREE: [&Table; 4] =
+    [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER, &temper_agent_shell::AGENT];
 
 const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
