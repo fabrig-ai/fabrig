@@ -99,6 +99,27 @@
   watching more branches in a repository needs no more directories. Forge
   subscription admission and the connector both enforce the watched-name
   bound.
+- **`forge.changes` bounds the changes kept at once,** live and ended
+  alike: the forge's change table, whose settled changes leave it,
+  oldest first, as new ones need room, those of live goals kept
+  (`../../domain/forge/change/README.md`, 7). So it bounds the changes
+  live at once, never every change made. Each tier row of the store
+  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
+  and a finding's blamed ones), within the store schema's ceiling for
+  them, 257 (`../store.md`, 4), so `forge.changes` is at most 128, which
+  the start checks (below).
+- **A limit's refusal names it:** every refusal a configured limit
+  causes, at the start or in a step, names the limit by its dotted name,
+  its value and what was needed. A step's refusal holds its task with
+  the words of the forge's `RefusalCause::Limit`, such as `forge.changes =
+  128; required usage 129; reduce the named work or raise this limit in
+  the deployment configuration, restart, then release`, beside the
+  operation and the resource it refused (`../../client/forge/README.md`,
+  5). A step that holds several bounds in one check refuses on the one
+  it passed, so each refusal names one limit. A refusal no limit causes
+  (an unadopted repository, a malformed name, an unknown task, a
+  duplicate) names its own cause where the forge has one, and keeps the
+  forge's general words otherwise.
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -220,6 +241,18 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
+  - the store's tier rows': `forge.changes` at most the most they hold,
+    `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
+    tier row's pending landings, a run's landings and a finding's blamed
+    ones (`../store.md`, 4), 128 at their 257, checked before the store's
+    sizing, which would otherwise refuse it as past its codec's bounds,
+    naming no limit:
+    `application.limits.overrides.forge.changes: 256, past its bound of
+    128, the most the store's tier rows hold (2 * forge.changes + 1
+    within 257)`. Within it, a store bound the larger rows outgrow
+    refuses the start as the store's sizing names it (`engine.limits.store:
+    the store's map value, N bytes, past its bound of M bytes`), the
+    store limit to raise with it;
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
     HTTP server's largest read within io's intake; `hooks` within the
