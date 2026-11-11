@@ -1,7 +1,13 @@
 # Status
 
 2026-11-11. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The TUI's
+its design from its drafts, from the status files below. A standing
+role is the stock's charter 13 and template 7, jig's task that stands,
+started with `temper ctl role start` and read with `role list` and
+`role show`, its person its requester, moved to an owner when that
+person leaves the project (`domain/agent/standing.status.md`); its
+areas, routing, talk and reports are the standing-roles draft's later
+milestones (`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
@@ -362,9 +368,8 @@ lines in jig's party scope, each Ask temper brief carries them whole,
 a turn's read shows them and `remember`'s calls to the person alone, and
 the page "What temper remembers about you" reads, changes and deletes
 them (`domain/agent/ask-temper.md`, 4; `client/pages/remembered.md`). A fresh
-start's transcript tail shows `remember`'s calls to every reader, every
-task a person starts reads the list in its brief, not Ask temper's
-alone, and the page empties while it reads again
+start's transcript tail shows `remember`'s calls to every reader, and
+the page empties while it reads again
 (`domain/agent/README.status.md`; `draft/ask-temper.status.md`;
 `client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
@@ -728,9 +733,12 @@ whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not
 connected pauses a repair with no bound, by that plan's cut (`domain/forge/README.md`).
-No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag, and
-the queue's first can lose its turn to a change stepped during it
+No test runs real git on a dirty workspace (`protocol/git.md`). The queue's first
+keeps its turn through its update, CI and merge, a change's own update and its
+goal's merges into its branch are its own heads, a stall's hold names its step,
+and a change's CI the runner failed runs again before any repair, each shown on
+the fake forge alone (`domain/forge/README.md`; `draft/queue-smooth.md`). Much of a change's own
+bounds and gates, the forge's merge queue and a goal's issue lag
 (`domain/forge/README.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
@@ -1045,8 +1053,9 @@ own settings alone; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
-Home’s own sheet and the two unmocked entry paths remain distinct
-(`draft/repository-copies.md`). Settings’ connection pages share the
+Home keeps its own sheet, as the user asked, and the gallery draws the
+two entry paths into “Add repositories” (`draft/repository-copies.md`;
+`client/forge/family.md`). Settings’ connection pages share the
 welcome’s cards and panels and finish on Accounts or Forges. Failed
 making rows can be dismissed through their project's keyed request;
 absent rows are kept and running rows refused. The browser stories keep
@@ -1190,6 +1199,7 @@ Drafts:
 - [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)

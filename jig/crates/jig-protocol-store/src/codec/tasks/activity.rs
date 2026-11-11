@@ -333,6 +333,28 @@ pub fn read_end_kind(source: wire::EndKind) -> Result<domain::EndKind, wire::Pro
     })
 }
 
+fn session_end(value: domain::SessionEnd) -> wire::SessionEnd {
+    match value {
+        domain::SessionEnd::Quiet => wire::SessionEnd::Quiet,
+        domain::SessionEnd::Bound => wire::SessionEnd::Bound,
+        domain::SessionEnd::Unoffered => wire::SessionEnd::Unoffered,
+        domain::SessionEnd::Fresh => wire::SessionEnd::Fresh,
+        domain::SessionEnd::Closed => wire::SessionEnd::Closed,
+        domain::SessionEnd::Rules => wire::SessionEnd::Rules,
+    }
+}
+
+fn read_session_end(value: wire::SessionEnd) -> domain::SessionEnd {
+    match value {
+        wire::SessionEnd::Quiet => domain::SessionEnd::Quiet,
+        wire::SessionEnd::Bound => domain::SessionEnd::Bound,
+        wire::SessionEnd::Unoffered => domain::SessionEnd::Unoffered,
+        wire::SessionEnd::Fresh => domain::SessionEnd::Fresh,
+        wire::SessionEnd::Closed => domain::SessionEnd::Closed,
+        wire::SessionEnd::Rules => domain::SessionEnd::Rules,
+    }
+}
+
 /// Translate `Line` to its durable value.
 pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, wire::Problem> {
     Ok(match source {
@@ -377,6 +399,14 @@ pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, 
                     None => None,
                 },
             },
+        )?),
+        domain::Line::Stood { attempt, words } => wire::Line::Stood(wire::StoodLine::new(
+            limits,
+            wire::StoodLineParts { attempt: *attempt, words: words.clone() },
+        )?),
+        domain::Line::SessionEnded { attempt, end } => wire::Line::SessionEnded(wire::SessionEndedLine::new(
+            limits,
+            wire::SessionEndedLineParts { attempt: *attempt, end: session_end(*end) },
         )?),
         domain::Line::Kept { attempt, pending, question } => wire::Line::Kept(wire::KeptLine::new(
             limits,
@@ -432,6 +462,14 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
                     None => None,
                 },
             }
+        }
+        wire::Line::Stood(source) => {
+            let wire::StoodLineParts { attempt, words } = source.into_parts();
+            domain::Line::Stood { attempt, words }
+        }
+        wire::Line::SessionEnded(source) => {
+            let wire::SessionEndedLineParts { attempt, end } = source.into_parts();
+            domain::Line::SessionEnded { attempt, end: read_session_end(end) }
         }
         wire::Line::Kept(source) => {
             let wire::KeptLineParts { attempt, pending, question } = source.into_parts();

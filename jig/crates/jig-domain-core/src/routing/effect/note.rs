@@ -107,7 +107,12 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note reads and project deletion cannot write an entry")
                 }
                 None => {}
@@ -120,7 +125,12 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteDeleted { name });
                 }
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note indexes and project deletion cannot delete one entry")
                 }
                 None => {}
@@ -129,6 +139,9 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { to, key }) => {
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
+                }
+                Some(NoteRoute::Now { task }) => {
+                    crate::routing::run::now::recalled(core, env, work, task, entries, more);
                 }
                 Some(
                     NoteRoute::Person { .. }
@@ -145,6 +158,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::indexed(core, env, work, task, lines, more), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::indexed(core, work, task, lines),
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
@@ -209,6 +223,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::refused(core, env, work, task, why), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::refused(core, work, task, why),
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },

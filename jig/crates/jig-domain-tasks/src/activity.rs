@@ -52,6 +52,14 @@ pub enum Line {
     Milestone {
         position: u64,
     },
+    Stood {
+        attempt: u64,
+        words: Box<[u8]>,
+    },
+    SessionEnded {
+        attempt: u64,
+        end: crate::SessionEnd,
+    },
     /// The run finished done while its task was kept, and parked: the
     /// dependencies it waits for, at most `Limits.dependencies`
     /// (domain/tasks/lifecycle.md, 8; domain/engine/executors.md).
@@ -61,6 +69,9 @@ pub enum Line {
         question: Option<u64>,
     },
 }
+
+/// Maximum bytes retained from a standing run's result (jig/docs/design/domain/tasks/standing.md, 7).
+pub const STOOD_WORDS: u32 = 512;
 
 /// Which proposal a decision line names, and whether it records its making.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -130,7 +141,7 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
         .checked_mul(u64::try_from(size_of::<crate::ResultField>()).ok()?)?
         .checked_add(u64::from(limits.message_bytes.max(limits.result_bytes)))?;
     let notice = len_u64(crate::run::NOTHING_AWAITED_WORDS.len());
-    u64::try_from(size_of::<ActivityLine>()).ok()?.checked_add(caller.max(notice))
+    u64::try_from(size_of::<ActivityLine>()).ok()?.checked_add(caller.max(notice).max(u64::from(STOOD_WORDS)))
 }
 
 /// Whole-decision line ceiling: admission, decisions and lifecycle cascades,

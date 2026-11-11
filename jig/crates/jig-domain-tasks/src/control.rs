@@ -726,6 +726,7 @@ pub(crate) fn apply_amend(
         task.record.taken_by = None;
     }
     if let Some(instructions) = amendment.instructions {
+        crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Rules, out);
         task.record.instructions = Some(instructions);
     }
     if let Some(llm) = amendment.llm {

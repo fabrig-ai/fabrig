@@ -672,6 +672,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
     match tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
+        rows::ROLE_START_AT => &rows::ROLE_START,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
@@ -1218,6 +1219,7 @@ fn owner_lack(lacking: &c::Lacking) -> bool {
 
 fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
     match tasks.get(0) {
+        Some(task) if task.flags.ended_by == c::EndedBy::Standing => b"role",
         Some(task) if !task.flags.conversation => b"goal",
         Some(_) | None => b"chat",
     }

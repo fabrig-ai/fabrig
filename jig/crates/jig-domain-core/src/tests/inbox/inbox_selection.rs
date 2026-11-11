@@ -171,6 +171,7 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(Token::new(task)),
@@ -920,7 +921,7 @@ fn settings_document_bytes() -> u64 {
     // Each set also carries a 16-byte parts slice and eight templates, each with
     // 24-byte later choices in both its Template and New carriers.
     // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
-    // Each also holds 64 catalogue rows: a 184-byte carrier, two names, a description,
+    // Each also holds 64 catalogue rows: a 192-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
     120_528
         + 4 * 72
@@ -929,6 +930,7 @@ fn settings_document_bytes() -> u64 {
         + 16 * 8
         + 2 * 56
         + 2 * 2 * 440
+        + 2 * 8
         + 2 * 11 * 8
         + 128 * 24
         + 128 * 8
@@ -938,7 +940,7 @@ fn settings_document_bytes() -> u64 {
         + 16
         + 2 * (8192 + 208)
         + 2 * 8
-        + 2 * 64 * (184 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
+        + 2 * 64 * (192 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
         + 64 * 88
         + 2 * (16 + 8 * (24 + 24))
         + 2 * 8 * (16 + 8)

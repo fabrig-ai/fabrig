@@ -255,6 +255,7 @@ fn running_job() -> Harness {
     h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
     assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Preparing));
     h.send(Event::Claim {
+        session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
         reply_to: super::revisions::to(),
@@ -308,6 +309,7 @@ fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
     let before = h.domain.task(2).unwrap().clone();
     for (budget, account, why) in [(1, None, crate::Refusal::Funding), (0, Some(1), crate::Refusal::Executor)] {
         let out = h.send(Event::Claim {
+            session_end: None,
             offered: crate::Reasons::ALL,
             reasons: crate::Reasons::FIRST,
             reply_to: super::revisions::to(),

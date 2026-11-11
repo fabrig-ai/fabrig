@@ -669,6 +669,7 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         plan: 128,
         notes: 64,
         preferences: 64,
+        now: 64,
     },
     accounts: jig_domain_accounts::Limits {
         accounts: 1,

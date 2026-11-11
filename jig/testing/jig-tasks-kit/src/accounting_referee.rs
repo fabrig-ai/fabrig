@@ -36,21 +36,31 @@ fn funding(rows: &BTreeMap<Key, Stored>, funder: Funder) -> Option<&jig_domain_t
     }
 }
 
-fn standing_reset(before: &TaskRecord, after: &TaskRecord, rows: &BTreeMap<Key, Stored>) -> Option<Funder> {
+fn standing_reset(
+    before: &TaskRecord,
+    after: &TaskRecord,
+    rows: &BTreeMap<Key, Stored>,
+    charge: u64,
+) -> Option<Funder> {
     let old_period = match before.funder {
         Funder::Period { project, period } | Funder::Pool { project, period, .. } => Funder::Period { project, period },
         Funder::Task(_) | Funder::Recurring { .. } => return None,
     };
     let Funder::Period { project, period } = old_period else { unreachable!() };
     let Funder::Period { project: fresh_project, period: fresh_period } = after.funder else { return None };
+    let ended = before.last_answer != after.last_answer && after.last_answer == Some(before.attempt);
+    let standing = match before.executor {
+        Executor::Agent { .. } => before.flags.ended_by == jig_domain_tasks::EndedBy::Standing,
+        Executor::Procedure { .. } => !before.subscriptions.is_empty(),
+        Executor::Person(_) | Executor::Job { .. } => false,
+    };
     if project != fresh_project
         || fresh_period <= period
         || before.project != project
         || before.number != before.root
         || before.recurring.is_some()
-        || before.subscriptions.is_empty()
-        || !matches!(before.executor, Executor::Procedure { .. })
-        || before.run_reserved != 0
+        || !standing
+        || (before.run_reserved != 0 && !ended)
         || before.numbers.budget != after.numbers.budget
         || after.numbers.spent != 0
         || after.numbers.spent_below != 0
@@ -63,8 +73,9 @@ fn standing_reset(before: &TaskRecord, after: &TaskRecord, rows: &BTreeMap<Key, 
     let ledger = funding(rows, archived)?;
     if ledger.parent != Some(old_period)
         || ledger.numbers.budget != before.numbers.budget
-        || ledger.numbers.spent_below != before.numbers.spent + before.numbers.spent_below
-        || ledger.numbers.reserved != before.numbers.reserved
+        || ledger.numbers.spent_below != before.numbers.spent + before.numbers.spent_below + charge
+        || Some(ledger.numbers.reserved)
+            != before.numbers.reserved.checked_sub(if ended { before.run_reserved } else { 0 })
         || ledger.made != before.made
     {
         return None;
@@ -332,11 +343,13 @@ impl Accounting {
                 },
                 Funder::Task(_) | Funder::Pool { .. } | Funder::Recurring { .. } => false,
             };
-            let renewed = standing_reset(old, task, rows).is_some();
+            let renewed = standing_reset(old, task, rows, self.delta(old.number)).is_some();
             let standing_delegate = match (old.funder, task.funder) {
                 (Funder::Task(parent), Funder::Recurring { task: renewed, .. }) if parent == renewed => {
                     match (live(&self.before, parent), live(rows, parent)) {
-                        (Some(before), Some(after)) => standing_reset(before, after, rows) == Some(task.funder),
+                        (Some(before), Some(after)) => {
+                            standing_reset(before, after, rows, self.delta(before.number)) == Some(task.funder)
+                        }
                         _ => false,
                     }
                 }
@@ -455,9 +468,10 @@ impl Accounting {
                         Funder::Recurring { task, .. } if funding(&self.before, ledger.funder).is_none() => {
                             match (live(&self.before, task), live(rows, task)) {
                                 (Some(before), Some(after))
-                                    if standing_reset(before, after, rows) == Some(ledger.funder) =>
+                                    if standing_reset(before, after, rows, self.delta(before.number))
+                                        == Some(ledger.funder) =>
                                 {
-                                    before.numbers.spent + before.numbers.spent_below
+                                    before.numbers.spent + before.numbers.spent_below + self.delta(before.number)
                                 }
                                 _ => 0,
                             }
@@ -484,7 +498,8 @@ impl Accounting {
                                                 return None;
                                             }
                                             let after = live(rows, task.number)?;
-                                            standing_reset(task, after, rows).map(|_| task.numbers.budget)
+                                            standing_reset(task, after, rows, self.delta(task.number))
+                                                .map(|_| task.numbers.budget)
                                         })
                                         .sum(),
                                     Funder::Task(_) | Funder::Period { .. } | Funder::Recurring { .. } => 0,

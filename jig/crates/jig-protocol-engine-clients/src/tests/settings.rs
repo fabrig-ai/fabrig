@@ -204,6 +204,7 @@ fn charter() -> jig_domain_core::Charter {
                 endpoint: 4,
                 program: Some(Box::from(b"program".as_slice())),
                 name: Box::from(b"careful".as_slice()),
+                cache_life_ms: 0,
                 window: 8192,
                 output: 1024,
                 input_price: 1,

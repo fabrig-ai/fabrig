@@ -52,8 +52,9 @@ branch. Its parameters:
   a word marked with “…”; a landing's name prefixes the explicit change title
   with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
-- **its bounds:** repairs, resolutions, updates, and the stall of each
-  wait;
+- **its bounds:** repairs, resolutions, updates, the re-runs of a job
+  the runner failed at one head (`reruns`, 2, step 3), and the stall of
+  each wait;
 - **its questions:** how it takes its agents' questions (`questions.md`, 1): `none`,
   the default, asking no one; `foreman`, each settled first by a foreman
   of its own; `up`, each passed straight to its requester; and how many
@@ -264,7 +265,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    request open does the same.
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (`gates.md`, 2). A failure is a repair (`repairs.md`): a task given the
-   failing output. A repository without CI is checked by its checks
+   failing output, unless the runner caused it (below). A repository without CI is checked by its checks
    (`gates.md`, 1). Where they ask no CI, the change goes on to its gates at once,
    and neither a check nor CI at its head holds it or asks a repair.
    **A head already behind takes its base first.** Where its landing
@@ -283,6 +284,33 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the head replaced stays the forge's, since temper has no effect that stops
    one: the change stops waiting for it, and what it spends goes by the
    repository's own CI settings.
+   **The runner's failures run again** (`../../../draft/ci-on-forgejo-17.md`, 2). When CI
+   fails at the head, the change reads the run of each failed check's job
+   (skein's `Read::Run`). A job's failure is the runner's when its first
+   failed step is the set-up step or the completion step (every workflow
+   step having passed), or it failed with no step failed; never by its
+   log's words. A failure in a workflow's own step, a cancelled job, and a
+   failed check that names no job are the change's. When every failed
+   check is the runner's and each one's job was re-run fewer than
+   `reruns` times at this head, the change re-runs those jobs, one write
+   each (`../README.md`, section 4, kind 17), instead of asking a repair.
+   A job's re-runs at a head are counted by the forge's attempts, not
+   kept by the change: a job at attempt *a* was run again *a* − 1 times,
+   by temper or by anyone, and a new head's jobs start at their first.
+   A re-run keeps what the head earned: it moves no head, so the gates'
+   verdicts there stay valid and a live gate runs on; no repair is
+   counted; under its queue the change keeps its turn (`../queues.md`);
+   CI read at the head is pending again until the new attempts end, and
+   the wait on it counts its stall afresh from the re-run. Each re-run's
+   account, as every write's, names its job, its check and its reason
+   (`set-up failed`, `completion failed`, `no step failed`). Otherwise
+   the failure is a repair, as above, whose brief says, of each failed
+   check, whether its failure was the runner's, why, and how many times
+   its job was run again at this head (`repairs.md`). A re-run whose
+   answer is lost is found by the job's attempt moved past the one it
+   named; not found, it was not made, and the change decides again on a
+   fresh read. Only a change's CI at its head is re-run: the branch's
+   own CI on its tip keeps its repair (`../queues.md`).
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
@@ -336,7 +364,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    cancelled, no-change and unrelated children supply no successful
    repair account. Only production sets the pull request's title (1).
    Then what the landing passed, as facts the change itself saw: each
-   check at the landed head with its conclusion, and each review's verdict
+   check at the landed head with its conclusion, and the attempt it
+   concluded at where its job ran again (`ci/test passed at attempt 2`,
+   step 3), and each review's verdict
    (without repairs, their count remains after the checks). All that
    follows the three lines is cut to the result's bound, the change's
    contract's words (the deployment's `tasks.result_bytes`), from the end
@@ -371,7 +401,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
   when. A release reopens it; a cancel closes the change.
 - **Its branch moved** while nothing of temper's writes it, a late copy
   of its own update among them (`../README.md`, section 6), or by another
-  identity, or not forward: held, the head kept as it is. Under its
+  identity, or not forward: held, the head kept as it is, the hold's
+  words naming the head it expected and the one it found, each at the
+  forge's short length (`its branch moved: expected 0123456789ab, found
+  89abcdef0123`). Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
   (`../../worker.md`, 4.4). A release
@@ -409,6 +442,26 @@ while the run goes on, never "branch moved"; a move by another identity,
 or not forward, is drift. The change's own delegates, its repairs, its
 resolution and its merge job, take the slot as any claim does (jig's
 `domain/tasks/holds.md`, 3), beside the design writer.
+
+**Its own writes are its own.** A head a write of temper's made for the
+change is the change's, recorded as its branch's head in the step that
+settles the write, so no later read takes it for drift:
+
+- **Its update** (`../README.md`, section 6): the head the forge's answer
+  names, or, its answer let go, a head read afresh that holds the base
+  the update asked for (its `base`, though the base has moved on since).
+  It goes on to CI on that head (2, step 3; under its turn, step 6).
+- **On its requester's held branch, a merge into it** by a change of its
+  requester's subtree (a goal's close-out or catch-up landing into the
+  goal's branch, `../branches.md`): the merge holds the branch's writer
+  slot from its entry until it settles, so the change decides nothing on
+  the head meanwhile, as above; once settled, the merge's commit is the
+  branch's head and the change's new head, checked again (2, step 3).
+  The same holds for the merge job's push on the branch (`repairs.md`).
+
+So a goal's landing whose own update, or its goal's close-out merged just
+before, moves the goal's branch goes on to CI on that head and merges;
+only a head no write of temper's in flight or settled explains is drift.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a

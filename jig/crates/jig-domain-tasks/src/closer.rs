@@ -58,7 +58,7 @@ pub(crate) fn take_available(domain: &mut Domain, env: &Env<Limits>, task: u64, 
 pub(crate) fn named(row: &crate::TaskRecord) -> bool {
     match row.flags.ended_by {
         EndedBy::Closer(_) => true,
-        EndedBy::Result | EndedBy::Requester => false,
+        EndedBy::Result | EndedBy::Requester | EndedBy::Standing => false,
     }
 }
 
@@ -76,7 +76,7 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, task: u64, number: u6
     }
     let closer = match row.flags.ended_by {
         EndedBy::Closer(closer) => closer,
-        EndedBy::Result | EndedBy::Requester => return,
+        EndedBy::Result | EndedBy::Requester | EndedBy::Standing => return,
     };
     let Some(spend) = crate::funders::available(row.numbers) else {
         refused(domain, env, task, Hold::Budget, out);
