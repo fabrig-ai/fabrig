@@ -154,6 +154,7 @@ impl Root {
         self.runner.kept_json(json);
         self.adopter.kept_json(json);
         self.maker.kept_json(json);
+        self.follows.kept_json(json);
         self.forges.kept_json(json);
         self.changed();
     }

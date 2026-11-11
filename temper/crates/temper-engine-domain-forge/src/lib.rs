@@ -67,8 +67,8 @@ pub mod items;
 mod judge;
 mod kinds;
 pub use follows::{
-    FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow, FollowSkip,
-    FollowState, FollowVerdict, followed,
+    FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
+    FollowSkip, FollowState, FollowVerdict, followed,
 };
 mod landing;
 mod landing_log;
@@ -563,6 +563,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Application { outcome, .. } => match outcome {
+            ApplicationOutcome::Follow(words) => Some(match words {
+                Some(words) => bytes(words),
+                None => 0,
+            }),
             ApplicationOutcome::CoreRefused(_)
             | ApplicationOutcome::ForgeRefused(_)
             | ApplicationOutcome::MakeKept

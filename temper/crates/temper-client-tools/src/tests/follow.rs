@@ -3,6 +3,82 @@ use crate::{follow, jig};
 use jig_client::{self as client, contract as c};
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};
+#[test]
+fn follow_act_commands_send_keyed_requests_and_print_kept_or_the_entrys_refusal() {
+    let a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    for command in ["start", "hold", "skip", "merge"] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let mut words = List::with_capacity(16);
+            for word in ["follow", command, "--project", "2", "1", a, "--key", "follow-act"] {
+                words.push(word).unwrap();
+            }
+            match command {
+                "hold" | "skip" => {
+                    words.push("--reason").unwrap();
+                    words.push("waits for the handoff fix").unwrap();
+                }
+                "merge" => {
+                    words.push(b).unwrap();
+                }
+                "start" => {}
+                _ => unreachable!(),
+            }
+            if json {
+                words.push("--json").unwrap();
+            }
+            let call = root.submit(words.as_slice());
+            let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family request") };
+            assert_eq!(*scope, c::Scope::Project(2));
+            let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
+            let w::Request::FollowAct(request) = request.into_parts().request else { panic!("follow act") };
+            assert_eq!((request.project(), request.follow()), (2, 1));
+            match (command, request.act()) {
+                ("start", w::FollowAct::Start(value)) => assert_eq!(
+                    *value.after(),
+                    [
+                        0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+                        0xaa, 0xaa, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ]
+                ),
+                ("hold", w::FollowAct::Hold(value)) | ("skip", w::FollowAct::Skip(value)) => {
+                    assert_eq!(value.reason(), b"waits for the handoff fix");
+                }
+                ("merge", w::FollowAct::Merge(value)) => {
+                    assert_eq!(value.afters().len(), 2);
+                    assert_eq!(value.afters().iter().nth(1).unwrap()[0], 0xbb);
+                }
+                other => panic!("wrong act: {other:?}"),
+            }
+            root.adoption_answer(
+                call,
+                w::Outcome::Follow(
+                    w::FollowOutcome::new(&w::CEILINGS, w::FollowOutcomeParts { refusal: None }).unwrap(),
+                ),
+            );
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            assert_eq!(printed.stdout.as_ref(), if json { b"{\"kept\":{}}".as_slice() } else { b"kept\n" });
+            let mut refused = f::signed_in(f::PARTY);
+            let call = refused.submit(words.as_slice());
+            let reason = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: the change has started producing";
+            refused.adoption_answer(
+                call,
+                w::Outcome::Follow(
+                    w::FollowOutcome::new(
+                        &w::CEILINGS,
+                        w::FollowOutcomeParts { refusal: Some(reason.as_bytes().into()) },
+                    )
+                    .unwrap(),
+                ),
+            );
+            let printed = refused.answer(call).unwrap();
+            assert_eq!(printed.status, 2);
+            assert!(skein_lib::bytes::find(&printed.stderr, reason.as_bytes()).is_some());
+        }
+    }
+}
 fn row() -> w::FollowView {
     let mut paths = List::with_capacity(2);
     paths.push(b"src".as_slice().into()).unwrap();

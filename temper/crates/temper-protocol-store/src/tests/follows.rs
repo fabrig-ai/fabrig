@@ -27,6 +27,7 @@ fn row() -> d::FollowRow {
         task: Some(71),
         stopped: Some(b"owner stopped".as_slice().into()),
         questions: Box::new([]),
+        pending: None,
         queue: Box::new([entry(d::FollowState::NotMade)]),
         skips: Box::new([d::FollowSkip { after: [3; 32], reason: b"already done".as_slice().into() }]),
         parity: Some(d::FollowParity {
@@ -51,6 +52,29 @@ fn round_trip(row: d::FollowRow) {
     assert_eq!(encoded.first(), Some(&41));
     assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(key));
     assert_eq!(records::row(&encoded, &records::encode(&row), &bounds), Ok(row));
+}
+#[test]
+fn pending_owner_acts_and_their_keyed_outcomes_survive_storage() {
+    use d::follows::FollowAct as A;
+    for act in [
+        A::Start { after: [2; 32] },
+        A::Hold { after: [2; 32], reason: b"waits".as_slice().into() },
+        A::Skip { after: [2; 32], reason: b"build only".as_slice().into() },
+        A::Merge { afters: Box::new([[2; 32], [3; 32]]) },
+    ] {
+        let mut row = row();
+        row.pending = Some(act);
+        round_trip(row);
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for refusal in [None, Some(b"entry: change is producing".as_slice().into())] {
+        let row = d::Stored::Application {
+            token: 31,
+            until: skein_lib::Wall::from_nanos(400),
+            outcome: d::ApplicationOutcome::Follow(refusal),
+        };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
 }
 #[test]
 fn follow_records_round_trip_every_state_parity_and_optional_field() {

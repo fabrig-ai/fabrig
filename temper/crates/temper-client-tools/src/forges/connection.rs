@@ -370,6 +370,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Looked(_)
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
+                | w::Request::FollowAct(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_) => {
                     return false;
@@ -472,6 +473,7 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         | w::Outcome::Reset
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)

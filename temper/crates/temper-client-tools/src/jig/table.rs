@@ -214,6 +214,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"ORG",
     b"REPOSITORY",
     b"BRANCH",
+    b"COMMIT",
     b"PREFIX",
     b"GATE",
     b"LABEL",

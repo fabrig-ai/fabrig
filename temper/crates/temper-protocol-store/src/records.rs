@@ -306,6 +306,8 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         follow_commit_message: forge.follow_message_bytes,
         follow_skip_reason: forge.follow_reason_bytes,
         follow_reason_reason: forge.follow_reason_bytes,
+        follow_reason_act_reason: forge.follow_reason_bytes,
+        follow_merge_act_afters: forge.follow_merge,
         tier_row_observations: 8_192,
         tier_row_tier: 32,
         tier_row_goals: forge.holds,

@@ -297,6 +297,10 @@ const USAGES: &[&[u8]] = &[
     b"project remove PROJECT --key KEY\n",
     b"follow list --project PROJECT\n",
     b"follow show --project PROJECT FOLLOW\n",
+    b"follow start --project PROJECT FOLLOW COMMIT --key KEY\n",
+    b"follow hold --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow skip --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow merge --project PROJECT FOLLOW COMMIT [COMMIT]... --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

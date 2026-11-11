@@ -259,6 +259,7 @@ impl Reconciliation {
                 crate::ApplicationOutcome::CoreRefused(_)
                 | crate::ApplicationOutcome::ForgeRefused(_)
                 | crate::ApplicationOutcome::MakeKept
+                | crate::ApplicationOutcome::Follow(_)
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
