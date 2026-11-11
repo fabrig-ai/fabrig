@@ -198,9 +198,23 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
     } }
     refresh(domain, &mut pending.row); domain.work.push(Work::Forge(forge::Event::Follow { row: pending.row }));
 }
-pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64) -> bool {
+pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domain_core::StepRefusal) -> bool {
     if domain.follow_steps.remove(&(task, step)).is_none() { return false; }
-    super::holds::hold(domain, task, b"the follow's step was refused within its authority"); true
+    let mut words = List::uncapped(); append(&mut words, b"the follow's step was refused: ");
+    match why {
+        jig_domain_core::StepRefusal::Denied { findings, .. } => super::holds::findings(&mut words, findings),
+        jig_domain_core::StepRefusal::Refused(problem) => {
+            let reason = if problem.why == tasks::Refusal::Tree { b"lifetime task capacity".as_slice() }
+                else if problem.why == tasks::Refusal::Funding { b"insufficient spend" }
+                else if problem.why == tasks::Refusal::Batch { b"step batch capacity" }
+                else if problem.why == tasks::Refusal::Spec { b"specification bound" }
+                else if problem.why == tasks::Refusal::Depth { b"delegation depth" }
+                else { super::foreman::refusal_words(problem.why) };
+            append(&mut words, reason);
+        }
+        jig_domain_core::StepRefusal::Moved { .. } => append(&mut words, b"a delegate's revision moved"),
+    }
+    super::holds::hold(domain, task, words.as_slice()); true
 }
 pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
     let jig_domain_core::Record::Tasks(stored) = record else { return };

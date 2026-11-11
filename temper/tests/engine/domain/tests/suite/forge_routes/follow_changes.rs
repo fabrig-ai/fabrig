@@ -32,7 +32,7 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
 fn world(start: s::FollowStart) -> World { world_passing(start, 1000) }
 fn world_passing(start: s::FollowStart, passes: u32) -> World {
     let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None,
-        StoryLimits { kinds: true, person_executor: true, tier: Some(temper_engine_domain_world::tier_runs::Tier::default()), spec_bytes: Some(2048), tasks_batch: Some(8), authority_batch: Some(8), task_delegates: Some(16), tree_tasks: Some(64), slots: Some(4), stall: Some(Duration::from_secs(3600)), ..StoryLimits::default() }).with_forge_pages(b"https://forge.example").with_second_project();
+        StoryLimits { kinds: true, person_executor: true, tier: Some(temper_engine_domain_world::tier_runs::Tier::default()), spec_bytes: Some(2048), inbox_messages: Some(16), inbox_bytes: Some(4096), tasks_batch: Some(8), authority_batch: Some(8), task_delegates: Some(16), tree_tasks: Some(64), slots: Some(4), stall: Some(Duration::from_secs(3600)), ..StoryLimits::default() }).with_forge_pages(b"https://forge.example").with_second_project();
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world.sign_in(); super::context_projects::adopt_pair_passing(&mut world, b"vsr", b"vsr-rs", passes);
     world.send(engine::Event::Party(engine::PartyInput::Period { project: 2, period: 1, budget: 1000, next: None }));
@@ -110,7 +110,8 @@ fn code_follow_produces_without_word_and_remakes_the_whole_held_tail() {
     let event = world.protocol.answer(Token::new(7), producer.task, producer.attempt, 0, tasks::End::Parked, engine::Parts::none()); world.send(event); settle(&mut world);
     assert!(matches!(row(&world).queue[0].state, FollowState::Ended(_))); assert!(matches!(live_task(&world, b).phase, tasks::Phase::Held { .. })); start(&mut world, first);
     let made = [change(&world, first), change(&world, second), change(&world, third)];
-    assert!(made.iter().all(|m| ![a,b,c].contains(m)), "row {:?}; phase {:?}", row(&world), live_task(&world, row(&world).task.unwrap()).phase);
+    let mut facts = Vec::new(); while let Some(fact) = world.root.pop_fact() { facts.push(fact); }
+    assert!(made.iter().all(|m| ![a,b,c].contains(m)), "facts {facts:?}; phase {:?}", live_task(&world, row(&world).task.unwrap()).phase);
     assert_eq!(live_task(&world, made[1]).waiting_on.as_ref(), &[made[0]]); assert_eq!(live_task(&world, made[2]).waiting_on.as_ref(), &[made[1]]);
     assert!(matches!(ended_task(&world, b).phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. }))); assert!(matches!(ended_task(&world, c).phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. })));
     assert!(!row(&world).queue.iter().any(|e| matches!(e.state, FollowState::Ended(_)))); assert!(row(&world).queue.iter().all(|entry| entry.word)); next_delegate(&mut world, made[0], 0); world.close();
