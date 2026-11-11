@@ -589,6 +589,33 @@ fn an_outcome_that_does_not_fit_is_rejected_and_the_llm_tries_again() {
 }
 
 #[test]
+fn a_check_that_times_out_once_delivers_after_its_announced_retry() {
+    let settings = finishing(180);
+    let world = settled(&Settings {
+        run: Limits { check_timeout: Duration::from_secs(60), ..settings.run },
+        host: host::Script {
+            jobs: 1,
+            window: Duration::ZERO,
+            reserve: run::charter::Reserve { turns: 1, time: Duration::from_secs(60) },
+            ..settings.host
+        },
+        partner: Script { changes: 1000, finishes: 1000, turn: Span::millis(100, 100), ..settings.partner },
+        checkout: Checkouts { check: Span::millis(90_000, 90_000), check_failures: 0, ..settings.checkout },
+        races: 0,
+        ..settings
+    });
+    let stats = world.stats();
+    assert_eq!(stats.checks, 2, "one timeout, then a passing retry: {stats:?}");
+    assert_eq!(stats.host.notices, 4, "the host hears both starts and both ends");
+    assert_eq!(stats.partner.checks_failed, 0);
+    assert_eq!(stats.deliveries, 1);
+    assert_eq!(stats.partner.accepted, 1);
+    for answer in answers(&world) {
+        assert!(matches!(answer, Answer::Accepted { .. }), "{answer:?}");
+    }
+}
+
+#[test]
 fn a_check_deadline_terminal_returns_feedback_without_submitting_to_host() {
     let settings = finishing(18);
     let world = settled(&Settings {
@@ -757,10 +784,13 @@ fn deadlines_find_runs_in_every_state_they_run_in_cells() -> BTreeMap<&'static s
             time: Span::millis(2_000, 15_000),
             tokens_min: 80_000,
             tokens_max: 100_000,
+            delivery: Span::millis(20_000, 20_000),
             ..landing.host
         };
         let partner = Script { changes: 1000, turn: Span::millis(100, 2_000), ..landing.partner };
-        let checkout = Checkouts { check: Span::millis(2_000, 8_000), check_failures: 3, ..landing.checkout };
+        // Checks stop at the run's end and their terminals precede alarms.
+        // A submitted delivery owes its host terminal across that deadline.
+        let checkout = Checkouts { check: Span::millis(100, 100), check_failures: 0, ..landing.checkout };
         let settings = Settings { run, host, partner, checkout, hop: Span::millis(0, 1_500), ..landing };
         tally(&settled(&settings), &mut cancels, &mut deadlines);
     }
