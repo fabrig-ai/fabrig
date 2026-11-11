@@ -63,6 +63,17 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(why) = next.released.take() {
         return released_step(next, why, facts, standing);
     }
+    if facts.contains_head == Status::Passed
+        && !standing.delegate_live
+        && !facts.writer_taken
+        && facts.drift.is_none()
+        && head_may_end(&next.state)
+        && let Some(head) = facts.branch
+    {
+        next.state = State::NoChange { words: contained_words(b"its head ", head) };
+        next.owns_turn = false;
+        return Stepped { change: next, decision: Decision::NoChange };
+    }
     if let State::Held { was, why } = &change.state {
         if held_on_ci(&change.state)
             && green_head(facts).is_some()
@@ -144,6 +155,35 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         }
     }
     advance_phase(change, next, facts, standing, now, limits)
+}
+
+/// No containment decision during an update, preparation, merge or hold (domain/forge/change/README.md, 2).
+fn head_may_end(state: &State) -> bool {
+    match state {
+        State::Held { .. }
+        | State::Updating { .. }
+        | State::Preparing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Ended => false,
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Ready { .. }
+        | State::WaitingProducer { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. } => true,
+    }
 }
 
 fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
@@ -454,6 +494,9 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         | State::Ended => {
             unreachable!("held state retains a live predecessor")
         }
+        // A release decides from branch, base and pull, not the ended resolution's
+        // status (temper/docs/design/domain/forge/change/repairs.md, A release).
+        State::Resolving { base, .. } if why == Hold::Failed => State::WaitingProducer { base: *base },
         State::Producing { requested: true } if why == Hold::Failed => State::Producing { requested: false },
         State::Repairing { why: repair, .. } if why == Hold::Failed => {
             State::Repairing { requested: false, why: *repair }
@@ -596,21 +639,7 @@ fn producing(
 fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     match facts.contains_catch_up {
         Status::Passed => {
-            let mut words = List::with_capacity(128);
-            put(&mut words, b"The landing branch already contains commit ");
-            let mut length = 20;
-            for byte in commit.get(20..).expect("a commit has 32 bytes") {
-                if *byte != 0 {
-                    length = 32;
-                    break;
-                }
-            }
-            for byte in commit.get(..length).expect("a commit has 20 or 32 bytes") {
-                words.push(skein_lib::bytes::hex_digit(*byte >> 4)).expect("catch-up words fit");
-                words.push(skein_lib::bytes::hex_digit(*byte)).expect("catch-up words fit");
-            }
-            put(&mut words, b".");
-            change.state = State::NoChange { words: words.into_boxed() };
+            change.state = State::NoChange { words: contained_words(b"commit ", commit) };
             Stepped { change, decision: Decision::NoChange }
         }
         Status::Failed => {
@@ -619,6 +648,25 @@ fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, 
         }
         Status::Unknown | Status::Pending => waiting(change, now, limits),
     }
+}
+
+fn contained_words(subject: &[u8], commit: [u8; 32]) -> Box<[u8]> {
+    let mut words = List::with_capacity(128);
+    put(&mut words, b"The landing branch already contains ");
+    put(&mut words, subject);
+    let mut length = 20;
+    for byte in commit.get(20..).expect("a commit has 32 bytes") {
+        if *byte != 0 {
+            length = 32;
+            break;
+        }
+    }
+    for byte in commit.get(..length).expect("a commit has 20 or 32 bytes") {
+        words.push(skein_lib::bytes::hex_digit(*byte >> 4)).expect("containment words fit");
+        words.push(skein_lib::bytes::hex_digit(*byte)).expect("containment words fit");
+    }
+    put(&mut words, b".");
+    words.into_boxed()
 }
 
 fn request_producer(mut change: Change, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
@@ -1252,7 +1300,16 @@ fn waiting_producer(
     match facts.mergeable {
         Status::Passed => take_pushed_head(change, head, now),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
-        Status::Failed => conflict_due(change, base, Some(head), facts, standing, now, limits),
+        Status::Failed => match facts.delegate {
+            // A released resolution asks directly at the base now read, with no
+            // merge job (temper/docs/design/domain/forge/change/repairs.md, A release).
+            Some(Delegate::Resolve { .. } | Delegate::Merge { .. }) => {
+                resolving_due(change, facts.base_tip, facts, standing, now, limits)
+            }
+            Some(Delegate::Produce | Delegate::Close | Delegate::Repair(_) | Delegate::Gate { .. }) | None => {
+                conflict_due(change, base, Some(head), facts, standing, now, limits)
+            }
+        },
     }
 }
 

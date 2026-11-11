@@ -1708,6 +1708,79 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
 }
 
 #[test]
+fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
+    for (writer, drifted, records, comparing) in [
+        (Writer::Run { task: 9, attempt: 2 }, false, true, false),
+        (Writer::Run { task: 9, attempt: 2 }, false, true, true),
+        (Writer::Run { task: 9, attempt: 2 }, true, false, false),
+        (Writer::Run { task: 9, attempt: 1 }, false, false, false),
+        (Writer::Run { task: 8, attempt: 2 }, false, false, false),
+    ] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let name = run_branch(b"51");
+        let mut row = fixtures::opening_row();
+        row.change.last_head = Some([1; 32]);
+        row.delegate = Some((9, temper_engine_domain_forge_change::Delegate::Resolve { base: fixtures::BASE }));
+        outputs(&mut d, Event::Change { row });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: name.clone(),
+                    task: fixtures::CHANGE,
+                    writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
+        if comparing {
+            outputs(
+                &mut d,
+                Event::Restore {
+                    record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }),
+                },
+            );
+        }
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
+        let (mut call, _) = fixtures::next_call(&mut d);
+        if comparing {
+            fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commit([99; 32])));
+            (call, _) = fixtures::next_call(&mut d);
+        }
+        let hold = d.holds.get_mut(&name).expect("hold");
+        hold.writer = Some(writer);
+        hold.drift = drifted.then_some(Drift {
+            at: env().wall,
+            change: DriftChange::Branch { expected: [1; 32], observed: Some([88; 32]) },
+        });
+        let result = if comparing {
+            skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }
+        } else {
+            skein_forge::api::Answer::Commit([99; 32])
+        };
+        let answered = fixtures::answer(&mut d, call, Ok(result));
+        assert_eq!(
+            d.change(fixtures::CHANGE).expect("change").change.last_head,
+            Some(if records { [99; 32] } else { [1; 32] }),
+            "{writer:?}, drifted={drifted}"
+        );
+        assert_eq!(d.hold(&name).expect("hold").writer, Some(writer));
+        assert_eq!(d.hold(&name).expect("hold").drift.is_some(), drifted);
+        for request in &answered {
+            assert!(
+                !matches!(request, Request::Save { record: Stored::Hold(_), .. }),
+                "the later slot is neither freed nor rewritten"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_lost_writers_outage_keeps_the_release_waiting_without_a_hold() {
     let mut d = restarted_lost_writer();
     let mut env = env();

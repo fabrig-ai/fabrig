@@ -269,7 +269,7 @@ fn reconnect_change(d: &mut Domain, env: &Env<Limits>) -> Token {
 
 #[test]
 fn change_reads_answered_not_connected_wait_and_restart_from_the_branch() {
-    use skein_forge::api::{Check, Ci, Error};
+    use skein_forge::api::{Check, Ci, CommitMessage, Error};
     let mut pull = fixtures::open_pull();
     pull.ci = Ci::Failed;
     let answers = [
@@ -280,22 +280,35 @@ fn change_reads_answered_not_connected_wait_and_restart_from_the_branch() {
         fixtures::checks(Check::Passed),
         Answer::Commits { commits: Box::new([]), more: false },
     ];
-    for (stage, catch_up, before) in [
-        ("branch", None, 0),
-        ("base", None, 1),
-        ("pull", None, 2),
-        ("ci", None, 3),
-        ("base ci", None, 4),
-        ("compare", None, 5),
-        ("reviews", None, 6),
-        ("catch up", Some(fixtures::BASE), 2),
+    for (stage, catch_up, before, reverse) in [
+        ("branch", None, 0, false),
+        ("base", None, 1, false),
+        ("pull", None, 2, false),
+        ("ci", None, 3, false),
+        ("base ci", None, 4, false),
+        ("compare", None, 5, false),
+        ("contains head", None, 6, true),
+        ("reviews", None, 6, false),
+        ("catch up", Some(fixtures::BASE), 2, false),
     ] {
         let mut d = gathering();
         let mut env = env();
         send(&mut d, &env, Event::Connection { forge: 1, state: Connection::Connecting });
         d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = catch_up;
-        for answer in answers.iter().take(before) {
-            fixtures::answer_next(&mut d, Ok(answer.clone()));
+        for (index, answer) in answers.iter().take(before).enumerate() {
+            let answer = if reverse && index == 5 {
+                Answer::Commits {
+                    commits: Box::new([CommitMessage {
+                        id: fixtures::BASE,
+                        parents: Box::new([]),
+                        message: Box::new([]),
+                    }]),
+                    more: false,
+                }
+            } else {
+                answer.clone()
+            };
+            fixtures::answer_next(&mut d, Ok(answer));
         }
         let (call, _) = fixtures::next_at(&mut d, &env);
         let out = fixtures::answer_at(&mut d, &env, call, Err(Error::NotConnected));

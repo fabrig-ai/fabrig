@@ -1,5 +1,99 @@
 use super::*;
 
+/// Reverse ancestry is read once per pair, including uncertain answers (keeping-up.md, 3).
+#[test]
+fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
+    use skein_forge::api::{Answer, CommitMessage, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    for (answer, status) in fixtures::ancestry_cases() {
+        // Connection failures have their own retry chain; the ancestry fold covers them separately.
+        if matches!(
+            answer,
+            Err(skein_forge::api::Error::Unavailable
+                | skein_forge::api::Error::Forbidden
+                | skein_forge::api::Error::Missing)
+        ) {
+            continue;
+        }
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = change::State::Checking { head: fixtures::HEAD };
+        // A previously updated head waits for CI instead of updating before it concludes.
+        row.change.clean = Box::new([fixtures::HEAD]);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        for (tip, read, live) in [
+            (fixtures::BASE, true, true),
+            (fixtures::BASE, false, true),
+            ([5; 32], true, true),
+            ([5; 32], false, false),
+        ] {
+            seen_base(&mut d, tip);
+            outputs(&mut d, waiting_step(live, false));
+            let mut pull = fixtures::open_pull();
+            pull.base_commit = Some(tip);
+            pull.ci = skein_forge::api::Ci::Pending;
+            for answer in [
+                Answer::Commit(fixtures::HEAD),
+                Answer::Commit(tip),
+                Answer::Pull(pull),
+                fixtures::checks(skein_forge::api::Check::Passed),
+            ] {
+                let (call, _) = fixtures::next_at(&mut d, &env);
+                fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            }
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: tip, page: 1 }));
+            fixtures::answer_at(
+                &mut d,
+                &env,
+                call,
+                Ok(Answer::Commits {
+                    commits: Box::new([CommitMessage { id: tip, parents: Box::new([]), message: Box::new([]) }]),
+                    more: false,
+                }),
+            );
+            if read {
+                let (call, op) = fixtures::next_at(&mut d, &env);
+                assert_eq!(op, Op::Read(Read::Commits { before: tip, after: fixtures::HEAD, page: 1 }));
+                fixtures::answer_at(&mut d, &env, call, answer.clone());
+            }
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }), "no second ancestry read");
+            fixtures::answer_at(
+                &mut d,
+                &env,
+                call,
+                Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            );
+            let state = &d.change(fixtures::CHANGE).expect("change").change.state;
+            if !live && status == change::Status::Passed {
+                assert_eq!(state, &change::State::NoChange { words: Box::from(b"The landing branch already contains its head 0303030303030303030303030303030303030303030303030303030303030303.".as_slice()) });
+            } else {
+                assert_eq!(state, &change::State::Checking { head: fixtures::HEAD });
+            }
+        }
+    }
+}
+
+/// Keep workflow discovery outside the change's fresh-read chain.
+fn seen_base(d: &mut Domain, commit: skein_forge::api::Commit) {
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+    };
+    d.heads.insert(name.clone(), BranchHead { name, commit, owned: false }).expect("fixture head room");
+}
+
 // env() starts at 100 s; the change policy stalls for another 30 s.
 const WAIT_UNTIL: Wall = Wall::from_nanos(130_000_000_000);
 
@@ -1568,6 +1662,9 @@ fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
             more: false,
         }),
     );
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
+    fixtures::answer(d, call, Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
     let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
     let effect = if preparing {
         change::Effect::Prepare { head: fixtures::HEAD, main: fixtures::BASE }
@@ -1842,12 +1939,7 @@ fn head_ci_contexts_are_read_once_per_gather() {
         row.change.state = change::State::Checking { head: fixtures::HEAD };
         outputs(&mut d, Event::Change { row });
         if same_base {
-            let name = Name {
-                forge: REPO.forge,
-                repository: REPO.repository,
-                what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
-            };
-            d.heads.insert(name.clone(), BranchHead { name, commit: fixtures::HEAD, owned: false }).unwrap();
+            seen_base(&mut d, fixtures::HEAD);
         }
         fixtures::step_change(&mut d);
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
@@ -1876,18 +1968,29 @@ fn head_ci_contexts_are_read_once_per_gather() {
             assert_eq!(op, Op::Read(Read::Checks { commit: base }));
             fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
         }
-        let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(d.panel_ci.get(&fixtures::CHANGE).unwrap().status, change::Status::Pending, "{name}: head verdict");
-        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: base, page: 1 }));
-        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        if !same_base {
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: base, page: 1 }));
+            fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(
+            op,
+            Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }),
+            "{name}: equality needs no ancestry read"
+        );
         let finished =
-            fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-        let mut waited = false;
+            fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        let mut decided = false;
         for request in &finished {
+            if let Request::ChangeDecision { decision: change::Decision::NoChange, .. } = request {
+                decided |= same_base;
+            }
             if let Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. } = request {
-                waited = true;
+                decided |= !same_base;
             }
         }
-        assert!(waited, "{name}: {finished:?}");
+        assert!(decided, "{name}: {finished:?}");
     }
 }
