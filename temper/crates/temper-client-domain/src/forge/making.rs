@@ -70,9 +70,10 @@ pub enum Line {
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    reason = "the contract takes a name predicate and trims person-entered lines as parse_copies does"
+    clippy::type_complexity,
+    reason = "the contract takes a source and target-name predicate and trims person-entered lines as parse_copies does"
 )]
-pub fn lines(text: &[u8], has: &dyn Fn(&[u8], &[u8]) -> bool) -> List<Line> {
+pub fn lines(text: &[u8], has: &dyn Fn(&[u8], &[u8], &[u8]) -> bool) -> List<Line> {
     let mut result = List::with_capacity(u32::try_from(text.len()).expect("bounded field length"));
     let Ok(text) = core::str::from_utf8(text) else {
         result.push(Line::Bad { raw: bytes::copy_of(text) }).expect("nonempty invalid UTF-8");
@@ -87,8 +88,12 @@ pub fn lines(text: &[u8], has: &dyn Fn(&[u8], &[u8]) -> bool) -> List<Line> {
     }
     result
 }
-#[expect(clippy::disallowed_types, reason = "the sheet contract supplies its target-name predicate")]
-fn line(raw: &str, has: &dyn Fn(&[u8], &[u8]) -> bool) -> Line {
+#[expect(
+    clippy::disallowed_types,
+    clippy::type_complexity,
+    reason = "the sheet contract supplies its source and target-name predicate"
+)]
+fn line(raw: &str, has: &dyn Fn(&[u8], &[u8], &[u8]) -> bool) -> Line {
     let text = raw.strip_prefix("https://").unwrap_or(raw);
     let text = text.strip_prefix("http://").unwrap_or(text).trim_end_matches('/');
     let text = text.strip_suffix(".git").unwrap_or(text);
@@ -119,7 +124,11 @@ fn line(raw: &str, has: &dyn Fn(&[u8], &[u8]) -> bool) -> Line {
         return Line::Bad { raw: bytes::copy_of(raw) };
     }
     let (org, name) = copy_target(&source);
-    if has(&org, &name) { Line::Taken { raw: bytes::copy_of(raw), org, name } } else { Line::To { address, org, name } }
+    if has(&address, &org, &name) {
+        Line::Taken { raw: bytes::copy_of(raw), org, name }
+    } else {
+        Line::To { address, org, name }
+    }
 }
 
 /// The copies of the real forge numbered lowest whose intent names them (client/pages/README.md).

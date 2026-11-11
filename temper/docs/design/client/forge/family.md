@@ -113,9 +113,11 @@ that said "Adopt a repository", go to it; its Cancel and its Escape go to
   Read as typed, a line at a time, each with its own words: "Not an address:
   LINE. Write it as github.com/owner/name."; "HOST isn’t a host. Did you mean
   github.com/OWNER/NAME?", with "Use it"; and, for a name the target forge
-  has already, among the rows read of it and its makings, "OWNER/NAME is
-  already on this forge.", with "Adopt it", which moves to "Adopt" with its
-  row picked. Then "Copied into FORGE from GitHub or another git host. Each
+  has already, among the rows read of it and its makings, but for one that a
+  failed copy of the same address left there—an empty repository that copying
+  again replaces—"OWNER/NAME is already on this forge.", with "Adopt it", which
+  moves to "Adopt" with its row picked. Then "Copied into FORGE from GitHub or
+  another git host. Each
   keeps its owner and name, and nothing is sent back.". The button says "Copy
   OWNER/NAME", "Copy N repositories" or "Copy", and is disabled while a line
   has words.
