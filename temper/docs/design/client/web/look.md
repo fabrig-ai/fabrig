@@ -479,11 +479,13 @@
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
-- **Team's look** (`../pages/README.md`, *Team*; the whole story's `team.html`
+- **Team's look** (`../pages/team.md`, 1; the whole story's `team.html`
   and `team/team.html`, and `whole-story.css`): its intro as Work's and
   Home's, kicker, headline and lede, in a column 1020 px wide at most
   (`.col.wide`); People's head the mockup's `.shead`, its title at the
-  left; the people a grid of boxes, `.grid3`, columns at least 240 px
+  left and the people's shared role, where it's drawn, at its right on
+  the title's baseline, as `.shead span`: 13 px, muted, wrapping under
+  the title on a narrow width; the people a grid of boxes, `.grid3`, columns at least 240 px
   wide filling the row, 16 px apart, each box `.box`, on the surface's
   ground with the hairline's border, 12 px round, 18 px by 20 px inside,
   8 px between its lines: the name in bold, the role in `small` and

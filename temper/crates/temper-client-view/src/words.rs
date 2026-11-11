@@ -459,6 +459,11 @@ pub enum Word {
     TeamThings,
     TeamTitle,
     TeamFor,
+    TeamOwners,
+    TeamMaintainers,
+    TeamMembers,
+    TeamObservers,
+    TeamOne,
     SettingsKicker,
     SettingsHowHeading,
     SettingsRepositoriesHeading,
@@ -1659,6 +1664,9 @@ pub enum Word {
     NeedsOldest,
     NeedsTell,
     NeedsHeadCut,
+    AllHomeByline,
+    AllHomePhoneLanded,
+    AllHomePhoneOne,
     AllHomeAcross,
     AllHomeIn,
     AllHomeOne,
@@ -1765,7 +1773,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2318;
+const PHRASES: u32 = 2326;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1792,10 +1800,10 @@ const PHRASES: u32 = 2318;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4157;
+const SEGMENTS: u32 = 4177;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56282;
-const ALL: [Word; 1634] = [
+const ENGLISH_BYTES: u32 = 56443;
+const ALL: [Word; 1642] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -2235,6 +2243,11 @@ const ALL: [Word; 1634] = [
     Word::TeamThings,
     Word::TeamTitle,
     Word::TeamFor,
+    Word::TeamOwners,
+    Word::TeamMaintainers,
+    Word::TeamMembers,
+    Word::TeamObservers,
+    Word::TeamOne,
     Word::SettingsKicker,
     Word::SettingsHowHeading,
     Word::SettingsRepositoriesHeading,
@@ -3398,6 +3411,9 @@ const ALL: [Word; 1634] = [
     Word::NeedsOldest,
     Word::NeedsTell,
     Word::NeedsHeadCut,
+    Word::AllHomeByline,
+    Word::AllHomePhoneLanded,
+    Word::AllHomePhoneOne,
     Word::AllHomeAcross,
     Word::AllHomeIn,
     Word::AllHomeOne,
@@ -3917,6 +3933,11 @@ impl Word {
             Self::TeamThings => 4962,
             Self::TeamTitle => 4963,
             Self::TeamFor => 4964,
+            Self::TeamOwners => 4973,
+            Self::TeamMaintainers => 4974,
+            Self::TeamMembers => 4975,
+            Self::TeamObservers => 4976,
+            Self::TeamOne => 4977,
             Self::PathAddForge => 3481,
             Self::PathConnectAccount => 3482,
             Self::StartGoalAsks => 3590,
@@ -5066,6 +5087,9 @@ impl Word {
             Self::NeedsOldest => 4452,
             Self::NeedsTell => 4453,
             Self::NeedsHeadCut => 4454,
+            Self::AllHomeByline => 4487,
+            Self::AllHomePhoneLanded => 4488,
+            Self::AllHomePhoneOne => 4489,
             Self::AllHomeAcross => 4455,
             Self::AllHomeIn => 4456,
             Self::AllHomeOne => 4457,
@@ -5952,6 +5976,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsProject => (&[b"Needs you \xc2\xb7 ", b""], &[Name]),
         Word::NeedsOldest => (&[b"oldest first"], &[]),
         Word::NeedsTell => (&[b"Or tell it something else"], &[]),
+        Word::AllHomeByline => (
+            &[b"Each project's brief, its first line \xc2\xb7 the newest, ", b"'s, by the status agent at ", b""],
+            &[Name, Name],
+        ),
+        Word::AllHomePhoneLanded => (&[b"", b" changes landed."], &[Number]),
+        Word::AllHomePhoneOne => (&[b"One change landed."], &[]),
         Word::AllHomeAcross => (&[b"", b" changes landed across ", b" projects."], &[Number, Name]),
         Word::AllHomeIn => (&[b"", b" changes landed in ", b"."], &[Number, Name]),
         Word::AllHomeOne => (&[b"One change landed in ", b"."], &[Name]),
@@ -6914,7 +6944,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TeamUnreadable => (&[b"This project's people can't be read now."], &[]),
         Word::TeamYou => (&[b"You"], &[]),
         Word::TeamWhomYou => (&[b"you"], &[]),
-        Word::TeamOwner => (&[b"Owner of ", b""], &[Name]),
+        Word::TeamOwner => (&[b"Owner"], &[]),
         Word::TeamMaintainer => (&[b"Maintainer"], &[]),
         Word::TeamMember => (&[b"Member"], &[]),
         Word::TeamObserver => (&[b"Observer"], &[]),
@@ -6937,6 +6967,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TeamThings => (&[b"things"], &[]),
         Word::TeamTitle => (&[b"Team"], &[]),
         Word::TeamFor => (&[b"Team for ", b""], &[Name]),
+        Word::TeamOwners => (&[b"owners of ", b""], &[Name]),
+        Word::TeamMaintainers => (&[b"maintainers of ", b""], &[Name]),
+        Word::TeamMembers => (&[b"members of ", b""], &[Name]),
+        Word::TeamObservers => (&[b"observers of ", b""], &[Name]),
+        Word::TeamOne => (&[b"One"], &[]),
         Word::SettingsKicker => (&[b"", b" \xc2\xb7 how work runs"], &[Name]),
         Word::SettingsHowHeading => (&[b"How work runs in ", b"."], &[Name]),
         Word::SettingsRepositoriesHeading => (&[b"What ", b" works on."], &[Name]),

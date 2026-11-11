@@ -360,11 +360,12 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Named { role: Role::Paragraph, name: "Two of you." },
             Part::Named { role: Role::Text, name: "You" },
-            Part::Named { role: Role::Paragraph, name: "Owner of shop" },
-            Part::Named { role: Role::Paragraph, name: "3 things wait on you." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Named { role: Role::Text, name: "owners of shop" },
+            Part::Named { role: Role::Paragraph, name: "Three things wait on you." },
             Part::Named { role: Role::Text, name: "Sam" },
-            Part::Named { role: Role::Paragraph, name: "Member" },
-            Part::Named { role: Role::Paragraph, name: "1 question waits on Sam." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Named { role: Role::Paragraph, name: "One question waits on Sam." },
             Part::Absent { role: Role::Text, name: "Service" },
         ],
     },
@@ -374,6 +375,8 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Absent { role: Role::Link, name: "Team" },
             Part::Named { role: Role::Paragraph, name: "Just you." },
+            Part::Named { role: Role::Paragraph, name: "Owner" },
+            Part::Absent { role: Role::Text, name: "owners of shop" },
             Part::Named { role: Role::Text, name: "You" },
             Part::Named { role: Role::Paragraph, name: "Nothing waits on you." },
             Part::Absent { role: Role::Text, name: "Sam" },
@@ -2063,7 +2066,11 @@ static HOLDS: [Holds; samples::N] = [
                     "fabrig landed 15, proof-6 whole among them.",
                 ],
             },
-            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:52" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
+            Part::Named { role: Role::Heading { level: 1 }, name: "31 changes landed. Two things need you." },
             Part::Text { text: "The status agent, 07:52" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
             Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &["vsr", "vsr-rs"] },
@@ -2110,6 +2117,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-one-project",
         heading: "12 changes landed in vsr. One thing needs you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::HomeCards { primary: &["Only once caught up"], projects: &["vsr"] },
             Part::Absent { role: Role::Region, name: "Projects" },
             Part::StyleCount { style: temper_client_view::look::DECISION, count: 1 },
@@ -2120,6 +2131,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-away",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Named { role: Role::Button, name: "Away on 2 of 4" },
             Part::NotPressed { name: "Away on 2 of 4" },
         ],
@@ -2128,6 +2143,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home-away-on",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Pressed { name: "Away until 08:00" },
             Part::Text { text: "Away turned on for 2 projects: agents decide within their limits." },
         ],
@@ -2136,6 +2155,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-all-home",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each project's brief, its first line · the newest, vsr's, by the status agent at 07:52",
+            },
             Part::Pressed { name: "Night mode" },
             Part::Text { text: "vsr · Prover · 02:10" },
             Part::Named { role: Role::Button, name: "Overturn" },

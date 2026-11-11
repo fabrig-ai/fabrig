@@ -352,9 +352,13 @@
       followed by a space, the whole lede with none. The name says whose,
       since one brief a project is written in its own project's words
       (`../../draft/surfaces.md`, 15, its default);
-    - *the byline:* "Written by the status agent at 07:52", the newest
-      joined brief's `at` by `../view.md`, 6's *clock*, in `temper-home-byline`.
-      With no brief new, neither lede nor byline.
+    - *the byline:* "Each project's brief, its first line · the newest,
+      vsr's, by the status agent at 07:52", vsr the newest joined brief's
+      project's name with "'s", and 07:52 that brief's `at` by
+      `../view.md`, 6's *clock*, in `temper-home-byline`: the same words
+      whether one brief is joined or four. A project's Home keeps its own
+      byline, "Written by the status agent at 07:52" (*Home on any
+      project*). With no brief new, neither lede nor byline.
 
     Until a project's status is shown it counts nothing; while none is,
     the intro has its kicker's day and time and its needs sentence alone,
@@ -390,8 +394,13 @@
     }` on the project in view, the open project here, with the words in
     its composer, unsent, as if typed there; with none it does nothing.
   - *On a phone* (`phone-home.html`): the kicker "Sunday 08:04 · last
-    looked 9 h ago", `../view.md`, 6's short span; the headline and the lede as
-    above; the byline "The status agent, 07:52"; the cards in their phone
+    looked 9 h ago", `../view.md`, 6's short span; the headline,
+    "31 changes landed. Two things need you.", whose landed sentence names
+    no project, whatever P: "N changes landed." or "One change landed.",
+    and for N 0 the wide page's, then the needs sentence as above, a
+    level-1 heading in the phone's form beside the wide one, as the
+    kicker's two forms are; the lede as above; the byline "The status
+    agent, 07:52"; the cards in their phone
     form; then, while a row shows, one line "Decided for you · N ›", a
     link to *Needs you* unfiltered, which lists them. No Projects and no
     Ask line: the phone asks from its Ask tab (`../../draft/surfaces.md`,
