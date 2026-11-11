@@ -39,22 +39,18 @@
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).
-  - 6: `../client/pages/README.md`, *Team*, holds a project's people and
+  - 6: `../client/pages/team.md`, 1 holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
     areas on their box, a role's card or "Hand an area to a role"
     (`standing-roles.md` has no design yet either), and its lede counts
-    the people alone. Redrawn after the plan `ui-p4a-team` was cut, this
-    section has the triager as Who routes, a chip under the areas, where
-    *Team* has a line at People's foot, "Findings with no area go to
-    NAME.", which nothing draws yet; and `team/team.html` gives a box the
-    role "Owner", with "owners of shop" at People's head's right, where
-    *Team* has "Owner of PROJECT" and nothing at the head's right, and
+    the people alone. This section has the triager as Who routes, a chip
+    under the areas, where `../client/pages/team.md`, 1 has a line at
+    People's foot, "Findings with no area go to NAME.", which nothing
+    draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
     gives a person's line what they can still sign, signed and asked for,
     which waits for sign-offs by path and kept sign-offs
-    (`whole-story.execution.md`, N2, N5 and N6). *Team* counts a line in
-    digits, "2 questions wait on you.", where this section writes "Two
-    questions wait on you.".
+    (`whole-story.execution.md`, N2, N5 and N6).
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's

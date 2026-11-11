@@ -273,11 +273,13 @@ the reader's from Needs you's entries and another's from the tasks they
 requested, in the rail and the switcher's menu from a second person; its
 parts one pure function, with a fuzz test of their rules, the joint
 world's two people reading each other and three gallery states; its
-render check and walk follow landing. No setting names the project's
-triager, so its line isn't drawn; areas, owners and a role's card are
-P4b's and P4c's, and the draft and `team/team.html`, redrawn after the
-plan's cut, word a box's role and the triager otherwise
-(`client/pages/README.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
+render check and walk follow landing. Its repair gives a box the role
+"Owner", People's head the role its people share, "owners of shop", and
+a line's count in words, as `team/team.html` does. No setting names the
+project's triager, so its line isn't drawn; areas, owners, the triager
+as Who routes and a role's card are P4b's and P4c's, and a line's
+sign-offs wait on sign-offs by path and kept sign-offs
+(`client/pages/team.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
 ; `draft/surfaces.status.md`, 6). Away on All projects, by
 plan `ui-away-all`, sets every project the person is in, each by its own
 `SetAway`, one after another, reads "Away on N of M" while they differ
