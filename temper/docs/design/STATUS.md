@@ -1117,6 +1117,20 @@ worker program, M5's box integration and remaining closure rows, M6's
 release job, and figures are not done by that plan; the parent's Later
 section is unchanged (`draft/deployment-binaries.status.md`).
 
+A follow across projects is the whole story's milestone F1
+(`domain/forge/follows.md`): kind 12, a follow of a branch of a
+repository its project adopts as context, each project's context
+adoption kept beside the writer's; the forge hearing the source's
+landings into a queue kept across a restart; a follow task making one
+follow change per landing in order, its words made by code, parameter
+18 naming what it follows; the owner's start, hold, skip and merge in
+`temper ctl`, keeping the chain whole; the follow's check dispatched by
+its change with the followed commit; and lag and parity in the forge's
+`follows` document. A standing role as owner waits on R1; the follow
+change's words carry no diff, and a person's follow's holds reach the
+project's escalation role, each asked of the user
+(`domain/forge/follows.status.md`; `draft/follows.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`playground.md`](playground.status.md)
@@ -1124,6 +1138,7 @@ Design documents:
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)

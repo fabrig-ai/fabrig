@@ -91,7 +91,7 @@ or the nearest thing, and says so in that draft's status.
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | in flight |
 | R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
 | R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | not started |
-| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
+| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | landed for a person as owner; a standing role as owner waits on R1 (section 5) |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
 | T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 5) |
@@ -293,7 +293,8 @@ as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
 and P1's, P5a's and P5b's at 01:30Z, as P5a retired, and P3e's and
 P3f's at 02:25Z, as P3f retired, and P3e's at 03:18Z, as it retired, and
 N1's, N2's, N3a's, N3b's and P3b's at 04:11Z, as N1 retired, and
-N3a's at 15:34Z, as it retired, and P3b's at 15:59Z, as it retired. Plans
+N3a's at 15:34Z, as it retired, and P3b's at 15:59Z, as it retired, and
+F1's, F2's and P3d's on 2026-11-11, as F1 landed. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -303,7 +304,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P2 | landed; its repair starts | `ui-p2-home` drew the byline across projects as this draft stood at its cut; a repair, or a look request, words it as section 3 now does and gives the phone's headline `phone-home.html`'s words (`surfaces.status.md`, 3); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11) |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair gives the drafter, in the stock since P6, its place among Roles (`surfaces.status.md`, 7) |
 | P3b | landed; its walk follows | `ui-p3b-reaches` drew `surfaces.md`, 7's What reaches you from the project's classes, three columns in `how.html`'s words with what Away changes, then the question route and "Away until", in place of the classes' checks, a class changing by proposal; the mockups' lines no class holds, a landing rule's approvals and an agent's own repairs, stay the path's and Rules by path's, P3c (`surfaces.status.md`, 7 and 13); its render check and walk follow landing (`../client/README.md`, 5) |
-| P3c, P3d | wait | N2, or F1 and R1, by their needs |
+| P3c, P3d | wait | N2, or R1, by their needs, F1 having landed |
 | P3e | landed; its repair starts | `ui-p3e-words` keeps a charter's words, kind 9, and a project's, kind 10, which Ask temper writes with what it proposes, the stock's for each stock charter, a headline for each stock way, which How work runs' heading and lede say, the project's own where it runs none, and a tier's description, which its card says; the stock holds no tier, so none of its words. It drew no charter's line on Roles, which had not landed at its cut: a repair carries kind 9 on the `roles` view's cards and draws it after when the role runs, its instructions' first sentence where none is kept, as `how.html` does (`surfaces.status.md`, 7); `see ways` says no way's headline yet (`../domain/agent/ask-temper.status.md`, 1); its render check follows landing |
 | P3f | done | |
 | P4a | landed; its repair starts | `ui-p4a-team` drew Team's people as this draft and `team/team.html` stood before its cut; a repair, or a look request, gives a box the role "Owner", People's head "owners of shop" and a line's count in words; the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its walk follows (`../client/README.md`, 5) |
@@ -321,8 +322,8 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
 | R2, R3 | wait | R1, by their needs |
-| F1 | in flight | goal 102 |
-| F2 | waits | F1, by its needs |
+| F1 | landed for a person as owner | a follow owned by a person, its queue, its follow task, the owner's acts in `temper ctl`, its check and its lag and parity (`../domain/forge/follows.md`); a standing role as owner, its acts as a tool and its questions, wait on R1 (`follows.status.md`); its walk follows landing |
+| F2 | starts | |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
 | T2 | in flight | the plan `tui-design-session`: its design in `../client/tui/pages.md`, *A design session*, and skein's side region (`skein/docs/design/ui/screen.md`, 5.2) first |

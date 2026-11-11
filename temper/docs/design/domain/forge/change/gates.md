@@ -13,7 +13,11 @@
     `domain/people/README.md`, section 7): the change approved at the head, or
     declined as "cannot do it", with a reason;
   - *a check:* one of the checks a repository without CI is adopted
-    with, a task at exactly the head.
+    with, a task at exactly the head;
+  - *a follow's check,* on a follow change alone: its follow's workflow,
+    dispatched by the change at exactly its head with the followed
+    source commit, its verdict the run's report (`../follows.md`, section
+    6).
 - **Blocking or advisory.** A blocking gate's verdict holds the landing;
   an advisory one's is read, and reported, and holds nothing.
 - **A review's brief names what it judges,** so the reviewer reads

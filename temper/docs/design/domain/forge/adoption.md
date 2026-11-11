@@ -5,7 +5,9 @@
   and lands; a *fork* of an upstream (`README.md`, section 8); or *context*, read
   only. An owner of the project adopts it in the client, through the
   adoption form (`../../client/forge/family.md`, 4). A repository temper writes
-  belongs to one project; others may adopt it as context.
+  belongs to one project; others may adopt it as context, and each such
+  adoption is kept for its project beside the writer's, so that the
+  project's lookups, runs and follows read it (`follows.md`, section 8).
 - **A repository is named by its owner and name, and kept by the forge's
   id for it.** The adoption names the forge, the repository's owner and
   its name; the connector first locates it, a read whose answer is the
