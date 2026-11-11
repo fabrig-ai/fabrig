@@ -16,6 +16,9 @@ pub const TABLE: Table = Table {
         &temper_service_shell::CUT_AT_LISTEN,
         &temper_engine_shell::forge_sign_in::NO_REGISTRATION,
         &super::fake_backends::FAKE_BOX_PORTS,
+        &temper_version::INTERNAL_COMMIT,
+        &environment::INTERNAL_DUMP_LLM,
+        &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };

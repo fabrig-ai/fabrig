@@ -48,7 +48,7 @@ findings reach the agent as `ToolDenied`, with the findings intact. The root
 also emits volatile operator facts for read refusals and call admission
 refusals: task, attempt, tool, layer and reason, with authority findings or
 the forge's error where present. The service routes these facts to its
-operator notes and `temper serve` prints them on stderr. Call-record and
+operator notes and `temper-box serve` prints them on stderr. Call-record and
 archive-read room pressure remains busy, retried by the host; observing it
 changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
@@ -66,7 +66,7 @@ to directory and selected-file `read_file` calls at both endpoints with
 backoff.
 A forge read answered with a kind no agent read asks for (`Runs`, `Run`,
 `Commits`, `Tree` or `Queued`) is refused as such, and nothing stops
-`temper serve`: the run's tool result, marked an error, names the read's
+`temper-box serve`: the run's tool result, marked an error, names the read's
 tool and the kind and says nothing was read, and the service notes a
 read refusal for stderr at layer `host-render`, its reason naming the
 kind.
@@ -301,13 +301,13 @@ of `../../draft/v0.1.0.md`, 2.1.
   , *Needs you*). No protocol, store or tool knows the form:
 
   ```
-  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+  Fix the dropped watch in jig’s store, or keep it alive in temper-box serve?
 
   MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
 
   Saw: The box test reproduces it every time.
   Choice: In jig’s store (recommended)
-  Choice: In temper serve
+  Choice: In temper-box serve
   ```
 
   - The first line is the **question**, and never a trailing line.

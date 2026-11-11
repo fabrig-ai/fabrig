@@ -73,9 +73,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "TEMPER_BENIGN", until: "cli C4" },
     Exception { what: "TEMPER_BOX_PARENT_TEST", until: "cli C4" },
     Exception { what: "TEMPER_BUNDLE", until: "cli C2" },
-    Exception { what: "TEMPER_CLIENT_COMMIT", until: "cli C2" },
-    Exception { what: "TEMPER_COMMIT", until: "cli C2" },
-    Exception { what: "TEMPER_DUMP_LLM", until: "cli C2" },
     Exception { what: "TEMPER_E4_CAPTURE", until: "cli C4" },
     Exception { what: "TEMPER_E4_LIFE", until: "cli C4" },
     Exception { what: "TEMPER_E4_RESTART", until: "cli C4" },
@@ -103,7 +100,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "TEMPER_TEST_BUNDLE", until: "cli C4" },
     Exception { what: "TEMPER_TEST_CLAUDE", until: "cli C4" },
     Exception { what: "TEMPER_TEST_PLAYGROUND", until: "cli C4" },
-    Exception { what: "TEMPER_WORKSPACE_REUSE", until: "cli C2" },
     Exception { what: "TEMPER_WRAPPER", until: "cli C4" },
 ];
 

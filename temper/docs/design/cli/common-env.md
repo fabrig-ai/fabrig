@@ -148,3 +148,13 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Register the first account.
 - Use links only instead of registering a first account.
 - **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_COMMIT`
+
+- **Set:** internal
+- **Reads**
+- **Form:** COMMIT
+- **Absent:** The build script supplies unknown when git identity is unavailable.
+- The build's commit and tracked-file dirty mark.
+- **Notes:** Read at compile time from temper-version's build script alone; not a runtime override.
+- **Read by:** temper-box, temper-engine

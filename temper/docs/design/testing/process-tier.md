@@ -24,7 +24,7 @@
   link says why it came.
 
 - **Focused wiring,** one short test in the ordinary `suite` binary:
-  a shipped `temper serve` on a scratch configuration signs in a native
+  a shipped `temper-box serve` on a scratch configuration signs in a native
   client, answers one chat through the fake model, drains, and exits 0.
   It does not replay a whole first-run, welcome, settings or account story.
   The shared harness's 22 step checks are registered only by this binary.
@@ -41,7 +41,7 @@
   with the whole goal question and landing in the real-loop fuzzy twin.
   File moves, interrupted writes and lost replies use the CLI machine
   world's `moves` tests; HTTP routes, listener refusal and handover-file
-  bounds use the service and host's step tests. The `temper` package has
+  bounds use the service and host's step tests. The `temper-box` package has
   no QA binary or QA-named test group.
 
 - **Account transfer interrupted by a signal,** one short process story:
@@ -86,10 +86,10 @@
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
 - **The upgrade's commands,** through the real binary, whose patch sets
-  are empty until the first release: `temper versions`' lines; `temper
+  are empty until the first release: `temper-box versions`' lines; `temper-box
   upgrade --check` over a stopped deployment's copy, saying the restores
   pass, nothing patched, the workers may stay, the copy left as it was;
-  `temper upgrade --back` refused, with no previous generation, in its
+  `temper-box upgrade --back` refused, with no previous generation, in its
   words; and a start's exit and words when the store refuses. The drill
   with a binary that patches, stop, start the new one, go back, with an
   owned Forgejo's migration, waits for a release to pair with
@@ -97,8 +97,8 @@
   steps on fixture sets until then (`README.md`, 2.5).
 
 - **What runs:**
-  - the real `temper` binary: `temper forge prepare`, `temper forge run`
-    for Forgejo and for its runner, then `temper serve`, on a scratch
+  - the real `temper-box` binary: `temper-box forge prepare`, `temper-box forge run`
+    for Forgejo and for its runner, then `temper-box serve`, on a scratch
     directory, with a configuration the test writes from the owned
     example (../protocol/setup/init.md, 1);
   - skein's fake LLM peer, a process of its own on loopback, over TLS
@@ -112,7 +112,7 @@
     section 3);
   - the person: skein's fake person in front of temper's client, over
     jig's native transport (../client/README.md, section 2); and, in a
-    test of its own, `temper open` itself with stdin and stdout piped
+    test of its own, `temper-box open` itself with stdin and stdout piped
     (../client/line.md and ../client/testing.md).
 - **Its Forgejo is owned,** provisioned by the setup's commands
   (../protocol/setup/testing.md, 4): the configuration's one forge is owned
@@ -122,7 +122,7 @@
   the webhooks' listener are loopback addresses of the test's own. The
   test runs the commands itself, in the order `temper box` would
   (../protocol/setup/box.md, 1), refuses to run without either variable, naming
-  it, and stops every process it started after. At `temper serve`'s start
+  it, and stops every process it started after. At `temper-box serve`'s start
   the setup host's `Reconcile` plan makes temper's user, its tokens, its id, the org's team and its hook; the test, as the
   person, makes the repository in the setup's org through Forgejo's API,
   with Actions and a workflow whose job runs the repository's check on the
@@ -159,7 +159,7 @@
   with or without its browser (`TEMPER_BUNDLE`; ../client/web/README.md,
   2.6), and passes in both: where a start with `clients.bundle` `null`
   shows the browser (init's line for no browser, the page at `/`), the
-  test expects what the binary holds, as `temper::bundle::OWN` says,
+  test expects what the binary holds, as `temper_box_shell::bundle::OWN` says,
   never one build's answer alone.
 - **Its endings.** The landing story's crash
   proves what a crash of every process keeps on disk, the page cache
@@ -171,13 +171,13 @@
   exit is temper's failure, its shutdown's; one left by the crash's kill
   is skein's test kit's (skein's `examples.md`, 6). Neither is relaxed.
 - **The terminal,** a second test, on a scratch directory of its own:
-  `temper open DIRECTORY LINK` with stdin and stdout piped signs in by
-  the link `temper serve` printed, prints the inbox, adopts a repository
+  `temper-box open DIRECTORY LINK` with stdin and stdout piped signs in by
+  the link `temper-box serve` printed, prints the inbox, adopts a repository
   as above by commands (the form's fields written with `n words`, then
   Adopt pressed with `n`), and exits 0 on `q` after a drained close. Its
   referee reads the printed pages (the inbox and the adoption's
   outcome) and the exit status.
-- **The agents' tools,** `temper ctl` against `temper serve`, on a
+- **The agents' tools,** `temper ctl` against `temper-box serve`, on a
   scratch directory of their own: ../client/ctl/testing.md, 4. A call cut
   by `SIGINT` or `SIGTERM` sends nothing more, prints nothing more,
   leaves DIRECTORY's kept requests as they are, and exits 130 or 143
@@ -202,8 +202,8 @@
   `bin/temper-box/tests/process.rs`, on `support/forgejo_sign_in.rs`
   (../protocol/openid-provider.md, 8): an owned Forgejo prepared by temper's
   commands with no group's file (../protocol/setup/box.md, 4), with 9.4's
-  settings in its `app.ini`, beside `temper serve` with jig's provider
-  and a bundle; the key and the client's secret made by `temper
+  settings in its `app.ini`, beside `temper-box serve` with jig's provider
+  and a bundle; the key and the client's secret made by `temper-box
   forge sign-in` in the test's scratch directory, and the temper source
   added by the command it prints. A scripted client with a cookie jar
   signs in to temper by the printed link (the member of Google's
@@ -253,7 +253,7 @@
   the story once, its model side a face: the fake issuer and the fake
   LLM peer here, ChatGPT itself in the live tier (`live-tier.md`), which reuses
   every step and check but the face's:
-  - *the box and its forge:* `temper init --box` into three empty private
+  - *the box and its forge:* `temper-box init --box` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
@@ -423,7 +423,7 @@
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;
     and in this package's `suite::fake::the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap`,
-    beside the fake's other process stories, `temper fake oauth` logging
+    beside the fake's other process stories, `temper-box fake oauth` logging
     each one. Each fails without its half of the fix.
   - **A long document built in parts,** in the real loop,
     `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`:

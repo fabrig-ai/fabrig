@@ -1,5 +1,15 @@
-//! Host variables read by temper (temper/docs/design/cli/README.md, 8).
+//! Shared variables read by temper (temper/docs/design/cli/README.md, 8).
 use skein_shell::{Set, Variable, Way};
+
+pub const INTERNAL_DUMP_LLM: Variable = Variable {
+    name: "TEMPER_INTERNAL_DUMP_LLM",
+    set: Set::Internal,
+    form: "DIR",
+    way: Way::Reads,
+    line: "Directory for agents' model request dumps.",
+    absent: "Do not dump model requests.",
+    notes: "The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.",
+};
 
 pub const PATH: Variable = Variable {
     name: "PATH",

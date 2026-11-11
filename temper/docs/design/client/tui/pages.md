@@ -87,7 +87,7 @@ the foot and the commands (`box.md`).
     in there, run temper http://HOST:PORT."; nothing is sent;
   - a link for this address: the host asks the root `SignIn { with:
     Link { secret, held } }`, held the credential the directory holds,
-    as `temper open` does (`../README.md`, section 4), and the field is emptied; the
+    as `temper-box open` does (`../README.md`, section 4), and the field is emptied; the
     secret stays in the TUI's state only until then.
 - **While it signs in:** "Signing in…". `jig-client` sends the link
   again by itself, after a backoff, when the engine answers not ready
@@ -722,7 +722,7 @@ chat, the running line above them.
   - *The place,* `temper_client_tui::place(address, boxed)`, the one
     function that words it, which `temper box`'s own header may call
     too: on a box (`README.md`, 2, *On a box*) "box" where the address's port is
-    8367, `temper init`'s default, and "box:PORT" at another port; not
+    8367, `temper-box init`'s default, and "box:PORT" at another port; not
     on a box, `HOST:PORT`, the address as it is.
   - *A narrow terminal:* while the title's parts and six columns are
     wider than the window's columns, the place and its " on " are left

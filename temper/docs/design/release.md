@@ -13,7 +13,7 @@ file the site serves beside it (5.1). The site that links them is
 - **One file a release:** `temper-VERSION-x86_64-linux`, the whole
   product, its browser bundle embedded, with
   `temper-VERSION-x86_64-linux.sha256` beside it (section 2).
-- **It says what it is:** `temper --version` prints the version and the
+- **It says what it is:** `temper-box --version` prints the version and the
   commit it was built from, and the release's file name carries the
   same version (section 3).
 - **Its floors are said, not guessed:** Linux 6.12 or later, glibc
@@ -35,7 +35,7 @@ file the site serves beside it (5.1). The site that links them is
   (section 6).
 - **Apple Silicon's file, for the site:**
   `.github/workflows/release-macos.yml`, started by a dispatch alone on
-  GitHub's `macos-26`, builds `temper` for release at the commit it is
+  GitHub's `macos-26`, builds `temper-box` for release at the commit it is
   started on, strips it and signs it again ad hoc, checks that it runs,
   and leaves it with that commit as the run's artifact
   `temper-Darwin-arm64`, which the site's host fetches; no tag, no

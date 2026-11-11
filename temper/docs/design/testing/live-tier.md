@@ -24,7 +24,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   account, Claude Code's login by default, since it needs nobody.
 - **Claude Code, unattended** (the default). The live configuration's
   programs directory is `~/.local/state/temper/live/programs`. The
-  developer runs `temper program-login --config LIVE live`, `LIVE` the
+  developer runs `temper-box program-login --config LIVE live`, `LIVE` the
   live configuration's directory, once on each
   machine that runs the tier, and signs in as Claude Code asks
   (../protocol/credentials.md, section 3). Each run's deployment declares

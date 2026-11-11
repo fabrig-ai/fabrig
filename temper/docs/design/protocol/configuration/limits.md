@@ -10,12 +10,12 @@
   component's, its webhooks' listener's and its GitHub App's among them,
   the git component's, the engine's routing's records and forges, the
   setup host's, the clients' listener's forge routes' and the picker's;
-  and the box's, which `temper serve` checks and takes none of but
+  and the box's, which `temper-box serve` checks and takes none of but
   `box.line_bytes`, its pipe's (../setup/box.md).
 - **Two profiles, as jig's:** `small`, for one person's machine with
   the mechanics' smallest work, and `standard`, a project of fabrig's
   scale, its own development, with five times the
-  largest figure seen (`stock.md`); another name is refused. `temper init`'s
+  largest figure seen (`stock.md`); another name is refused. `temper-box init`'s
   document names `standard` for the engine's, the worker's and the
   application's limits alike (`../setup/init.md`, 3). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
@@ -35,7 +35,7 @@
   (`root.brief.budgets.reviews`); in each profile
   `root.brief.brief_bytes` and `root.journal.result_bytes` are equal,
   so gathering and journalling hold the same brief. The stock host part
-  holds the authorised brief whole at `temper init`'s models
+  holds the authorised brief whole at `temper-box init`'s models
   (`../../domain/agent/tools.md`); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
@@ -71,7 +71,7 @@
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (../credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (../forge/README.md, section 6) |
   | `setup.` | `temper-forge-setup`'s `Limits`: reconcile's (../setup/reconcile.md), the fetch's (../setup/owned.md, 6), and the engine's setup host's states and runs (../setup/README.md, the setup host in the engine) |
-  | `box.` | `temper-box`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1 and 2) |
+  | `box.` | `temper-box-machine`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1 and 2) |
   | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/README.md`, 2.2) |
   | `routes.` | `temper-service`'s clients' listener's forge routes (`../../client/README.md`, the routes) |
   | `sign_in.` | `temper-service`'s Google sign-ins on the clients' listener (`../sign-in.md`, section 6) |
@@ -136,12 +136,12 @@
   | `box.backoff_ms`, `box.backoff_max_ms` | a long step restarted, doubling |
   | `box.restarts`, `box.window_ms` | a long step's exits within the window past which the box gives up; `box.restarts` at most 64; the backoff counted from the exits within the window (../setup/box.md, 2) |
   | `box.grace_ms` | a long step's grace, after each of its stop's two signals (../setup/box.md, 2) |
-  | `box.line_bytes` | a line of the box's pipe, either way, its line feed among them; the box and `temper serve` each read within it (../setup/box.md, 1) |
+  | `box.line_bytes` | a line of the box's pipe, either way, its line feed among them; the box and `temper-box serve` each read within it (../setup/box.md, 1) |
   | `box.log_bytes` | a step's log file, past which it moves to `<name>.log.1` and starts afresh (../setup/box.md, 2) |
   | `box.tail_lines` | the lines of a step's log the box holds, and writes under a failure's terminal line (../setup/box.md, 2) |
   | `box.groups` | the groups' files the box lists under `box/groups` at a later start, and so the groups it runs from them (../setup/box.md, 1) |
   | `clients.bundle_files` | the bundle's files, its page and each compressed form among them |
-  | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper serve` runs |
+  | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper-box serve` runs |
   | `sign_in.members` | the configured members, and the forge connector's bindings held (`forge.bindings`, the members' count) |
   | `sign_in.pending` | the sign-ins under way at once; a start past them is answered the busy page |
   | `sign_in.deadline_ms` | a sign-in's life, from its start to its return's answer; the sign-in cookie's `Max-Age` |
@@ -357,7 +357,7 @@
   clients hold at most 22 (`../../domain/root.md`, section 9). So:
   - *a stream's room* is 22, `WATCHES_PER_STREAM`, one shipped client's;
   - *the deployment's room* is `clients.streams` times that: 176 at
-    `temper init`'s 8 streams (`stock.md`), 44 at the small profile's 2;
+    `temper-box init`'s 8 streams (`stock.md`), 44 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:

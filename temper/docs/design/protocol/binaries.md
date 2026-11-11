@@ -46,7 +46,7 @@ test doubles   temper-box fake llm|forge|oauth|git ...
 - **The deployment's client, `temper-client`** (`crates/temper-client`;
   `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
   own for a person's machine or an automation's. Its table holds three of
-  `temper`'s rows, the same rows run by the same code (`components.md`):
+  the client's `temper` rows, the same rows run by the same code (`components.md`):
 
   ```
   documentation  temper-client help [NAME | --search WORDS...]
@@ -59,7 +59,7 @@ test doubles   temper-box fake llm|forge|oauth|git ...
   - Its parser, `temper-client --help`, `temper-client COMMAND --help` and
     its refusals derive from its table as `temper`'s do from its own,
     each line naming `temper-client` where `temper`'s name `temper`. The
-    rows' own words, their lines, arguments and notes, are the box's and
+    rows' own words, their lines, arguments and notes, are the client's and
     name `temper`; so do `ctl`'s own help and its lines (`temper ctl: `),
     which no binary changes.
   - **`temper-client --version`** prints one line, `temper-client VERSION
@@ -90,7 +90,7 @@ anywhere among the command's arguments, each with its variable and its
 default; the document is `temper.json` in the configuration directory
 (configuration/directories.md).
 
-- **`temper serve`:** reads the configuration (configuration/README.md,
+- **`temper-box serve`:** reads the configuration (configuration/README.md,
   section 2) and runs the services its document's shape names, in one
   process on skein's `Host` and `drive` (jig's `protocol/service.md`,
   sections 4 and 10): standalone, the engine's and the worker's, the
@@ -104,7 +104,7 @@ default; the document is `temper.json` in the configuration directory
     notes, the lines of `cluster.md`, 3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
-  - `--box`, given by `temper box` alone, as `temper internal serve
+  - `--box`, given by `temper-box` alone, as `temper-box internal serve
     --box`, adopts the box's pipe, the two fds after the listeners the
     box gives it (setup/box.md, 1). Given listeners, `LISTEN_FDS` of them
     from fd 3, its clients' and webhooks' listeners take them by their
@@ -117,18 +117,18 @@ default; the document is `temper.json` in the configuration directory
     (a lost webhooks listener's, forge/engine.md, 3). A write the settling
     left without its outcome is printed as the drained engine ends, one
     line each, and the exit is still 0:
-    `temper serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
+    `temper-box serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
   - A start refused because its patches would reshape a write in flight
     (jig's `protocol/store/opening.md`, 3, `InFlight`) prints jig's words,
     then a line for each write its keys name, from temper's `Flight`
     key, at most 64, then how many more, and exits 1:
-    `temper serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
-    `temper serve: and {n} more forge writes in flight`.
+    `temper-box serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
+    `temper-box serve: and {n} more forge writes in flight`.
   - A start refused at a step of its restart (jig's `domain/engine/restart.md`
     ; `../domain/root.md`, 8.1), which only a store that does
     not decode, a live set past the limits or a link that cannot be
     made can be, prints the refusal
-    in the restart's own words, `temper serve: ` then the step and what
+    in the restart's own words, `temper-box serve: ` then the step and what
     it refused (`restore tasks: live tasks past limits.tasks`), and
     exits 1. The catch-all `unknown reference` is left for a refusal nothing
     names. The refused process ends whole: it closes every listener it
@@ -144,19 +144,19 @@ default; the document is `temper.json` in the configuration directory
     lets the next attempt start.
   - A link a start cannot make (a writer's bug, jig's
     `domain/engine/restart.md`) is such a refusal, naming the record
-    and what it links to: `temper serve: restart refused during PHASE:
+    and what it links to: `temper-box serve: restart refused during PHASE:
     RECORD links missing LINKED`.
-- **`temper init`:** writes a deployment that starts, the default
+- **`temper-box init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup/init.md, 2).
-- **`temper internal agent AGENT.json`:** smith's agent shell,
+- **`temper-box internal agent AGENT.json`:** smith's agent shell,
   `smith_agent_shell::run_decoded`, on smith's agent configuration as
   temper reads it, a `"fetched"` program naming its launcher
   (configuration/README.md, section 4; setup/owned.md, 6). The worker's protocol layer spawns it,
   one process per run; a person never does. `temper-agent` runs the
   same modes as a binary of its own (3).
-- **smith's agent modes,** `temper --mcp-relay 127.0.0.1:PORT` and
-  `temper --program-child PARENT PROGRAM ARGUMENTS...`: temper's binary
+- **smith's agent modes,** `temper-box --mcp-relay 127.0.0.1:PORT` and
+  `temper-box --program-child PARENT PROGRAM ARGUMENTS...`: temper's binary
   is its agents' own executable, so the agent shell starts each program
   process through it, its status check and each print run, and the
   program starts its MCP relay through it (smith's
@@ -164,8 +164,8 @@ default; the document is `temper.json` in the configuration directory
   the first argument, to smith's agent shell,
   `smith_agent_shell::relay::main` and
   `smith_agent_shell::program_child::main`, before it reads the
-  binary's table, as `smith-agent` does. Neither is a row of the table,
-  in `temper --help` or on a page; a person never runs them.
+  binary's table, as `smith-agent` does. Both are internal rows of the table
+  (`../cli/README.md`, 6), absent from public `temper-box --help`; a person never runs them.
 - **`temper [ADDRESS]`:** a person's full-screen terminal client, the
   TUI (`../client/tui/README.md`, 1). Bare `temper`, with stdin and
   stdout both terminals, runs it at the address it last signed in to,
@@ -175,21 +175,21 @@ default; the document is `temper.json` in the configuration directory
   sign-in link is pasted on the TUI's screen, never given. Its
   directory is its own, under the person's state directory
   (`../client/tui/README.md`, 2). It reads no configuration file.
-- **`temper open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
+- **`temper-box open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/line.md`, 1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
-  process, over the same native transport as `temper open`
+  process, over the same native transport as `temper-box open`
   (`../client/ctl/README.md`, section 6). It reads no configuration file.
-- **`temper versions`:** what this binary speaks and keeps, one line
+- **`temper-box versions`:** what this binary speaks and keeps, one line
   each: every owner's patch level (none before the first release), its
   families' and the store's versions, and its wires, as jig's store
   keeps them (jig's `protocol/store/records.md`, 3). It reads no
   configuration and no store.
-- **`temper upgrade --check DIRECTORY`:** a rehearsal (jig's
+- **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's
   `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
   data directory or a copy of one such as last night's backup, which it
   never writes: it works in a scratch copy under the cache directory,
-  with the configuration `temper serve` would read; the open patches
+  with the configuration `temper-box serve` would read; the open patches
   and checks as a start would, restores, and stops before its switch
   step. It prints a line per patch with its counts and time, the time
   of the whole, and the refusal a start would meet, in a start's words,
@@ -199,7 +199,7 @@ default; the document is `temper.json` in the configuration directory
   marked fresh, no saying which differs, unknown when the copy keeps
   none (`../draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
-- **`temper upgrade --back`:** makes the previous generation active
+- **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that patched and
   failed before its first commit of its own: the deployment stopped,
   and the old binary started after it. Refused, changing nothing, once
@@ -208,8 +208,8 @@ default; the document is `temper.json` in the configuration directory
   the first commit, going back is restoring a backup
   (`../draft/upgrades.md`, 3.2).
 - **A start that patches** prints a line per patch as it ends:
-  `temper serve: patched {owner} {patch}: {records} records in {commits} commits`.
-- **`temper program-login NAME`:** a program's login for
+  `temper-box serve: patched {owner} {patch}: {records} records in {commits} commits`.
+- **`temper-box program-login NAME`:** a program's login for
   the program source NAME, on this host: it checks the document and the
   agent's configuration, makes the source's configuration directory, and
   replaces itself by the program's own sign-in (credentials.md, section
@@ -219,17 +219,17 @@ default; the document is `temper.json` in the configuration directory
   is the engine setup host's plan (forge/engine.md, 6). The box knows kinds,
   not forges: `fetch`, `prepare` and `run` read the forge's kind and
   setup entry from its group's file, `<data>/box/groups/FORGE`, which
-  `temper serve` writes as it asks for the group (setup/box.md, 1), a
+  `temper-box serve` writes as it asks for the group (setup/box.md, 1), a
   forge with none taking the machine's `owned` part (setup/box.md, 4), and
-  each reads and checks the whole document as `temper serve` does
+  each reads and checks the whole document as `temper-box serve` does
   (configuration/README.md, section 6):
-  - `temper forge prepare`: an owned forge's preparation, before its
+  - `temper-box forge prepare`: an owned forge's preparation, before its
     Forgejo runs; it ends when done (setup/owned.md, 3);
-  - `temper forge run`: checks the binary and the preparation, takes
+  - `temper-box forge run`: checks the binary and the preparation, takes
     the forge's lock, and replaces itself by `forgejo web` or
     `forgejo-runner daemon`, whose process a host supervises (setup/owned.md,
     4);
-  - `temper forge remove`: an owned or fake forge's directory under
+  - `temper-box forge remove`: an owned or fake forge's directory under
     data removed, `forge-N` or the playground's, by the kind its group's
     file names: the box's remover step, run once a removed forge's group
     has stopped (setup/box.md, 1; forge/engine.md, 3 and 8). It refuses a
@@ -237,10 +237,10 @@ default; the document is `temper.json` in the configuration directory
     Forgejo's binaries with it, and a directory already gone is no
     failure; it reads no document and touches no store, so a forge is
     removed from the client, never by this command alone;
-  - `temper box`: its steps as child processes, `temper serve` and the
+  - `temper-box`: its steps as child processes, `temper-box serve` and the
     groups it has started for forges, each by its kind (setup/box.md, 1),
     in order, restarted when they exit and stopped in reverse order; its
-    stdout is `temper serve`'s sign-in links, each line whole; its
+    stdout is `temper-box serve`'s sign-in links, each line whole; its
     stderr, a terminal's, the box's own lines alone, each step's lines
     in its log under the data directory, and on stderr too, prefixed by
     the step's name, with `--echo steps` (setup/box.md, 2).
@@ -249,30 +249,30 @@ default; the document is `temper.json` in the configuration directory
   any failure (a refused start, a usage error, a failed commit, an
   abort, a failed step of the setup, the box giving up), the reason on
   stderr. smith's agent shell exits 0 or 1 the same way; `temper ctl`'s
-  statuses are `../client/ctl/results.md`, 3; `temper forge run`'s is Forgejo's or
-  the runner's own, and `temper program-login`'s the program's sign-in's
+  statuses are `../client/ctl/results.md`, 3; `temper-box forge run`'s is Forgejo's or
+  the runner's own, and `temper-box program-login`'s the program's sign-in's
   once it has replaced itself.
 
 Standalone, one person's machine:
 
 ```
-temper serve                           one process, one loop: temper-service's system module
+temper-box serve                           one process, one loop: temper-service's system module
 ├── the engine's service               section 6
 │   ├── listens: the in-process name "workers"; the clients' listener and, when configured, the webhooks' listener, TCP on loopback
 │   └── connects: each kept forge's API (HTTP; TLS unless the forge is on loopback)
 ├── the worker's service               section 7
 │   └── dials: the in-process name "workers"
-├── temper internal agent AGENT.json   a child process per run, in a process group of its own
+├── temper-box internal agent AGENT.json   a child process per run, in a process group of its own
 └── git ...                              a child process per git invocation, in a process group of its own (git.md, section 7)
-temper open DIRECTORY LINK_OR_ADDRESS  a process of its own, reaching the engine on loopback
+temper-box open DIRECTORY LINK_OR_ADDRESS  a process of its own, reaching the engine on loopback
 temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine on loopback
-temper program-login NAME              run by hand on a host, replaced by the program's sign-in
-temper versions                        prints this binary's levels, versions and wires
-temper upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
-temper upgrade --back                  makes the previous generation active again, before the patched one's first commit
+temper-box program-login NAME              run by hand on a host, replaced by the program's sign-in
+temper-box versions                        prints this binary's levels, versions and wires
+temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
+temper-box upgrade --back                  makes the previous generation active again, before the patched one's first commit
 ```
 
-A box runs `temper serve` as one of its steps, after the forge's setup's
+A box runs `temper-box serve` as one of its steps, after the forge's setup's
 commands, each a child of its own (setup/box.md, 1). The cluster's
 processes are `cluster.md`, 2's.
 
@@ -358,7 +358,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   own, saying it serves an engine alone's document.
 - **Its lines name it:** serve's and the forge's lines, refusals and
   hints say `temper-engine serve: …`, `temper-engine forge VERB: …` and
-  `run temper-engine forge prepare …` where the box's say `temper`.
+  `run temper-engine forge prepare …` where the box's say `temper-box`.
 - **An engine alone's document only.** `serve` and each `forge` command
   that reads the document (all but `remove`) read its nearest shape
   first (`cluster.md`, 1) and, for any other, print one line and exit 1, before any
@@ -369,7 +369,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     `temper-engine COMMAND: temper.json holds an engine and its worker in one process; temper-box serve runs it`.
 
   A document whose shape can't be read, not a JSON object, goes on to
-  the checks `temper serve` makes, and is refused in their words.
+  the checks `temper-box serve` makes, and is refused in their words.
 - **`versions`** prints, one line each, in this order, and exits 0,
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
@@ -381,7 +381,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     (`README.md`, section 7; jig's `format::current`);
   - `wire NAME VERSION` for each wire the engine speaks to its workers,
     in the order `temper-service`'s `store::WIRES` gives them.
-- **`upgrade`** is `binaries.md`'s `temper upgrade`, on this binary.
+- **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command
   begins with them, and exit 2 (`../cli/README.md`, 4).
@@ -420,9 +420,9 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 A deployment runs smith's agent from a binary of its own, `temper-agent`
 (`crates/temper-agent`; `../draft/deployment-binaries.md`, sections 4
 and 9, item 3), ordinary Rust, one process per run, which its worker starts
-and a person never does. It holds every mode in which `temper` runs
-smith's agent, run by the same code, and nothing else of `temper`'s.
-`temper` keeps those modes, as `temper internal agent` and by the same
+and a person never does. It holds every mode in which `temper-box` runs
+smith's agent, run by the same code, and nothing else of `temper-box`'s.
+`temper-box` keeps those modes, as `temper-box internal agent` and by the same
 flags, until a worker names `temper-agent` as its agent's program
 (setup/init.md, 2, as `../draft/deployment-binaries.execution.md`'s M3
 makes it), so the box and its tests don't change. It starts from
@@ -448,7 +448,7 @@ spawned        temper-agent AGENT.json
   | `RELAY` | `--mcp-relay` | `127.0.0.1:PORT` | Relay a program's MCP connection to its agent. | `PORT`: The agent's relay listener on loopback; the secret is in SMITH_MCP_SECRET. |
   | `PROGRAM_CHILD` | `--program-child` | `PARENT PROGRAM ARGUMENTS...` | Run a program as the agent's child, which ends with its parent. | `PARENT`: The agent's process id. `PROGRAM`: The program's path, with its `ARGUMENTS`. |
 
-  `RUN`'s and `LIST`'s lines and argument are `temper`'s `internal
+  `RUN`'s and `LIST`'s lines and argument are `temper-box`'s `internal
   agent` and `internal agent-list` rows' words.
 - **Its arguments,** read once `main` has installed skein's fail-stop
   hook, as every binary's `main` does first, in this order:
@@ -457,7 +457,7 @@ spawned        temper-agent AGENT.json
   2. a first argument `--mcp-relay` or `--program-child`: smith's
      `relay::main` or `program_child::main`, which read every argument
      themselves (smith's `protocol/programs.md`, 5.1 and 5.3), `--help`
-     after either among them, as in `temper`;
+     after either among them, as in `temper-box`;
   3. `--help` alone: the table's help, exit 0; `--version` alone: one
      line, `temper-agent VERSION (COMMIT)`, exit 0, VERSION and COMMIT
      `temper-version`'s, as every binary's (1; `../release.md`,
@@ -468,19 +468,19 @@ spawned        temper-agent AGENT.json
      `-`: `RUN`, that argument AGENT.json. A document named as a row's
      word is given by a path holding a slash, `./help`; a worker gives
      an absolute path.
-- **One run:** AGENT.json read as `temper` reads an agent's document,
+- **One run:** AGENT.json read as `temper-box` reads an agent's document,
   its bytes with a `"fetched"` program's path replaced by its launcher
   (setup/owned.md, 6; `temper-launcher`'s), then smith's decode; then
-  smith's agent shell, `run_dumping` into `TEMPER_DUMP_LLM`'s directory
+  smith's agent shell, `run_dumping` into `TEMPER_INTERNAL_DUMP_LLM`'s directory
   when the variable names one (`../draft/dogfood-hacks.md`, 2.13),
-  `run_decoded` otherwise, what `temper internal agent` does. A
+  `run_decoded` otherwise, what `temper-box internal agent` does. A
   document that doesn't read prints `smith: ` and the reason, then each
   line of the reason after `temper-agent: `; a run that fails prints
-  each line of its reason after `temper-agent: `. A `TEMPER_DUMP_LLM`
-  that can't be made absolute prints `temper-agent: TEMPER_DUMP_LLM: `
+  each line of its reason after `temper-agent: `. A `TEMPER_INTERNAL_DUMP_LLM`
+  that can't be made absolute prints `temper-agent: TEMPER_INTERNAL_DUMP_LLM: `
   and why, and the run goes on without its dumps.
 - **The list mode:** the same read, then smith's `list::run_decoded`,
-  what `temper internal agent-list` does; a failure prints each line of
+  what `temper-box internal agent-list` does; a failure prints each line of
   its reason after `temper-agent --list: `. smith's host half puts
   `--list` before its list launch's arguments (smith's
   `protocol/agent.md`, 6.1), so a worker that names `temper-agent` with
@@ -517,8 +517,8 @@ spawned        temper-agent AGENT.json
   relay's usage, alone and before `--help`; the program child's refusal
   and both statuses, as `bin/temper-box/tests/suite/agent_modes.rs` has
   them; a run and a list refused for a missing document; a run and a
-  list started on a loopback plaintext document, ending as `temper
-  internal agent` and `temper internal agent-list` end with stdin
+  list started on a loopback plaintext document, ending as `temper-box
+  internal agent` and `temper-box internal agent-list` end with stdin
   closed; and Claude Code's launcher by a link named `claude`, reaching
   a build placed in the cache with its arguments unchanged and
   `DISABLE_AUTOUPDATER=1`, and refusing a build of another size.
@@ -564,7 +564,7 @@ deployment     temper-worker serve [DIRECTORIES]
   own, saying it serves a worker alone's document.
 - **Its lines name it:** serve's refusals and endings say
   `temper-worker serve: …` and program-login's say
-  `temper-worker program-login: …`, where the box's say `temper`. The
+  `temper-worker program-login: …`, where the box's say `temper-box`. The
   lines a worker alone prints (`cluster.md`, 3) are the same.
 - **A worker alone's document only.** `serve` and `program-login` read
   its nearest shape first (`cluster.md`, 1) and, for any other, print one line and
@@ -579,7 +579,7 @@ deployment     temper-worker serve [DIRECTORIES]
   words.
 - **No command is an unknown command:** `temper-worker: no command
   WORDS; temper-worker --help lists them`, and exit 1, as 2 says it.
-- **Its `serve`** is the box's `temper serve` on a worker alone: the
+- **Its `serve`** is the box's `temper-box serve` on a worker alone: the
   worker's part read and checked, its agent's document read by
   `smith-agent-document`, its root, program sources and the launcher's
   links made (setup/owned.md, 6), its link dialled, and its loop, ending and
@@ -593,7 +593,7 @@ deployment     temper-worker serve [DIRECTORIES]
   `temper-service` with its `worker` feature, which until
   `../draft/cli.execution.md`'s C5 composes the engine's half too, so
   its closure holds the engine's domain and `temper-service`'s other
-  dependencies (`temper-forge-setup`, `temper-box`, the forge kit). Its
+  dependencies (`temper-forge-setup`, `temper-box-machine`, the forge kit). Its
   row, with that as its exception, is M5's
   (`../draft/deployment-binaries.execution.md`, 1). It links no
   `temper-engine-shell`, `temper-client-bundle`, `temper-fake`,
