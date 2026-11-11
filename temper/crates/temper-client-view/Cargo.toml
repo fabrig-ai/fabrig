@@ -20,6 +20,7 @@ temper-client-protocol-wire.workspace = true
 workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
 temper-docs.workspace = true
 temper-fixtures.workspace = true
 skein-ui-text.workspace = true

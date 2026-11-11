@@ -4,14 +4,10 @@ use temper_service::limits;
 type Renderer = fn(&mut Writer) -> Result<(), skein_lib::Overflow>;
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_pages_limits_are_what_the_tables_render() {
     let directory = skein_scratch::paths::tree().join("docs/help/reference");
     let pages: [(&str, Renderer); 2] = [("limits", limits::reference), ("limits-engine", limits::engine_reference)];
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    let write = temper_test_env::rewrite();
     for (name, render) in pages {
         let mut measured = Writer::new(temper_docs::PAGE_BYTES);
         render(&mut measured).expect("limits page fits PAGE_BYTES");
