@@ -22,10 +22,11 @@ const MEMBERS: u32 = 3;
 const QUESTIONS: u32 = 3;
 
 pub(super) fn world(name: &str) -> Domain {
-    let alone = name == "team-alone";
+    let role = name == "team-role";
+    let alone = name == "team-alone" || role;
     let me = super::base_frame("Reader", "shop");
     let reader = me.party.number;
-    let (mut root, mut out) = started(Address::Team { project: PROJECT });
+    let (mut root, mut out) = started(Address::Team { project: PROJECT, role: if role { Some(52) } else { None } });
     while let Some(request) = out.pop() {
         let Some(request) = down(request) else { continue };
         match request {
@@ -53,6 +54,25 @@ pub(super) fn world(name: &str) -> Domain {
                 if query.project == Some(PROJECT) && query.requester == Some(c::Requester::Person(SAM)) =>
             {
                 deliver(&mut root, watch, c::Delivery::Tasks(Box::new(sams_tasks())), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.label == Some(3) =>
+            {
+                let rows = if role {
+                    List::from_boxed(Box::new([super::task_line(prover(reader))]))
+                } else {
+                    List::with_capacity(0)
+                };
+                deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } if role => {
+                deliver(&mut root, watch, c::Delivery::Task(Box::new(prover(reader))), &mut out);
+            }
+            Down::Read {
+                read,
+                what: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task: 52, .. }, .. }),
+            } if role => {
+                answer(&mut root, read, c::ReadValue::Notes(Box::new(provers_now())), &mut out);
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
@@ -197,4 +217,43 @@ fn approvals(alone: bool) -> w::Approvals {
         .expect("one review");
     }
     w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows, more: 0 }).expect("approvals")
+}
+
+const NOW: &[u8] = b"- Finding 91, from the fuzz tier at 01:50: a commit is lost when a witness rejoins during a view change. Reproduced with seed 4417 in a deterministic test, tests/sim/rejoin.c.\n- The fix is the protocol core's: count a rejoining witness only once it holds the log suffix. Asked you; I start the change at your answer.\n- Triaged three findings this week: two to you, one kept, a flaky replica timeout, repaired and landed.\n- Next: the fuzz tier's next run, then my weekly report on Monday.";
+fn prover(reader: u64) -> c::Task {
+    let mut task = super::base_task(52, "Prover");
+    task.project = PROJECT;
+    task.label = 3;
+    task.flags.ended_by = c::EndedBy::Standing;
+    task.flags.conversation = false;
+    task.chip.executor = c::ChipExecutor::Agent { charter: 13 };
+    task.requester = c::Requester::Person(reader);
+    task.made = skein_lib::Wall::from_nanos(1_793_577_600_000_000_000);
+    task.budget.numbers.spent = 21;
+    task.budget.numbers.budget = 40;
+    task.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Stop,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
+    task
+}
+fn provers_now() -> c::NotePage {
+    c::NotePage {
+        rows: List::from_boxed(Box::new([c::Note {
+            number: 1,
+            revision: c::Revision { value: 1 },
+            scope: c::NoteScope::Task { project: PROJECT, task: 52 },
+            description: doc("now"),
+            body: c::DocumentText::complete(c::Text::new(NOW.into(), 1024).expect("Now fits")),
+            writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
+            tasks: List::with_capacity(0),
+            changed: Some(skein_lib::Wall::from_nanos(1_794_105_660_000_000_000)),
+            acts: List::with_capacity(0),
+            cut: false,
+        }])),
+        cut: false,
+        before: None,
+        after: None,
+    }
 }

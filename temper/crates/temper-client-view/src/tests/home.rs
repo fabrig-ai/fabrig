@@ -265,8 +265,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
     // Home, stock ways, goal presence, Goals, standing Needs, trials and a running trial task (client/pages/README.md).
-    limits.client.domain.handles = 18;
-    limits.client.domain.watches = 16;
+    limits.client.domain.handles = 19;
+    limits.client.domain.watches = 17;
     limits.client.domain.reads = 16;
     limits
 }
@@ -2056,9 +2056,13 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
             request:
                 jig_client::UnlinkedRequest::Down {
                     down:
-                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
                 },
         } = request
+            && query.label != Some(3)
         {
             live = Some(*watch);
         }

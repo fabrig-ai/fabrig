@@ -123,7 +123,7 @@ fn sweep(seed: u64) -> bool {
     let others: Vec<_> =
         (0..rng.between(0, MAX_OTHERS)).map(|_| (rng.between(1, READER_PARTIES), random_waits(&mut rng))).collect();
     let expected = oracle(&project, you, yours, &others);
-    let facts = team::gather(&project, you, yours, &others);
+    let mut facts = team::gather(&project, you, yours, &others);
     assert_eq!(
         facts.people.as_slice(),
         expected,
@@ -131,10 +131,84 @@ fn sweep(seed: u64) -> bool {
     );
     assert_eq!(facts.cut, project.cut, "seed {seed}: document cut");
     assert_eq!(facts.triager, None, "seed {seed}: triager is unread");
-    assert_eq!(facts.standing_roles, None, "seed {seed}: standing roles are unread");
+    let count = rng.between(0, 16);
+    facts.roles = List::with_capacity(16);
+    for task in 1..=count {
+        facts
+            .roles
+            .push(team::Role {
+                task,
+                name: format!("role-{task}").into_bytes().into_boxed_slice(),
+                now: if rng.chance(500) { Some(b"Its first line".as_slice().into()) } else { None },
+                spent: rng.next_u64(),
+                budget: rng.next_u64(),
+            })
+            .expect("roles fit watch");
+    }
+    facts.roles_cut = rng.chance(500);
+    facts.selected = if rng.chance(500) { Some(rng.between(0, 20)) } else { None };
+    let chosen = facts.selected.filter(|task| (1..=count).contains(task)).or(if count == 0 { None } else { Some(1) });
+    if rng.chance(750) {
+        let task = if rng.chance(750) { chosen.unwrap_or(99) } else { 99 };
+        let mut held = None;
+        if rng.chance(500) {
+            held = Some(Box::new(c::ChipHold {
+                placed: None,
+                words: None,
+                circle: None,
+                account: None,
+                source: None,
+                reason: c::HoldCategory::Budget,
+                revision: 1,
+                before: c::PriorPhase::Waiting,
+                escalation: None,
+                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                hold_wait_since: None,
+            }));
+        }
+        facts.card = Some(Box::new(team::Card {
+            task,
+            name: b"Role".as_slice().into(),
+            made: None,
+            requester: None,
+            hold: held,
+            paused: rng.chance(500),
+            pause: rng.chance(500),
+            resume: rng.chance(500),
+            now: if rng.chance(500) {
+                Some(team::Now {
+                    body: if rng.chance(500) { Box::default() } else { b"- Now".as_slice().into() },
+                    changed: None,
+                    cut: rng.chance(500),
+                })
+            } else {
+                None
+            },
+        }));
+    }
+    let detail = facts.card.as_ref().filter(|card| Some(card.task) == chosen);
+    let parts = team::parts(&facts);
+    assert_eq!(parts.standing_roles, count != 0, "seed {seed}: Standing roles needs a listed role");
+    assert_eq!(parts.roles_cut, count != 0 && facts.roles_cut, "seed {seed}: cut belongs to the list");
+    assert_eq!(parts.card, chosen, "seed {seed}: listed selection, else first");
+    assert_eq!(
+        parts.pause,
+        detail.is_some_and(|card| card.hold.is_none() && card.pause),
+        "seed {seed}: Pause needs Stop and no hold"
+    );
+    assert_eq!(
+        parts.resume,
+        detail.is_some_and(|card| card.hold.is_some() && card.paused && card.resume),
+        "seed {seed}: Resume needs Release and paused alone"
+    );
+    assert_eq!(
+        parts.now,
+        detail.is_some_and(|card| card.now.as_ref().is_some_and(|now| !now.body.is_empty())),
+        "seed {seed}: Now needs a nonempty read"
+    );
     assert_eq!(
         team::parts(&facts),
-        team::Parts { people: !expected.is_empty(), shared: shared_role(&project), triager: false },
+        team::Parts { people: !expected.is_empty(), shared: shared_role(&project), triager: false, ..parts },
         "seed {seed}: parts show exactly when their facts exist"
     );
 

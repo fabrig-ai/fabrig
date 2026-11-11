@@ -567,7 +567,7 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
     assert_rail(&view, b"Shop");
     assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
     let mut root = fixtures::root_at(
-        temper_client_domain::Address::Team { project: fixtures::PROJECT },
+        temper_client_domain::Address::Team { project: fixtures::PROJECT, role: None },
         &fixtures::domain_limits(),
     )
     .0;
@@ -579,7 +579,7 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
         assert_eq!(
             crate::act(&mut view, id, Act::Press),
             Some(Action::Pages(pages::Act::Go {
-                address: temper_client_domain::Address::Team { project: fixtures::PROJECT },
+                address: temper_client_domain::Address::Team { project: fixtures::PROJECT, role: None },
             }))
         );
     }
@@ -1713,7 +1713,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
     // Work's changes and notes, the rail's people and the project's ways and classes open without a goal template.
-    const PROJECT_READS: u32 = 5;
+    const PROJECT_READS: u32 = 6;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1766,7 +1766,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(
                 out.len(),
                 PROJECT_READS,
-                "changes, people, notes and the new project's ways and classes: {out:?}"
+                "changes, people, standing roles, notes and the new project's ways and classes: {out:?}"
             );
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
@@ -1792,6 +1792,21 @@ fn goals_opens_in_its_projects_frame() {
                 panic!("rail's project people")
             };
             assert_eq!(project, fixtures::PROJECT);
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Open {
+                                subject:
+                                    jig_client::Watchable::Jig(jig_client::contract::Subject::Tasks { query, window: 16 }),
+                                ..
+                            },
+                    },
+            }) = out.pop()
+            else {
+                panic!("rail’s standing roles")
+            };
+            assert_eq!((query.project, query.label), (Some(fixtures::PROJECT), Some(3)));
             let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

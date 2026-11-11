@@ -139,7 +139,15 @@ fn gather_lists_each_person_once_the_reader_first() {
     ] {
         assert_eq!(
             team::gather(&project(members, cut), YOU, yours, &others),
-            Facts { people: List::from_boxed(expected), cut, triager: None, standing_roles: None },
+            Facts {
+                people: List::from_boxed(expected),
+                cut,
+                triager: None,
+                roles: List::with_capacity(0),
+                roles_cut: false,
+                selected: None,
+                card: None
+            },
             "{name}",
         );
     }
@@ -149,24 +157,29 @@ fn gather_lists_each_person_once_the_reader_first() {
 fn parts_show_what_the_facts_hold() {
     use c::HeldRole::{Maintainer, Member, Observer, Owner, Policy};
     for (name, people, triager, expected) in [
-        ("no people or triager", Box::<[_]>::from([]), None, Parts { people: false, shared: None, triager: false }),
+        (
+            "no people or triager",
+            Box::<[_]>::from([]),
+            None,
+            Parts { people: false, shared: None, triager: false, ..Parts::default() },
+        ),
         (
             "people without waits",
             Box::<[_]>::from([person(YOU, true, b"Reader", Owner, None)]),
             None,
-            Parts { people: true, shared: None, triager: false },
+            Parts { people: true, shared: None, triager: false, ..Parts::default() },
         ),
         (
             "triager alone",
             Box::<[_]>::from([]),
             Some(b"Sam".as_slice()),
-            Parts { people: false, shared: None, triager: true },
+            Parts { people: false, shared: None, triager: true, ..Parts::default() },
         ),
         (
             "both parts",
             Box::<[_]>::from([person(SAM, false, b"Sam", Member, Some(SAMS))]),
             Some(b"Reader".as_slice()),
-            Parts { people: true, shared: None, triager: true },
+            Parts { people: true, shared: None, triager: true, ..Parts::default() },
         ),
     ] {
         let facts = Facts {
@@ -176,7 +189,10 @@ fn parts_show_what_the_facts_hold() {
                 Some(name) => Some(name.into()),
                 None => None,
             },
-            standing_roles: Some(1),
+            roles: List::with_capacity(0),
+            roles_cut: false,
+            selected: None,
+            card: None,
         };
         assert_eq!(team::parts(&facts), expected, "{name}");
     }
@@ -196,8 +212,20 @@ fn parts_show_what_the_facts_hold() {
         for (at, role) in roles.iter().enumerate() {
             people.push(person(u64::try_from(at).unwrap(), false, b"Person", *role, None)).unwrap();
         }
-        let facts = Facts { people, cut, triager: None, standing_roles: None };
-        assert_eq!(team::parts(&facts), Parts { people: !roles.is_empty(), shared, triager: false }, "{roles:?} {cut}");
+        let facts = Facts {
+            people,
+            cut,
+            triager: None,
+            roles: List::with_capacity(0),
+            roles_cut: false,
+            selected: None,
+            card: None,
+        };
+        assert_eq!(
+            team::parts(&facts),
+            Parts { people: !roles.is_empty(), shared, triager: false, ..Parts::default() },
+            "{roles:?} {cut}"
+        );
     }
 }
 
@@ -227,6 +255,9 @@ struct Reads {
     read: Option<Handle>,
     others: List<(u64, Handle, Token)>,
     handles: Set<Handle>,
+    roles: Option<(Handle, Token)>,
+    nows: List<(u64, Handle)>,
+    card: Option<(u64, Handle, Token)>,
 }
 #[derive(Debug, PartialEq, Eq)]
 struct Effects {
@@ -296,6 +327,9 @@ fn reads_fixture() -> Reads {
         read: None,
         others: List::with_capacity(team::OTHERS),
         handles: Set::with_capacity(team::OTHERS.checked_add(1).unwrap()),
+        roles: None,
+        nows: List::with_capacity(64),
+        card: None,
     }
 }
 fn client(f: &mut Reads, event: jig_client::Event) -> Queue<jig_client::UnlinkedRequest> {
@@ -304,6 +338,15 @@ fn client(f: &mut Reads, event: jig_client::Event) -> Queue<jig_client::Unlinked
     f.root.client.step_unlinked(env.now, env.wall, event, &mut out);
     out
 }
+fn opened_token(opened: &Queue<jig_client::UnlinkedRequest>) -> Token {
+    for request in opened {
+        if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } } = request {
+            return *watch;
+        }
+    }
+    panic!("watch opened");
+}
+#[expect(clippy::too_many_lines, reason = "one harness dispatch captures the project, people, roles and Now reads")]
 fn page(f: &mut Reads, event: Event) -> Effects {
     let mut out = Queue::uncapped();
     pages::step(&mut f.root.pages, &fixtures::env(&fixtures::limits()), &f.root.client, event, &mut out);
@@ -349,6 +392,39 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 f.handles.insert(handle).unwrap();
                 f.others.push((party, handle, token)).unwrap();
                 effects.watches.push(party).unwrap();
+            }
+            Request::Client(jig_client::Event::Watch {
+                handle,
+                subject: Watchable::Jig(c::Subject::Tasks { query, window }),
+            }) if query.label == Some(3) => {
+                assert_eq!(window, team::ROLES);
+                assert_eq!(query.project, Some(PROJECT));
+                assert_eq!(query.order, c::QueryOrder::Number);
+                assert_eq!(query.requester, None);
+                let opened = client(
+                    f,
+                    jig_client::Event::Watch { handle, subject: Watchable::Jig(c::Subject::Tasks { query, window }) },
+                );
+                let token = opened_token(&opened);
+                f.roles = Some((handle, token));
+            }
+            Request::Client(jig_client::Event::Watch {
+                handle,
+                subject: Watchable::Jig(c::Subject::Task { task }),
+            }) => {
+                let opened =
+                    client(f, jig_client::Event::Watch { handle, subject: Watchable::Jig(c::Subject::Task { task }) });
+                let token = opened_token(&opened);
+                f.card = Some((task, handle, token));
+            }
+            Request::Client(jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { project, task }, description, after }),
+            }) => {
+                assert_eq!(project, PROJECT);
+                assert_eq!(description.unwrap().bytes(), b"now");
+                assert_eq!(after, None);
+                f.nows.push((task, handle)).unwrap();
             }
             Request::Client(jig_client::Event::Unwatch { handle }) if f.handles.remove(&handle) => {
                 effects.closed = effects.closed.checked_add(1).unwrap();
@@ -406,7 +482,15 @@ fn read_shown(members: &[u64], waits: &[(u64, Waits)]) -> team::Shown {
         }
         people.push(person(*party, *party == YOU, b"Person", c::HeldRole::Member, count)).unwrap();
     }
-    team::Shown::Read(Facts { people, cut: false, triager: None, standing_roles: None })
+    team::Shown::Read(Facts {
+        people,
+        cut: false,
+        triager: None,
+        roles: List::with_capacity(0),
+        roles_cut: false,
+        selected: None,
+        card: None,
+    })
 }
 #[derive(Debug)]
 enum Feed {
@@ -426,7 +510,7 @@ enum Feed {
 }
 fn feed(f: &mut Reads, feed: Feed) -> Effects {
     match feed {
-        Feed::Open => page(f, Event::Went { address: Address::Team { project: PROJECT } }),
+        Feed::Open => page(f, Event::Went { address: Address::Team { project: PROJECT, role: None } }),
         Feed::Me => delivered(f, pages::me_handle(), f.me, c::Delivery::Me(Box::new(reader()))),
         Feed::Project(document) => page(
             f,
@@ -851,4 +935,168 @@ fn team_reads_the_project_and_what_waits_on_each() {
         assert_eq!(team::shown(&f.root, OTHER_PROJECT), team::Shown::Reading, "{name}: other project");
         assert_eq!(team::people(&f.root, OTHER_PROJECT), None, "{name}: other project's people");
     }
+}
+
+fn role(task: u64) -> team::Role {
+    team::Role { task, name: b"Prover".as_slice().into(), now: None, spent: 21, budget: 40 }
+}
+fn card(task: u64) -> team::Card {
+    team::Card {
+        task,
+        name: b"Prover".as_slice().into(),
+        made: Some(skein_lib::Wall::EPOCH),
+        requester: Some(team::StartedBy::You),
+        hold: None,
+        paused: false,
+        pause: true,
+        resume: true,
+        now: None,
+    }
+}
+#[test]
+fn standing_parts_select_a_listed_card_and_only_read_parts() {
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[]);
+    facts.roles_cut = true;
+    facts.selected = Some(52);
+    facts.card = Some(Box::new(card(52)));
+    assert_eq!(team::parts(&facts), Parts::default(), "unlisted card and cut never stand alone");
+    facts.roles = List::from_boxed(Box::new([role(41), role(52)]));
+    assert_eq!(
+        team::parts(&facts),
+        Parts { standing_roles: true, roles_cut: true, card: Some(52), pause: true, ..Parts::default() }
+    );
+    facts.selected = Some(99);
+    assert_eq!(team::parts(&facts).card, Some(41), "unlisted selection falls back to the first");
+    assert!(!team::parts(&facts).pause, "old card's acts are not the fallback's");
+    facts.selected = None;
+    facts.card = Some(Box::new(card(41)));
+    let c::ReadValue::Escalation(held) = fixtures::acts::held(c::ActKind::Release) else { panic!("held fixture") };
+    let detail = facts.card.as_mut().unwrap();
+    detail.hold = held.task.hold;
+    detail.now = Some(team::Now { body: b"- A finding.\nA paragraph.".as_slice().into(), changed: None, cut: true });
+    assert_eq!(
+        team::parts(&facts),
+        Parts { standing_roles: true, roles_cut: true, card: Some(41), now: true, ..Parts::default() },
+        "held for another cause has neither act"
+    );
+    facts.card.as_mut().unwrap().paused = true;
+    assert!(team::parts(&facts).resume);
+    facts.card.as_mut().unwrap().resume = false;
+    assert!(!team::parts(&facts).resume, "Release must be allowed");
+    facts.card.as_mut().unwrap().now.as_mut().unwrap().body = Box::default();
+    assert!(!team::parts(&facts).now, "no empty Now part");
+    facts.card.as_mut().unwrap().hold = None;
+    facts.card.as_mut().unwrap().pause = false;
+    assert!(!team::parts(&facts).pause, "Stop must be allowed");
+}
+fn note(number: u64, description: &[u8], body: &[u8]) -> c::Note {
+    c::Note {
+        number,
+        revision: c::Revision { value: 1 },
+        scope: c::NoteScope::Task { project: PROJECT, task: 52 },
+        description: text(description),
+        body: text(body),
+        writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
+        tasks: List::with_capacity(0),
+        changed: Some(skein_lib::Wall::EPOCH),
+        acts: List::with_capacity(0),
+        cut: false,
+    }
+}
+#[test]
+fn standing_reads_each_now_again_on_line_delivery() {
+    let mut f = reads_fixture();
+    feed(&mut f, Feed::Open);
+    let (handle, watch) = f.roles.unwrap();
+    let mut first = super::chats::chat_line();
+    first.chip.task = 41;
+    first.project = PROJECT;
+    first.label = 3;
+    first.ended_at = None;
+    let mut second = first.clone();
+    second.chip.task = 52;
+    let rows = List::from_boxed(Box::new([first.clone(), second.clone(), first.clone()]));
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: true })));
+    let team::Shown::PeopleUnread { facts, failed } = team::shown(&f.root, PROJECT) else {
+        panic!("roles do not wait for the people read")
+    };
+    assert!(!failed);
+    assert_eq!(facts.roles.len(), 2);
+    feed(&mut f, Feed::Refused);
+    let team::Shown::PeopleUnread { facts, failed } = team::shown(&f.root, PROJECT) else {
+        panic!("roles survive an unreadable project")
+    };
+    assert!(failed);
+    assert_eq!(facts.roles.len(), 2);
+    feed(&mut f, Feed::Me);
+    feed(&mut f, Feed::Project(Box::new(read_people(&[YOU]))));
+    assert_eq!(f.nows.len(), 1, "Now reads share one in-flight slot");
+    let first_handle = f.nows.get(0).unwrap().1;
+    page(
+        &mut f,
+        Event::Told {
+            told: Told::Page {
+                handle: first_handle,
+                page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+                    rows: List::with_capacity(0),
+                    cut: false,
+                    before: None,
+                    after: None,
+                })))),
+            },
+        },
+    );
+    assert_eq!(f.nows.len(), 2, "one read per distinct listed role");
+    assert_eq!(f.nows.get(0).unwrap().0, 41);
+    assert_eq!(f.nows.get(1).unwrap().0, 52);
+    assert_eq!(f.card.unwrap().0, 41);
+    page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(52) } });
+    assert_eq!(f.card.unwrap().0, 52, "address selects the card's task watch");
+    let now_handle = f.nows.get(1).unwrap().1;
+    let rows = List::from_boxed(Box::new([
+        note(8, b"now", b"Later"),
+        note(1, b"now-ish", b"Wrong"),
+        note(3, b"now", b"First\n- Next"),
+    ]));
+    page(
+        &mut f,
+        Event::Told {
+            told: Told::Page {
+                handle: now_handle,
+                page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+                    rows,
+                    cut: false,
+                    before: None,
+                    after: None,
+                })))),
+            },
+        },
+    );
+    let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
+    assert_eq!(facts.roles.len(), 2);
+    assert_eq!(facts.roles.get(1).unwrap().now.as_deref(), Some(b"First".as_slice()));
+    assert_eq!(
+        facts.card.unwrap().now.unwrap().body.as_ref(),
+        b"First\n- Next",
+        "Now does not wait for the head document"
+    );
+    let rows = List::from_boxed(Box::new([first.clone(), second.clone()]));
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    assert_eq!(f.nows.len(), 3, "a delivered line reads Now even when last activity is unchanged");
+    second.last_activity = skein_lib::Wall::from_nanos(second.last_activity.as_nanos().saturating_add(1));
+    let rows = List::from_boxed(Box::new([second]));
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    assert_eq!(f.nows.len(), 4, "the removed role’s pending read gives way to the remaining role");
+    assert_eq!(f.nows.get(3).unwrap().0, 52);
+    let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
+    assert_eq!(facts.roles.len(), 1);
+    assert!(!facts.roles_cut);
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false })),
+    );
+    let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
+    assert_eq!(team::parts(&facts).card, None);
 }

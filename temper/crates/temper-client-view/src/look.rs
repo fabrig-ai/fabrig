@@ -1448,6 +1448,16 @@ pub const NAMES: Names<'static> = Names {
         b"temper-only-item",
         b"temper-only-q",
         b"temper-team-shared",
+        b"temper-team-rows",
+        b"temper-team-row",
+        b"temper-team-card",
+        b"temper-team-head",
+        b"temper-team-acts",
+        b"temper-team-columns",
+        b"temper-team-left",
+        b"temper-team-right",
+        b"temper-team-now",
+        b"temper-team-kicker",
     ],
     regions: &[b"temper-link"],
 };
@@ -1923,6 +1933,18 @@ pub const ONLY: Style = Style { owner: owner(), token: 726 };
 pub const ONLY_ITEM: Style = Style { owner: owner(), token: 727 };
 /// An Only you question (temper/docs/design/client/pages/README.md, Only you).
 pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
+
+/// Standing roles and their card (client/pages/team.md, 1).
+pub const TEAM_ROWS: Style = Style { owner: owner(), token: 730 };
+pub const TEAM_ROW: Style = Style { owner: owner(), token: 731 };
+pub const TEAM_CARD: Style = Style { owner: owner(), token: 732 };
+pub const TEAM_HEAD: Style = Style { owner: owner(), token: 733 };
+pub const TEAM_ACTS: Style = Style { owner: owner(), token: 734 };
+pub const TEAM_COLUMNS: Style = Style { owner: owner(), token: 735 };
+pub const TEAM_LEFT: Style = Style { owner: owner(), token: 736 };
+pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 737 };
+pub const TEAM_NOW: Style = Style { owner: owner(), token: 738 };
+pub const TEAM_KICKER: Style = Style { owner: owner(), token: 739 };
 
 #[cfg(test)]
 mod tests {
