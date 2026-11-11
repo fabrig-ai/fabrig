@@ -71,6 +71,8 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                 let decoded = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("gallery watch");
                 if let w::Watch::Changes(_) = decoded.watch() {
                     family(root, watch, wire::changes_panel(&changes(work)), out);
+                } else if let w::Watch::Drafts(_) = decoded.watch() {
+                    family(root, watch, wire::drafts_panel(&drafts(work)), out);
                 } else if let w::Watch::Forges = decoded.watch() {
                     super::forges_watched(root, Reference, watch, out);
                 } else if let w::Watch::Decided(key) = decoded.watch() {
@@ -122,7 +124,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
                         let drafts =
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
-                        super::project_ways(root, read, drafts, true, true, out);
+                        project_ways(root, read, drafts, work, out);
                     }
                     w::Read::Deployment => super::deployment_read(root, read, true, out),
                     _ => {}
@@ -133,6 +135,16 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
         }
     }
     assert!(out.is_empty(), "rail, Work and Deployment sample settled");
+}
+fn project_ways(root: &mut Domain, read: Token, drafts: bool, work: Work, out: &mut Queue<Request>) {
+    let ways = w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts {
+        drafts, goals: true, changes: true, way: if matches!(work, Work::Whole) { 2 } else { 0 },
+    }).expect("Work ways");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit")); ways.encode(&mut bytes).expect("measured ways");
+    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) }).expect("setting answer");
+    step(root, Event::Client { event: jig_client::Event::Up { up: Up::ReadDone {
+        read, result: jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::setting_answer(&value)) },
+    }}}, out);
 }
 fn family(root: &mut Domain, watch: Token, bytes: Box<[u8]>, out: &mut Queue<Request>) {
     for up in [
@@ -248,10 +260,9 @@ const REPORTS: [(u64, &str, &str, u32, u32, u64, u64); 2] = [
         15,
     ),
 ];
-const WHOLE_CHATS: [(u64, &str); 3] = [
+const WHOLE_CHATS: [(u64, &str); 2] = [
     (10, "the comment on vsr_step_many is stale"),
     (11, "Fresh quorum reads against applied-minimum local reads, and what the help promises. Not started."),
-    (12, "The catch-up barrier, if your answer on the handoff fix asks for it."),
 ];
 const PAIR_CHATS: [(u64, &str); 7] = [
     (10, "Monthly totals by category"),
@@ -323,9 +334,7 @@ fn notes(work: Work, scope: &c::NoteScope) -> c::NotePage {
     if matches!(work, Work::Whole) {
         match scope {
             c::NoteScope::Tasks { project: 1 } => {
-                for (task, title) in [(11, "read-barriers"), (12, "witness-catch-up")] {
-                    rows.push(note(task, title, "")).expect("two drafts");
-                }
+                rows.push(note(11, "read-barriers", "")).expect("one draft being written");
             }
             c::NoteScope::Task { task, .. } => {
                 for (number, _, report, ..) in REPORTS {
@@ -347,6 +356,18 @@ const WHOLE_LANDED: [(u64, &str); 4] = [
     (106, "io_uring: retry a short write once"),
     (103, "Handoff states and their tests"),
 ];
+fn drafts(work: Work) -> w::DraftsPanel {
+    let mut drafts = List::with_capacity(1);
+    if matches!(work, Work::Whole) {
+        drafts.push(w::LandedDraft::new(&w::CEILINGS, w::LandedDraftParts {
+            forge: 1, owner: b"work".as_slice().into(), name: b"vsr".as_slice().into(), path: b"docs/design/draft/witness-catch-up.md".as_slice().into(),
+            branch: b"main".as_slice().into(), commit: b"abc".as_slice().into(),
+            title: b"The catch-up barrier, if your answer on the handoff fix asks for it.".as_slice().into(),
+            writer: 1, at: at(-2482).as_nanos(), chat: Some(12), goal: None, ready: true,
+        }).expect("landed witness draft")).expect("one landed draft");
+    }
+    w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: 1, drafts }).expect("drafts panel")
+}
 type ChangeRows = &'static [(u64, &'static str)];
 fn changes(work: Work) -> w::ChangesPanel {
     let (pending, landed): (ChangeRows, ChangeRows) = match work {

@@ -512,6 +512,12 @@ pub enum Word {
     WorkAChatWithYou,
     WorkByline,
     WorkOpenDraft,
+    WorkLandedIn,
+    WorkReadySince,
+    WorkStartWay,
+    WorkProjectWay,
+    WorkAnotherWay,
+    WorkStartGoal,
 
     GoalsWaySeparator,
     GoalsWayEnd,
@@ -1778,7 +1784,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2331;
+const PHRASES: u32 = 2337;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1805,10 +1811,10 @@ const PHRASES: u32 = 2331;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4190;
+const SEGMENTS: u32 = 4204;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56546;
-const ALL: [Word; 1647] = [
+const ENGLISH_BYTES: u32 = 56616;
+const ALL: [Word; 1653] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2301,6 +2307,12 @@ const ALL: [Word; 1647] = [
     Word::WorkAChatWithYou,
     Word::WorkByline,
     Word::WorkOpenDraft,
+    Word::WorkLandedIn,
+    Word::WorkReadySince,
+    Word::WorkStartWay,
+    Word::WorkProjectWay,
+    Word::WorkAnotherWay,
+    Word::WorkStartGoal,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -3986,6 +3998,12 @@ impl Word {
             Self::WorkAChatWithYou => 4676,
             Self::WorkByline => 4677,
             Self::WorkOpenDraft => 4678,
+            Self::WorkLandedIn => 4680,
+            Self::WorkReadySince => 4681,
+            Self::WorkStartWay => 4682,
+            Self::WorkProjectWay => 4683,
+            Self::WorkAnotherWay => 4684,
+            Self::WorkStartGoal => 4685,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -5231,6 +5249,12 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if word == Word::AnsweredReply {
         return Ok(temper_client_protocol_wire::CUE_BYTES);
     }
+    // A landed draft names its complete directory, or the root repository and slash.
+    if word == Word::WorkLandedIn {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let name = bounds.landed_draft_name.checked_add(1).ok_or(Invalid::Overflow)?;
+        return Ok(name.max(bounds.landed_draft_path));
+    }
     // Changes names the wire's complete repository and branch (client/forge/records.md).
     if word == Word::ChangesQueueNamed {
         return Ok(if last {
@@ -5823,6 +5847,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkAChatWithYou => (&[b"a chat with you"], &[]),
         Word::WorkByline => (&[b"Written by the goal at ", b""], &[Name]),
         Word::WorkOpenDraft => (&[b"Open the draft"], &[]),
+        Word::WorkLandedIn => (&[b"landed in ", b""], &[Name]),
+        Word::WorkReadySince => (&[b"ready since ", b""], &[Name]),
+        Word::WorkStartWay => (&[b"Start a goal: ", b""], &[Name]),
+        Word::WorkProjectWay => (&[b"", b"\xe2\x80\x99s way"], &[Name]),
+        Word::WorkAnotherWay => (&[b"Another way"], &[]),
+        Word::WorkStartGoal => (&[b"Start a goal\xe2\x80\xa6"], &[]),
         Word::GoalsWaySeparator => (&[b", "], &[]),
         Word::GoalsWayEnd => (&[b"."], &[]),
         Word::GoalsAll => (&[b"All"], &[]),
