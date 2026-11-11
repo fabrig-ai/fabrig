@@ -190,6 +190,7 @@ inbox  Read what waits on your party, then its updates
 task  Tasks: read one and its parts, and act on it
 chat  Chats: start one, read its conversation, close it
 goal  Goals: start one from a project template
+role  Standing roles: start one, list them, read one and its Now
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing

@@ -276,6 +276,7 @@ What ends a task: a word or one-member object.
 
 - `"result"`: Its run's result.
 - `"requester"`: Its requester alone; requires `conversation` and a charter `executor`, else `shape` refusal.
+- `"standing"`: Only cancel; an agent with no conversation or tracking.
 - `closer`: `closer`. A named procedure ends it.
 
 ## closer
