@@ -1048,7 +1048,7 @@ fn approval(project: u32) -> w::ApprovalRow {
             role: 5,
             required: 2,
             counted: 1,
-            behind: 0,
+            sets: List::with_capacity(0),
             whole: true,
             yours: w::ApprovalYours::Counts,
         },

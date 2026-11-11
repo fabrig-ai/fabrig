@@ -519,7 +519,8 @@ fn a_later_approved_change_lands_while_the_earlier_waits_outside_the_queue() {
     watch_approvals_at(&mut world, watcher, 0);
     let document = approvals_of(&world, watcher);
     assert_eq!(document.rows.len(), 1);
-    assert_eq!((document.rows[0].task, document.rows[0].behind), (x, 0));
+    assert_eq!(document.rows[0].task, x);
+    assert!(document.rows[0].sets.is_empty(), "these rules name no path set");
     post_approval(&mut world, x, 7);
     finish_change_gate(&mut world, x);
     assert_eq!(

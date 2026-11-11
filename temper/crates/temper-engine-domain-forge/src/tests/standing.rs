@@ -572,13 +572,15 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
         assert_eq!(waits.len(), usize::from(expected.is_some()));
         if let Some(wait) = waits.first() {
             assert_eq!(
-                (wait.task, wait.project, wait.forge, wait.pull, wait.since, wait.behind),
-                (CHANGE, 5, REPO.forge, 1, env().wall, 0)
+                (wait.task, wait.project, wait.forge, wait.pull, wait.since),
+                (CHANGE, 5, REPO.forge, 1, env().wall)
             );
             assert_eq!(wait.owner.as_ref(), b"org");
             assert_eq!(wait.name.as_ref(), b"repo");
             assert_eq!(wait.title.as_ref(), b"Small fix");
-            assert_eq!(wait.short.as_ref(), d.panel_approvals(d.change(CHANGE).expect("change")).as_ref());
+            let line = &wait.short[0];
+            assert_eq!((line.scope, line.rule, line.role, line.required, line.sets), (0, 1, 1, 1, 0));
+            assert!(line.counted.is_empty());
         }
         d.repositories.remove(&REPO);
         assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "only adopted repositories");
@@ -590,7 +592,30 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
 }
 
 #[test]
-fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
+fn approval_waits_name_only_the_rules_touched_sets() {
+    for (sets, expected) in [([1, 3].as_slice(), 1), ([].as_slice(), 0)] {
+        let (mut d, _) = fixture();
+        let mut required = rule();
+        required.sets = sets.into();
+        required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+        keep(&mut d, 0, 1, required);
+        let row = d.changes.get_mut(&CHANGE).unwrap();
+        row.pull = Some(1);
+        row.change.state = change::State::First { head: HEAD, ready_since: env().wall };
+        d.keep_touched(CHANGE, Some(HEAD), Touched { sets: 1, whole: true });
+        d.keep_review_facts(
+            env().wall,
+            CHANGE,
+            ReviewFacts { head: Some(HEAD), reviews_complete: true, reviewers: Box::new([]), unmapped: Box::new([]) },
+        );
+        let waits = d.approval_waits(env().wall, &LIMITS);
+        assert_eq!(waits.len(), 1);
+        assert_eq!(waits[0].short[0].sets, expected, "rule {sets:?} touches set 1 alone");
+    }
+}
+
+#[test]
+fn approval_waits_keep_the_heads_first_time_and_order() {
     let (mut d, _) = fixture();
     let mut required = rule();
     required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
@@ -616,7 +641,7 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     assert!(!d.keep_review_facts(b, CHANGE, facts.clone()));
     assert!(d.keep_review_facts(b, CHANGE, ReviewFacts { reviews_complete: true, ..facts.clone() }));
     let waits = d.approval_waits(env().wall, &LIMITS);
-    assert_eq!((waits[0].since, waits[0].behind), (a, 0), "a short approval is outside the queue");
+    assert_eq!(waits[0].since, a);
     assert_eq!(waits[0].title.len(), LOGGED_TITLE_BYTES);
     assert!(waits[0].title.ends_with("…".as_bytes()));
     assert_eq!(d.review_since(CHANGE), Some(a));

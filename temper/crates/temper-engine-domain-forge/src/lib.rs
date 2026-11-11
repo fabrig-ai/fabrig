@@ -25,7 +25,7 @@ mod address;
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
 mod approvals;
-pub use approvals::ApprovalWait;
+pub use approvals::{ApprovalWait, ShortApproval};
 pub mod boundary;
 mod brief;
 mod brief_ci;
