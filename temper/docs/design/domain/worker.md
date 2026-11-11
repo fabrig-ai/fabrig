@@ -446,7 +446,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 
 | Kind | What it runs | Its spec | Its result |
 |---|---|---|---|
-| 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
+| 1, prepare | a landing's candidate for one repository (`landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base, its members' heads in order with their messages, the upstream candidates and the pins between them, the command and the home's revision | the members merged, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge/change/repairs.md`) | the command, the head and the base | the files settled, and those left |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`forge/branches.md`, 2) | the command and the close request | the files settled |
@@ -478,13 +478,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   its environment free of credentials and of the worker's own, its
   wall time the job's deadline, its output files bounded; it reaches no
   forge, since the checkout fetched everything it reads.
-- **Then the delivery:** the candidate rewritten onto the branch the
-  items name as writable, with a lease on the head the items name
-  (`../protocol/git.md`, 4.10, `Rewrite`), the one push of temper's that
-  may not be a fast-forward, made only for a prepare job's candidate;
-  a lease refused fails the job as permanent until the branch is read
-  afresh, and the landing prepares again. The rewrite is the change's,
-  not drift (`forge/change/README.md`, 3). A key job delivers nothing. A delivering
+- **Then the delivery:** a prepare job's candidate is pushed to the
+  landing's branch the items name as writable, expecting it new
+  (`../protocol/git.md`, 4.4, `Create`); a branch already there fails the
+  job as undelivered, and the landing reads the branch (`landing.md`,
+  5.2). A key job delivers nothing. A delivering
   kind other than prepare delivers, on exit 0, the head of the repository
   its items name as writable, as a fast-forward onto that branch through
   the checkout's push (`worker.md`, section 5), as a run's delivery is; a push refused
@@ -527,6 +525,32 @@ smith's agent processes, and declares in its hello the kinds it runs:
   worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
   of 10 minutes, the small profile's constants; the engine declares it
   only where its tasks limits hold those bounds, as kind 3's.
+- **The prepare kind,** kind 1, verb `prepare`, delivering, built as
+  temper's own merge train for a round of one member
+  (`landing.md`, 5.2), the project's prepare command not yet. Its spec's
+  command is empty, which names temper's own: the job runs no process.
+  Its request is `../protocol/tooling.md`, 4's, read by the worker. Its
+  checkout holds one repository, the train's, under its own name,
+  writable, prepared as a base with heads merged in (section 5) but
+  from the round's base by its commit, not a branch's tip: the base
+  checked out, the member's head fetched by its commit and merged with no
+  fast-forward, a head the base contains still a merge, committed at
+  once with two parents, the base and the head, the repository's
+  identity as its author, and the member's `message` from the request as
+  its message. A head that does not merge cleanly is no failure: the
+  job ends with exit 3's result, `{"conflict": {"member": N, "with":
+  "branch", "files": [PATH]}}`, the files as the merge names them, cut
+  to the result's bound and marked `"cut": true` when cut, and nothing
+  is pushed. A clean merge ends with exit 0's result, `{"merged": [N]}`,
+  and delivers its commit to the writable branch, the landing's,
+  expecting it new (above). A request of more than one member is
+  refused as invalid until the merge queue's batches
+  (`../draft/merge-queue.md`, 5.1). Its bounds, the engine's declaration
+  and the worker's alike: a spec of 16,384 bytes, a result of 4,096 and
+  a deadline of 10 minutes, the small profile's constants; the engine
+  declares it only where its tasks limits hold those bounds, as kind
+  3's. The engine learns the candidate from the branch, read afresh,
+  and the conflict from the result (`landing.md`, 5.2).
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's

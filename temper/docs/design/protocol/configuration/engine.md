@@ -61,12 +61,16 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `turn`, each repository's test gates; and, by either way, its tiers;
   a `gates` entry being
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
-  "workflow": string, "ignored": [string], "blocking": boolean}],
+  "workflow": string, "ignored": [string], "blocking": boolean,
+  "base": boolean}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
   a repository at most once (`../../domain/landing.md`, 13.1;
-  `../../domain/after-landing.md`, section 11). A tier's `branch` is the
+  `../../domain/after-landing.md`, section 11). A gate's `base`, false
+  when absent, says that it reads the base: it is given `temper_base`
+  and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
+  7.1). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
   judges no landing (`../../domain/after-landing.md`, section 2). Its
@@ -97,6 +101,12 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
+- **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
+  milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
+  absent: how long a gate's run may be in flight before it holds its
+  landing (`../../domain/landing.md`, 7.1). One past its bounds refuses
+  the start at its member,
+  `application.landing.projects[i].gate_timeout_ms`.
 - **The merge job's command,** beside `by`, by either way: `merge_job`,
   a relative path of at most 4,096 bytes, without `..`, in each
   repository the merge job merges, none when absent: the project's merge

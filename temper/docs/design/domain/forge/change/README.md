@@ -372,9 +372,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
 - **Its branch moved** while nothing of temper's writes it, a late copy
   of its own update among them (`../README.md`, section 6), or by another
   identity, or not forward: held, the head kept as it is. Under its
-  project's turn, the rewrite its own prepare made is the change's: the
-  forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
-  (`../../worker.md`, 4.4). A release
+  project's turn, no prepare writes the change's branch: its landing's
+  job pushes to the landing's own (`../../landing.md`, 5.2). A head
+  moved while the change is in a landing takes it out of the landing
+  (`../../landing.md`, 4.3). A release
   takes the new head as the change's and checks it, gates asked again,
   its pull request opened first where none is open (2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at

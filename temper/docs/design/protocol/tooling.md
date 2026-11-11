@@ -70,18 +70,29 @@ what they write, and how they end. temper runs them as jobs on a worker
 ## 4. `prepare`
 
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
-  COMMIT, "members": [{"number": N, "branch": BRANCH, "head": COMMIT}],
-  "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
-  COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
-  names as the project's settings give them.
+  COMMIT, "members": [{"number": N, "branch": BRANCH, "head": COMMIT,
+  "message": TEXT}], "upstreams": [{"repository": NAME, "main": COMMIT,
+  "candidate": COMMIT}], "gates": [NAME]}`; commits as 40 or 64
+  hexadecimal digits, names as the project's settings give them, `main`
+  the round's base, and `message` the commit message temper's own merge
+  gives the member (`../domain/landing.md`, 5.2): `Merge pull request
+  'TITLE' (#N) from BRANCH into BASE`, a blank line, then `Landed by
+  landing L for change C.`, L and C task numbers, BASE the train's
+  branch.
+- **temper's own,** where the project names no prepare command: the
+  same request, read by the worker itself, with no command run, and the
+  results below with `{"merged": [N]}` for exit 0's
+  (`../domain/worker.md`, 4.4).
 - **`result.json`, exit 0:** `{"candidate": COMMIT, "keys": [{"gate":
   NAME, "key": HEX64}]}`, `keys` present only where the project names
   a `key` command and the command chose to give them here.
-- **`result.json`, exit 3:** `{"conflict": {"member": N, "files":
-  [PATH]}}`: the member whose change does not apply, and the files.
+- **`result.json`, exit 3:** `{"conflict": {"member": N, "with":
+  "branch", "files": [PATH], "cut": BOOL}}`: the member whose change
+  does not apply, what it conflicts with (`branch`, the round's base),
+  and the files, `cut` true when the list was cut to its bound.
   temper resolves it under that member in a workspace of its own,
   main's tip merged into the member's head (`../domain/landing.md`,
-  5.3); nothing of the command's directory is kept.
+  5.2); nothing of the command's directory is kept.
 - **Any other exit,** a missing or malformed result, a candidate absent
   or not containing main's tip, or a file past its bound: the command's
   failure, the stderr's last `tooling_log_bytes` kept for the landing's

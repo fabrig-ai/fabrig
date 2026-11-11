@@ -9,8 +9,10 @@
     default). The task is the running agent's, even when its workstream
     and delivery branch belong to its parent change. Saved work has its
     own branch, so it starts no CI and moves no pull request;
-  - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
-    the landing's task, held by the landing (`../landing.md`, 4.1);
+  - a landing's own branch, where its prepare job pushes each round's
+    candidate: `temper/<root>/l<task>`, the landing's task, held by the
+    landing from its making, deleted as a round ends unlanded and as
+    the landing closes (`../landing.md`, 5.1);
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (1);
   - an agent's task's own branch, for runs that push outside a change,
