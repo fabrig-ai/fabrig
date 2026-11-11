@@ -74,8 +74,14 @@ Repositories (4). Settings’ button and links to adoption open it; Cancel
 or Escape returns to Repositories. A project with no repository retains
 its Chats band’s entry, which reaches this same address. Home’s second
 step can adopt the offered first repository directly, open its own
-empty-or-copy sheet, or link to adoption (`../pages/README.md`). Those entry points are
-unmocked by `connect-flows`; the request changes the Settings destination.
+empty-or-copy sheet, or link to adoption (`../pages/home.md`, 1). Home’s
+own sheet stays Home’s, beside this one (the user, 2026-11-11; the draft
+status's departure, `../../draft/repository-copies.status.md`). The
+two entry paths into this dialog that `connect-flows` left undrawn are the
+gallery's (`../web/gallery.md`, 2): `sheet-from-home`, To begin's
+repository step's "Adopt another…" pressed, and `sheet-from-chats`, the
+Chats band's "Adopt a repository" pressed, each the dialog as that link
+opens it for a project with no repository.
 
 ## 4. The sheet "Add repositories" and its adoption form
 
@@ -354,12 +360,6 @@ client removes no account and closes no chat of its own.
 
 ## 8. Open questions
 
-- **One repository sheet from Home** (`../pages/README.md`, `family.md`, 3, 4): the
-  repository-copies follow-up, owned by temper/ui, unifies Home's own
-  empty-or-copy sheet with Add repositories and draws the entry from a
-  project with no repository and To begin's repository step. Default: keep
-  the current entries and Settings destination; `connect-flows` leaves
-  those paths unmocked (`../../draft/repository-copies.md`, 9 and 11).
 
 - **A repository being made, on a page** (4; `../../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl

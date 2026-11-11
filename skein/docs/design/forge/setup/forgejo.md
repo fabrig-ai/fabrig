@@ -483,9 +483,9 @@ whole, finishes what the last one left.
 - **Forgejo's refusals** of `Migrate`, each a stop at `Repository`,
   `Refused(status)`, its message going up first (`README.md`, 4.3): a source
   missing or private, a host refused by Forgejo's migration settings, a
-  source that is not a git repository. A missing source leaves an empty
-  repository at the name (section 2), which `Copying` names as this
-  copy's, so the same copy, run again, deletes it (step 3).
+  source that is not a git repository. A missing or private source leaves
+  an empty repository at the name (section 2), which `Copying` names as
+  this copy's, so the same copy, run again, deletes it (step 3).
 - **Not for a connected Forgejo or GitHub,** where the owner holds no
   admin's token; `supports` refuses it, as it does `Create`.
 - **A writing run,** one per forge at once (`README.md`, 4.3): a second writing run
@@ -579,10 +579,10 @@ pin (../README.md, section 4.3), and named by the fact's name.
   (../../testing/fakes/forge.md, section 7): `Migrate` refuses a plain `http` source
   until `ALLOW_UNENCRYPTED` is on; it answers 201 once whole, private,
   with the source's default branch and every branch; it brings no
-  issues; a name already there answers 409; a missing source is refused
-  422 with a message and leaves an empty repository at the name, so its
-  fact, whose name says it leaves nothing, is recorded `fails`; a source
-  with no commit answers 201 with no branch; an address on a local
+  issues; a name already there answers 409; a missing source, and a
+  private one asked with no credentials, are each refused with a message
+  and leave an empty repository at the name, which reads 200, empty, with
+  no branch; a source with no commit answers 201 with no branch; an address on a local
   network is refused by Forgejo's default settings; `OFFLINE_MODE`
   leaves migrations on; a migration cut short by stopping Forgejo leaves
   a repository that reads with no default branch, and it deletes and
@@ -598,7 +598,8 @@ pin (../README.md, section 4.3), and named by the fact's name.
   `setup-migrate-keeps-the-sources-default-branch`,
   `setup-migrate-brings-nothing-but-git`,
   `setup-migrate-of-a-name-taken-is-409`,
-  `setup-migrate-of-a-missing-source-says-why-and-leaves-nothing`,
+  `setup-migrate-of-a-missing-source-says-why-and-leaves-an-empty-repository`,
+  `setup-migrate-of-a-private-source-says-why-and-leaves-an-empty-repository`,
   `setup-migrate-of-a-source-with-no-commit-is-201-with-no-branch`,
   `setup-migrate-of-a-local-address-is-refused-by-default`,
   `setup-migrate-runs-with-offline-mode`,

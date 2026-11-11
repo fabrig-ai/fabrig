@@ -24,8 +24,12 @@ The hand-made request’s 01–23 are not committed mockups or journeys;
 checks, with no new visual audit: the retained browser stories share
 setups within twelve tests, and no passing result for their repaired
 versions is supplied here. temper/ui’s comparison follows landing
-(`../web/look-requests.md`, 4). Home’s own sheet and the two unmocked
-entry paths remain in `../../draft/repository-copies.status.md`, 9.
+(`../web/look-requests.md`, 4). Home keeps its own empty-or-copy sheet,
+as the user asked (`../forge/family.md`, 3; the draft status's departure,
+`../../draft/repository-copies.status.md`). The two entry paths into
+“Add repositories” that the request left undrawn, To begin's repository
+step and a project with no repository's Chats band, are the gallery's
+`sheet-from-home` and `sheet-from-chats` (`../web/gallery.md`, 2).
 
 ## 1. Under the rules
 
