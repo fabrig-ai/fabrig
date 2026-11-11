@@ -122,6 +122,7 @@ pub struct World {
     process: Process,
     replay: Option<(Option<host::LinkUp>, Option<host::LinkDown>)>,
     assignment: Option<engine::Assignment>,
+    inspecting_runs: std::collections::BTreeMap<(u64, u64), bool>,
     adoption: Adoption,
     /// The root heard its funding period and the git identity once ready.
     funded: bool,
@@ -481,6 +482,7 @@ impl World {
             process: Process::new(seed, script),
             replay: None,
             assignment: None,
+            inspecting_runs: std::collections::BTreeMap::new(),
             adoption: if repository { Adoption::Pending } else { Adoption::Without },
             funded: false,
             opened: false,
@@ -870,16 +872,19 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, .. } => engine::WorkerInput::RenderedHostCall {
-                    to,
-                    answer: link::render(
-                        &answer,
-                        &tool,
-                        self.env.limits.call_answer_bytes,
-                        key.task,
-                        self.worker_env.limits.reply_bytes,
-                    ),
-                },
+                engine::HostDelivery::Render { to, answer, tool, key, job, .. } => {
+                    engine::WorkerInput::RenderedHostCall {
+                        to,
+                        answer: link::render(
+                            &answer,
+                            &tool,
+                            self.env.limits.call_answer_bytes,
+                            key.task,
+                            self.worker_env.limits.reply_bytes,
+                            job,
+                        ),
+                    }
+                }
                 engine::HostDelivery::See { to, line, from, answer } => {
                     let (body, error) = temper_engine_smith::see_answer(
                         &line,
@@ -1042,6 +1047,10 @@ impl World {
             }));
         }
         self.worker_events.push_back(worker::Event::Assign { assignment: hub, items: Ok(items) });
+        self.inspecting_runs.insert(
+            (assignment.task, assignment.attempt),
+            assignment.workspace.repositories.iter().all(|repository| repository.push.is_none()),
+        );
         self.assignment = Some(assignment);
     }
 
@@ -1188,7 +1197,13 @@ impl World {
         preparation: Option<worker::wire::Preparation>,
     ) {
         self.observed.answers += 1;
-        let (turns, spent) = self.process.answered.unwrap_or((0, 0));
+        // An older terminal may cross the next assignment on the worker link.
+        let process = if self.assignment().task == run.raw() {
+            &self.process
+        } else {
+            self.parked.get(&run.raw()).expect("the answering run's retained process")
+        };
+        let (turns, spent) = process.answered.unwrap_or((0, 0));
         assert_eq!(
             (answer.turns, answer.spent),
             (turns, spent),
@@ -1196,9 +1211,9 @@ impl World {
             self.assignment.as_ref().map(|assignment| assignment.task)
         );
         if let host::Ending::Refused(_) = &answer.ending {
-            assert!(self.process.prepared(), "refusal precedes a process");
+            assert!(process.prepared(), "refusal precedes a process");
         } else {
-            match (&answer.ending, self.agent().answer()) {
+            match (&answer.ending, process.agent().answer()) {
                 (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
                     let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
                     assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
@@ -1208,7 +1223,7 @@ impl World {
                 (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
             }
         }
-        if self.assignment().workspace.repositories.iter().all(|repository| repository.push.is_none()) {
+        if *self.inspecting_runs.get(&(run.raw(), attempt.raw())).expect("answering run's workspace") {
             assert!(work.landed.is_empty(), "an inspecting run lands nothing");
         }
         let parts = link::parts(work, preparation);

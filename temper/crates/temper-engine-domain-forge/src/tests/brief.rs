@@ -1,5 +1,6 @@
 use super::*;
 use skein_forge::api::{Answer, Check, JobAttempt, Read, Status, Step};
+use temper_engine_domain_forge_change as change;
 
 // temper-service's shipped root.brief.budgets.ci; read_bytes is 4608 and
 // forge.client.answer_bytes exceeds the five-check log share of 819 bytes.
@@ -309,6 +310,79 @@ fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) ->
     pull.base_commit = None;
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
     (d, owner)
+}
+
+#[test]
+fn a_late_brief_answer_for_completed_work_is_dropped() {
+    for compared in [false, true] {
+        let (mut d, owner) =
+            pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
+        let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false };
+        if compared {
+            assert!(brief::brief_answer(&mut d, owner, Ok(files.clone()), LIMITS.client.rows, &mut Queue::uncapped()));
+        }
+        let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
+        row.change.state = change::State::Landed { since: env().wall, merge: fixtures::BASE };
+        let answer = if compared {
+            Answer::Compare {
+                before: HEAD,
+                after: fixtures::BASE,
+                files: Box::new([]),
+                ahead: 0,
+                behind: 1,
+                changed: 0,
+            }
+        } else {
+            files
+        };
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Ok(answer), LIMITS.client.rows, &mut out));
+        assert!(out.is_empty(), "a completed change drops the late answer: {out:?}");
+        assert!(d.brief_fetches.is_empty());
+        assert!(d.brief_pending.is_empty());
+        assert!(d.take_brief(SECTION).is_none());
+    }
+}
+
+#[test]
+fn a_planned_brief_does_not_start_after_its_change_completes() {
+    let item = BriefItem { repository: REPO.repository, number: 1 };
+    for source in [
+        BriefSource::Pull { item, head: BriefCommit(HEAD) },
+        BriefSource::Ci { item, head: BriefCommit(HEAD) },
+        BriefSource::Reviews { item, head: BriefCommit(HEAD) },
+        request_source(),
+    ] {
+        let mut d = request_domain();
+        outputs(&mut d, Event::PlanBrief { section: SECTION, source, partner: None });
+        d.changes.get_mut(&fixtures::CHANGE).expect("live change").change.state = change::State::Ended;
+        let out = outputs(
+            &mut d,
+            Event::GatherPlanned {
+                section: SECTION,
+                parts: 2,
+                bytes: 2048,
+                ci_budget: 2048,
+                deadline: env().now.saturating_add(Duration::from_secs(30)),
+            },
+        );
+        assert!(out.is_empty(), "completed work starts no brief read: {out:?}");
+        assert!(d.brief_pending.is_empty());
+        assert!(d.brief_fetches.is_empty());
+    }
+}
+
+#[test]
+fn a_completed_change_does_not_retry_a_busy_brief() {
+    let (mut d, owner) =
+        pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    d.changes.get_mut(&fixtures::CHANGE).expect("live change").change.state = change::State::Ended;
+    d.reclaim();
+    brief::retry(&mut d, &mut out);
+    assert!(out.is_empty(), "a completed change never retries admission: {out:?}");
+    assert!(d.brief_fetches.is_empty());
 }
 
 fn pull_section(body: &[u8]) -> Box<[u8]> {

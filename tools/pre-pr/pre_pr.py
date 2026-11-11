@@ -376,13 +376,14 @@ def nextest(packages, root, env, expression=None, build=False):
         return code, errors
 
 
-def refresh(root, paths):
-    """Make surviving changed inputs newer than shared artifacts (section 5)."""
+def refresh(roots, paths):
+    """Make both checkouts' changed inputs newer than shared artifacts (section 5)."""
     stamp = time.time_ns()
-    for name in paths:
-        path = root / name
-        if path.is_file() and path.resolve().is_relative_to(root):
-            os.utime(path, ns=(path.stat().st_atime_ns, stamp))
+    for root in roots:
+        for name in paths:
+            path = root / name
+            if path.is_file() and path.resolve().is_relative_to(root):
+                os.utime(path, ns=(path.stat().st_atime_ns, stamp))
 
 
 def inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths):
@@ -390,7 +391,7 @@ def inherited(base_id, git_dir, data, lints, tests, errors, root, env, paths):
     try:
         return judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths)
     finally:
-        refresh(root, paths)
+        refresh((root, git_dir / 'temper-pre-pr/base'), paths)
 
 
 def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
@@ -410,7 +411,7 @@ def judge_base(base_id, git_dir, data, lints, tests, errors, root, env, paths):
         code, log = run(['git'] + arguments, cwd, base_env)
         if code:
             return 'base could not judge: ' + log
-    refresh(worktree, paths)
+    refresh((worktree, root), paths)
     reasons = []
     count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
     for name in sorted({e['key'][0] for e in count_errors}):

@@ -110,6 +110,7 @@ pub enum HostDelivery {
         key: CallKey,
         name: Box<[u8]>,
         tool: Box<[u8]>,
+        job: Option<skein_forge::api::JobAttempt>,
         answer: CallAnswer,
     },
     Answer {
@@ -130,6 +131,7 @@ pub(crate) struct Flight {
     pub render: FlightRender,
     pub name: Box<[u8]>,
     pub tool: Box<[u8]>,
+    pub job: Option<skein_forge::api::JobAttempt>,
 }
 
 /// Only one tool's rendering context is kept per flight. Boxing the change
@@ -262,6 +264,7 @@ pub(crate) fn decode(domain: &mut Domain, to: ReplyTo, task: u64, attempt: u64, 
         key: None,
         note_decoding: false,
         render: FlightRender::Plain,
+        job: None,
         name: call.name.clone(),
         tool: call.tool.clone(),
     };
@@ -293,9 +296,11 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let key =
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
+    let mut job = None;
     let render = if let crate::Tool::ReadTask { .. } = &body.tool {
         FlightRender::TaskRead
-    } else if let crate::Tool::ReadForge { .. } | crate::Tool::ReadNamed { .. } = &body.tool {
+    } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
+        job = super::diagnostics::job_attempt(read);
         FlightRender::ForgeRead
     } else if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
@@ -328,6 +333,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     };
     let flight = domain.call_renders.get_mut(&right).expect("current typed flight");
     flight.render = render;
+    flight.job = job;
     flight.key = Some(key);
     relay_payload(domain, env, decision, to, key, body);
 }
@@ -531,6 +537,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
             key,
             name: flight.name.clone(),
             tool: flight.tool.clone(),
+            job: flight.job,
             answer,
         })),
     );
@@ -572,6 +579,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
                         reason,
                         findings: Box::new([]),
                         error: None,
+                        job: flight.job,
                     },
                 );
                 read_size_refusal(domain, &call.tool, reason, measured, limit)
@@ -758,6 +766,7 @@ pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
         key: flight.key.expect("decoded read"),
         name: flight.name.clone(),
         tool: flight.tool.clone(),
+        job: flight.job,
         answer,
     })));
     assert!(super::now(domain, request), "read render door reserved");

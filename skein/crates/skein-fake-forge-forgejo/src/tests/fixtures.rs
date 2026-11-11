@@ -109,6 +109,23 @@ impl Harness {
         Self::with_config(config, hooked, fake_config())
     }
     fn with_config(config: Config, hooked: bool, fake_config: fake::Config) -> Self {
+        Self::with_checks(
+            config,
+            hooked,
+            fake_config,
+            a::Checks {
+                cues: Box::new([]),
+                contexts: Box::new([boxed(b"build")]),
+                latency_min: Duration::ZERO,
+                latency_max: Duration::ZERO,
+                silent: 0,
+                passes: 0,
+                reruns: 0,
+                cue: None,
+            },
+        )
+    }
+    pub fn with_checks(config: Config, hooked: bool, fake_config: fake::Config, checks: a::Checks) -> Self {
         let limits = limits();
         let mut domain = fake::Domain::new(&fake_config, 3);
         fake::repository(
@@ -121,16 +138,7 @@ impl Harness {
                 default: boxed(b"main"),
                 tree: Box::from([]),
                 labels: Box::from([]),
-                checks: a::Checks {
-                    cues: Box::new([]),
-                    contexts: Box::new([boxed(b"build")]),
-                    latency_min: Duration::ZERO,
-                    latency_max: Duration::ZERO,
-                    silent: 0,
-                    passes: 0,
-                    reruns: 0,
-                    cue: None,
-                },
+                checks,
                 protection: None,
                 hooked,
             },

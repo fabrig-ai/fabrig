@@ -9,6 +9,7 @@ use skein_lib::{Decimal, Env, Id, List, Time, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RunEvent {
     Push,
+    PullRequest,
     Dispatch,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -72,7 +73,7 @@ pub(crate) fn start(
         number: repository.run_number,
         commit,
         workflow: None,
-        event: RunEvent::Push,
+        event: if pull.is_some() { RunEvent::PullRequest } else { RunEvent::Push },
         user,
         state: RunState::Running,
         conclusion: None,

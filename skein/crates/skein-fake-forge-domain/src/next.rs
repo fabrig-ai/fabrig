@@ -148,82 +148,59 @@ pub(crate) fn checks(repository: &Repository, limits: &Limits, commit: u64, ci_u
     Ok(Answer::Checks(summaries.into_boxed()))
 }
 
-pub(crate) fn job(repository: &Repository, id: u64, ci_user: u64) -> Result<Answer, Error> {
-    let (_, job) = crate::actions::latest(repository, id)?;
-    let run = crate::actions::run(repository, job.run)?;
-    if run.run.workflow.is_some() {
-        return Ok(Answer::Job { steps: job.steps.clone(), job });
-    }
-    let (mut job, context, failing) = failed_job(repository, id, ci_user)?;
-    job.steps = crate::actions::steps(
-        context,
-        failing,
-        crate::ci::cue(&repository.checks, context),
-        run.pull,
-        repository.opening.get(usize_of(job.index)).expect("CI context"),
-    );
+pub(crate) fn job(repository: &Repository, id: u64) -> Result<Answer, Error> {
+    let job = job_view(repository, id)?;
     Ok(Answer::Job { steps: job.steps.clone(), job })
 }
 
-pub(crate) fn log(
-    repository: &Repository,
-    id: u64,
-    attempt: u32,
-    step: Option<u32>,
-    ci_user: u64,
-) -> Result<Answer, Error> {
-    let (_, dispatched) = crate::actions::latest(repository, id)?;
-    if crate::actions::run(repository, dispatched.run)?.run.workflow.is_some() {
-        if dispatched.attempt != attempt {
-            return Err(Error::Missing(What::Job));
-        }
-        let mut out = List::with_capacity(
-            u32::try_from(dispatched.name.len()).expect("bounded job").saturating_mul(6).saturating_add(91),
+fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
+    let (_, mut job) = crate::actions::latest(repository, id)?;
+    let run = crate::actions::run(repository, job.run)?;
+    if run.run.workflow.is_none() && job.state == crate::api::RunState::Completed {
+        let state = match job.conclusion {
+            Some(crate::api::Conclusion::Success) => Check::Passed,
+            Some(crate::api::Conclusion::Failure) => Check::Failed,
+            None => unreachable!("a completed CI job has a conclusion"),
+        };
+        job.steps = crate::actions::outcome_steps(
+            &job.name,
+            state,
+            *repository.failing.get(usize_of(job.index)).expect("CI context"),
+            crate::ci::cue(&repository.checks, &job.name),
+            run.pull,
+            repository.opening.get(usize_of(job.index)).expect("CI context"),
         );
-        for slice in &dispatched.steps {
-            if step.is_none() || step == Some(slice.number) {
-                for &byte in &slice.log {
-                    out.push(byte).expect("bounded job log");
-                }
-            }
-        }
-        if step.is_some() && step > Some(2) {
-            return Err(Error::Missing(What::Job));
-        }
-        return Ok(Answer::File(out.into_boxed()));
     }
-    let (job, context, failing) = failed_job(repository, id, ci_user)?;
-    if job.attempt != attempt {
-        return Err(Error::Missing(What::Job));
-    }
-    Ok(Answer::File(crate::actions::log(
-        context,
-        failing,
-        crate::ci::cue(&repository.checks, context),
-        crate::actions::run(repository, job.run)?.pull,
-        step,
-        repository.opening.get(usize_of(job.index)).expect("CI context"),
-    )?))
+    Ok(job)
 }
 
-fn failed_job(
-    repository: &Repository,
-    id: u64,
-    ci_user: u64,
-) -> Result<(crate::api::Job, &[u8], crate::api::Failing), Error> {
-    let (commit, job) = crate::actions::latest(repository, id)?;
-    let index = usize_of(job.index);
-    let context = repository.checks.contexts.get(index).expect("a configured context");
-    let status = repository
-        .statuses
-        .get(&commit)
-        .ok_or(Error::Missing(What::Job))?
-        .get(context.as_ref())
-        .ok_or(Error::Missing(What::Job))?;
-    if status.author != ci_user || status.state != Check::Failed {
+pub(crate) fn log(repository: &Repository, id: u64, attempt: u32, step: Option<u32>) -> Result<Answer, Error> {
+    let job = job_view(repository, id)?;
+    let steps = &job.steps;
+    if job.attempt != attempt || steps.is_empty() {
         return Err(Error::Missing(What::Job));
     }
-    Ok((job, context, *repository.failing.get(index).expect("a configured context")))
+    let mut length = 0_u32;
+    let mut found = step.is_none();
+    for slice in steps {
+        if step.is_none() || step == Some(slice.number) {
+            found = true;
+            length =
+                length.checked_add(u32::try_from(slice.log.len()).expect("bounded step log")).expect("bounded job log");
+        }
+    }
+    if !found {
+        return Err(Error::Missing(What::Job));
+    }
+    let mut out = List::with_capacity(length);
+    for slice in steps {
+        if step.is_none() || step == Some(slice.number) {
+            for &byte in &slice.log {
+                out.push(byte).expect("counted job log");
+            }
+        }
+    }
+    Ok(Answer::File(out.into_boxed()))
 }
 
 pub(crate) fn settings(repository: &Repository) -> Answer {

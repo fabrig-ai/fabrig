@@ -95,8 +95,13 @@ elif name == 'cargo':
     if state.get('shared_source'):
         source = Path.cwd() / state['shared_source']
         artifact = git_dir / 'shared.rlib'
-        if not artifact.exists() or source.stat().st_mtime_ns > artifact.stat().st_mtime_ns:
+        dependency = git_dir / 'shared.input'
+        absolute = state.get('shared_absolute')
+        tracked = Path(dependency.read_text()) if absolute and dependency.exists() else source
+        if not artifact.exists() or not tracked.exists() or tracked.stat().st_mtime_ns > artifact.stat().st_mtime_ns:
             artifact.write_text(source.read_text())
+            if absolute:
+                dependency.write_text(str(source))
         if artifact.read_text() != source.read_text():
             print(side + ' compiled with other checkout artifact', file=sys.stderr)
             sys.exit(101)
@@ -704,6 +709,36 @@ fn each_judge_builds_its_own_sources() {
         assert!(!root.join("a/src/removed.rs").exists(), "deleted sources stay absent: {row}");
         assert!(!worktree.join("a/src/new file\nname.rs").exists(), "head-only sources stay absent at base: {row}");
     }
+}
+
+#[test]
+fn each_judge_embeds_its_own_out_of_package_input() {
+    let scratch = fixture();
+    let root = scratch.path();
+    write(root, "a/src/lib.rs", "pub const PAGE: &str = include_str!(\"../../docs/page.md\");\n");
+    write(root, "docs/page.md", "old\n");
+    write(root, ".config/gate/always.txt", "A docs/\n");
+    write(root, ".config/gate/read-by-tests.txt", "docs/page.md\n");
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "base page"]);
+    pin(root);
+    let worktree = root.join(".git/temper-pre-pr/base");
+    git(root, &["worktree", "add", "--detach", worktree.to_str().expect("base worktree path"), "HEAD"]);
+    write(root, "docs/page.md", "new page\n");
+    ledger(
+        root,
+        &json!({"head": {"tests": [test_failure("page", "head failure")]}, "base": {},
+            "shared_source": "docs/page.md", "shared_absolute": true}),
+    );
+    let first = deliver(root);
+    assert_eq!(first.status.code(), Some(1), "{}", text(&first));
+    assert!(!text(&first).contains("other checkout artifact"), "base embeds its own page: {}", text(&first));
+    assert!(build_events(root).iter().any(|event| event[1] == "base"), "base judge ran");
+    assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("base artifact"), "old\n");
+    ledger(root, &json!({"head": {}, "base": {}, "ms": 0, "events": []}));
+    let next = deliver(root);
+    assert!(next.status.success(), "next head embeds its own page: {}", text(&next));
+    assert_eq!(fs::read_to_string(root.join(".git/shared.rlib")).expect("head artifact"), "new page\n");
 }
 
 #[test]

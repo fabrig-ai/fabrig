@@ -787,6 +787,7 @@ const STORY_OWNER_ENDED: usize = 36;
 const DIRECTION_ENDED: usize = 38;
 const STORY_OWNER_EARLIER: usize = 39;
 const STORY_OWNER_FIRST: usize = 40;
+const STORY_OWNER_INITIAL: usize = 41;
 pub const READS_5_4: &[(Read, usize)] = &[
     (Read::X3Open, 7),
     (Read::X3Produced, 8),
@@ -805,6 +806,7 @@ pub const READS_5_4: &[(Read, usize)] = &[
     (Read::DirectionEnded, DIRECTION_ENDED),
     (Read::StoryOwnerEarlier, STORY_OWNER_EARLIER),
     (Read::StoryOwnerFirst, STORY_OWNER_FIRST),
+    (Read::StoryOwnerInitial, STORY_OWNER_INITIAL),
 ];
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "the reference story keeps its ordered ctl acts together")]
@@ -937,6 +939,20 @@ pub fn step_5_4() -> Vec<calls::Step> {
                 "--json"
             ],
         ),
+        // Run endings can put the first attempt's beginning on a fourth page;
+        // follow that page only when the third supplies a cursor.
+        call(
+            D1,
+            argv![
+                "task",
+                "activity",
+                number(STORY_OWNER),
+                "--before",
+                calls::activity_before(STORY_OWNER_FIRST),
+                "--json"
+            ],
+        )
+        .if_activity_remains(),
     ]
 }
 

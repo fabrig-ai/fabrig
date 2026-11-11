@@ -107,6 +107,7 @@ fn root(requester: tasks::Party) -> (crate::Domain, Env<crate::Limits>, crate::C
                 attempt: 1,
                 key: Some(key),
                 note_decoding: false,
+                job: None,
                 render: host_route::FlightRender::Plain,
                 name: b"call".as_slice().into(),
                 tool: b"remember".as_slice().into(),

@@ -195,15 +195,16 @@ inherited. A red base refuses nothing the delivery did not cause.
   can reuse the dependencies. Workspace members have artifact keys
   relative to their workspace root, so the base can overwrite the head's
   artifacts, and the base can likewise reuse the head's artifacts.
-  After the base's checkout and clean, before any base build, refresh its
-  surviving changed files within that checkout to a timestamp taken
-  after the head build. After every base judgment, including a failed
-  judgment, a `finally` block refreshes the head's copies to a timestamp
-  taken after the base build. The paths are the NUL-delimited diff from
+  After the base's checkout and clean, before any base build, refresh both
+  checkouts' surviving changed files to a timestamp taken after the head
+  build. After every base judgment, including a failed judgment, a `finally`
+  block refreshes both checkouts' copies to a timestamp taken after the base
+  build. The paths are the NUL-delimited diff from
   the base to section 3's private snapshot, so committed, staged,
   unstaged and new files are covered. Deleted files stay absent on each
   side; cargo sees missing inputs as stale. Build
   scripts see refreshed tracked inputs and regenerate their outputs.
+  Each refresh touches both checkouts' copies of those paths, each copy that exists: cargo's dep-info records an input outside its package (an `include_str!` reaching a sibling directory, as `temper-docs` embeds `temper/docs/help`) by its absolute path, in the checkout that built it last, so the other side's build judges that input by the first checkout's copy, and refreshing only its own copies would leave it embedding the first side's bytes. A worker's own builds after a delivery check share that target, so they too compile their own checkout's bytes: a generated-document test, and its write mode (`SKEIN_CODEGEN_WRITE=1`), compare the pages their checkout holds.
   The caller's index and file contents stay as they are. The next head
   build must rebuild each package whose sources differ; the base judge
   must likewise build the base's code. Cargo rebuilds their consumers,
@@ -304,10 +305,12 @@ scratch workspace. A kept base checkout predates
 the head's shared artifacts: the base judge must execute the base's code,
 then the next head build must execute the head's code. This holds for
 source changes and build-script inputs generating Rust in `OUT_DIR`,
-including an input deleted at head. The boundary world also models the
+including an input deleted at head, and for a consumer embedding with `include_str!` a file outside its package, changed at head: after a base judgment the head's next build embeds the head's bytes, and the base's build, after a head build, the base's. The boundary world also models the
 shared artifact's mtime in both directions for lint, test and build
 judgments and a base tool error, with new paths containing
-whitespace and a deleted source.
+whitespace and a deleted source. For an out-of-package input it retains
+the last build's absolute input path across checkouts, as cargo's dep-info
+does.
 
 ## 10. Later
 

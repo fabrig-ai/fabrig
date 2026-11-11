@@ -157,6 +157,12 @@ impl Harness {
             self.answer(listing, Answer::Items { items: Box::new([]), more: false, now: self.env.now });
         }
     }
+    pub(in crate::tests) fn repository(&self) -> &crate::RepositoryRecord {
+        match self.records.get(&Key::Repository(REPO)).expect("saved repository row") {
+            Stored::Repository(row) => row,
+            Stored::Live(_) | Stored::Writer(_) => panic!("repository row shape"),
+        }
+    }
     pub(in crate::tests) fn record(&self, resource: &Resource) -> &LiveRecord {
         match self.records.get(&Key::Live(resource.clone())).expect("saved live row") {
             Stored::Live(row) => row,

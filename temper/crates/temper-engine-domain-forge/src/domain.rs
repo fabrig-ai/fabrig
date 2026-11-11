@@ -31,7 +31,7 @@ mod restore;
 pub use restore::{RestoreFit, RestoreSet};
 #[path = "design.rs"]
 mod design;
-use design::{branch_written, design_claim_permitted, pending_writer, read_designs, unused_goal_run};
+use design::{branch_written, design_claim_permitted, goal_run, pending_writer, read_designs, unpublished_branch};
 
 /// One comparison in flight for a branch's observed tip move.
 #[derive(Hash, Debug)]
@@ -2322,7 +2322,7 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Q
             continue;
         }
         for name in row {
-            if d.forge_ended(name.forge) {
+            if d.forge_ended(name.forge) || goal_run(d, name) {
                 continue;
             }
             let Some(resource) = to_client(name, &env.limits) else { continue };
@@ -3627,11 +3627,19 @@ fn step_read(
     if d.stopping {
         return;
     }
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    if row.terminal() {
+        if let Some(decision) = change_terminal(row) {
+            emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
+        } else if let Some(merge) = landed_commit(&row.change.state) {
+            step_verified(d, env, pending.task, merge, pending.heard, out);
+        }
+        return;
+    }
     if result == Err(skein_forge::api::Error::Busy) {
         retry_step(env, pending.task, out);
         return;
     }
-    let Some(row) = d.changes.get(&pending.task) else { return };
     if admission::read_failed(row, &pending, &result, out) {
         return;
     }
@@ -4912,7 +4920,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             if designing {
                 return;
             }
-            if unused_goal_run(d, &name) && writer.is_none() {
+            if unpublished_branch(d, &name) && writer.is_none() {
                 d.holds.remove(&name);
                 crate::tiers::released(d, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
@@ -6002,6 +6010,15 @@ fn wake_head_dependents(
     }
 }
 
+fn completed_branch(d: &Domain, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    for (_, row) in &d.changes {
+        if row.repository == repository && row.branch.as_ref() == branch && row.terminal() {
+            return true;
+        }
+    }
+    false
+}
+
 fn branch_changed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -6047,7 +6064,7 @@ fn branch_changed(
         crate::workflows::first_tip(d, env, resource.repository, &branch, commit, out);
         return;
     };
-    if before == commit {
+    if before == commit || completed_branch(d, resource.repository, &branch) {
         return;
     }
     let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
@@ -6084,6 +6101,11 @@ fn landing_read(
     out: &mut Queue<Request>,
 ) {
     let Some(pending) = d.landings.remove(&owner) else { return };
+    if let Topic::Landings { repository, branch } = &pending.topic
+        && completed_branch(d, *repository, branch)
+    {
+        return;
+    }
     let files = match result {
         Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
             if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>
@@ -6591,6 +6613,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
 }
 
 fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
+    admission::restore_names(d, out);
     if d.fit_restored(&env.limits).is_err() {
         return;
     }
@@ -6778,7 +6801,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut watches = Map::with_capacity(env.limits.client.resources);
     for (_, names) in &d.names {
         for name in names {
-            if d.forge_ended(name.forge) {
+            if d.forge_ended(name.forge) || goal_run(d, name) {
                 continue;
             }
             let Some(resource) = to_client(name, &env.limits) else { continue };

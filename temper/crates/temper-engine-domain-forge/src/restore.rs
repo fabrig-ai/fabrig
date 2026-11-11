@@ -425,7 +425,7 @@ fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
     let mut watches = Map::with_capacity(l.client.resources);
     for (_, names) in &d.names {
         for name in names {
-            if d.forge_ended(name.forge) {
+            if d.forge_ended(name.forge) || super::goal_run(d, name) {
                 continue;
             }
             let Some(resource) = super::to_client(name, l) else {

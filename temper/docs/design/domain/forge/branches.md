@@ -57,7 +57,7 @@
   as it closes: the goal's landing leaves its goal's branch to the
   goal's own close. A goal's run branch goes as its goal closes. A
   release waits for a lost writer's reread, and fails only if that
-  reread fails.
+  reread fails. A branch temper knows no head of once that reread is done (a change's branch before its first push, a run branch nothing pushed) is not deleted: its hold is dropped with no write, as a goal's unused run branch is.
 
 A goal's release recognises its branch as landed from a change in the same
 repository on that branch, in landed, red, cleared or uncleared state, whose
