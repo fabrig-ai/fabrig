@@ -34,6 +34,7 @@ pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow 
             behind: 3,
             whole: true,
             yours: w::ApprovalYours::Counts,
+            size: None,
         },
     )
     .unwrap()

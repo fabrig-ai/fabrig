@@ -1051,6 +1051,7 @@ fn approval(project: u32) -> w::ApprovalRow {
             behind: 0,
             whole: true,
             yours: w::ApprovalYours::Counts,
+            size: None,
         },
     )
     .expect("bounded density fixture")

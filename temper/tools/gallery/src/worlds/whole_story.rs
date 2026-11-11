@@ -220,6 +220,7 @@ fn approvals(name: &str) -> Box<[u8]> {
                         behind: 0,
                         whole: true,
                         yours: w::ApprovalYours::Counts,
+                        size: None,
                     },
                 )
                 .expect("Pair approval"),

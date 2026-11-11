@@ -190,6 +190,7 @@ fn approvals(alone: bool) -> w::Approvals {
                     behind: 0,
                     whole: true,
                     yours: w::ApprovalYours::Counts,
+                    size: None,
                 },
             )
             .expect("review"),

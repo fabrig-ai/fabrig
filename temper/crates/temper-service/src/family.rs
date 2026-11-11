@@ -2045,6 +2045,7 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
                         root::YourReview::TooFew => w::ApprovalYours::TooFew,
                         root::YourReview::OtherRole => w::ApprovalYours::OtherRole,
                     },
+                    size: None,
                 },
             )
             .ok()?,
