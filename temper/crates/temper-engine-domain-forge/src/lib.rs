@@ -682,6 +682,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.title))?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
+            .checked_add(match &row.follows {
+                Some(follows) => skein_lib::len_u64(follows.commits.len()).checked_mul(32)?,
+                None => 0,
+            })?
             .checked_add(
                 skein_lib::len_u64(row.change.gates.len())
                     .checked_mul(u64::try_from(size_of::<change::Gate>()).ok()?)?,

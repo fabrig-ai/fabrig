@@ -521,6 +521,9 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if !requested && facts.follows && !facts.pending.is_empty() {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     match &change.early {
         Early::Started(heads) => {
             if standing.start_conflict.is_some() {

@@ -126,6 +126,7 @@ mod change_producer;
 
 #[path = "forge_routes/early_start.rs"]
 mod early_start;
+mod follows;
 
 #[path = "forge_routes/goal_questions.rs"]
 mod goal_questions;
