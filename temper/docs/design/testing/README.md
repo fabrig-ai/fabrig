@@ -510,6 +510,7 @@ crates/temper-client-shell-terminal/tests  the terminal's machine world (../clie
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
 crates/temper-fake-git-hosted       the fake git program hosted by skein's simulated world (4.3), which the playground ships; its fixtures with the tests
 crates/temper-playground            the world's composition, the playground's and the one-process world's (../playground.md, 3)
+crates/temper-playground-serve-tool the browser tier's static host for the playground's bundle, called by bin/temper-playground-serve (tools.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world

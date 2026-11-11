@@ -1,0 +1,32 @@
+# clippy variant: ordinary (tools/lints/design.md, 4).
+# What ordinary Rust may not use (skein/docs/foundation/programming-model.md, 10.2):
+# std, closures, traits and formatting are in, but a run is one thread and one
+# loop, and a seed replays (skein/docs/foundation/testing-strategy.md, 1).
+
+# Test code may unwrap (skein/docs/foundation/testing-strategy.md, 4); a harness
+# in a crate's src/ says what it expects instead.
+allow-unwrap-in-tests = true
+
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
+    { path = "std::hash::RandomState", reason = "iteration order would depend on a random seed: BTreeMap" },
+    { path = "std::time::Instant", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+]
+
+disallowed-methods = [
+    { path = "std::thread::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::Builder::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::scope", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::env::args", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::args_os", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::var", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::var_os", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::vars", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::vars_os", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::set_var", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "std::env::remove_var", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
+    { path = "skein_shell::arguments", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)", allow-invalid = true },
+    { path = "skein_shell::environment", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)", allow-invalid = true },
+]
