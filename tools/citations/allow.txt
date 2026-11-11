@@ -13,9 +13,6 @@ temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's 
 # History kept on purpose.
 temper/docs/design/draft/notes.md notes/contracts.md # a plan's file name in the replay's account, not a document here
 temper/docs/design/draft/notes.md landing-model.md # the retired draft, readable at the commit it names
-temper/docs/design/draft/agent-binary.md temper/docs/design/draft/agent-binary.md|temper/docs/design/draft/deployment-binaries.execution.md 10 # the landed plan's request, kept as written: its section 10 is deployment-binaries.md's
-temper/docs/design/draft/agent-binary.md temper/docs/design/draft/agent-binary.md 10 # the landed plan's request, kept as written: its section 10 is deployment-binaries.md's
-temper/docs/design/draft/agent-binary.md temper/docs/design/draft/agent-binary.md 4 # the landed plan's request, kept as written: its section 4 is deployment-binaries.md's
 # The citation README's examples of the forms it describes.
 tools/citations/README.md x.md # an example of a citation form, not a document
 tools/citations/README.md ../../a.md # an example of a relative citation path, not a document

@@ -12,11 +12,11 @@ API jig's `client/domain/contract/README.md` and its protocol jig's
 `protocol/client/README.md`: this document takes them as given and cites them.
 The forge's parts of the client are `forge/README.md`, the browser `web/README.md`,
 and the agents' tools, `temper ctl`, `ctl/README.md`. temper is the source
-of truth for what it draws; the mockups (`mockups/`) design what it
+of truth for what it draws; the mockups (`web/mockups/`) design what it
 does not draw yet: their look, their parts and their order, their
 words and where each act leads. This document holds what each page
 reads, watches and does, and cites them for the rest
-(`mockups/README.md`, section 1). What is still open is listed in
+(`web/mockups/README.md`, section 1). What is still open is listed in
 section 5.
 
 ## 1. In one page

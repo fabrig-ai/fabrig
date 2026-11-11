@@ -181,7 +181,7 @@ that changes the stock changes nothing of them.
   `tier_retries` and `verification_bound_ms` are left to their
   defaults.
 - **Charter 5's triage** (`../../draft/reference-code-production.md`,
-  sections 10 and 13; `../../draft/reference-landing.md`, section 6), in
+  sections 10 and 13; `../../draft/archive/reference-landing.md`, section 6), in
   its instructions beside the rest: on a red of g's tier, as news, it
   reads the failing tests, the log's end, the tree and the design, and
   finds the change that owns the failing files; a live change's failure
@@ -233,7 +233,7 @@ that changes the stock changes nothing of them.
   repair while its changes live, by the triage below; a run of the tier
   in flight as the last change ends is not waited for: the landing's CI,
   the project's full gate, checks the whole.
-- **A triage delegate** (`../../draft/reference-landing.md`, section 6):
+- **A triage delegate** (`../../draft/archive/reference-landing.md`, section 6):
   *charter 8, the triage's*, in the settings file, read-only as charter
   6 is (inspect and the forge's reads; no modify, no shell, no
   sub-agents), at gpt-6.1-sol; its instructions: its words carry a
