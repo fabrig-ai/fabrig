@@ -27,7 +27,10 @@
   forge's work at that scale: `forge.tasks`, `forge.holds` and
   `forge.changes` 128, the forge client's `resources` 128 (at least the
   holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
-  `repairs`, `resolutions` and `updates` 80, an issue's `plan_items`
+  `repairs`, `resolutions` and `updates` 80 (its `reruns`, the times a
+  job the runner failed is run again at one head, is 1 in both,
+  `forge.change_policy.reruns`: `../../domain/forge/change/README.md`, 2,
+  step 3), an issue's `plan_items`
   384, and the brief's task section a whole spec of jig's `standard`
   (131,072 bytes) with its contract's and requester's lines; what the
   start's checks tie to these moves with them, the least that passes.
