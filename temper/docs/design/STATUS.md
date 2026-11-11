@@ -340,8 +340,8 @@ you, counted in no card's count, its link to Accounts, which offers an
 expiring source its renewal, with the joint world's story through
 temper's engine, the density fuzz's part and four gallery states. What
 waits on a login, a forge's token and a person task asking an act wait
-for reads, the terminal's inbox lists none, and its item's look lags
-`needs.html`; its render check and walk follow landing
+for reads, the terminal's inbox lists none, and its item's question names
+its source where `needs.html` names who uses it; its render check and walk follow landing
 (`client/pages/README.status.md` and `client/pages/accounts.status.md`, 2; `client/web/gallery.status.md`,
 2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
 4). Ask temper's
@@ -773,8 +773,7 @@ check, the closed-chat wait's split and a head's stall-deadline story remain
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
 parsed blocks and timing away-reader scans remain open (`client/README.md`,
 `draft/chat-reading.md`). The bundle travels gzipped and a
-placeholder paints first, but its fade takes 160 ms where the design has 200, and a
-stall before the module's answer draws no words (`client/web/README.md`). On a phone a chat's page hides the accounts'
+placeholder paints first, but its fade takes 160 ms where the design has 200 (`client/web/README.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/web/README.md`).
 Forges kept in the store, a forge's removal and the
@@ -897,8 +896,7 @@ account and a model it serves, with fake-provider stories for both orders and
 a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
 account's stopped sample and Ready's trial states (`client/web/README.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
-reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
-notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+reason (`domain/trial.md`). No outcome of the required
 real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
@@ -1033,11 +1031,11 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and Ask temper's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
+read's `owned`, and `draft/to-begin.md`'s five, a dismissal erased
 with its project alone, a step's chats the person's own, the first
 repository's "Adopt" sending its adoption and an adoption under way the
-session's alone, beside a lag, any project's change of settings marking
-its first step; `draft/repository-copies.md`'s holds two the
+session's alone, and its first step marked by a change of the project's
+own settings alone; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;

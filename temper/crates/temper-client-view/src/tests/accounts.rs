@@ -159,7 +159,7 @@ fn a_row_holds_its_trials_line() {
             c::AccountKind::Key,
             v::TrialStep::Answers,
             v::TrialState::Running,
-            "OpenAI API key · trying: ChatGPT answers",
+            "OpenAI API key · trying: ChatGPT answers · one short message",
             None,
             true,
         ),

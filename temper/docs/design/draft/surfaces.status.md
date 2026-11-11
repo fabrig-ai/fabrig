@@ -14,10 +14,7 @@
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
     A path set's why names the set, not its paths. Its
-    **Only you** draws an item's from line in the mono, its question at
-    19 px and the card's gap at 12, where `needs.html` has `.from` in the
-    sans, `.q` at 16.5 px and `.card`'s gap at 10; and its question names
-    the source as Accounts does, "Your Claude Code login NAME is
+    **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
     8).

@@ -1,9 +1,7 @@
 # bundle-loading: status
 
-2026-11-06. Where the design lags or departs from [bundle-loading.md](bundle-loading.md).
+2026-11-11. Where the design lags or departs from [bundle-loading.md](bundle-loading.md).
 
-- **Design lags:**
-  - 3, "A stall isn't: it says it is waiting": skein's `ui/web/bundle.md`, 3 has the line say nothing until the module's answer is in, and `data-waiting` after 15 s with no byte, and the code takes the first where no answer has begun (skein's `ui/web/bundle.status.md`, 3). So a stall before that answer draws the mark and an empty bar, with no words.
 - **Design departs:**
   - 2, from "and nothing else": the page's head also holds its charset and viewport, as the bundler's page does (skein's `ui/web/bundle.md`, 3), and temper's server adds the sign-in ways' and kept forges' metas before `</head>` (`../protocol/sign-in.md`, 7, and `../protocol/openid-provider.md`, 7). None fetches anything. Decided by this plan's cut.
   - 2, from its sizes: the page is 2,539 bytes and its stylesheet 1,844, where this draft has 3.6 KB, and the script 2,831, where it has 2.1 KB. What travels is 4,779 bytes, where it has 2.9 KB gzipped: the stylesheet's form and the script's, 770 and 1,470, beside the page whole, because skein's `ui/web/bundle.md`, 4 compresses no page. Decided by this plan's cut.
