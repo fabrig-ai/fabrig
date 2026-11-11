@@ -1591,11 +1591,14 @@ fn signed_in_party() -> parties::Party {
 fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::Op {
     use worker::checkout::git::Op;
     let remote = match &mut op {
-        Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
-            remote
-        }
+        Op::Store { remote, .. }
+        | Op::Clone { remote, .. }
+        | Op::Fetch { remote, .. }
+        | Op::Create { remote, .. }
+        | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
-        Op::Make { .. }
+        Op::Point { .. }
+        | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
