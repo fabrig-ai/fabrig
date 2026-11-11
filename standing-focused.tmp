@@ -1,0 +1,364 @@
+   Compiling skein-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-shell)
+   Compiling temper-version v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-version)
+   Compiling skein-codegen v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-codegen)
+   Compiling temper-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-view)
+   Compiling jig-client-protocol-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-protocol-link)
+   Compiling temper-client-tui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-tui)
+   Compiling jig-protocol-config v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-config)
+   Compiling jig-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-protocol-wire)
+   Compiling skein-sim-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-sim-world)
+   Compiling skein-fake-peers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-peers)
+   Compiling skein-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-world)
+   Compiling skein-fake-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-machine)
+   Compiling jig-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-conformance)
+   Compiling temper-box v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-box)
+   Compiling temper-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-service)
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-tui/src/view/chat/read.rs:223:22
+    |
+223 |         c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+    |                      ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-tui/src/view/chat/read.rs:223:50
+    |
+223 |         c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+    |                                                  ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-tui/src/view/chat/read.rs:266:32
+    |
+266 |                 | c::Activity::Stood { .. }
+    |                                ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-tui/src/view/chat/read.rs:267:32
+    |
+267 |                 | c::Activity::SessionEnded { .. }
+    |                                ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `temper-client-tui` (lib test) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_domain_tasks::EndedBy` in the current scope
+   --> jig/crates/jig-protocol-config/src/templates.rs:151:73
+    |
+151 |         Some(at) if named(document, at, b"standing") => tasks::EndedBy::Standing,
+    |                                                                         ^^^^^^^^ variant or associated item not found in `jig_domain_tasks::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_domain_tasks::EndedBy` in the current scope
+   --> jig/crates/jig-protocol-config/src/templates.rs:204:54
+    |
+204 |     ) || (template.flags.ended_by == tasks::EndedBy::Standing && template.tracked.is_some())
+    |                                                      ^^^^^^^^ variant or associated item not found in `jig_domain_tasks::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_domain_tasks::EndedBy` in the current scope
+   --> jig/crates/jig-protocol-config/src/domain.rs:247:42
+    |
+247 |             | jig_domain_tasks::EndedBy::Standing => {}
+    |                                          ^^^^^^^^ variant or associated item not found in `jig_domain_tasks::EndedBy`
+
+error[E0609]: no field `cache_life_ms` on type `jig_domain_core::Model`
+   --> jig/crates/jig-protocol-config/src/llm.rs:403:11
+    |
+403 |     model.cache_life_ms = cache_life_ms;
+    |           ^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `provider`, `dialect`, `endpoint`, `program`, `name` ... and 9 others
+
+error[E0560]: struct `jig_domain_core::Model` has no field named `cache_life_ms`
+   --> jig/crates/jig-protocol-config/src/llm.rs:475:9
+    |
+475 |         cache_life_ms: 0,
+    |         ^^^^^^^^^^^^^ `jig_domain_core::Model` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0609]: no field `cache_life_ms` on type `jig_domain_core::Model`
+   --> jig/crates/jig-protocol-config/src/tests/llm.rs:458:46
+    |
+458 |     assert_eq!(model(fixtures::ENGINE_SMALL).cache_life_ms, 0);
+    |                                              ^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `provider`, `dialect`, `endpoint`, `program`, `name` ... and 9 others
+
+error[E0609]: no field `cache_life_ms` on type `jig_domain_core::Model`
+   --> jig/crates/jig-protocol-config/src/tests/llm.rs:466:47
+    |
+466 |         assert_eq!(engine.llm.models[0].model.cache_life_ms, expected);
+    |                                               ^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `provider`, `dialect`, `endpoint`, `program`, `name` ... and 9 others
+
+error[E0609]: no field `cache_life_ms` on type `jig_domain_core::Model`
+   --> jig/crates/jig-protocol-config/src/tests/llm.rs:467:52
+    |
+467 |         assert_eq!(engine.charters[0].policy.model.cache_life_ms, expected);
+    |                                                    ^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `provider`, `dialect`, `endpoint`, `program`, `name` ... and 9 others
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_domain_tasks::EndedBy` in the current scope
+   --> jig/crates/jig-protocol-config/src/tests/templates.rs:573:79
+    |
+573 |     assert_eq!(engine.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Standing);
+    |                                                                               ^^^^^^^^ variant or associated item not found in `jig_domain_tasks::EndedBy`
+
+Some errors have detailed explanations: E0560, E0599, E0609.
+For more information about an error, try `rustc --explain E0560`.
+error: could not compile `jig-protocol-config` (lib test) due to 9 previous errors
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:152:12
+    |
+152 |         w::SessionEnd::Quiet => c::SessionEnd::Quiet,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:152:36
+    |
+152 |         w::SessionEnd::Quiet => c::SessionEnd::Quiet,
+    |                                    ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:153:12
+    |
+153 |         w::SessionEnd::Bound => c::SessionEnd::Bound,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:153:36
+    |
+153 |         w::SessionEnd::Bound => c::SessionEnd::Bound,
+    |                                    ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:154:12
+    |
+154 |         w::SessionEnd::Unoffered => c::SessionEnd::Unoffered,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:154:40
+    |
+154 |         w::SessionEnd::Unoffered => c::SessionEnd::Unoffered,
+    |                                        ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:155:12
+    |
+155 |         w::SessionEnd::Fresh => c::SessionEnd::Fresh,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:155:36
+    |
+155 |         w::SessionEnd::Fresh => c::SessionEnd::Fresh,
+    |                                    ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:156:12
+    |
+156 |         w::SessionEnd::Closed => c::SessionEnd::Closed,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:156:37
+    |
+156 |         w::SessionEnd::Closed => c::SessionEnd::Closed,
+    |                                     ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0433]: cannot find `SessionEnd` in `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:157:12
+    |
+157 |         w::SessionEnd::Rules => c::SessionEnd::Rules,
+    |            ^^^^^^^^^^ could not find `SessionEnd` in `w`
+
+error[E0433]: cannot find `SessionEnd` in `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:157:36
+    |
+157 |         w::SessionEnd::Rules => c::SessionEnd::Rules,
+    |                                    ^^^^^^^^^^ could not find `SessionEnd` in `c`
+
+error[E0425]: cannot find type `SessionEnd` in module `w`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:150:27
+    |
+150 | fn session_end(value: &w::SessionEnd) -> c::SessionEnd {
+    |                           ^^^^^^^^^^ not found in `w`
+
+error[E0425]: cannot find type `SessionEnd` in module `c`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:150:45
+    |
+150 | fn session_end(value: &w::SessionEnd) -> c::SessionEnd {
+    |                                             ^^^^^^^^^^ not found in `c`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_protocol_wire::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/translate/me.rs:50:29
+   |
+50 |                 w::EndedBy::Standing => c::EndedBy::Standing,
+   |                             ^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/translate/me.rs:50:53
+   |
+50 |                 w::EndedBy::Standing => c::EndedBy::Standing,
+   |                                                     ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/operations.rs:254:37
+    |
+254 |                         c::EndedBy::Standing => w::EndedBy::Standing,
+    |                                     ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_protocol_wire::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/operations.rs:254:61
+    |
+254 |                         c::EndedBy::Standing => w::EndedBy::Standing,
+    |                                                             ^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_protocol_wire::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/operations.rs:365:29
+    |
+365 |                 w::EndedBy::Standing => c::EndedBy::Standing,
+    |                             ^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/operations.rs:365:53
+    |
+365 |                 w::EndedBy::Standing => c::EndedBy::Standing,
+    |                                                     ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Stood` found for enum `jig_client_protocol_wire::Activity` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:194:22
+    |
+194 |         w::Activity::Stood(row) => {
+    |                      ^^^^^ variant or associated item not found in `jig_client_protocol_wire::Activity`
+
+error[E0599]: no variant or associated item named `SessionEnded` found for enum `jig_client_protocol_wire::Activity` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:197:22
+    |
+197 |         w::Activity::SessionEnded(row) => {
+    |                      ^^^^^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::Activity`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client_domain::contract::Activity`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:195:26
+    |
+195 |             c::Activity::Stood { attempt: row.attempt(), words: long_text(row.words(), limits)? }
+    |                          ^^^^^ variant not found in `jig_client_domain::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client_domain::contract::Activity`
+   --> jig/crates/jig-client-protocol-link/src/translate/pages/activity.rs:198:26
+    |
+198 |             c::Activity::SessionEnded { attempt: row.attempt(), end: session_end(row.end()) }
+    |                          ^^^^^^^^^^^^ variant not found in `jig_client_domain::contract::Activity`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_protocol_wire::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/translate/queries.rs:64:25
+   |
+64 |             w::EndedBy::Standing => c::EndedBy::Standing,
+   |                         ^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/translate/queries.rs:64:49
+   |
+64 |             w::EndedBy::Standing => c::EndedBy::Standing,
+   |                                                 ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/settings.rs:777:37
+    |
+777 |                         c::EndedBy::Standing => w::EndedBy::Standing,
+    |                                     ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_protocol_wire::EndedBy` in the current scope
+   --> jig/crates/jig-client-protocol-link/src/translate/settings.rs:777:61
+    |
+777 |                         c::EndedBy::Standing => w::EndedBy::Standing,
+    |                                                             ^^^^^^^^ variant or associated item not found in `jig_client_protocol_wire::EndedBy`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client_domain::contract::Activity`
+   --> jig/crates/jig-client-protocol-link/src/tests/pages.rs:486:32
+    |
+486 |                 | c::Activity::Stood { .. }
+    |                                ^^^^^ variant not found in `jig_client_domain::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client_domain::contract::Activity`
+   --> jig/crates/jig-client-protocol-link/src/tests/pages.rs:487:32
+    |
+487 |                 | c::Activity::SessionEnded { .. }
+    |                                ^^^^^^^^^^^^ variant not found in `jig_client_domain::contract::Activity`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/tests/create.rs:82:91
+   |
+82 |     for ended_by in [c::EndedBy::Closer(c::Closer { connector: 1, code: 6 }), c::EndedBy::Standing] {
+   |                                                                                           ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+error[E0599]: no variant or associated item named `Standing` found for enum `jig_client_domain::contract::EndedBy` in the current scope
+  --> jig/crates/jig-client-protocol-link/src/tests/create.rs:96:91
+   |
+96 |     for ended_by in [c::EndedBy::Closer(c::Closer { connector: 1, code: 6 }), c::EndedBy::Standing] {
+   |                                                                                           ^^^^^^^^ variant or associated item not found in `jig_client_domain::contract::EndedBy`
+
+Some errors have detailed explanations: E0425, E0433, E0599.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `jig-client-protocol-link` (lib test) due to 32 previous errors
+error[E0560]: struct `temper_engine_domain::Model` has no field named `cache_life_ms`
+   --> temper/crates/temper-service/src/stock.rs:185:29
+    |
+185 | ...                   cache_life_ms: 0,
+    |                       ^^^^^^^^^^^^^ `temper_engine_domain::Model` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+For more information about this error, try `rustc --explain E0560`.
+error: could not compile `temper-service` (lib) due to 1 previous error
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+    --> temper/crates/temper-client-view/src/pages/chat.rs:1285:28
+     |
+1285 |             | c::Activity::Stood { .. }
+     |                            ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+    --> temper/crates/temper-client-view/src/pages/chat.rs:1286:28
+     |
+1286 |             | c::Activity::SessionEnded { .. }
+     |                            ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+    --> temper/crates/temper-client-view/src/pages/chat.rs:1953:28
+     |
+1953 |             | c::Activity::Stood { .. }
+     |                            ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+    --> temper/crates/temper-client-view/src/pages/chat.rs:1954:28
+     |
+1954 |             | c::Activity::SessionEnded { .. }
+     |                            ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-view/src/pages/goal.rs:707:32
+    |
+707 |                 | c::Activity::Stood { .. }
+    |                                ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-view/src/pages/goal.rs:708:32
+    |
+708 |                 | c::Activity::SessionEnded { .. }
+    |                                ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `Stood` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-view/src/pages/task.rs:962:22
+    |
+962 |         c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+    |                      ^^^^^ variant not found in `jig_client::contract::Activity`
+
+error[E0599]: no variant named `SessionEnded` found for enum `jig_client::contract::Activity`
+   --> temper/crates/temper-client-view/src/pages/task.rs:962:50
+    |
+962 |         c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+    |                                                  ^^^^^^^^^^^^ variant not found in `jig_client::contract::Activity`
+
+error: could not compile `temper-client-view` (lib test) due to 8 previous errors
+error: command `/home/free/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/bin/cargo '--color=auto' test --no-run --message-format json-render-diagnostics --package jig-client --package jig-client-domain --package jig-client-kit --package jig-client-protocol-kit --package jig-client-protocol-link --package jig-client-protocol-wire --package jig-client-protocol-world --package jig-client-scripted-engine --package jig-client-view --package jig-core-world --package jig-domain-core --package jig-domain-hub-link --package jig-domain-people --package jig-domain-tasks --package jig-engine-clients-kit --package jig-people-world --package jig-protocol-charter --package jig-protocol-config --package jig-protocol-engine-clients --package jig-protocol-store --package jig-store-world --package jig-tasks-world --package jig-test-domain --package jig-test-profile --package jig-test-store-files --package temper --package temper-client-tools --package temper-client-tui --package temper-client-view --package temper-engine-domain --package temper-engine-domain-world --package temper-engine-smith --package temper-playground --package temper-real-loop-world --package temper-service --package temper-settings-form --package temper-system-world` exited with code 101
