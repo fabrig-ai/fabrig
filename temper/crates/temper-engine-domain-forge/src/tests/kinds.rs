@@ -967,7 +967,8 @@ fn follows_keep_only_accepted_values_in_number_order_and_restore_remove_and_rese
     );
     assert!(row.heard.is_none() && row.queue.is_empty(), "acceptance has no historical landings");
     assert_eq!(out.pop(), Some(Request::Marked { tasks: Box::new([follows_subject(1)]) }));
-    assert!(out.is_empty(), "keeping the setting starts no follow change");
+    assert_eq!(out.pop(), Some(Request::FollowRun { project: 1, follow: 1 }));
+    assert!(out.is_empty(), "acceptance starts the standing task, not a change");
     d.keep_settings(&env(), 3, None, from_ref(&second), &mut out);
     assert_eq!(d.follow(1, 1), Some(&settings::follow()));
     assert_eq!(d.follows(1).as_ref(), &[(1, &settings::follow()), (2, &settings::follow())]);

@@ -5,9 +5,12 @@ fn adopt_source_and_target(world: &mut World) {
     adopt_pair(world, b"source", b"target");
 }
 pub(super) fn adopt_pair(world: &mut World, source: &[u8], target: &[u8]) {
-    adopt_pair_passing(world, source, target, 1000);
+    adopt_pair_configured(world, source, target, 1000, false);
 }
 pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8], passes: u32) {
+    adopt_pair_configured(world, source, target, passes, true);
+}
+fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes: u32, following: bool) {
     for (id, name) in [(3, source), (4, target)] {
         let full = [b"org/".as_slice(), name].concat();
         let name = full.as_slice();
@@ -20,28 +23,32 @@ pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8]
                 default: b"main".as_slice().into(),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                workflows: Box::new([raw::Workflow {
-                    file: b"test.yml".as_slice().into(),
-                    jobs: Box::new([b"test".as_slice().into()]),
-                    latency_min: Duration::ZERO,
-                    latency_max: Duration::ZERO,
-                    silent: 0,
-                    passes: 1000,
-                    fails: Box::new([]),
-                    flaky: Box::new([]),
-                    select: None,
-                    cue: None,
-                    report: Some(raw::Report {
-                        artifact: b"results".as_slice().into(),
-                        format: raw::ReportFormat::Lines,
-                        deflate: false,
-                    }),
-                }]),
+                workflows: if following {
+                    Box::new([raw::Workflow {
+                        file: b"test.yml".as_slice().into(),
+                        jobs: Box::new([b"test".as_slice().into()]),
+                        latency_min: Duration::ZERO,
+                        latency_max: Duration::ZERO,
+                        silent: 0,
+                        passes: 1000,
+                        fails: Box::new([]),
+                        flaky: Box::new([]),
+                        select: None,
+                        cue: None,
+                        report: Some(raw::Report {
+                            artifact: b"results".as_slice().into(),
+                            format: raw::ReportFormat::Lines,
+                            deflate: false,
+                        }),
+                    }])
+                } else {
+                    Box::new([])
+                },
                 protection: None,
-                hooked: true,
+                hooked: following,
                 checks: raw::Checks {
                     cues: Box::new([]),
-                    contexts: Box::new([b"ci".as_slice().into()]),
+                    contexts: if following { Box::new([b"ci".as_slice().into()]) } else { Box::new([]) },
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,
