@@ -68,6 +68,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
         w::DocumentOutcome::NoteEdited(row) => c::DocumentOutcome::NoteEdited { name: row.name() },
         w::DocumentOutcome::ServiceMade(row) => c::DocumentOutcome::ServiceMade { person: row.person() },
         w::DocumentOutcome::Adopted(row) => c::DocumentOutcome::Adopted { project: row.project() },
+        w::DocumentOutcome::Left(row) => c::DocumentOutcome::Left { task: row.task() },
         w::DocumentOutcome::Stopped(row) => c::DocumentOutcome::Stopped { task: row.task() },
         w::DocumentOutcome::Cancelled(row) => c::DocumentOutcome::Cancelled { task: row.task() },
         w::DocumentOutcome::Lifted(row) => c::DocumentOutcome::Lifted { hold: row.hold(), released: row.released() },

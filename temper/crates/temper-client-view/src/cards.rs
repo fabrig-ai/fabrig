@@ -162,6 +162,7 @@ fn owner_outcome(b: &mut Builder, words: &Words, value: &c::DocumentOutcome) {
         | O::Renamed { .. }
         | O::ServiceMade { .. }
         | O::Adopted { .. }
+        | O::Left { .. }
         | O::Stopped { .. }
         | O::Moved { .. }
         | O::Said { .. }

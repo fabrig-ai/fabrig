@@ -322,6 +322,8 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::AnswerPerson { project: owner, .. }
         | people::Ask::Move { project: owner, .. }
         | people::Ask::DecideProposal { project: owner, .. }
+        | people::Ask::Talk { project: owner, .. }
+        | people::Ask::Leave { project: owner, .. }
         | people::Ask::Say { project: owner, .. }
         | people::Ask::AnswerQuestion { project: owner, .. }
         | people::Ask::Amend { project: owner, .. }

@@ -3,6 +3,8 @@ use skein_json::writer::Encoder;
 pub(super) fn encode_act_kind(value: jig_client::contract::ActKind, out: &mut Encoder, _budget: &mut super::Cut) {
     let value = &value;
     match value {
+        jig_client::contract::ActKind::Talk => out.string(b"talk"),
+        jig_client::contract::ActKind::Leave => out.string(b"leave"),
         jig_client::contract::ActKind::Message => out.string(b"message"),
         jig_client::contract::ActKind::Answer => out.string(b"answer"),
         jig_client::contract::ActKind::Take => out.string(b"take"),

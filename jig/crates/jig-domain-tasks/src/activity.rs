@@ -17,6 +17,13 @@ pub struct ActivityLine {
 /// Ordered semantic activity; larger retained records are loaded by their exact identity.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    TalkOpened {
+        party: u64,
+    },
+    TalkEnded {
+        party: u64,
+        lapsed: bool,
+    },
     Words {
         message: u64,
         by: Party,

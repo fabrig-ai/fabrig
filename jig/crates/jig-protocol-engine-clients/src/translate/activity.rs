@@ -38,6 +38,12 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
             limits,
             w::ActivityStoodParts { attempt: *attempt, words: words.clone() },
         )?),
+        t::Line::TalkOpened { party } => {
+            w::Activity::TalkOpened(w::TalkOpened::new(limits, w::TalkOpenedParts { party: *party })?)
+        }
+        t::Line::TalkEnded { party, lapsed } => {
+            w::Activity::TalkEnded(w::TalkEnded::new(limits, w::TalkEndedParts { party: *party, lapsed: *lapsed })?)
+        }
         t::Line::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded::new(
             limits,
             w::ActivitySessionEndedParts { attempt: *attempt, end: session_end(*end) },
@@ -70,6 +76,8 @@ fn session_end(value: t::SessionEnd) -> w::SessionEnd {
         t::SessionEnd::Unoffered => w::SessionEnd::Unoffered,
         t::SessionEnd::Fresh => w::SessionEnd::Fresh,
         t::SessionEnd::Closed => w::SessionEnd::Closed,
+        t::SessionEnd::Talk => w::SessionEnd::Talk,
+        t::SessionEnd::Left => w::SessionEnd::Left,
         t::SessionEnd::Rules => w::SessionEnd::Rules,
     }
 }
@@ -166,6 +174,8 @@ pub fn page_turn(
         | t::Line::RunEnded { .. }
         | t::Line::Decided { .. }
         | t::Line::Stood { .. }
+        | t::Line::TalkOpened { .. }
+        | t::Line::TalkEnded { .. }
         | t::Line::SessionEnded { .. }
         | t::Line::Kept { .. }
         | t::Line::Milestone { .. } => {

@@ -885,6 +885,8 @@ fn object(
                 | tasks::Line::Turn { .. }
                 | tasks::Line::Decided { .. }
                 | tasks::Line::Stood { .. }
+                | tasks::Line::TalkOpened { .. }
+                | tasks::Line::TalkEnded { .. }
                 | tasks::Line::SessionEnded { .. }
                 | tasks::Line::Kept { .. }
                 | tasks::Line::Milestone { .. } => return Ok(None),
@@ -909,6 +911,8 @@ fn object(
                         | tasks::Line::Turn { .. }
                         | tasks::Line::Decided { .. }
                         | tasks::Line::Stood { .. }
+                        | tasks::Line::TalkOpened { .. }
+                        | tasks::Line::TalkEnded { .. }
                         | tasks::Line::SessionEnded { .. }
                         | tasks::Line::Kept { .. }
                         | tasks::Line::Milestone { .. } => None,
@@ -977,6 +981,8 @@ fn object(
                 | tasks::Line::RunEnded { .. }
                 | tasks::Line::Decided { .. }
                 | tasks::Line::Stood { .. }
+                | tasks::Line::TalkOpened { .. }
+                | tasks::Line::TalkEnded { .. }
                 | tasks::Line::SessionEnded { .. }
                 | tasks::Line::Kept { .. }
                 | tasks::Line::Milestone { .. } => Ok(None),
@@ -1450,6 +1456,8 @@ fn reply_update(
         | tasks::Line::RunEnded { .. }
         | tasks::Line::Decided { .. }
         | tasks::Line::Stood { .. }
+        | tasks::Line::TalkOpened { .. }
+        | tasks::Line::TalkEnded { .. }
         | tasks::Line::SessionEnded { .. }
         | tasks::Line::Kept { .. }
         | tasks::Line::Milestone { .. } => return Ok(None),

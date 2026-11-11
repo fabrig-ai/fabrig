@@ -180,7 +180,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             }
         }
         Ask::Amend { amendment: value, .. } => amendment(key, limits, value),
-        Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => {
+        Ask::Talk { words, .. } | Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => {
             within(key, RestoreBound::Words, words.len(), limits.words)
         }
         Ask::Move { reason, .. } | Ask::Cancel { reason, .. } => {
@@ -231,6 +231,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Stop { .. }
+        | Ask::Leave { .. }
         | Ask::Release { .. } => Ok(()),
     }
 }
@@ -270,6 +271,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::Restored { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
+        | Outcome::Left { .. }
         | Outcome::Stopped { .. }
         | Outcome::Cancelled { .. }
         | Outcome::Lifted { .. }

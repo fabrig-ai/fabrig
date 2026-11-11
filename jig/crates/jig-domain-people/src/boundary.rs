@@ -232,47 +232,122 @@ pub enum NoteChange {
 )]
 pub enum Ask {
     /// Propose the settings as a revision left them (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/people/acts.md, 1).
-    Restore { revision: u32, reason: Box<[u8]> },
+    Restore {
+        revision: u32,
+        reason: Box<[u8]>,
+    },
     /// Delete an owned project (jig/docs/design/domain/people/acts.md, 2).
-    RemoveProject { project: u32, grace: Option<Duration> },
+    RemoveProject {
+        project: u32,
+        grace: Option<Duration>,
+    },
     /// Deployment owner changes settings, whose value the core holds during admission.
-    ChangeSettings { against: u32, digest: [u8; 32], projects: Box<[u32]> },
+    ChangeSettings {
+        against: u32,
+        digest: [u8; 32],
+        projects: Box<[u32]>,
+    },
     /// Deployment owner moves live agent tasks to the newest (domain/engine/settings.md, 4; domain/people/acts.md, 1).
-    MoveToNewest { revision: u32 },
+    MoveToNewest {
+        revision: u32,
+    },
     /// Several task operations committed together under one key.
-    Compound { project: u32, operations: List<crate::Operation> },
+    Compound {
+        project: u32,
+        operations: List<crate::Operation>,
+    },
     /// Make these roots together (domain/people/acts.md, 1).
-    Create { project: u32, batch: Box<[crate::Member]> },
+    Create {
+        project: u32,
+        batch: Box<[crate::Member]>,
+    },
     /// Mark results or one conversation's replies seen under this party's key.
-    MarkSeen { seen: Seen },
+    MarkSeen {
+        seen: Seen,
+    },
     /// Application-owned request metadata; the root carries the value, and the protocol supplies its digest.
-    Application { scope: crate::ApplicationScope, connector: u16, digest: [u8; 32] },
+    Application {
+        scope: crate::ApplicationScope,
+        connector: u16,
+        digest: [u8; 32],
+    },
     /// Correct or delete a note whose scope the party's project role permits.
-    EditNote { project: u32, name: u64, scope: Box<NoteScope>, change: Box<NoteChange> },
+    EditNote {
+        project: u32,
+        name: u64,
+        scope: Box<NoteScope>,
+        change: Box<NoteChange>,
+    },
     /// Make a deployment service in a project with a role and display name.
-    MakeService { project: u32, name: Box<[u8]>, role: Role },
+    MakeService {
+        project: u32,
+        name: Box<[u8]>,
+        role: Role,
+    },
     /// Adopt a connector resource as a durable keyed owner request.
-    Adopt { project: u32, adoption: Adoption },
+    Adopt {
+        project: u32,
+        adoption: Adoption,
+    },
     /// Propose a batch to the role named by the project's policy.
-    Propose { project: u32, action: crate::Action, reason: Box<[u8]> },
+    Propose {
+        project: u32,
+        action: crate::Action,
+        reason: Box<[u8]>,
+    },
     /// Withdraw this party's own pending proposal.
-    Withdraw { project: u32, proposal: u64 },
+    Withdraw {
+        project: u32,
+        proposal: u64,
+    },
     /// Hold a live run for this person's decision, cancelling its current claim.
-    Stop { project: u32, task: u64 },
+    Stop {
+        project: u32,
+        task: u64,
+    },
     /// Cancel a task and its descendants with a bounded reason, at once or after a grace.
-    Cancel { project: u32, task: u64, reason: Box<[u8]>, grace: Option<Duration> },
+    Cancel {
+        project: u32,
+        task: u64,
+        reason: Box<[u8]>,
+        grace: Option<Duration>,
+    },
     /// Lift a held task's cause and rejudge it.
-    Release { project: u32, task: u64, revision: u64, again: Option<bool> },
+    Release {
+        project: u32,
+        task: u64,
+        revision: u64,
+        again: Option<bool>,
+    },
     /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle.md, 10).
-    Lift { hold: u64, revision: u64, with_tasks: bool },
+    Lift {
+        hold: u64,
+        revision: u64,
+        with_tasks: bool,
+    },
     /// Claim one role-addressed person task for this authenticated person.
-    TakePerson { project: u32, task: u64 },
+    TakePerson {
+        project: u32,
+        task: u64,
+    },
     /// Give this person's current role task claim back to its role.
-    HandBackPerson { project: u32, task: u64 },
+    HandBackPerson {
+        project: u32,
+        task: u64,
+    },
     /// Supply the bounded result required by an addressed person task.
-    AnswerPerson { project: u32, task: u64, revision: u64, result: PersonResult },
+    AnswerPerson {
+        project: u32,
+        task: u64,
+        revision: u64,
+        result: PersonResult,
+    },
     /// Adopt a live task as this authenticated person's own goal, retaining its old requester's reference.
-    Move { project: u32, task: u64, reason: Box<[u8]> },
+    Move {
+        project: u32,
+        task: u64,
+        reason: Box<[u8]>,
+    },
     /// Authenticated keyed decision for a proposal waiting at this person or a policy role.
     DecideProposal {
         project: u32,
@@ -282,12 +357,36 @@ pub enum Ask {
         running: Option<crate::Running>,
     },
     /// Authenticated requester's whole words to an existing chat.
-    Say { project: u32, task: u64, words: Box<[u8]> },
+    Say {
+        project: u32,
+        task: u64,
+        words: Box<[u8]>,
+    },
+    Talk {
+        project: u32,
+        task: u64,
+        words: Box<[u8]>,
+    },
+    Leave {
+        project: u32,
+        task: u64,
+    },
     /// Answer a numbered question waiting in a task requested by this person.
-    AnswerQuestion { project: u32, task: u64, question: u64, words: Box<[u8]> },
+    AnswerQuestion {
+        project: u32,
+        task: u64,
+        question: u64,
+        words: Box<[u8]>,
+    },
     /// Amend a live task this person may steer, after root policy and funding checks.
     /// A priority-only edit of a tracked task names spec revision zero.
-    Amend { project: u32, task: u64, revision: u64, amendment: crate::Amendment, release: Option<u64> },
+    Amend {
+        project: u32,
+        task: u64,
+        revision: u64,
+        amendment: crate::Amendment,
+        release: Option<u64>,
+    },
     /// Authenticated Owner's complete project roster replacement; root checks Policy permission and
     /// held-recipient preflight before applying it.
     SetRoles {
@@ -298,13 +397,26 @@ pub enum Ask {
         holdings: Box<[Holding]>,
     },
     /// Owner changes one mutable part of the project policy for future decisions.
-    ChangePolicy { project: u32, change: crate::PolicyChange },
+    ChangePolicy {
+        project: u32,
+        change: crate::PolicyChange,
+    },
     /// Owner replaces this project's name (domain/people/acts.md, 1).
-    Rename { project: u32, name: Box<str> },
+    Rename {
+        project: u32,
+        name: Box<str>,
+    },
     /// Deployment owner makes a project from a configured policy (domain/people/acts.md, 2).
-    MakeProject { name: Box<str>, policy: u32 },
+    MakeProject {
+        name: Box<str>,
+        policy: u32,
+    },
     /// Owner changes one person's current-period pool, preserving already spent and reserved funds.
-    SetPool { project: u32, person: u64, budget: u64 },
+    SetPool {
+        project: u32,
+        person: u64,
+        budget: u64,
+    },
     /// Decide one held chat's exact semantic revision. Root verifies current waiting recipient and
     /// authority; admission authenticates the session and reserves keyed-answer room.
     DecideEscalation {
@@ -319,13 +431,25 @@ pub enum Ask {
     },
     /// Sign an LLM provider's account in for this holder; admitted from the holder alone, never by
     /// a role (domain/authority.md, 8.4), and decided by the accounts child (domain/accounts.md, 3.3).
-    AccountSignIn { holder: AccountHolder, provider: u32 },
+    AccountSignIn {
+        holder: AccountHolder,
+        provider: u32,
+    },
     /// Sign this holder's account's source out; admitted like a sign-in.
-    AccountSignOut { holder: AccountHolder, source: u32 },
+    AccountSignOut {
+        holder: AccountHolder,
+        source: u32,
+    },
     /// Change this holder's LLM accounts; carried keys and moved records retain only their digest.
-    AccountChange { holder: AccountHolder, change: AccountChange },
+    AccountChange {
+        holder: AccountHolder,
+        change: AccountChange,
+    },
     /// Set an owned project's visibility (jig/docs/design/domain/people/public-reading.md, 2).
-    SetVisibility { project: u32, public: bool },
+    SetVisibility {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// The scope and admission family of a keyed request (domain/people/acts.md, 1).
@@ -372,6 +496,8 @@ impl Ask {
             | Self::SetPool { project, .. }
             | Self::DecideEscalation { project, .. }
             | Self::DecideProposal { project, .. }
+            | Self::Talk { project, .. }
+            | Self::Leave { project, .. }
             | Self::Say { project, .. }
             | Self::AnswerQuestion { project, .. }
             | Self::Amend { project, .. }
@@ -416,6 +542,8 @@ impl Ask {
             | Self::SetPool { .. }
             | Self::DecideEscalation { .. }
             | Self::DecideProposal { .. }
+            | Self::Talk { .. }
+            | Self::Leave { .. }
             | Self::Say { .. }
             | Self::AnswerQuestion { .. }
             | Self::Amend { .. }
@@ -608,6 +736,9 @@ pub enum Outcome {
         proposal: u64,
     },
     /// A person stopped one live task for a later release or decision.
+    Left {
+        task: u64,
+    },
     Stopped {
         task: u64,
     },
@@ -1319,6 +1450,7 @@ impl Outcome {
             | Self::Restored { .. }
             | Self::Proposed { .. }
             | Self::Withdrawn { .. }
+            | Self::Left { .. }
             | Self::Stopped { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
@@ -1371,6 +1503,7 @@ impl Outcome {
             | Self::Restored { .. }
             | Self::Proposed { .. }
             | Self::Withdrawn { .. }
+            | Self::Left { .. }
             | Self::Stopped { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
