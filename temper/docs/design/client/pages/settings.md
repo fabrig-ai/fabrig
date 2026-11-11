@@ -48,7 +48,8 @@
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
     its login in small type, "What temper remembers about you", a link to
-    `Remembered` (`remembered.md`), and "Sign out"; with "Sign out did not reach
+    `Remembered` (`remembered.md`), "Telling you", a link to `Told`
+    (`told.md`), and "Sign out"; with "Sign out did not reach
     the engine." beside it as `../line.md`, 6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
     menu's (`../view.md`, 3). With no project, the top bar has "Sign out" (`../view.md`, 1).
