@@ -14,6 +14,7 @@ Nothing of this draft is designed or built yet: its execution file's milestones 
   - 8: `../domain/landing.md`, 8 merges each member's own pull request at its candidate and checks only the bases; no landing pull request, no member landed by containment, no member heads read at the turn; 10 shows no round's pull request; 11's effects have no landing pull request or prefix branches per round; 15 recovers no round or partly pushed job.
   - 9: `../domain/forge/change/README.md`, 3 holds a change whose head another identity moved, but nothing takes it out of a landing.
   - 10: `../domain/landing.md`, 13.1 has no `batch`; 12 keeps no rounds, prefixes, outcomes, search or fallback, and its `landing_members` admission says nothing of units; the stock `landing_members` of 2 is a code default, with no sizing rule for batches in `../protocol/configuration/limits.md`.
-  - 11: `../domain/after-landing.md`, 2 keeps main's focused and fuzzy tier for a project whose landings run the same suites.
+  - 11: `../domain/landing.md`, 13.1's gate definition doesn't say whether a gate reads the base, nor gives a dispatch the base.
+  - 12: `../testing/process-tier.md` has neither story: a queue that lands green, a red narrowed.
 - **Design departs:** none yet.
 - **Open:** none. The user's word of 2026-11-11: `batch` 4 for this project once batches are built, a setting to change as needed.
