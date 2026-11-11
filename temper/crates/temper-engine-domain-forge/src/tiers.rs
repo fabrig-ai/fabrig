@@ -712,15 +712,19 @@ fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
         },
     });
 }
-fn fault_words(fault: landing::Fault) -> &'static [u8] {
-    match fault {
+fn fault_words(run: &p::Run, workflow: &[u8], fault: landing::Fault) -> Box<[u8]> {
+    let words: &[u8] = match fault {
         landing::Fault::SetUp => b"set-up",
         landing::Fault::Completion => b"completion",
         landing::Fault::NoStep => b"no step",
         landing::Fault::Cancelled => b"cancelled",
         landing::Fault::OtherCommit => b"other commit",
         landing::Fault::Lost => b"lost",
-    }
+        landing::Fault::MissingWorkflow => {
+            return joined(&[b"workflow ", workflow, b" not found at ", &crate::commit_text(&candidate(run).0)]);
+        }
+    };
+    Box::from(words)
 }
 fn observed_part(
     d: &mut Domain,
@@ -732,7 +736,8 @@ fn observed_part(
     let outcome = match follow.outcome {
         Some(landing::Verdict::Passed) => p::Outcome::Passed,
         Some(landing::Verdict::Fault(fault)) => {
-            words::fault(row, follow, fault_words(fault));
+            let reason = fault_words(row.record.run.as_ref().expect("followed run"), &follow.workflow, fault);
+            words::fault(row, follow, &reason);
             p::Outcome::Fault
         }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
@@ -822,7 +827,7 @@ fn decision(task: u64, decision: crate::TierDecision, entry: Option<u64>, out: &
 fn wait(task: u64, out: &mut Queue<Request>) {
     decision(task, crate::TierDecision::Wait { until: None }, None, out);
 }
-fn held(row: &TierRow, out: &mut Queue<Request>) {
+fn held(d: &Domain, row: &TierRow, out: &mut Queue<Request>) {
     let run = row.record.run.as_ref().expect("held run");
     let words = joined(&[
         b"Tier ",
@@ -832,7 +837,11 @@ fn held(row: &TierRow, out: &mut Queue<Request>) {
         b" held after ",
         skein_lib::Decimal::of(u64::from(run.faults)).as_bytes(),
         b" runner faults, last: ",
-        fault_words(row.held.unwrap_or(landing::Fault::Lost)),
+        &fault_words(
+            run,
+            &configured(d, row).expect("configured tier").workflow,
+            row.held.unwrap_or(landing::Fault::Lost),
+        ),
     ]);
     decision(row.task.expect("tier task"), crate::TierDecision::Held { words }, None, out);
 }
@@ -1082,7 +1091,7 @@ pub(crate) fn step(
         d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
     }
     if row.held.is_some() {
-        held(&row, out);
+        held(d, &row, out);
     } else if cleanup_probe(d, env, &mut row, entry, out) {
         // A completed probe releases its branch before the next part starts.
     } else if row.result.is_some() {
@@ -1341,6 +1350,10 @@ fn branch_write(write: &Write) -> Option<(&[u8], bool)> {
         | Write::Status { .. } => None,
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "a tier effect answers its branch or its flight, classifying dispatch refusals"
+)]
 pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
     use skein_forge_client::Outcome;
     let made_branch = match outcome {
@@ -1431,7 +1444,30 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
             }
         }
         if !made {
-            follow.outcome = Some(landing::Verdict::Fault(landing::Fault::Lost));
+            let fault = match d.entries.get(&entry) {
+                Some(kept) => match &kept.entry.effect.write {
+                    Write::Dispatch { .. } if outcome == Outcome::Failed(api::Error::Missing) => {
+                        landing::Fault::MissingWorkflow
+                    }
+                    Write::Dispatch { .. }
+                    | Write::Rerun { .. }
+                    | Write::CreateBranch { .. }
+                    | Write::DeleteBranch { .. }
+                    | Write::CreateIssue { .. }
+                    | Write::OpenPull { .. }
+                    | Write::Post { .. }
+                    | Write::Review { .. }
+                    | Write::Edit { .. }
+                    | Write::SetReviewers { .. }
+                    | Write::Close { .. }
+                    | Write::Reopen { .. }
+                    | Write::Merge { .. }
+                    | Write::Update { .. }
+                    | Write::Status { .. } => landing::Fault::Lost,
+                },
+                None => landing::Fault::Lost,
+            };
+            follow.outcome = Some(landing::Verdict::Fault(fault));
         }
         remember(&mut row, &follow);
         d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
