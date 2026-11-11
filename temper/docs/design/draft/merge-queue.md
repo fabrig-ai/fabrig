@@ -109,7 +109,7 @@ Its members' changes are repaired, given the failed run's output (`../domain/lan
 - **What it promises:** an observed boundary, not the lowest red or the longest green prefix: a later member can fix what an earlier one broke. The blame is the unit at that boundary, in that context: the failure appears with it, on top of a prefix that passed.
 - **The blamed unit's** changes are repaired, given the red prefix's failed run, and leave (4.3).
 - **The green prefix lands** in this round's turn (section 8), when it is not the base. The units above the red one go on in the landing's next round, stacked on the new tip, first in line.
-- **What a run's failure means:** the project's gate workflow runs a failed test again alone in the same run, then at the round's base, and fails only what fails at its commit and passes at the base (section 11). A failure with no test to run again (a build, the docs check) is the commit's. A failure that reaches temper is the commit's.
+- **What a run's failure means:** temper reads only the gate's verdict. A gate that tells a failure the base already has from one the candidate brought does so against the round's base it was given (section 11), so the verdict it reaches is the candidate's.
 - **Until the search is built** (the execution's M3), a red round of several units ends; its units leave, keep their places, and the train's landings take them one unit at a time, by a fallback the landing records (10), until each has landed or been repaired; then batching resumes.
 
 ### 7.3 A search's identity
@@ -145,17 +145,16 @@ The red, the prefix it was found at and the green one below it, the members that
 - **Bounds** (`../protocol/configuration/limits.md`): `landing_members` bounds a landing's changes, at least `batch`; a unit past it is refused (4.1). `landings` counts live landings, one per train. Ended changes stay while `../domain/forge/change/README.md`, 7 keeps them, and a landing's row goes only once each member's outcome is on its change: bounds cover live and retained work, never all of history.
 - **Steps' bounds:** the prepare job's timeout, a run's, a probe's; past one, a hold (section 9).
 
-## 11. The project's own setup
+## 11. What a project gives
 
-What the project configures, outside temper's code:
+The project's own choices, in its configuration and its repository, not temper's code:
 
-- **`by` `turn`, `batch` 1, then 4** once batches are built.
-- **One blocking test gate for main:** a workflow dispatched only, given the candidate and the round's base, running the build and the full focused and fuzzy suites, one process per test binary, and the docs check. It runs a failed test again alone, then at the base, and fails only what fails at the candidate and passes at the base. No ignored paths. Clippy and the format check run elsewhere: each delivery's own check, and clippy after landing (the user's word, 2026-11-11).
-- **No gate for a goal's branch:** each delivery's own check stands for it, as today.
-- **No pull request CI into main:** the gate is the landing's (`../domain/landing.md`, 7.1).
-- **After landing:** main's focused and fuzzy tier goes, since every commit main reaches was proved; clippy and slower tiers run there (`../domain/after-landing.md`, 2).
-- **The forge:** fast-forward merges allowed, detection of a manual merge on, and main's rules met by the landing's pull request.
-- **The runner's host** runs one gate at a time, ahead of builds.
+- **Its gates for a train:** each a workflow dispatched only (`../domain/landing.md`, 7.1), given the candidate and the round's base. What it runs is the project's. Its verdict depends only on what its key holds (6): a gate that compares a failure with the base reads the base it was given, and its definition says so, so the base joins its key.
+- **A train into a branch other than main** may have no gate, each delivery's own check standing for it.
+- **No pull request CI into a branch its gates prove:** the gate is the landing's (`../domain/landing.md`, 7.1).
+- **The forge,** as adoption checks (`../domain/landing.md`, 13.2): fast-forward merges allowed, detection of a manual merge on, and the branch's rules met by the landing's pull request.
+- **`by` `turn` and `batch`** (section 10).
+- **Tiers after landing** that run only what a train's gate already ran add nothing for its branch (`../domain/after-landing.md`, 2).
 
 ## 12. Acceptance
 
@@ -171,6 +170,13 @@ Focused and fuzzy suites alone, in the forge world and the engine's domain stori
 - the turn: freshness, the branch at the prefix, members landed, pull requests merged, a done merge recorded once at a restart; stale from outside;
 - a restart in each phase found again and carried on;
 - news, holds past a bound, and the changes view.
+
+**Two end-to-end stories in the process tier** (`../testing/process-tier.md`; skein's testing strategy, 2.9): temper's binaries as processes, against the fake forge and the fake model (`../testing/fakes.md`, 1 and 2), every moving part real between them: goals producing branches, the engine's trains and landings, the worker's merge-train job on real git, dispatch, receipts and the turn.
+
+- **A queue that lands green:** several goals' branches ready at once form one batch, stacked, proved once at the top, landed by one fast-forward; every member's pull request reads merged, and a change ready meanwhile waits and lands in the next landing.
+- **A red narrowed:** a batch in which one member's change makes the gate fail, by the fake forge's CI following content; the search's probes find the boundary, the green prefix lands, the blamed member's change goes to repair, and the members above it land in the next round.
+
+Each is written and compiled in its milestone, the first in M2 and the second in M3, and runs in the process tier after it lands.
 
 After landing, on a staging deployment before the project's own: goals land through it at the project's volume.
 
