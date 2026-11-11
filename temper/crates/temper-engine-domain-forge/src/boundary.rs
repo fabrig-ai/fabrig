@@ -1263,6 +1263,7 @@ pub enum Stored {
     },
     /// The playground's durable progress (temper/docs/design/protocol/setup/playground.md).
     Playground(Playground),
+    Follow(crate::FollowRow),
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
@@ -1324,6 +1325,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    Follow { project: u32, follow: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

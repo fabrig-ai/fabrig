@@ -64,6 +64,8 @@ mod held;
 pub mod items;
 mod judge;
 mod kinds;
+pub mod follows;
+pub use follows::{FollowRow, FollowEntry, FollowCommit, FollowState, FollowSkip, FollowParity, FollowVerdict, FollowLag, followed};
 mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;
@@ -288,6 +290,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
+        Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
@@ -496,6 +499,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             | settings::Edit::Remove
             | settings::Edit::Reset => Some(0),
         },
+        Stored::Follow(row) => follows::row_bytes(row),
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),

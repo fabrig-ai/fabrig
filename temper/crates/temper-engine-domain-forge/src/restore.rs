@@ -19,6 +19,7 @@ pub enum RestoreSet {
     ProjectionTimers,
     References,
     Watches,
+    FollowQueue,
     LandingFlights,
     LandingMembers,
     LandingsKept,
@@ -187,6 +188,14 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.landing.rows.capacity(),
                 d.landing.rows.contains_key(&row.landing.task),
             )
+        }
+        Stored::Follow(row) => {
+            field(K::Follow, RestoreSet::FollowQueue, count(row.queue.len()), u64::from(l.follow_queue))?;
+            let mut held = 0_u32;
+            for _ in d.follow_rows.range((row.project, 0)..=(row.project, u32::MAX)) { held = held.saturating_add(1); }
+            let replacing = d.follow_rows.contains_key(&(row.project, row.follow));
+            room(K::Follow, Rows(K::Follow), held, l.follows, replacing)?;
+            room(K::Follow, Rows(K::Follow), d.follow_rows.len(), d.follow_rows.capacity(), replacing)
         }
         Stored::Tier(row) => room(
             K::Tier,

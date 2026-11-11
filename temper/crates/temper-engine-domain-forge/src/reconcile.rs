@@ -30,6 +30,7 @@ pub enum RecordKind {
     Flight,
     Landing,
     Receipt,
+    Follow,
     Tier,
     Verification,
     LandingLog,
@@ -83,6 +84,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
         .checked_add(l.repositories.checked_mul(l.tiers.tiers)?.checked_mul(2)?)?
+        .checked_add(crate::follows::capacity(l)?.checked_mul(2)?)? // Follow: source and task.
         .checked_add(l.changes)? // Verification: repository.
         .checked_add(l.repositories)? // LandingLog: repository.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
@@ -156,6 +158,11 @@ impl Reconciliation {
                         Repository { forge: member.repository.forge, repository: member.repository.repository },
                     )?;
                 }
+                Ok(())
+            }
+            Stored::Follow(row) => {
+                self.repository(RecordKind::Follow, row.source)?;
+                if let Some(task) = row.task { self.task(RecordKind::Follow, task, Some(row.source.forge))?; }
                 Ok(())
             }
             Stored::Tier(row) => {
@@ -358,6 +365,7 @@ impl Domain {
             | RecordKind::Application
             | RecordKind::Landing
             | RecordKind::Receipt
+            | RecordKind::Follow
             | RecordKind::Tier
             | RecordKind::Verification
             | RecordKind::LandingLog => true,

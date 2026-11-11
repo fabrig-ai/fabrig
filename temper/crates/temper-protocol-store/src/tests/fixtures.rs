@@ -172,7 +172,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(35) {
+    match random.below(36) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -220,6 +220,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
+        35 => top::Key::Follow { project: u32::try_from(random.below(4_294_967_296)).expect("u32"), follow: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),

@@ -1,0 +1,41 @@
+//! Family 41 keeps follow state and obeys configured decode bounds.
+use super::fixtures;
+use crate::{Undecodable, keys, records};
+use temper_engine_domain_forge as d;
+fn entry(state: d::FollowState) -> d::FollowEntry {
+    d::FollowEntry { before: [1; 32], after: [2; 32], pull: Some(19), commits: Box::new([d::FollowCommit { id: [2; 32], message: b"Fix handoff\n\nThe body.".as_slice().into() }]), more_commits: 3, files: Some(Box::new([b"src/a.c".as_slice().into()])), more_files: 2, change: Some(51), state }
+}
+fn row() -> d::FollowRow {
+    d::FollowRow { project: 5, follow: 2, source: skein_forge::api::Repository { forge: 1, repository: 2 }, branch: b"main".as_slice().into(), heard: Some([2; 32]), task: Some(71), stopped: Some(b"owner stopped".as_slice().into()), queue: Box::new([entry(d::FollowState::NotMade)]), skips: Box::new([d::FollowSkip { after: [3; 32], reason: b"already done".as_slice().into() }]), parity: Some(d::FollowParity { source: [1; 32], head: [2; 32], verdict: d::FollowVerdict::Passed, run: b"https://forge.example/run/1".as_slice().into() }) }
+}
+fn round_trip(row: d::FollowRow) {
+    let row = d::Stored::Follow(row); let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("bounds");
+    let meter = skein_world::domain::heap::Meter::new(); meter.start(); let cloned = row.clone(); let held = meter.end().held(); assert_eq!(d::stored_bytes(&cloned), Some(held)); drop(cloned);
+    let key = d::stored_key(&row); let encoded = keys::encode(&key, u32::MAX).expect("key"); assert_eq!(encoded.first(), Some(&41)); assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(key));
+    assert_eq!(records::row(&encoded, &records::encode(&row), &bounds), Ok(row));
+}
+#[test]
+fn follow_records_round_trip_every_state_parity_and_optional_field() {
+    for state in [d::FollowState::NotMade, d::FollowState::WaitsWord, d::FollowState::HeldByOwner(b"not yet".as_slice().into()), d::FollowState::WaitsFor(52), d::FollowState::Producing, d::FollowState::Held(b"check".as_slice().into()), d::FollowState::Ended(b"ended".as_slice().into())] { let mut row = row(); row.queue = Box::new([entry(state)]); round_trip(row); }
+    for verdict in [d::FollowVerdict::Passed, d::FollowVerdict::Failing(3), d::FollowVerdict::Many] { let mut row = row(); row.parity.as_mut().expect("parity").verdict = verdict; round_trip(row); }
+    let mut empty = row(); empty.heard = None; empty.task = None; empty.stopped = None; empty.parity = None; empty.skips = Box::new([]);
+    let mut unknown = entry(d::FollowState::NotMade); unknown.files = None; unknown.pull = None; unknown.change = None; unknown.commits = Box::new([]);
+    empty.queue = Box::new([unknown]); round_trip(empty.clone()); empty.queue = Box::new([]); round_trip(empty);
+}
+#[test]
+fn follow_decode_refuses_one_past_each_configured_bound() {
+    let row = row();
+    for field in 0_u8..8 {
+        let mut limits = fixtures::LIMITS; limits.follow_queue = 1; limits.follow_commits = 1; limits.follow_files = 1; limits.follow_skips = 1; limits.follow_message_bytes = 22; limits.follow_reason_bytes = 13; limits.name_bytes = 4;
+        let exact = crate::bounds(&limits, limits.client.op_bytes).expect("bounds"); let encoded = records::encode(&d::Stored::Follow(row.clone())); assert!(records::decode(&encoded, &exact).is_ok(), "at bound {field}");
+        match field {
+            0 => limits.follow_queue = 0, 1 => limits.follow_commits = 0, 2 => limits.follow_files = 0, 3 => limits.follow_skips = 0,
+            4 => limits.follow_message_bytes = 21, 5 => limits.follow_reason_bytes = 12, 6 => limits.name_bytes = 3,
+            7 => { let mut held = row.clone(); held.stopped = None; held.queue.first_mut().expect("entry").state = d::FollowState::HeldByOwner(b"held by owner".as_slice().into());
+                let encoded = records::encode(&d::Stored::Follow(held)); assert!(records::decode(&encoded, &exact).is_ok(), "owner hold at bound"); limits.follow_reason_bytes = 12;
+                let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller bounds"); assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable)); continue; }
+            _ => unreachable!("eight configured fields"),
+        }
+        let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller bounds"); assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable), "one past {field}");
+    }
+}
