@@ -31,7 +31,11 @@ pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow 
             role: 5,
             required: 2,
             counted: 1,
-            behind: 3,
+            sets: List::from_boxed(Box::new([w::ApprovalSet::new(
+                &w::CEILINGS,
+                w::ApprovalSetParts { number: 1, name: b"vsr's protocol core".as_slice().into() },
+            )
+            .unwrap()])),
             whole: true,
             yours: w::ApprovalYours::Counts,
         },
@@ -127,7 +131,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
                 role: 5,
                 required: 2,
                 counted: 1,
-                behind: 3,
+                sets: Box::new([approvals::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
                 whole: true,
                 yours: approvals::Yours::Counts,
             }]
