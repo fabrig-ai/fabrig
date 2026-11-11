@@ -22,6 +22,7 @@ pub enum Event {
     Walk { object: jig_client::contract::ObjectKey, step: WalkStep },
     EndWalk,
     Theme { choice: Option<crate::theme::ThemeChoice> },
+    Way { template: u32 },
 }
 
 /// The TUI's own command (temper/docs/design/client/tui/box.md).

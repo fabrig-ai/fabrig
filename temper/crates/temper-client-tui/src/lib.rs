@@ -27,8 +27,8 @@ pub use place::place;
 pub use state::{BoxState, Browser, Local, Notice, Refusal, Signing, Told, Tui, Walk};
 pub use theme::{Scheme, theme};
 pub use view::{
-    Arrow, HALVES, View, arrow, build, chat_number, escape, event, focus, landing, offered, offered_own, pane_key,
-    reply_number, sign_in_drawn, walk_key, work_runs,
+    Arrow, HALVES, View, arrow, build, chat_number, escape, event, focus, goal_offered, landing, offered, offered_own,
+    pane_key, reply_number, sign_in_drawn, walk_key, work_runs,
 };
 
 #[cfg(test)]

@@ -136,6 +136,8 @@ pub enum Word {
     DraftStart,
     KindSession,
     Drafter,
+    GoalHead,
+    ProposedNotice,
     PaneWriting,
     PaneEmpty,
     PaneNew,
@@ -146,7 +148,7 @@ pub enum Word {
     PaneWidens,
     PaneFolds,
 }
-pub(crate) const ALL: [Word; 135] = [
+pub(crate) const ALL: [Word; 137] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -273,6 +275,8 @@ pub(crate) const ALL: [Word; 135] = [
     Word::DraftStart,
     Word::KindSession,
     Word::Drafter,
+    Word::GoalHead,
+    Word::ProposedNotice,
     Word::PaneWriting,
     Word::PaneEmpty,
     Word::PaneNew,
@@ -465,15 +469,17 @@ impl Word {
             Self::DraftStart => 126,
             Self::KindSession => 127,
             Self::Drafter => 128,
-            Self::PaneWriting => 129,
-            Self::PaneEmpty => 130,
-            Self::PaneNew => 131,
-            Self::PaneFolded => 132,
-            Self::PaneHalf => 133,
-            Self::PaneAll => 134,
-            Self::PaneOpens => 135,
-            Self::PaneWidens => 136,
-            Self::PaneFolds => 137,
+            Self::GoalHead => 129,
+            Self::ProposedNotice => 130,
+            Self::PaneWriting => 131,
+            Self::PaneEmpty => 132,
+            Self::PaneNew => 133,
+            Self::PaneFolded => 134,
+            Self::PaneHalf => 135,
+            Self::PaneAll => 136,
+            Self::PaneOpens => 137,
+            Self::PaneWidens => 138,
+            Self::PaneFolds => 139,
         }
     }
     const fn id(self) -> PhraseId {
@@ -496,6 +502,8 @@ impl Word {
             Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
             Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
 
+            Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
+            Self::ProposedNotice => (&[b"Proposed: the goal starts once it is accepted."], &[]),
             Self::KindChat => (&[b", a chat"], &[]),
             Self::KindGoal => (&[b", a goal"], &[]),
             Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
@@ -733,6 +741,7 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Proposed => self.say(Word::ProposedNotice, &[]),
             crate::Notice::Theme { choice, terminal } => {
                 let word = match choice {
                     crate::theme::ThemeChoice::Auto => match terminal {

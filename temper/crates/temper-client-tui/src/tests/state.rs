@@ -93,6 +93,20 @@ fn the_states_steps_are_its_table() {
         );
         assert_eq!(tui.address(), f::ADDRESS);
     }
+    for (steps, chat, revision) in [
+        (&[Told::Starting { chat: None }][..], None, 0),
+        (&[Told::Starting { chat: Some(9) }][..], Some(9), 1),
+        (&[Told::Starting { chat: Some(9) }, Told::Starting { chat: Some(9) }][..], Some(9), 1),
+        (&[Told::Starting { chat: Some(9) }, Told::Starting { chat: None }][..], None, 2),
+        (&[Told::Starting { chat: Some(9) }, Told::Cleared][..], Some(9), 2),
+        (&[Told::Starting { chat: Some(9) }, Told::Went][..], None, 2),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        for step in steps {
+            tui.step(step.clone());
+        }
+        assert_eq!((tui.start_chat(), tui.revision()), (chat, revision), "{steps:?}");
+    }
     let turn = jig_client::contract::TurnName { attempt: 44, number: 1 };
     let newer = jig_client::contract::TurnName { attempt: 44, number: 2 };
     for (start, told, expected, revision) in [
