@@ -12,6 +12,7 @@ const NOT_READ: &[u8] = b"not read: no such setting at that revision. This says 
 fn landing_value() -> temper_engine_domain_forge::settings::Value {
     use temper_engine_domain_forge::{GateLast, GatePattern, settings};
     settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: GateLast::Open(Box::new([])),

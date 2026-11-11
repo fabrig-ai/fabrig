@@ -124,6 +124,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         landing_pattern_segments_item: bounds.segment_bytes,
         landing_rule_gates: bounds.gates,
         landing_rule_approvals: bounds.approvals,
+        landing_rule_sets: 6,
         adoption_owner: bounds.field_bytes,
         adoption_name: bounds.field_bytes,
         forge_row_host: ADDRESS_BYTES,

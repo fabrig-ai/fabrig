@@ -112,6 +112,7 @@ fn forge_with_only_temper(world: &mut World) {
 
 fn approval_rule(role: u32, people: u32) -> settings::Value {
     settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge_top::GatePattern {
             segments: Box::new([b"forge".as_slice().into()]),
             last: forge_top::GateLast::Open(Box::new([])),

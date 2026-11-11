@@ -525,6 +525,7 @@ impl World {
                 rules.ceiling.grants = ceiling_grants.into_boxed();
                 if approval.is_some() || agent_gate || owner_gate {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,
@@ -626,6 +627,7 @@ impl World {
                     ]);
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,

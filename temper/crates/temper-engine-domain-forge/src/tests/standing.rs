@@ -9,6 +9,7 @@ use temper_engine_domain_forge_landing as policy;
 fn rule() -> LandingRule {
     let repository = adopted();
     LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),

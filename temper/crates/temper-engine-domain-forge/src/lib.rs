@@ -439,7 +439,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(
                         skein_lib::len_u64(rule.approvals.len())
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
-                    )
+                    )?
+                    .checked_add(bytes(&rule.sets))
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Classes(classes), .. }) => {
                 let mut held = skein_lib::len_u64(classes.items.len())

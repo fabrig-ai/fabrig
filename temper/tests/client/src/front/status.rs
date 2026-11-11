@@ -143,6 +143,7 @@ impl Joint {
             provider.name = b"openai".as_slice().into();
             provider.signed_in_plan = true;
             let landing = temper_engine_domain::LandingRule {
+                sets: Box::new([]),
                 connector: fixtures::FORGE,
                 kind: 4,
                 enforce: true,

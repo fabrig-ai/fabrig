@@ -32,6 +32,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             .expect("bounded approvals");
     }
     let value_bytes = size(&settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([1, 2, 3, 4, 5, 6]),
         pattern: forge::GatePattern {
             segments: segments.into_boxed(),
             last: forge::GateLast::Exact(word(segment_bytes)),

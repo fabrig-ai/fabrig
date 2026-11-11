@@ -30,6 +30,7 @@ fn world_with(across: bool) -> World {
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -43,6 +44,7 @@ fn world_with(across: bool) -> World {
             approvals: Box::new([]),
         },
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,

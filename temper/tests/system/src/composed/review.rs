@@ -8,6 +8,7 @@ use temper_engine_domain_forge_change as change;
 fn config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

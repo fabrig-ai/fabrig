@@ -1227,6 +1227,7 @@ impl Joint {
             let mut landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                 connector,
                 kind: 4,
+                sets: Box::new([]),
                 enforce: true,
                 pattern: a::Pattern {
                     segments: [b"forge".as_slice(), fixtures::FORGE_HOST, b"acme", b"shop", b"branch"]

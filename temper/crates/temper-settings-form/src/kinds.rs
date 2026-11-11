@@ -206,7 +206,7 @@ fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
-    let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals"])?;
+    let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals", b"sets"])?;
     let pattern = match pattern(d, field(&fields, b"pattern")?) {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"pattern")),
@@ -243,9 +243,24 @@ fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
             up_to_date: boolean(d, &fields, b"up_to_date")?,
             gates,
             approvals,
+            sets: rule_sets(d, optional(&fields, b"sets"))?,
         },
     )
     .or(Err(error(b"", b"wire value bound")))
+}
+fn rule_sets(d: &Decoder<'_>, at: Option<u32>) -> Result<List<u8>, Error> {
+    let Some(at) = at else { return Ok(List::with_capacity(0)) };
+    let positions = d.array(at, d.kinds.landing_rule_sets.min(w::CEILINGS.landing_rule_sets), b"sets")?;
+    let mut sets = List::with_capacity(positions.len());
+    for at in &positions {
+        let number = match d.number(*at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"sets")),
+        };
+        let number = u8::try_from(number).or(Err(error(b"sets", b"u8 bound")))?;
+        sets.push(number).expect("counted sets");
+    }
+    Ok(sets)
 }
 fn pattern(d: &Decoder<'_>, at: u32) -> Result<w::LandingPattern, Error> {
     let fields = d.object(at, &[b"segments", b"last"])?;
@@ -483,5 +498,13 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !value.sets().is_empty() {
+        out.key(b"sets");
+        out.array_start();
+        for set in value.sets() {
+            out.unsigned(u64::from(*set));
+        }
+        out.array_end();
+    }
     out.object_end();
 }

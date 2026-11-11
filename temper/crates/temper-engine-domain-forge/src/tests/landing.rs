@@ -701,6 +701,7 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         }
         let repository = adopted();
         let rule = crate::settings::LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([
                     b"forge".as_slice().into(),
