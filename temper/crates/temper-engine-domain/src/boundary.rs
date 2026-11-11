@@ -612,6 +612,8 @@ pub enum Application {
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
+    AddDevice(forge::AddDevice),
+    RemoveDevice { number: u32 },
 }
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
@@ -631,6 +633,7 @@ pub enum ApplicationAnswer {
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
     Overturn(forge::OverturnAnswer),
+    Device(forge::DeviceAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]

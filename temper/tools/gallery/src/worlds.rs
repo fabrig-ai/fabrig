@@ -1484,7 +1484,7 @@ fn deployment_read(root: &mut Domain, read: Token, welcome: bool, out: &mut Queu
     use temper_client_protocol_wire::{self as wire, v1};
     let answer = v1::DeploymentAnswer::new(
         &v1::CEILINGS,
-        v1::DeploymentAnswerParts { welcome, owned: true, program_login: None },
+        v1::DeploymentAnswerParts { push: None,  welcome, owned: true, program_login: None },
     )
     .expect("deployment answer");
     step(

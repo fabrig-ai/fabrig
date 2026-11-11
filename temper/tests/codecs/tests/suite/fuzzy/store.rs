@@ -92,6 +92,13 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        let device = forge::Stored::Device(forge::Device {
+            party: rng.next_u64(), number: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            endpoint: vec![b'e'; usize::try_from(rng.below(1024)).unwrap() + 1].into_boxed_slice(),
+            p256dh: [4; 65], auth: [7; 16], label: vec![b'l'; usize::try_from(rng.below(60)).unwrap() + 1].into_boxed_slice(),
+            at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        });
+        row_and_key(&device, &mut rng, &bounds);
         let making = making_row(&mut rng);
         row_and_key(&making, &mut rng, &bounds);
         let dismissed = forge::Stored::Dismissed { party: rng.next_u64(), what: person_fact(&mut rng) };

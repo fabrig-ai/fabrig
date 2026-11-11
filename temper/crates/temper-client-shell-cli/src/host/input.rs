@@ -130,6 +130,11 @@ impl OneShot {
                         return;
                     }
                 }
+                if TOOLS[usize::from(call.tool)].name == b"push add"
+                    && temper_client_tools::push::subscription(&bytes, temper_client_tools::push::label(&call)).is_none() {
+                    self.fail(b"Not a push subscription's JSON.");
+                    return;
+                }
                 self.value = Some(skein_lib::Secret::new(stripped.into()));
                 self.directory.start(self.class);
                 self.call = Some(Parsed::Call { call, json });

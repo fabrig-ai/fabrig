@@ -11,7 +11,7 @@ fn github(kind: Kind, mode: Mode) -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[],
         &[Configured {
             owned: None,
@@ -326,7 +326,7 @@ fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
     let mut d = Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[],
         &[
             Configured {

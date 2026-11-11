@@ -308,6 +308,13 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     if tool.name == b"task amend" {
         check_amend(call, limits)?;
     }
+    if tool.name == b"push add" {
+        if call.values.contains(&Some(Values::One(Value::Stdin))) { return Err(Usage::Stdin); }
+        if let Some(Value::Text(label)) = crate::jig::call::value(call, 1)
+            && !crate::push::valid_label(label) {
+            return Err(Usage::Long { tool: call.tool, form: call.form, argument: 1 });
+        }
+    }
     if tool.name == b"forge connect" && call.values.contains(&Some(Values::One(Value::Stdin))) {
         return Err(Usage::Stdin);
     }

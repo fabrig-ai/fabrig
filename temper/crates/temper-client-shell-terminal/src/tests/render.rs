@@ -191,7 +191,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             {
                 let answer = w::DeploymentAnswer::new(
                     &w::CEILINGS,
-                    w::DeploymentAnswerParts { welcome: false, owned: false, program_login: None },
+                    w::DeploymentAnswerParts { push: None,  welcome: false, owned: false, program_login: None },
                 )
                 .expect("deployment answer");
                 Some(jig_client::Up::ReadDone {

@@ -32,6 +32,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
@@ -111,6 +112,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     Ok(match row.into_parts().value {
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
+        w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
         w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
         w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),

@@ -46,6 +46,17 @@ pub use status::{
     StatusView, status_paragraphs, status_subject,
 };
 mod away;
+mod devices;
+pub use devices::{AddDevice, Device, DeviceAnswer, DeviceRefusal, DeviceView, DevicesView, DEVICES, DEVICES_SUBJECT};
+/// Connector configuration (temper/docs/design/protocol/configuration/engine.md, Config).
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub namespace: Box<[u8]>,
+    pub writers: Box<[skein_forge_client::Writer]>,
+    /// Allowed push service origins, none when push is off.
+    pub push: Option<Box<[Box<[u8]>]>>,
+}
+
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
     DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
@@ -292,6 +303,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
@@ -590,6 +602,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Device(row) => bytes(&row.endpoint).checked_add(bytes(&row.label)),
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),

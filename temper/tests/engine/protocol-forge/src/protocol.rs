@@ -224,7 +224,7 @@ impl Protocol {
         top::Domain::new(
             limits,
             seed,
-            skein_forge_client::Config {
+            temper_engine_domain_forge::Config { push: None,
                 namespace: Box::from(b"world".as_slice()),
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
