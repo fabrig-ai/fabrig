@@ -18,6 +18,16 @@ Run temper's full-screen terminal client, the TUI, on an engine; temper help tui
 
 Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
 
+### temper box
+
+`temper box [ARGUMENT...]`
+
+Run this build's temper-box, fetching it if needed.
+
+- `ARGUMENT...`: Arguments for temper-box, passed on unchanged.
+
+Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. Runs the box in this process's place, including in a terminal.
+
 ### temper help
 
 `temper help [NAME | pages | --search WORDS...]`
@@ -47,6 +57,14 @@ Act in a deployment as one party, one call a process: the agents' command line. 
 - `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
 
 temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
+
+### temper internal fetch-box
+
+`temper internal fetch-box [--cache DIR]`
+
+Find this build's temper-box, fetching it if needed, for temper box. Internal: it may change without notice.
+
+Writes progress lines, then found PATH on stdout; failures on stderr, exit 1. Reads no terminal.
 
 ## temper-engine
 

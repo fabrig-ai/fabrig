@@ -17,6 +17,10 @@ temper-shell.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-shell-cli.workspace = true
 skein-shell.workspace = true
+skein-io.workspace = true
+skein-lib.workspace = true
+temper-fetch.workspace = true
+temper-fetch-shell.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

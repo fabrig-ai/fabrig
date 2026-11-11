@@ -1,4 +1,6 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
+#[path = "suite/box_binary.rs"]
+mod box_binary;
 #[path = "suite/box_kinds.rs"]
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]

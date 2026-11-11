@@ -5,12 +5,25 @@ use skein_shell::{Argument, Clock, Command, Reach, Reached, Set, Table};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_shell::{directories, directories::EnvironmentEntry, environment, table};
 
+pub mod box_binary;
+
+/// The loopback HTTPS origin for a test's fake binary site (temper/docs/design/client/box-binary.md, 3).
+pub const SITE: skein_shell::Variable = skein_shell::Variable {
+    name: "TEMPER_INTERNAL_SITE",
+    set: Set::Internal,
+    form: "ORIGIN",
+    way: skein_shell::Way::Reads,
+    line: "Loopback HTTPS origin for a test's temper-box download.",
+    absent: "Use https://fabrig.ai (port 443).",
+    notes: "Only https://127.0.0.1:PORT, https://[::1]:PORT or https://localhost:PORT, with nothing after the port.",
+};
+
 pub const CLIENT: Table = Table {
     binary: "temper",
     line: "temper's TUI, on an engine or in front of a box.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[TUI, table::HELP, table::CTL],
+    commands: &[TUI, box_binary::BOX, table::HELP, table::CTL, box_binary::FETCH],
     settings: &[],
     variables: &[
         &skein_shell::HOME,
@@ -26,6 +39,8 @@ pub const CLIENT: Table = Table {
         &environment::PATH,
         &environment::COLORFGBG,
         &environment::COLORTERM,
+        &environment::SSL_CERT_FILE,
+        &SITE,
         &temper_version::INTERNAL_COMMIT,
     ],
     more: "temper COMMAND --help prints one command; temper help pages lists the pages.",
@@ -51,11 +66,12 @@ struct Capture {
     arguments: Box<[Box<[u8]>]>,
     environment: Box<[EnvironmentEntry]>,
     working: Result<PathBuf, String>,
+    executable: Result<PathBuf, String>,
 }
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "the binary's capture: argv's first word, arguments, environment and working directory are read once"
+    reason = "the binary's capture: argv's first word, arguments, environment, working directory and executable path are read once"
 )]
 fn capture() -> Capture {
     Capture {
@@ -63,6 +79,7 @@ fn capture() -> Capture {
         arguments: skein_shell::arguments(),
         environment: skein_shell::environment(),
         working: std::env::current_dir().map_err(|why| why.to_string()),
+        executable: std::env::current_exe().map_err(|why| why.to_string()),
     }
 }
 
@@ -110,6 +127,8 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                 &Clock::new(),
             ))
         }
+        Reach::Words(["box"]) => box_binary::run(arguments, captured),
+        Reach::Words(["internal", "fetch-box"]) => box_binary::fetch(arguments, captured),
         Reach::Words(["ctl"]) => {
             let arguments: Vec<_> = arguments.iter().map(|word| OsStr::from_bytes(word).to_owned()).collect();
             Ok(temper_client_shell_cli::start::run(&arguments, &Clock::new()))

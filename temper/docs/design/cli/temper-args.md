@@ -13,6 +13,15 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
 
+### `temper box`
+
+- **Set:** public
+- **Forms:** `[ARGUMENT...]`
+- Run this build's temper-box, fetching it if needed.
+- **Arguments:** `ARGUMENT...`: Arguments for temper-box, passed on unchanged.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. Runs the box in this process's place, including in a terminal.
+
 ### `temper help`
 
 - **Set:** public
@@ -51,3 +60,10 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 - Act in a deployment as one party, one call a process: the agents' command line.
 - **Arguments:** `DIR`: ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.; `GROUP`: A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.; `VERB`: One of the group's tools; temper ctl help GROUP lists them.; `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
 - **Notes:** temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
+
+### `temper internal fetch-box`
+
+- **Set:** internal
+- **Forms:** `[--cache DIR]`
+- Find this build's temper-box, fetching it if needed, for temper box.
+- **Notes:** Writes progress lines, then found PATH on stdout; failures on stderr, exit 1. Reads no terminal.
