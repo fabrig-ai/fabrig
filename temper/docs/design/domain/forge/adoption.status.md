@@ -1,6 +1,10 @@
 # adoption: status
 
-2026-11-10. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-11. Where the tree's code lags or departs from [adoption.md](adoption.md).
+
+- **Not yet:** the opening's first bullet: a context adoption of a
+  repository another project writes, kept for its project and read by its
+  lookups, runs and follows [in flight: change 97].
 
 - **Not yet:** 6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears
