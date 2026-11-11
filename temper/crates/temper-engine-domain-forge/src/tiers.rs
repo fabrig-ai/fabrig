@@ -1999,7 +1999,7 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
     d.tier_ops.walks.remove(&key);
     let mut reads = List::with_capacity(d.tier_ops.reads.capacity());
     for (owner, reading) in &d.tier_ops.reads {
-        if reading == &key {
+        if reading.tier == key {
             reads.push(*owner).expect("bounded tier reads");
         }
     }
