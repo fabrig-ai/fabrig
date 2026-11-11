@@ -42,6 +42,7 @@ pub(crate) struct Foot {
     pub playground: bool,
     pub closed: Option<Box<[u8]>>,
     pub columns: u16,
+    pub pane: Option<chat::document::Mode>,
     pub list: Option<Options>,
     pub reply: Box<[Event]>,
 }
@@ -215,6 +216,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
             None
         },
         columns: tui.columns(),
+        pane: match chat {
+            Some(chat) => super::pane::shown(chat, tui.columns()),
+            None => None,
+        },
         list,
         reply: reply.into_boxed(),
     }
@@ -271,6 +276,7 @@ fn rule_part(b: &mut Builder, bytes: &[u8], paint: Style) {
     b.text(skein_ui::Run::Plain, bytes);
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the quiet line measures its ordered parts before dropping them by priority")]
 fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let separator = words.say(Word::Separator, &[]);
     let needing = if part.needs.count > 0 {
@@ -281,21 +287,32 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     } else {
         Box::default()
     };
-    let mut right = List::with_capacity(5);
+    let mut right = List::with_capacity(7);
+    let mut shortcut = None;
     if let Some(notice) = &part.notice {
         right.push((copy_of(notice), look::SIGNAL)).expect("one notice fits");
     } else {
         if let Some((state, style)) = &part.box_state {
-            right.push((copy_of(state), *style)).expect("five quiet line parts");
+            right.push((copy_of(state), *style)).expect("seven quiet line parts");
         }
         if part.playground {
-            right.push((words.say(Word::Playground, &[]), look::HINT)).expect("five quiet line parts");
+            right.push((words.say(Word::Playground, &[]), look::HINT)).expect("seven quiet line parts");
         }
         if part.paused {
-            right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("five quiet line parts");
+            right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("seven quiet line parts");
+        }
+        if let Some(mode) = part.pane {
+            let (state, key) = match mode {
+                chat::document::Mode::Chat => (Word::PaneFolded, Word::PaneOpens),
+                chat::document::Mode::Split => (Word::PaneHalf, Word::PaneWidens),
+                chat::document::Mode::Draft => (Word::PaneAll, Word::PaneFolds),
+            };
+            right.push((words.say(state, &[]), look::HINT)).expect("seven quiet line parts");
+            shortcut = Some(usize::try_from(right.len()).expect("quiet parts fit usize"));
+            right.push((words.say(key, &[]), look::HINT)).expect("seven quiet line parts");
         }
         if !needing.is_empty() {
-            right.push((needing, look::SIGNAL)).expect("five quiet line parts");
+            right.push((needing, look::SIGNAL)).expect("seven quiet line parts");
         }
     }
     let mut right_width = 0_u32;
@@ -323,7 +340,16 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let walk = words.say(Word::ToWalk, &[]);
     let walk_width = width(&walk).saturating_add(width(&separator));
     let room = if part.columns == 0 { u32::MAX } else { u32::from(part.columns) };
-    let total = left_width.saturating_add(closed_width).saturating_add(right_width).saturating_add(4);
+    let mut total = left_width.saturating_add(closed_width).saturating_add(right_width).saturating_add(4);
+    let mut omit = None;
+    if total > room && part.notice.is_none() && part.pane.is_some() {
+        for (index, (line, _style)) in right.iter().enumerate() {
+            if Some(index) == shortcut {
+                omit = Some(index);
+                total = total.saturating_sub(width(line).saturating_add(width(&separator)));
+            }
+        }
+    }
     let narrow_notice = part.notice.is_some() && total > room;
     let walking =
         part.notice.is_none() && part.launchpad && part.needs.count > 0 && total.saturating_add(walk_width) <= room;
@@ -357,11 +383,17 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     b.close();
     b.open(Role::Paragraph);
     if !narrow_notice {
+        let mut drawn = false;
         for (index, (line, style)) in right.iter().enumerate() {
-            if index > 0 {
-                text(b, Role::Text, &separator, Some(look::FAINT));
+            if omit == Some(index) {
+                continue;
+            }
+            if drawn {
+                let style = if Some(index) == shortcut { look::HINT } else { look::FAINT };
+                text(b, Role::Text, &separator, Some(style));
             }
             text(b, Role::Text, line, Some(*style));
+            drawn = true;
         }
     }
     if walking {

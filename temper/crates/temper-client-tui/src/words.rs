@@ -136,8 +136,17 @@ pub enum Word {
     DraftStart,
     KindSession,
     Drafter,
+    PaneWriting,
+    PaneEmpty,
+    PaneNew,
+    PaneFolded,
+    PaneHalf,
+    PaneAll,
+    PaneOpens,
+    PaneWidens,
+    PaneFolds,
 }
-pub(crate) const ALL: [Word; 126] = [
+pub(crate) const ALL: [Word; 135] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -264,6 +273,15 @@ pub(crate) const ALL: [Word; 126] = [
     Word::DraftStart,
     Word::KindSession,
     Word::Drafter,
+    Word::PaneWriting,
+    Word::PaneEmpty,
+    Word::PaneNew,
+    Word::PaneFolded,
+    Word::PaneHalf,
+    Word::PaneAll,
+    Word::PaneOpens,
+    Word::PaneWidens,
+    Word::PaneFolds,
 ];
 
 #[derive(Clone, Copy)]
@@ -447,6 +465,15 @@ impl Word {
             Self::DraftStart => 126,
             Self::KindSession => 127,
             Self::Drafter => 128,
+            Self::PaneWriting => 129,
+            Self::PaneEmpty => 130,
+            Self::PaneNew => 131,
+            Self::PaneFolded => 132,
+            Self::PaneHalf => 133,
+            Self::PaneAll => 134,
+            Self::PaneOpens => 135,
+            Self::PaneWidens => 136,
+            Self::PaneFolds => 137,
         }
     }
     const fn id(self) -> PhraseId {
@@ -459,6 +486,16 @@ impl Word {
             Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
             Self::KindSession => (&[b", a design session"], &[]),
             Self::Drafter => (&[b"drafter"], &[]),
+            Self::PaneWriting => (&[b" \xc2\xb7 writing"], &[]),
+            Self::PaneEmpty => (&[b"The draft appears here as you write it together."], &[]),
+            Self::PaneNew => (&[b"  new"], &[]),
+            Self::PaneFolded => (&[b"pane: folded"], &[]),
+            Self::PaneHalf => (&[b"pane: half"], &[]),
+            Self::PaneAll => (&[b"pane: all"], &[]),
+            Self::PaneOpens => (&[b"Ctrl-P opens"], &[]),
+            Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
+            Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
+
             Self::KindChat => (&[b", a chat"], &[]),
             Self::KindGoal => (&[b", a goal"], &[]),
             Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
