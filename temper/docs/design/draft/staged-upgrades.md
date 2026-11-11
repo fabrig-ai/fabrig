@@ -5,7 +5,7 @@ Draft, 2026-11-11. How temper's own two deployments take a new build without sta
 ## 1. In one page
 
 - **dev.fabrig.ai's store is already at the baseline** (section 2): its build's stored layouts are `bc23255eb7`'s, so once goal 648 lands it reads as level 0 and nothing before the baseline needs patching.
-- **The catch-up** (section 3): every stored layout `main` changed in place after the baseline and before goal 648's gate lands comes in as a patch from the baseline. Today that is goal 63's change to three of jig's families.
+- **The catch-up** (section 3): every stored layout `main` changed in place after the baseline and before goal 648's gate lands comes in as a patch from the baseline. Today that is goal 63's change to three of jig's families and goal 187's to temper's.
 - **dev.fabrig.ai holds at its build** until it upgrades (section 4): a fix taken there keeps every stored schema as the baseline's.
 - **Rehearsed on dev.fabrig.ai's own data** (section 5): the new build's `temper upgrade --check` over a copy of its backup, decoding every record of every family, not only the patched ones.
 - **Drilled on staging.fabrig.ai** (section 6): staging runs dev.fabrig.ai's build with a small workload of its own, then takes the new build through a settled stop, the patching start and a restore, by a script whose referee says pass or fail.
@@ -26,15 +26,16 @@ Draft, 2026-11-11. How temper's own two deployments take a new build without sta
 ## 3. The catch-up
 
 - **What it is:** each stored layout `main` changed in place after `bc23255eb7`, landed before goal 648's gate, becomes a patch from the baseline in goal 648's landing, with its line in the golden store's table of patches. The gate finds each one once `main` is merged into the goal's branch: a schema whose layout differs from its kept text with no patch fails it (`upgrades.md`, section 12).
-- **Today, goal 63** (standing roles), on `main` since 2026-11-11, changes three of jig's families (jig's `domain/tasks/standing.md`, section 7):
+- **Today, goals 63 and 187,** on `main` since 2026-11-11: goal 63 (standing roles) changes three of jig's families (jig's `domain/tasks/standing.md`, section 7), and goal 187 (rules by path) one of temper's (`../domain/forge/change/gates.md`):
 
 | Family | Change | Every old record takes |
 |---|---|---|
 | `jig-store-tasks` 9 | `TaskRecord.activation_open`, `TaskRecord.session`; the activity lines `stood` and `session_ended` appended | `activation_open` false, `session` none: no task before it stood |
 | `jig-store-settings` 1 | `Model.cache_life_ms` inserted; `EndedBy`'s `standing` appended | `cache_life_ms` 0, the configuration's "none declared" |
 | `jig-store-people` 14 | `EndedBy`'s `standing` appended | nothing: an appended variant |
+| `temper-store` 11 | `LandingRule.sets` appended | `sets` empty: a rule naming no set covers every change, as every rule did before |
 
-- **Goals in flight that change a stored layout in place** (on 2026-11-11: 187, `temper-store`'s landing rules; 625, `jig-store-people`'s project deletion; 64, `temper-store`'s follows): one that lands before goal 648 joins the catch-up; one that lands after brings its own patch, the gate refusing it otherwise.
+- **Goals in flight that change a stored layout in place** (on 2026-11-11: 625, `jig-store-people`'s project deletion; 64, `temper-store`'s follows): one that lands before goal 648 joins the catch-up; one that lands after brings its own patch, the gate refusing it otherwise.
 - **The first patch of jig's own families:** goal 648's stories patch with a fixture that changes no family, so the catch-up is the first real one. Its line over the golden store, made by the baseline's code, is its proof.
 - **Every landing passes the gate:** a merge into `main` outside the queue runs the gate's patches test too, or an unpatched change lands past it.
 - **Carried by goal 648** where it fits before it lands; otherwise by a goal right after it, before any upgrade.
@@ -48,7 +49,7 @@ Draft, 2026-11-11. How temper's own two deployments take a new build without sta
 
 - **A backup first:** dev.fabrig.ai's deployment directory, the active generation and the transcripts, copied with the engine stopped (`upgrades.md`, 3.3).
 - **Then `temper upgrade --check`** by the new build, over a copy of the backup, patching into a scratch directory on the same machine as the deployment's own user (`upgrades.md`, 3.1). Nothing starts and nothing leaves the machine. It reports the patches and their counts, how long patching took, what it refused, and whether the workers may stay.
-- **Every record decoded:** the check decodes every record of every kept family by its version's kept text, whether or not a pending patch changes the family, and names the first that does not decode with its key. The store's layouts row records jig's, skein's and smith's families but not temper's, and `temper-store` changed in place five times while dev.fabrig.ai's store was kept (fields appended to kept forge answers among them). A record left in an older layout would otherwise surface only at the first patch of temper's families, as the start refuses.
+- **Every record decoded:** the check decodes every record of every kept family by its version's kept text, whether or not a pending patch changes the family, and names the first that does not decode with its key. The store's layouts row records jig's, skein's and smith's families but not temper's, and `temper-store` changed in place five times while dev.fabrig.ai's store was kept (fields appended to kept forge answers among them). A record left in an older layout refuses the catch-up's walk of `temper-store` (goal 187's patch) at dev.fabrig.ai's start; decoded beforehand, it is found in the rehearsal, with every other family's.
 - **Its numbers set the drill's bounds:** the service manager's start timeout covers patching, and its stop timeout the settled stop (`upgrades.md`, section 8).
 
 ## 6. The drill on staging.fabrig.ai

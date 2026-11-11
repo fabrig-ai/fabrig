@@ -6,7 +6,7 @@
 
 | Milestone | Draft parts | Owner | Needs | State |
 |---|---|---|---|---|
-| U1, the catch-up: a patch from the baseline for each stored layout `main` changed in place, each with its line over the golden store; and `upgrade --check` decoding every record of every family | 3, 5 | goal 648, or the goal after it (temper/migration) | goal 648's sets, gate and `upgrade --check` | asked of goal 648 on 2026-11-11 |
+| U1, the catch-up: a patch from the baseline for each stored layout `main` changed in place (goals 63 and 187 by 2026-11-11), each with its line over the golden store; and `upgrade --check` decoding every record of every family | 3, 5 | goal 648, or the goal after it (temper/migration) | goal 648's sets, gate and `upgrade --check` | asked of goal 648 on 2026-11-11 |
 | U2, staging.fabrig.ai made again at dev.fabrig.ai's build, with its workload | 6 | the deployments' operator; the workload temper/migration | a worker and an account (agreed 2026-11-11) | not started |
 | U3, the rehearsal on a backup of dev.fabrig.ai | 5 | the deployments' operator for the backup; temper/migration | U1 landed | not started |
 | U4, the drill script, run on staging | 6 | temper/migration | U2, U3 | not started |
