@@ -12,6 +12,7 @@ use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use std::{
     fs,
+    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
@@ -31,15 +32,19 @@ pub struct Paths {
 /// # Errors
 /// Refuses an unwalkable journey, a page that stays moving, a missing event,
 /// a different walk, an unproved save, or a browser, box or filesystem failure.
-#[expect(clippy::disallowed_methods, reason = "cli C8: PATH for the journey tool's child programs")]
-pub fn again(journeys: &Path, name: &str, paths: &Paths) -> Result<(), Refusal> {
+pub fn again(
+    journeys: &Path,
+    name: &str,
+    paths: &Paths,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<(), Refusal> {
     let steps = starting(journeys, name)?;
     let prepared = prepared(journeys, name)?;
     let downloads = paths.scratch.join("downloads");
     fs::create_dir(&downloads).map_err(|_| crate::io_refusal(&downloads))?;
     // The harness gives its server an empty environment. Forward PATH alone
     // through env so a fresh fake box can find the worker's git at init.
-    let path = std::env::var_os("PATH").unwrap_or_default();
+    let path = std::ffi::OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default());
     let launcher = std::env::split_paths(&path)
         .filter(|directory| directory.is_absolute())
         .map(|directory| directory.join("env"))

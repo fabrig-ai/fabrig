@@ -45,7 +45,7 @@ impl Repositories {
         repos
     }
 
-    #[expect(clippy::disallowed_methods, reason = "cli C8: PATH for the journey tool's test commands")]
+    #[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
     fn command(&self, program: &str, directory: &Path) -> Command {
         let mut command = Command::new(program);
         command

@@ -13,7 +13,7 @@ use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use skein_ui_screen_terminal::Key;
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fs::{self, File},
     io::{self, Read},
     os::unix::{
@@ -75,6 +75,7 @@ pub fn again(
     name: &str,
     starting: &Starting,
     paths: &Paths,
+    given: &[crate::EnvironmentEntry],
 ) -> Result<(), Refusal> {
     for attempt in 1..=3 {
         let scratch = paths.scratch.join(format!("attempt-{attempt}"));
@@ -85,7 +86,7 @@ pub fn again(
             chromium: paths.chromium.clone(),
             scratch,
         };
-        match record(journeys, tui_journeys, name, starting, &attempt_paths) {
+        match record(journeys, tui_journeys, name, starting, &attempt_paths, given) {
             Err(Refusal::TuiProof { refusal: journey::Refusal::Differs { .. }, .. }) if attempt < 3 => {}
             result => return result,
         }
@@ -93,23 +94,29 @@ pub fn again(
     unreachable!("the third attempt returns its result")
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C8: the process environment for the journey tool's TUI child")]
-fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting, paths: &Paths) -> Result<(), Refusal> {
+fn record(
+    journeys: &Path,
+    tui_journeys: &Path,
+    name: &str,
+    starting: &Starting,
+    paths: &Paths,
+    given: &[crate::EnvironmentEntry],
+) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
-    let environment = environment(&std::env::vars_os().collect::<Vec<_>>(), &paths.scratch)
-        .map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
+    let environment =
+        environment(given, &paths.scratch).map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
     for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime", "tui-runtime"] {
         let path = paths.scratch.join(directory);
         fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;
     }
-    let true_program = program("true").ok_or_else(|| fail("cannot find true on PATH".into()))?;
+    let true_program = program("true", given).ok_or_else(|| fail("cannot find true on PATH".into()))?;
     for opener in ["xdg-open", "open"] {
         let path = paths.scratch.join("bin").join(opener);
         std::os::unix::fs::symlink(&true_program, &path).map_err(|_| crate::io_refusal(&path))?;
     }
     // Like browser again, env gives the harness's empty server environment
     // a PATH. HOME and temporary files also stay within this fresh run.
-    let launcher = program("env").ok_or_else(|| fail("cannot find env on PATH".into()))?;
+    let launcher = program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
     let mut args: Vec<OsString> = environment
         .iter()
         .filter(|(name, _)| {
@@ -178,24 +185,24 @@ fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting,
     crate::add_to(journeys, tui_journeys, name, &recording, &[]).map(|_| ())
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C8: PATH for the journey tool's child programs")]
-fn program(name: &str) -> Option<std::path::PathBuf> {
-    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+fn program(name: &str, given: &[crate::EnvironmentEntry]) -> Option<std::path::PathBuf> {
+    let path = OsStr::from_bytes(crate::table::PATH.value(given).unwrap_or_default());
+    std::env::split_paths(path)
         .filter(|path| path.is_absolute())
         .map(|path| path.join(name))
         .find(|path| path.is_file())
 }
 
 fn environment(
-    given: &[(OsString, OsString)],
+    given: &[crate::EnvironmentEntry],
     scratch: &Path,
 ) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
     let mut environment: Vec<_> = given
         .iter()
-        .filter(|(name, _)| !name.as_bytes().starts_with(b"SSH_") && name != "COLORFGBG")
-        .cloned()
+        .filter(|(name, _)| !name.starts_with(b"SSH_") && name.as_ref() != b"COLORFGBG")
+        .map(|(name, value)| (OsStr::from_bytes(name).to_os_string(), OsStr::from_bytes(value).to_os_string()))
         .collect();
-    let path = given.iter().find(|(name, _)| name == "PATH").map(|(_, value)| value.clone()).unwrap_or_default();
+    let path = OsStr::from_bytes(crate::table::PATH.value(given).unwrap_or_default());
     let paths = std::iter::once(scratch.join("bin")).chain(std::env::split_paths(&path));
     let mut replacements = vec![("PATH", std::env::join_paths(paths)?), ("TERM", "xterm-256color".into())];
     for (name, directory) in [
@@ -209,7 +216,7 @@ fn environment(
     ] {
         replacements.push((name, scratch.join(directory).into_os_string()));
     }
-    if !given.iter().any(|(name, _)| name == "DISPLAY") {
+    if !given.iter().any(|(name, _)| name.as_ref() == b"DISPLAY") {
         replacements.push(("DISPLAY", ":0".into()));
     }
     for (name, value) in replacements {

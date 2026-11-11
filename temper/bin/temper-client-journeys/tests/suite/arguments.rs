@@ -13,7 +13,7 @@ fn again_without_a_name_is_usage() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         String::from_utf8(output.stderr).expect("usage is text"),
-        "usage: temper-client-journeys [add [--redact TEXT]... NAME FILE | again NAME | --help]\n"
+        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again NAME\n"
     );
 }
 
@@ -86,8 +86,15 @@ fn help_says_what_is_left_to_the_person() {
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty());
     let help = String::from_utf8(output.stdout).expect("help text");
+    assert!(super::help(&help), "the bare page lists only public entries");
+    let output =
+        Command::new(paths::binary("temper-client-journeys")).args(["add", "--help"]).output().expect("add help");
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    let help =
+        String::from_utf8(output.stdout).expect("add help text").split_whitespace().collect::<Vec<_>>().join(" ");
     for sentence in [
-        "usage: temper-client-journeys [add [--redact TEXT]... NAME FILE | again NAME | --help]",
+        "temper-client-journeys add [--redact TEXT]... NAME FILE",
         "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.",
         "FILE keeps every original: keep it out of the repository and remove it once added.",
         "link",

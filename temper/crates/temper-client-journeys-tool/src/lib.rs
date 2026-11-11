@@ -7,6 +7,13 @@ use std::{
 };
 use temper_client_shell_web::journey::{self, Stale};
 
+mod run;
+mod table;
+pub use run::main;
+pub use table::TABLE;
+
+type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
+
 pub mod again;
 pub mod print;
 pub mod tui;

@@ -8,31 +8,27 @@ publish.workspace = true
 
 [[bin]]
 name = "temper-client-journeys"
-path = "src/main.rs"
+path = "main.rs"
 test = false
 
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
 [dependencies]
-temper-client-shell-tui = { workspace = true, features = ["record"] }
-temper-client-tui.workspace = true
-skein-ui-screen.workspace = true
-skein-ui-screen-terminal.workspace = true
-temper-client-shell-web.workspace = true
+temper-client-journeys-tool.workspace = true
 skein-fail-stop.workspace = true
-skein-ui.workspace = true
-skein-ui-bundle.workspace = true
-skein-ui-web.workspace = true
-skein-browser.workspace = true
-skein-fake-person.workspace = true
-skein-fake-person-browser.workspace = true
-skein-lib.workspace = true
-skein-io.workspace = true
-skein-shell.workspace = true
 
 [dev-dependencies]
 jig-client.workspace = true
-jig-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
-
+skein-lib.workspace = true
+skein-ui-web.workspace = true
+skein-ui-screen.workspace = true
+jig-client-protocol-wire.workspace = true
+temper-client-shell-web.workspace = true
+temper-client-shell-tui.workspace = true
+temper-client-tui.workspace = true
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

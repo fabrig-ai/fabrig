@@ -177,7 +177,7 @@ fn walk_keys_are_terminal_bytes() {
 fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
     let scratch = Path::new("/tmp/journey-environment");
     for display in [None, Some(":7")] {
-        let mut given: Vec<(OsString, OsString)> = [
+        let mut given: Vec<crate::EnvironmentEntry> = [
             ("PATH", "/usr/bin:/bin"),
             ("HOME", "/old-home"),
             ("XDG_STATE_HOME", "/old-state"),
@@ -190,10 +190,10 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("LANG", "C.UTF-8"),
         ]
         .into_iter()
-        .map(|(name, value)| (name.into(), value.into()))
+        .map(|(name, value)| (Box::from(name.as_bytes()), Box::from(value.as_bytes())))
         .collect();
         if let Some(display) = display {
-            given.push(("DISPLAY".into(), display.into()));
+            given.push((Box::from(b"DISPLAY".as_slice()), Box::from(display.as_bytes())));
         }
         let environment = environment(&given, scratch).expect("scratch PATH");
         let lookup = |name: &str| environment.iter().find(|(key, _)| key == name).map(|(_, value)| value.as_os_str());

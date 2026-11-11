@@ -265,7 +265,8 @@ members = [
     "temper/crates/temper-box",
     "temper/crates/temper-client-gallery-tool",
     "temper/bin/temper-client-gallery",
-    "temper/tools/journeys",
+    "temper/crates/temper-client-journeys-tool",
+    "temper/bin/temper-client-journeys",
     "temper/crates/temper-stage-one-tool",
     "temper/bin/temper-stage-one",
     "temper/tests/one-process",
@@ -602,6 +603,7 @@ temper-shell = { path = "temper/crates/temper-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-version = { path = "temper/crates/temper-version" }
+temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }

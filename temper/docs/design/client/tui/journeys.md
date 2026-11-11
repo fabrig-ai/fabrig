@@ -313,7 +313,9 @@ the TUI's lines.
 ### 6.1 The program
 
 `temper-client-journeys` (`../web/journeys.md`, 5.1) takes, reprints and
-records again the TUI's journeys beside the browser's:
+records again the TUI's journeys beside the browser's, through
+`bin/temper-client-journeys` and its crate `crates/temper-client-journeys-tool`
+(`../../testing/tools.md`, 3–4):
 
 - `add [--redact TEXT]... NAME FILE` reads FILE's first fact after
   `clocks`: `screen` makes it the TUI's, taken under
@@ -389,7 +391,7 @@ checkout, as a file or through a server from the repository's root.
 
 As the browser's journeys' (`../web/journeys.md`, section 6), within their
 cost, in `temper-client-shell-tui`'s journey module (the host's world:
-reports given by the test) and `tools/journeys`' own tests:
+reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
 
 - **The seam:** a walk recorded by `journey::Recorder` and replayed; the
   file's lines read back to the records written, every record and key
@@ -453,8 +455,8 @@ recording's (3.2).
 
 ### 8.2 Again
 
-`cargo run -p temper-client-journeys -- again NAME`, in `tools/journeys`,
-for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
+`cargo run -p temper-client-journeys -- again NAME`, in
+`crates/temper-client-journeys-tool`, for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
 - **Built from the checkout:** `temper` with its `record` feature and
