@@ -13,6 +13,8 @@ use skein_ui::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     StopAsking,
+    StopAskingRule,
+    ReachSomeChanges,
     StopAskingDecide,
     StopAskingWords,
     StopAskingSplit,
@@ -1765,7 +1767,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2318;
+const PHRASES: u32 = 2320;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1792,11 +1794,13 @@ const PHRASES: u32 = 2318;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4157;
+const SEGMENTS: u32 = 4163;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56270;
-const ALL: [Word; 1634] = [
+const ENGLISH_BYTES: u32 = 56317;
+const ALL: [Word; 1636] = [
     Word::StopAsking,
+    Word::StopAskingRule,
+    Word::ReachSomeChanges,
     Word::StopAskingDecide,
     Word::StopAskingWords,
     Word::StopAskingSplit,
@@ -3617,6 +3621,8 @@ impl Word {
             Self::ReachPathSet => 4332,
             Self::ReachUnder => 4333,
             Self::StopAsking => 4400,
+            Self::StopAskingRule => 5670,
+            Self::ReachSomeChanges => 5671,
             Self::StopAskingDecide => 4401,
             Self::StopAskingWords => 4402,
             Self::StopAskingSplit => 4403,
@@ -6665,6 +6671,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
         Word::StopAsking => (&[b"Stop asking"], &[]),
+        Word::StopAskingRule => (&[b"Stop asking: let agents decide ", b""], &[Name]),
+        Word::ReachSomeChanges => (&[b"some changes to ", b""], &[Name]),
         Word::StopAskingDecide => (&[b"Let agents decide ", b", then tell you."], &[Name]),
         Word::StopAskingWords => (&[b"Let agents decide changes to ", b" that are:"], &[Name]),
         Word::StopAskingSplit => (&[b"Let agents decide changes to ", b", apart from the rest of ", b"."], &[Name, Name]),
