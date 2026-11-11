@@ -3,9 +3,9 @@
 │  written by the status agent 07:42 · │
 │                               /brief │
 ╰──────────────────────────────────────╯
+
  Where you left off
-   Hello   Away mode, a chat · 08:12 ·…
-   Hello   csv-export, a goal · 07:42…
+   Hello   Away mode, a chat · today…
 ────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / fo
 ────────────────────────────────────────
@@ -16,9 +16,9 @@ a......................................a
 a..ddddddddddddddddddddddddddddddddddd.a
 a...............................dddddd.a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+........................................
 .cccccccccccccccccc.....................
-...cccccccc.........ddddddddddddddddddd.
-...cccccccc..........ddddddddddddddddd..
+...cccccccc.........ddddddddddddddddd...
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

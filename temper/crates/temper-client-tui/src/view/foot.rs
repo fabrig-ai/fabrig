@@ -67,6 +67,7 @@ pub(crate) struct Composer {
 pub(crate) struct Options {
     pub style: Style,
     pub head: Option<Box<[u8]>>,
+    pub why: Option<Box<[u8]>>,
     pub name: Box<[u8]>,
     pub items: Box<[OptionItem]>,
     pub escape: Event,

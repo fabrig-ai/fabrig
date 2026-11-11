@@ -2,22 +2,22 @@
 │ 3 changes landed overnight.                                                  │
 │                                   written by the status agent 07:42 · /brief │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
  Where you left off
-   Hello   Away mode, a chat · 08:12 · waiting on you                  /chats 1
-   Hello   csv-export, a goal · 07:42 · Working
+   Hello   Away mode, a chat · today 08:12 · waiting on you            /chats 1
+   Hello   csv-export, a goal · today 07:42 · Working
 
  Needs you
-   ? Hello   csv-export: comma or semicolon?                       n walks them
+   ? Hello   csv-export: comma or semicolon? · asked 20 min ago    n walks them
 
  Start
    /draft    a design session that ends in a draft and a goal
-   /change   one change, run as Hello's way says
-   /ask      Ask temper
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯
 ────────────────────────────────────────────────────────────────────────────────
 csv-export: comma or semicolon?
+Reached you because it is an implementation choice, which asks you unless you’re
+away.
 ❯ 1. Comma
   2. Semicolon
   3. Tell it something else
@@ -27,22 +27,22 @@ aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
 a..............................................................................a
 a...................................dddddddddddddddddddddddddddddddddddddddddd.a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+................................................................................
 .cccccccccccccccccc.............................................................
-...cccccccc.........ddddddddddddddddddddddddddddddddd..................dddddddd.
-...cccccccc..........dddddddddddddddddddddddddd.................................
+...cccccccc.........ddddddddddddddddddddddddddddddddddddddd............dddddddd.
+...cccccccc..........dddddddddddddddddddddddddddddddd...........................
 ................................................................................
 .ccccccccc......................................................................
-...e.cccccccc......................................................dddddddddddd.
+...e.cccccccc...............................ddddddddddddddddddd....dddddddddddd.
 ................................................................................
 .ccccc..........................................................................
 ...ccccccccccdddddddddddddddddddddddddddddddddddddddddddddddd...................
-...ccccccccccddddddddddddddddddddddddddddddddddd................................
-...ccccccccccdddddddddd.........................................................
-................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ee..............................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ccccccccccccccccccccccccccccccc.................................................
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+eeeee...........................................................................
 ffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggg
 cccccccccccccccccccccccccccccc..................................................
 cccccccccccccccccccccccccccccc..................................................
@@ -55,4 +55,4 @@ d: fore #7A736A
 e: fore #B8664E
 f: fore #B8664E back #EBEAE9 bold
 g: back #EBEAE9 bold
-cursor 17 2
+cursor 15 2

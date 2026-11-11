@@ -945,3 +945,62 @@ fn need_prompts_say_each_kind() {
     }
     assert!(failed.is_empty(), "need prompt rows: {failed:?}");
 }
+
+#[test]
+fn need_prompts_keep_the_wait_and_the_shared_reason() {
+    use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+    let w = f::browser_words();
+    let (mut question, _, watch) =
+        super::needs::fixture_watched("Which parser?", false, 1, false, d::address::Filter::ALL, None);
+    super::needs::deliver_asked(
+        &mut question,
+        watch,
+        Some(Reach {
+            kind: Kind::Implementation,
+            class: Class::Ask,
+            reason: Reason::Kind,
+            under: 0,
+            sets: 0,
+            matched: 0,
+            away: false,
+        }),
+    );
+    let mut proposal = super::needs::proposal(c::Proposer::Task(f::INBOX_TASK));
+    proposal.waiting.since = Wall::from_nanos(123);
+    let proposal_root = super::needs::kinds(&[(
+        c::ObjectKey::Proposal(proposal.key),
+        c::Read::Proposal { proposal: proposal.key },
+        c::ReadValue::Proposal(Box::new(proposal)),
+    )]);
+    let mut approval = super::needs::approval_row();
+    approval.since = Wall::from_nanos(456);
+    let person = super::needs::person();
+    let without_wait = super::needs::kinds(&[(
+        c::ObjectKey::PersonTask(f::INBOX_TASK),
+        c::Read::PersonTask { task: f::INBOX_TASK },
+        c::ReadValue::PersonTask(Box::new(person)),
+    )]);
+    let approval_root = approval_needs(&approval);
+    for (root, since, why) in [
+        (
+            &question,
+            Some(Wall::EPOCH),
+            Some("Reached you because it is an implementation choice, which asks you unless you’re away."),
+        ),
+        (
+            &proposal_root,
+            Some(Wall::from_nanos(123)),
+            Some("Reached you because a proposal always waits for whoever may accept it."),
+        ),
+        (&approval_root, Some(approval.since), None),
+        (&without_wait, None, None),
+    ] {
+        let prompts = shared::need_prompts(root, &w);
+        assert_eq!(prompts.len(), 1, "{since:?} {why:?}");
+        let prompt = &prompts[0];
+        assert_eq!(prompt.since, since);
+        assert_eq!(prompt.why.as_deref(), why.map(str::as_bytes));
+        let needs = root.pages().needs().needs(root.pages().inbox().unwrap(), root.forge().approvals());
+        assert_eq!(prompt.why, shared::why(root, &w, needs[0]));
+    }
+}
