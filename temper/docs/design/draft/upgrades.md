@@ -144,17 +144,20 @@ transcripts, the forge or the programs' logins. Online backups stay open
 
 ### 4.1 Before the baseline
 
-The baseline is the first release (skein's `data/codec/README.md`, section 5).
-Until it, each encoding keeps its current version: changes a reader
-would notice change the schema, generated code and one set of golden
-bytes in place (`../protocol/README.md`, section 7). A reader still
-refuses another version and nothing is translated (jig's
-`protocol/README.md`, section 7). A version names no one layout yet, so a
-store from an older build is started afresh when its families change:
-no patch could tell those layouts apart (`../protocol/store.md`, section
-4). No promise reaches back before the baseline, and nothing in this
-draft asks anything of a change landed before it. Versions move at a
-release, not at a landing; `first-release.md` proposes v0.1.0.
+The baseline moved: it is the store `main` wrote at `bc23255eb7`, on
+2026-11-11, not the first release. The user moved it that day, so that
+from then on every change to what temper stores lands with its patch
+and a deployment restarts on a new binary without a store reset
+(`../protocol/baseline.md`). A store that build wrote records no patch
+level, and a later build reads it at level 0 (jig's
+`protocol/store/records.md`, 3). Before it, each encoding kept its
+version: changes a reader would notice changed the schema, generated
+code and one set of golden bytes in place (`../protocol/README.md`,
+section 7), a reader refused another version and nothing was
+translated (jig's `protocol/README.md`, section 7), and a store from an
+older build was started afresh when its families changed. No promise
+reaches back before the baseline. From it, a version moves in the
+landing whose patch moves it, not at a release.
 
 ### 4.2 Levels
 
