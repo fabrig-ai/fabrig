@@ -138,8 +138,9 @@ The remaining gaps concern verdict follow-up tasks (`charter.status.md`, 3), wha
 Stock and reference instructions remain separate work (`README.md`, section 8 and
 `../../draft/goal-as-designer.status.md`).
 - **Not yet:** `agents.md`, *A coordinator hears its changes while it
-  designs*: the coordinator-result gap remains `agents.status.md` (Not yet, A coordinator hears its changes while it designs). [in flight: change 100]
-  smith's offer between two completions is built.
+  designs*: the coordinator-result gap remains `agents.status.md` (Not yet,
+  A coordinator hears its changes while it designs); smith's offer between
+  two completions is built [in flight: change 100].
 `tools.md` has no known implementation gap in task and forge reads
 fitting to the live attempt's worker reply bound, else the local agent's.
 Task reads use `documents.text_bytes` where neither names a bound; forge

@@ -2,7 +2,12 @@
 
 2026-11-11. Where the tree's code lags or departs from [charter.md](charter.md).
 
-- **Not yet:** 4, *How long a check may take*: no run's charter names a checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`) [in flight: change 74]. 4, *What a delivery checks*: a repair's and a resolution's checkout has no pin of the head their delivery replaces [in flight: change 68].
+- **Not yet:** 4, *How long a check may take*: no run's charter names a
+  checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`)
+  [in flight: change 74].
+- **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's
+  checkout has no pin of the head their delivery replaces
+  [in flight: change 68].
 
 - **Not yet:** 3: a verdict's follow-up tasks.
 - **Not yet:** 3: no supplied real-model landing proves the

@@ -43,7 +43,9 @@ forge and job completions; they establish no deployment outcome.
 - **Not yet:** 1, quiet on the forge, and `keeping-up.md`, 2: no fresh read is shared, and the landing's waits and the tiers' flights poll every `poll`, not at `poll_at` [in flight: change 160].
 - **Not yet:** 1, quiet on the forge: review and pull-file pages are sized for their largest row [in flight: change 161].
 - **Not yet:** 1, quiet on the forge: no read is conditional [in flight: change 155].
-- **Not yet:** `change/branch-path.md`, *The project's roles*: the drafter-role gap remains `change/branch-path.status.md` (Not yet, The project's roles). [in flight: change 314]
+- **Not yet:** `change/branch-path.md`, *The project's roles*: the
+  drafter-role gap remains `change/branch-path.status.md` (Not yet, The
+  project's roles) [in flight: change 314].
 
 `adoption.md` have no known gap in a repository's CI workflows:
 `temper-engine-domain-forge`'s `workflows.rs` reads `.github/workflows`,
