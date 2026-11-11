@@ -222,7 +222,7 @@ pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     Binary::start(
         Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(super::configuration::flags(directory)).collect(),
+            arguments: super::configuration::flags(directory),
             directory: directory.into(),
             environment: Vec::new(),
         },

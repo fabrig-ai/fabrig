@@ -2015,7 +2015,6 @@ exec "$@"
         hosts.into_os_string(),
         nsswitch.into_os_string(),
         skein_scratch::paths::binary("temper-box").into(),
-        "box".into(),
     ]);
     for (flag, path) in ["--config", "--data", "--cache"].into_iter().zip(&paths) {
         arguments.extend([flag.into(), path.as_os_str().into()]);
@@ -2149,7 +2148,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
         let root = std::path::Path::new(&root);
         let command = support::boxed::dying_with_test(skein_world::end_to_end::Command {
             program: skein_scratch::paths::binary("temper-box"),
-            arguments: std::iter::once("box".into()).chain(support::configuration::flags(root)).collect(),
+            arguments: support::configuration::flags(root),
             directory: root.into(),
             environment: Vec::new(),
         });

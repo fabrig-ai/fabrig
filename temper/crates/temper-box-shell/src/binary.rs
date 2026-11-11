@@ -1,45 +1,79 @@
-//! Temper's standalone commands (protocol/binaries.md).
-use std::os::unix::ffi::OsStrExt;
-use std::{env, process::ExitCode};
+//! The box's capture and dispatch (temper/docs/design/cli/README.md, 3 and 4).
+use crate::{Command, TABLE};
+use skein_shell::{Reach, Reached};
+use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
+
+struct Capture {
+    run_as: Box<[u8]>,
+    arguments: Box<[Box<[u8]>]>,
+    environment: Box<[crate::EnvironmentEntry]>,
+    working: Result<PathBuf, String>,
+}
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "cli C2: arguments select entry modes and the environment resolves commands; temper-box's table will read them"
+    reason = "the binary's capture: argv's first word, arguments, environment and working directory are read once"
 )]
+fn capture() -> Capture {
+    Capture {
+        run_as: std::env::args_os().next().map(|word| word.as_bytes().into()).unwrap_or_default(),
+        arguments: skein_shell::arguments(),
+        environment: skein_shell::environment(),
+        working: std::env::current_dir().map_err(|why| why.to_string()),
+    }
+}
+
+#[must_use]
 pub fn main() -> ExitCode {
-    if env::args_os().next().as_deref().is_some_and(crate::fake::git::is_git) {
-        return ExitCode::from(crate::fake::git::run(&skein_shell::arguments()));
+    let captured = capture();
+    match dispatch(&captured) {
+        Ok(code) => code,
+        Err((code, why)) => {
+            eprint!("{why}");
+            ExitCode::from(code)
+        }
     }
-    if let Some(program) = env::args_os().next()
-        && crate::claude_code::is_launcher(&program)
-    {
-        return ExitCode::from(crate::claude_code::run(&program, &skein_shell::arguments()));
-    }
-    if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(smith_agent_shell::relay::FLAG)) {
-        return smith_agent_shell::relay::main();
-    }
-    if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(smith_agent_shell::PROGRAM_CHILD_FLAG)) {
-        return smith_agent_shell::program_child::main();
-    }
-    let arguments = skein_shell::arguments();
-    if arguments.as_ref() == [Box::from(b"--help".as_slice())] {
-        print!("{}", crate::commands::help());
-        return ExitCode::SUCCESS;
-    }
-    let working = match env::current_dir() {
-        Ok(path) => path,
-        Err(why) => {
-            eprintln!("temper: {why}");
-            return ExitCode::FAILURE;
+}
+
+fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
+    let command = match TABLE.reach(&captured.run_as, &captured.arguments) {
+        Reached::Help => {
+            print!("{}", TABLE.help());
+            return Ok(ExitCode::SUCCESS);
+        }
+        Reached::Version => {
+            print!("{}", TABLE.version_line());
+            return Ok(ExitCode::SUCCESS);
+        }
+        Reached::CommandHelp(command) => {
+            print!("{}", TABLE.command_help(command));
+            return Ok(ExitCode::SUCCESS);
+        }
+        Reached::Unknown(why) => return Err((2, why)),
+        Reached::Command(command, arguments) => {
+            if command.reach == Reach::Words(&["help"]) {
+                print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                return Ok(ExitCode::SUCCESS);
+            }
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?;
+            crate::configure_command(
+                command,
+                arguments,
+                &captured.arguments,
+                &captured.environment,
+                working.as_os_str().as_bytes(),
+            )
+            .map_err(|why| (2, why))?
         }
     };
-    match crate::configure_with(&arguments, &skein_shell::environment(), working.as_os_str().as_bytes())
-        .and_then(crate::run)
-    {
-        Ok(code) => ExitCode::from(code),
-        Err(why) => {
-            eprint!("{why}");
-            ExitCode::FAILURE
-        }
+    if let Command::Relay = command {
+        return Ok(smith_agent_shell::relay::main());
     }
+    if let Command::ProgramChild = command {
+        return Ok(smith_agent_shell::program_child::main());
+    }
+    if let Command::Claude { arguments, .. } = command {
+        return Ok(ExitCode::from(crate::claude_code::run(std::ffi::OsStr::from_bytes(&captured.run_as), &arguments)));
+    }
+    crate::run(command).map(ExitCode::from).map_err(|why| (1, why))
 }

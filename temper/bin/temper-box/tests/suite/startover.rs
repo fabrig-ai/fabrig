@@ -203,7 +203,8 @@ fn removal_cut(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flag
             })),
         ],
         |binary, calls: &Calls| {
-            box_pid.set(child(binary, &[b"box"]));
+            let program = skein_scratch::paths::binary("temper-box");
+            box_pid.set(child(binary, &[program.as_os_str().as_encoded_bytes(), b"--config"]));
             paused.get()
                 && calls.ends().iter().any(|call| call.exit == Some(Exit::Code(0)) && call.stdout == b"removed\n")
         },

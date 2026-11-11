@@ -11,6 +11,7 @@ publish.workspace = true
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
+temper-version.workspace = true
 temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
 temper-worker-shell.workspace = true
