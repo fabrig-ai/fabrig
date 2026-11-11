@@ -7,7 +7,10 @@ use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, con
 use skein_lib::List;
 use skein_lib::Queue;
 
+mod rules;
 mod standing;
+pub mod wakes;
+pub use rules::{Rules, asked};
 pub use standing::{Card, Now, Role, StartedBy};
 /// The standing roles watch’s window.
 pub const ROLES: u32 = 16;
@@ -91,6 +94,10 @@ pub struct Parts {
     pub pause: bool,
     pub resume: bool,
     pub now: bool,
+    pub rules: bool,
+    pub wakes: bool,
+    pub wakes_cut: bool,
+    pub right: bool,
 }
 
 #[expect(clippy::derivable_impls, reason = "parts name each undrawn default explicitly in the step subset")]
@@ -106,6 +113,10 @@ impl Default for Parts {
             pause: false,
             resume: false,
             now: false,
+            rules: false,
+            wakes: false,
+            wakes_cut: false,
+            right: false,
         }
     }
 }
@@ -150,8 +161,18 @@ pub fn parts(facts: &Facts) -> Parts {
         pause: false,
         resume: false,
         now: false,
+        rules: false,
+        wakes: false,
+        wakes_cut: false,
+        right: false,
     };
     if let Some(detail) = detail {
+        if let Some(rules) = &detail.rules {
+            parts.rules = !rules.asked.is_empty();
+        }
+        parts.wakes = !detail.wakes.is_empty();
+        parts.wakes_cut = parts.wakes && detail.wakes_cut;
+        parts.right = parts.wakes;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
         if let Some(now) = &detail.now {
@@ -277,6 +298,7 @@ impl Team {
         &mut self,
         address: &Address,
         you: u64,
+        client: &Client,
         limits: &Limits,
         next: &mut u64,
         out: &mut Queue<Request>,
@@ -305,6 +327,7 @@ impl Team {
         let on_team = if let Address::Team { .. } = address { true } else { false };
         self.configure_others(you, on_team, limits, next, out);
         self.standing.configure(project, address, next, out);
+        self.standing.configure_rules(client, limits.forge, next, out);
     }
     fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
@@ -364,7 +387,16 @@ impl Team {
         self.standing.leave(out);
         *self = Self::default();
     }
-    pub(super) fn told(&mut self, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(
+        &mut self,
+        client: &Client,
+        told: &Told,
+        limits: crate::forge::Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        if self.standing.rules_told(told, limits) {
+            return true;
+        }
         if self.standing.told(client, told, out) {
             return true;
         }

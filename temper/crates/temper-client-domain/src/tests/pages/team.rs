@@ -252,12 +252,15 @@ struct Reads {
     me: Token,
     inbox: Token,
     approvals: Token,
+    settings: Token,
     read: Option<Handle>,
     others: List<(u64, Handle, Token)>,
     handles: Set<Handle>,
     roles: Option<(Handle, Token)>,
     nows: List<(u64, Handle)>,
     card: Option<(u64, Handle, Token)>,
+    charters: List<(Handle, Box<[u8]>)>,
+    closed: List<Handle>,
 }
 #[derive(Debug, PartialEq, Eq)]
 struct Effects {
@@ -307,7 +310,17 @@ fn reads_fixture() -> Reads {
     );
     let approvals = crate::tests::approvals::opening(&out).expect("session approvals");
     let mut inbox = None;
+    let mut settings = None;
     for request in &out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) },
+                },
+        } = request
+        {
+            settings = Some(*watch);
+        }
         if let crate::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -324,12 +337,15 @@ fn reads_fixture() -> Reads {
         me,
         inbox,
         approvals,
+        settings: settings.expect("settings watch"),
         read: None,
         others: List::with_capacity(team::OTHERS),
         handles: Set::with_capacity(team::OTHERS.checked_add(1).unwrap()),
         roles: None,
         nows: List::with_capacity(64),
         card: None,
+        charters: List::with_capacity(32),
+        closed: List::with_capacity(128),
     }
 }
 fn client(f: &mut Reads, event: jig_client::Event) -> Queue<jig_client::UnlinkedRequest> {
@@ -357,6 +373,7 @@ fn close(f: &mut Reads, handle: Handle) {
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "fixture dispatch records Team reads alongside its watches")]
 fn page(f: &mut Reads, event: Event) -> Effects {
     let mut out = Queue::uncapped();
     pages::step(&mut f.root.pages, &fixtures::env(&fixtures::limits()), &f.root.client, event, &mut out);
@@ -446,7 +463,20 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     }
                 }
             }
-            Request::Client(jig_client::Event::Unwatch { handle }) => close(f, handle),
+            Request::Client(jig_client::Event::Read { handle, read: Readable::Family { record, .. } }) => {
+                let reading = temper_client_protocol_wire::decode_reading(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .unwrap();
+                if let temper_client_protocol_wire::v1::Read::View(view) = reading.read() {
+                    f.charters.push((handle, view.address().into())).unwrap();
+                }
+            }
+            Request::Client(jig_client::Event::Unwatch { handle }) => {
+                f.closed.push(handle).unwrap();
+                close(f, handle);
+            }
             Request::Client(_)
             | Request::Screen { .. }
             | Request::KeepLook { .. }
@@ -952,6 +982,9 @@ fn card(task: u64) -> team::Card {
         pause: true,
         resume: true,
         now: None,
+        rules: None,
+        wakes: List::with_capacity(0),
+        wakes_cut: false,
     }
 }
 #[test]
@@ -1100,4 +1133,204 @@ fn standing_reads_each_now_again_on_line_delivery() {
     );
     let team::Shown::Read(facts) = team::shown(&f.root, PROJECT) else { panic!("Team") };
     assert_eq!(team::parts(&facts).card, None);
+}
+
+fn charter_view(charter: u32, label: &[u8], value: &[u8]) -> temper_client_protocol_wire::v1::View {
+    use temper_client_protocol_wire::v1 as w;
+    let fact = w::Fact::new(&w::CEILINGS, w::FactParts { label: label.into(), value: value.into() }).unwrap();
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            name: b"Prover".as_slice().into(),
+            who: b"an agent".as_slice().into(),
+            facts: List::from_boxed(Box::new([fact])),
+        },
+    )
+    .unwrap();
+    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card }).unwrap())
+}
+
+#[test]
+fn rules_and_wakes_parts_need_the_selected_cards_reads() {
+    use crate::pages::roles::Read;
+    use skein_lib::{Duration, Wall};
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[]);
+    facts.roles = List::from_boxed(Box::new([role(52)]));
+    facts.card = Some(Box::new(card(52)));
+    let asked = charter_view(13, b"Asked to", b"Reproduce before routing.");
+    let other = charter_view(13, b"Model", b"No rules");
+    let empty = charter_view(13, b"Asked to", b"");
+    for (read, expected) in [
+        (Read::Reading, false),
+        (Read::Unreadable, false),
+        (Read::Drawn(&other), false),
+        (Read::Drawn(&empty), false),
+        (Read::Drawn(&asked), true),
+    ] {
+        facts.card.as_mut().unwrap().rules = team::asked(13, read);
+        assert_eq!(team::parts(&facts).rules, expected);
+    }
+    assert!(team::asked(14, Read::Drawn(&asked)).is_none(), "a different charter is not this role's rules");
+    facts.card.as_mut().unwrap().rules = Some(team::Rules { charter: 13, asked: Box::default() });
+    assert!(!team::parts(&facts).rules, "an empty fact cannot draw an empty rules part");
+    facts.card.as_mut().unwrap().rules = team::asked(13, Read::Drawn(&asked));
+    facts.card.as_mut().unwrap().wakes_cut = true;
+    assert!(!team::parts(&facts).wakes_cut, "cut cannot draw an empty part");
+    let timer = team::wakes::Row {
+        interest: team::wakes::Interest::Timer {
+            at: Wall::EPOCH,
+            period: Some(Duration::from_secs(3600)),
+            wakes: true,
+        },
+        class: c::WakeRule::Never,
+    };
+    facts.card.as_mut().unwrap().wakes = List::from_boxed(Box::new([timer]));
+    let parts = team::parts(&facts);
+    assert!(parts.rules && parts.wakes && parts.wakes_cut && parts.right, "cut is shown even if all subscriptions fit");
+    facts.card.as_mut().unwrap().task = 99;
+    let parts = team::parts(&facts);
+    assert!(!parts.rules && !parts.wakes && !parts.wakes_cut && !parts.right, "stale card parts are hidden");
+    facts.roles = List::with_capacity(0);
+    assert_eq!(team::parts(&facts).card, None);
+}
+
+#[test]
+fn wake_rows_group_connectors_at_the_first_topic_and_keep_policy_classes() {
+    use skein_lib::{Duration, Wall};
+    use team::wakes::{Interest, Row};
+    let mut task = fixtures::chat::task();
+    task.wake.notices = c::WakeRule::Batch { count: 5, age: Duration::from_secs(7200) };
+    task.wake.news = c::WakeRule::Paced { span: Duration::from_secs(1800) };
+    task.wake.timers = false;
+    let timer = c::SubscriptionKind::Timer { at: Wall::EPOCH, period: Some(Duration::from_secs(604_800)) };
+    let kinds = [
+        c::SubscriptionKind::Topic { connector: temper_client_protocol_wire::FORGE, topic: 9 },
+        timer,
+        c::SubscriptionKind::Topic { connector: 4, topic: 1 },
+        c::SubscriptionKind::Topic { connector: temper_client_protocol_wire::FORGE, topic: 10 },
+        c::SubscriptionKind::Task { target: 61, held: true, result: false },
+        c::SubscriptionKind::Topic { connector: 4, topic: 2 },
+        c::SubscriptionKind::Task { target: 62, held: false, result: true },
+        c::SubscriptionKind::Task { target: 63, held: true, result: true },
+        c::SubscriptionKind::Timer { at: Wall::from_nanos(1), period: None },
+    ];
+    task.subscriptions.entries = List::with_capacity(u32::try_from(kinds.len()).unwrap());
+    for (n, kind) in kinds.into_iter().enumerate() {
+        task.subscriptions.entries.push(c::Subscription { number: u64::try_from(n).unwrap(), kind }).unwrap();
+    }
+    assert_eq!(
+        team::wakes::rows(&task.subscriptions, &task.wake).as_slice(),
+        &[
+            Row {
+                interest: Interest::Topics { connector: temper_client_protocol_wire::FORGE, count: 2 },
+                class: task.wake.news
+            },
+            Row {
+                interest: Interest::Timer { at: Wall::EPOCH, period: Some(Duration::from_secs(604_800)), wakes: false },
+                class: c::WakeRule::Never
+            },
+            Row { interest: Interest::Topics { connector: 4, count: 2 }, class: task.wake.news },
+            Row { interest: Interest::Task { target: 61, held: true, result: false }, class: task.wake.notices },
+            Row { interest: Interest::Task { target: 62, held: false, result: true }, class: task.wake.notices },
+            Row { interest: Interest::Task { target: 63, held: true, result: true }, class: task.wake.notices },
+            Row {
+                interest: Interest::Timer { at: Wall::from_nanos(1), period: None, wakes: false },
+                class: c::WakeRule::Never
+            },
+        ]
+    );
+}
+
+#[test]
+fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut f = reads_fixture();
+    feed(&mut f, Feed::Open);
+    let (handle, watch) = f.roles.unwrap();
+    let mut line = super::chats::chat_line();
+    line.chip.task = 52;
+    line.project = PROJECT;
+    line.label = 3;
+    line.ended_at = None;
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false })),
+    );
+    assert!(f.charters.is_empty(), "no charter invented before the task document");
+    let (_, handle, watch) = f.card.unwrap();
+    let mut document = fixtures::chat::task();
+    document.chip.task = 52;
+    document.project = PROJECT;
+    document.chip.executor = c::ChipExecutor::Agent { charter: 13 };
+    delivered(&mut f, handle, watch, c::Delivery::Task(Box::new(document)));
+    assert_eq!(f.charters.len(), 1);
+    assert_eq!(f.charters.get(0).unwrap().1.as_ref(), b"charter 13");
+    let charter_handle = f.charters.get(0).unwrap().0;
+    let view = charter_view(13, b"Asked to", b"Reproduce before routing.");
+    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+    page(
+        &mut f,
+        Event::Told {
+            told: Told::Page {
+                handle: charter_handle,
+                page: Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+            },
+        },
+    );
+    let shown = team::shown(&f.root, PROJECT);
+    assert_eq!(
+        shown.facts().unwrap().card.as_ref().unwrap().rules.as_ref().unwrap().asked.as_ref(),
+        b"Reproduce before routing."
+    );
+    let settings = f.settings;
+    let mut charter_handle = charter_handle;
+    for (newest, expected) in [(1, 2), (1, 2), (2, 3)] {
+        delivered(
+            &mut f,
+            crate::forge::ways::handle(),
+            settings,
+            c::Delivery::Settings(Box::new(c::SettingsDocument {
+                newest,
+                settings: List::with_capacity(0),
+                held: List::with_capacity(0),
+                pending: List::with_capacity(0),
+            })),
+        );
+        assert_eq!(f.charters.len(), expected, "only newer settings refresh");
+        charter_handle = f.charters.get(expected - 1).unwrap().0;
+        page(
+            &mut f,
+            Event::Told {
+                told: Told::Page {
+                    handle: charter_handle,
+                    page: Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+                },
+            },
+        );
+    }
+    page(&mut f, Event::Told { told: Told::Ended { handle: charter_handle, why: jig_client::Why::Unknown } });
+    assert!(!team::parts(team::shown(&f.root, PROJECT).facts().unwrap()).rules, "failed reads draw no rules");
+    page(&mut f, Event::Went { address: Address::Home { project: PROJECT } });
+    assert!(f.closed.as_slice().contains(&charter_handle), "leaving Team closes the charter read");
+    assert!(!team::parts(team::shown(&f.root, PROJECT).facts().unwrap()).rules);
+    page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: None } });
+    let (_, handle, watch) = f.card.unwrap();
+    let mut document = fixtures::chat::task();
+    document.chip.task = 52;
+    document.project = PROJECT;
+    document.chip.executor = c::ChipExecutor::Agent { charter: 13 };
+    delivered(&mut f, handle, watch, c::Delivery::Task(Box::new(document)));
+    assert_eq!(f.charters.len(), 4, "return reads anew");
+    let charter_handle = f.charters.get(3).unwrap().0;
+    let (handle, watch) = f.roles.unwrap();
+    line.chip.task = 53;
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+    );
+    assert!(f.closed.as_slice().contains(&charter_handle), "switching cards closes the old charter");
 }

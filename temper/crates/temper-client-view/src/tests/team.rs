@@ -334,6 +334,9 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 paused: false,
                 pause: true,
                 resume: false,
+                rules: None,
+                wakes: List::with_capacity(0),
+                wakes_cut: false,
                 now: Some(team::Now {
                     body: b"- A finding\nIts next step.\n- Await a change".as_slice().into(),
                     changed: Some(changed),
@@ -420,5 +423,227 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 || n.styles.as_slice().contains(&look::TEAM_ACTS)),
             "unread parts have no empty frame"
         );
+    }
+}
+
+#[test]
+fn wake_rows_say_periods_task_states_topics_and_classes() {
+    use crate::{pages::team::wakes::words, words::Times};
+    use jig_client::contract::WakeRule;
+    use skein_lib::{Duration, Wall};
+    use temper_client_domain::pages::team::wakes::{Interest, Row};
+    // Sunday 23:00 UTC is Monday 06:00 in the view's +07:00 zone.
+    let at = Wall::from_nanos(342_000_000_000_000);
+    let timer = |period: Option<u64>| Interest::Timer { at, period: period.map(Duration::from_secs), wakes: true };
+    for mut w in [f::browser_words(), f::words()] {
+        w.set_zone_minutes(420);
+        for (interest, class, left, right) in [
+            (timer(Some(604_800)), WakeRule::Never, "A timer", Some("Mondays 06:00")),
+            (timer(Some(86_400)), WakeRule::Never, "A timer", Some("daily 06:00")),
+            (timer(Some(14_400)), WakeRule::Never, "A timer", Some("every 4 hours")),
+            (timer(Some(5400)), WakeRule::Never, "A timer", Some("every 90 minutes")),
+            (timer(Some(3600)), WakeRule::Never, "A timer", Some("every hour")),
+            (timer(Some(45)), WakeRule::Never, "A timer", Some("every 45 seconds")),
+            (timer(Some(1_209_600)), WakeRule::Never, "A timer", Some("every 2 weeks")),
+            (timer(Some(172_800)), WakeRule::Never, "A timer", Some("every 2 days")),
+            (timer(None), WakeRule::Never, "A timer", Some("once, at 06:00")),
+            (
+                Interest::Timer { at, period: Some(Duration::from_secs(3600)), wakes: false },
+                WakeRule::Immediate,
+                "A timer, with its next wake",
+                None,
+            ),
+            (
+                Interest::Task { target: 61, held: false, result: true },
+                WakeRule::Immediate,
+                "Task 61's result",
+                Some("at once"),
+            ),
+            (
+                Interest::Task { target: 61, held: true, result: false },
+                WakeRule::Never,
+                "Task 61 held",
+                Some("with its next wake"),
+            ),
+            (
+                Interest::Task { target: 61, held: true, result: true },
+                WakeRule::Batch { count: 5, age: Duration::from_secs(7200) },
+                "Task 61 held, or its result",
+                Some("5 at a time, or after 2 hours"),
+            ),
+            (
+                Interest::Topics { connector: temper_client_protocol_wire::FORGE, count: 2 },
+                WakeRule::Paced { span: Duration::from_secs(1800) },
+                "News from the forge, on 2 topics",
+                Some("every 30 minutes"),
+            ),
+            (
+                Interest::Topics { connector: temper_client_protocol_wire::FORGE, count: 1 },
+                WakeRule::Immediate,
+                "News from the forge",
+                Some("at once"),
+            ),
+            (
+                Interest::Topics { connector: 4, count: 2 },
+                WakeRule::Paced { span: Duration::from_secs(86_400) },
+                "News from connector 4",
+                Some("every day"),
+            ),
+        ] {
+            let (said, classified) = words(&w, &Row { interest, class }, &mut Times::new(at));
+            assert_eq!(said.as_ref(), left.as_bytes());
+            assert_eq!(classified.as_deref(), right.map(str::as_bytes), "{left}");
+        }
+        let (_, once) = words(&w, &Row { interest: timer(None), class: WakeRule::Never }, &mut Times::new(Wall::EPOCH));
+        assert_eq!(
+            once.as_deref(),
+            Some(b"once, at 5 January 06:00".as_slice()),
+            "single firing includes a date outside today"
+        );
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "both shells pin rules links, ordered wake chips and absent columns")]
+fn team_draws_rules_and_wakes_in_their_columns() {
+    use crate::{frame::Bindings, words::Times};
+    use jig_client::contract as c;
+    use skein_lib::{Duration, Wall};
+    use temper_client_domain::{
+        Action, Address,
+        pages::{Act, team},
+    };
+    let at = Wall::from_nanos(367_200_000_000_000);
+    let subscriptions = c::Subscriptions {
+        entries: List::from_boxed(Box::new([
+            c::Subscription {
+                number: 1,
+                kind: c::SubscriptionKind::Topic { connector: temper_client_protocol_wire::FORGE, topic: 1 },
+            },
+            c::Subscription {
+                number: 2,
+                kind: c::SubscriptionKind::Timer { at, period: Some(Duration::from_secs(604_800)) },
+            },
+            c::Subscription {
+                number: 3,
+                kind: c::SubscriptionKind::Topic { connector: temper_client_protocol_wire::FORGE, topic: 2 },
+            },
+            c::Subscription { number: 4, kind: c::SubscriptionKind::Task { target: 61, held: false, result: true } },
+        ])),
+    };
+    let policy = c::WakePolicy {
+        words: c::WakeRule::Never,
+        results: c::ResultsWake::Never,
+        questions: false,
+        answers: false,
+        timers: true,
+        notices: c::WakeRule::Immediate,
+        news: c::WakeRule::Paced { span: Duration::from_secs(1800) },
+    };
+    for w in [f::browser_words(), f::words()] {
+        let mut facts = Facts {
+            people: List::with_capacity(0),
+            cut: false,
+            triager: None,
+            roles_cut: false,
+            selected: Some(52),
+            roles: List::from_boxed(Box::new([team::Role {
+                task: 52,
+                name: b"Prover".as_slice().into(),
+                now: None,
+                spent: 0,
+                budget: 40,
+            }])),
+            card: Some(Box::new(team::Card {
+                task: 52,
+                name: b"Prover".as_slice().into(),
+                made: None,
+                requester: None,
+                hold: None,
+                paused: false,
+                pause: false,
+                resume: false,
+                now: Some(team::Now { body: b"A finding.".as_slice().into(), changed: None, cut: false }),
+                rules: Some(team::Rules { charter: 13, asked: b"Reproduce before routing.".as_slice().into() }),
+                wakes: team::wakes::rows(&subscriptions, &policy),
+                wakes_cut: true,
+            })),
+        };
+        let mut bindings = Bindings::new(f::tree_limits().bindings);
+        let mut b = Builder::new(&f::tree_limits());
+        draw(&mut b, &w, b"shop", &Shown::Read(facts.clone()), 7, &mut bindings, &mut Times::new(at));
+        let tree = b.finish();
+        let nodes = tree.nodes();
+        let subtree = |style| {
+            let at = nodes.iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
+            &nodes[at..at + usize::try_from(nodes[at].size).unwrap()]
+        };
+        let left = subtree(look::TEAM_LEFT);
+        let right = subtree(look::TEAM_RIGHT);
+        for said in ["Its rules · change by proposal", "Reproduce before routing."] {
+            assert!(left.iter().any(|n| n.name.as_deref() == Some(said.as_bytes())), "{said} in left column");
+        }
+        let now = left.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_NOW)).unwrap();
+        let rules = left.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_RULES)).unwrap();
+        assert!(now < rules, "rules follow Now");
+        let proposal =
+            left.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"change by proposal")).unwrap();
+        let address = Address::Role { project: 7, charter: 13 };
+        assert_eq!(
+            bindings.decode(proposal.binding.unwrap().token, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Go { address: address.clone() }))
+        );
+        assert_eq!(temper_client_domain::address::print(&address).as_ref(), b"/projects/7/settings/roles/13");
+        for said in
+            ["Wakes on", "News from the forge, on 2 topics", "A timer", "Task 61's result", "Not all are shown."]
+        {
+            assert!(right.iter().any(|n| n.name.as_deref() == Some(said.as_bytes())), "{said} in right column");
+        }
+        for (row, (words, class)) in right.iter().filter(|n| n.styles.as_slice().contains(&look::TEAM_WAKE_ROW)).zip([
+            ("News from the forge, on 2 topics", "every 30 minutes"),
+            ("A timer", "Mondays 06:00"),
+            ("Task 61's result", "at once"),
+        ]) {
+            let at = nodes.iter().position(|n| core::ptr::eq(n, row)).unwrap();
+            let row = &nodes[at..at + usize::try_from(row.size).unwrap()];
+            assert!(row.iter().any(|n| n.name.as_deref() == Some(words.as_bytes())));
+            let chip = row.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_WAKE_CLASS)).unwrap();
+            let chip = &row[chip..chip + usize::try_from(row[chip].size).unwrap()];
+            assert!(
+                chip.iter()
+                    .any(|n| n.text.iter().any(|run| run.run == Run::Code && run.text.as_ref() == class.as_bytes())),
+                "{class} is in code's chip"
+            );
+        }
+        assert_eq!(right.iter().filter(|n| n.styles.as_slice().contains(&look::TEAM_WAKE_ROW)).count(), 3);
+        let task_link = right.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"61")).unwrap();
+        assert_eq!(
+            bindings.decode(task_link.binding.unwrap().token, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Go { address: Address::Task { task: 61 } }))
+        );
+        // Rules alone never reserve an empty right column; wakes alone need no left one.
+        for rules in [true, false] {
+            let card = facts.card.as_mut().unwrap();
+            card.now = None;
+            if rules {
+                card.wakes = List::with_capacity(0);
+            } else {
+                card.rules = None;
+                card.wakes = team::wakes::rows(&subscriptions, &policy);
+            }
+            let mut b = Builder::new(&f::tree_limits());
+            draw(
+                &mut b,
+                &w,
+                b"shop",
+                &Shown::Read(facts.clone()),
+                7,
+                &mut Bindings::new(f::tree_limits().bindings),
+                &mut Times::new(at),
+            );
+            let tree = b.finish();
+            assert_eq!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::TEAM_LEFT)), rules);
+            assert_eq!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::TEAM_RIGHT)), !rules);
+        }
     }
 }

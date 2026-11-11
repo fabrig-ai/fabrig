@@ -166,3 +166,44 @@ fn a_person_reads_pauses_and_resumes_a_standing_role_on_team() {
     assert_eq!(outcome.verdict, Verdict::Passed, "Resume must release the hold: {outcome:?}");
     assert!(!matches!(world.front().engine.task(task).unwrap().phase, tasks::Phase::Held { .. }));
 }
+
+#[test]
+fn a_person_reads_a_standing_roles_timer_and_charter_rules_on_team() {
+    use jig_client_kit::harness::Settings;
+    use temper_client_domain::pages::team::{self, wakes::Interest};
+    let (front, task) = super::person_task_tools::subscribed_role();
+    let mut world: Clients =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
+    world.randomness(0, 0, 0);
+    let owner = world.client(fixtures::PARTY, Address::Team { project: PROJECT, role: Some(task) });
+    settle(&mut world);
+    let shown = team::shown(world.root(owner).person(), PROJECT);
+    let facts = shown.facts().expect("Team facts");
+    assert_eq!(facts.people.len(), 1, "a person alone starts the standing role");
+    let card = facts.card.as_ref().expect("role card");
+    let rules = card.rules.as_ref().expect("charter read supplies rules");
+    assert_eq!(rules.charter, 13);
+    assert_eq!(rules.asked.as_ref(), b"You are a standing role.");
+    assert_eq!(card.wakes.len(), 1);
+    assert!(
+        matches!(card.wakes.get(0).unwrap().interest, Interest::Timer { period: Some(period), wakes: true, .. } if period == skein_lib::Duration::from_secs(14_400))
+    );
+    world.person(
+        owner,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Paragraph, "Its rules · change by proposal".as_bytes()),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: Find::text(&rules.asked), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Paragraph, b"Wakes on"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Text, b"A timer"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Text, b"every 4 hours"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"change by proposal") },
+            Step::See { find: Find::exactly_named(Role::Term, b"Asked to"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Description, &rules.asked), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "Team uses charter 13's Asked to view: {outcome:?}");
+}

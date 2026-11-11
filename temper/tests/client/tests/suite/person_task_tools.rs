@@ -259,6 +259,9 @@ fn role_configuration() -> engine::Config {
 
 pub(super) const ROLE_NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
 fn parked_role_ctl() -> (Ctl, u64) {
+    parked_role_with_timer(false)
+}
+fn parked_role_with_timer(timer: bool) -> (Ctl, u64) {
     use temper_client_world::front::engine_limits;
     use temper_engine_domain_world::{protocol, store::Store};
     let mut bounds = engine_limits();
@@ -303,10 +306,20 @@ fn parked_role_ctl() -> (Ctl, u64) {
     let (answer, failed) =
         temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 1, b"note", input.as_bytes());
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    if timer {
+        let input = br#"{"kind":"timer","at":1900000000000000000,"period":14400000000000}"#;
+        let (answer, failed) =
+            temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 2, b"subscribe", input);
+        assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    }
     ctl.front.engine.answer(WORKER, task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
     ctl.front.engine.settle();
     assert!(ctl.front.engine.task(task).is_some(), "parking does not finish the role");
     (ctl, task)
+}
+pub(super) fn subscribed_role() -> (Joint, u64) {
+    let (ctl, task) = parked_role_with_timer(true);
+    (ctl.front, task)
 }
 pub(super) fn parked_role() -> (Joint, u64) {
     let (ctl, task) = parked_role_ctl();
