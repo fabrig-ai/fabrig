@@ -250,6 +250,7 @@ fn project_filter(b: &mut Builder, root: &Domain, filter: Filter, words: &Words,
         b.close();
     }
 }
+#[expect(clippy::too_many_lines, reason = "the inbox card keeps its facts, controls and shared reason together")]
 fn entry(
     b: &mut Builder,
     root: &Domain,

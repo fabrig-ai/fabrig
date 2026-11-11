@@ -1954,6 +1954,7 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the table follows two cards' reaches through Keep and its queued fact")]
 fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
     use pages::stop_asking::{self, Act as Stop};
     use temper_client_protocol_wire::{self as wire, v1 as w};

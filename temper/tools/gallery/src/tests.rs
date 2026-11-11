@@ -1934,7 +1934,6 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
             Part::Named { role: Role::Button, name: "Keep asking" },
-            Part::Absent { role: Role::Button, name: "Stop asking" },
             Part::Expanded { name: "Stop asking: let agents decide implementation choices" },
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
             Part::Text { text: "Let agents decide implementation choices, then tell you." },
@@ -1947,7 +1946,6 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
             Part::Named { role: Role::Button, name: "Keep asking" },
-            Part::Absent { role: Role::Button, name: "Stop asking" },
             Part::Expanded { name: "Stop asking: let agents decide some changes to protocol core" },
             Part::Reader { role: jig_client::contract::HeldRole::Member },
             Part::Text { text: "Let agents decide changes to protocol core that are:" },
@@ -1962,7 +1960,6 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
             Part::Named { role: Role::Button, name: "Keep asking" },
-            Part::Absent { role: Role::Button, name: "Stop asking" },
             Part::Text {
                 text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
             },
