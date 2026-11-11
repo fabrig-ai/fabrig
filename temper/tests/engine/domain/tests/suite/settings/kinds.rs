@@ -278,8 +278,7 @@ fn a_restart_holds_the_rules_and_finds_the_stock_unchanged() {
 
 fn goal_rule() -> settings::LandingRule {
     settings::LandingRule {
-        sets: Box::new([]),
-        pattern: forge::GatePattern {
+                pattern: forge::GatePattern {
             segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from).into(),
             last: forge::GateLast::Open(b"temper".as_slice().into()),
         },

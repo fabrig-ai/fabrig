@@ -47,6 +47,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
     };
     let mut open = rule();
     open.pattern.last = forge::GateLast::Open(Box::from(b"feature".as_slice()));
+    open.sets = Box::new([6, 5, 4, 3, 2, 1]);
     for (kind, value) in [
         (1, d::Value::Rule(rule())),
         (2, d::Value::Rule(open)),

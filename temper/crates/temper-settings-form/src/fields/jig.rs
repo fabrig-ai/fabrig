@@ -100,7 +100,7 @@ pub static FORMS: [Form; 65] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"What the charter does: a JSON string of 1 to 120 UTF-8 bytes, no control characters. If absent, Roles uses its instructions' first sentence. Selector: charter number, no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"Both headline and lede for the project's own way in How work runs. If absent, it uses the way's words. Selector: project, no number." },
 ];
-pub static FIELDS: [Field; 228] = [
+pub static FIELDS: [Field; 229] = [
     Field {
         shape: Shape::File,
         name: b"items",

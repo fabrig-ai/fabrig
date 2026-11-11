@@ -1485,7 +1485,7 @@ fn kinds_are_declared_with_their_bounds() {
     limits.forge.landing_rules = 7;
     limits.templates = 9;
     let rule = settings::Value::Rule(settings::LandingRule {
-        sets: Box::new([]),
+        sets: Box::new([1, 2, 3, 4, 5, 6]),
         pattern: forge::GatePattern {
             segments: Box::new([
                 b"forge".as_slice().into(),
