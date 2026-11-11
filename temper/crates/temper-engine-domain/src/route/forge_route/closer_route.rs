@@ -198,6 +198,7 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
         | super::forge_change::State::Queued { .. }
         | super::forge_change::State::First { .. }
         | super::forge_change::State::Updating { .. }
+        | super::forge_change::State::WaitingProducer { .. }
         | super::forge_change::State::Resolving { .. }
         | super::forge_change::State::Repairing { .. }
         | super::forge_change::State::Landing { .. }
@@ -338,6 +339,7 @@ fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
                 | super::forge_change::State::Queued { .. }
                 | super::forge_change::State::First { .. }
                 | super::forge_change::State::Updating { .. }
+                | super::forge_change::State::WaitingProducer { .. }
                 | super::forge_change::State::Resolving { .. }
                 | super::forge_change::State::Repairing { .. }
                 | super::forge_change::State::Landing { .. }
@@ -414,6 +416,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                 | super::forge_change::State::Queued { .. }
                 | super::forge_change::State::First { .. }
                 | super::forge_change::State::Updating { .. }
+                | super::forge_change::State::WaitingProducer { .. }
                 | super::forge_change::State::Resolving { .. }
                 | super::forge_change::State::Repairing { .. }
                 | super::forge_change::State::Landing { .. }

@@ -225,6 +225,7 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
         | d::State::Queued { .. }
         | d::State::First { .. }
         | d::State::Updating { .. }
+        | d::State::WaitingProducer { .. }
         | d::State::Resolving { .. }
         | d::State::Repairing { .. }
         | d::State::Landing { .. }
@@ -263,6 +264,9 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
                 w::UpdatingParts { from: *from, base: *base, ready_since: ready_since.as_nanos() },
             )
             .expect(FITS),
+        ),
+        d::State::WaitingProducer { base } => w::ChangeLive::WaitingProducer(
+            w::WaitingProducer::new(&w::CEILINGS, w::WaitingProducerParts { base: *base }).expect(FITS),
         ),
         d::State::Resolving { requested, base } => w::ChangeLive::Resolving(
             w::Resolving::new(&w::CEILINGS, w::ResolvingParts { requested: *requested, base: *base }).expect(FITS),
@@ -338,6 +342,7 @@ fn decode_live(value: w::ChangeLive) -> d::State {
         | w::ChangeLive::Queued(_)
         | w::ChangeLive::First(_)
         | w::ChangeLive::Updating(_)
+        | w::ChangeLive::WaitingProducer(_)
         | w::ChangeLive::Resolving(_)
         | w::ChangeLive::Repairing(_)
         | w::ChangeLive::Landing(_)
@@ -370,6 +375,7 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
             let w::UpdatingParts { from, base, ready_since } = value.into_parts();
             d::State::Updating { from, base, ready_since: Wall::from_nanos(ready_since) }
         }
+        w::ChangeLive::WaitingProducer(value) => d::State::WaitingProducer { base: value.into_parts().base },
         w::ChangeLive::Resolving(value) => {
             let w::ResolvingParts { requested, base } = value.into_parts();
             d::State::Resolving { requested, base }
