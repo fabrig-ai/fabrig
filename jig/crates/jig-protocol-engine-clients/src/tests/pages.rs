@@ -241,8 +241,82 @@ fn a_line_at_the_largest_profile_bound_encodes() {
             | w::Activity::Turn(_)
             | w::Activity::Decided(_)
             | w::Activity::Milestone(_)
+            | w::Activity::Stood(_)
+            | w::Activity::SessionEnded(_)
             | w::Activity::Kept(_)) => panic!("word line: {other:?}"),
         };
         assert_eq!(decoded_words, words.as_ref());
     }
+}
+
+#[test]
+fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall, Writer};
+    let limits = fixtures::wire_limits();
+    let client = jig_client_domain::Limits { long_text: t::STOOD_WORDS, ..*fixtures::client_limits().client() };
+    let client = jig_client_protocol_link::Limits::new(client, 4).unwrap();
+    let words = Box::<[u8]>::from([b'w'; 512]);
+    let mut cases = List::with_capacity(7);
+    cases
+        .push((
+            t::Line::Stood { attempt: 3, words: words.clone() },
+            c::Activity::Stood { attempt: 3, words: c::Text::new(words, t::STOOD_WORDS).unwrap() },
+        ))
+        .unwrap();
+    for (end, expected) in [
+        (t::SessionEnd::Quiet, c::SessionEnd::Quiet),
+        (t::SessionEnd::Bound, c::SessionEnd::Bound),
+        (t::SessionEnd::Unoffered, c::SessionEnd::Unoffered),
+        (t::SessionEnd::Fresh, c::SessionEnd::Fresh),
+        (t::SessionEnd::Closed, c::SessionEnd::Closed),
+        (t::SessionEnd::Rules, c::SessionEnd::Rules),
+    ] {
+        cases
+            .push((t::Line::SessionEnded { attempt: 3, end }, c::Activity::SessionEnded { attempt: 3, end: expected }))
+            .unwrap();
+    }
+    for (line, expected) in cases.into_boxed() {
+        let mut rows = List::with_capacity(1);
+        rows.push(reads::PageRow::Activity {
+            line: t::ActivityLine { task: 7, position: 13, at: Wall::from_nanos(37), line },
+            turn: None,
+        })
+        .unwrap();
+        let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
+            panic!("activity page")
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut out).unwrap();
+        let record = w::ActivityPage::decode(&limits, &mut Reader::new(&out.finish())).unwrap();
+        let actual = jig_client_protocol_link::translate::pages::activity_page(record, &client).unwrap();
+        let c::DecodedActivityLine { source, decoded } = actual.rows.get(0).unwrap();
+        assert_eq!(
+            source.as_ref(),
+            &c::ActivityLine { task: 7, position: 13, at: Wall::from_nanos(37), line: expected }
+        );
+        assert!(decoded.is_none());
+    }
+    let line = t::ActivityLine {
+        task: 7,
+        position: 13,
+        at: Wall::EPOCH,
+        line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 513]) },
+    };
+    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityStoodWords);
+    let line = t::ActivityLine {
+        task: 7,
+        position: 13,
+        at: Wall::EPOCH,
+        line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 512]) },
+    };
+    let record = crate::translate::activity::line(&line, &limits).unwrap();
+    let narrower = w::Limits { activity_stood_words: t::STOOD_WORDS - 1, ..limits };
+    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut out).unwrap();
+    assert_eq!(
+        w::ActivityLine::decode(&narrower, &mut Reader::new(&out.finish())).unwrap_err().path,
+        w::Path::ActivityStoodWords
+    );
 }

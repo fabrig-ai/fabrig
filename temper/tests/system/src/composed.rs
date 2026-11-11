@@ -704,6 +704,7 @@ impl World {
         batch[0].flags.ended_by = match self.chat_ending {
             tasks::EndedBy::Result => people::EndedBy::Result,
             tasks::EndedBy::Requester => people::EndedBy::Requester,
+            tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }

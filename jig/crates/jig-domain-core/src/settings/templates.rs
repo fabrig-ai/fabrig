@@ -72,7 +72,8 @@ pub fn valid_executor(
             TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
             TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
         },
-    ) {
+    ) || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
+    {
         return false;
     }
     let policy = match executor {
@@ -162,7 +163,8 @@ pub(crate) fn valid_current_executor(
             TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
             TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
         },
-    ) {
+    ) || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
+    {
         return false;
     }
     let policy = match executor {

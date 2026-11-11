@@ -67,7 +67,10 @@ pub(crate) fn pending(dependencies: &[u64], ended_by: crate::EndedBy) -> Kept {
     Kept {
         dependencies: !dependencies.is_empty(),
         question: None,
-        open: ended_by == crate::EndedBy::Requester,
+        open: match ended_by {
+            crate::EndedBy::Requester | crate::EndedBy::Standing => true,
+            crate::EndedBy::Result | crate::EndedBy::Closer(_) => false,
+        },
         owes: false,
         agent_delegates: false,
     }

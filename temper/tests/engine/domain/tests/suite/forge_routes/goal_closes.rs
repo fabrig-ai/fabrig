@@ -205,6 +205,7 @@ fn member(task: &c::NewTask) -> people::Member {
         ended_by: match task.flags.ended_by {
             c::EndedBy::Result => people::EndedBy::Result,
             c::EndedBy::Requester => people::EndedBy::Requester,
+            c::EndedBy::Standing => people::EndedBy::Standing,
             c::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
