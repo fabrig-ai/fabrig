@@ -15,7 +15,7 @@ impl WorkerHalf for Half {
         bytes: &[u8],
         owned: &mut Vec<skein_io::kernel::Fd>,
     ) -> Result<service::Service, String> {
-        worker::alone(directories, bytes, owned)
+        worker::alone(directories, bytes, owned, &self.environment)
     }
     fn start(
         &self,
@@ -42,7 +42,7 @@ impl WorkerHalf for Half {
         named: &service::startup::Named,
         directories: &Directories,
     ) -> Result<(), String> {
-        worker::tune(service);
+        worker::tune(service, &self.environment);
         worker::sources(
             service,
             agent,
