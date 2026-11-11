@@ -200,6 +200,36 @@
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
+- **A pull section is pinned at the change's head,** its last head as
+  the change records it: each push or save of a delegate's, reported or
+  read afresh after a lost attempt, records it (`../../agent/README.md`, 5).
+  A pull whose head is another than the pinned one is one of two:
+  - *The task's own:* the change's branch's writer slot is held by the
+    task whose brief it is, by any of its attempts, a run's or a lost
+    attempt's awaiting its reread (jig's `domain/tasks/holds.md`, 3). An
+    earlier attempt of the task pushed or saved that head, and the run's
+    workspace starts from it. The section reads at the pull's head, its
+    files and its comparison there, and says so after its identity:
+    `[the pull's head is HEAD, past the change's recorded PINNED: an earlier attempt of this task pushed it, and this section reads at HEAD]`,
+    each head in its first 12 hexadecimal digits. Nothing fails and no
+    try is spent; the change takes the head as any push of its
+    delegate's when the task ends.
+  - *Another writer's:* the slot is free or another's. The move is the
+    change's to judge (`README.md`, 2 and 3), not the brief's: the
+    section's read fails counting as capacity (the table below), so the
+    task pauses with no try spent, as for a writer slot taken (jig's
+    `domain/tasks/lifecycle.md`, 6), and the connector wakes the change.
+    Its next step reads its branch afresh: a head it takes becomes the
+    pin of the task's next try, and a drift holds the change for its
+    cause, on its panel. While it is held, each try of the task pauses
+    the same way, until a release takes the head (`README.md`, 3) or a
+    cancel ends the task. It is never a failure tried until the task is
+    held.
+
+  A lost attempt's reread that finds the slot claimed since by a later
+  attempt of the same task records the head it read as the delegate's,
+  undrifted, as one that frees the slot does, so the next brief pins it;
+  it frees nothing, the slot being the later attempt's.
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine/briefs.md`, 1.1):
 
@@ -211,7 +241,7 @@
   | `Unavailable` | transient | `the forge could not be reached` |
   | `Timeout` | transient | `the forge did not answer in time` |
   | `RateLimited` | transient | `the forge is limiting calls` |
-  | a pull whose head is no longer the pinned one, or a change that has moved past it | transient | `the change's head moved` |
+  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it | capacity | `the change's head moved` |
   | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
@@ -255,9 +285,16 @@
   the missing marker. A failed job's log stays the check's own marker within
   a CI section that was read.
   Each read that fails, words or not, is one line in the engine's log, naming
-  the task, the section, the stage and the forge's error, as a tool read's
-  `read refused` line does:
-  `temper-box serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
+  the task, the section, the stage, its REASON from the table, the pinned
+  head and the head read where a head moved, and the forge's error where
+  the forge answered one, in that order, as a tool read's `read refused`
+  line does:
+  `temper-box serve: brief read refused task=T section=pull stage=item reason=the forge's answer did not match its read error=InvalidAnswer`,
+  and for a head another writer moved,
+  `temper-box serve: brief read refused task=T section=pull stage=pull reason=the change's head moved pinned=PINNED head=HEAD`,
+  each head in full hexadecimal, as the `read refused` line's `head=` is.
+  A read the forge answered and temper refused names no error: never
+  `error=None`.
   A brief that fails adds one more, naming how it counts and its reason:
   `temper-box serve: brief failed task=T counts=permanent reason=pull: ...`.
 - **A verdict whose post is refused** (`gates.md`, 1) is no repair and no stall:
@@ -347,6 +384,20 @@
   the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
+  Released from a resolution or a merge job that failed or was
+  cancelled, the change decides afresh as it does once its producer
+  ends (`A resolution`, above): it reads its branch, its base and its
+  pull, never the ended delegate's status again, and keeps the head it
+  reads as its last head, the release taking it as a drift's release
+  takes a moved head (`README.md`, 3), since the failure alone never
+  does. With no conflict left, it goes on at that head, checked again.
+  With a conflict left, it asks for a fresh resolution directly, at that
+  head and its base as now read, with no merge job before it (below),
+  counted against the resolution allowance the release reset, and held
+  by the rule above when its authority no longer covers one. A task
+  still live that pushes its branch is waited for, as there. A pending
+  replacement is not asked twice, and it never holds again on the old
+  delegate's status.
   A delegate a person cancels holds at the same count and is released
   the same way, and its hold says what happened: `its repair, task N,
   was cancelled`, with the cancel's reason where it gave one, within the

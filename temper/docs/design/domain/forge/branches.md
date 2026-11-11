@@ -104,6 +104,20 @@ own, never a change's:
   refuses, and made at the home's default branch's tip as the hold is
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
+  A making waits for the outbox's room and never fails for it: with the
+  outbox full (`forge.entries`), it keeps its entry number and its commit,
+  holds nothing and polls nothing, and is sent once an entry frees,
+  the makings that wait sent in the order they began to wait, as a
+  read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
+  What no freed entry mends holds the goal at once, each cause in its
+  own words after the branch's `could not be made: `: a repository not
+  adopted, `the repository is not adopted`; one adopted to be read,
+  `the repository is adopted to be read, not written`; one whose
+  adoption takes no branch writes, `the repository's adoption takes no
+  branch writes` (`adoption.md`, 2); and an entry number already in the
+  outbox, `its outbox entry N is already in use`, N that number. Access
+  is judged first, so a full outbox never hides a making that could
+  never be sent.
 - **Made whatever restarts.** temper alone makes and deletes a goal's
   own branch, so its making is conditional (`README.md`, section 4): while the goal
   holds the branch and none of its name exists, it is made, and never
