@@ -67,26 +67,21 @@ fn goal_rule() -> LandingRule {
     rule(branch_pattern(b"name", GateLast::Open(Box::from(b"temper".as_slice()))), NEITHER)
 }
 
-fn main_name() -> Box<[Box<[u8]>]> {
-    branch_name(&[b"main"])
+fn main_name() -> Box<[u8]> {
+    b"main".as_slice().into()
 }
 
-fn goal_name() -> Box<[Box<[u8]>]> {
-    branch_name(&[b"temper", b"1", b"g1"])
+fn goal_name() -> Box<[u8]> {
+    b"temper/1/g1".as_slice().into()
 }
 
-fn branch_name(branch: &[&[u8]]) -> Box<[Box<[u8]>]> {
-    // Five base segments and up to three segments of the goal branch.
-    const NAME_SEGMENTS: u32 = 8;
-    let pattern = branch_pattern(b"name", GateLast::Exact(Box::new([])));
-    let mut name = List::with_capacity(NAME_SEGMENTS);
-    for segment in pattern.segments {
-        name.push(segment).expect("base fits name fixture");
+fn repository() -> crate::Repository {
+    crate::Repository {
+        host: b"host".as_slice().into(),
+        owner: b"owner".as_slice().into(),
+        name: b"name".as_slice().into(),
+        ..super::adopted()
     }
-    for segment in branch {
-        name.push(Box::from(*segment)).expect("branch fits name fixture");
-    }
-    name.into_boxed()
 }
 
 #[test]
@@ -96,11 +91,7 @@ fn judge_accepts_rules_within_their_bounds() {
         ("deployment first", base.clone(), Ok(())),
         (
             "project sets without classes",
-            Item {
-                kind: 2,
-                scope: PROJECT,
-                ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() })
-            },
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() }) },
             Ok(()),
         ),
         (
@@ -207,7 +198,11 @@ fn judge_refuses_each_fault_by_name() {
         ),
         (
             "project sets past bound",
-            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() }) },
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() })
+            },
             Err(Refusal::Sets),
         ),
         (
@@ -240,7 +235,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "empty pattern",
             with_rule(LandingRule {
-                                pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
+                pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
             Err(Refusal::Pattern),
@@ -248,7 +243,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "segments past bound",
             with_rule(LandingRule {
-                                pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
+                pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
                 ..valid.clone()
             }),
             Err(Refusal::Pattern),
@@ -257,7 +252,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "exact last bytes",
             with_rule(LandingRule {
-                                pattern: GatePattern {
+                pattern: GatePattern {
                     last: GateLast::Exact(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()
                 },
@@ -268,7 +263,7 @@ fn judge_refuses_each_fault_by_name() {
         (
             "open last bytes",
             with_rule(LandingRule {
-                                pattern: GatePattern {
+                pattern: GatePattern {
                     last: GateLast::Open(Box::from(b"123456789".as_slice())),
                     ..valid.pattern.clone()
                 },
@@ -435,7 +430,7 @@ fn requires_is_the_union_of_covering_rules() {
         ),
     ];
     for (label, held, name, expected) in rows {
-        assert_eq!(requires(&held, &name), expected, "{label}");
+        assert_eq!(requires(&held, &repository(), &name, crate::Touched::UNKNOWN), expected, "{label}");
     }
 }
 
@@ -445,7 +440,7 @@ fn requires_asks_both_where_no_rule_covers() {
     let rows: [(&str, Box<[Held]>, Requires); 2] =
         [("no rules", Box::new([]), BOTH), ("another repository", Box::new([held(PROJECT, FIRST_RULE, other)]), BOTH)];
     for (label, held, expected) in rows {
-        assert_eq!(requires(&held, &main_name()), expected, "{label}");
+        assert_eq!(requires(&held, &repository(), &main_name(), crate::Touched::UNKNOWN), expected, "{label}");
     }
 }
 
@@ -461,7 +456,11 @@ fn requires_reads_rules_that_do_not_enforce() {
         ("neither advice", LandingRule { enforce: false, ci: false, up_to_date: false, ..main_rule() }, NEITHER),
     ];
     for (label, rule, expected) in rows {
-        assert_eq!(requires(&[held(PROJECT, FIRST_RULE, rule)], &main_name()), expected, "{label}");
+        assert_eq!(
+            requires(&[held(PROJECT, FIRST_RULE, rule)], &repository(), &main_name(), crate::Touched::UNKNOWN),
+            expected,
+            "{label}"
+        );
     }
 }
 

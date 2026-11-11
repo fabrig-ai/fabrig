@@ -1256,6 +1256,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::Call { .. } => {}
             }
         }

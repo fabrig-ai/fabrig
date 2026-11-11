@@ -37,6 +37,7 @@ mod release;
 mod removal;
 mod requires;
 mod restore_fit;
+mod rules_by_path;
 mod runs;
 mod saved_close;
 mod settings;

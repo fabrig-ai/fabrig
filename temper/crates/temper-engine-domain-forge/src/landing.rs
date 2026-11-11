@@ -795,6 +795,7 @@ pub(crate) fn step(
             .push(crate::LandingEvidence {
                 change: member.change,
                 facts: crate::ChangeEvidence {
+                    touched: crate::Touched::UNKNOWN,
                     prior: change.change.clone(),
                     head: None,
                     base_tip: [0; 32],

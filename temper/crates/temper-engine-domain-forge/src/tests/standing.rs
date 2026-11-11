@@ -48,6 +48,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let row = opening_row();
     let evidence = ChangeEvidence {
+        touched: Touched::UNKNOWN,
         prior: row.change.clone(),
         head: Some(HEAD),
         base_tip: fixtures::BASE,
@@ -301,14 +302,14 @@ fn a_project_branch_rule_covers_repositories_adopted_after_it() {
         (&later, b"dev".as_slice(), false),
         (&other, b"main".as_slice(), false),
     ] {
-        let gates = d.held_gates(&env().limits, repository, branch).expect("bounded gates");
+        let gates = d.held_gates(&env().limits, repository, branch, Touched::UNKNOWN).expect("bounded gates");
         assert_eq!(gates.len(), usize::from(covered));
         if covered {
             let gate = gates.first().expect("covered gate");
             assert_eq!(gate.number, 2);
             assert!(gate.blocking);
         }
-        assert_eq!(d.held_requires(repository, branch), Requires { ci: true, up_to_date: !covered });
+        assert_eq!(d.held_requires(repository, branch, Touched::UNKNOWN), Requires { ci: true, up_to_date: !covered });
     }
 }
 
@@ -369,7 +370,7 @@ fn held_gates_block_only_under_enforcing_rules() {
     for enforce in [true, false] {
         gates.enforce = enforce;
         keep(&mut d, 0, 1, gates.clone());
-        let selected = d.held_gates(&LIMITS, &adopted(), b"main").expect("gates");
+        let selected = d.held_gates(&LIMITS, &adopted(), b"main", Touched::UNKNOWN).expect("gates");
         assert_eq!(selected.len(), 2);
         assert_eq!(
             selected[0],
@@ -386,24 +387,25 @@ fn held_gates_block_only_under_enforcing_rules() {
     gates.enforce = true;
     gates.gates[0].freshness = JudgeFreshness::Exact;
     keep(&mut d, 5, 1, gates);
-    let selected = d.held_gates(&LIMITS, &adopted(), b"main").expect("gates");
+    let selected = d.held_gates(&LIMITS, &adopted(), b"main", Touched::UNKNOWN).expect("gates");
     assert_eq!(selected.len(), 2, "shared gate selected once");
     assert!(selected[0].blocking, "project enforcement adds to deployment advice");
     assert_eq!(selected[0].freshness, change::Freshness::Exact);
-    assert!(d.held_gates(&LIMITS, &adopted(), b"other").expect("uncovered").is_empty());
-    assert_eq!(d.held_gates(&LIMITS, &adopted(), b"a//b"), None);
+    assert!(d.held_gates(&LIMITS, &adopted(), b"other", Touched::UNKNOWN).expect("uncovered").is_empty());
+    assert_eq!(d.held_gates(&LIMITS, &adopted(), b"a//b", Touched::UNKNOWN), None);
     assert_eq!(
         d.held_gates(
             &Limits { change_policy: change::Limits { gates: 1, ..LIMITS.change_policy }, ..LIMITS },
             &adopted(),
-            b"main"
+            b"main",
+            Touched::UNKNOWN
         ),
         None
     );
     let mut repository = adopted();
     repository.ci = false;
     repository.checks = Box::new([1]);
-    assert!(d.held_gates(&LIMITS, &repository, b"other").expect("adopted check")[0].blocking);
+    assert!(d.held_gates(&LIMITS, &repository, b"other", Touched::UNKNOWN).expect("adopted check")[0].blocking);
 }
 
 #[test]
@@ -411,12 +413,15 @@ fn held_requires_reads_the_held_rules() {
     let mut d = domain();
     let repository = adopted();
     let both = Requires { ci: true, up_to_date: true };
-    assert_eq!(d.held_requires(&repository, b"main"), both);
+    assert_eq!(d.held_requires(&repository, b"main", Touched::UNKNOWN), both);
     let mut required = rule();
     required.pattern.last = GateLast::Open(Box::from(b"temper".as_slice()));
     keep(&mut d, 0, 1, required.clone());
-    assert_eq!(d.held_requires(&repository, b"temper/1/g1"), Requires { ci: false, up_to_date: false });
-    assert_eq!(d.held_requires(&repository, b"main"), both);
+    assert_eq!(
+        d.held_requires(&repository, b"temper/1/g1", Touched::UNKNOWN),
+        Requires { ci: false, up_to_date: false }
+    );
+    assert_eq!(d.held_requires(&repository, b"main", Touched::UNKNOWN), both);
     required.enforce = false;
     required.ci = true;
     keep(&mut d, 0, 1, required);
@@ -424,13 +429,16 @@ fn held_requires_reads_the_held_rules() {
     project.pattern.last = GateLast::Open(Box::from(b"temper".as_slice()));
     project.up_to_date = true;
     keep(&mut d, 6, 1, project.clone());
-    assert_eq!(d.held_requires(&repository, b"temper/1/g1"), Requires { ci: true, up_to_date: false });
+    assert_eq!(
+        d.held_requires(&repository, b"temper/1/g1", Touched::UNKNOWN),
+        Requires { ci: true, up_to_date: false }
+    );
     keep(&mut d, 5, 1, project);
-    assert_eq!(d.held_requires(&repository, b"temper/1/g1"), both);
+    assert_eq!(d.held_requires(&repository, b"temper/1/g1", Touched::UNKNOWN), both);
     for branch in [b"a//b".as_slice(), b"", b"/a", b"a/"] {
-        assert_eq!(d.held_requires(&repository, branch), both);
+        assert_eq!(d.held_requires(&repository, branch, Touched::UNKNOWN), both);
     }
-    assert_eq!(d.requires(&repository, b"temper/1/g1"), both, "compiled rules remain independent");
+    assert_eq!(d.requires(&repository, b"temper/1/g1", Touched::UNKNOWN), both, "compiled rules remain independent");
 }
 
 #[test]
@@ -515,7 +523,14 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
     for (state, pull, head, complete, reviews, expected) in [
         (first.clone(), Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
         (State::Landing { head: HEAD }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
-        (State::Queued { head: HEAD, ready_since: env().wall }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
+        (
+            State::Queued { head: HEAD, ready_since: env().wall },
+            Some(1),
+            Some(Some(HEAD)),
+            true,
+            [].as_slice(),
+            Some((true, 1)),
+        ),
         (
             State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
             Some(1),
@@ -677,6 +692,103 @@ fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
     assert!(!d.review_since.contains_key(&CHANGE));
 }
 
+#[test]
+fn step_reads_its_own_diff_after_reviews_and_requires_complete_endpoints() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    for (before, after, changed, failed, whole) in [
+        (fixtures::BASE, HEAD, 1, false, true),
+        (HEAD, HEAD, 1, false, false),
+        (fixtures::BASE, fixtures::BASE, 1, false, false),
+        (fixtures::BASE, HEAD, 2, false, false),
+        (fixtures::BASE, HEAD, 1, true, false),
+    ] {
+        let mut d = queued_fixture();
+        let mut required = rule();
+        required.sets = Box::new([1]);
+        required.enforce = false;
+        keep(&mut d, 5, 1, required);
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+        fixtures::finish_open(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Compare { before: fixtures::BASE, after: HEAD }));
+        let result = if failed {
+            Err(Error::Missing)
+        } else {
+            Ok(Answer::Compare {
+                before,
+                after,
+                ahead: 1,
+                behind: 0,
+                changed,
+                files: Box::new([b"docs/a.md".as_slice().into()]),
+            })
+        };
+        fixtures::answer(&mut d, call, result);
+        assert_eq!(d.change_touched(CHANGE).whole, whole, "{before:?}, {after:?}, {changed}, failed {failed}");
+        if !whole {
+            assert_eq!(d.change_touched(CHANGE), Touched::UNKNOWN);
+        }
+    }
+}
+
+#[test]
+fn path_rules_select_merge_waits_gates_panels_and_approval_rows() {
+    use JudgeVerdict::{Met, Wait};
+    for (touched, covered) in
+        [(Touched { sets: 2, whole: true }, false), (Touched { sets: 1, whole: true }, true), (Touched::UNKNOWN, true)]
+    {
+        let (mut d, mut evidence) = fixture();
+        let mut required = rule();
+        required.sets = Box::new([1]);
+        required.up_to_date = true;
+        required.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact }]);
+        required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+        keep(&mut d, 5, 1, required);
+        evidence.touched = touched;
+        evidence.contains_base = change::Status::Unknown;
+        assert_eq!(judged(&d, 5, &evidence, &[]), Some(if covered { Wait } else { Met }));
+        assert_eq!(judged(&d, 6, &evidence, &[]), Some(if covered { Wait } else { Met }));
+        evidence.head = Some(fixtures::BASE);
+        for requirement in [5, 6] {
+            assert_eq!(
+                judged(&d, requirement, &evidence, &[]),
+                Some(Wait),
+                "untouched evidence at another head cannot waive a rule"
+            );
+        }
+        assert_eq!(d.held_gates(&LIMITS, &adopted(), b"main", touched).unwrap().len(), usize::from(covered));
+        assert_eq!(d.requires(&adopted(), b"main", touched), Requires { ci: !covered, up_to_date: true });
+        let mut rules = d.landing_rules(5);
+        for held in &mut rules {
+            held.rule.up_to_date = false;
+        }
+        assert_eq!(
+            crate::settings::requires(&rules, &adopted(), b"main", touched),
+            Requires { ci: !covered, up_to_date: !covered },
+            "untouched path-only rules keep both procedure waits"
+        );
+        let row = d.changes.get_mut(&CHANGE).expect("change");
+        row.change.last_head = Some(HEAD);
+        row.change.state = change::State::Queued { head: HEAD, ready_since: env().wall };
+        row.pull = Some(1);
+        d.touched.insert(CHANGE, (Some(HEAD), touched)).expect("one comparison");
+        d.keep_review_facts(
+            env().wall,
+            CHANGE,
+            ReviewFacts { head: Some(HEAD), reviews_complete: true, reviewers: Box::new([]), unmapped: Box::new([]) },
+        );
+        assert_eq!(d.panel_approvals(d.change(CHANGE).unwrap()).len(), usize::from(covered));
+        assert_eq!(d.approval_waits(env().wall, &LIMITS).len(), usize::from(covered));
+        assert_eq!(d.change_touched(CHANGE), touched);
+        d.changes.get_mut(&CHANGE).unwrap().change.last_head = Some(fixtures::BASE);
+        assert_eq!(d.change_touched(CHANGE), Touched::UNKNOWN, "old coverage is not reused at a new head");
+        assert_eq!(d.panel_approvals(d.change(CHANGE).unwrap()).len(), 1);
+    }
+}
 
 fn queued_fixture() -> Domain {
     let (mut d, _) = fixture();
@@ -715,19 +827,24 @@ fn a_queued_step_hands_the_root_only_reviews_an_enforcing_approval_covers() {
         fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
         fixtures::finish_open(&mut d);
         let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
-        let reviews: Vec<_> = finished.iter().filter_map(|request| match request {
-            Request::Reviewed { task, evidence } => Some((*task, evidence)),
-            _ => None,
-        }).collect();
-        assert_eq!(reviews.len(), usize::from(covered), "enforce {enforce}, asks {asks}");
-        if let Some((task, evidence)) = reviews.first() {
-            assert_eq!(*task, CHANGE);
-            assert_eq!(evidence.head, Some(HEAD));
-            assert!(evidence.reviews_complete);
-            assert!(evidence.reviews.is_empty());
+        let mut reviews = 0_usize;
+        let mut waited = false;
+        for request in &finished {
+            if let Request::Reviewed { task, evidence } = request {
+                reviews = reviews.saturating_add(1);
+                assert_eq!(*task, CHANGE);
+                assert_eq!(evidence.head, Some(HEAD));
+                assert!(evidence.reviews_complete);
+                assert!(evidence.reviews.is_empty());
+            }
+            if let Request::ChangeDecision { decision: change::Decision::Wait { until: None }, entry: None, .. } =
+                request
+            {
+                waited = true;
+            }
         }
-        assert!(finished.iter().any(|request| matches!(request,
-            Request::ChangeDecision { decision: change::Decision::Wait { until: None }, entry: None, .. })));
+        assert_eq!(reviews, usize::from(covered), "enforce {enforce}, asks {asks}");
+        assert!(waited);
         assert!(d.entries.is_empty(), "the queued step attempts no merge");
     }
 }
@@ -746,9 +863,11 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
     next.task = 52;
     next.change.task = 52;
     next.change.owns_turn = false;
-    next.change.state = change::State::Queued { head: HEAD, ready_since: Wall::from_nanos(env().wall.as_nanos().saturating_add(1)) };
+    next.change.state =
+        change::State::Queued { head: HEAD, ready_since: Wall::from_nanos(env().wall.as_nanos().saturating_add(1)) };
     d.changes.insert(52, next).expect("next change");
-    let facts = ReviewFacts { head: Some(HEAD), reviews_complete: true, reviewers: Box::new([]), unmapped: Box::new([]) };
+    let facts =
+        ReviewFacts { head: Some(HEAD), reviews_complete: true, reviewers: Box::new([]), unmapped: Box::new([]) };
     assert!(d.keep_review_facts(env().wall, CHANGE, facts.clone()));
     outputs(&mut d, Event::ReviewsChanged { task: CHANGE });
     let row = d.change(CHANGE).expect("out of queue");
@@ -773,10 +892,19 @@ fn a_first_yields_on_kept_short_reviews_and_a_restart_wait_yields_again() {
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     fixtures::finish_open(&mut d);
     let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
-    let (entry, prior) = finished.iter().find_map(|request| match request {
-        Request::ChangeDecision { decision: change::Decision::Effect(change::Effect::Merge { .. }), entry: Some(entry), evidence: Some(evidence), .. } => Some((*entry, evidence.prior.clone())),
-        _ => None,
-    }).expect("without facts the first still asks to merge");
+    let mut merge = None;
+    for request in &finished {
+        if let Request::ChangeDecision {
+            decision: change::Decision::Effect(change::Effect::Merge { .. }),
+            entry: Some(entry),
+            evidence: Some(evidence),
+            ..
+        } = request
+        {
+            merge = Some((*entry, evidence.prior.clone()));
+        }
+    }
+    let (entry, prior) = merge.expect("without facts the first still asks to merge");
     assert!(d.keep_review_facts(env().wall, CHANGE, facts));
     outputs(&mut d, Event::VetoChange { task: CHANGE, entry, prior });
     let row = d.change(CHANGE).expect("waiting merge");
