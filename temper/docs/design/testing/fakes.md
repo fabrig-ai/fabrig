@@ -69,7 +69,7 @@ skein's (skein's `testing/fakes/llm.md`):
   design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
   against the fake LLM's script.
-- **A live run's twin,** `tools/twin` (crate `temper-twin`), a
+- **A live run's twin,** `bin/temper-twin` (crate `temper-twin-tool` in `crates/temper-twin-tool`), a
   developer's tool, never shipped: it turns a stopped deployment's
   transcripts into a fake LLM document that replays the run's agents
   (`real-loop.md`, "The ladder's twins").

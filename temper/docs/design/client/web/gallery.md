@@ -1,7 +1,7 @@
 # The gallery
 
-`temper-client-gallery` (`tools/gallery`), a program of temper's
-workspace, prints the browser's pages in named states into a
+`temper-client-gallery` (`bin/temper-client-gallery`, calling
+`crates/temper-client-gallery-tool`), a program of temper's workspace, prints the browser's pages in named states into a
 directory, as static documents, for screenshots beside the mockups
 and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (`testing.md`), and the gallery draws what the
@@ -479,11 +479,11 @@ from the engine's own answers, is where the look is tuned.
 
 ## 3. Its tests
 
-In `tools/gallery`'s own tests, in the view's world: each state's tree
+In `crates/temper-client-gallery-tool`'s own tests, in the view's world: each state's tree
 read by skein's fake person (`../../testing/fakes.md`, 4), as the
 gallery builds it.
 
-- **The names:** the states' names, in order, are `tools/gallery/names.txt`,
+- **The names:** the states' names, in order, are `crates/temper-client-gallery-tool/names.txt`,
   kept by hand, so a name gone, changed or added fails until the file
   says so.
 - **Each state holds what its name says:** a table of rows, each a

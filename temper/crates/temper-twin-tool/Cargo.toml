@@ -1,0 +1,51 @@
+[package]
+name = "temper-twin-tool"
+description = "A stopped deployment's transcripts as a scripted LLM twin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+test = false
+doctest = false
+
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
+[dependencies]
+temper-fake.workspace = true
+jig-protocol-store.workspace = true
+smith-transcript.workspace = true
+skein-lib.workspace = true
+skein-shell.workspace = true
+temper-version.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
+
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"
+
+[dev-dependencies]
+skein-scratch.workspace = true
+jig-domain-core.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
+skein-llm.workspace = true
