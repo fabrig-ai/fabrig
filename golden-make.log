@@ -8,31 +8,11 @@ warning: function `load` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `temper-one-process-world` (lib) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.67s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.58s
 ────────────
- Nextest run ID 24ed7e89-30ae-4ee8-b05d-a790959b5cd6 with nextest profile: default
+ Nextest run ID e3c8c9cf-741d-4b87-85cf-99ae4f8b6780 with nextest profile: default
     Starting 1 test across 1 binary (46 tests skipped)
-        FAIL [   0.283s] (1/1) temper-one-process-world::suite golden::baseline_making_story_stops_a_whole_deployment
-  stdout ───
-
-    running 1 test
-    test golden::baseline_making_story_stops_a_whole_deployment ... FAILED
-
-    failures:
-
-    failures:
-        golden::baseline_making_story_stops_a_whole_deployment
-
-    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.26s
-
-  stderr ───
-
-    thread 'golden::baseline_making_story_stops_a_whole_deployment' (1416818) panicked at temper/tests/one-process/src/world.rs:670:39:
-    account setup step 1: Missing { find: Find { within: [], target: Role { role: Link, name: [85, 115, 101, 32, 100, 101, 112, 108, 111, 121, 109, 101, 110, 116, 32, 97, 99, 99, 111, 117, 110, 116, 115] }, nth: 0 } }
-    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
-  Cancelling due to test failure
+        SLOW [>  6.000s] (───) temper-one-process-world::suite golden::baseline_making_story_stops_a_whole_deployment
+        PASS [   7.075s] (1/1) temper-one-process-world::suite golden::baseline_making_story_stops_a_whole_deployment
 ────────────
-     Summary [   0.284s] 1 test run: 0 passed, 1 failed, 46 skipped
-        FAIL [   0.283s] (1/1) temper-one-process-world::suite golden::baseline_making_story_stops_a_whole_deployment
-error: test run failed
+     Summary [   7.077s] 1 test run: 1 passed (1 slow), 46 skipped

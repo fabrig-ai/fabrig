@@ -55,6 +55,7 @@ fn new_chat(words: &[u8]) -> Vec<Step<Address>> {
 fn person_steps() -> Box<[Step<Address>]> {
     let (mut steps, replies) = stories::playground::person();
     steps.truncate(usize::try_from(replies[0] + 1).expect("first reply step"));
+    steps.insert(7, Step::Go { address: Address::NewChat { draft: false } });
     steps.extend(new_chat(b"Golden coding"));
     steps.into_boxed_slice()
 }
@@ -172,7 +173,7 @@ pub fn make(directory: &Path) {
         let mut world = skein_world::World::new_controlled(fixtures::SEED, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA), stopped: false, released: false }).with_machine(machine);
         for (program, roots) in programs::programs::<Golden>() { world.host_roots(program, roots); }
         world.spawn_restartable(programs::service_roots(), programs::service::<Golden>);
-        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::welcome(root, person_steps()).with_account(), None)))));
+        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::welcome(root, person_steps()).with_account_after(7), None)))));
         world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm_peer(), None))));
         world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
         world.run()
