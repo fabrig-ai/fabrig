@@ -13,11 +13,7 @@
     you" lede, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
-    A need's why ends with "Stop asking" alone, which opens the offers
-    and "Keep asking" under the line (*Why it reached you*, *Stop
-    asking*), where this section and `needs.html` put "Keep asking" and
-    the narrower rule, "Stop asking: let goals decide …", on the line
-    itself; and a path set's why names the set, not its paths. Its
+    A path set's why names the set, not its paths. Its
     **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
@@ -120,6 +116,24 @@
     the act "Sign in again", where `needs.html` has "Sign in", so that the
     act says what its question asks, as the run wait's link to Accounts
     does (5.5, *A run's wait*). Decided by the cut of `ui-n3a-only`.
+  - 4 and 13: `../client/pages/needs-you.md`, 1, *Stop asking*, words a
+    need's narrower rule "Stop asking: let agents decide …", where this
+    section and `needs.html` have "let goals decide …", and
+    `../client/pages/home.md`, 1, *Decided for you*, keeps Needs you's
+    head "for 24 hours, then in each task's history", where `needs.html`
+    has "each goal's history": a project's classes and its Decided rows
+    are any task's, a chat's and a delegate's as well as a goal's, so the
+    narrowed table lets every agent of the project decide. A set's rule
+    reads "some changes to NAME", since the person words the narrowing
+    once it opens and nothing gives `needs.html`'s "fixes that keep the
+    wire format" before. Decided by goal 367's design, 2026-11-11.
+  - 4, 10 and 13: `../client/pages/needs-you.md`, 1, *Stop asking*,
+    draws a need's reason line on a phone as on a wide page, its sentence
+    then "Keep asking" and the narrower rule, where `phone-need.html` has
+    a short form, "Protocol core always asks you." and "Stop asking"
+    alone: the page is one tree at every width, and no design gives a
+    short form's words for each reason. Decided by goal 367's design,
+    2026-11-11.
   - 11.1, 13 and 15: `../client/tui/pages.md`, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and

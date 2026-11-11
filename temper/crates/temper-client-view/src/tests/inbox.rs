@@ -899,7 +899,7 @@ fn stop_asking_numbers() {
             fixtures::terminal_command(view.tree(), &view.limits().tree, keep, b"Keep asking", b"Let agents decide");
         assert_eq!(
             crate::act(&mut view, node, first),
-            Some(temper_client_domain::Action::Pages(pages::Act::StopAsking(Stop::Keep)))
+            Some(temper_client_domain::Action::Pages(pages::Act::StopAsking(Stop::Keep { object })))
         );
     }
 }

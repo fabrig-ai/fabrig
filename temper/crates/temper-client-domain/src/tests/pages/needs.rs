@@ -1545,6 +1545,7 @@ struct StopFixture {
     root: crate::Domain,
     settings: skein_lib::Token,
     dismissed: skein_lib::Token,
+    decided: skein_lib::Token,
 }
 fn stop_fixture(
     owner: bool,
@@ -1622,7 +1623,7 @@ fn stop_fixture(
     );
     root.pages.inbox = fixture().inbox.take();
     add(&mut root.pages, SECOND, fixtures::PROJECT);
-    let mut fixture = StopFixture { root, settings, dismissed };
+    let mut fixture = StopFixture { root, settings, dismissed, decided };
     if delivered {
         stop_dismissals(&mut fixture, keep);
     }
@@ -1797,12 +1798,17 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
         ),
         ("another subject", reach, true, true, Some((Subject::Kind(Kind::Tests), STOP_WALL.as_nanos())), true),
     ] {
-        let fixture = stop_fixture(true, reach, read, delivered, keep);
+        let mut fixture = stop_fixture(true, reach, read, delivered, keep);
         let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
         assert_eq!(
             stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL),
             expected.then_some(Box::from([offer].as_slice())),
             "{name}"
+        );
+        assert_eq!(
+            stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).len(),
+            usize::from(expected),
+            "{name}: Keep guard"
         );
     }
     for (name, closing, expected) in [
@@ -1955,7 +1961,7 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
     ] {
         let mut fixture = stop_fixture(true, reach, true, true, None);
         stop_act(&mut fixture.root, Stop::Open { object: FIRST });
-        let sent = stop_sent(&stop_act(&mut fixture.root, Stop::Keep));
+        let sent = stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST }));
         assert_eq!(sent.len(), 1);
         assert_eq!(
             sent[0].1,
@@ -1970,7 +1976,7 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
         assert!(stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_none(), "held subject");
         stop_act(&mut fixture.root, Stop::Open { object: SECOND });
         assert!(fixture.root.pages().stop_asking().is_none(), "another card of held subject");
-        assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep)).is_empty());
+        assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).is_empty());
         stop_answer(&mut fixture.root, sent[0].0, outcome);
         assert_eq!(fixture.root.pages().needs().toast(), toast.as_ref(), "{name}");
         let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
@@ -1985,5 +1991,114 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
             stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_none(),
             "held fact answers {name}"
         );
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the table follows two cards' reaches through Keep and its queued fact")]
+fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
+    use pages::stop_asking::{self, Act as Stop};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_protocol_reaches::{Kind, Offer, Reach, Subject};
+    let first_reach = stop_reach();
+    let second_reach = Reach { kind: Kind::Tests, ..first_reach };
+    for (name, object, opened, busy, answered, sent_subject) in [
+        ("closed", SECOND, None, false, false, Some(Subject::Kind(Kind::Tests))),
+        ("own open", SECOND, Some(SECOND), false, false, Some(Subject::Kind(Kind::Tests))),
+        ("other open", SECOND, Some(FIRST), false, false, Some(Subject::Kind(Kind::Tests))),
+        ("missing", THIRD, Some(FIRST), false, false, None),
+        ("answered", FIRST, None, false, true, None),
+        ("busy", SECOND, Some(FIRST), true, false, None),
+    ] {
+        let mut fixture = stop_fixture(true, first_reach, true, true, None);
+        let card = fixture.root.pages.inbox.as_mut().unwrap().cards.get_mut(1).unwrap();
+        let Some(c::ReadValue::Question(question)) = &mut card.page else { panic!("question") };
+        question.from = Some(c::Requester::Task(42));
+        let mut asked = List::with_capacity(2);
+        for (number, task, reach) in [(1, f::TASK, first_reach), (2, 42, second_reach)] {
+            asked
+                .push(
+                    w::Asked::new(
+                        &w::CEILINGS,
+                        w::AskedParts { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let document = w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
+        )
+        .unwrap();
+        super::welcome::up(
+            &mut fixture.root,
+            jig_client::Up::FamilyDelivered {
+                watch: fixture.decided,
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::decisions(&document),
+                },
+            },
+        );
+        if answered {
+            root_event(
+                &mut fixture.root,
+                crate::Event::Act {
+                    action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object, words: Box::from(CHOICE) })),
+                },
+            );
+        }
+        if let Some(object) = opened {
+            stop_act(&mut fixture.root, Stop::Open { object });
+        }
+        if busy {
+            stop_act(&mut fixture.root, Stop::Apply { offer: Offer::Decide(Subject::Kind(Kind::Implementation)) });
+            assert!(fixture.root.pages().stop_asking().unwrap().busy());
+        }
+        let sent = stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object }));
+        if let Some(subject) = sent_subject {
+            assert_eq!(sent.len(), 1, "{name}");
+            assert_eq!(
+                sent[0].1,
+                crate::forge::dismissed::ask(
+                    crate::forge::dismissed::PersonFact::KeepAsking {
+                        project: fixtures::PROJECT,
+                        subject,
+                        at: STOP_WALL
+                    },
+                    &stop_limits().forge,
+                )
+                .unwrap(),
+                "{name}"
+            );
+            assert!(fixture.root.pages().stop_asking().is_none(), "{name}");
+            for card in &fixture.root.pages().inbox().unwrap().cards {
+                assert_eq!(
+                    stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_some(),
+                    card.object == FIRST,
+                    "{name}"
+                );
+            }
+            assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object })).is_empty(), "already keeping");
+        } else {
+            assert!(sent.is_empty(), "{name}");
+            assert_eq!(
+                match fixture.root.pages().stop_asking() {
+                    Some(open) => Some(open.object()),
+                    None => None,
+                },
+                opened,
+                "{name}"
+            );
+        }
+    }
+    for reach in [
+        Reach { kind: Kind::Money, ..first_reach },
+        Reach { reason: temper_protocol_reaches::Reason::Always, ..first_reach },
+    ] {
+        let mut fixture = stop_fixture(true, reach, true, true, None);
+        assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).is_empty(), "nothing offered");
     }
 }

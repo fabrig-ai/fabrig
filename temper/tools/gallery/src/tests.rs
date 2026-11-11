@@ -1344,9 +1344,21 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-decided",
         heading: "The repository has no license. Name one in the README?",
         parts: &[
-            Part::Named { role: Role::Region, name: "Decided for you" },
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Text, name: "for 24 hours, then in each task's history" },
+            Part::Absent { role: Role::Button, name: "Limits" },
             Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
             Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
+        ],
+    },
+    Holds {
+        name: "needs-decided-project",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Text, name: "welcome-stall · 01:05" },
+            Part::Absent { role: Role::Text, name: "for 24 hours, then in each task's history" },
         ],
     },
     Holds {
@@ -1385,6 +1397,15 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-away-quiet",
+        heading: "57 changes landed. One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "While you were away · Mon 23:10 to now" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Still needs you · 1" },
+            Part::NoStyle { style: temper_client_view::look::DECIDED },
+        ],
+    },
+    Holds {
         name: "home-away-overturned",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -1403,7 +1424,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-off",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away: off" },
             Part::Text { text: "Away is off: questions wait for you again." },
@@ -1411,7 +1432,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-on",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away until 08:00" },
             Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },
@@ -1943,11 +1964,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide implementation choices" },
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
             Part::Text { text: "Let agents decide implementation choices, then tell you." },
             Part::Named { role: Role::Button, name: "Apply" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Propose" },
         ],
     },
@@ -1955,13 +1976,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking-set",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide some changes to protocol core" },
             Part::Reader { role: jig_client::contract::HeldRole::Member },
             Part::Text { text: "Let agents decide changes to protocol core that are:" },
             Part::Named { role: Role::TextField, name: "Which changes" },
             Part::Text { text: "Let agents decide changes to src/wire/**, apart from the rest of protocol core." },
             Part::Named { role: Role::Button, name: "Propose" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Apply" },
         ],
     },
@@ -1969,10 +1990,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-why",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
+            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Text {
                 text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
             },
-            Part::Named { role: Role::Button, name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Stop asking: let agents decide implementation choices" },
         ],
     },
     Holds {
