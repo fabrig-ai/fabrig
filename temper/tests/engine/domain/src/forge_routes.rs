@@ -129,6 +129,7 @@ pub struct World {
     period: Option<u64>,
     period_budget: u64,
     pub fail_job_reads: bool,
+    comparisons_too_large: bool,
     /// Refuse the named section reads while a CI repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
@@ -1079,6 +1080,7 @@ impl World {
             period: None,
             period_budget,
             fail_job_reads: false,
+            comparisons_too_large: false,
             fail_brief_reads: None,
             slow_brief_reads: false,
             slow_branch: None,
@@ -1539,6 +1541,11 @@ impl World {
         }
     }
 
+    /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
+    pub fn reject_comparisons(&mut self) {
+        self.comparisons_too_large = true;
+    }
+
     pub fn external(&mut self, user: u64, op: raw::Op) -> raw::Answer {
         self.external_at(b"org/repo", user, op)
     }
@@ -1695,6 +1702,20 @@ impl World {
                                 call,
                                 cost: 0,
                                 result: Err(error),
+                            },
+                        ))));
+                        continue;
+                    }
+                    if self.comparisons_too_large
+                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
                             },
                         ))));
                         continue;

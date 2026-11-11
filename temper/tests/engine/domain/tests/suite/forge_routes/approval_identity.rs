@@ -79,7 +79,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
     world
 }
 
-fn forge_with_only_temper(world: &mut World) {
+pub(super) fn forge_with_only_temper(world: &mut World) {
     // Only temper is returned at adoption; the deployment owner is a separate identity.
     world.fake_env.limits.limits.users = 6;
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
@@ -651,7 +651,7 @@ fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Pa
     panel
 }
 
-fn post_approval_read(world: &mut World, change: u64, user: u64) {
+pub(super) fn post_approval_read(world: &mut World, change: u64, user: u64) {
     fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
     let pull = light_rules::change_row(world, change).pull.expect("opened pull");
     assert!(matches!(
@@ -674,7 +674,7 @@ fn post_approval_read(world: &mut World, change: u64, user: u64) {
     })));
 }
 
-fn post_approval(world: &mut World, change: u64, user: u64) {
+pub(super) fn post_approval(world: &mut World, change: u64, user: u64) {
     post_approval_read(world, change, user);
     world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
     settle(world);
@@ -847,7 +847,7 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
     }
 }
 
-fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
+pub(super) fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
     world
         .approvals
         .iter()
@@ -1075,7 +1075,7 @@ fn waiting_approval_with_client(concurrent: bool) -> (World, u64) {
     (world, change)
 }
 
-fn settle(world: &mut World) {
+pub(super) fn settle(world: &mut World) {
     for _ in 0..200 {
         world.tick();
     }
