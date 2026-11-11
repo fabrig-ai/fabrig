@@ -317,6 +317,8 @@ pub struct Facts {
     pub base_ci: Ci,
     pub base_tip: Commit,
     pub contains_base: Status,
+    /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
+    pub contains_head: Status,
     /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge/change/repairs.md).
     pub merge_job: bool,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);

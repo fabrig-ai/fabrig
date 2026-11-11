@@ -56,6 +56,7 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        contains_head: Status::Unknown,
         merge_job: false,
         delegate: None,
         catch_up: None,

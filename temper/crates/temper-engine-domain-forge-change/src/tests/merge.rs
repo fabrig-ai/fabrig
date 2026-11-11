@@ -228,6 +228,52 @@ fn a_catch_up_already_contained_ends_with_no_change() {
     }
 }
 
+/// A contained pushed head ends only when no work or hold stands (temper/docs/design/domain/forge/change/README.md, 2).
+#[test]
+fn a_pushed_head_already_contained_ends_with_no_change() {
+    let mut sha1 = [0; 32];
+    sha1.get_mut(..20).expect("SHA-1 width").fill(0xab);
+    for (head, words) in [
+        (sha1, b"The landing branch already contains its head abababababababababababababababababababab.".as_slice()),
+        ([0xab; 32], b"The landing branch already contains its head abababababababababababababababababababababababababababababababab.".as_slice()),
+    ] {
+        let opening = State::Opening { requested: false };
+        let f = Facts { branch: Some(head), contains_head: Status::Passed, ..facts() };
+        for (state, facts, heard, ends) in [
+            (opening.clone(), f.clone(), heard(), true),
+            (State::Checking { head }, f.clone(), heard(), true),
+            (State::Gating { head, asked: Box::new([]) }, f.clone(), heard(), true),
+            (State::Queued { head, ready_since: at(0) }, f.clone(), heard(), true),
+            (State::First { head, ready_since: at(0) }, f.clone(), heard(), true),
+            (opening.clone(), Facts { contains_head: Status::Failed, ..f.clone() }, heard(), false),
+            (opening.clone(), Facts { contains_head: Status::Unknown, ..f.clone() }, heard(), false),
+            (opening.clone(), Facts { branch: None, ..f.clone() }, heard(), false),
+            (State::Landing { head }, f.clone(), heard(), false),
+            (State::Updating { from: head, base: BASE, ready_since: at(0) }, f.clone(), heard(), false),
+            (State::Preparing { from: head, main: BASE, ready_since: at(0) }, f.clone(), heard(), false),
+            (opening.clone(), f.clone(), Heard { delegate_live: true, ..heard() }, false),
+            (opening.clone(), Facts { writer_taken: true, ..f.clone() }, heard(), false),
+            (opening.clone(), Facts { drift: Some(Hold::BranchMoved), ..f.clone() }, heard(), false),
+            (State::Held { was: Box::new(opening.clone()), why: Hold::Failed }, f.clone(), heard(), false),
+            (opening.clone(), Facts { pull: Pull::Merged { commit: MERGE }, ..f.clone() }, heard(), false),
+            (opening, f.clone(), Heard { cancelled: true, ..heard() }, false),
+        ] {
+            let mut c = change(state);
+            c.owns_turn = true;
+            let next = decide(&c, &facts, &heard);
+            if ends {
+                assert_eq!(next.decision, Decision::NoChange, "{:?}", c.state);
+                assert_eq!(next.change.state, State::NoChange { words: words.into() });
+                assert!(!next.change.owns_turn);
+            } else {
+                let baseline = decide(&c, &Facts { contains_head: Status::Unknown, ..facts }, &heard);
+                assert_eq!(next, baseline, "{:?}", c.state);
+                assert_ne!(next.decision, Decision::NoChange);
+            }
+        }
+    }
+}
+
 /// A catch-up asks a merge job without counting a conflict (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_ups_producer_is_the_merge_job() {
