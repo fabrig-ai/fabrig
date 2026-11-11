@@ -118,7 +118,7 @@ pub use room::{LiveRoom, RoomWait};
 mod run;
 mod runtime;
 mod session;
-pub use session::{Session, SessionEnd};
+pub use session::{Session, SessionEnd, SessionWake, context_bound, quiet_span, session_end};
 mod settings;
 mod settings_moves;
 mod standing;

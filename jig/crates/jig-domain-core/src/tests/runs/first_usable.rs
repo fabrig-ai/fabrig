@@ -163,6 +163,7 @@ fn claim(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(HOST),

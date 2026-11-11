@@ -51,6 +51,7 @@ fn an_instruction_amendment_is_heard_whole_and_keeps_immutable_settings_across_r
     h.make(Vec::from([task(1, &[])]));
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,
         account: None,

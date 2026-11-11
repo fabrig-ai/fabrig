@@ -66,6 +66,7 @@ impl Measured {
         self.event(Event::Prepare { reply_to, task: number });
         let reply_to = self.to();
         self.event(Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,
@@ -149,6 +150,7 @@ fn measure_saturated_payloads_graph_backoff_held_closing_retirement_and_restore_
             m.event(Event::Prepare { reply_to, task: number });
             let reply_to = m.to();
             m.event(Event::Claim {
+                session_end: None,
                 offered: jig_domain_tasks::Reasons::ALL,
                 reasons: jig_domain_tasks::Reasons::FIRST,
                 account: None,

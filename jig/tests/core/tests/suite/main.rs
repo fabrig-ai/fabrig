@@ -66,6 +66,7 @@ mod restore_pages;
 mod route_orders;
 mod run_positions;
 mod runs;
+mod sessions;
 mod settings;
 mod settings_memory;
 mod settings_project_policy;
@@ -97,6 +98,7 @@ mod fuzzy {
     mod deletion;
     mod faults;
     mod reads;
+    mod sessions;
     mod settings;
     mod stories;
     mod watches;

@@ -58,7 +58,8 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
     if task.record.phase != Phase::Active(Active::Due) || kept.blocks_claims() {
         return refused(to, Some(number), Refusal::State, out);
     }
-    if moves {
+    if moves && task.record.settings.task != newest {
+        crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Rules, out);
         task.record.settings.task = newest;
     }
     task.record.settings.run = Some(task.record.settings.task);
@@ -68,6 +69,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
 }
 
 pub(crate) struct Claiming {
+    pub(crate) session_end: Option<crate::SessionEnd>,
     pub(crate) reasons: crate::Reasons,
     pub(crate) offered: crate::Reasons,
     pub(crate) number: u64,
@@ -121,13 +123,23 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
 }
 
 fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
-    let Claiming { number, attempt, resumed, budget, account, reasons, offered, writes: _ } = claiming;
+    let Claiming { number, attempt, resumed, budget, account, reasons, offered, session_end, writes: _ } = claiming;
     let task = task_mut(domain, number).expect("entrance names task");
     task.record.numbers.reserved = task.record.numbers.reserved.checked_add(budget).expect("available budget");
     task.record.run_reserved = budget;
     if let Some(account) = account {
         task.record.kept_account = Some(account);
     }
+    if task.record.flags.ended_by == crate::EndedBy::Standing {
+        if let Some(end) = session_end {
+            crate::session::end(&mut task.record, env.wall, end, out);
+        }
+        if task.record.session.is_none() {
+            task.record.session = Some(crate::Session { first: attempt, reasons, last: env.wall });
+            task.record.tries = Tries::NONE;
+        }
+    }
+    task.record.activation_open = true;
     task.record.reasons = reasons;
     task.record.offered = offered;
     task.record.attempt = attempt;
@@ -488,6 +500,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     let previous_tries = old.tries;
     let kept = ends::kept(domain, number);
     let discarded = !narrowed && kept.discards(&end);
+    let stood = if discarded && old.flags.ended_by == crate::EndedBy::Standing { ends::stood(&end) } else { None };
     let end = if narrowed || discarded { End::Parked } else { end };
     let result_followups = match &end {
         End::FinishedWithFollowups { .. } => true,
@@ -597,7 +610,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
             End::Parked => {
                 let task = task_mut(domain, number).expect("terminal names live task");
-                if !kept.owes {
+                if !kept.owes && task.record.flags.ended_by != crate::EndedBy::Standing {
                     task.record.tries = Tries::NONE;
                 }
                 task.record.refusals = 0;
@@ -630,6 +643,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     let task = task_mut(domain, number).expect("terminal names live task");
     task.record.invalid_result = invalid;
     if activation_ended {
+        task.record.activation_open = false;
         task.record.reasons = crate::Reasons::EMPTY;
     }
     task.record.numbers.reserved =
@@ -640,6 +654,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     task.record.llm_changed = false;
     let spent = task.record.run_spent;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunEnded { attempt, end: end_kind, spent }, out);
+    if let Some(words) = stood {
+        crate::activity::append(&mut task.record, env.wall, crate::Line::Stood { attempt, words }, out);
+    }
     if parked && !kept.owes {
         let pending = task.record.waiting_on.clone();
         crate::activity::append(
@@ -648,6 +665,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             crate::Line::Kept { attempt, pending, question: kept.question },
             out,
         );
+    }
+    if terminal_parks && activation_ended && crate::session::work_closed(&task.record) {
+        crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Closed, out);
     }
     if let Some(tags) = saved {
         task.record.saved = tags;
@@ -662,6 +682,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     {
         crate::closing::cancel_tree(domain, env, number, grace.by, &grace.reason, out);
     }
+    crate::standing::after_run(domain, env, number, out);
     // The numbered reminder must precede any preparation caused by unread words.
     if !parked || !kept.owes {
         crate::wake::after_run(domain, env, number, out);

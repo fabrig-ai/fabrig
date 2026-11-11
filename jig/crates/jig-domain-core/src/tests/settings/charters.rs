@@ -17,6 +17,8 @@ fn a_charter_whose_default_spend_misses_its_floor_is_refused() {
 
 pub(in crate::tests) fn context(task: u64, charter: u32) -> Box<tasks::RunContext> {
     Box::new(tasks::RunContext {
+        session_wake: false,
+        session_kinds: tasks::Reasons::EMPTY,
         reasons: jig_domain_tasks::Reasons::FIRST,
         ended_by: tasks::EndedBy::Result,
         added: Box::new([]),

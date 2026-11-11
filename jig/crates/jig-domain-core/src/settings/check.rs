@@ -577,9 +577,6 @@ fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> O
     if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
         return Some(Failure { setting, fault: Fault::Count, detail: None });
     }
-    if charter.policy.resume && !charter.parts.is_empty() {
-        return Some(Failure { setting, fault: Fault::Shape, detail: None });
-    }
     for part in &charter.parts {
         if part.on.is_empty() || !part.on.is_known() {
             return Some(Failure { setting, fault: Fault::Shape, detail: None });

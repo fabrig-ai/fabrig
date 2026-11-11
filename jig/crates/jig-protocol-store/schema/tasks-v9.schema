@@ -352,7 +352,7 @@ record TaskOutcome {
     room_wait: option RoomWait
 }
 record Session { first: u64 reasons: u32 last: u64 }
-record TaskRecord { session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
+record TaskRecord { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
 enum HoldOwner { party: Person, task: Number }

@@ -10,6 +10,7 @@ pub(crate) mod held;
 pub(crate) mod host_route;
 mod making;
 pub(crate) mod playground;
+pub(crate) mod standing;
 pub use host_route::{
     ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
@@ -354,6 +355,7 @@ pub(crate) fn route_core_requests(
     decision: &mut Decision,
     requests: Queue<core::Request>,
 ) {
+    standing::saved(domain, env, decision, &requests);
     let mut output = requests;
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
@@ -446,8 +448,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
                     domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
+                let period = if let core::Event::Period { project, .. } = &event { Some(*project) } else { None };
                 let routed = forge_route::step_core(domain, env, event);
                 route_core_requests(domain, env, decision, routed);
+                if let Some(project) = period {
+                    standing::move_roles(domain, project, None);
+                }
             }
             Work::Tasks(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));

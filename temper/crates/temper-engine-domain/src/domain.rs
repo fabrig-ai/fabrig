@@ -1239,6 +1239,7 @@ fn released_into(
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
+        Delivery::MoveStanding { project, owner } => crate::route::standing::move_roles(domain, project, owner),
         Delivery::ProjectMade { project } => {
             if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period

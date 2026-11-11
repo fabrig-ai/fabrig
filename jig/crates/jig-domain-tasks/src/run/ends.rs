@@ -1,6 +1,7 @@
 //! One rule for delegates, dependencies and ending authority (domain/tasks/lifecycle.md, 7–9 and domain/tasks/changes.md).
 use crate::domain::{Domain, record};
 use crate::{Active, End, Executor, Phase, TaskResult, Was};
+use alloc::boxed::Box;
 
 /// Whether an active task may go on, and why not (domain/tasks/lifecycle.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -182,6 +183,29 @@ impl Kept {
             };
         self.parks(end) || (self.question.is_some() && finished(end)) || delegates
     }
+}
+
+/// The explanation retained when a standing task discards its raw finish.
+pub(crate) fn stood(end: &End) -> Option<Box<[u8]>> {
+    let result = match end {
+        End::Finished { result, .. } | End::FinishedWithFollowups { result, .. } => result,
+        End::Exceeded(_)
+        | End::Parked
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::Recheck => return None,
+    };
+    let words = match result {
+        TaskResult::Report { words }
+        | TaskResult::Verdict { words, .. }
+        | TaskResult::Change { words, .. }
+        | TaskResult::NoChange { words } => words.as_ref(),
+        TaskResult::Failure { reason } => reason.as_ref(),
+        TaskResult::Approved { words, .. } => words.as_deref().unwrap_or(&[]),
+        TaskResult::Job { .. } => &[],
+    };
+    Some(Box::from(skein_lib::bytes::utf8_prefix(words, skein_lib::length::usize_of(crate::STOOD_WORDS))))
 }
 
 fn finished(end: &End) -> bool {
