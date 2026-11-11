@@ -542,6 +542,7 @@ fn turn_calls_are_refused_without_a_request() {
         }),
         api::Op::Write(api::Write::Rerun { attempt: job }),
         api::Op::Write(api::Write::Merge { number: 1, head, how: api::MergeHow::FastForwardOnly }),
+        api::Op::Write(api::Write::Merge { number: 1, head, how: api::MergeHow::Recorded { commit: [1; 32] } }),
         api::Op::Write(api::Write::Update { number: 1, style: api::UpdateStyle::Rebase }),
     ] {
         let mut plan = Plan::new(api::Repository { forge: 1, repository: 1 }, op.clone());

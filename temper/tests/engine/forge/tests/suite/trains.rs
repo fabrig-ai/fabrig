@@ -22,6 +22,7 @@ fn world() -> World {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                base: false,
             }]),
         }])
     ));

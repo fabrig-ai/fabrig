@@ -759,6 +759,10 @@ pub enum Path {
     JobAttemptAttempt,
     /// Bytes after `JobAttempt`.
     JobAttemptTail,
+    /// The `commit` field of `RecordedMerge`.
+    RecordedMergeCommit,
+    /// Bytes after `RecordedMerge`.
+    RecordedMergeTail,
     /// The tag of `MergeHow`.
     MergeHowTag,
     /// The tag of `UpdateStyle`.
@@ -5031,6 +5035,37 @@ impl JobAttempt {
 
 }
 
+/// Movable fields of `RecordedMerge`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordedMergeParts {
+    /// The `commit` field.
+    pub commit: [u8; 32],
+}
+
+/// `RecordedMerge` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordedMerge {
+    commit: [u8; 32],
+}
+
+impl RecordedMerge {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RecordedMergeParts) -> Result<Self, Problem> {
+        let RecordedMergeParts { commit } = parts;
+        let value = Self { commit };
+        Ok(value)
+    }
+
+    /// Reads the `commit` field.
+    #[must_use]
+    pub fn commit(&self) -> &[u8; 32] { &self.commit }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordedMergeParts { RecordedMergeParts { commit: self.commit } }
+
+}
+
 /// `MergeHow` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MergeHow {
@@ -5038,6 +5073,8 @@ pub enum MergeHow {
     Style,
     /// `fast_forward_only` without a payload.
     FastForwardOnly,
+    /// `recorded` carrying `RecordedMerge`.
+    Recorded(RecordedMerge),
 }
 
 impl MergeHow {
@@ -19845,11 +19882,41 @@ impl JobAttempt {
     }
 }
 
+impl RecordedMerge {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_commit = &self.commit;
+        writer.put(field_commit)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RecordedMergeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::RecordedMergeCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        Ok(Self { commit: decoded_commit })
+    }
+}
+
 impl MergeHow {
     /// Measures this variant's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
+            Self::Recorded(record) => 1_u32.checked_add(RecordedMerge::measure(record)).expect("schema ceilings fit u32"),
             Self::Style | Self::FastForwardOnly => 1,
         }
     }
@@ -19859,6 +19926,7 @@ impl MergeHow {
         match self {
             Self::Style => writer.put(&[0_u8])?,
             Self::FastForwardOnly => writer.put(&[1_u8])?,
+            Self::Recorded(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -19870,11 +19938,12 @@ impl MergeHow {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let tag = reader.u8().ok_or(Problem { path: Path::MergeHowTag, reason: skein_codec::Reason::Short })?;
         let value = match tag {
             0 => Self::Style,
             1 => Self::FastForwardOnly,
+            2 => Self::Recorded(RecordedMerge::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::MergeHowTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -19924,7 +19993,8 @@ impl MergeWrite {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_how = &self.how;
+        size = size.checked_add(field_how.measure()).expect("schema ceilings fit u32");
         size
     }
 
@@ -34346,6 +34416,34 @@ impl JobAttempt {
     }
 }
 
+impl RecordedMerge {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl MergeHow {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -34354,8 +34452,9 @@ impl MergeHow {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(RecordedMerge::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -34366,8 +34465,9 @@ impl MergeHow {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(RecordedMerge::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -42756,6 +42856,7 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Edit::encoded_bound_within(limits)?);
     biggest = biggest.max(SetReviewers::encoded_bound_within(limits)?);
     biggest = biggest.max(JobAttempt::encoded_bound_within(limits)?);
+    biggest = biggest.max(RecordedMerge::encoded_bound_within(limits)?);
     biggest = biggest.max(MergeHow::encoded_bound_within(limits)?);
     biggest = biggest.max(UpdateStyle::encoded_bound_within(limits)?);
     biggest = biggest.max(MergeWrite::encoded_bound_within(limits)?);
@@ -42798,11 +42899,11 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PermissionValue::encoded_bound_within(limits)?);
     biggest = biggest.max(BranchCreationValue::encoded_bound_within(limits)?);
     biggest = biggest.max(Kind::encoded_bound_within(limits)?);
-    biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
     biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     biggest = biggest.max(Comment::encoded_bound_within(limits)?);
     biggest = biggest.max(Review::encoded_bound_within(limits)?);
@@ -42892,11 +42993,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Route::encoded_bound_within(limits)?);
     biggest = biggest.max(Foreman::encoded_bound_within(limits)?);
     biggest = biggest.max(Held::encoded_bound_within(limits)?);
-    biggest = biggest.max(Stands::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Stands::encoded_bound_within(limits)?);
     biggest = biggest.max(Open::encoded_bound_within(limits)?);
     biggest = biggest.max(Questions::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeFailure::encoded_bound_within(limits)?);
@@ -42986,11 +43087,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ReceiptRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeKind::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeMode::encoded_bound_within(limits)?);
-    biggest = biggest.max(Address::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Address::encoded_bound_within(limits)?);
     biggest = biggest.max(Place::encoded_bound_within(limits)?);
     biggest = biggest.max(Bot::encoded_bound_within(limits)?);
     biggest = biggest.max(EmptyIntent::encoded_bound_within(limits)?);
@@ -43113,6 +43214,7 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Edit::decoded_bound_within(limits)?);
     biggest = biggest.max(SetReviewers::decoded_bound_within(limits)?);
     biggest = biggest.max(JobAttempt::decoded_bound_within(limits)?);
+    biggest = biggest.max(RecordedMerge::decoded_bound_within(limits)?);
     biggest = biggest.max(MergeHow::decoded_bound_within(limits)?);
     biggest = biggest.max(UpdateStyle::decoded_bound_within(limits)?);
     biggest = biggest.max(MergeWrite::decoded_bound_within(limits)?);
@@ -43155,11 +43257,11 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PermissionValue::decoded_bound_within(limits)?);
     biggest = biggest.max(BranchCreationValue::decoded_bound_within(limits)?);
     biggest = biggest.max(Kind::decoded_bound_within(limits)?);
-    biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
     biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     biggest = biggest.max(Comment::decoded_bound_within(limits)?);
     biggest = biggest.max(Review::decoded_bound_within(limits)?);
@@ -43249,11 +43351,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Route::decoded_bound_within(limits)?);
     biggest = biggest.max(Foreman::decoded_bound_within(limits)?);
     biggest = biggest.max(Held::decoded_bound_within(limits)?);
-    biggest = biggest.max(Stands::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Stands::decoded_bound_within(limits)?);
     biggest = biggest.max(Open::decoded_bound_within(limits)?);
     biggest = biggest.max(Questions::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeFailure::decoded_bound_within(limits)?);
@@ -43343,11 +43445,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ReceiptRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeKind::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeMode::decoded_bound_within(limits)?);
-    biggest = biggest.max(Address::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Address::decoded_bound_within(limits)?);
     biggest = biggest.max(Place::decoded_bound_within(limits)?);
     biggest = biggest.max(Bot::decoded_bound_within(limits)?);
     biggest = biggest.max(EmptyIntent::decoded_bound_within(limits)?);
@@ -43412,7 +43514,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, DesignWriter, DesignWriterParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Bound, Excess, ExcessParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachReason, Reach, ReachParts, CallDecided, CallDecidedParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, WaitingProducer, WaitingProducerParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeFailure, ChangeFailureParts, ChangeEnding, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, EmptyIntent, EmptyIntentParts, CopyIntent, CopyIntentParts, FirstIntent, EndedForge, EndedForgeParts, ForgeState, ForgeLink, ForgeLinkParts, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, TemplateGoal, TemplateGoalParts, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ReachKindOf, ReachKindOfParts, ClassSubject, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, StatusBrief, StatusBriefParts, StatusRunning, StatusRunningParts, ProjectFacts, ProjectFactsParts, Looked, LookedParts, Away, AwayParts, Decided, DecidedParts, ClosingStep, ClosingRun, ClosingRunParts, ClosingTasks, ClosingTasksParts, ClosingJobs, ClosingJobsParts, ClosingLine, ClosingLineParts, ClosingSelectionProgress, ClosingSelection, ClosingSelectionParts, Closer, CloserParts, Value, Row, RowParts, Path};
+    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, DesignWriter, DesignWriterParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, RecordedMerge, RecordedMergeParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Bound, Excess, ExcessParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachReason, Reach, ReachParts, CallDecided, CallDecidedParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, WaitingProducer, WaitingProducerParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeFailure, ChangeFailureParts, ChangeEnding, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, EmptyIntent, EmptyIntentParts, CopyIntent, CopyIntentParts, FirstIntent, EndedForge, EndedForgeParts, ForgeState, ForgeLink, ForgeLinkParts, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, TemplateGoal, TemplateGoalParts, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ReachKindOf, ReachKindOfParts, ClassSubject, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, StatusBrief, StatusBriefParts, StatusRunning, StatusRunningParts, ProjectFacts, ProjectFactsParts, Looked, LookedParts, Away, AwayParts, Decided, DecidedParts, ClosingStep, ClosingRun, ClosingRunParts, ClosingTasks, ClosingTasksParts, ClosingJobs, ClosingJobsParts, ClosingLine, ClosingLineParts, ClosingSelectionProgress, ClosingSelection, ClosingSelectionParts, Closer, CloserParts, Value, Row, RowParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -43614,10 +43716,14 @@ mod golden_tests {
         ("record_set_reviewers_full", || { let value = SetReviewers::new(&CEILINGS, SetReviewersParts { number: u64::MAX, reviewers: { let mut items = skein_lib::List::with_capacity(1); items.push(u64::MAX).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetReviewers::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_job_attempt_smallest", || { let value = JobAttempt::new(&CEILINGS, JobAttemptParts { head: [0_u8; 32], run: 0_u64, job: 0_u64, attempt: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, JobAttempt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_job_attempt_full", || { let value = JobAttempt::new(&CEILINGS, JobAttemptParts { head: [165_u8; 32], run: u64::MAX, job: u64::MAX, attempt: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, JobAttempt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_recorded_merge_smallest", || { let value = RecordedMerge::new(&CEILINGS, RecordedMergeParts { commit: [0_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RecordedMerge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_recorded_merge_full", || { let value = RecordedMerge::new(&CEILINGS, RecordedMergeParts { commit: [165_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, RecordedMerge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_merge_how_style_smallest", || { let value = MergeHow::Style; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_merge_how_style_full", || { let value = MergeHow::Style; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_merge_how_fast_forward_only_smallest", || { let value = MergeHow::FastForwardOnly; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_merge_how_fast_forward_only_full", || { let value = MergeHow::FastForwardOnly; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_merge_how_recorded_smallest", || { let value = MergeHow::Recorded(RecordedMerge::new(&CEILINGS, RecordedMergeParts { commit: [0_u8; 32] }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_merge_how_recorded_full", || { let value = MergeHow::Recorded(RecordedMerge::new(&CEILINGS, RecordedMergeParts { commit: [165_u8; 32] }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MergeHow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_update_style_merge_smallest", || { let value = UpdateStyle::Merge; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, UpdateStyle::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_update_style_merge_full", || { let value = UpdateStyle::Merge; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, UpdateStyle::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_update_style_rebase_smallest", || { let value = UpdateStyle::Rebase; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, UpdateStyle::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -44486,10 +44592,6 @@ mod golden_tests {
         ("enum_failures_many_full", || { let value = Failures::Many; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Failures::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_blamed_failures_smallest", || { let value = BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, BlamedFailures::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_blamed_failures_full", || { let value = BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, BlamedFailures::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_blame_cleared_smallest", || { let value = Blame::Cleared; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_blame_cleared_full", || { let value = Blame::Cleared; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_blame_owns_smallest", || { let value = Blame::Owns(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_blame_owns_full", || { let value = Blame::Owns(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -44497,7 +44599,11 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 326] = [
+    static GOLDEN_1: [Case; 330] = [
+        ("enum_blame_cleared_smallest", || { let value = Blame::Cleared; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_blame_cleared_full", || { let value = Blame::Cleared; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_blame_owns_smallest", || { let value = Blame::Owns(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_blame_owns_full", || { let value = Blame::Owns(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_blame_suspect_smallest", || { let value = Blame::Suspect(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_blame_suspect_full", || { let value = Blame::Suspect(BlamedFailures::new(&CEILINGS, BlamedFailuresParts { failures: Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Blame::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_tier_verdict_smallest", || { let value = TierVerdict::new(&CEILINGS, TierVerdictParts { run: 0_u64, blame: Blame::Cleared }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TierVerdict::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

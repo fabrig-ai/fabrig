@@ -19,6 +19,7 @@ mod writer;
 
 mod fuzzy {
     mod branch_patterns;
+    mod gate_keys;
     mod simulation;
 }
 

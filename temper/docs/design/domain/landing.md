@@ -651,11 +651,12 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   core and judged by the enforced landing rules.
 - **A purpose of its own,** tag 6 in `forge/README.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
-  operation (1: a dispatch, a rerun, a pending status, a verdict's
-  status, an opening, a closing, a deletion, the merge, then, new at the
-  end, a squashed member's record), the round,
+  operation (1), the round,
   counted from 1 in the landing (2), and the try within it (2), 18
-  bytes with the tag. A baseline's dispatch is its gate's, tag 7: the
+  bytes with the tag. The operations' codes are the order they were
+  made: 1 a dispatch, 2 a rerun, 3 a pending status, 4 a verdict's
+  status, 5 the merge, then 6 an opening, 7 a closing, 8 a deletion and
+  9 a squashed member's record. A baseline's dispatch is its gate's, tag 7: the
   repository (16), the gate (2) and the first eight bytes of the key
   (8), 27 bytes with the tag.
 

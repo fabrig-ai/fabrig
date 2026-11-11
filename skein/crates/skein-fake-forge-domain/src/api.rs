@@ -634,6 +634,7 @@ pub use crate::actions::{Conclusion, Failing, Job, Run, RunEvent, RunState, Step
 pub enum MergeHow {
     Style,
     FastForwardOnly,
+    Recorded { commit: u64 },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UpdateStyle {
@@ -852,6 +853,16 @@ pub struct Settings {
     pub merge: bool,
     pub rebase: bool,
     pub squash: bool,
+}
+
+/// Manual merge settings, off unless a world enables them (testing/fakes/forge.md, 2.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ManualMerges {
+    pub allow_manual_merge: bool,
+    pub autodetect_manual_merge: bool,
+}
+impl ManualMerges {
+    pub const OFF: Self = Self { allow_manual_merge: false, autodetect_manual_merge: false };
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

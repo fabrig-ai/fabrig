@@ -264,7 +264,15 @@ fn write(json: &mut Encoder, request: &Request) {
         }
         Request::Merge { style: value, head, .. } => {
             text(json, b"Do", style(*value));
-            text(json, b"head_commit_id", &id::write(head));
+            let key: &[u8] = match value {
+                MergeStyle::ManuallyMerged => b"MergeCommitID",
+                MergeStyle::Merge
+                | MergeStyle::Rebase
+                | MergeStyle::RebaseMerge
+                | MergeStyle::Squash
+                | MergeStyle::FastForwardOnly => b"head_commit_id",
+            };
+            text(json, key, &id::write(head));
         }
         Request::PostStatus { state: value, context, description, link, .. } => {
             if !description.is_empty() {

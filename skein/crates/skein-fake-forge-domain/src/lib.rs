@@ -81,8 +81,8 @@ pub use limits::{Limits, valid};
 pub use object::{commit_bytes, commit_count, object_bytes};
 pub use observe::{Branches, Observation, Operation};
 pub use scenario::{
-    advance, check, commit, commit_tree, grant, merge_commit, repository, set_failing, set_opening, set_reachable,
-    set_refusing, settings, unborn_repository,
+    advance, check, commit, commit_tree, grant, manual_merges, merge_commit, repository, set_failing, set_opening,
+    set_reachable, set_refusing, settings, unborn_repository,
 };
 
 mod reports;

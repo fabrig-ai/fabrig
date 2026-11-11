@@ -55,6 +55,7 @@ pub fn world(passes: u32) -> World {
         workflow: Box::from(b"gate.yml".as_slice()),
         ignored: Box::new([]),
         blocking: true,
+        base: false,
     }]);
     assert!(world.project_landing(
         landings::PROJECT,

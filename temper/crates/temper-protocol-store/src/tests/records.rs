@@ -1184,6 +1184,7 @@ fn turn_writes_round_trip_with_their_parameters() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for write in [
         a::Write::Merge { number: 7, head: [3; 32], how: a::MergeHow::FastForwardOnly },
+        a::Write::Merge { number: 7, head: [3; 32], how: a::MergeHow::Recorded { commit: [0xc1; 32] } },
         a::Write::Update { number: 7, style: a::UpdateStyle::Rebase },
         a::Write::Status {
             commit: [3; 32],

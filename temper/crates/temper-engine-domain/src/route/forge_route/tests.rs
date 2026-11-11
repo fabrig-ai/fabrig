@@ -2242,6 +2242,7 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
         1,
         forge_change::Way::Turn,
         Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
@@ -2330,6 +2331,8 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             .insert(
                 5,
                 crate::translate::ProjectLanding {
+                    gate_retries: 2,
+                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     check_timeout: None,
                     close_job: None,
                     merge_job: None,
@@ -4433,6 +4436,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
         1,
         c::Way::Turn,
         Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,

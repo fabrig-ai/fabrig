@@ -22,7 +22,8 @@ pub fn turn_world() -> World {
                 name: Box::from(b"gate".as_slice()),
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([Box::from(b"docs".as_slice())]),
-                blocking: true
+                blocking: true,
+                base: false,
             }])
         }])
     ));
