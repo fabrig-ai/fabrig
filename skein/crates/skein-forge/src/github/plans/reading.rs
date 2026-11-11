@@ -76,6 +76,10 @@ pub(super) fn ci(failed: bool, pending: bool, present: bool) -> api::Ci {
 pub(super) fn pull(value: document::Pull, ci: api::Ci) -> Result<api::Pull, api::Error> {
     let merged = if value.merged { Some(value.merge_commit.ok_or(api::Error::InvalidAnswer)?) } else { None };
     Ok(api::Pull {
+        size: match (value.changed_files, value.additions, value.deletions) {
+            (Some(files), Some(additions), Some(deletions)) => Some(api::Size { files, additions, deletions }),
+            _ => None,
+        },
         reviewers: value.reviewers,
         number: value.number,
         state: if value.closed || value.merged { api::State::Closed } else { api::State::Open },

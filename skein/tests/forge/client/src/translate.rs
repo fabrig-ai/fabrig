@@ -467,6 +467,11 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
             client::Read::Pull { .. } | client::Read::PullFor { .. } => client::Answer::Pull(client::Pull {
                 queued: None,
                 dequeued: None,
+                size: Some(client::Size {
+                    files: pull.size.files,
+                    additions: pull.size.additions,
+                    deletions: pull.size.deletions,
+                }),
                 number: pull.number,
                 state: state(pull.state),
                 head: pull.head,

@@ -21,6 +21,7 @@ pub struct Fields {
 
 /// What the body was.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "a streamed document carries the pull counts inline")]
 pub enum Body {
     /// A JSON answer, whole; its rows went up before it.
     Document(document::Document),
