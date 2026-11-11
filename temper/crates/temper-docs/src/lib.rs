@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 63] = [
+pub static PAGES: [Page; 64] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -313,6 +313,13 @@ pub static PAGES: [Page; 63] = [
         title: "Run temper on a server",
         summary: "Run a long-lived deployment on a server: the engine behind a TLS proxy with Google sign-in, an owned Forgejo beside it, the workers on a second host, and a redeploy that keeps the model's accounts.",
         text: include_str!("../../../docs/help/server.md"),
+    },
+    Page {
+        name: "tester-that-cannot-land",
+        kind: Kind::Recipe,
+        title: "A tester that cannot land",
+        summary: "Run tests under a tester's own charter and report findings for another task to fix.",
+        text: include_str!("../../../docs/help/tester-that-cannot-land.md"),
     },
     Page {
         name: "weekly-budget",

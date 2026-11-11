@@ -96,6 +96,8 @@ temper runs software work for people: agents take tasks on the repositories of a
 
 ## The recipes
 
+- temper help tester-that-cannot-land: tests under their own charter, findings
+  reported for another task to fix.
 - temper help weekly-budget: a project's spend capped each week, and
   renewed.
 
