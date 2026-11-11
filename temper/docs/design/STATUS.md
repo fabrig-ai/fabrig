@@ -224,7 +224,12 @@ its delivery replaces (`domain/worker.status.md`), run changed-package lints and
 tests with direct dependents, one process per test binary, and identify inherited failures. A project
 may give its changes' checks a bound of its own, and a check that only ran
 out of time runs once more at twice its time
-(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`). The
+(`protocol/configuration/engine.status.md`; `domain/agent/charter.status.md`).
+A worker's checkout still clones its repository's every branch whenever its
+workspace is made, and fetches a pinned branch again: one store per
+repository per worker, which every checkout borrows and every fetch fills,
+and each branch fetched once a prepare, are designed and not yet built
+(`domain/worker.status.md`, 5; `protocol/git.status.md`, 4). The
 reference's coder and coordinator still ask for manual checks
 (`protocol/configuration/reference.status.md`).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
