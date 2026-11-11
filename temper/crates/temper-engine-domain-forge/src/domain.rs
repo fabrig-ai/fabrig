@@ -3961,6 +3961,10 @@ fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) ->
     if d.approval_short(row) {
         return false;
     }
+    let (ready, repair) = queue_ready(d, row, l);
+    if let Some(task) = repair {
+        return row.task == task;
+    }
     for (_, other) in &d.changes {
         if other.repository == row.repository
             && other.base == row.base
@@ -3971,11 +3975,7 @@ fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) ->
             return row.task == other.task;
         }
     }
-    let (ready, repair) = queue_ready(d, row, l);
-    match repair {
-        Some(task) => row.task == task,
-        None => change::first(ready.as_slice(), l.queue_window, now) == Some(row.task),
-    }
+    change::first(ready.as_slice(), l.queue_window, now) == Some(row.task)
 }
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
@@ -4124,7 +4124,10 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     let mut reviewed = false;
     for _ in 0_u32..16 {
         if !reviewed && in_queue(&row.change.state) && !d.panel_approvals(&row).is_empty() {
-            emit(out, Request::Reviewed { task: row.task, evidence: step_evidence(d, &row, pending, row.change.clone()) });
+            emit(
+                out,
+                Request::Reviewed { task: row.task, evidence: step_evidence(d, &row, pending, row.change.clone()) },
+            );
             reviewed = true;
         }
         let effect_prior = row.change.clone();
@@ -5832,9 +5835,13 @@ fn veto_change(
     row.effect = change::EffectResult::None;
     row.effect_account = None;
     let mut saved = row.clone();
-    yield_approval_turn(d, &mut saved);
+    let yielded = yield_approval_turn(d, &mut saved);
+    let repository = saved.repository;
     d.changes.insert(task, saved.clone()).expect("replaces change");
     save_queue_change(d, env, before, saved, out);
+    if yielded && let Some(tasks) = crate::views::changes_mark(d, repository) {
+        emit(out, Request::Marked { tasks: Box::from(tasks) });
+    }
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }

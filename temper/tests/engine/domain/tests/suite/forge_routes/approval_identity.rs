@@ -474,7 +474,9 @@ pub(crate) fn approval_wait_story() {
 fn another_waiting_approval(world: &mut World, name: u64) -> u64 {
     let chat = world.assigned[0].clone();
     let before = world.assigned.len();
-    let engine::CallAnswer::Delegated(made) = super::change_tool::change(world, &chat, name, None, b"Independent change") else {
+    let engine::CallAnswer::Delegated(made) =
+        super::change_tool::change(world, &chat, name, None, b"Independent change")
+    else {
         panic!("second change delegated: {:?}", world.answers);
     };
     let change = made[0].task;
@@ -484,9 +486,11 @@ fn another_waiting_approval(world: &mut World, name: u64) -> u64 {
     let head = world.fake.branch(b"org/repo", &branch).expect("produced head");
     super::update_first::status(world, head, raw::Check::Passed);
     let reviewer = reviews::next_assignment(world, before + 1);
-    reviews::finish_review(world, &reviewer, tasks::TaskResult::Verdict {
-        code: 1, fields: Box::new([]), words: b"approved".as_slice().into(),
-    });
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
     settle(world);
     change
 }
@@ -517,7 +521,12 @@ fn a_later_approved_change_lands_while_the_earlier_waits_outside_the_queue() {
     assert_eq!((document.rows[0].task, document.rows[0].behind), (x, 0));
     post_approval(&mut world, x, 7);
     finish_change_gate(&mut world, x);
-    assert_eq!(world.merges, 2, "X returns and lands at its first ready time");
+    assert_eq!(
+        world.merges,
+        2,
+        "X returns and lands at its first ready time: {:?}",
+        light_rules::change_row(&world, x).change
+    );
     assert_eq!(light_rules::change_row(&world, x).change.ready_since, since);
     world.close();
 }
@@ -545,7 +554,10 @@ fn a_returning_signoff_follows_the_owner_then_precedes_later_ready_changes() {
     post_approval_read(&mut world, z, 7);
     post_approval_read(&mut world, x, 7);
     let panel = approval_panel(&mut world, x, 995);
-    assert!(panel.approvals.iter().all(|line| line.remaining == Some(0)), "X's sign-off counts while Y updates: {panel:?}");
+    assert!(
+        panel.approvals.iter().all(|line| line.remaining == Some(0)),
+        "X's sign-off counts while Y updates: {panel:?}"
+    );
     assert_eq!(world.merges, 0);
     assert!(light_rules::change_row(&world, y).change.owns_turn, "Y keeps its update turn");
     for task in [x, z] {
@@ -562,30 +574,37 @@ fn a_returning_signoff_follows_the_owner_then_precedes_later_ready_changes() {
     finish_change_gate(&mut world, x);
     settle(&mut world);
     assert_eq!(world.merges, 3);
-    let merged: Vec<_> = world.writes.iter().filter_map(|write| match write {
-        skein_forge::api::Write::Merge { number, .. } => Some(*number),
-        _ => None,
-    }).collect();
+    let merged: Vec<_> = world
+        .writes
+        .iter()
+        .filter_map(|write| match write {
+            skein_forge::api::Write::Merge { number, .. } => Some(*number),
+            _ => None,
+        })
+        .collect();
     assert_eq!(merged, [y, x, z].map(|task| light_rules::change_row(&world, task).pull.expect("pull")));
     world.close();
 }
 
-fn pass_change_ci(world: &mut World, change: u64) {
-    let branch = light_rules::change_row(world, change).branch.clone();
-    let head = world.fake.branch(b"org/repo", &branch).expect("change head");
-    super::update_first::status(world, head, raw::Check::Passed);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
-    settle(world);
-}
-
 fn finish_change_gate(world: &mut World, change: u64) {
-    pass_change_ci(world, change);
-    let (task, kind) = light_rules::change_row(world, change).delegate.unwrap_or_else(|| panic!("exact gate at the updated head for {change}: {:?}", light_rules::change_row(world, change).change));
+    for _ in 0..200 {
+        if let Some((task, _)) = light_rules::change_row(world, change).delegate
+            && world.assigned.iter().any(|run| run.task == task)
+        {
+            break;
+        }
+        world.tick();
+    }
+    let (task, kind) = light_rules::change_row(world, change).delegate.unwrap_or_else(|| {
+        panic!("exact gate at the updated head for {change}: {:?}", light_rules::change_row(world, change).change)
+    });
     assert!(matches!(kind, temper_engine_domain_forge_change::Delegate::Gate { .. }));
     let reviewer = world.assigned.iter().rev().find(|run| run.task == task).expect("gate assigned").clone();
-    reviews::finish_review(world, &reviewer, tasks::TaskResult::Verdict {
-        code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into(),
-    });
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into() },
+    );
     settle(world);
 }
 
@@ -780,7 +799,10 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         for _ in 0..200 {
             request_reads(&mut world, review, reviewed, remarks);
             world.tick();
-            assert!(!light_rules::change_row(&world, change).change.owns_turn, "an out-of-queue request repairs without taking a turn");
+            assert!(
+                !light_rules::change_row(&world, change).change.owns_turn,
+                "an out-of-queue request repairs without taking a turn"
+            );
         }
         let row = light_rules::change_row(&world, change);
         assert_eq!(world.merges, 0);

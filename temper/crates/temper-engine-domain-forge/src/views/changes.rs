@@ -151,11 +151,13 @@ impl Domain {
     }
 
     pub(crate) fn changes_order(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> Option<List<u64>> {
+        let (candidates, repair) = crate::domain::queue_ready(self, row, limits);
         let mut active = Map::with_capacity(limits.changes);
         for (_, other) in &self.changes {
             if other.repository == row.repository
                 && other.base == row.base
                 && owns(other)
+                && (crate::panel::ready(other).is_none() || repair.is_none())
                 && (!crate::domain::in_queue(&other.change.state) || !self.approval_short(other))
             {
                 active.insert((ready_since(other), other.task), other.task).ok()?;
@@ -165,10 +167,9 @@ impl Domain {
         for (_, task) in &active {
             ordered.push(*task).ok()?;
         }
-        let (candidates, repair) = crate::domain::queue_ready(self, row, limits);
         let candidates = crate::public::order_ready(candidates, repair, limits, now)?;
         for candidate in &candidates {
-            if !self.changes.get(&candidate.task)?.change.owns_turn {
+            if !self.changes.get(&candidate.task)?.change.owns_turn || repair.is_some() {
                 ordered.push(candidate.task).ok()?;
             }
         }
