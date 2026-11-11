@@ -86,8 +86,8 @@ Each list has one entry per line; `#` starts a comment line.
   owned-forge landing pair (`temper/docs/design/testing/live-tier.md`).
   The inputs for `live-smith` are `SMITH_LIVE`, the directory holding smith's
   ChatGPT record and Claude Code's login (smith's section 2.3); for `live-temper`,
-  `TEMPER_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_LIVE_CLAUDE` (Claude Code's
-  login), `claude` on `PATH`, `TEMPER_LIVE_STORE` and a private `TMPDIR` (temper's
+  `TEMPER_TEST_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_TEST_LIVE_CLAUDE` (Claude Code's
+  login), `claude` on `PATH`, `TEMPER_TEST_LIVE_STORE` and a private `TMPDIR` (temper's
   section 2.7). No API key is among these inputs.
   On fabrig's own Forgejo, temper dispatches `.forgejo/workflows/tier-main.yml`
   at each move of main: it runs the runner's `$CI_TIER` at `temper_commit`, with

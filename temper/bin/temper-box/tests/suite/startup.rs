@@ -2148,12 +2148,8 @@ fn observing_parent_descendants_leaves_cleanup_with_their_world() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_FORGE_PARENT_HELPER, through temper's test table once it exists"
-)]
 fn forge_parent_listener_helper() {
-    if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
+    if temper_test_env::value(&temper_test_env::FORGE_PARENT_HELPER).is_some() {
         support::forge_parent::serve();
     }
 }
@@ -2193,7 +2189,7 @@ if [ "$1" = --version ]; then
 fi
 test "$LISTEN_FDS" = 1 || exit 22
 test -S /proc/self/fd/3 || exit 23
-export TEMPER_FORGE_PARENT_HELPER=1
+export {parent_helper}=1
 '{}' --exact startup::forge_parent_listener_helper --nocapture &
 helper=$!
 trap 'printf term > "{pid}.term"; wait "$helper"; exit 37' TERM
@@ -2209,7 +2205,8 @@ exit 38
             skein_forge::forgejo::pin::VERSION,
             test.display(),
             pid = pid_file.display(),
-            release = release.display()
+            release = release.display(),
+            parent_helper = temper_test_env::FORGE_PARENT_HELPER.name
         ),
     )
     .expect("fake Forgejo");

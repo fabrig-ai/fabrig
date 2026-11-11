@@ -32,7 +32,6 @@ pub fn command(root: &Path, action: &str) -> Command {
     command
 }
 
-#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 fn isolate(command: &mut Command, root: &Path) {
     let runtime = root.join("runtime");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(&runtime).expect("private runtime");
@@ -41,7 +40,7 @@ fn isolate(command: &mut Command, root: &Path) {
         .get_envs()
         .find(|(name, _)| *name == "PATH")
         .and_then(|(_, value)| value.map(ToOwned::to_owned))
-        .unwrap_or_else(|| std::env::var_os("PATH").unwrap_or_default());
+        .unwrap_or_else(|| temper_test_env::value(&temper_shell::environment::PATH).unwrap_or_default());
     let binary = skein_scratch::paths::binary("temper-box");
     let paths =
         std::iter::once(binary.parent().expect("binary directory").to_path_buf()).chain(std::env::split_paths(&path));

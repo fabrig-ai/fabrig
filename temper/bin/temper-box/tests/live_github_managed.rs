@@ -33,7 +33,7 @@ fn managed_relay() {
 }
 
 /// Runs the fake sitting, or its client with the sitting's mode and stdin link
-/// when `TEMPER_MANAGED_CLIENT` is set (temper/docs/design/testing/process-tier.md).
+/// when `TEMPER_TEST_MANAGED_CLIENT` is set (temper/docs/design/testing/process-tier.md).
 #[test]
 fn managed_ready_client() {
     match managed_client::role() {

@@ -94,19 +94,14 @@ pub enum Mode {
     Adopt,
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_MANAGED_CLIENT supplies the fake client's role, through temper's test table once it exists"
-)]
 pub fn role() -> Option<Mode> {
-    match std::env::var("TEMPER_MANAGED_CLIENT") {
-        Ok(mode) => match mode.as_str() {
-            "sign-in" => Some(Mode::SignIn),
-            "adopt" => Some(Mode::Adopt),
-            _ => panic!("unknown fake sitting client mode"),
-        },
-        Err(std::env::VarError::NotPresent) => None,
-        Err(std::env::VarError::NotUnicode(_)) => panic!("invalid fake sitting client mode"),
+    let mode = temper_test_env::value(&temper_test_env::MANAGED_CLIENT)
+        .map(|mode| mode.into_string().expect("invalid fake sitting client mode"));
+    match mode.as_deref() {
+        Some("sign-in") => Some(Mode::SignIn),
+        Some("adopt") => Some(Mode::Adopt),
+        Some(_) => panic!("unknown fake sitting client mode"),
+        None => None,
     }
 }
 
