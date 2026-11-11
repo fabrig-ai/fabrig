@@ -39,6 +39,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             queue: Box::new([]),
             skips: Box::new([]),
             parity: None,
+            questions: Box::new([]),
         }),
         RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {
@@ -212,6 +213,8 @@ fn follows_restore_with_per_project_and_queue_bounds() {
         more_files: 0,
         change: None,
         state: FollowState::NotMade,
+        word: false,
+        remake: false,
     };
     full.queue = vec![entry.clone(); usize::try_from(LIMITS.follow_queue).expect("queue bound")].into_boxed_slice();
     restore(&mut d, Stored::Follow(full.clone()));

@@ -2,7 +2,18 @@
 use super::*;
 
 fn adopt_source_and_target(world: &mut World) {
-    for (id, name) in [(3, b"org/source".as_slice()), (4, b"org/target".as_slice())] {
+    adopt_pair(world, b"source", b"target");
+}
+pub(super) fn adopt_pair(world: &mut World, source: &[u8], target: &[u8]) {
+    adopt_pair_configured(world, source, target, 1000, false);
+}
+pub(super) fn adopt_pair_passing(world: &mut World, source: &[u8], target: &[u8], passes: u32) {
+    adopt_pair_configured(world, source, target, passes, true);
+}
+fn adopt_pair_configured(world: &mut World, source: &[u8], target: &[u8], passes: u32, following: bool) {
+    for (id, name) in [(3, source), (4, target)] {
+        let full = [b"org/".as_slice(), name].concat();
+        let name = full.as_slice();
         fake::repository(
             &mut world.fake,
             &world.fake_env.limits,
@@ -12,16 +23,36 @@ fn adopt_source_and_target(world: &mut World) {
                 default: b"main".as_slice().into(),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                workflows: Box::new([]),
+                workflows: if following {
+                    Box::new([raw::Workflow {
+                        file: b"test.yml".as_slice().into(),
+                        jobs: Box::new([b"test".as_slice().into()]),
+                        latency_min: Duration::ZERO,
+                        latency_max: Duration::ZERO,
+                        silent: 0,
+                        passes: 1000,
+                        fails: Box::new([]),
+                        flaky: Box::new([]),
+                        select: None,
+                        cue: None,
+                        report: Some(raw::Report {
+                            artifact: b"results".as_slice().into(),
+                            format: raw::ReportFormat::Lines,
+                            deflate: false,
+                        }),
+                    }])
+                } else {
+                    Box::new([])
+                },
                 protection: None,
-                hooked: false,
+                hooked: following,
                 checks: raw::Checks {
                     cues: Box::new([]),
-                    contexts: Box::new([]),
+                    contexts: if following { Box::new([b"ci".as_slice().into()]) } else { Box::new([]) },
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,
-                    passes: 1000,
+                    passes,
                     reruns: 0,
                     cue: None,
                 },
@@ -30,9 +61,9 @@ fn adopt_source_and_target(world: &mut World) {
         fake::grant(&mut world.fake, name, 1, raw::Permission::Admin);
     }
     for (index, (project, name, role)) in [
-        (1, b"source".as_slice(), forge_top::Role::Owned),
-        (2, b"target".as_slice(), forge_top::Role::Owned),
-        (2, b"source".as_slice(), forge_top::Role::Context),
+        (1, source, forge_top::Role::Owned),
+        (2, target, forge_top::Role::Owned),
+        (2, source, forge_top::Role::Context),
     ]
     .into_iter()
     .enumerate()

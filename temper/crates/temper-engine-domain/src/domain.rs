@@ -113,6 +113,7 @@ pub struct Domain {
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
+    pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
@@ -567,6 +568,9 @@ impl Domain {
                 limits.call_records.checked_add(limits.tasks.tasks).expect("effect handoff capacity"),
             ),
             next_effect_owner: 1,
+            follow_steps: Map::with_capacity(
+                limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
+            ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(

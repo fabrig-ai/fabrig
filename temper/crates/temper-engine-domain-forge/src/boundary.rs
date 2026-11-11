@@ -1507,6 +1507,9 @@ pub enum Event {
         task: u64,
         report: Option<Box<[u8]>>,
     },
+    Follow {
+        row: crate::FollowRow,
+    },
     TierTask {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -2068,6 +2071,14 @@ pub enum Request {
         words: Box<[u8]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
+    FollowRun {
+        project: u32,
+        follow: u32,
+    },
+    CancelFollow {
+        project: u32,
+        task: u64,
+    },
     TierRun {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,

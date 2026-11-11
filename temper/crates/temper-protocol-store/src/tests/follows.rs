@@ -13,6 +13,8 @@ fn entry(state: d::FollowState) -> d::FollowEntry {
         more_files: 2,
         change: Some(51),
         state,
+        word: false,
+        remake: false,
     }
 }
 fn row() -> d::FollowRow {
@@ -24,6 +26,7 @@ fn row() -> d::FollowRow {
         heard: Some([2; 32]),
         task: Some(71),
         stopped: Some(b"owner stopped".as_slice().into()),
+        questions: Box::new([]),
         queue: Box::new([entry(d::FollowState::NotMade)]),
         skips: Box::new([d::FollowSkip { after: [3; 32], reason: b"already done".as_slice().into() }]),
         parity: Some(d::FollowParity {

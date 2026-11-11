@@ -1168,7 +1168,7 @@ impl Domain {
     #[must_use]
     pub fn repository_role(&self, project: u32, repository: skein_forge::api::Repository) -> Option<Role> {
         let row = self.repository(repository)?;
-        if row.project == project { Some(row.role) } else { None }
+        Some(row.for_project(project)?.role)
     }
 
     /// Resolve a deployment-wide saved repository tag within its project.
@@ -1343,6 +1343,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
         Event::StatusRefused { project } => crate::status::task(d, project, None, out),
         Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
+        Event::Follow { row } => crate::follows::register(d, row, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }

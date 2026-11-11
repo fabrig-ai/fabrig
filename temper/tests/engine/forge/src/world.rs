@@ -1118,7 +1118,9 @@ impl World {
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
-                top::Request::MakingCopied { .. }
+                top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
+                | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges

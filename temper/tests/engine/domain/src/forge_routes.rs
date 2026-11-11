@@ -1112,6 +1112,14 @@ impl World {
         }
     }
 
+    /// The configured pages base, before a multi-project fixture rebuilds startup.
+    #[must_use]
+    pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.forges[0].web = Some(pages.into());
+        self
+    }
+
     /// A second project with the same owner and policy, before startup.
     #[must_use]
     pub fn with_second_project(mut self) -> Self {
@@ -1853,7 +1861,7 @@ impl World {
                     self.drained = Some(self.store.header().commits);
                 }
                 engine::Request::Worker(other) => panic!("forge fixture received an unexpected request {other:?}"),
-                engine::Request::Stop => panic!("root startup or store failure"),
+                engine::Request::Stop => panic!("root startup or store failure: {:?}", self.root.start_stop()),
             }
         }
     }
