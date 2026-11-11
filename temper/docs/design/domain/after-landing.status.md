@@ -36,7 +36,7 @@ in section 14. The log's other gaps and the retained change rows remain below.
   knew, not at its branch's tip read afresh. [in flight: change 322]
 - **Not yet:** 3: a dispatch refused for a missing workflow is a `lost`
   fault, not one of its own worded `workflow WORKFLOW not found at
-  COMMIT`. [in flight: change 323]
+  COMMIT` and stored as its own kind. [in flight: change 323]
 - **Departs:** 10: a tier task holds the project's whole ceiling, not
   kinds 6, 7, 9, 16 and 17 alone, as a landing does (`landing.md`,
   section 11), because jig gives a procedure the deployment starts its

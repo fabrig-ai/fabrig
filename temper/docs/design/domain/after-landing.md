@@ -180,6 +180,10 @@ branch text matches (2026-11-04).
   pending status), `workflow WORKFLOW not found at COMMIT`: WORKFLOW the
   tier's workflow file as its settings name it, COMMIT the full commit
   dispatched. A rerun refused as missing is `lost`, its forge run gone.
+  Its kind is stored as the tier's other faults are, appended to them
+  in place (`../protocol/store.md`, section 4): every row stored before
+  it still reads, and a restart keeps its words (the requester,
+  2026-11-11).
 - **A run whose task ends without its verdict,** cancelled by a person
   (the usual end of a held run) or ended with its project, is dropped
   as its task closes: in the decision that hears the close (jig's
@@ -612,12 +616,6 @@ with failing tests by id and uploading their artifacts:
   in its news, rather than leave the goal to triage (5.4). Triage costs
   a wake and no machinery; blame would need the verdict machinery on a
   goal's branch (`../draft/reference-code-production.md`, section 17).
-- **A missing workflow's stored kind:** whether section 3's missing
-  workflow is a stored fault kind of its own, appended to the tier's
-  stored faults, or stored as `lost` with its words held in memory, so
-  that a restart between the refusal and the step reading it words it
-  `lost`. Asked of the requester on 2026-11-11; the first is
-  recommended, since every row stored before it still reads.
 
 ## 14. Later
 
