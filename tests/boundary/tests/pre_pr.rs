@@ -180,7 +180,9 @@ fn fixture() -> skein_scratch::Scratch {
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
     let workspace = skein_scratch::paths::workspace();
-    for path in [".temper/pre-pr", "tools/pre-pr/pre_pr.py"] {
+    for path in
+        [".temper/pre-pr", "tools/pre-pr/pre_pr.py", "tools/citations/citations.py", "tools/citations/sized.txt"]
+    {
         if let Ok(source) = fs::read_to_string(workspace.join(path)) {
             write(root, path, &source);
         }
@@ -403,9 +405,9 @@ fn the_base_is_the_pins_merge_base() {
         let output = deliver(root);
         let log = text(&output);
         assert!(output.status.success(), "{row}: {log}");
-        coverage(root);
         assert!(build_events(root).is_empty(), "{row}: docs build nothing");
         if expected.is_empty() {
+            coverage(root);
             let reason = if row == "no pin" {
                 "no refs/temper/landing"
             } else {
@@ -416,6 +418,8 @@ fn the_base_is_the_pins_merge_base() {
                 "{row}: {log}"
             );
         } else {
+            assert!(log.contains("docs only: citations"), "{row}: {log}");
+            assert!(budget(root)["events"].as_array().expect("events").iter().all(|event| event[0] != "format"));
             assert!(
                 log.contains(&format!("base {expected}, merge base of refs/temper/landing and HEAD")),
                 "{row}: {log}"
@@ -459,14 +463,18 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
         let always = match row {
             "reader" => "B a/\n",
             "reader only" => "B temper/docs/\n",
-            "unknown reader" => "missing temper/docs/\n",
+            "unknown reader" => "missing shared/\n",
             _ => "B\n",
         };
         write(root, ".config/gate/always.txt", always);
+        if row == "reader only" {
+            write(root, ".config/gate/read-by-tests.txt", "temper/docs/selection.md\n");
+        }
         write(root, "Cargo.toml", "# root manifest\n");
         git(root, &["add", "."]);
         git(root, &["commit", "-qm", "reader configuration"]);
         pin(root);
+        let path = if row == "unknown reader" { "shared/input.txt" } else { path };
         if row == "deleted" {
             fs::remove_file(root.join(path)).expect("deleted source");
         } else {
@@ -480,7 +488,7 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
         let actual_tests: Vec<_> = events.iter().filter(|e| e[0] == "nextest").map(|e| e[2].clone()).collect();
         assert_eq!(actual_lints, if lints.is_empty() { vec![] } else { vec![json!(lints)] }, "{row}: {log}");
         assert_eq!(actual_tests, if tests.is_empty() { vec![] } else { vec![json!(tests)] }, "{row}: {log}");
-        if lints.is_empty() && tests.is_empty() {
+        if lints.is_empty() && tests.is_empty() && !log.contains("docs only:") {
             assert!(log.contains("pre-pr: no package changed"), "{row}: {log}");
         }
         if row == "unknown reader" {
