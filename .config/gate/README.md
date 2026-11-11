@@ -85,6 +85,9 @@ Each list has one entry per line; `#` starts a comment line.
   `TEMPER_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_LIVE_CLAUDE` (Claude Code's
   login), `claude` on `PATH`, `TEMPER_LIVE_STORE` and a private `TMPDIR` (temper's
   section 2.7). No API key is among these inputs.
+  On fabrig's own Forgejo, temper dispatches `.forgejo/workflows/tier-main.yml`
+  at each move of main: it runs the runner's `$CI_TIER` at `temper_commit`, with
+  `temper_tests` as `CI_TIER_TESTS`, and uploads `junit.xml` as the artifact `junit`.
 - **What red means:** a failure observed after landing is red; repair starts in
   the lowest tier that shows it (`skein/docs/foundation/testing-strategy.md`, 9).
   Over a CPU budget is red; past the wall hard limit is starved, a warning; tests
