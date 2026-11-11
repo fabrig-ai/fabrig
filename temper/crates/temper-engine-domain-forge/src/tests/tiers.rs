@@ -86,40 +86,51 @@ fn collect(mut out: Queue<Request>) -> Box<[Request]> {
 }
 pub(super) fn key_trees(d: &mut Domain) -> Box<[Request]> {
     let mut all = Vec::new();
-    // A fixture has at most the baseline plus the range's tips to key.
-    for _ in 0..LIMITS.changes * 2 + 2 {
-        let Some((owner, _)) = d.tier_ops.reads.iter().next() else { break };
-        let owner = *owner;
-        let mut out = Queue::uncapped();
-        let tip = row(d)
-            .baseline
-            .into_iter()
-            .chain(row(d).pending.iter().copied())
-            .find(|tip| tip.key.is_none())
-            .expect("unkeyed tip")
-            .commit;
+    // One branch watch, the baseline and at most the range's tips need answers.
+    for _ in 0..LIMITS.changes * 2 + 3 {
+        if d.tier_ops.reads.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(d);
+        let tip = match op {
+            api::Op::Read(api::Read::Tree { object, .. }) => object,
+            api::Op::Read(api::Read::Branch { branch }) => {
+                let name = Name {
+                    forge: REPO.forge,
+                    repository: REPO.repository,
+                    what: What::Branch(branch.split(|byte| *byte == b'/').map(Box::from).collect()),
+                };
+                let tip = d.heads.get(&name).map_or(BASE, |head| head.commit);
+                all.extend(fixtures::answer(d, call, Ok(api::Answer::Commit(tip))));
+                continue;
+            }
+            _ => panic!("key tree read: {op:?}"),
+        };
         let source = if tip == HEAD { BASE } else { tip };
         let entries = Box::new([
-            api::TreeEntry {
-                name: b"src".as_slice().into(),
-                mode: 0o100_644,
-                kind: api::TreeEntryKind::Blob,
-                object: source,
-            },
             api::TreeEntry {
                 name: b"docs".as_slice().into(),
                 mode: 0o100_644,
                 kind: api::TreeEntryKind::Blob,
                 object: tip,
             },
+            api::TreeEntry {
+                name: b"src".as_slice().into(),
+                mode: 0o100_644,
+                kind: api::TreeEntryKind::Blob,
+                object: source,
+            },
         ]);
-        crate::tiers::answered(d, &env(), owner, Ok(api::Answer::Tree { entries, more: false }), &mut out);
-        all.extend(collect(out));
+        all.extend(fixtures::answer(d, call, Ok(api::Answer::Tree { entries, more: false })));
     }
     all.into_boxed_slice()
 }
+fn baseline_tip(d: &mut Domain, tip: api::Commit) {
+    assert!(requests(&baseline_answer(d, Ok(api::Answer::Commit(tip)))).is_empty());
+}
 fn baseline(d: &mut Domain) -> Box<[Request]> {
     seen(d, None, BASE);
+    baseline_tip(d, BASE);
     key_trees(d)
 }
 fn attach(d: &mut Domain, number: u64, task: u64) {
@@ -185,7 +196,7 @@ fn workflow(d: &Domain, conclusion: api::Conclusion, failed_step: Option<u32>) -
     }
 }
 fn answer(d: &mut Domain, answer: api::Answer) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Ok(answer), &mut out);
     collect(out)
@@ -226,6 +237,131 @@ fn choice(out: &[Request]) -> Option<&TierDecision> {
         _ => None,
     })
 }
+fn baseline_answer(d: &mut Domain, result: Result<api::Answer, api::Error>) -> Box<[Request]> {
+    let (owner, read) = d.tier_ops.reads.iter().next().expect("tier-owned fresh baseline read");
+    assert_eq!(read.tier, (REPO, TIER.into()));
+    assert!(read.baseline);
+    let owner = *owner;
+    let expected = match &crate::tiers::configured_all(d, REPO).first().unwrap().follows {
+        Follows::Landing => b"main".as_slice().into(),
+        Follows::Branch(branch) => branch.clone(),
+        Follows::Goals => panic!("goal tiers have no baseline"),
+    };
+    let mut out = Vec::new();
+    // The branch watch can be served before the tier's own fresh read.
+    for _ in 0_u8..2 {
+        let (call, op) = fixtures::next_call(d);
+        assert_eq!(op, api::Op::Read(api::Read::Branch { branch: expected.clone() }));
+        out.extend(fixtures::answer(d, call, result.clone()));
+        if !d.tier_ops.reads.contains_key(&owner) {
+            return out.into_boxed_slice();
+        }
+    }
+    panic!("the tier's baseline read must be answered")
+}
+
+#[test]
+fn baseline_reads_past_a_stale_head_at_start_and_restart() {
+    for restart in [false, true] {
+        let mut d = restoring(None);
+        let name = main_name();
+        outputs(&mut d, Event::Restore { record: Stored::BranchHead(BranchHead { name, commit: BASE, owned: false }) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut out = Queue::uncapped();
+        if restart {
+            crate::tiers::restart(&mut d, &env(), &mut out);
+        } else {
+            crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+        }
+        assert!(requests(&collect(out)).is_empty());
+        assert!(row(&d).baseline.is_none(), "a restored head is not a baseline");
+        assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+        assert_eq!(d.tier_ops.reads.len(), 1);
+        let out = baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+        assert!(requests(&out).is_empty());
+        assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+        assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+    }
+}
+
+#[test]
+fn moves_before_the_baseline_answer_are_not_landings() {
+    let mut d = configured(None);
+    seen(&mut d, None, BASE);
+    let out = seen(&mut d, Some(BASE), HEAD);
+    assert!(requests(&out).is_empty());
+    assert!(row(&d).baseline.is_none(), "a move cannot choose the baseline");
+    assert!(row(&d).pending.is_empty());
+    baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+    attach(&mut d, 1, TIER_TASK);
+    tier_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch(NEXT_TIP));
+    tier_step(&mut d, DISPATCH, false);
+    made(&mut d, DISPATCH, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    assert!(requests(&finish(&mut d)).is_empty());
+    assert!(row(&d).pending.is_empty());
+    assert!(row(&d).record.run.is_none());
+    assert_eq!(row(&d).record.judged.unwrap().tip, NEXT_TIP);
+    seen(&mut d, Some(NEXT_TIP), LAST_TIP);
+    assert_eq!(requests(&key_trees(&mut d)), [(2, LAST_TIP)]);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().landings.len(), 1);
+}
+
+#[test]
+fn a_missing_baseline_branch_waits_for_its_next_move() {
+    let mut d = restoring(None);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let mut out = Queue::uncapped();
+    crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    let out = baseline_answer(&mut d, Err(api::Error::Missing));
+    assert!(requests(&out).is_empty());
+    assert!(row(&d).baseline.is_none());
+    assert!(row(&d).record.run.is_none());
+    assert!(d.tier_ops.reads.is_empty());
+    seen(&mut d, None, BASE);
+    baseline_answer(&mut d, Ok(api::Answer::Commit(BASE)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, BASE)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+}
+
+#[test]
+fn a_baseline_waits_for_another_tier_read() {
+    let mut d = restoring(None);
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    assert_eq!(d.tier_ops.reads.len(), 1, "wait for the occupied read slot");
+    assert!(row(&d).baseline.is_none());
+    let mut out = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(d.tier_ops.reads.len(), 1, "the baseline now owns the read slot");
+    baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
+    assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
+}
+
+#[test]
+fn a_late_baseline_answer_keeps_the_baseline_and_its_later_moves() {
+    let mut d = configured(None);
+    let owner = *d.tier_ops.reads.iter().next().expect("baseline read").0;
+    // A baseline has started by another path while the read was in flight.
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().baseline = Some(TierLanding { commit: BASE, key: None });
+    seen(&mut d, Some(BASE), LAST_TIP);
+    let mut out = Queue::uncapped();
+    crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Commit(NEXT_TIP)), &mut out);
+    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(row(&d).baseline.unwrap().commit, BASE);
+    assert_eq!(row(&d).pending.len(), 1);
+    assert_eq!(row(&d).pending[0].commit, LAST_TIP);
+    assert_eq!(requests(&key_trees(&mut d)), [(1, BASE)]);
+    assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
+}
+
 #[test]
 fn first_tip_starts_a_baseline_with_no_landings() {
     let mut d = configured(None);
@@ -334,7 +470,7 @@ fn failed_run_without_a_report_is_a_fault() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Failure, Some(1));
     let mut out = Queue::uncapped();
-    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
     let run = row(&d).record.run.as_ref().unwrap();
     assert_eq!((run.faults, &run.part), (1, &p::Part::Whole));
@@ -466,7 +602,8 @@ fn branch_no_tier_follows_starts_no_run() {
     let mut d = configured(Some(b"release/next"));
     let out = seen(&mut d, None, BASE);
     assert!(requests(&out).is_empty());
-    assert!(d.tiers.is_empty());
+    assert!(row(&d).baseline.is_none());
+    assert!(row(&d).pending.is_empty());
     assert_eq!(
         crate::tiers::watched(&d).as_slice(),
         &[Name {
@@ -581,6 +718,9 @@ fn observe_branch(d: &mut Domain, expected: &[u8]) {
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, api::Op::Read(api::Read::Branch { branch: expected.into() }));
     fixtures::answer(d, call, Ok(api::Answer::Commit(BASE)));
+    if row(d).baseline.is_none() {
+        baseline_tip(d, BASE);
+    }
 }
 #[test]
 fn first_observation_of_each_followed_branch_starts_its_baseline() {
@@ -652,6 +792,7 @@ fn tier_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bo
         let mut d = if walking { configured(None) } else { dispatched() };
         let running = if walking {
             seen(&mut d, None, BASE);
+            baseline_tip(&mut d, BASE);
             None
         } else {
             let mut run = workflow(&d, api::Conclusion::Success, None);
@@ -673,7 +814,7 @@ fn tier_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bo
         let owner = if walking {
             *d.tier_ops.reads.iter().next().unwrap().0
         } else {
-            d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+            d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
             READ
         };
         let result = match running {
