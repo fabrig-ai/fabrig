@@ -176,28 +176,26 @@ fn arguments() {
             Some("seen"),
         ),
         (
-            vec!["fake", "forge"],
             vec![
-                ("TEMPER_DOCUMENT", "env.json"),
-                ("TEMPER_READY", "up "),
-                ("TEMPER_SEED", "42"),
-                ("TEMPER_OBSERVATIONS", "seen"),
+                "fake",
+                "forge",
+                "--document",
+                "flags.json",
+                "--ready",
+                "up ",
+                "--seed",
+                "42",
+                "--observations",
+                "seen",
             ],
+            vec![],
             Kind::Forge,
-            "env.json",
+            "flags.json",
             Some("up "),
             42,
             Some("seen"),
         ),
-        (
-            vec!["fake", "llm", "--document", "flag.json", "--seed", "7"],
-            vec![("TEMPER_DOCUMENT", "env.json"), ("TEMPER_SEED", "42")],
-            Kind::Llm,
-            "flag.json",
-            None,
-            7,
-            None,
-        ),
+        (vec!["fake", "llm", "--document", "flag.json", "--seed", "7"], vec![], Kind::Llm, "flag.json", None, 7, None),
     ] {
         let Command::Fake { arguments } = configured(&words, &environment).expect("valid fixture") else {
             panic!("fake command");
@@ -229,7 +227,7 @@ fn argument_refusals() {
         ),
         (
             vec!["fake", "oauth", "--document", "doc", "--seed", "no"],
-            "temper-box fake oauth: --seed N (TEMPER_SEED): expected a decimal u64\nusage: temper-box fake oauth --document FILE [--ready PREFIX] [--seed N]\n",
+            "temper-box fake oauth: --seed N: expected a decimal u64\nusage: temper-box fake oauth --document FILE [--ready PREFIX] [--seed N]\n",
         ),
         (
             vec!["fake", "oauth", "--document", "doc", "--observations", "seen"],
@@ -242,7 +240,7 @@ fn argument_refusals() {
         ),
         (
             vec!["fake", "llm", "--document", "doc", "--seed", "no"],
-            "temper-box fake llm: --seed N (TEMPER_SEED): expected a decimal u64\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n",
+            "temper-box fake llm: --seed N: expected a decimal u64\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n",
         ),
         (
             vec!["fake", "forge", "--document", "doc", "extra"],

@@ -165,7 +165,7 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
         .find(|pid| {
             std::fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref() == Some(program.as_path())
                 && std::fs::read(format!("/proc/{pid}/cmdline"))
-                    .is_ok_and(|bytes| bytes.split(|byte| *byte == 0).any(|arg| arg == b"box"))
+                    .is_ok_and(|bytes| bytes.split(|byte| *byte == 0).nth(1) == Some(b"--config".as_slice()))
         })
         .expect("supervised box parent");
     let stopped = std::process::Command::new("/usr/bin/kill")

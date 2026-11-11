@@ -70,7 +70,7 @@ fn used(link: &[u8]) -> std::io::Result<bool> {
 #[test]
 fn a_fresh_box_holds_serves_clients_port() {
     let root = scratch("first");
-    let mut child = command(&root, "box").stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("box");
+    let mut child = command(&root, "").stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("box");
     let document = root.join("config/temper.json");
     let mut address = None;
     let mut owned = None;
@@ -131,7 +131,7 @@ fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
     let address = holder.local_addr().expect("address");
     let text = String::from_utf8(bytes).expect("UTF-8").replace(&previous.to_string(), &address.to_string());
     fs::write(&file, text).expect("configured taken port");
-    let output = command(&root, "box").output().expect("box");
+    let output = command(&root, "").output().expect("box");
     let diagnostic = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "taken listener refuses the box");
     assert!(diagnostic.contains(&address.port().to_string()), "{diagnostic}");
