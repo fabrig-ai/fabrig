@@ -35,7 +35,8 @@ impl ResultText {
     pub(crate) fn minimum_room(&self) -> u64 {
         let length = skein_lib::len_u64(self.bytes.len());
         let lost = self.cut.saturating_add(length);
-        let marker = 2_u64.saturating_add(skein_lib::len_u64(Decimal::of(lost).as_bytes().len()))
+        let marker = 2_u64
+            .saturating_add(skein_lib::len_u64(Decimal::of(lost).as_bytes().len()))
             .saturating_add(skein_lib::len_u64(b" bytes cut]\n".len()));
         if self.cut == 0 { length.min(marker) } else { marker }
     }

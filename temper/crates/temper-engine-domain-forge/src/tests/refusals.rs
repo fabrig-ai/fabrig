@@ -21,7 +21,9 @@ fn adopted_domain() -> Domain {
 
 fn contains(out: &Queue<Request>, expected: &Request) -> bool {
     for request in out {
-        if request == expected { return true; }
+        if request == expected {
+            return true;
+        }
     }
     false
 }
@@ -48,7 +50,13 @@ fn slot_and_design_claims_name_the_requested_name_count() {
     let names = vec![branch(); usize::try_from(env.limits.resources_per_task + 1).unwrap()].into_boxed_slice();
     for event in [claim_event(names.clone(), Box::new([])), claim_event(Box::new([]), names)] {
         let out = send(&mut d, &env, event);
-        limit(&out, TASK, "forge.resources_per_task", u64::from(env.limits.resources_per_task), u64::from(env.limits.resources_per_task) + 1);
+        limit(
+            &out,
+            TASK,
+            "forge.resources_per_task",
+            u64::from(env.limits.resources_per_task),
+            u64::from(env.limits.resources_per_task) + 1,
+        );
     }
 }
 
@@ -71,10 +79,32 @@ fn a_full_hold_table_names_the_next_hold() {
 #[test]
 fn a_full_design_writer_set_names_the_next_writer() {
     let mut d = adopted_domain();
-    let name = Name { what: What::Branch(Box::new([Box::from(b"temper".as_slice()), Box::from(b"7".as_slice()), Box::from(b"g7".as_slice())])), ..branch() };
-    outputs(&mut d, Event::Restore { record: Stored::Hold(Hold { name: name.clone(), task: TASK, writer: None,
-        design_writers: Box::new([DesignWriter { task: 8, attempt: 1, rereading: false }]), drift: None }) });
-    outputs(&mut d, Event::Restore { record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }) });
+    let name = Name {
+        what: What::Branch(Box::new([
+            Box::from(b"temper".as_slice()),
+            Box::from(b"7".as_slice()),
+            Box::from(b"g7".as_slice()),
+        ])),
+        ..branch()
+    };
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: name.clone(),
+                task: TASK,
+                writer: None,
+                design_writers: Box::new([DesignWriter { task: 8, attempt: 1, rereading: false }]),
+                drift: None,
+            }),
+        },
+    );
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }),
+        },
+    );
     let mut env = env();
     env.limits.holds = 1;
     let out = send(&mut d, &env, claim_event(Box::new([]), Box::new([name])));
@@ -85,33 +115,73 @@ fn a_full_design_writer_set_names_the_next_writer() {
 fn hold_names_count_each_segments_separator_and_distinguish_bad_names() {
     let mut d = adopted_domain();
     let env = env();
-    let name = Name { what: What::Branch(Box::new([vec![b'x'; usize::try_from(env.limits.name_bytes).unwrap()].into_boxed_slice()])), ..branch() };
+    let name = Name {
+        what: What::Branch(Box::new([
+            Box::from(b"temper".as_slice()),
+            vec![b'x'; usize::try_from(env.limits.name_bytes - 7).unwrap()].into_boxed_slice(),
+        ])),
+        ..branch()
+    };
     let out = send(&mut d, &env, Event::Hold { entry: 0, task: TASK, resource: name, from: None });
     limit(&out, TASK, "forge.name_bytes", u64::from(env.limits.name_bytes), u64::from(env.limits.name_bytes) + 1);
     for (name, cause) in [
         (Name { repository: 99, ..branch() }, RefusalCause::Unadopted),
-        (Name { what: What::Branch(Box::new([Box::from(b"bad/name".as_slice())])), ..branch() }, RefusalCause::InvalidName),
+        (
+            Name {
+                what: What::Branch(Box::new([Box::from(b"temper".as_slice()), Box::from(b"bad/name".as_slice())])),
+                ..branch()
+            },
+            RefusalCause::InvalidName,
+        ),
     ] {
         let out = send(&mut d, &env, Event::Hold { entry: 0, task: TASK, resource: name.clone(), from: None });
-        assert!(contains(&out, &Request::ResourceRefused { task: TASK, operation: b"hold resource", resource: Some(name.clone()), cause }), "{out:?}");
+        assert!(
+            contains(
+                &out,
+                &Request::ResourceRefused {
+                    task: TASK,
+                    operation: b"hold resource",
+                    resource: Some(name.clone()),
+                    cause
+                }
+            ),
+            "{out:?}"
+        );
     }
 }
 
 #[test]
 fn unwatching_names_the_watch_that_does_not_fit() {
-    let mut d = adopted_domain();
-    d.names.insert(8, Box::new([branch(), run_branch(b"8")])).unwrap();
-    let mut env = env();
-    env.limits.client.resources = 1;
-    let out = send(&mut d, &env, Event::Unnamed { task: TASK });
-    limit(&out, TASK, "forge.client.resources", 1, 2);
+    for landing in [false, true] {
+        let mut d = adopted_domain();
+        if landing {
+            d.names.insert(8, Box::new([branch()])).unwrap();
+            let subscription = subscription();
+            d.subscriptions.insert((subscription.task, subscription.topic.clone()), subscription).unwrap();
+        } else {
+            d.names.insert(8, Box::new([branch(), run_branch(b"8")])).unwrap();
+        }
+        let mut env = env();
+        env.limits.client.resources = 1;
+        let out = send(&mut d, &env, Event::Unnamed { task: TASK });
+        limit(&out, TASK, "forge.client.resources", 1, 2);
+    }
 }
 
 fn entry(number: u64) -> skein_forge_client::Entry {
-    skein_forge_client::Entry { number, task: TASK, repository: REPO,
-        effect: skein_forge_client::Effect { condition: skein_forge_client::Condition::None,
-            write: skein_forge::api::Write::Post { number: 1, key: Box::from(b"test".as_slice()), body: Box::new([]) } },
-        start: None, attempt: None, failures: 0, queued: false }
+    skein_forge_client::Entry {
+        number,
+        task: TASK,
+        repository: REPO,
+        effect: skein_forge_client::Effect {
+            condition: skein_forge_client::Condition::None,
+            write: skein_forge::api::Write::Post { number: 1, key: Box::from(b"test".as_slice()), body: Box::new([]) },
+        },
+        start: None,
+        attempt: None,
+        failures: 0,
+        queued: false,
+    }
 }
 
 #[test]
@@ -135,14 +205,22 @@ fn reviewing() -> Domain {
 }
 
 fn review(words: &[u8]) -> Event {
-    Event::DelegateResult { task: fixtures::CHANGE, child: 52, status: change::Status::Passed,
-        no_change: false, failed: false, cancelled: false, words: words.into() }
+    Event::DelegateResult {
+        task: fixtures::CHANGE,
+        child: 52,
+        status: change::Status::Passed,
+        no_change: false,
+        failed: false,
+        cancelled: false,
+        words: words.into(),
+    }
 }
 
 #[test]
 fn a_gate_review_names_the_next_kept_verdict() {
     let mut d = reviewing();
-    d.changes.get_mut(&fixtures::CHANGE).unwrap().verdicts = Box::new([change::GateReport { number: 2, head: fixtures::HEAD, status: change::Status::Passed }]);
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().verdicts =
+        Box::new([change::GateReport { number: 2, head: fixtures::HEAD, status: change::Status::Passed }]);
     let mut env = env();
     env.limits.change_policy.gates = 1;
     let out = send(&mut d, &env, review(b"ok"));
@@ -166,9 +244,17 @@ fn a_step_names_its_gate_count_and_the_pending_step_table() {
     outputs(&mut d, Event::Change { row: fixtures::opening_row() });
     let mut env = env();
     env.limits.change_policy.gates = 1;
-    let Event::StepChange { merge_job, task, entry, heard, queue_repair_active, pending, kept, .. } = fixtures::change_step() else { panic!("step fixture") };
+    let Event::StepChange { merge_job, task, entry, heard, queue_repair_active, pending, kept, .. } =
+        fixtures::change_step()
+    else {
+        panic!("step fixture")
+    };
     let gates = Box::new([change::GateReport { number: 1, head: fixtures::HEAD, status: change::Status::Passed }; 2]);
-    let out = send(&mut d, &env, Event::StepChange { merge_job, task, entry, heard, gates, queue_repair_active, pending, kept });
+    let out = send(
+        &mut d,
+        &env,
+        Event::StepChange { merge_job, task, entry, heard, gates, queue_repair_active, pending, kept },
+    );
     limit(&out, fixtures::CHANGE, "forge.change_policy.gates", 1, 2);
     // One pending read from another change fills the step table, not the retained change table.
     send(&mut d, &env, fixtures::change_step());
@@ -177,14 +263,28 @@ fn a_step_names_its_gate_count_and_the_pending_step_table() {
     other.change.task = 53;
     outputs(&mut d, Event::Change { row: other });
     env.limits.changes = 1;
-    let Event::StepChange { merge_job, entry, heard, gates, queue_repair_active, pending, kept, .. } = fixtures::change_step() else { panic!("step fixture") };
-    let out = send(&mut d, &env, Event::StepChange { task: 53, merge_job, entry, heard, gates, queue_repair_active, pending, kept });
+    let Event::StepChange { merge_job, entry, heard, gates, queue_repair_active, pending, kept, .. } =
+        fixtures::change_step()
+    else {
+        panic!("step fixture")
+    };
+    let out = send(
+        &mut d,
+        &env,
+        Event::StepChange { task: 53, merge_job, entry, heard, gates, queue_repair_active, pending, kept },
+    );
     limit(&out, 53, "forge.changes", 1, 2);
 }
 
 fn subscription() -> Subscriber {
-    Subscriber { task: TASK, number: 1, topic: Topic::Landings { repository: REPO, branch: Box::from(b"main".as_slice()) },
-        own_change: None, goal_tasks: None, paths: Box::new([]) }
+    Subscriber {
+        task: TASK,
+        number: 1,
+        topic: Topic::Landings { repository: REPO, branch: Box::from(b"main".as_slice()) },
+        own_change: None,
+        goal_tasks: None,
+        paths: Box::new([]),
+    }
 }
 
 #[test]
@@ -192,9 +292,17 @@ fn a_subscription_names_one_path_past_the_configured_count() {
     let mut d = adopted_domain();
     let env = env();
     let mut subscription = subscription();
-    subscription.paths = vec![Box::from(b"src".as_slice()); usize::try_from(env.limits.paths_per_subscription + 1).unwrap()].into_boxed_slice();
+    subscription.paths =
+        vec![Box::from(b"src".as_slice()); usize::try_from(env.limits.paths_per_subscription + 1).unwrap()]
+            .into_boxed_slice();
     let out = send(&mut d, &env, Event::Subscribe { subscription });
-    limit(&out, TASK, "forge.paths_per_subscription", u64::from(env.limits.paths_per_subscription), u64::from(env.limits.paths_per_subscription) + 1);
+    limit(
+        &out,
+        TASK,
+        "forge.paths_per_subscription",
+        u64::from(env.limits.paths_per_subscription),
+        u64::from(env.limits.paths_per_subscription) + 1,
+    );
     assert!(d.subscriptions.is_empty());
 }
 
@@ -203,9 +311,16 @@ fn a_subscription_names_its_goal_task_count() {
     let mut d = adopted_domain();
     let env = env();
     let mut subscription = subscription();
-    subscription.goal_tasks = Some(vec![8; usize::try_from(env.limits.issue_policy.plan_items + 1).unwrap()].into_boxed_slice());
+    subscription.goal_tasks =
+        Some(vec![8; usize::try_from(env.limits.issue_policy.plan_items + 1).unwrap()].into_boxed_slice());
     let out = send(&mut d, &env, Event::Subscribe { subscription });
-    limit(&out, TASK, "forge.issue_policy.plan_items", u64::from(env.limits.issue_policy.plan_items), u64::from(env.limits.issue_policy.plan_items) + 1);
+    limit(
+        &out,
+        TASK,
+        "forge.issue_policy.plan_items",
+        u64::from(env.limits.issue_policy.plan_items),
+        u64::from(env.limits.issue_policy.plan_items) + 1,
+    );
 }
 
 #[test]
@@ -225,8 +340,10 @@ fn a_subscription_names_oversized_paths_and_branch_names() {
     let mut d = adopted_domain();
     let env = env();
     let large = vec![b'x'; usize::try_from(env.limits.name_bytes + 1).unwrap()].into_boxed_slice();
-    for subscription in [Subscriber { paths: Box::new([large.clone()]), ..subscription() },
-        Subscriber { topic: Topic::Landings { repository: REPO, branch: large }, ..subscription() }] {
+    for subscription in [
+        Subscriber { paths: Box::new([large.clone()]), ..subscription() },
+        Subscriber { topic: Topic::Landings { repository: REPO, branch: large }, ..subscription() },
+    ] {
         let out = send(&mut d, &env, Event::Subscribe { subscription });
         limit(&out, TASK, "forge.name_bytes", u64::from(env.limits.name_bytes), u64::from(env.limits.name_bytes) + 1);
     }
@@ -255,4 +372,31 @@ fn a_landing_subscription_keeps_each_watch_union_limit() {
         let out = send(&mut d, &env, Event::Subscribe { subscription: subscription() });
         limit(&out, TASK, member, configured, needed);
     }
+}
+
+#[test]
+fn emitting_a_change_effect_names_the_full_outbox() {
+    use skein_forge::api::{Answer, Check, Error};
+    let mut d = adopted_domain();
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.change.state = change::State::Opening { requested: false };
+    outputs(&mut d, Event::Change { row });
+    outputs(&mut d, Event::Enqueue { entry: entry(1) });
+    fixtures::step_change(&mut d);
+    for answer in [
+        Ok(Answer::Commit(fixtures::HEAD)),
+        Ok(Answer::Commit(fixtures::BASE)),
+        Err(Error::Missing),
+        Ok(fixtures::checks(Check::Passed)),
+        Ok(fixtures::checks(Check::Passed)),
+    ] {
+        fixtures::answer_next(&mut d, answer);
+    }
+    let (call, _) = fixtures::next_call(&mut d);
+    let mut env = env();
+    env.limits.entries = 1;
+    let out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    limit(&out, fixtures::CHANGE, "forge.entries", 1, 2);
 }

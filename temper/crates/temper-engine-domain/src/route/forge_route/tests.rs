@@ -4213,7 +4213,9 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
     let mut out = skein_lib::Queue::uncapped();
     out.push(forge::Request::ResourceRefused {
-        task, operation: b"subscribe", resource: None,
+        task,
+        operation: b"subscribe",
+        resource: None,
         cause: forge::RefusalCause::Limit { member: "forge.paths_per_subscription", configured: 4, needed: 5 },
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -4227,9 +4229,15 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     };
     assert_eq!(*why, tasks::Hold::ResourceUnavailable);
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
-    for text in [b"subscribe".as_slice(), b"forge.paths_per_subscription = 4; required usage 5", b"deployment configuration, restart, then release"] {
+    for text in [
+        b"subscribe".as_slice(),
+        b"forge.paths_per_subscription = 4; required usage 5",
+        b"deployment configuration, restart, then release",
+    ] {
         let mut found = false;
-        for part in words.windows(text.len()) { found |= part == text; }
+        for part in words.windows(text.len()) {
+            found |= part == text;
+        }
         assert!(found, "missing {text:?} in {words:?}");
     }
 }

@@ -2203,7 +2203,7 @@ pub enum Request {
         resource: Name,
         by: u64,
     },
-    /// A request exceeds the connector's configured bounds.
+    /// A request cannot proceed for a cause without its own typed refusal.
     Refused {
         task: u64,
     },

@@ -136,7 +136,8 @@ fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tre
                     return Keyed::Need(object);
                 };
                 let _inserted = read.insert(object);
-                if let Err(problem) = expand(&path, tree, ignored, limits, &mut pending, &mut entries, &mut path_bytes) {
+                if let Err(problem) = expand(&path, tree, ignored, limits, &mut pending, &mut entries, &mut path_bytes)
+                {
                     return problem;
                 }
             }
@@ -198,7 +199,10 @@ fn expand(
             EntryKind::Tree if below => Pending::Directory(entry.object),
             EntryKind::Tree | EntryKind::Blob | EntryKind::Commit => {
                 if *entries >= limits.entries {
-                    return Err(Keyed::TooLarge { bound: Some(KeyBound::Entries), needed: u64::from(*entries).saturating_add(1) });
+                    return Err(Keyed::TooLarge {
+                        bound: Some(KeyBound::Entries),
+                        needed: u64::from(*entries).saturating_add(1),
+                    });
                 }
                 if length > usize::from(u16::MAX) {
                     return Err(Keyed::TooLarge { bound: None, needed: 0 });

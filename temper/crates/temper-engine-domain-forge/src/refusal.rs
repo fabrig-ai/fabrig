@@ -141,7 +141,7 @@ pub(crate) fn limit(
             repository: repository.repository,
             what: crate::What::Repository,
         }),
-        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed: needed.saturating_sub(1) },
+        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
     });
 }
 
@@ -158,7 +158,7 @@ pub(crate) fn resource_limit(
         task,
         operation,
         resource,
-        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed: needed.saturating_sub(1) },
+        cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
     });
 }
 
