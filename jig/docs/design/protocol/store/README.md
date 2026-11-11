@@ -187,7 +187,7 @@ skein-io                        files: the ring, or the simulator's disk
 
   > `<deployment>` holds a store whose <family> family is at another
   > version than this build's, and this start has changed nothing in it.
-  > Before the first release a store is not translated, so every start
+  > A store from before the baseline is not translated, so every start
   > refuses this one until it is moved. To start afresh, stop the service,
   > move `active`, `generations/` and `transcripts/` out of `<deployment>`
   > together, and start again: nothing is deleted, and the next start

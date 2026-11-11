@@ -42,7 +42,10 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = plan::binary(&store.patch_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
-    let found_levels = found.levels;
+    let found_levels = match found_levels(store, owner, &found, binary) {
+        Ok(levels) => levels,
+        Err(why) => return refuse(store, owner, why, above),
+    };
     let compared = match format::compare(found_levels, binary) {
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
@@ -53,7 +56,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, why, above);
         return;
     }
-    if let Err(why) = check_layouts(store, owner) {
+    if let Err(why) = check_layouts(store, owner, found_levels, binary) {
         refuse(store, owner, why, above);
         return;
     }
@@ -101,6 +104,24 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
 }
 
+fn found_levels(
+    store: &mut Store,
+    owner: Token,
+    found: &codec::component::Format,
+    binary: plan::Levels,
+) -> Result<plan::Levels, OpenRefusal> {
+    let baseline_layouts = if found.levels == format::NONE {
+        let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
+        match get_open(store, owner, key)? {
+            Some(bytes) => codec::component::Layouts::decode(&bytes).ok(),
+            None => None,
+        }
+    } else {
+        None
+    };
+    Ok(format::found_levels(found, baseline_layouts.as_ref(), binary))
+}
+
 fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
     let plan = match plan::plan(&store.patch_sets, &found, &binary) {
         Ok(plan) => plan,
@@ -117,13 +138,21 @@ fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Resu
     flights
 }
 
-fn check_layouts(store: &mut Store, owner: Token) -> Result<(), OpenRefusal> {
+fn check_layouts(
+    store: &mut Store,
+    owner: Token,
+    found_levels: plan::Levels,
+    binary: plan::Levels,
+) -> Result<(), OpenRefusal> {
+    if !format::needs_layouts(found_levels, binary) {
+        return Ok(());
+    }
     let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
     let bytes = get_open(store, owner, key)?.ok_or(OpenRefusal::OlderBuild { why: Older::Unrecorded })?;
     let Ok(found) = codec::component::Layouts::decode(&bytes) else {
         return Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) });
     };
-    format::check_layouts(&found, &store.layouts)
+    format::check_unleveled_layouts(&found, &store.layouts, found_levels, binary)
 }
 
 /// The identifier kept by the first commit replaces the drawn one (4.4); a

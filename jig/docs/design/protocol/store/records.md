@@ -355,7 +355,7 @@ settings (decided 2026-11-03).
 
   > `<deployment>` holds a store from an older build, made before its
   > families' layouts were recorded, and this start has changed nothing
-  > in it. Before the first release a store is not translated, so every
+  > in it. A store from before the baseline is not translated, so every
   > start refuses this one until it is moved. To start afresh, stop the
   > service, move `active`, `generations/` and `transcripts/` out of
   > `<deployment>` together, and start again: nothing is deleted, and
@@ -366,7 +366,7 @@ settings (decided 2026-11-03).
 
   > `<deployment>` holds a store from an older build, whose settings
   > family's layout differs from this build's, and this start has
-  > changed nothing in it. Before the first release a store is not
+  > changed nothing in it. A store from before the baseline is not
   > translated, so every start refuses this one until it is moved. To
   > start afresh, stop the service, move `active`, `generations/` and
   > `transcripts/` out of `<deployment>` together, and start again:

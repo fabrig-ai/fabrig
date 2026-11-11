@@ -118,8 +118,8 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   under `generations/` to open, and start again."
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
-  the first release, which records no patch levels, and this start has
-  changed nothing in it. A store from before the first release is not
+  the baseline, the first build whose stores later builds upgrade, and this
+  start has changed nothing in it. A store from before the baseline is not
   translated, so every start refuses this one until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
