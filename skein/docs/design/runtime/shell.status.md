@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-09. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-11. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
@@ -26,9 +26,11 @@ and version line (`table/help.rs`) and its reference documents
 (`table/reference.rs`), each held by its unit tests on `table/demo.rs`'s
 tables, and `tests/boundary/tests/cli_names.rs`'s
 `rendered_documents_read_back` reads the environment documents as check 5
-does. No binary has a table yet: temper's are the milestones C2 to C8 of
-`temper/docs/design/draft/cli.execution.md`.
+does. temper's `temper-box` and `temper-engine` are the first binaries on
+a table (`temper/docs/design/cli/README.md`); temper's others are the
+milestones C3 to C8 of `temper/docs/design/draft/cli.execution.md`.
 
+- **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown` [in flight: change 86].
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup.
@@ -69,7 +71,8 @@ does. No binary has a table yet: temper's are the milestones C2 to C8 of
   them on the page; 14.1 has the documents say so, and
   `../../foundation/cli.md`, 7's example, the draft's
   (`temper/docs/design/draft/cli.md`, 3.6), lists the directories' twins
-  alone. No binary prints a page yet: C2's first tables meet it.
+  alone: `temper-box`'s and `temper-engine`'s pages are the first to
+  list them.
   14.3: a binary's documents gain a `## Test` part after `## Internal`
   when its table holds a test entry, where 14.3 has the two alone and
   `../../foundation/cli.md`, 4 puts the test set in the test set's document.

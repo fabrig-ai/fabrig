@@ -1,6 +1,6 @@
 # Status
 
-2026-11-10. Where temper's code lags or departs from its design, and
+2026-11-11. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
@@ -1117,8 +1117,19 @@ worker program, M5's box integration and remaining closure rows, M6's
 release job, and figures are not done by that plan; the parent's Later
 section is unchanged (`draft/deployment-binaries.status.md`).
 
+temper's command lines, `draft/cli.execution.md`'s C2: the box's binary is
+`temper-box`, a package under `bin/` whose crate is `temper-box-shell`, and
+the engine's, `temper-engine`, is one too, its crate `temper-engine-shell`;
+each holds a table on skein's, reached by `Table::reach`, with its help,
+`--version`, exit 2 for refused arguments, its pre-table modes as rows,
+and its reference documents generated beside `cli/README.md`. C2's
+internal variables are renamed `TEMPER_INTERNAL_*` and its twins dropped;
+the client's, the worker's and the agent's tables are C3's and C6's
+(`cli/README.status.md`; `draft/cli.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
+- [`cli/README.md`](cli/README.status.md)
 - [`playground.md`](playground.status.md)
 - [`release.md`](release.status.md)
 - [`domain/README.md`](domain/README.status.md)
