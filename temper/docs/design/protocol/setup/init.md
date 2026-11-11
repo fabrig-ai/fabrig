@@ -256,7 +256,7 @@ runs it (`box.md`).
   (../configuration/stock.md).
 - **Its `application.limits`** are temper's `standard` with
   `checkout.workspaces` and `git_component.operations` 4, the least the
-  worker's slots take (`../../domain/worker.md`, section 6);
+  worker's slots take (`../../domain/worker/README.md`, section 5);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`

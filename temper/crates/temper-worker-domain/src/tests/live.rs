@@ -1,6 +1,6 @@
 //! A run's live content through the root: its ask out with its start, and
 //! smith's pieces up to the hub, each also progress for the agent's watchdog
-//! (`domain/worker.md`, section 7; jig's `domain/hosts/hub.md`, 5).
+//! (`domain/worker/README.md`, section 6; jig's `domain/hosts/hub.md`, 5).
 
 use super::fixtures::{ATTEMPT, RUN, assignment};
 use super::harness::Harness;

@@ -24,7 +24,7 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
-- **The worker is smith's host** (section 5; ../worker.md): it prepares the
+- **The worker is smith's host** (section 5; ../worker/README.md): it prepares the
   workspace from the forge, supervises the agent's process with smith's
   host domain, delivers a change by pushing it, and relays the rest to
   the engine.
@@ -67,7 +67,7 @@ agent    smith: LLM work, one run per process, reporting to its worker
 - **In the domains:** the engine's root links no smith crate; charters,
   transcripts and results are bytes to jig's core (jig's
   `domain/hosts/hub.md`, 8). The worker's root composes `smith-host-domain`
-  as its agent child (../worker.md, section 3). `temper-engine-smith`, the
+  as its agent child (../worker/README.md, section 3). `temper-engine-smith`, the
   translation of `charter.md`, is step code over `smith-domain`,
   `smith-domain-run` and `smith-domain-session`.
 - **In the protocol layers:** smith's codecs, its host half and its agent
@@ -102,7 +102,7 @@ escalations waiting for the task's decision are relayed the same way, each namin
 
 ## 5. Delivery is a push
 
-smith's `deliver` is the worker's push (../worker.md, section 5): the
+smith's `deliver` is the worker's push (../worker/checkouts.md): the
 worker commits exactly the tree the run checked, with the result's
 `title` and `body`, and pushes it as a fast-forward, never forced, to the
 branch the assignment names; a merge in progress is committed as the
@@ -117,8 +117,8 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
 
-A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker.md,
-section 5) has outcomes of its own, and is never stale:
+A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker/checkouts.md
+) has outcomes of its own, and is never stale:
 
 | The design push | smith's delivery |
 |---|---|
@@ -130,11 +130,11 @@ section 5) has outcomes of its own, and is never stale:
 | a `save` | refused: `the goal branch takes checked deliveries alone; deliver instead` |
 
 What it delivers is the tree, not the run's history: a checkout is detached
-(../worker.md, section 5), and the worker commits on its own record of the head,
+(../worker/checkouts.md), and the worker commits on its own record of the head,
 never on HEAD (`../../protocol/git.md`, 4.7). So a run's own commits, resets and
 rebases keep their files and lose their history, and a saved tree that is
 delivered unchanged lands the save's commit, the delivery's title and body
-unused (../worker.md, section 5). The head delivered names what is on the branch,
+unused (../worker/checkouts.md). The head delivered names what is on the branch,
 and the coding charter's words say so (`../../protocol/configuration/stock.md`'s
 charter 2 row), since a run can't otherwise tell.
 
@@ -144,7 +144,7 @@ question`, with no body, and a landed save's receipt reads `saved <head> to
 branch <branch>, unchecked: no check ran; your checkout stays detached, as
 expected`. Its other outcomes are the table's. A save's push moves the
 change's own branch as a delivery's does, so the engine hears of it as of
-any push the run left (../worker.md, 4.2). When it accepts the head the
+any push the run left (../worker/README.md, 4.2). When it accepts the head the
 attempt left under its writer claim, it records that head in the change as
 well as the branch, however the head reached it: reported in the run's
 answer, or found by the read that frees the attempt's writer when no answer
@@ -156,7 +156,7 @@ goal's hold. The next attempt's pull section pins that head
 resolution: the save remains unchecked, and the forge opens no pull request
 on it (`../forge/change/README.md`, 1). In its hold, the next checked delivery, or the
 worker's own save of saved work, commits afresh on a save's head even with
-the tree unchanged (../worker.md, section 5), so the head a finish delivers
+the tree unchanged (../worker/checkouts.md), so the head a finish delivers
 carries the delivery's title and body, never the unchecked mark. A later
 hold that starts from that save's head and delivers it unchanged lands it as
 it is: its tree is the one that finish checked, and its title still says
@@ -174,7 +174,7 @@ a run copies what it reads. That holds for a receipt and for every other word
 that prints a whole head, a cancel's reason among them.
 
 A push that lands is the result, even if the run was winding down. The
-answer carries what the run left on the forge (../worker.md, 4.2), and the
+answer carries what the run left on the forge (../worker/README.md, 4.2), and the
 forge's change procedure goes on from it (../forge/change/README.md).
 
 ## 6. Turns and transcripts
@@ -216,7 +216,7 @@ host:
   commit; a result that does not decode failing its attempt as invalid;
   a change's result kept only with its settled resource; each settled
   delivery the hub's answer (`../../protocol/llm.md`, section 6).
-- **The worker's and the system worlds** (../worker.md, section 10): smith's
+- **The worker's and the system worlds** (../worker/README.md, section 9): smith's
   scripted agent for the agent child, and smith's real agent domain over
   skein's fake LLM, its tools working in the trees the worker prepared.
 - **Stories that are temper's:** a change produced, checked and pushed,
@@ -402,7 +402,7 @@ host:
   until a real landing shows that recovery cannot serve the change.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine/executors.md`, 3); temper's takes none.
-- **A code graph** for a workspace (../worker.md, section 12), as an MCP
+- **A code graph** for a workspace (../worker/checkouts.md, section 1), as an MCP
   tool source once smith has one.
 - **A change produced by a job of any kind.** `producer` names a
   charter, and `merge` the merge job, a catch-up's producer (`tools.md`, 1):

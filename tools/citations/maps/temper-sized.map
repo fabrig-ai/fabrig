@@ -1,0 +1,23 @@
+# Split the TUI's numbered pages and the worker's checkout and job concepts.
+title temper/docs/design/client/tui/pages/sign-in.md: Signing in
+temper/docs/design/client/tui/pages.md 1 -> temper/docs/design/client/tui/pages/sign-in.md 1
+temper/docs/design/client/tui/pages.md 2 -> temper/docs/design/client/tui/pages/sign-in.md 2
+title temper/docs/design/client/tui/pages/launchpad.md: The launchpad
+temper/docs/design/client/tui/pages.md 3 -> temper/docs/design/client/tui/pages/launchpad.md 1
+title temper/docs/design/client/tui/pages/chat.md: A chat
+temper/docs/design/client/tui/pages.md 6 -> temper/docs/design/client/tui/pages/chat.md 1
+temper/docs/design/client/tui/pages.md 7 -> temper/docs/design/client/tui/pages/chat.md 2
+title temper/docs/design/client/tui/pages/design-session.md: A design session
+temper/docs/design/client/tui/pages.md 8 -> temper/docs/design/client/tui/pages/design-session.md 1
+temper/docs/design/client/tui/pages.md -> temper/docs/design/client/tui/pages/README.md
+renumber temper/docs/design/client/tui/pages.md
+
+title temper/docs/design/domain/worker/checkouts.md: Checkouts
+temper/docs/design/domain/worker.md 5 -> temper/docs/design/domain/worker/checkouts.md
+temper/docs/design/domain/worker.md 12.1 -> temper/docs/design/domain/worker/checkouts.md 1
+heading temper/docs/design/domain/worker/checkouts.md 1: Open questions
+title temper/docs/design/domain/worker/jobs.md: Jobs
+temper/docs/design/domain/worker.md 4.4 -> temper/docs/design/domain/worker/jobs.md
+temper/docs/design/domain/worker.md -> temper/docs/design/domain/worker/README.md
+renumber temper/docs/design/domain/worker.md
+renumber temper/docs/design/domain/worker/checkouts.md

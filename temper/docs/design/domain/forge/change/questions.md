@@ -199,12 +199,12 @@ early, by these rules:
   count.
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those heads merged into it, one by one in the order
-  of the change's dependencies (`../../worker.md`, section 5). The change
+  of the change's dependencies (`../../worker/checkouts.md`). The change
   keeps each head it started from, with its dependency, and marks those
   dependencies started from (jig's `domain/connectors.md`, 6.1).
 - **A conflict refuses it.** A head that does not merge cleanly fails
-  the producer's preparation as a conflict naming it (`../../worker.md`,
-  section 5). The change cancels that producer, its early start spent,
+  the producer's preparation as a conflict naming it (`../../worker/checkouts.md`
+  ). The change cancels that producer, its early start spent,
   and waits for its dependencies to be done; nothing is held or
   escalated, and its marks stay.
 - **Once.** A change starts its producer early at most once. An early
@@ -216,7 +216,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker.md`, 4.1 and section 5). A clean merge is
+  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with

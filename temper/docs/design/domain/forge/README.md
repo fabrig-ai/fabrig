@@ -104,7 +104,7 @@ makes each call to a forge and hears its deliveries, is
   request; post a review, a comment or a commit status; create, edit,
   close and reopen an issue; set reviewers; create and delete a branch
   (section 4). A run's push is the worker's, over git, under its task's
-  hold (`../worker.md`, section 5).
+  hold (`../worker/checkouts.md`).
 - **Kinds,** for authority (jig's `domain/authority.md`, section 4),
   numbered: 1, reads; 2, a run's push; 3 to 15, the effects, one per row
   of section 4's table. No kind implies another: each write a task means
@@ -141,7 +141,7 @@ makes each call to a forge and hears its deliveries, is
   6.1), a checkout: where it starts (a landing branch or the
   repository's default, a branch, saved work, or a merge in progress),
   whether it may be written and the branch it pushes, and the git
-  identity it is fetched and pushed with (`../worker.md`, 4.1;
+  identity it is fetched and pushed with (`../worker/README.md`, 4.1;
   `../../protocol/credentials.md`, section 4).
 - **Documents and parts** (jig's `domain/connectors.md`, 5.5): what
   temper's client shows of the forge, made from the connector's records
@@ -771,8 +771,8 @@ whole.
   change, and could try them against each other and warn both goals.
 - **Checks without an LLM:** a repository's checks run as agents' tasks
   at the exact head (`change/gates.md`, 1); a checks-only run on a worker, running the
-  project's commands with no model, would cost no turns (`../worker.md`,
-  section 12).
+  project's commands with no model, would cost no turns (`../worker/README.md`,
+  section 10).
 - **A person's approval as a rule:** temper takes it two ways, a person
   gate answered in the client (`change/gates.md`, 1) and a review the person posts on the
   forge, which a landing rule counts (`change/gates.md`, 2). Whether an approval given in

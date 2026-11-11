@@ -33,7 +33,7 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `change/repairs.md` has no known gap in a merge job's failures: each is a line on
 the worker that met it and on the engine, naming the job, its kind and why,
 and the way out of its hold, out of tries, points at the engine's log,
-which names each (`../worker.status.md`, 4.4). The composed system world runs
+which names each (`../worker/jobs.status.md`). The composed system world runs
 a change's merge job from the engine through its worker to the fake forge
 (`../../testing/README.status.md`, 2.1).
 
@@ -77,7 +77,7 @@ a change's merge job from the engine through its worker to the fake forge
     already contains, a clean merge committed before its run and the advice
     for a conflict have scripted coverage alone. No deployment replay on
     record proves the `resume-told` request's resumed producer and its answerers
-    read the tree rightly (`../worker.status.md`, sections 5 and 10).
+    read the tree rightly (`../worker/checkouts.status.md` and `../worker/README.status.md`, section 9).
   -  a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../../client/forge/family.md`, 4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   -  a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
@@ -236,3 +236,8 @@ a change's merge job from the engine through its worker to the fake forge
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+
+- **Not yet:** 3: a goal with a confirmed goal branch and a modifying charter delivers to
+  its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
+  again. The design has its runs push Markdown straight to g as its design
+  writers, recorded as g's own, and drops the `"run"` change [in flight: changes 94, 98].

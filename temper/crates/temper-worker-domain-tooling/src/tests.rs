@@ -92,7 +92,7 @@ impl Harness {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: its command, directory and result.
+/// temper/docs/design/domain/worker/jobs.md: its command, directory and result.
 #[test]
 fn a_job_runs_its_command_in_its_directory_and_finishes_with_its_result_file() {
     for (number, deliver) in [(1, false), (2, true)] {
@@ -149,7 +149,7 @@ fn a_merge_command_runs_under_its_repository_in_the_jobs_directory() {
     h.gone(OWNER, b"");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: exit 3 finishes without delivery.
+/// temper/docs/design/domain/worker/jobs.md: exit 3 finishes without delivery.
 #[test]
 fn exit_three_finishes_and_never_delivers() {
     let mut h = Harness::new();
@@ -162,7 +162,7 @@ fn exit_three_finishes_and_never_delivers() {
     h.gone(OWNER, b"stderr");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: failures retain bounded error output.
+/// temper/docs/design/domain/worker/jobs.md: failures retain bounded error output.
 #[test]
 fn any_other_exit_fails_with_the_end_of_its_error_output() {
     for (exit, detail) in [
@@ -185,7 +185,7 @@ fn any_other_exit_fails_with_the_end_of_its_error_output() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: missing and oversized results fail.
+/// temper/docs/design/domain/worker/jobs.md: missing and oversized results fail.
 #[test]
 fn a_missing_or_oversized_result_file_fails_the_job() {
     for bytes in [None, Some(copy_of(b"seventeen bytes!!"))] {
@@ -213,7 +213,7 @@ fn a_missing_or_oversized_result_file_fails_the_job() {
     h.gone(OWNER, b"stderr");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: protocol kills the group at its deadline.
+/// temper/docs/design/domain/worker/jobs.md: protocol kills the group at its deadline.
 #[test]
 fn its_deadline_kills_it_and_ends_it_deadline() {
     let mut h = Harness::new();
@@ -231,7 +231,7 @@ fn its_deadline_kills_it_and_ends_it_deadline() {
     h.gone(OWNER, b"stderr");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: stop waits for every process, once.
+/// temper/docs/design/domain/worker/jobs.md: stop waits for every process, once.
 #[test]
 fn a_stop_kills_it_and_says_gone_once_every_process_is_gone() {
     let mut h = Harness::new();
@@ -243,7 +243,7 @@ fn a_stop_kills_it_and_says_gone_once_every_process_is_gone() {
     h.none(Event::Stop { owner: OWNER });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: no command starts after an early stop.
+/// temper/docs/design/domain/worker/jobs.md: no command starts after an early stop.
 #[test]
 fn a_stop_before_the_spawn_says_gone_at_once() {
     let mut h = Harness::new();
@@ -254,7 +254,7 @@ fn a_stop_before_the_spawn_says_gone_at_once() {
     h.none(Event::Gone { owner: OWNER });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: a stop also covers a spawn not yet acknowledged.
+/// temper/docs/design/domain/worker/jobs.md: a stop also covers a spawn not yet acknowledged.
 #[test]
 fn a_stop_while_spawning_suppresses_started_and_ended() {
     let mut h = Harness::new();
@@ -266,7 +266,7 @@ fn a_stop_while_spawning_suppresses_started_and_ended() {
     h.gone(OWNER, b"stopped");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: a stopped result read ends nothing.
+/// temper/docs/design/domain/worker/jobs.md: a stopped result read ends nothing.
 #[test]
 fn a_stop_while_reading_suppresses_the_result() {
     let mut h = Harness::new();
@@ -277,7 +277,7 @@ fn a_stop_while_reading_suppresses_the_result() {
     h.gone(OWNER, b"stderr");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: `Gone` follows the result even if io races.
+/// temper/docs/design/domain/worker/jobs.md: `Gone` follows the result even if io races.
 #[test]
 fn gone_waits_for_the_result_read_and_is_last() {
     let mut h = Harness::new();
@@ -296,7 +296,7 @@ fn gone_waits_for_the_result_read_and_is_last() {
     h.none(Event::Read { owner: OWNER, bytes: None });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: writing failure leaves no process behind.
+/// temper/docs/design/domain/worker/jobs.md: writing failure leaves no process behind.
 #[test]
 fn a_failed_request_write_fails_and_says_gone() {
     let mut h = Harness::new();
@@ -311,7 +311,7 @@ fn a_failed_request_write_fails_and_says_gone() {
     h.none(Event::Written { owner: OWNER, written: true });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: admission checks kinds and bounds.
+/// temper/docs/design/domain/worker/jobs.md: admission checks kinds and bounds.
 #[test]
 fn a_run_of_a_kind_not_entered_or_past_its_bounds_is_refused() {
     for (number, request, deadline, why) in [
@@ -357,7 +357,7 @@ fn a_run_of_a_kind_not_entered_or_past_its_bounds_is_refused() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: paths cannot escape the job's directory.
+/// temper/docs/design/domain/worker/jobs.md: paths cannot escape the job's directory.
 #[test]
 fn unsafe_or_oversized_command_paths_are_refused() {
     for command in [b"..".as_slice(), b"../tool", b"bin/../tool", b"bin/..", b"/tool", b"to\0ol", b""] {
@@ -391,7 +391,7 @@ fn unsafe_or_oversized_command_paths_are_refused() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: every command and directory is bounded.
+/// temper/docs/design/domain/worker/jobs.md: every command and directory is bounded.
 #[test]
 fn directories_and_generated_paths_are_checked_before_writing() {
     for directory in [copy_of(b""), copy_of(b"job\0"), skein_lib::bytes::zeroed(97)] {
@@ -414,7 +414,7 @@ fn directories_and_generated_paths_are_checked_before_writing() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: jobs are independent and bounded in flight.
+/// temper/docs/design/domain/worker/jobs.md: jobs are independent and bounded in flight.
 #[test]
 fn a_busy_owner_and_a_full_capability_refuse_without_changing_live_jobs() {
     let mut h = Harness::with(Limits { jobs: 1, ..limits() });
@@ -432,7 +432,7 @@ fn a_busy_owner_and_a_full_capability_refuse_without_changing_live_jobs() {
     assert_eq!(h.one(Event::Stop { owner: other }), Request::Gone { owner: other, detail: copy_of(b"") });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: kinds are declared once, in order.
+/// temper/docs/design/domain/worker/jobs.md: kinds are declared once, in order.
 #[test]
 fn bounds_list_the_kinds_ascending() {
     let h = Harness::new();
@@ -441,7 +441,7 @@ fn bounds_list_the_kinds_ascending() {
     assert!(domain.bounds().is_empty());
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: unordered and repeated kinds are invalid.
+/// temper/docs/design/domain/worker/jobs.md: unordered and repeated kinds are invalid.
 #[test]
 fn new_refuses_kinds_out_of_order() {
     for entries in [Box::new([kind(2, false), kind(1, false)]), Box::new([kind(1, false), kind(1, true)])] {
@@ -449,7 +449,7 @@ fn new_refuses_kinds_out_of_order() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: invalid entries cannot be advertised.
+/// temper/docs/design/domain/worker/jobs.md: invalid entries cannot be advertised.
 #[test]
 fn new_checks_verbs_file_bounds_and_kind_count() {
     for verb in [b"".as_slice(), b"a/b", b"a\0b"] {
@@ -468,7 +468,7 @@ fn new_checks_verbs_file_bounds_and_kind_count() {
     assert_eq!(Domain::new(&limits(), kinds.into_boxed()).unwrap_err(), Invalid::Kinds);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: every configurable bound is nonzero.
+/// temper/docs/design/domain/worker/jobs.md: every configurable bound is nonzero.
 #[test]
 fn limits_refuse_zeros() {
     for invalid in [
@@ -483,7 +483,7 @@ fn limits_refuse_zeros() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: a failed setup names its step.
+/// temper/docs/design/domain/worker/jobs.md: a failed setup names its step.
 #[test]
 fn failed_setup_names_the_request_write_or_process_release() {
     let mut h = Harness::new();
@@ -508,7 +508,7 @@ fn failed_setup_names_the_request_write_or_process_release() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: exit 3 still requires its result file.
+/// temper/docs/design/domain/worker/jobs.md: exit 3 still requires its result file.
 #[test]
 fn exit_three_with_no_result_keeps_its_status_and_stderr() {
     let mut h = Harness::new();

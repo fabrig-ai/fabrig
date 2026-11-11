@@ -1,4 +1,4 @@
-//! What the worker tells whoever watches it (`domain/worker.md`, section 7):
+//! What the worker tells whoever watches it (`domain/worker/README.md`, section 6):
 //! the child domains' facts, content-free, gathered after every entry point
 //! into one bounded queue the loop drains at its own pace. What does not fit
 //! is dropped and counted, and nothing the domain decides depends on it.

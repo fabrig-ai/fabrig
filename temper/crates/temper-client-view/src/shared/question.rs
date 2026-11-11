@@ -1,4 +1,4 @@
-//! The chat's waiting question (temper/docs/design/client/tui/pages.md, The chat's question).
+//! The chat's waiting question (temper/docs/design/client/tui/pages/chat.md, 2).
 use crate::words::Words;
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -9,7 +9,7 @@ pub struct QuestionChoice {
     pub words: Box<[u8]>,
     pub recommended: bool,
 }
-/// The first answerable question (temper/docs/design/client/tui/pages.md, The chat's question).
+/// The first answerable question (temper/docs/design/client/tui/pages/chat.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Question {
     pub object: c::ObjectKey,
@@ -17,7 +17,7 @@ pub struct Question {
     pub choices: Box<[QuestionChoice]>,
     pub primary: Option<usize>,
 }
-/// The browser terminal's question, whatever the look (temper/docs/design/client/tui/pages.md, The chat's question).
+/// The browser terminal's question, whatever the look (temper/docs/design/client/tui/pages/chat.md, 2).
 #[must_use]
 pub fn question(root: &Domain, w: &Words) -> Option<Question> {
     if root.pages().confirmation().is_some() {

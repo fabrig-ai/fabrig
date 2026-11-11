@@ -1,4 +1,4 @@
-//! A close job's delivery (temper/docs/design/domain/worker.md, 4.4).
+//! A close job's delivery (temper/docs/design/domain/worker/jobs.md).
 use temper_system_world::composed::{World, close_job::Row};
 
 #[test]

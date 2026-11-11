@@ -1,4 +1,4 @@
-//! Close jobs in the whole worker world (temper/docs/design/domain/worker.md, 4.4).
+//! Close jobs in the whole worker world (temper/docs/design/domain/worker/jobs.md).
 
 use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Token};
@@ -32,7 +32,7 @@ fn kind() -> tooling::Kind {
 }
 
 /// The goal's tip on the close branch, the command, delivery, answer and teardown
-/// (temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2).
+/// (temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2).
 #[must_use]
 pub fn run(seed: u64, case: Case) -> Report {
     let mut limits = crate::limits();

@@ -78,7 +78,7 @@ pub(crate) struct Items {
 /// Stages an engine assignment's workspace items at the root, and gives the
 /// hub its assignment, naming them: no workspace when it has no repository,
 /// and a save only where there is a writable destination. The checkout commits
-/// merges before saving them (`domain/worker.md`, 4.2, step 7). Items come with
+/// merges before saving them (`domain/worker/README.md`, 4.2, step 7). Items come with
 /// a workstream, which the caller checked. Refused as busy, keeping nothing,
 /// when every record is taken: one for each of the hub's slots, a run hosted
 /// or its answer kept, and one for an assignment the hub has yet to take or
@@ -114,7 +114,7 @@ pub(crate) fn stage(
 }
 
 /// Jobs stage the same checkout items, with no saved-work destination
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 pub(crate) fn stage_job(domain: &mut Domain, job: &mut host::JobAssignment, mut items: wire::Workspace) -> Option<()> {
     if items.repositories.is_empty() {
         job.workspace = None;

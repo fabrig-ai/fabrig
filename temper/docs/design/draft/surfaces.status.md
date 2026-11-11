@@ -76,7 +76,7 @@
     brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
     routing to an area's owner is P5b's (`whole-story.execution.md`,
     section 3).
-  - 11: `../client/tui/README.md`, 3 and `../client/tui/pages.md`, hold the launchpad as
+  - 11: `../client/tui/README.md`, 3 and `../client/tui/pages/README.md`, hold the launchpad as
     11.1 draws it but for its team lines and `/talk` in
     Start, 11.4's commands but for `/talk` and `/tell`, and
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
@@ -137,14 +137,14 @@
     the act "Sign in again", where `needs.html` has "Sign in", so that the
     act says what its question asks, as the run wait's link to Accounts
     does (5.5, *A run's wait*). Decided by the cut of `ui-n3a-only`.
-  - 11.1, 13 and 15: `../client/tui/pages.md`, *Where you left off*,
+  - 11.1, 13 and 15: `../client/tui/pages/launchpad.md`, 1, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
     number no row. Decided by the cut of `tui-whole-t1`, from 15's
     default, a list numbered as the launchpad numbers it; the mockups
     win (13), so a look request draws the rows as they do: T2's request
     (`tui-design-session.md`) leaves them.
-  - 11.1 and 13: `../client/tui/pages.md`, draws a need's row as
+  - 11.1 and 13: `../client/tui/pages/README.md`, draws a need's row as
     Home's line alone (*Needs you*), with no asker or age, where the Pair
     mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
     by the change 20 min ago"; and a left-off row's time today as the
@@ -152,7 +152,7 @@
     of `tui-whole-t1`, whose list of the launchpad's departures from its
     mockups names neither. The code also lacks the blank row under the
     header that the mockups and the design draw
-    (`../client/tui/pages.status.md`).
+    (`../client/tui/pages/README.status.md`).
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
@@ -201,7 +201,7 @@
     of today's commands, the TUI names the closing one `/quit`, `/exit`
     taking it still, unlisted, and `/theme` opens a list of Auto, Light
     and Dark, kept for the next run, where it flipped
-    (`../client/tui/pages.md` and `../client/tui/theme.md`).
+    (`../client/tui/pages/README.md` and `../client/tui/theme.md`).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

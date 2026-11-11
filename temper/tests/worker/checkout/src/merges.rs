@@ -757,7 +757,7 @@ fn expected_merge_message(head: u64) -> String {
 }
 
 /// A goal starts on main (g), brings its run head in, and writes only topic (r)
-/// (temper/docs/design/domain/worker.md, 5).
+/// (temper/docs/design/domain/worker/checkouts.md).
 pub fn goal_later_run(case: Case) {
     let mut world = World::new(73, case, 64);
     assert!(matches!(case, Case::Contained | Case::Resumed | Case::Conflict));

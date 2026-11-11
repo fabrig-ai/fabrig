@@ -358,7 +358,7 @@ fn the_link_is_read_while_its_last_output_waits() {
     engine.open(&mut stand.worker);
     while stand.worker.notes().pop().is_some() {}
     stand.worker.engine.push(root::Event::Lost);
-    // Reading never waits for the root (temper/docs/design/domain/worker.md, 3.1).
+    // Reading never waits for the root (temper/docs/design/domain/worker/README.md, 3.1).
     let mut service = super::worker::alone_service();
     service.worker = Some(stand.worker);
     let owner = engine.owner;

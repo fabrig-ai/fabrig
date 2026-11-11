@@ -143,7 +143,7 @@ pub enum Start {
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
     /// The tip of a base branch with each head merged into it in order, each
-    /// merge committed (domain/worker.md, section 5).
+    /// merge committed (domain/worker/checkouts.md).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
 }
 

@@ -1,4 +1,4 @@
-//! Design deliveries (temper/docs/design/domain/worker.md, 5): take the goal
+//! Design deliveries (temper/docs/design/domain/worker/checkouts.md): take the goal
 //! tip first, admit Markdown alone, and push leased on that tip, never stale.
 use super::{Asked, Hold, Holding, Push, PushStep, State, Tips, To};
 use crate::boundary::{Landing, Repository, Request};

@@ -1,5 +1,5 @@
 //! The checkout child domain of the temper worker's domain layer
-//! (programming-model.md, 4.5; domain/worker.md, 5): the workspaces on the
+//! (programming-model.md, 4.5; domain/worker/checkouts.md): the workspaces on the
 //! worker's disk, a cache keyed by workstream, and the git and file operations
 //! that prepare them, commit what they hold and push it.
 //!

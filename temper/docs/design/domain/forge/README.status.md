@@ -235,7 +235,7 @@ runs it on the fake forge.
     already contains, a clean merge committed before its run and the advice
     for a conflict have scripted coverage alone. No deployment replay on
     record proves the `resume-told` request's resumed producer and its answerers
-    read the tree rightly (`../worker.status.md`, sections 5 and 10).
+    read the tree rightly (`../worker/checkouts.status.md` and `../worker/README.status.md`, section 9).
   -  a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../../client/forge/family.md`, 4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   -  a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for

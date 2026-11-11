@@ -1,5 +1,5 @@
 //! Close request admission and job encoding (temper/docs/design/domain/forge/change/README.md, 1;
-//! temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2).
+//! temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2).
 use super::{Domain, forge, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes::copy_of};
