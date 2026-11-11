@@ -45,6 +45,9 @@ pub enum Fault {
     Cancelled,
     OtherCommit,
     Lost,
+    /// A tier dispatch refused because its workflow is absent at the run's commit.
+    /// See temper/docs/design/domain/after-landing.md, 3.
+    MissingWorkflow,
 }
 
 /// Classify only the run and step facts, never log words.

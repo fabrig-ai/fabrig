@@ -2133,7 +2133,7 @@ fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
         panic!("first tier step")
     };
     assert_eq!(got, task);
-    assert!(!heard.released && !heard.cancelled);
+    assert!(!heard.released);
     let words = b"Tier fuzzy run 7 held after 3 runner faults, last: dispatch";
     forge_request(
         &mut domain,
@@ -2563,11 +2563,8 @@ fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
         jig_domain_core::Event::Tasks(event),
     ));
     offer_tier(&mut domain, &env, task);
-    let Some(Work::Forge(forge::Event::StepTier {
-        task: got,
-        heard: forge::TierHeard { released: false, cancelled: false },
-        ..
-    })) = domain.work.pop()
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard: forge::TierHeard { released: false }, .. })) =
+        domain.work.pop()
     else {
         panic!("step woken tier")
     };
@@ -2710,7 +2707,7 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
         panic!("released tier step")
     };
     assert_eq!(got, task);
-    assert!(heard.released && !heard.cancelled);
+    assert!(heard.released);
 }
 
 fn repairs_call(control: bool) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {

@@ -421,7 +421,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
         ended: env().wall,
     });
     let mut out = Queue::uncapped();
-    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false, cancelled: false }, &mut out);
+    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false }, &mut out);
     out
 }
 

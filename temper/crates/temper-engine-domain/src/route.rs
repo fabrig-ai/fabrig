@@ -468,6 +468,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
+                domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;

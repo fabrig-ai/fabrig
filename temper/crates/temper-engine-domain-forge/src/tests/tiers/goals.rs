@@ -196,6 +196,26 @@ fn landing_into_a_held_goal_branch_runs_without_following_the_change() {
 }
 
 #[test]
+fn a_dropped_goal_run_keeps_its_branch_history_and_is_due_again() {
+    let mut d = dispatched();
+    completed(&mut d, api::Conclusion::Success, None);
+    finish(&mut d);
+    moved(&mut d, &env(), BRANCH, Some(NEXT_TIP), LAST_TIP);
+    start(&mut d, LAST_TIP);
+    span(&mut d, Some(SPAN));
+    let goals = row(&d).goals.clone();
+    let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Failed);
+    assert!(requests(&out).is_empty());
+    assert!(row(&d).record.run.is_none());
+    assert!(row(&d).goal.is_none());
+    assert_eq!(row(&d).record.sequence, 2);
+    assert_eq!(row(&d).goals, goals);
+    let out = fire(&mut d, &later());
+    assert_eq!(requests(&out), [(3, LAST_TIP)]);
+    assert_eq!(row(&d).goal, Some(GOAL));
+}
+
+#[test]
 fn goal_watch_uses_only_the_repositories_matching_live_holds() {
     let mut d = configured(None);
     hold(&mut d, OTHER, OTHER_BRANCH);
