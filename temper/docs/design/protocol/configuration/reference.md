@@ -475,3 +475,32 @@ that changes the stock changes nothing of them.
 
 The reference's charter 6 also returns `finish` for a red the change did not
 cause, with that red on the asker's Left list (2026-11-04).
+
+## 1. Open questions
+
+- **The reference's later runs** (`reference.md`; `../../draft/per-wake.md`,
+  sections 10 and 11): compare high with medium after observing runs
+  that read their selected parts, and decide whether the cut should
+  settle entries. Documents per part, choices per wake kind, parts for
+  resumed runs and offering a message with its part remain deferred in
+  that draft. Default: four fresh-run parts, xhigh first and high later,
+  documents shared by every run, and entries outside a run's parts
+  left for the next run.
+
+- **The checks' deadline** (`reference.md`): `.temper/pre-pr` names each check
+  before it starts (`tools/pre-pr/design.md`, section 4), so a timeout's
+  tail shows where it stopped; with lints and focused tests it builds, and
+  the agent's 60-second `check_timeout` is the owner's to raise, separately
+  (2026-11-09). Default: 60 seconds, with smith's check path and given time
+  in the refusal.
+
+- **Who writes the case's workflows** (`reference.md`). The repository a case runs
+  on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
+  to meet them. Who writes them, and the runner's budget they take, are
+  the user's, open since 2026-11-03, with no default: the walk's copy of
+  fabrig carries them, written for the box that runs the case, CI
+  running the gate's nextest profiles whole, `tier-goal.yml` the gate
+  without its slowest suites and `tier-slow.yml` the slow tiers, within
+  a runner budget the user sets; or fabrig carries them under
+  `.forgejo/workflows/` once that budget is set; or the case runs on a
+  smaller repository than fabrig, whose workflows are cheap.

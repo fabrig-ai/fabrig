@@ -366,3 +366,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   done?" in every project, the playground's start among them, draw
   (`README.md`). Default: neither drawn, the agent's waiting for its page's
   owner.
+
+- **A page refused busy.** How a page says its rows have not arrived,
+  rather than calling them absent, belongs to the client's presentation
+  (`../README.md`), outside watch sizing. Default: keep the handle's
+  behind state and its retry (jig's `client/domain/client/watches.md`, 1).

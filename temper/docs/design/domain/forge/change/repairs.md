@@ -416,3 +416,57 @@ differs from a conflict after production, whose merge job spends one and
 whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
+
+## 1. Open questions
+
+- **A gate's live run past the stall** (`repairs.md`): a review's task stays a wait
+  the stall bounds, though a review working 30 minutes is as normal as a
+  producer. Its verdict is kept if it arrives on the hold, and a release goes
+  on from it. Default: as it stands, its wait being named by `repairs.md`; the request
+  `parallel-faults` of 2026-11-06 met no such hold.
+
+- **A green head no wake reaches** (`repairs.md`, `../keeping-up.md`, 2): a held change reads on a wake,
+  and a poll wakes it only when what it read of the pull request moved. Under
+  a rule's required contexts, a check they do not name can keep the pull
+  request's CI as it was while theirs pass, so the hold waits for a hint or a
+  person's release, which makes no fresh repair. Default: so; it costs time,
+  not a repair.
+
+- **A retry before the read** (`repairs.md`): a run ending into a retry wakes no change,
+  so a backoff shorter than `poll_ms` can start another run at a green head,
+  left to finish as any run is. Whether jig tells a procedure of its delegate's
+  retry, so that none starts. Default: as it stands.
+
+- **A hold at gating at a green head** (`repairs.md`): past the bound or short of
+  authority there, a hold can be a gate's or CI's, and its state does not say
+  which. Saying so changes what a hold stores. Default: it waits for a person's
+  release, which decides afresh.
+
+- **A repair held for its brief** (`repairs.md`): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+
+- **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
+
+- **A failing check's repair brief:** a check gate that says no is
+  repaired as a review that says no is, and its repair's brief carries
+  the pull request's reviews section (`repairs.md`). A check's verdict is not a
+  review on the forge: whether the brief should carry the check's own
+  output instead is open.
+
+- **What failed on a queue's group** (`repairs.md`, `../queues.md`, 1): an ejection's repair
+  brief carries the forge's reason alone, the pull request's `dequeued`,
+  since skein's `Pull` names no commit of the group. The alternative
+  reads the group's CI and gives the repair its failing output.
+  Default: the reason alone.
+
+- **A clean update's other words** (`repairs.md` and `../README.md`, section 6): the result still says
+  `the base broke it`, and the client panel calls its repair a semantic
+  conflict, although the path proves only that CI failed after an update.
+  Aligning those words needs the client's owner too. Default: the task's
+  instructions and brief name the failed check; the result and panel keep
+  their words until that follow-up.

@@ -332,3 +332,11 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   newest no longer allow (jig's `domain/tasks/README.md`, section 4), is held
   when it next needs a delegate of that role, saying so; it is
   cancelled, or made again.
+
+## 4. Open questions
+
+- **Project-scoped rules on a real forge** (`gates.md`, 3): observe the
+  every-project default, its override and reset, and branch-relative
+  coverage through the existing process and live landing stories after
+  landing. Default: those stories; focused and fuzzy checks on fakes
+  establish no real-forge outcome.

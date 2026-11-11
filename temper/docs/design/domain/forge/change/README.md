@@ -486,3 +486,17 @@ landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed
 (`../../landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
+
+## 7. Open questions
+
+- **A forge's run on a head replaced** (`README.md`, 2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+
+- **An early update against the bound** (`README.md`, 2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.
