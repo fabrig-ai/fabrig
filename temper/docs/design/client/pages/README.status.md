@@ -2,6 +2,9 @@
 
 2026-11-10. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
+  not read, and no landed draft's card starts a goal [in flight: change 664].
+
 - **Not yet:** the whole document: no supplied record establishes a real-box walk of
   the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
