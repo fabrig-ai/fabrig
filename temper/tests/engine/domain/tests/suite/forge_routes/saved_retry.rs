@@ -305,7 +305,7 @@ fn a_repair_that_wrote_and_ended_unfinished_finishes_with_its_file_on_retry() {
 }
 
 #[test]
-fn a_landed_change_waits_for_its_live_repair_retrys_terminal() {
+fn a_landed_change_cancels_its_live_repair_retry() {
     let (mut world, mut workspace, retry, branch) = saved_repair_retry();
     let tasks::Party::Task(change) = live_task(&world, retry.task).requester else {
         panic!("repair belongs to a change")
@@ -348,7 +348,7 @@ fn a_landed_change_waits_for_its_live_repair_retrys_terminal() {
     assert!(landed, "the forge is already landed before its live repair retry finishes");
     assert_eq!(live_task(&world, change).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert_eq!(live_task(&world, change).delegates.as_ref(), &[retry.task]);
-    finish_change(&mut world, &retry, b"repaired", parts);
+    super::completed_change::acknowledge_cancel(&mut world, &retry, b"its change landed", parts);
     let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change)));
     for _ in 0..TICKS {
         world.tick();

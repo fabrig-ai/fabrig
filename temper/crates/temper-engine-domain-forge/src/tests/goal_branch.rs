@@ -115,6 +115,100 @@ fn goal_branch_names_are_canonical_and_distinct_from_other_own_branches() {
     assert_eq!(items::goal_branch(&Name { forge: 1, repository: 2, what: What::Repository }, b"temper/"), None);
 }
 
+fn run_watch(restored: bool, goal: bool) {
+    let mut d = domain();
+    let run = name(b"temper/7/r7");
+    let resources: Box<[Name]> =
+        if goal { Box::from([run.clone(), name(GOAL_BRANCH)]) } else { Box::from([run.clone()]) };
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    if restored {
+        // Store key order can restore names before the goal's holding.
+        outputs(&mut d, Event::Restore { record: Stored::Names { task: GOAL, resources: resources.clone() } });
+    }
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: run.clone(),
+                task: GOAL,
+                writer: None,
+                design_writers: Box::new([]),
+                drift: None,
+            }),
+        },
+    );
+    if goal {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: name(GOAL_BRANCH),
+                    task: GOAL,
+                    writer: None,
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
+            },
+        );
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name(GOAL_BRANCH), commit: TIP, owned: true }),
+            },
+        );
+    }
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let mut log = Queue::uncapped();
+    step(&mut d, &env(), Event::ReadAfresh, &mut log);
+    step(&mut d, &env(), Event::SettleOutbox, &mut log);
+    if !restored {
+        step(&mut d, &env(), Event::Names { task: GOAL, resources }, &mut log);
+    }
+    let mut later = env();
+    later.now = later.now.saturating_add(CLIENT.poll_max);
+    fire(&mut d, &later, &mut log);
+    let mut run_reads = 0_usize;
+    let mut goal_reads = 0_usize;
+    for _ in 0..CLIENT.calls {
+        resume(&mut d, &later, &mut log);
+        while let Some(request) = log.pop() {
+            if let Request::Call { call, op: Op::Read(Read::Branch { branch }), .. } = request {
+                run_reads = run_reads.saturating_add(usize::from(branch.as_ref() == b"temper/7/r7"));
+                goal_reads = goal_reads.saturating_add(usize::from(branch.as_ref() == GOAL_BRANCH));
+                step(
+                    &mut d,
+                    &later,
+                    Event::Client(skein_forge_client::Event::Answered {
+                        call,
+                        cost: 1,
+                        free: 0,
+                        rate: None,
+                        result: Ok(Answer::Commit(TIP)),
+                    }),
+                    &mut log,
+                );
+            }
+        }
+    }
+    assert_eq!(run_reads, usize::from(!goal), "goal={goal}, restored={restored}");
+    assert_eq!(d.names(GOAL).unwrap().contains(&run), !goal);
+    if goal {
+        assert!(goal_reads > 0, "g stays watched");
+    }
+}
+
+#[test]
+fn naming_a_goals_run_branch_watches_only_g_but_a_chat_still_watches_r() {
+    run_watch(false, true);
+    run_watch(false, false);
+}
+
+#[test]
+fn restored_goal_names_drop_r_even_when_names_precede_holds() {
+    run_watch(true, true);
+    run_watch(true, false);
+}
+
 #[test]
 fn a_goal_branch_hold_is_exclusive_and_refusing() {
     let mut d = fresh();

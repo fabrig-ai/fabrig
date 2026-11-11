@@ -40,12 +40,15 @@ pub(crate) fn restore_live(d: &mut Domain, env: &Env<Limits>, record: LiveRecord
         "one stored row per resource"
     );
 }
-pub(crate) fn restore_repository(d: &mut Domain, env: &Env<Limits>, record: RepositoryRecord) {
+pub(crate) fn restore_repository(d: &mut Domain, env: &Env<Limits>, mut record: RepositoryRecord) {
     assert!(!d.keep.ready, "restore before restored");
     if d.keep.repos.len() >= env.limits.repositories {
         d.keep.failed = true;
         d.fact(Fact::Refused);
         return;
+    }
+    if let Some(mark) = record.mark {
+        record.mark = Some(mark.min(record.clock));
     }
     assert!(
         d.keep.repos.insert(record.repository, super::repository(record)).expect("restore admitted").is_none(),

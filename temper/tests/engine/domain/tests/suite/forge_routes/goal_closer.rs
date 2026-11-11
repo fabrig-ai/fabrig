@@ -720,6 +720,53 @@ fn a_cancelled_landing_release_makes_a_new_landing() {
 }
 
 #[test]
+fn a_cancelled_landing_release_makes_its_new_landing_at_the_moved_head() {
+    let (mut world, goal, branch, closer, landing) = pending_landing();
+    let old = branch_tip(&mut world, &branch);
+    for _ in 0..STEPS {
+        if row(&world, landing).change.last_head == Some(translate::commit(old)) {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(row(&world, landing).change.last_head, Some(translate::commit(old)));
+    cancel_landing(&mut world, &goal, landing);
+    wait_held(&mut world, closer, goal.task);
+    let moved = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"later", b"new work", 1)
+        .expect("goal branch advances while its closer holds");
+    assert_ne!(moved, old);
+    status(&mut world, moved, raw::Check::Pending);
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch.clone()),
+            key: None,
+        },
+    })));
+    let revision = live_task(&world, closer).revisions.hold;
+    let answer = world.scripted_call(&goal, 96, engine::Tool::Release { target: closer, revision, again: None });
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(new) = closer_row(&world, closer).and_then(|row| row.closer.landing)
+            && new != landing
+            && world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(new)))
+            && row(&world, new).change.last_head.is_some()
+        {
+            break;
+        }
+    }
+    let new = closer_row(&world, closer).expect("released closer").closer.landing.expect("new landing");
+    assert_ne!(new, landing);
+    assert_eq!(
+        row(&world, new).change.last_head,
+        Some(translate::commit(moved)),
+        "release reads the moved goal tip, not the ended landing's head"
+    );
+    world.close();
+}
+
+#[test]
 fn a_cancelled_landing_release_reports_if_main_now_holds_the_goal() {
     release_ended_landing(true, false);
 }

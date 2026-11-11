@@ -12,6 +12,7 @@ use skein_lib::{Duration, List, Map, Queue, Token};
 type Failed = (Option<Name>, RefusalCause);
 
 pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
+    let resources = watched_names(d, &resources);
     let watches = match plan(d, &env.limits, task, &resources) {
         Ok(watches) => watches,
         Err((resource, cause)) => {
@@ -29,6 +30,31 @@ pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box
         retain(d, task, resources, out);
     }
     drain(d, env, out);
+}
+
+fn watched_names(d: &Domain, resources: &[Name]) -> Box<[Name]> {
+    let mut names = List::with_capacity(u32::try_from(resources.len()).expect("bounded task names"));
+    for name in resources {
+        if !super::goal_run(d, name) {
+            names.push(name.clone()).expect("filtered task names");
+        }
+    }
+    names.into_boxed()
+}
+
+/// All holds are restored before filtering: store key order need not put them before names.
+pub(super) fn restore_names(d: &mut Domain, out: &mut Queue<Request>) {
+    let mut changed = List::with_capacity(d.names.len());
+    for (task, resources) in &d.names {
+        let filtered = watched_names(d, resources);
+        if resources != &filtered {
+            changed.push((*task, filtered)).expect("restored task names");
+        }
+    }
+    for (task, resources) in changed.into_boxed() {
+        d.names.insert(task, resources.clone()).expect("replaces restored names");
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Names { task, resources } });
+    }
 }
 
 fn plan(d: &Domain, limits: &Limits, task: u64, resources: &[Name]) -> Result<Box<[Watch]>, Failed> {
@@ -94,7 +120,7 @@ pub(super) fn landing_subscription_problem(
 fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
     for name in names {
         validate(d, limits, name)?;
-        if d.forge_ended(name.forge) {
+        if d.forge_ended(name.forge) || super::goal_run(d, name) {
             continue;
         }
         let resource = to_client(name, limits).expect("validated name");
@@ -170,6 +196,7 @@ pub(super) fn kept(
         Ok(()) => {
             d.watch_due = None;
             writers(d, env);
+            heads(d, env);
         }
         Err(Error::Busy) => {
             let until = env.now.saturating_add(Duration::from_secs(1));
@@ -191,6 +218,27 @@ pub(super) fn kept(
                     resource,
                     cause: RefusalCause::Backend(error),
                 },
+            );
+        }
+    }
+}
+
+/// A branch can acquire its first watch after its push or fresh reread.
+/// Seed only an empty keep: an established baseline must still detect drift.
+fn heads(d: &mut Domain, env: &Env<Limits>) {
+    for (name, head) in &d.heads {
+        let Some(hold) = d.holds.get(name) else { continue };
+        if hold.drift.is_some() {
+            continue;
+        }
+        let Some(resource) = to_client(name, &env.limits) else { continue };
+        let Some(cached) = d.client.cached(&resource) else { continue };
+        if cached.tip.is_none() {
+            skein_forge_client::step(
+                &mut d.client,
+                &child_env(env),
+                skein_forge_client::Event::Pushed { resource, commit: head.commit },
+                &mut d.client_out,
             );
         }
     }

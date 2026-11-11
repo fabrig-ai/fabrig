@@ -456,6 +456,40 @@ fn deleted(world: &World, branch: &[u8]) -> bool {
 }
 
 #[test]
+fn a_goals_run_branch_is_not_watched_after_claim_or_restart() {
+    use super::resource_admission::{branch_reads, kept_branch};
+    let (mut world, goal, branch) = running_goal();
+    let r = format!("temper/{}/r{}", goal.task, goal.task).into_bytes();
+    world.forge_reads = Some(Vec::new());
+    // A claim merges existing names with its writes. Older saved names can include r.
+    let resources = [&r[..], branch.as_ref()].map(|branch| forge_top::Name {
+        forge: 1,
+        repository: 2,
+        what: forge_top::What::Branch(branch.split(|byte| *byte == b'/').map(Box::from).collect()),
+    });
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Names {
+        task: goal.task,
+        resources: Box::new(resources),
+    })));
+    world.until(Until::Ready);
+    for restart in [false, true] {
+        if restart {
+            world.restart_same();
+            world.until(Until::Ready);
+        }
+        assert!(forge_hold(&world, &r).is_some(), "the unused run branch remains held");
+        assert!(!kept_branch(&world, &r), "a workspace claim must not keep r");
+        assert!(kept_branch(&world, &branch), "g remains watched");
+        for _ in 0..STEPS {
+            world.tick();
+        }
+        assert_eq!(branch_reads(&world, &r), 0, "no run-branch reads, restart={restart}");
+        assert!(branch_reads(&world, &branch) > 0);
+    }
+    world.close();
+}
+
+#[test]
 fn a_goals_close_deletes_no_unused_run_branch() {
     let (mut world, goal, branch) = running_goal();
     let r = format!("temper/{}/r{}", goal.task, goal.task).into_bytes();

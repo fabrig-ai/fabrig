@@ -385,6 +385,10 @@ pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64
     task_branch(name, prefix, b"g")
 }
 
+pub(crate) fn change_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
+    task_branch(name, prefix, b"c")
+}
+
 pub(crate) fn run_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
     task_branch(name, prefix, b"r")
 }
