@@ -227,6 +227,36 @@ pub fn ancestry_cases()
     ]
 }
 
+/// A kept repository's delivery establishes hearing without a resource read.
+pub fn repository_heard(d: &mut Domain, clock: &Env<Limits>, repository: skein_forge::api::Repository) {
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Keep {
+            owner: Token::new(777),
+            watches: Box::new([skein_forge_client::Watch {
+                resource: skein_forge_client::Resource { repository, what: skein_forge_client::What::Repository },
+                participating: false,
+            }]),
+        }),
+        &mut out,
+    );
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository,
+                change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+                key: None,
+            },
+        }),
+        &mut out,
+    );
+    d.reclaim();
+}
+
 /// One terminal read, without the client's transient retries, for reader tables.
 pub fn answer_once(
     d: &mut Domain,
@@ -347,11 +377,19 @@ pub fn checks(check: skein_forge::api::Check) -> skein_forge::api::Answer {
     }]))
 }
 
-/// Read the head contexts for the result, then the base and ancestry range.
+/// Finish the CI reads this gather asks for, then its ancestry range.
 pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+    use skein_forge::api::{Answer, Op, Read};
+    for _ in 0_u32..3 {
+        let (call, op) = next_call(d);
+        if let Op::Read(Read::Checks { .. }) = op {
+            answer(d, call, Ok(checks(skein_forge::api::Check::Passed)));
+        } else {
+            let Op::Read(Read::Commits { .. }) = op else { panic!("CI or ancestry: {op:?}") };
+            return answer(d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        }
+    }
+    panic!("at most two commits' CI before ancestry")
 }
 
 /// Fresh change chains start with an observed landing branch, apart from their subject.

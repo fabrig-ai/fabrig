@@ -5,7 +5,7 @@
 //! `step` changes state from a parent event; `fire` expires one deadline;
 //! `resume` sends one eligible call. The parent commits emitted progress
 //! before releasing any call from that decision.
-use crate::{Event, Fact, Limits, Priority, Request, Resource, Stored, Writer, outbox};
+use crate::{Event, Fact, Limits, Request, Resource, Stored, Writer, outbox};
 use crate::{bounds, calls, keep};
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -245,7 +245,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     d.fact(Fact::Refused);
                     out.push(Request::Read { owner, result: Err(error) });
                 }
-                None => calls::queue(&mut d.calls, calls::Owner::Read(owner), repository, op, Priority::Fresh),
+                None => {
+                    let api::Op::Read(read) = op else { unreachable!("fresh operation is a read") };
+                    calls::fresh(&mut d.calls, owner, repository, read);
+                }
             }
         }
         Event::Answered { call, cost, free, rate, result } => {

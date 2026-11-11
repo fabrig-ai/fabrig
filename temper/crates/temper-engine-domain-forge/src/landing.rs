@@ -32,6 +32,9 @@ pub(crate) struct State {
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
     task: u64,
+    repository: api::Repository,
+    resource: Option<GatherRead>,
+    cached: bool,
     pub(crate) entry: u64,
     heard: LandingHeard,
     facts: Box<[policy::MemberFacts]>,
@@ -41,6 +44,21 @@ pub(crate) struct Pending {
     entries: List<policy::Entry>,
     woken: bool,
     evidence: Box<[crate::LandingEvidence]>,
+    reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
+}
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+enum GatherRead {
+    Branch(Box<[u8]>),
+    Pull(u64),
+}
+fn gather_resource(read: &api::Read) -> Option<GatherRead> {
+    if let api::Read::Branch { branch } = read {
+        Some(GatherRead::Branch(branch.clone()))
+    } else if let api::Read::Pull { number, .. } = read {
+        Some(GatherRead::Pull(*number))
+    } else {
+        None
+    }
 }
 #[derive(Clone, Hash, Debug)]
 enum Stage {
@@ -373,7 +391,7 @@ impl Domain {
     pub fn wait_landing(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>) {
         let until = match until {
             Some(until) => until,
-            None => Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.client.poll.as_nanos())),
+            None => poll_at(self, env, task),
         };
         self.landing.due.insert(task, until).expect("one deadline per admitted landing");
     }
@@ -777,9 +795,10 @@ pub(crate) fn step(
     for member in &mut row.landing.members {
         let Some(change) = d.changes.get(&member.change) else { return };
         let Some(pull) = change.pull else {
+            let repository = change.repository;
             row.landing.phase = policy::Phase::Waiting;
             save(d, row, out);
-            wait(task, env, out);
+            wait(d, task, env, repository, out);
             return;
         };
         member.pull = pull;
@@ -824,6 +843,9 @@ pub(crate) fn step(
             owner,
             Pending {
                 task,
+                repository: repo,
+                resource: gather_resource(&read),
+                cached: false,
                 entry,
                 heard,
                 facts: facts.into_boxed(),
@@ -833,6 +855,7 @@ pub(crate) fn step(
                 entries: List::with_capacity(env.limits.key_entries),
                 woken: false,
                 evidence: evidence.into_boxed(),
+                reads: Map::with_capacity(env.limits.landing_members.checked_mul(3).expect("u16 members fit")),
             },
         )
         .expect("one chain per landing");
@@ -842,30 +865,76 @@ fn ask(
     d: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
-    pending: Pending,
+    mut pending: Pending,
     repository: api::Repository,
     read: api::Read,
     out: &mut Queue<Request>,
 ) {
+    pending.repository = repository;
+    pending.resource = gather_resource(&read);
+    pending.cached = match pending.resource.clone() {
+        Some(resource) => pending.reads.contains_key(&(repository, resource)),
+        None => false,
+    };
+    let cached = pending.cached;
     d.landing.pending.insert(owner, pending).expect("replaces pending chain");
-    child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+    if !cached {
+        child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+    }
 }
-fn wait(task: u64, env: &Env<Limits>, out: &mut Queue<Request>) {
+fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
+    let mut at = None;
+    if let Some(row) = d.landing.rows.get(&task) {
+        for member in &row.landing.members {
+            let due = d.poll_at(env, repository(member));
+            at = Some(match at {
+                Some(prior) => due.min(prior),
+                None => due,
+            });
+        }
+    }
+    let at = at.unwrap_or(env.now.saturating_add(env.limits.client.poll));
+    wall_at(env, at)
+}
+fn wall_at(env: &Env<Limits>, at: skein_lib::Time) -> Wall {
+    Wall::from_nanos(env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())))
+}
+fn wait(d: &Domain, task: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
     emit(
         out,
         Request::LandingDecision {
             task,
-            decision: policy::Decision::Wait {
-                until: Some(Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.client.poll.as_nanos()))),
-            },
+            decision: policy::Decision::Wait { until: Some(wall_at(env, d.poll_at(env, repository))) },
             entry: None,
             evidence: None,
         },
     );
 }
+pub(crate) fn answered(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    answer: Result<api::Answer, api::Error>,
+    out: &mut Queue<Request>,
+) {
+    advance(d, env, owner, answer, out);
+    while let Some((owner, answer)) = cached_answer(d) {
+        advance(d, env, owner, answer, out);
+    }
+}
+fn cached_answer(d: &Domain) -> Option<(Token, Result<api::Answer, api::Error>)> {
+    for (owner, pending) in &d.landing.pending {
+        if pending.cached {
+            let resource = pending.resource.clone().expect("only a resource read is cached");
+            let answer = pending.reads.get(&(pending.repository, resource)).expect("cached read remains");
+            return Some((*owner, answer.clone()));
+        }
+    }
+    None
+}
 #[expect(clippy::too_many_lines, reason = "one exhaustive bounded landing read chain")]
 #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches macros in step code")]
-pub(crate) fn answered(
+fn advance(
     d: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
@@ -875,11 +944,12 @@ pub(crate) fn answered(
     let Some(mut p) = d.landing.pending.remove(&owner) else {
         return;
     };
+    p.cached = false;
     if d.stopping {
         return;
     }
     if answer == Err(api::Error::Busy) {
-        wait(p.task, env, out);
+        wait(d, p.task, env, p.repository, out);
         return;
     }
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
@@ -894,6 +964,9 @@ pub(crate) fn answered(
             step(d, env, p.task, p.entry, p.heard, out);
             return;
         }
+    }
+    if let Some(resource) = p.resource.take() {
+        p.reads.insert((p.repository, resource), answer.clone()).expect("three resources per member");
     }
     match p.stage.clone() {
         Stage::Branch(index) | Stage::Main(index) | Stage::Ancestry(index) | Stage::Pull(index) => {
@@ -936,11 +1009,11 @@ pub(crate) fn answered(
                                 | change::State::Held { .. } => member.landed,
                             };
                             let Some(head) = landed else {
-                                wait(p.task, env, out);
+                                wait(d, p.task, env, p.repository, out);
                                 return;
                             };
                             if Some(head) != member.candidate {
-                                wait(p.task, env, out);
+                                wait(d, p.task, env, p.repository, out);
                                 return;
                             }
                             head
@@ -952,7 +1025,7 @@ pub(crate) fn answered(
                 }
                 Stage::Main(_) => {
                     let Ok(api::Answer::Commit(main)) = answer else {
-                        wait(p.task, env, out);
+                        wait(d, p.task, env, p.repository, out);
                         return;
                     };
                     fact.main = main;
@@ -966,11 +1039,11 @@ pub(crate) fn answered(
                         change::Status::Unknown | change::Status::Pending => policy::Status::Unknown,
                     };
                     p.stage = Stage::Pull(index);
-                    api::Read::Pull { number: member.pull }
+                    api::Read::Pull { number: member.pull, ci: false }
                 }
                 Stage::Pull(_) => {
                     let Ok(api::Answer::Pull(pull)) = answer else {
-                        wait(p.task, env, out);
+                        wait(d, p.task, env, p.repository, out);
                         return;
                     };
                     fact.merged = pull.merged;
@@ -978,7 +1051,7 @@ pub(crate) fn answered(
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
                     fact.cancelled = p.heard.cancelled;
                     p.stage = Stage::Reviews(index, 1);
-                    api::Read::Reviews { number: member.pull, page: 1 }
+                    api::Read::Reviews { number: member.pull, page: 1, skip: 0 }
                 }
                 Stage::Reviews(_, _) | Stage::Collect | Stage::Run { .. } | Stage::Tree { .. } => {
                     unreachable!("member stage")
@@ -988,7 +1061,7 @@ pub(crate) fn answered(
         }
         Stage::Reviews(index, page) => {
             let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
-            if let Ok(api::Answer::Reviews { reviews, more }) = answer {
+            if let Ok(api::Answer::Reviews { reviews, more, .. }) = answer {
                 let mut gathered = List::with_capacity(env.limits.client.inbox);
                 for review in &evidence.reviews {
                     gathered.push(review.clone()).expect("bounded reviews");
@@ -1005,7 +1078,15 @@ pub(crate) fn answered(
                     let member = row.landing.members.get(usize::from(index)).expect("member");
                     let page = page.checked_add(1).expect("bounded review pages");
                     p.stage = Stage::Reviews(index, page);
-                    ask(d, env, owner, p, repository(member), api::Read::Reviews { number: member.pull, page }, out);
+                    ask(
+                        d,
+                        env,
+                        owner,
+                        p,
+                        repository(member),
+                        api::Read::Reviews { number: member.pull, page, skip: 0 },
+                        out,
+                    );
                     return;
                 }
                 evidence.reviews_complete = fits && !more;
@@ -1089,7 +1170,7 @@ pub(crate) fn answered(
         }
         Stage::Tree { member, gate, candidate, object, page, main } => {
             let Ok(api::Answer::Tree { entries, more }) = answer else {
-                wait(p.task, env, out);
+                wait(d, p.task, env, p.repository, out);
                 return;
             };
             let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
@@ -1314,7 +1395,13 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         &row.landing,
         &facts,
         &policy::Project { gate_retries: 2 },
-        &policy::Limits { members: env.limits.landing_members, gates: env.limits.gates, poll: env.limits.client.poll },
+        &policy::Limits {
+            members: env.limits.landing_members,
+            gates: env.limits.gates,
+            poll: skein_lib::Duration::from_nanos(
+                poll_at(d, env, p.task).as_nanos().saturating_sub(env.wall.as_nanos()),
+            ),
+        },
         env.wall,
     );
     let prior = row.clone();

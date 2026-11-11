@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-10. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap
 in what reaches a person, the whole story's milestone N1,
@@ -37,9 +37,12 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
-- **Not yet:** `keeping-up.md`, 2, by plan `forge-polls-quiet`: no `fallback`
-  reaches the client (`forge.client.fallback_ms`), and the landing's
-  and tiers' flights poll their runs every `poll`, not at `poll_at`.
+- **Not yet:** 1, quiet on the forge: a branch nothing has pushed is read on every hint and every `queue_window` (`keeping-up.status.md`) [in flight: change 157].
+- **Not yet:** 1, quiet on the forge: a gather reads its head's CI twice, and every pull read reads CI [in flight: change 158].
+- **Not yet:** 1, quiet on the forge: the repository's own facts are read again on each `Settings` and after each `PullFor` that finds none [in flight: change 159].
+- **Not yet:** 1, quiet on the forge, and `keeping-up.md`, 2: no fresh read is shared, and the landing's waits and the tiers' flights poll every `poll`, not at `poll_at` [in flight: change 160].
+- **Not yet:** 1, quiet on the forge: review and pull-file pages are sized for their largest row [in flight: change 161].
+- **Not yet:** 1, quiet on the forge: no read is conditional [in flight: change 155].
 - **Not yet:** `change/branch-path.md`, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts since P6 landed after
   `look-round-25`'s cut, is no role, and the list gives it no place or

@@ -22,6 +22,9 @@ pub fn limits() -> Limits {
         token_bytes: 64,
         key_bytes: 1200,
         connections: 2,
+        kept_bytes: u64::from(shared().calls)
+            .checked_mul(u64::from(shared().answer_bytes))
+            .expect("fixture answer room"),
         head_bytes: 4096,
         headers: 32,
         body_bytes_in: 1_048_576,

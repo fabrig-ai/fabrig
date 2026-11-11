@@ -106,7 +106,7 @@ fn ci_evidence_follows_native_commit_and_pull_reads() {
         api::Read::Statuses { commit: head, page: 1 },
         api::Read::Checks { commit: head },
         api::Read::PullFor { head: b"change".as_slice().into(), base: b"main".as_slice().into() },
-        api::Read::Pull { number },
+        api::Read::Pull { number, ci: false },
     ];
     let store = Store::new();
     for state in [raw::Check::Passed, raw::Check::Pending, raw::Check::Failed] {

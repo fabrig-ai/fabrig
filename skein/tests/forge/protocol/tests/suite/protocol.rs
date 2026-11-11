@@ -347,7 +347,7 @@ fn a_status_keeps_its_words_and_link() {
 }
 
 #[test]
-fn runs_ignore_other_workflows_and_page_by_the_raw_forgejo_listing() {
+fn runs_filter_by_workflow_before_paging() {
     let gate = workflow();
     let mut other = gate.clone();
     other.file = Box::from(b"other.yml".as_slice());
@@ -364,17 +364,17 @@ fn runs_ignore_other_workflows_and_page_by_the_raw_forgejo_listing() {
     }
     let Answer::Runs { runs, more } = world
         .read(Read::Runs { workflow: Box::from(b"gate.yml".as_slice()), commit: head, page: 1 })
-        .expect("locally filtered runs")
+        .expect("workflow runs")
     else {
         panic!("runs")
     };
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].workflow.as_ref(), b"gate.yml");
-    assert!(more, "two raw rows fill Forgejo's page");
+    assert!(!more, "only the selected workflow fills the page");
     assert_eq!(
         world
             .read(Read::Runs { workflow: Box::from(b"gate.yml".as_slice()), commit: head, page: 2 })
-            .expect("past raw page"),
+            .expect("past workflow page"),
         Answer::Runs { runs: Box::new([]), more: false }
     );
     world.finish();

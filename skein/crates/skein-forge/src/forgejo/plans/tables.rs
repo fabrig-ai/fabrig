@@ -16,6 +16,7 @@ pub struct Repository {
     pub object_format: ObjectFormat,
     pub merge_style: MergeStyle,
     pub html_url: Box<[u8]>,
+    pub settings: api::Settings,
 }
 impl Repository {
     #[must_use]

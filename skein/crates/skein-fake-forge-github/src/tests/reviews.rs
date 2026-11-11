@@ -24,8 +24,8 @@ fn github_fake_reviews_drive_the_plans_across_pages_and_skip_pending() {
     r::call(&mut h, a::Op::Write(a::Write::Review { number, verdict: None, body: f::boxed(b"pending") }));
     let token = r::token(&mut h);
     for (page, count, more) in [(1, 2, true), (2, 1, false)] {
-        let api::Answer::Reviews { reviews, more: actual } =
-            r::read(&mut h, &token, api::Read::Reviews { number, page }).unwrap()
+        let api::Answer::Reviews { reviews, more: actual, .. } =
+            r::read(&mut h, &token, api::Read::Reviews { number, page, skip: 0 }).unwrap()
         else {
             panic!("reviews")
         };
@@ -39,15 +39,18 @@ fn github_fake_reviews_drive_the_plans_across_pages_and_skip_pending() {
             assert_eq!(review.provenance, api::Provenance::Original);
         }
     }
-    let api::Answer::Remarks { remarks, more } =
-        r::read(&mut h, &token, api::Read::Remarks { number, review: *ids.get(0).unwrap(), page: 1 }).unwrap()
+    let api::Answer::Remarks { remarks, more, .. } =
+        r::read(&mut h, &token, api::Read::Remarks { number, review: *ids.get(0).unwrap(), page: 1, skip: 0 }).unwrap()
     else {
         panic!("review comments")
     };
     assert!(remarks.is_empty());
     assert!(!more);
-    assert_eq!(r::read(&mut h, &token, api::Read::Reviews { number: 999, page: 1 }), Err(api::Error::Missing));
-    assert_eq!(r::read(&mut h, &token, api::Read::Remarks { number, review: 999, page: 1 }), Err(api::Error::Missing));
+    assert_eq!(r::read(&mut h, &token, api::Read::Reviews { number: 999, page: 1, skip: 0 }), Err(api::Error::Missing));
+    assert_eq!(
+        r::read(&mut h, &token, api::Read::Remarks { number, review: 999, page: 1, skip: 0 }),
+        Err(api::Error::Missing)
+    );
     assert_eq!(h.hooks, 0);
 }
 #[test]

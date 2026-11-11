@@ -698,6 +698,8 @@ fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() 
             matches!(op,
             skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit })
                 if *commit == translate::commit(head))
+                || matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: true })
+                    if row(&world, landing).pull == Some(*number))
         });
         if read_ci && row(&world, landing).change.last_head == Some(translate::commit(head)) {
             break;
