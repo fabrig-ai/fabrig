@@ -79,7 +79,7 @@ merge's listing as the git layer does (`../protocol/git.status.md`).
   `bin/temper-box/tests/live.rs` holds no other rung.
    neither GitHub proof has shown it holds on `fabrig-ai` alone:
   `scripts/proof-live-github.sh` and `proof-live-github-managed.sh live`
-  stay for the next live walk, the second with `TEMPER_MANAGED_PERSON`
+  stay for the next live walk, the second with `TEMPER_TEST_MANAGED_PERSON`
   set. That sitting's relay admits GraphQL's `VIEWER` alone
   (`bin/temper-box/tests/support/relay_managed.rs`) where the story's
   admits `PULL` on the probe too (`bin/temper-box/tests/support/relay.rs`),

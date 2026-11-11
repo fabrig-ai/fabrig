@@ -93,12 +93,12 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   the person through a private notice file, followed by the script and
   retained with the sign-in secret redacted. Its config, data, cache and
   client roots stay in its own store, `forge-land` under
-  `TEMPER_LIVE_STORE` (by default `$HOME/src/rust/tmp/live-store`), on
+  `TEMPER_TEST_LIVE_STORE` (by default `$HOME/src/rust/tmp/live-store`), on
   pass or failure. A
   rerun uses the kept sign-in without a person and stops when that
   sign-in is expired or refused. It admits the deployment alone and
   makes its own client roots, so a sitting that failed before its
-  restart leaves a store a rerun can use. With `TEMPER_LIVE_ACCOUNT`
+  restart leaves a store a rerun can use. With `TEMPER_TEST_LIVE_ACCOUNT`
   naming a held ChatGPT record, a fresh store's first run moves it in by
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
@@ -134,13 +134,13 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   lacks before the core sees it, and a model the change itself sets is
   not in the catalogue yet. A focused test applies the fixture's own
   changes through ctl on the joined world (`checks.md`, 3), its engine holding the
-  Claude deployment's stock catalogue. `TEMPER_LIVE_CLAUDE` names the
+  Claude deployment's stock catalogue. `TEMPER_TEST_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
   box has stopped the script checks the path by `stat` alone: a private
   directory, still there. Whoever runs it holds the login for the run.
-  Its store is `forge-land-claude` under `TEMPER_LIVE_STORE`.
+  Its store is `forge-land-claude` under `TEMPER_TEST_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
@@ -278,7 +278,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
     (`../protocol/setup/owned.md`, 7); the model a held ChatGPT record,
-    `TEMPER_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
+    `TEMPER_TEST_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
     moved back by `account export` over the same path before the box
     stops, on a pass, a failure or a signal: the script's last act,
     which it checks by `stat` alone. Whoever runs it holds the login for
@@ -300,28 +300,28 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     or its model named by the script's argument.
 - **After every landing,** the owned-forge landing pair, needing no person:
   `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge` on a held ChatGPT
-  record (`TEMPER_LIVE_ACCOUNT`) and
+  record (`TEMPER_TEST_LIVE_ACCOUNT`) and
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
-  Code login (`TEMPER_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
+  Code login (`TEMPER_TEST_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
   named inputs of the after-landing tier. The tier runs profile `live-temper`
   under `--run-ignored only`, whose default filter selects these two alone.
   Automatic live runs take the cheapest models, as the user requires:
   `gpt-6-luna` and `claude-haiku-5-5`.
   - **One invocation, a store per story:** the runner sets one fresh
-    `TEMPER_LIVE_STORE`; each story takes its own store beneath it, named by the
+    `TEMPER_TEST_LIVE_STORE`; each story takes its own store beneath it, named by the
     script's argument for it, `forge-land` and `forge-land-claude`, so neither
     reuses the other's deployment. Each store keeps the story's rules: fresh when
     absent or empty, kept when it holds a deployment, and a held record moves into a
     fresh store only.
   - **The runner's part,** as `scripts/proof-live.sh`'s: a private `TMPDIR`; after
     the invocation, whatever its end, the held record returned by
-    `forge-land/give-back` in `TEMPER_LIVE_STORE` where it exists, both logins
+    `forge-land/give-back` in `TEMPER_TEST_LIVE_STORE` where it exists, both logins
     checked by `stat` alone, and any process left under the stores stopped.
   - **What the stories need of the runner,** and nothing else:
-    `TEMPER_LIVE_STORE`, an absolute path, made 0700 with its parents when
-    absent; `TEMPER_LIVE_ACCOUNT`, the held record, a regular file of the
+    `TEMPER_TEST_LIVE_STORE`, an absolute path, made 0700 with its parents when
+    absent; `TEMPER_TEST_LIVE_ACCOUNT`, the held record, a regular file of the
     runner's user, mode 0600, in a directory that user may write, since the
-    import removes the file; `TEMPER_LIVE_CLAUDE`, the login's resting path,
+    import removes the file; `TEMPER_TEST_LIVE_CLAUDE`, the login's resting path,
     and `claude` on `PATH`; a private `TMPDIR`. No directory above these
     needs a mode or a name: ctl opens DIRECTORY and FILE through their
     parents and checks DIRECTORY, its files and FILE alone

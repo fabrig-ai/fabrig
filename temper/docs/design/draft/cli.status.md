@@ -4,7 +4,6 @@
 
 - **Design lags:**
   - 4.1 and 5: `../protocol/binaries.md`, names the client `temper-client` and gives it no `temper box`.
-  - 4.6: the design documents that name the test set's variables by today's names (`TEMPER_E4_*`, `TEMPER_LIVE_*`, `TEMPER_MANAGED_*` and the rest), until C4.
   - 5: `../release.md`, sections 1, 2 and 5, give a release one file, the whole product, saved as `temper`.
   - 5: `../protocol/setup/box.md`, 6: the box spawns its TUI and hands it the local link, rather than `temper`'s TUI starting `temper-box --front` as its child and taking the link from it.
   - 6: `../client/tui/journeys.md`, section 2, and `../client/web/journeys.md`, section 2 and 3.1: the recorders are built only with the `record` feature, and the shipped bundle carries no recorder, rather than recorders built always and switched on by internal settings.
@@ -18,3 +17,4 @@
   - 3.2: `TEMPER_INTERNAL_BUNDLE=none` stays, for development builds' speed, though the user said a plain `cargo build` builds everything; without it, it still does. Adopted, for the user's review. To reverse: drop the variable, and every development build builds the browser's bundle.
   - 4.1: `ctl` stays in `temper`, internal, reading the user's "temper as TUI only" (11-08) with their "all ctl should be internal (for now)". Adopted, for the user's review. To reverse: `ctl` leaves `temper` for `temper-box` alone, and a deployment's people and agents have no `ctl` without the whole product.
   - 4.6: `dogfood-hacks.md`, a draft, still names `TEMPER_FORGE_NO_REGISTRATION` and `TEMPER_DUMP_LLM`, which C2 renames `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` and `TEMPER_INTERNAL_DUMP_LLM`; our own deployment sets the first, and must set the new name once it runs C2's build. It also says any value of `TEMPER_WORKSPACE_REUSE` counts as set, where 3.4 says empty is unset for every variable: C6 follows 3.4, so an empty `TEMPER_INTERNAL_WORKSPACE_REUSE` leaves reuse off (`../cli/README.md`, 8). For the user: that draft's words, and the deployment's setting.
+  - 4.6: two drafts still name test variables by their names before C4: `github.md` names `TEMPER_LIVE_GITHUB_KEEP`, and `macos.md` names `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER`, which C4 renames `TEMPER_TEST_LIVE_GITHUB_KEEP`, `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` (`../cli/README.md`, 11.3). For the user: those drafts' words.

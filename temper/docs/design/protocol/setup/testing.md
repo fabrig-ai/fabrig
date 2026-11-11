@@ -307,7 +307,7 @@ it checks of this document:
   prepare`, `run forgejo` and `run runner` itself, with no group's file
   (`box.md`, 4), then `temper-box serve`,
   whose setup host takes the handover and reconciles (`owned.md`, 5), with the
-  binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
+  binaries `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
   CI.
 - **The hinted story:** the same story with the keep's `poll`,
@@ -383,8 +383,8 @@ it checks of this document:
   unfinished, then gone on, to the App's installation, with no Start
   over, and connected (`owned.md`, 7).
 - **A first run set up for real,** a test of its own: `temper box` on
-  three empty scratch directories, with the binaries `TEMPER_FORGEJO`
-  and `TEMPER_FORGEJO_RUNNER` name placed where the fetch looks,
+  three empty scratch directories, with the binaries `TEMPER_TEST_FORGEJO`
+  and `TEMPER_TEST_FORGEJO_RUNNER` name placed where the fetch looks,
   `<cache>/forgejo/VERSION/forgejo` and
   `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner`, so that the
   fetch hashes them against the pins and fetches nothing (`owned.md`, 6): no
