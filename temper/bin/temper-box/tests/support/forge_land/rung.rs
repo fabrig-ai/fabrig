@@ -593,7 +593,7 @@ fn stop_box(boxed: &mut Child) -> Result<(), String> {
 
 /// Run only by proof-live with a held record and a fresh private deployment.
 pub fn green_light() {
-    let account = super::live_account().expect("rung-b0 requires TEMPER_LIVE_ACCOUNT");
+    let account = super::live_account().expect("rung-b0 requires TEMPER_TEST_LIVE_ACCOUNT");
     let (store, kept) = super::live_store(true);
     assert!(!kept, "a rung starts with a fresh box");
     let paths = ["config", "data", "cache"].map(|name| store.join(name));

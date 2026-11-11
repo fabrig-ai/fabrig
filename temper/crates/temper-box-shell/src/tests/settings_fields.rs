@@ -7,15 +7,11 @@ use settings_form::{
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");
         std::fs::write(path, rendered).expect("write settings fields reference");
         return;

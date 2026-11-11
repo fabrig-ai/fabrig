@@ -575,8 +575,8 @@ link is stored on the forge, eligibility counts per repository's forge,
 and approval waits merge into Needs you, Home and goal bands, with the
 files-page review link and Later. Proposals and help state the accepted
 owned-Forgejo limit: agents and CI run as the person, so the rule stops
-mistakes, not a deliberate bypass. A retained link is not cleared on a
-start outside the box with the same sole owner; that scope gap remains
+mistakes, not a deliberate bypass. A start outside the box, or with
+another sole owner or none, clears a restored link
 (`domain/forge/adoption.md`, 6; `draft/forge-identity.md`, section 9).
 The scripted composed story covers owned Forgejo; GitHub's full box
 story, real human reviews and rendered comparison remain unproved.
@@ -1132,7 +1132,7 @@ box integration, closure rows and help are built by their own plans; M6's
 release job and figures remain, and the parent's Later section is
 unchanged (`draft/deployment-binaries.status.md`).
 
-temper's command lines, `draft/cli.execution.md`'s C2 and C6: the box's
+temper's command lines, `draft/cli.execution.md`'s C2, C4 and C6: the box's
 binary is `temper-box`, a package under `bin/` whose crate is
 `temper-box-shell`, and the engine's, the worker's and the agent's,
 `temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
@@ -1141,8 +1141,10 @@ each holds a table on skein's, reached by `Table::reach`, with its help,
 `--version`, exit 2 for refused arguments, its pre-table modes as rows,
 and its reference documents generated beside `cli/README.md`. The
 internal variables are renamed `TEMPER_INTERNAL_*` and the twins
-dropped; the client's table is C3's (`cli/README.status.md`;
-`draft/cli.status.md`).
+dropped. The test set is `temper-test-env`'s table, its variables
+`TEMPER_TEST_*`, through which temper's tests read the environment, with
+its `test-env` generated beside the others. The client's table is
+C3's (`cli/README.status.md`; `draft/cli.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

@@ -49,13 +49,9 @@ fn the_help_is_the_page_ctl_then_the_tools() {
     fixtures::check_golden("help", tools);
 }
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_help_prints_as_its_golden_files() {
     for (tool, name) in GOLDENS {
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+        if temper_test_env::rewrite() {
             std::fs::write(
                 std::path::Path::new("src/tests/golden").join(name).with_extension("txt"),
                 fixtures::help(*tool),
@@ -479,10 +475,6 @@ fn each_row_says_what_it_does_and_prints() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_project_reference_is_what_the_table_renders() {
     let mut project = None;
     for group in table::GROUPS {
@@ -498,10 +490,7 @@ fn the_project_reference_is_what_the_table_renders() {
     crate::help::reference(group, &mut out).expect("project reference measured");
     let rendered = out.finish();
     let path = std::path::Path::new("../../docs/help/reference/ctl-project.md");
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         std::fs::write(path, &rendered).expect("write project reference");
     }
@@ -532,10 +521,6 @@ fn the_forge_reference_is_what_the_table_renders() {
 fn the_playground_reference_is_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
     for candidate in table::GROUPS {
@@ -551,10 +536,7 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     crate::help::reference(group, &mut out).expect("reference measured");
     let rendered = out.finish();
     let page = temper_docs::find(page_name).expect("reference page");
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new("../../docs/help/reference").join(page.name).with_extension("md");
         std::fs::write(path, &rendered).expect("write group reference");
