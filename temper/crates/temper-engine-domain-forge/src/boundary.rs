@@ -904,6 +904,7 @@ pub enum Ending {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub ending: Option<Ending>,
@@ -1376,6 +1377,11 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Keep the merge judgement in the decision admitting its effect.
+    Signed {
+        task: u64,
+        signed: Box<[SignOff]>,
+    },
     SetAway {
         request: Token,
         token: Token,
@@ -2498,7 +2504,19 @@ pub struct LoggedLanding {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
 }
+
+/// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SignOff {
+    pub person: u64,
+    pub head: skein_forge::api::Commit,
+    pub at: skein_lib::Wall,
+}
+
+/// Maximum distinct people retained with one change.
+pub const SIGN_OFFS: usize = 8;

@@ -115,7 +115,7 @@ fn a_landing_counts_once_and_at_either_site() {
             merged(&mut d, CHANGE, FIRST);
         }
         let mut repeated = Queue::uncapped();
-        landing_log::landed(&mut d, env().wall, FIRST, CHANGE, &mut repeated);
+        landing_log::landed(&mut d, env().wall, FIRST, CHANGE, Box::new([]), &mut repeated);
         assert!(repeated.is_empty());
         assert_eq!(
             d.project_facts.get(&PROJECT),
@@ -562,7 +562,12 @@ fn its_words_say_what_landed_since_the_brief() {
                 commit: [n; 32],
                 branch: b"main".as_slice().into(),
                 at: after(u64::from(n)),
-                changes: Box::new([LoggedChange { task: u64::from(n), pull: None, title: title.finish() }]),
+                changes: Box::new([LoggedChange {
+                    signed: Box::new([]),
+                    task: u64::from(n),
+                    pull: None,
+                    title: title.finish(),
+                }]),
             })
             .unwrap();
     }

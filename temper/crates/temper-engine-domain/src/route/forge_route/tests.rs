@@ -927,7 +927,13 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         if counted {
             assert_eq!(
                 facts.reviewers.as_ref(),
-                &[forge::Reviewer { person: 1, role: 1, head: SHA1, verdict: api::Verdict::Approve }]
+                &[forge::Reviewer {
+                    at: skein_lib::Wall::from_nanos(0),
+                    person: 1,
+                    role: 1,
+                    head: SHA1,
+                    verdict: api::Verdict::Approve
+                }]
             );
             assert!(facts.unmapped.is_empty());
         } else {
@@ -1196,6 +1202,7 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 3, repository: 1 },
         branch: Box::from(b"temper/7".as_slice()),

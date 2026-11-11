@@ -950,7 +950,12 @@ fn landing_logs_restore_and_report_their_missing_repository() {
             commit: [7; 32],
             branch: b"main".as_slice().into(),
             at: Wall::from_nanos(123),
-            changes: Box::new([LoggedChange { task: 51, pull: None, title: b"A lasting title".as_slice().into() }]),
+            changes: Box::new([LoggedChange {
+                signed: Box::new([]),
+                task: 51,
+                pull: None,
+                title: b"A lasting title".as_slice().into(),
+            }]),
         }]),
     });
     restore(&mut d, record.clone());
@@ -975,7 +980,7 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
         branch: vec![b'x'; usize::try_from(LIMITS.name_bytes).unwrap()].into(),
         at: Wall::EPOCH,
         changes: vec![
-            LoggedChange { task: 1, pull: None, title: Box::new([]) };
+            LoggedChange { signed: Box::new([]), task: 1, pull: None, title: Box::new([]) };
             usize::try_from(LIMITS.landing_members).unwrap()
         ]
         .into(),
