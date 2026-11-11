@@ -73,6 +73,8 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                     family(root, watch, wire::changes_panel(&changes(work)), out);
                 } else if let w::Watch::Forges = decoded.watch() {
                     super::forges_watched(root, Reference, watch, out);
+                } else if let w::Watch::Decided(key) = decoded.watch() {
+                    family(root, watch, decisions(key.project()), out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Project { project }) } => {
@@ -96,17 +98,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
             Down::Read { read, what: Readable::Jig(what) } => {
                 let value = match what {
                     c::Read::Inbox { group, .. } if name == "rail-across" => {
-                        Some(c::ReadValue::Inbox(Box::new(c::InboxPage {
-                            rows: if group == c::InboxReadGroup::Needs {
-                                inbox(name).needs
-                            } else {
-                                List::with_capacity(0)
-                            },
-                            before: None,
-                            after: None,
-                            cut: false,
-                            selection: None,
-                        })))
+                        Some(c::ReadValue::Inbox(Box::new(inbox_page(name, group))))
                     }
                     c::Read::Question { task, .. } if name == "rail-across" => {
                         Some(c::ReadValue::Question(Box::new(across_question(task))))
@@ -151,6 +143,24 @@ fn family(root: &mut Domain, watch: Token, bytes: Box<[u8]>, out: &mut Queue<Req
         },
     ] {
         step(root, Event::Client { event: jig_client::Event::Up { up } }, out);
+    }
+}
+fn decisions(project: u32) -> Box<[u8]> {
+    wire::decisions(
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false },
+        )
+        .expect("no decisions"),
+    )
+}
+fn inbox_page(name: &str, group: c::InboxReadGroup) -> c::InboxPage {
+    c::InboxPage {
+        rows: if group == c::InboxReadGroup::Needs { inbox(name).needs } else { List::with_capacity(0) },
+        before: None,
+        after: None,
+        cut: false,
+        selection: None,
     }
 }
 fn across_question(task: u64) -> c::Question {

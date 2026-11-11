@@ -128,12 +128,10 @@ fn choosing_another_project_changes_the_navigations_project() {
     let mut view = fixtures::view();
     fixtures::build(&mut view, &root);
     assert_rail(&view, b"Second");
-    let link = fixtures::find(view.tree(), Role::Link, b"Home").expect("selected project's adoption");
+    let link = fixtures::find(view.tree(), Role::Link, b"Home").expect("across Home");
     assert_eq!(
         crate::act(&mut view, link, Act::Press),
-        Some(Action::Pages(pages::Act::Go {
-            address: temper_client_domain::Address::Home { project: fixtures::SECOND_PROJECT }
-        }))
+        Some(Action::Pages(pages::Act::Go { address: temper_client_domain::Address::AllHome }))
     );
 }
 #[test]
