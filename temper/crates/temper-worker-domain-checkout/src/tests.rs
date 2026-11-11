@@ -93,7 +93,7 @@ impl Harness {
     /// Finish a replaced-head read and its pin, returning the start's next operation.
     fn replaced(&mut self, hold: Token, head: Commit) -> Op {
         let pin = self.next(hold, Done::Fetched { commit: head });
-        assert!(matches!(pin, Op::Fetch { into: Into::Landing, .. }), "prepare pins the replaced head");
+        let Op::Fetch { into: Into::Landing, .. } = pin else { panic!("prepare pins the replaced head") };
         self.next(hold, Done::Fetched { commit: head })
     }
 
@@ -562,7 +562,9 @@ fn a_missing_base_branch_is_created_from_the_default_branch() {
         account: None,
     };
     assert_eq!(create, expected, "created at the default branch's tip");
-    assert!(matches!(h.next(hold, Done::Succeeded), Op::Fetch { into: Into::Fetched, .. }));
+    let Op::Fetch { into: Into::Fetched, .. } = h.next(hold, Done::Succeeded) else {
+        panic!("read the push branch before pinning it")
+    };
     let check_out = h.replaced(hold, commit(1));
     assert_eq!(check_out, Op::CheckOut { at, commit: commit(9), clean: true });
     let ready = prepared(h.one(Event::Done { owner: hold, done: Done::Succeeded }));
@@ -1675,7 +1677,10 @@ fn fetching_saved_delivery() -> (Harness, Token) {
 fn a_saved_producer_delivers_before_its_delivery_branch_exists() {
     let (mut h, hold) = fetching_saved_delivery();
     let op = h.next(hold, failed(Fault::Missing { missing: Missing::Branch }));
-    assert!(matches!(op, Op::Fetch { into: Into::Landing, want: Want::Commit { commit: c }, .. } if c == commit(9)));
+    let Op::Fetch { into: Into::Landing, want: Want::Commit { commit: c }, .. } = op else {
+        panic!("pin the saved start when the push branch is missing")
+    };
+    assert_eq!(c, commit(9));
     let op = h.next(hold, Done::Fetched { commit: commit(9) });
     let Op::CheckOut { clean, .. } = op else { panic!("saved checkout") };
     assert!(!clean);
