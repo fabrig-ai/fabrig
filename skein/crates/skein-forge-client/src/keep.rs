@@ -29,6 +29,10 @@ pub(crate) struct Keep {
     fresh_active: bool,
 }
 #[derive(Hash, Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "branch presence since start is independent of watch, writer and hint state"
+)]
 struct Live {
     record: LiveRecord,
     alarm: u64,
@@ -36,6 +40,7 @@ struct Live {
     fresh: Fresh,
     writer: bool,
     presence: Presence,
+    branch_present: bool,
     pushed_by: Option<(Commit, u64)>,
     read: Sent,
     hinted: bool,
@@ -227,6 +232,7 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
         fresh: Fresh::Complete,
         writer: false,
         presence: Presence::Unknown,
+        branch_present: false,
         pushed_by: None,
         read: Sent::Current,
         hinted: false,

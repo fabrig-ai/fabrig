@@ -469,10 +469,10 @@ fn locate_keeps_the_repository() {
     assert!(h.component.forgejo_tables().repository(fixtures::REPO).is_some(), "located row kept");
 }
 #[test]
-fn settings_refresh_the_kept_repository() {
+fn settings_from_the_kept_repository_costs_nothing() {
     let mut h = fixtures::known();
     h.call(2, fixtures::REPO, Op::Read(Read::Settings));
-    answer(&mut h, REPOSITORY);
+    h.run(skein_lib::Duration::ZERO);
     assert_eq!(
         h.answered(2).expect("settings").result,
         Ok(Answer::Settings(api::Settings {
@@ -482,10 +482,10 @@ fn settings_refresh_the_kept_repository() {
             rebase: false
         }))
     );
-    assert_eq!(h.answered(2).expect("settings").cost, 1);
+    assert_eq!(h.answered(2).expect("settings").cost, 0);
     assert_eq!(
-        h.component.forgejo_tables().repository(fixtures::REPO).expect("refreshed row").merge_style,
-        d::MergeStyle::Merge
+        h.component.forgejo_tables().repository(fixtures::REPO).expect("kept row").merge_style,
+        d::MergeStyle::Squash
     );
 }
 #[test]

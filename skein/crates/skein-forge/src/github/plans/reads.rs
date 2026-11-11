@@ -178,6 +178,10 @@ impl Plan {
                 return Ok(self.send(Request::Locate { owner: owner.clone(), name: name.clone() }));
             }
             Read::Settings => {
+                if let Some(row) = tables.repository(self.repository) {
+                    let answer = api::Answer::Settings(row.settings.clone());
+                    return self.terminal(answer, bounds)?.ok_or(api::Error::InvalidAnswer);
+                }
                 self.stage = Stage::Read;
                 return Ok(self.send(Request::Repository { id: u64::from(self.repository.repository) }));
             }
@@ -475,12 +479,14 @@ impl Plan {
         refusal: Option<&document::Refusal>,
         tables: &mut Tables,
     ) -> api::Error {
-        let asked =
-            if let (Read::Branch { .. }, Stage::Read) | (Read::File { .. }, Stage::Raw) = (&self.read, self.stage) {
-                crate::github::failure::Asked::Leaf
-            } else {
-                crate::github::failure::Asked::Read
-            };
+        let asked = if let (Read::Branch { .. }, Stage::Read)
+        | (Read::File { .. }, Stage::Raw)
+        | (Read::PullFor { .. }, Stage::Listing) = (&self.read, self.stage)
+        {
+            crate::github::failure::Asked::Leaf
+        } else {
+            crate::github::failure::Asked::Read
+        };
         let error = failure::read(asked, status, head, refusal, self.repository, tables);
         if let Read::Job { .. } = self.read
             && error == api::Error::Missing

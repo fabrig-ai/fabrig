@@ -424,7 +424,17 @@ fn github_pull_for_falls_back_to_oldest() {
             assert_eq!(call.listing(&[]), Some(Step::send(listing_request(false))));
         }
         assert_eq!(call.heard(Heard::Head { status: 404, head: Head::new() }), failed(api::Error::Missing));
-        assert_eq!(call.tables.repository(KEY), None);
+        assert!(call.tables.repository(KEY).is_some());
+        let mut next = Plan::new(KEY, api::Op::Read(api::Read::Settings));
+        assert_eq!(
+            next.begin(bounds(), WORD, &mut call.tables),
+            Ok(Step::Done(Ok(api::Answer::Settings(api::Settings {
+                default_branch: Box::from(*b"main"),
+                merge: true,
+                squash: true,
+                rebase: true,
+            }))))
+        );
     }
 }
 #[test]

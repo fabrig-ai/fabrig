@@ -450,6 +450,7 @@ fn remember(stamps: &mut List<Delivery>, wanted: Delivery) -> bool {
 }
 fn branch_answered(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Commit, out: &mut Queue<Request>) {
     let row = d.keep.live.get_mut(key).expect("resource remains");
+    row.branch_present = true;
     if let Some((before, after)) = row.refused.ancestry
         && (row.record.cached.tip != Some(before) || commit != after)
     {
@@ -607,7 +608,10 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     let interval = if row.hinted {
         env.limits.hinted
     } else if row.presence == super::Presence::Missing {
-        env.limits.slow
+        match key.what {
+            What::Branch(_) if !row.branch_present => env.limits.slow.max(env.limits.fallback),
+            What::Branch(_) | What::Issue(_) | What::Pull(_) | What::Repository => env.limits.slow,
+        }
     } else {
         match key.what {
             What::Pull(_) => {
