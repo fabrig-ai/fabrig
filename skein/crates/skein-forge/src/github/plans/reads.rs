@@ -135,7 +135,9 @@ impl Plan {
             api::Read::Remarks { number, review, page, skip } => Read::Remarks { number, review, page, skip },
             api::Read::Collaborators { page } => Read::Collaborators { page },
             api::Read::Permission { user } => Read::Permission { user },
-            api::Read::PullFiles { number, head, page, skip, sides } => Read::PullFiles { number, head, page, skip, sides },
+            api::Read::PullFiles { number, head, page, skip, sides } => {
+                Read::PullFiles { number, head, page, skip, sides }
+            }
             api::Read::Checks { commit } => Read::Checks { commit },
             api::Read::Protection { branch } => Read::Protection { branch },
             api::Read::Job { attempt, max_bytes, part } => Read::Job { attempt, max_bytes, part },

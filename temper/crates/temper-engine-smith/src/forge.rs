@@ -116,7 +116,9 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
             number: positive_number(value, b"number")?,
             head: commit(value.required(b"head")?, b"head")?,
             page: page(value)?,
-            skip: u32::try_from(optional_number(value, b"skip", 0)?).or(Err(Problem::Range(b"skip")))?, sides: true }),
+            skip: u32::try_from(optional_number(value, b"skip", 0)?).or(Err(Problem::Range(b"skip")))?,
+            sides: true,
+        }),
         b"compare" => Ok(api::Read::Compare {
             before: commit(value.required(b"before")?, b"before")?,
             after: commit(value.required(b"after")?, b"after")?,

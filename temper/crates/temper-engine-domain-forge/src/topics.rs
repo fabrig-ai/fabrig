@@ -118,7 +118,13 @@ pub(crate) fn answer(
                     && pull.state == skein_forge::api::State::Open =>
             {
                 pending.stage = Stage::Page(1, 0);
-                Some(skein_forge::api::Read::PullFiles { number: pending.pull, head: pending.head, page: 1, skip: 0, sides: false })
+                Some(skein_forge::api::Read::PullFiles {
+                    number: pending.pull,
+                    head: pending.head,
+                    page: 1,
+                    skip: 0,
+                    sides: false,
+                })
             }
             Ok(_) | Err(_) => None,
         },
@@ -290,9 +296,10 @@ mod tests {
                 let pending = d.goal_file_reads.get(&owner).unwrap();
                 let Stage::Page(page, skip) = pending.stage else { panic!("file page") };
                 let (call, op) = crate::tests::fixtures::next_call(&mut d);
-                assert_eq!(op, api::Op::Read(api::Read::PullFiles {
-                    number: 1, head: [1; 32], page, skip, sides: false,
-                }));
+                assert_eq!(
+                    op,
+                    api::Op::Read(api::Read::PullFiles { number: 1, head: [1; 32], page, skip, sides: false })
+                );
                 crate::tests::fixtures::answer(
                     &mut d,
                     call,

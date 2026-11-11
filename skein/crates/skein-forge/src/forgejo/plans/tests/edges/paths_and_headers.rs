@@ -323,21 +323,24 @@ fn pull_file_pagination_uses_headers_or_page_fullness() {
                     })),
                 }
             }),
-            ("paths_only_last_page", PullFilesPage {
-                body: FULL_FILES,
-                paths: &FULL_PATHS,
-                has_more: Some(false),
-                sides: false,
-                expected: Step::Done(Ok(Answer::PullFiles {
-                    head: HEAD,
-                    files: Box::new([
-                        api::File { path: Box::from(*b"x"), before: None, after: None },
-                        api::File { path: Box::from(*b"y"), before: None, after: None },
-                    ]),
-                    more: false,
-                    cut: false,
-                })),
-            }),
+            (
+                "paths_only_last_page",
+                PullFilesPage {
+                    body: FULL_FILES,
+                    paths: &FULL_PATHS,
+                    has_more: Some(false),
+                    sides: false,
+                    expected: Step::Done(Ok(Answer::PullFiles {
+                        head: HEAD,
+                        files: Box::new([
+                            api::File { path: Box::from(*b"x"), before: None, after: None },
+                            api::File { path: Box::from(*b"y"), before: None, after: None },
+                        ]),
+                        more: false,
+                        cut: false,
+                    })),
+                },
+            ),
         ],
         |case| assert_eq!(pull_files_page(case.body, case.paths, case.has_more, case.sides), case.expected),
     );

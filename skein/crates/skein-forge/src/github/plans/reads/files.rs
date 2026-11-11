@@ -43,20 +43,26 @@ impl Plan {
         }
         if self.stage == Stage::Before || self.stage == Stage::After {
             if more {
-                return self.cut_files(api::Error::TooLarge(Excess {
-                    bound: api::Bound::AnswerBytes,
-                    limit: u64::from(bounds.answer_bytes),
-                    size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1),
-                    exact: false,
-                }), bounds);
+                return self.cut_files(
+                    api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size: self.size.saturating_add(skein_lib::len_u64(bytes.len())).saturating_add(1),
+                        exact: false,
+                    }),
+                    bounds,
+                );
             }
             if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
-                return self.cut_files(api::Error::TooLarge(Excess {
-                    bound: api::Bound::AnswerBytes,
-                    limit: u64::from(bounds.answer_bytes),
-                    size: self.size.saturating_add(skein_lib::len_u64(bytes.len())),
-                    exact: false,
-                }), bounds);
+                return self.cut_files(
+                    api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size: self.size.saturating_add(skein_lib::len_u64(bytes.len())),
+                        exact: false,
+                    }),
+                    bounds,
+                );
             }
             if let Err(error) = self.keep_bytes(0, &[&bytes], bounds) {
                 return self.cut_files(error, bounds);
@@ -285,7 +291,9 @@ impl Plan {
                     self.files.previous = file.previous;
                 }
             }
-            if let Err(error) = self.keep_bytes(u64::try_from(crate::measure::FILE_BYTES).expect("file width"), &[&file.path], bounds) {
+            if let Err(error) =
+                self.keep_bytes(u64::try_from(crate::measure::FILE_BYTES).expect("file width"), &[&file.path], bounds)
+            {
                 return self.cut_files(error, bounds);
             }
             self.files.current = Some(api::File { path: file.path, before: None, after: None });
@@ -296,7 +304,10 @@ impl Plan {
         }
         let files = core::mem::replace(&mut self.files.files, skein_lib::List::with_capacity(0)).into_boxed();
         if let Read::PullFiles { head, .. } = self.read {
-            self.terminal(api::Answer::PullFiles { head, files, more: self.files.more || self.files.full, cut: self.files.full }, bounds)
+            self.terminal(
+                api::Answer::PullFiles { head, files, more: self.files.more || self.files.full, cut: self.files.full },
+                bounds,
+            )
         } else {
             Err(api::Error::InvalidAnswer)
         }

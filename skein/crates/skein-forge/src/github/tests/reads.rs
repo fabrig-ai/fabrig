@@ -841,20 +841,22 @@ fn pull_files_listing_skipping(cap: Bounds, next: bool, skip: u32, sides: bool) 
     let mut call = started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip, sides }, cap);
     let exchange = sent(call.done(Document::Pull(fixtures::pull(3))));
     let exchange = if sides {
-    assert_eq!(exchange.comparison, crate::github::plans::plan::Comparison::MergeBase);
-    assert_eq!(
-        exchange.request,
-        Request::Compare {
-            owner: owner(),
-            name: name(),
-            before: fixtures::pull(3).base_commit,
-            after: review(1).commit,
-            per_page: 1
-        }
-    );
-    call.head(false);
-    sent(call.done(Document::Compare(document::Compare { merge_base: Some(merge_base()), ..comparison(1000, 3) })))
-    } else { exchange };
+        assert_eq!(exchange.comparison, crate::github::plans::plan::Comparison::MergeBase);
+        assert_eq!(
+            exchange.request,
+            Request::Compare {
+                owner: owner(),
+                name: name(),
+                before: fixtures::pull(3).base_commit,
+                after: review(1).commit,
+                per_page: 1
+            }
+        );
+        call.head(false);
+        sent(call.done(Document::Compare(document::Compare { merge_base: Some(merge_base()), ..comparison(1000, 3) })))
+    } else {
+        exchange
+    };
     let expected = cap.page_size.min(100);
     assert_eq!(
         exchange.request,
@@ -884,7 +886,8 @@ fn github_pull_files_stale_before_contents() {
         Accept::Json,
     );
     for sides in [true, false] {
-        let mut call = started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0, sides }, bounds());
+        let mut call =
+            started(api::Read::PullFiles { number: 3, head: review(1).commit, page: 2, skip: 0, sides }, bounds());
         let mut pull = fixtures::pull(3);
         pull.head_commit = merge_base();
         assert_eq!(call.done(Document::Pull(pull)), ended(Err(api::Error::Stale)));
@@ -1003,7 +1006,9 @@ fn github_pull_files_merge_base_rename_add_remove() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks whole-file admission, paging and raw-side refusals")]
 fn github_pull_files_page_and_budget() {
-    for (more, skip, sides) in [(false, 0, true), (true, 0, true), (false, 1, true), (true, 1, true), (false, 0, false), (true, 1, false)] {
+    for (more, skip, sides) in
+        [(false, 0, true), (true, 0, true), (false, 1, true), (true, 1, true), (false, 0, false), (true, 1, false)]
+    {
         let mut call = pull_files_listing(bounds(), more);
         assert_eq!(
             call.done(Document::Rows),
@@ -1019,15 +1024,18 @@ fn github_pull_files_page_and_budget() {
         }
         let result = call.done(Document::Rows);
         if !sides {
-            assert_eq!(result, ended(Ok(api::Answer::PullFiles {
-                head: review(1).commit,
-                files: Box::from([
-                    api::File { path: Box::from(*b"x"), before: None, after: None },
-                    api::File { path: Box::from(*b"y"), before: None, after: None },
-                ]),
-                more,
-                cut: false,
-            })));
+            assert_eq!(
+                result,
+                ended(Ok(api::Answer::PullFiles {
+                    head: review(1).commit,
+                    files: Box::from([
+                        api::File { path: Box::from(*b"x"), before: None, after: None },
+                        api::File { path: Box::from(*b"y"), before: None, after: None },
+                    ]),
+                    more,
+                    cut: false,
+                }))
+            );
             continue;
         }
         side(sent(result), b"x", merge_base());
@@ -1123,12 +1131,19 @@ fn github_file_sides_past_remaining_room_cut_before_incomplete_file() {
         for path in [b"x", b"y"] {
             call.heard(Heard::Row(Row::File(file(path)))).unwrap();
         }
-        assert_eq!(call.done(Document::Rows), ended(Ok(api::Answer::PullFiles {
-            head: review(1).commit,
-            files: Box::from([api::File { path: Box::from(if skip == 0 { *b"x" } else { *b"y" }), before: None, after: None }]),
-            more: skip == 0,
-            cut: skip == 0,
-        })));
+        assert_eq!(
+            call.done(Document::Rows),
+            ended(Ok(api::Answer::PullFiles {
+                head: review(1).commit,
+                files: Box::from([api::File {
+                    path: Box::from(if skip == 0 { *b"x" } else { *b"y" }),
+                    before: None,
+                    after: None
+                }]),
+                more: skip == 0,
+                cut: skip == 0,
+            }))
+        );
     }
     // Three descriptors fit, but only the first complete file and three side bytes do.
     let cap = Bounds { answer_bytes: 198, ..bounds() };
@@ -1148,12 +1163,19 @@ fn github_file_sides_past_remaining_room_cut_before_incomplete_file() {
                 call.head(false);
                 side(sent(raw_body(&mut call, b"", false)), b"y", review(1).commit);
                 call.head(false);
-                assert_eq!(raw_body(&mut call, body, more), ended(Ok(api::Answer::PullFiles {
-                    head: review(1).commit,
-                    files: Box::from([api::File { path: Box::from(*b"x"), before: Some(Box::from([])), after: Some(Box::from([b'a'; 65])) }]),
-                    more: true,
-                    cut: true,
-                })));
+                assert_eq!(
+                    raw_body(&mut call, body, more),
+                    ended(Ok(api::Answer::PullFiles {
+                        head: review(1).commit,
+                        files: Box::from([api::File {
+                            path: Box::from(*b"x"),
+                            before: Some(Box::from([])),
+                            after: Some(Box::from([b'a'; 65]))
+                        }]),
+                        more: true,
+                        cut: true,
+                    }))
+                );
             } else {
                 side(first, b"y", merge_base());
                 call.head(false);
@@ -1163,15 +1185,26 @@ fn github_file_sides_past_remaining_room_cut_before_incomplete_file() {
                 call.head(false);
                 side(sent(raw_body(&mut call, b"", false)), b"z", review(1).commit);
                 call.head(false);
-                assert_eq!(raw_body(&mut call, b"", false), ended(Ok(api::Answer::PullFiles {
-                    head: review(1).commit,
-                    files: Box::from([
-                        api::File { path: Box::from(*b"y"), before: Some(Box::from([])), after: Some(Box::from(*b"four")) },
-                        api::File { path: Box::from(*b"z"), before: Some(Box::from([])), after: Some(Box::from([])) },
-                    ]),
-                    more: false,
-                    cut: false,
-                })));
+                assert_eq!(
+                    raw_body(&mut call, b"", false),
+                    ended(Ok(api::Answer::PullFiles {
+                        head: review(1).commit,
+                        files: Box::from([
+                            api::File {
+                                path: Box::from(*b"y"),
+                                before: Some(Box::from([])),
+                                after: Some(Box::from(*b"four"))
+                            },
+                            api::File {
+                                path: Box::from(*b"z"),
+                                before: Some(Box::from([])),
+                                after: Some(Box::from([]))
+                            },
+                        ]),
+                        more: false,
+                        cut: false,
+                    }))
+                );
             }
         }
     }

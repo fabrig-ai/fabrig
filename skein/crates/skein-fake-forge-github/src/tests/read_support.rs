@@ -100,20 +100,29 @@ pub fn read(h: &mut f::Harness, token: &Secret, read: api::Read) -> Result<api::
     read_expecting(h, token, read, None)
 }
 
-pub fn read_expecting(h: &mut f::Harness, token: &Secret, read: api::Read, expected: Option<&[Request]>) -> Result<api::Answer, api::Error> {
+pub fn read_expecting(
+    h: &mut f::Harness,
+    token: &Secret,
+    read: api::Read,
+    expected: Option<&[Request]>,
+) -> Result<api::Answer, api::Error> {
     let mut plan = Plan::new(api::Repository { forge: 1, repository: 2 }, read);
     let mut tables = Tables::new(4, 8);
     let mut step = plan.begin(bounds(), b"example-app", &mut tables).expect("begin read plan");
     for index in 0..64_usize {
         let exchange = match step {
             Step::Done(result) => {
-                if let Some(expected) = expected { assert_eq!(index, expected.len()); }
+                if let Some(expected) = expected {
+                    assert_eq!(index, expected.len());
+                }
                 return result;
-            },
+            }
             Step::Redirect { .. } => panic!("this plan uses only API exchanges"),
             Step::Send(exchange) => exchange,
         };
-        if let Some(expected) = expected { assert_eq!(Some(&exchange.request), expected.get(index)); }
+        if let Some(expected) = expected {
+            assert_eq!(Some(&exchange.request), expected.get(index));
+        }
         let events = exchange_events(h, &exchange, token);
         let mut next = None;
         for event in events.into_boxed() {

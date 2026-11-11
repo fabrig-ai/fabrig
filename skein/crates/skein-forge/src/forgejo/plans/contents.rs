@@ -54,7 +54,8 @@ pub struct Plan {
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
-        let (skip, sides) = if let api::Read::PullFiles { skip, sides, .. } = &read { (*skip, *sides) } else { (0, false) };
+        let (skip, sides) =
+            if let api::Read::PullFiles { skip, sides, .. } = &read { (*skip, *sides) } else { (0, false) };
         let (state, limit) = match read {
             api::Read::PullFiles { number, head, page, .. } => (
                 State::Pull {
@@ -379,7 +380,9 @@ impl Plan {
                 let before = if self.sides {
                     reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
                         .ok_or(api::Error::InvalidAnswer)?
-                } else { head };
+                } else {
+                    head
+                };
                 Ok((
                     State::Files(Sides {
                         before,

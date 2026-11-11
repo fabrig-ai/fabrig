@@ -98,10 +98,13 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
             Request::PullFiles { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number, page, per_page: 2 },
         ];
         let expected = if sides { None } else { Some(paths_only_requests.as_slice()) };
-        let api::Answer::PullFiles { files, more: actual, .. } =
-            r::read_expecting(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page, skip: 0, sides }, expected)
-                .expect("pull file plan")
-        else {
+        let api::Answer::PullFiles { files, more: actual, .. } = r::read_expecting(
+            &mut h,
+            &token,
+            api::Read::PullFiles { number, head: r::object(commit), page, skip: 0, sides },
+            expected,
+        )
+        .expect("pull file plan") else {
             panic!("pull files")
         };
         assert_eq!(files.len(), count);
@@ -167,9 +170,12 @@ fn github_fake_compare_uses_the_merge_base_on_divergent_branches() {
     let (_, Document::Compare(row)) = h.decode(Kind::Compare, &response) else { panic!("compare") };
     assert_eq!(row.merge_base, None, "names-only Compare keeps no merge base id");
     assert_eq!((row.ahead_by, row.behind_by), (1, 1));
-    let api::Answer::PullFiles { files, .. } =
-        r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0, sides: true }).unwrap()
-    else {
+    let api::Answer::PullFiles { files, .. } = r::read(
+        &mut h,
+        &token,
+        api::Read::PullFiles { number, head: r::object(commit), page: 1, skip: 0, sides: true },
+    )
+    .unwrap() else {
         panic!("files")
     };
     for file in &files {

@@ -544,7 +544,10 @@ fn read_inner_overflow_is_too_large() {
     let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
         panic!("expected a typed size refusal");
     };
-    for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0, sides: true }, Read::Checks { commit: HEAD }] {
+    for read in [
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1, skip: 0, sides: true },
+        Read::Checks { commit: HEAD },
+    ] {
         let mut run = bounded_run(Op::Read(read));
         let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
             panic!("expected a typed size refusal");

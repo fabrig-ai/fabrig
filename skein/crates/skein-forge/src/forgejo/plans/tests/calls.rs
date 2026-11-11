@@ -229,7 +229,10 @@ fn content_cases() -> [ReadCase; 6] {
             name: "pull paths",
             known: true,
             read: Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: false },
-            replies: &[(200, PULL), (200, br#"[{"filename":"a","status":"modified"},{"filename":"b","status":"added"}]"#)],
+            replies: &[
+                (200, PULL),
+                (200, br#"[{"filename":"a","status":"modified"},{"filename":"b","status":"added"}]"#),
+            ],
             expected: Ok(Answer::PullFiles {
                 head: HEAD,
                 files: Box::new([
@@ -507,7 +510,11 @@ fn listings() -> [Listing; 7] {
             "commits/0100000000000000000000000000000000000000/status?page=1&limit=",
         ),
         (Read::Collaborators { page: 1 }, &[], "collaborators?page=1&limit="),
-        (Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true }, &[PULL], "pulls/1/files?page=1&limit="),
+        (
+            Read::PullFiles { number: 1, head: HEAD, page: 1, skip: 0, sides: true },
+            &[PULL],
+            "pulls/1/files?page=1&limit=",
+        ),
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],
