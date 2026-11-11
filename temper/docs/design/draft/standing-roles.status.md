@@ -2,31 +2,34 @@
 
 2026-11-11. Where the design lags or departs from [standing-roles.md](standing-roles.md).
 
-Sections 2, 3, 5 and 9, but for areas and routing, are carried by jig's
-`domain/tasks/standing.md` and `../domain/agent/standing.md`, milestone R1
-of `whole-story.execution.md`, but for the lags and departures below.
+Sections 2, 3, 5 and 9 are carried by jig's `domain/tasks/standing.md`
+and `../domain/agent/standing.md`, milestone R1 of
+`whole-story.execution.md`; sections 4, 8 and 10, areas and routing,
+outside parties and the stock's roles, by `../domain/areas.md`,
+`../domain/findings.md`, `../client/ctl/tools.md` and
+`../protocol/configuration/stock.md` and `settings.md`, 8, milestone R2;
+each but for the lags and departures below.
 
 - **Design lags:**
-  - 2, 4 and 9: temper's `../domain/findings.md`, sections 2, 6 and 9 name a
-    project's areas per repository and one triager per project; areas in
-    words with an owner, and the triager's act handing to that owner, are
-    not designed, so a standing role's spec words say what it covers
-    (`../domain/agent/standing.md`, section 2).
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.status.md`, 7).
   - 6 and 7: `../client/pages/README.md`, *Team*, draws a project's people
     alone (`surfaces.status.md`, 6), with no standing role's card or
     report, and its 5.3 and `standing-roles.md`, section 6 no conversation with one; Home's
     brief reading the owners' Nows is `surfaces.status.md`'s.
-  - 8 and 11: `../client/ctl/tools.md`, 3 has `finding route`, `finding
-    backlog` and `finding drop`, but no `finding file`, `need ask` or
-    `role talk`.
-  - 10: `stock-ways.md`, section 2 lets a way set how work starts and lands
-    alone, and its 3.3 and `../protocol/configuration/settings.md`, 8 bring no
-    standing role with a way; `../protocol/configuration/stock.md` holds
-    one standing role's charter, 13, for any work, and no triager's,
-    prover's or porter's.
+  - 9 and 11: `../client/ctl/tools.md`, 3 has no `role talk`.
+  - 10: no page draws a project's standing roles with their areas, wakes
+    and budgets on How work runs, nor "Hand an area to a role" on Team:
+    `../client/pages/team.md` leaves its areas and that act to its later
+    parts (`whole-story.execution.md`, P3d and P4c); the `ways` subject
+    carries what each way brings (`../client/forge/records.md`).
 - **Design departs:**
+  - 4: the triager hands a finding to its area's owner by the act `hand`,
+    which sets the finding's area on temper's record, its why kept, not
+    by writing its `area:` label: a finding is temper's record, its issue
+    a projection whose labels are later work (`../domain/findings.md`,
+    sections 1 and 2; `../domain/areas.md`, section 5): R2's design,
+    2026-11-11.
   - 3: a session also ends when its rules change, by a move to a newer
     revision of the settings or an amendment of its own instructions,
     since a resumed run keeps the instructions its session began with
@@ -50,4 +53,7 @@ of `whole-story.execution.md`, but for the lags and departures below.
     `domain/tasks/standing.md`, section 9).
   - 6: who may talk with a standing role, and whose instruction may become a
     rule (section 12).
-  - 12: a standing role's default model and budget, per stock way.
+  - 10 and 12: the stock triager's weekly budget, 25,000 units, $25 at
+    init's prices, taken as the default (`../protocol/configuration/stock.md`,
+    charter 14) and asked of the user on 2026-11-11; the other roles'
+    budgets and every role's default model, per stock way.

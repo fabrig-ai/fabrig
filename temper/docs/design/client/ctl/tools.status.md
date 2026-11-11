@@ -6,14 +6,17 @@
 
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
 
-- **Not yet:** 1: the groups `finding`, `qa`, `party` and
+- **Not yet:** 1, 3 and 5: the group `party`, `party make`, and the host's `sign-in --service` [in flight: change 724].
+
+- **Not yet:** 1, 2 and 3: the groups `finding` and `need`, FINDING's form and the placeholders `AREA` and `PARTY`; `finding list` and `finding show`; `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` [in flight: change 749].
+
+- **Not yet:** 1: the groups `qa` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
-  2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
+  2: `repository receipts`, `qa marks`,
   `qa passes` and `hold list`. 3: `task move
-  --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold` and `project hold`.
+  --under`, `task succeed --by`, `qa choose`, `task hold` and `project hold`.
    area 2's procedure executor choice for `goal start`,
-  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
+  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `deployment
   show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.

@@ -5,9 +5,20 @@ its design from its drafts, from the status files below. A standing
 role is the stock's charter 13 and template 7, jig's task that stands,
 started with `temper ctl role start` and read with `role list` and
 `role show`, its person its requester, moved to an owner when that
-person leaves the project (`domain/agent/standing.status.md`); its
-areas, routing, talk and reports are the standing-roles draft's later
-milestones (`draft/standing-roles.status.md`). The TUI's
+person leaves the project (`domain/agent/standing.status.md`). A
+project's areas, said in words with their owners, and its triager are
+kinds 12 and 13; a finding is temper's record in its project, held by
+the owner its area gives, else the triager, else the project's owners,
+derived at each act, a task told by news and a person in Needs you;
+`temper ctl` files, hands on and triages with `finding`, asks with
+`need ask`, and makes a service party that signs in with `sign-in
+--service`; agents have the `finding` tool; a red of no goal's is filed
+for the triager; and the stock holds charters 14 to 16, the triager,
+prover and porter, Draft first bringing the triager
+(`domain/areas.status.md`, `domain/findings.status.md`). A finding's
+issue, labels, matching and QA are not built, and talking with a role
+and its reports are the standing-roles draft's later milestones
+(`draft/standing-roles.status.md`). The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
@@ -285,8 +296,8 @@ parts one pure function, with a fuzz test of their rules, the joint
 world's two people reading each other and three gallery states; its
 render check and walk follow landing. Its repair gives a box the role
 "Owner", People's head the role its people share, "owners of shop", and
-a line's count in words, as `team/team.html` does. No setting names the
-project's triager, so its line isn't drawn; areas, owners, the triager
+a line's count in words, as `team/team.html` does. Team draws no line
+for the project's triager, kind 13; areas, owners, the triager
 as Who routes and a role's card are P4b's and P4c's, and a line's
 sign-offs wait on sign-offs by path and kept sign-offs
 (`client/pages/team.status.md`; `client/web/README.status.md`, 2.3 and `client/web/look.status.md` and `client/web/gallery.status.md`, 2
@@ -321,8 +332,8 @@ top bar, the tabs, Home, Needs you, Work and a chat's bar and composer,
 with a fuzz test of the tabs' rule and rows of the gallery's prints; an
 Ask temper chat's thread and the path's stops keep the mock's sizes, and
 the render check and walk follow landing. Tell temper is designed and
-not built, waiting for the engine to file a person's word as a finding
-and for a setting naming the project's triager (`client/pages/README.md` and `client/view.md`, 3 and `client/README.md`, 5
+not built, its own milestone to file a person's word as a finding
+for the project's triager (`client/pages/README.md` and `client/view.md`, 3 and `client/README.md`, 5
 ; `client/pages/README.status.md`; `client/web/look.status.md`
 ; `draft/surfaces.status.md`, 9, 10 and 14). What reaches a person is
 the whole story's milestone N1, by plan `ui-reaches`: kind 8, a
@@ -515,12 +526,14 @@ workflow words and a saved start overtaken by a repair remain separate work
 `draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
-living to cleared; a red of no goal's, trailers, what the forge
+living to cleared, and a red of no goal's filed as a finding for the
+project's triager; trailers, what the forge
 shows and the landing log's trailers and verdicts are not (`domain/after-landing.md`,
 `protocol/store.md`), and a red range's probes walk its landings in
 order rather than bisect them (`domain/after-landing.md`); nor are
-findings, whole (`domain/findings.md`, with their families in
-`protocol/store.md` and their groups in `client/ctl/README.md`). The
+a finding's issue, labels, matching and QA (`domain/findings.md`, with
+`Mark` and `QaPass` in `protocol/store.md` and the `qa` group in
+`client/ctl/README.md`). The
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but

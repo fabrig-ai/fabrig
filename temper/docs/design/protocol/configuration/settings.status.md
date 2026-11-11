@@ -1,6 +1,9 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+
+- **Not yet:** 2: kinds 12, a project's areas (`project-areas`), and 13, its triager (`project-triager`), each owner an `AreaOwner`: registered, judged by the forge and by the root, kept, erased with their project, read in its scope, named in settings files and a run's tools [in flight: change 733].
+- **Not yet:** 8, *The standing roles a way brings*: Draft first's kind 13 item, its `WayRole` for the triager, and the way's act starting it [in flight: change 748].
 
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
