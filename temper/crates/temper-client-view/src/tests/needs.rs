@@ -767,12 +767,13 @@ fn opened_card_and_later_order() {
     assert!(!has(&view, b"The last one"));
     assert!(has(&view, b"later"));
     assert!(has(&view, "Decided for you · 1".as_bytes()));
-    assert!(has(&view, b"for 24 hours, then in each task's history"));
+    assert!(!has(&view, b"for 24 hours, then in each task's history"));
+    assert!(f::find(view.tree(), Role::Button, b"Limits").is_some());
     let nodes = main(&view);
     let answered = nodes.iter().position(|node| node.styles.as_slice().contains(&look::ANSWERED_SECTION)).unwrap();
     let decided = nodes
         .iter()
-        .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
+        .position(|node| node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes()))
         .unwrap();
     assert!(answered < decided);
 }
@@ -978,7 +979,6 @@ pub(super) fn decided_fixture(filter: d::address::Filter, count: u32, open: bool
     root
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
 fn done_with_and_without_lines_and_home_project() {
     for (answered, decided_rows) in [(false, false), (true, false), (false, true), (true, true)] {
         let (mut root, _, decided) =
@@ -1000,7 +1000,9 @@ fn done_with_and_without_lines_and_home_project() {
             let nodes = main(&view);
             let region = nodes
                 .iter()
-                .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
+                .position(|node| {
+                    node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes())
+                })
                 .unwrap();
             let home =
                 nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();
@@ -1013,6 +1015,10 @@ fn done_with_and_without_lines_and_home_project() {
             Some(d::Action::Pages(pages::Act::Go { address: Address::AllHome }))
         );
     }
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
+fn decided_head_and_rows_follow_the_project_filter() {
     for (open, count, project, showing) in [
         (false, 0, None, 0),
         (true, 0, None, 0),
@@ -1026,7 +1032,8 @@ fn done_with_and_without_lines_and_home_project() {
         for (mut view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
             let nodes = main(&view);
             assert_eq!(nodes.iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), showing);
-            assert_eq!(f::find(view.tree(), Role::Region, b"Decided for you").is_some(), showing > 0);
+            let heading = format!("Decided for you · {showing}");
+            assert_eq!(f::find(view.tree(), Role::Region, heading.as_bytes()).is_some(), showing > 0);
             if showing == 0 {
                 assert!(!has(&view, b"were decided for you"));
                 continue;
@@ -1035,16 +1042,19 @@ fn done_with_and_without_lines_and_home_project() {
                 f::find(view.tree(), Role::Heading { level: 2 }, format!("Decided for you · {showing}").as_bytes())
                     .is_some()
             );
-            assert!(has(&view, b"for 24 hours, then in each task's history"));
+            assert_eq!(has(&view, b"for 24 hours, then in each task's history"), project.is_none());
+            assert_eq!(f::find(view.tree(), Role::Button, b"Limits").is_some(), project.is_some());
             assert!(has(&view, b"Which approach?"));
             assert!(has(&view, b"Fixed the harness."));
             assert!(has(&view, b"Allowed: test-only changes are decided and listed."));
             assert!(has(&view, b"Tests are its area."));
             let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
-            assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
             if project.is_some() {
-                let other = if project == Some(f::PROJECT) { "Second ·".as_bytes() } else { "Shop ·".as_bytes() };
-                assert!(!has(&view, other));
+                assert!(has(&view, "Decided task · 01:05".as_bytes()));
+                assert!(!has(&view, "Shop ·".as_bytes()));
+                assert!(!has(&view, "Second ·".as_bytes()));
+            } else {
+                assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
             }
             if open && browser {
                 let sentence = match showing {
@@ -1059,10 +1069,22 @@ fn done_with_and_without_lines_and_home_project() {
             }
             let region = nodes
                 .iter()
-                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Decided for you"))
+                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(heading.as_bytes()))
                 .unwrap();
             let done_or_list = nodes.iter().position(|n| n.role == Role::Heading { level: 1 }).unwrap();
             assert!(region > done_or_list);
+            if let Some(project) = project {
+                let limits = f::find(view.tree(), Role::Button, b"Limits").unwrap();
+                let (node, action) = if browser {
+                    (limits, Act::Press)
+                } else {
+                    f::terminal_command(view.tree(), &view.limits().tree, limits, b"Limits", heading.as_bytes())
+                };
+                assert_eq!(
+                    crate::act(&mut view, node, action),
+                    Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Limits { project })))
+                );
+            }
             let over = f::find(view.tree(), Role::Button, b"Overturn").unwrap();
             assert_eq!(
                 crate::act(&mut view, over, Act::Press),

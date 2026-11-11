@@ -155,7 +155,6 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
             2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
         },
     };
-    let headline = if sentence.is_empty() { needs } else { crate::accounts::words::join(&[&sentence, b" ", &needs]) };
     let (lede, byline) = match brief {
         Some(brief) => {
             let lede = if brief.lede().is_empty() { None } else { Some(brief.lede().into()) };
@@ -164,7 +163,7 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
         }
         None => (None, None),
     };
-    if let (Some(spell), Some(shown)) = (&facts.spell, &facts.decided) {
+    if let Some(spell) = &facts.spell {
         if let Some(end) = spell.end {
             let expires = skein_lib::Wall::from_nanos(end.as_nanos().saturating_add(86_400_000_000_000));
             times.next = [times.next, Some(expires)].into_iter().flatten().min();
@@ -175,14 +174,16 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
             None => w.say(Word::HomeAwayNow, &[]),
         };
         kicker = w.say(Word::HomeAwaySpan, &[Hole::Name(since), Hole::Name(end)]);
-        let decided = if shown.showing == 1 {
-            w.say(Word::HomeDecidedOne, &[])
-        } else {
-            let number = match number_word(shown.showing) {
-                Some(word) => w.say(word, &[]),
-                None => skein_lib::Decimal::of(u64::from(shown.showing)).as_bytes().into(),
-            };
-            w.say(Word::HomeDecidedMany, &[Hole::Name(number)])
+        let decided = match &facts.decided {
+            Some(shown) if shown.showing == 1 => w.say(Word::HomeDecidedOne, &[]),
+            Some(shown) => {
+                let number = match number_word(shown.showing) {
+                    Some(word) => w.say(word, &[]),
+                    None => skein_lib::Decimal::of(u64::from(shown.showing)).as_bytes().into(),
+                };
+                w.say(Word::HomeDecidedMany, &[Hole::Name(number)])
+            }
+            None => needs,
         };
         let landed = match spell.landed {
             None | Some(0) => Box::default(),
@@ -193,6 +194,7 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
             if landed.is_empty() { decided } else { crate::accounts::words::join(&[&landed, b" ", &decided]) };
         return Intro { kicker, headline, lede, byline };
     }
+    let headline = if sentence.is_empty() { needs } else { crate::accounts::words::join(&[&sentence, b" ", &needs]) };
     Intro { kicker, headline, lede, byline }
 }
 #[expect(
@@ -334,12 +336,13 @@ fn needs(
     b.name(&w.say(Word::NeedsYou, &[]));
     b.open(Role::Slot);
     b.style(look::HOME_HEAD);
-    text(
-        b,
-        Role::Heading { level: 2 },
-        &w.say(if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount }, &[Hole::Number(u64::from(count))]),
-        Some(look::HOME_SIGNAL),
-    );
+    let heading = match (facts.spell.is_some(), cut) {
+        (true, false) => Word::HomeStillNeedsCount,
+        (true, true) => Word::HomeStillNeedsCountMore,
+        (false, false) => Word::HomeNeedsCount,
+        (false, true) => Word::NeedsHeadCut,
+    };
+    text(b, Role::Heading { level: 2 }, &w.say(heading, &[Hole::Number(u64::from(count))]), Some(look::HOME_SIGNAL));
     go(b, bindings, &w.say(Word::AllHomeAllNeeds, &[]), inbox_address(project), None);
     b.close();
     let lines = session.answered(times.now, ANSWERED_ON_HOME, Some(project));

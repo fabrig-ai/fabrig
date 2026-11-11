@@ -1334,9 +1334,21 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-decided",
         heading: "The repository has no license. Name one in the README?",
         parts: &[
-            Part::Named { role: Role::Region, name: "Decided for you" },
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Text, name: "for 24 hours, then in each task's history" },
+            Part::Absent { role: Role::Button, name: "Limits" },
             Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
             Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
+        ],
+    },
+    Holds {
+        name: "needs-decided-project",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Text, name: "welcome-stall · 01:05" },
+            Part::Absent { role: Role::Text, name: "for 24 hours, then in each task's history" },
         ],
     },
     Holds {
@@ -1375,6 +1387,15 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-away-quiet",
+        heading: "57 changes landed. One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "While you were away · Mon 23:10 to now" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Still needs you · 1" },
+            Part::NoStyle { style: temper_client_view::look::DECIDED },
+        ],
+    },
+    Holds {
         name: "home-away-overturned",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -1393,7 +1414,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-off",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away: off" },
             Part::Text { text: "Away is off: questions wait for you again." },
@@ -1401,7 +1422,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-away-on",
-        heading: "41 changes landed overnight. Three things need you.",
+        heading: "41 changes landed. Three things need you.",
         parts: &[
             Part::Named { role: Role::Button, name: "Away until 08:00" },
             Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },

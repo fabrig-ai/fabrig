@@ -3248,6 +3248,14 @@ fn away_fixture(count: u32) -> AwayFixture {
     }
 }
 fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts: w::ProjectStatusParts) -> d::Domain {
+    away_home_with_needs(away, beginning, NeedsFixture { objects, cut: false, read: true, decided: true }, parts)
+}
+fn away_home_with_needs(
+    away: AwayFixture,
+    beginning: bool,
+    needs: NeedsFixture<'_>,
+    parts: w::ProjectStatusParts,
+) -> d::Domain {
     let fixture = StatusFixture {
         document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
         answered: true,
@@ -3260,7 +3268,7 @@ fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts
         forge_rows(true),
         !beginning,
         !beginning,
-        Some(NeedsFixture { objects, cut: false, read: true, decided: true }),
+        Some(needs),
         None,
         Some(&[]),
         true,
@@ -3364,7 +3372,71 @@ fn lede_and_byline_stand() {
     }
 }
 #[test]
-fn no_form_with_no_row_showing() {
+fn spell_intro_without_decisions_uses_the_needs_sentence() {
+    for (landed, objects, off, headline, kicker_words) in [
+        (
+            58,
+            &QUESTIONS[..1],
+            false,
+            "57 changes landed. One thing needs you.",
+            "While you were away · Sun 23:10 to now",
+        ),
+        (
+            58,
+            &QUESTIONS[..0],
+            true,
+            "57 changes landed. Nothing needs you.",
+            "While you were away · Sun 23:10 to Sun 23:50",
+        ),
+        (1, &QUESTIONS[..1], false, "One thing needs you.", "While you were away · Sun 23:10 to now"),
+        (1, &QUESTIONS[..0], true, "Nothing needs you.", "While you were away · Sun 23:10 to Sun 23:50"),
+    ] {
+        let mut away = away_fixture(0);
+        if off {
+            let mut spell = away.spell.take().unwrap().into_parts();
+            spell.off = Some(STATUS_NOW - 10 * STATUS_MINUTE);
+            away.spell = Some(w::AwayRow::new(&w::CEILINGS, spell).unwrap());
+        }
+        let mut parts = status_parts();
+        parts.landed = landed;
+        let root = away_home(away, false, objects, parts);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            assert_eq!(kicker(&root, browser).as_ref(), kicker_words.as_bytes());
+            main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+            for node in main_nodes(view.tree()) {
+                assert!(!node.styles.as_slice().contains(&crate::look::DECIDED));
+            }
+        }
+    }
+}
+#[test]
+fn needs_head_is_still_during_the_spell_with_or_without_decisions() {
+    for rows in [0, 1] {
+        for (spell, cut, heading) in [
+            (true, false, "Still needs you · 2"),
+            (true, true, "Still needs you · 2+"),
+            (false, false, "Needs you · 2"),
+            (false, true, "Needs you · 2+"),
+        ] {
+            let mut away = away_fixture(rows);
+            if !spell {
+                away.spell = None;
+            }
+            let root = away_home_with_needs(
+                away,
+                false,
+                NeedsFixture { objects: &QUESTIONS[..2], cut, read: true, decided: true },
+                status_parts(),
+            );
+            for browser in [false, true] {
+                main_find(status_view(&root, browser).tree(), Role::Heading { level: 2 }, heading.as_bytes());
+            }
+        }
+    }
+}
+#[test]
+fn no_decided_region_with_no_row_or_to_begin() {
     for beginning in [false, true] {
         let root = away_home(away_fixture(u32::from(beginning)), beginning, &[], status_parts());
         let view = status_view(&root, true);
@@ -3553,10 +3625,10 @@ fn ended_and_overturned_says_landed_and_strikes_took() {
     );
 }
 #[test]
-fn away_needs_head_keeps_the_shared_title() {
+fn away_needs_head_is_still_only_while_needs_show() {
     for objects in [&[][..], &QUESTIONS[..2]] {
         let root = away_home(away_fixture(1), false, objects, status_parts());
-        let heading = "Needs you · 2";
+        let heading = "Still needs you · 2";
         for browser in [false, true] {
             let view = status_view(&root, browser);
             assert_eq!(

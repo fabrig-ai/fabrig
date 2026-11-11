@@ -2257,7 +2257,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-needs > section[aria-label] { display: flex; flex-direction: column; gap: 14px; }
 .temper-needs .temper-decided-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
 .temper-needs .temper-decided-head > h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); color: var(--gf-ink); }
-.temper-needs .temper-decided-head > span { font-size: 13px; color: var(--gf-muted); }
+.temper-needs .temper-decided-head > span, .temper-needs .temper-decided-head > a { font-size: 13px; color: var(--gf-muted); }
 .temper-needs .temper-decided { display: flex; flex-direction: column; }
 .temper-needs .temper-decision { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; align-items: start; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
 .temper-needs .temper-decision > :first-child { font: 400 12px/1.6 var(--gf-mono); color: var(--gf-muted); }
