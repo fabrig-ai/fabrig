@@ -398,8 +398,8 @@ fn sharing(world: &Protocol, start: usize, bucket: u64) -> (u64, u64, u64) {
     }
     let reads = groups.iter().map(|((_, _, checks), n)| n * if *checks { 2 } else { 1 }).sum();
     let save = groups.iter().map(|((_, _, checks), n)| (n - 1) * if *checks { 2 } else { 1 }).sum();
-    let chains = groups.iter().filter(|((_, _, checks), _)| !checks).map(|(_, n)| n).sum();
-    (reads, save, chains)
+    let calls = groups.iter().filter(|((_, _, checks), _)| !checks).map(|(_, n)| n).sum();
+    (reads, save, calls)
 }
 
 #[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_RATE, through temper's test table once it exists")]
@@ -435,11 +435,11 @@ fn busy(moving: bool) {
             .iter()
             .filter_map(|(at, read, _)| matches!(read, skein_forge::api::Read::Branch { .. }).then_some(*at))
             .collect();
-        assert_eq!(offered, issued, "one base-tip read per offered chain at its actual instant");
-        assert_eq!(exact.2, skein_lib::len_u64(offered.len()));
-        // Without nonparticipating inbox repairs, fewer keeping Checks
-        // coincide with N=3's fresh base cohort; the chains are unchanged.
-        assert_eq!(exact.1 * 6, [36, 72, 126][count - 1]);
+        // Identical fresh reads in one cohort share a call; keeping reads
+        // retain their own calls. No cohort may lose its base observation.
+        assert!(issued.len() <= offered.len(), "sharing cannot add base reads");
+        assert_eq!(offered.iter().collect::<BTreeSet<_>>(), issued.iter().collect::<BTreeSet<_>>());
+        assert_eq!(exact.2, skein_lib::len_u64(issued.len()));
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {
             if let forge::Stored::Change(row) = stored {
@@ -448,7 +448,7 @@ fn busy(moving: bool) {
         }
         if std::env::var_os("TEMPER_RATE").is_some() {
             eprintln!(
-                "moving={moving} N={count} total/h={} base/h={} save exact/1s={}/{} chains={} (600s)",
+                "moving={moving} N={count} total/h={} base/h={} save exact/1s={}/{} base_calls={} (600s)",
                 total * 6,
                 exact.0 * 6,
                 exact.1 * 6,

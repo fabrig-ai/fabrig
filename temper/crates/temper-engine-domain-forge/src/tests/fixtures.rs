@@ -227,6 +227,36 @@ pub fn ancestry_cases()
     ]
 }
 
+/// A kept repository's delivery establishes hearing without a resource read.
+pub fn repository_heard(d: &mut Domain, clock: &Env<Limits>, repository: skein_forge::api::Repository) {
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Keep {
+            owner: Token::new(777),
+            watches: Box::new([skein_forge_client::Watch {
+                resource: skein_forge_client::Resource { repository, what: skein_forge_client::What::Repository },
+                participating: false,
+            }]),
+        }),
+        &mut out,
+    );
+    step(
+        d,
+        clock,
+        Event::Client(skein_forge_client::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository,
+                change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+                key: None,
+            },
+        }),
+        &mut out,
+    );
+    d.reclaim();
+}
+
 /// One terminal read, without the client's transient retries, for reader tables.
 pub fn answer_once(
     d: &mut Domain,
