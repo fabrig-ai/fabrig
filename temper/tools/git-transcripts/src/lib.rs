@@ -84,6 +84,10 @@ pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
     let home = scratch.join("worker/home");
     fs::create_dir_all(&home)?;
     fs::set_permissions(&home, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
+    let transcripts = out.join("transcripts");
+    if transcripts.exists() {
+        fs::remove_dir_all(&transcripts)?;
+    }
     let mut capture = Capture {
         git: git.into(),
         home,

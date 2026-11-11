@@ -128,8 +128,8 @@ impl Task {
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
     }
-    pub fn store(store: Token, aside: Option<Token>, dirs: &mut Directories) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, dirs)) }
+    pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>, dirs: &mut Directories) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote, dirs)) }
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
         Task { pending: Token::new(0), phase: Phase::Store(Store::install(store, directory, done)) }
@@ -203,7 +203,9 @@ impl Task {
     }
 }
 fn closing(dirs: &mut Directories) -> Action {
-    if let Some(fd) = dirs.stores.take() { return close(fd); }
+    if let Some(fd) = dirs.stores.take() {
+        return close(fd);
+    }
     if let Some(fd) = dirs.workspaces.take() {
         return close(fd);
     }

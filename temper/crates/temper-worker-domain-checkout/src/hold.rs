@@ -1482,7 +1482,15 @@ fn prepare_step(
         }
         PrepareStep::Store { repository, .. } => {
             let store = borrowed(holding, repository);
-            Op::Store { store: store.store.token(), aside: store.aside, git: nth(holding, repository).git.clone() }
+            let spec = nth(holding, repository);
+            Op::Store {
+                store: store.store.token(),
+                aside: store.aside,
+                remote: spec.remote.clone(),
+                identity: spec.identity,
+                account: spec.account,
+                git: spec.git.clone(),
+            }
         }
         PrepareStep::Make => {
             let mut stores = List::with_capacity(count(holding.stores.len()));

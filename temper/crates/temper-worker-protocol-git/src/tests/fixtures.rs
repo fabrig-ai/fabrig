@@ -40,8 +40,8 @@ pub const DEADLINE: skein_lib::Time = skein_lib::Time::from_nanos(1000);
 pub const PARENT: git::Commit = COMMIT_256;
 pub const EXPECTED: git::Commit = COMMIT_256;
 pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
-pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
+pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
 pub const SERIAL: u64 = 1000;
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
     crate::Request::Io {
@@ -247,11 +247,16 @@ impl Started {
     }
     pub fn complete_ok(&mut self) {
         let result = match &self.file.as_ref().expect("file inspected").kind {
-            skein_io::kernel::Op::Open { path, .. } => skein_io::kernel::Done::Fd(match &**path {
-                b"trash" => TRASH,
-                b"stores" => STORES,
-                _ => WORKSPACES,
+            skein_io::kernel::Op::Open { path, .. } => skein_io::kernel::Done::Fd(if &**path == b"trash" {
+                TRASH
+            } else if &**path == b"stores" {
+                STORES
+            } else {
+                WORKSPACES
             }),
+            skein_io::kernel::Op::Write { bytes, from, .. } => skein_io::kernel::Done::Count(
+                u32::try_from(bytes.len()).expect("small file").checked_sub(*from).expect("write offset"),
+            ),
             skein_io::kernel::Op::Read { .. } | skein_io::kernel::Op::List { .. } => skein_io::kernel::Done::Count(0),
             skein_io::kernel::Op::Rename { .. }
             | skein_io::kernel::Op::MakeDirectory { .. }
@@ -266,7 +271,6 @@ impl Started {
             | skein_io::kernel::Op::Recv { .. }
             | skein_io::kernel::Op::Send { .. }
             | skein_io::kernel::Op::Shutdown { .. }
-            | skein_io::kernel::Op::Write { .. }
             | skein_io::kernel::Op::Append { .. }
             | skein_io::kernel::Op::Truncate { .. }
             | skein_io::kernel::Op::Sync { .. }
@@ -460,6 +464,7 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
     match kind {
         Op::Open { root, path, how } => Op::Open { root: *root, path: path.clone(), how: *how },
         Op::Read { fd, buf, at } => Op::Read { fd: *fd, buf: buf.clone(), at: *at },
+        Op::Write { fd, bytes, from, at } => Op::Write { fd: *fd, bytes: bytes.clone(), from: *from, at: *at },
         Op::Rename { from_dir, from, to_dir, to, no_replace } => Op::Rename {
             from_dir: *from_dir,
             from: from.clone(),
@@ -480,7 +485,6 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
         | Op::Recv { .. }
         | Op::Send { .. }
         | Op::Shutdown { .. }
-        | Op::Write { .. }
         | Op::Append { .. }
         | Op::Truncate { .. }
         | Op::Sync { .. }

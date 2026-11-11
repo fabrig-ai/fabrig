@@ -4,6 +4,7 @@
 //! These explicit exports preserve their trait identity and terminal outcomes.
 
 pub use skein_fake_checkout::git::{
-    CommitFailure, Created, Fault, Merged, NotFetched, Pushed, Remote, Tree, Want, What, check_out, clone_repository,
-    init, update_ref, object_present, commit, commit_always, commit_merging, create, fetch, merge, push, push_expected,
+    CloneInfo, CommitFailure, Created, Fault, Merged, NotFetched, ObjectFormat, Pushed, Remote, Tree, Want, What,
+    check_out, clone_bare, clone_repository, commit, commit_always, commit_merging, create, fetch, init,
+    init_with_format, merge, object_format, object_present, push, push_expected, update_ref,
 };

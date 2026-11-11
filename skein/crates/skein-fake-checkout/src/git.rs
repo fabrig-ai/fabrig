@@ -29,6 +29,11 @@ pub type Tree = BTreeMap<Vec<u8>, Vec<u8>>;
 /// graph; all queried IDs must exist. No delivery state or clock is held here
 /// (testing/fakes/checkout.md, section 4).
 pub trait Remote {
+    /// Metadata and the default tip for a bare, single-branch clone.
+    fn clone_default(&mut self, _remote: &[u8]) -> Result<CloneInfo, Fault> {
+        panic!("the world supplies metadata for a bare clone")
+    }
+
     /// Clone asks for all repository branch tips, or a remote refusal. No
     /// checkout mutation occurs before this returns (testing/fakes/checkout.md, section 4).
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault>;
@@ -558,28 +563,96 @@ fn object(checkout: &Checkout, at: &[u8], commit: u64) -> Vec<u8> {
 /// Object presence includes one level of alternates, relative to the object directory.
 #[must_use]
 pub fn object_present(checkout: &Checkout, at: &[u8], commit: u64) -> bool {
-    if checkout.exists(&object(checkout, at, commit)) { return true; }
+    if checkout.exists(&object(checkout, at, commit)) {
+        return true;
+    }
     let objects = [directory(checkout, at).as_slice(), b"/objects"].concat();
-    let Some(bytes) = checkout.content(&[objects.as_slice(), b"/info/alternates"].concat()) else { return false; };
-    alternate_directories(&objects, bytes).iter().any(|alternate| checkout.exists(&[alternate.as_slice(), format!("/{commit}").as_bytes()].concat()))
+    let Some(bytes) = checkout.content(&[objects.as_slice(), b"/info/alternates"].concat()) else {
+        return false;
+    };
+    alternate_directories(&objects, bytes)
+        .iter()
+        .any(|alternate| checkout.exists(&[alternate.as_slice(), format!("/{commit}").as_bytes()].concat()))
 }
 /// Resolve newline-separated alternates relative to an object directory, without host IO.
 #[must_use]
 pub fn alternate_directories(objects: &[u8], bytes: &[u8]) -> Vec<Vec<u8>> {
-    bytes.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()).filter_map(|line| {
-        let joined = if line.starts_with(b"/") { line.to_vec() } else { [objects, b"/", line].concat() };
-        let mut parts = Vec::new();
-        for part in joined.split(|byte| *byte == b'/') {
-            match part { b"" | b"." => {}, b".." => { parts.pop()?; }, part => parts.push(part) }
-        }
-        let result = parts.join(&b'/');
-        Some(if joined.starts_with(b"/") { [b"/", result.as_slice()].concat() } else { result })
-    }).collect()
+    bytes
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| {
+            let joined = if line.starts_with(b"/") { line.to_vec() } else { [objects, b"/", line].concat() };
+            let mut parts = Vec::new();
+            for part in joined.split(|byte| *byte == b'/') {
+                match part {
+                    b"" | b"." => {}
+                    b".." => {
+                        parts.pop()?;
+                    }
+                    part => parts.push(part),
+                }
+            }
+            let result = parts.join(&b'/');
+            Some(if joined.starts_with(b"/") { [b"/", result.as_slice()].concat() } else { result })
+        })
+        .collect()
 }
 /// Move a reference only to an available object, in a bare or ordinary repository.
 pub fn update_ref(checkout: &mut Checkout, at: &[u8], reference: &[u8], commit: u64) -> Result<(), NotFetched> {
-    if !object_present(checkout, at, commit) { return Err(NotFetched); }
+    if !object_present(checkout, at, commit) {
+        return Err(NotFetched);
+    }
     let path = [directory(checkout, at).as_slice(), b"/", reference].concat();
     checkout.write(&path, &commit.to_le_bytes());
     Ok(())
+}
+
+/// The object format a remote advertises and its default branch.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ObjectFormat {
+    Sha1,
+    Sha256,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct CloneInfo {
+    pub format: ObjectFormat,
+    pub default: Vec<u8>,
+    pub tip: Option<u64>,
+}
+/// Make a bare single-branch clone, taking the remote's format even when empty.
+pub fn clone_bare(forge: &mut impl Remote, checkout: &mut Checkout, remote: &[u8], at: &[u8]) -> Result<(), Fault> {
+    let info = forge.clone_default(remote)?;
+    init_with_format(checkout, at, true, info.format);
+    if let Some(tip) = info.tip {
+        let mut pending = vec![tip];
+        let mut reached = BTreeSet::new();
+        while let Some(commit) = pending.pop() {
+            if !reached.insert(commit) {
+                continue;
+            }
+            checkout.write(&object(checkout, at, commit), b"");
+            pending.extend(forge.parent(commit));
+            pending.extend(forge.merge_parent(commit));
+        }
+        update_ref(checkout, at, &[b"refs/heads/", info.default.as_slice()].concat(), tip).expect("clone brought tip");
+    }
+    checkout.write(&[at, b"/HEAD"].concat(), &[b"ref: refs/heads/", info.default.as_slice(), b"\n"].concat());
+    checkout.write(&[at, b"/remote"].concat(), remote);
+    Ok(())
+}
+/// Initialize with an explicit format, without reaching the remote.
+pub fn init_with_format(checkout: &mut Checkout, at: &[u8], bare: bool, format: ObjectFormat) {
+    init(checkout, at, bare);
+    let bytes = match format {
+        ObjectFormat::Sha1 => b"sha1\n".as_slice(),
+        ObjectFormat::Sha256 => b"sha256\n",
+    };
+    checkout.write(&[directory(checkout, at).as_slice(), b"/object-format"].concat(), bytes);
+}
+#[must_use]
+pub fn object_format(checkout: &Checkout, at: &[u8]) -> ObjectFormat {
+    match checkout.content(&[directory(checkout, at).as_slice(), b"/object-format"].concat()) {
+        Some(b"sha256\n") => ObjectFormat::Sha256,
+        _ => ObjectFormat::Sha1,
+    }
 }

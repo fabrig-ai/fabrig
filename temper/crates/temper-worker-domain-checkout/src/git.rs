@@ -1,6 +1,6 @@
 //! What the checkout asks of io (domain/worker.md, 9): git and file
 //! operations on the worker's disk. The protocol layer runs each as one
-//! contained git invocation, or one file operation, and parses what it says
+//! fixed sequence of contained git invocations and file operations, and parses what it says
 //! into one terminal ([`Done`]); the domain never parses.
 //!
 //! A workspace is a directory io names by the workspace's token. Its
@@ -62,7 +62,14 @@ pub enum Op {
     /// into trash, make it afresh, and sweep the old tree later.
     Make { workspace: Token, stores: Box<[Token]> },
     /// Make a bare object store whole before moving it into place (protocol/git.md, 4.11).
-    Store { store: Token, aside: Option<Token>, git: Option<Box<[u8]>> },
+    Store {
+        store: Token,
+        aside: Option<Token>,
+        remote: Box<[u8]>,
+        identity: u32,
+        account: Option<u64>,
+        git: Option<Box<[u8]>>,
+    },
     /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
     Look { at: Place, remote: Box<[u8]> },
     /// Make an empty repository borrowing its store, without reaching the forge.
@@ -169,7 +176,7 @@ pub enum Done {
     /// Merge left conflicts, or a merge commit refused remaining markers.
     /// Paths are bounded by the checkout's conflict/path limits.
     Conflicted { files: Box<[Box<[u8]>]> },
-    /// `Make`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
+    /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
     /// `Fetch`: what was asked for is at `commit`, now in the repository.
     Fetched { commit: Commit },
@@ -191,13 +198,13 @@ pub enum Done {
 /// Why an operation failed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge has no such repository;
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge has no such repository;
     /// Fetch may also name a branch or commit the forge lacks.
     Missing { missing: Missing },
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
     /// credentials or permissions, a protected branch, a hook.
     Refused,
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
     Unreachable,
     /// Something failed on the worker's side: the disk, or git itself.
     Broken,
@@ -274,10 +281,9 @@ impl Op {
     #[must_use]
     pub const fn is_remote(&self) -> bool {
         match self {
-            Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
+            Op::Store { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
             Op::Point { .. }
-            | Op::Store { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
             | Op::IsAncestor { .. }

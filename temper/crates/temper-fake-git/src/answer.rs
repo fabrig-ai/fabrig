@@ -101,21 +101,55 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 }
             }
         }
-        Command::Clone { directory } => {
-            git::init(checkout, &path(at, directory), false);
+        Command::Format => {
+            if !checkout.exists(&path(at, b".git")) && !checkout.exists(&path(at, b"HEAD")) {
+                return Answer::local_failure();
+            }
+            Answer::success(match git::object_format(checkout, at) {
+                git::ObjectFormat::Sha1 => b"sha1\n".to_vec(),
+                git::ObjectFormat::Sha256 => b"sha256\n".to_vec(),
+            })
+        }
+        Command::Clone { directory, format } => {
+            let format = match format {
+                temper_worker_protocol_git::invocation::Format::Sha1 => git::ObjectFormat::Sha1,
+                temper_worker_protocol_git::invocation::Format::Sha256 => git::ObjectFormat::Sha256,
+            };
+            git::init_with_format(checkout, &path(at, directory), false, format);
             Answer::success(Vec::new())
         }
-        Command::Store { .. } => { git::init(checkout, at, true); Answer::success(Vec::new()) }
+        Command::Store { directory, remote } => {
+            match git::clone_bare(transport, checkout, remote, &path(at, directory)) {
+                Ok(()) => Answer::success(Vec::new()),
+                Err(fault) => failed(remote, fault),
+            }
+        }
         Command::Remote { remote } => {
             checkout.write(&path(at, b".git/temper-remote"), remote);
             Answer::success(Vec::new())
         }
         Command::UpdateRef { into, commit } => {
-            match git::update_ref(checkout, at, match into { temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched", temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing" }, count(*commit)) {
-                Ok(()) => Answer::success(Vec::new()), Err(_) => Answer::local_failure(),
+            match git::update_ref(
+                checkout,
+                at,
+                match into {
+                    temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched",
+                    temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing",
+                },
+                count(*commit),
+            ) {
+                Ok(()) => Answer::success(Vec::new()),
+                Err(_) => Answer::local_failure(),
             }
         }
-        Command::Fetch { remote, source, into, workspace } => fetch(checkout, at, transport, remote, source, &temper_worker_protocol_git::invocation::store_reference(*workspace, *into)),
+        Command::Fetch { remote, source, into, workspace } => fetch(
+            checkout,
+            at,
+            transport,
+            remote,
+            source,
+            &temper_worker_protocol_git::invocation::store_reference(*workspace, *into),
+        ),
         Command::Create { remote, branch, commit } => create(checked, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = path(at, b".git/index.lock");

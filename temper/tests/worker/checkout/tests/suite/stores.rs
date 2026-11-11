@@ -1,8 +1,11 @@
 //! Transfer accounting (temper/docs/design/domain/worker.md, 5).
-use std::collections::BTreeSet;
 use skein_lib::{Duration, Time};
+use std::collections::BTreeSet;
 use temper_fake_checkout::{git::Remote, in_git};
-use temper_worker_checkout_world::{LIMITS, Settings, World, client::{Pick, Plan}};
+use temper_worker_checkout_world::{
+    LIMITS, Settings, World,
+    client::{Pick, Plan},
+};
 use temper_worker_domain_checkout::{Landing, Limits, Prepared, git::Kind};
 const ITERATIONS: u32 = 100_000;
 fn plan(workstream: u32) -> Plan {
@@ -10,7 +13,10 @@ fn plan(workstream: u32) -> Plan {
 }
 fn world(workspaces: u32) -> World {
     let mut world = World::new(Settings {
-        checkout: Limits { workspaces, ..LIMITS }, repositories: 1, workstreams: 2, ..Settings::calm(1)
+        checkout: Limits { workspaces, ..LIMITS },
+        repositories: 1,
+        workstreams: 2,
+        ..Settings::calm(1)
     });
     for second in 1..=3 {
         world.advance_at(Time::ZERO.saturating_add(Duration::from_secs(second)), 0, b"main");
@@ -49,6 +55,13 @@ fn another_workspace_fetches_only_the_new_commit() {
     let mut world = world(2);
     let first = prepare(&mut world, 0);
     assert_eq!(imported(&world, first).len(), 4);
+    let transfers = world.transfers(first, b"r0");
+    assert_eq!(transfers[0].kind, Kind::Store);
+    assert_eq!(transfers[0].commits.len(), 4, "the Store brings main's history");
+    assert!(
+        transfers.iter().skip(1).all(|transfer| transfer.commits.is_empty()),
+        "Clone and main's fetch bring nothing more"
+    );
     let tip = advance(&mut world);
     let next = prepare(&mut world, 1);
     assert_ne!(world.client(first).workspace, world.client(next).workspace);

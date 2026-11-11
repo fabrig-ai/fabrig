@@ -98,6 +98,7 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::SnapshotReset { .. }
         | Command::Version
         | Command::Origin { .. }
+        | Command::Format
         | Command::Clone { .. }
         | Command::Remote { .. }
         | Command::Store { .. }

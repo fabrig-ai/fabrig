@@ -69,7 +69,10 @@ fn git_ids_and_counts_share_the_forge_codec() {
 }
 fn spawn(command: &Command) -> k::Spawn {
     let kind = match command {
-        Command::Clone { .. } => Some(temper_worker_domain_checkout::git::Kind::Clone),
+        Command::Format | Command::Remote { .. } | Command::UpdateRef { .. } | Command::Clone { .. } => {
+            Some(temper_worker_domain_checkout::git::Kind::Clone)
+        }
+        Command::Store { .. } => Some(temper_worker_domain_checkout::git::Kind::Store),
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(temper_worker_domain_checkout::git::Kind::Fetch),
         Command::Create { .. } => Some(temper_worker_domain_checkout::git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(temper_worker_domain_checkout::git::Kind::Push),
@@ -162,7 +165,7 @@ fn cloned() -> Response {
     })
 }
 fn clone_command() -> Command {
-    Command::Clone { remote: REMOTE.into(), directory: b"copy".as_slice().into() }
+    Command::Store { remote: REMOTE.into(), directory: b"copy".as_slice().into() }
 }
 fn clone_call() -> Call {
     Call::Clone { repository: b"acme/app".as_slice().into() }
@@ -203,12 +206,13 @@ fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
             "clone",
             clone_command(),
             vec![(clone_call(), cloned()), (object_call(BASE), objects(BASE))],
-            b"repo/copy/.git/temper-remote".as_slice(),
+            b"repo/copy/remote".as_slice(),
             REMOTE,
         ),
         (
             "fetch",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Fetched,
                 remote: REMOTE.into(),
                 source: Source::Branch(b"topic".as_slice().into()),
@@ -220,12 +224,13 @@ fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
                 },
                 Response::Answer(RemoteAnswer::Commit(TOPIC)),
             )],
-            b"repo/.git/refs/temper/fetched",
+            b"repo/refs/temper/1/fetched",
             b"\x02\0\0\0\0\0\0\0",
         ),
         (
             "fetch landing",
             Command::Fetch {
+                workspace: skein_lib::Token::new(1),
                 into: temper_worker_domain_checkout::git::Into::Landing,
                 remote: REMOTE.into(),
                 source: Source::Branch(b"topic".as_slice().into()),
@@ -237,7 +242,7 @@ fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
                 },
                 Response::Answer(RemoteAnswer::Commit(TOPIC)),
             )],
-            b"repo/.git/refs/temper/landing",
+            b"repo/refs/temper/1/landing",
             b"\x02\0\0\0\0\0\0\0",
         ),
         (
@@ -424,7 +429,7 @@ fn repository_failures_are_logged_and_classified_without_retrying_a_write() {
         net.refused = refused;
         let answer = disk.run(spawn(&clone_command()), &mut net, b"");
         assert_eq!(answer.exit, 128);
-        assert_eq!(output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Clone), expected);
+        assert_eq!(output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Store), expected);
     }
 }
 #[test]
@@ -443,7 +448,7 @@ fn hosts_without_an_ip_and_port_fail_before_opening_a_socket() {
         let mut disk = Disk::new(&files(REMOTE));
         let mut net = Net::new(vec![]);
         let answer = disk.run(
-            spawn(&Command::Clone { remote: remote.into(), directory: b"copy".as_slice().into() }),
+            spawn(&Command::Store { remote: remote.into(), directory: b"copy".as_slice().into() }),
             &mut net,
             b"",
         );

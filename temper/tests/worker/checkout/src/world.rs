@@ -212,7 +212,7 @@ pub struct Told {
     pub released: u32,
 }
 
-/// Object markers a clone or fetch added anywhere on the fake disk.
+/// Object markers a store, clone or fetch added anywhere on the fake disk.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Transfer {
     pub kind: Kind,
@@ -471,7 +471,7 @@ impl World {
         self.touched.get(&(client, repository.to_vec())).cloned().unwrap_or_default()
     }
 
-    /// Every clone and fetch performed for this client and repository, in order.
+    /// Every store, clone and fetch performed for this client and repository, in order.
     #[must_use]
     pub fn transfers(&self, client: u64, repository: &[u8]) -> &[Transfer] {
         self.transfers.get(&(client, repository.to_vec())).map_or(&[], Vec::as_slice)
@@ -1176,6 +1176,10 @@ impl World {
 
     /// Runs `op` on the fakes, with the faults the world scripts, and checks
     /// what moved on the forge.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the operation boundary records transferred objects and changed working paths"
+    )]
     fn perform(&mut self, owner: Token, op: Op) -> Done {
         // As it takes effect: its hold still holds its workspace, and its
         // client still waits for the operation it is part of.
@@ -1221,6 +1225,16 @@ impl World {
             | Op::Merge { .. } => None,
         };
         let transfer = match &op {
+            Op::Store { remote, .. } => {
+                let name = client
+                    .repos
+                    .iter()
+                    .find(|repo| repo.remote.as_slice() == remote.as_ref())
+                    .expect("a Store names the spec's remote")
+                    .name
+                    .clone();
+                Some((name, op.kind(), object_markers(&self.disk)))
+            }
             Op::Clone { at, .. } | Op::Fetch { at, .. } => {
                 Some((at.repository.to_vec(), op.kind(), object_markers(&self.disk)))
             }

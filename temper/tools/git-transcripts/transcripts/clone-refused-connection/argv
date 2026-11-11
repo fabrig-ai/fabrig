@@ -25,12 +25,11 @@ rerere.enabled=false
 merge.conflictStyle=merge
 -c
 submodule.recurse=false
-fetch
---porcelain
---verbose
+clone
+--bare
+--single-branch
 --no-tags
---no-write-fetch-head
---no-recurse-submodules
+--quiet
 --
 http://127.0.0.1:3000/fixture/specimen.git
-+HEAD:refs/temper/1/fetched
+new-6

@@ -38,13 +38,21 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
     [
         (Command::Remote { remote: remote.clone() }, &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE]),
-        (Command::Store { directory: Box::from(&b"stores/new-1"[..]) }, &[b"init", b"--bare", b"--quiet"]),
+        (
+            Command::Store { remote: remote.clone(), directory: Box::from(&b"new-1"[..]) },
+            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", fixtures::REMOTE, b"new-1"],
+        ),
+        (Command::Format, &[b"rev-parse", b"--show-object-format"]),
+        (
+            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha256 },
+            &[b"init", b"--quiet", b"--object-format=sha256", b"--", b"app"],
+        ),
         (Command::UpdateRef { into: git::Into::Fetched, commit }, &[b"update-ref", b"refs/temper/fetched", ID]),
         (Command::Version, &[b"version"]),
         (
@@ -52,11 +60,16 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
             &[b"--git-dir=workspaces/0/app/.git", b"config", b"--local", b"--get", b"remote.origin.url"],
         ),
         (
-            Command::Clone { directory: Box::from(&b"app"[..]) },
-            &[b"init", b"--quiet", b"--", b"app"],
+            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha1 },
+            &[b"init", b"--quiet", b"--object-format=sha1", b"--", b"app"],
         ),
         (
-            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            Command::Fetch {
+                workspace: Token::new(7),
+                into: git::Into::Fetched,
+                remote: remote.clone(),
+                source: Source::Branch(branch.clone()),
+            },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -70,7 +83,12 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
             ],
         ),
         (
-            Command::Fetch { workspace: Token::new(7), into: git::Into::Landing, remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            Command::Fetch {
+                workspace: Token::new(7),
+                into: git::Into::Landing,
+                remote: remote.clone(),
+                source: Source::Branch(branch.clone()),
+            },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -84,7 +102,12 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
             ],
         ),
         (
-            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Commit(commit) },
+            Command::Fetch {
+                workspace: Token::new(7),
+                into: git::Into::Fetched,
+                remote: remote.clone(),
+                source: Source::Commit(commit),
+            },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -98,7 +121,12 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 22] {
             ],
         ),
         (
-            Command::Fetch { workspace: Token::new(7), into: git::Into::Fetched, remote: remote.clone(), source: Source::Default },
+            Command::Fetch {
+                workspace: Token::new(7),
+                into: git::Into::Fetched,
+                remote: remote.clone(),
+                source: Source::Default,
+            },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -193,7 +221,7 @@ fn each_command_s_arguments_are_git_md_s_vector() {
 #[test]
 fn a_remote_operation_carries_the_token_only_in_its_header() {
     let identity = fixtures::identity();
-    for kind in [git::Kind::Clone, git::Kind::Fetch, git::Kind::Create, git::Kind::Push] {
+    for kind in [git::Kind::Store, git::Kind::Fetch, git::Kind::Create, git::Kind::Push] {
         let environment = invocation::environment(fixtures::HOME, Some(kind), Some(&identity));
         assert_eq!(environment.len(), 12);
         for expected in [
@@ -241,6 +269,7 @@ fn an_operation_naming_no_identity_commits_as_the_placeholder() {
     let identity = fixtures::identity();
     for kind in [
         Some(git::Kind::Look),
+        Some(git::Kind::Clone),
         None,
         Some(git::Kind::Make),
         Some(git::Kind::CheckOut),

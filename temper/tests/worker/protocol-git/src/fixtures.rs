@@ -87,6 +87,14 @@ pub fn copy_script(script: &Script) -> Script {
     }
 }
 fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
+    let mut files = BTreeMap::new();
+    if let git::Op::Clone { at, .. } = &op {
+        files.insert(
+            [temper_worker_protocol_git::invocation::place(at).as_ref(), b"/.git/objects/info"].concat(),
+            Node::Directory,
+        );
+    }
+    let identity = !matches!(op, git::Op::Clone { .. });
     Scenario {
         op,
         script: Script {
@@ -95,11 +103,12 @@ fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
         },
         expected,
         stop: Stop::None,
-        identity: true,
-        files: BTreeMap::new(),
+        identity,
+        files,
     }
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the operation cases include stores and both borrowing repository formats")]
 pub fn operations() -> Vec<(&'static str, Scenario)> {
     vec![
         (
@@ -114,12 +123,35 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             "clone",
             scenario(
                 git::Op::Clone { at: at(), remote: remote(), store: Token::new(9) },
-                &["clone", "remote-add"],
+                &["object-format", "init", "remote-add"],
+                Expected::done(git::Done::Succeeded),
+            ),
+        ),
+        (
+            "clone-sha256",
+            scenario(
+                git::Op::Clone { at: at(), remote: remote(), store: Token::new(9) },
+                &["object-format-sha256", "init-sha256", "remote-add"],
                 Expected::done(git::Done::Succeeded),
             ),
         ),
         ("fetch", fetch()),
         ("point", point()),
+        (
+            "store",
+            scenario(
+                git::Op::Store {
+                    store: Token::new(9),
+                    aside: None,
+                    remote: remote(),
+                    identity: 1,
+                    account: None,
+                    git: None,
+                },
+                &["clone"],
+                Expected::done(git::Done::Succeeded),
+            ),
+        ),
         (
             "create",
             scenario(

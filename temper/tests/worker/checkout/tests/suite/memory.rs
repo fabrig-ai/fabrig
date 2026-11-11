@@ -144,9 +144,16 @@ impl Fill {
     fn prepare(&mut self, n: u32) -> Token {
         let limits = self.env.limits;
         let prepare = Event::Prepare { client: Token::new(u64::from(n)), spec: full_spec(&limits, n) };
-        let [Asked::Held { hold }, Asked::Io { op: Kind::Make }] = self.step(prepare)[..] else {
+        let [Asked::Held { hold }, Asked::Io { mut op }] = self.step(prepare)[..] else {
             panic!("a spec at the limits is admitted, into a workspace made empty");
         };
+        while op == Kind::Store {
+            let [Asked::Io { op: next }] = self.done(hold, Done::Succeeded)[..] else {
+                panic!("stores made before workspace")
+            };
+            op = next;
+        }
+        assert_eq!(op, Kind::Make);
         for _ in 0..limits.repositories {
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Clone }]);
         }
@@ -290,11 +297,18 @@ impl Fill {
             repo.start = Start::Merge { branch: bytes(limits.name_bytes), base: commit(5) };
             repo.expected = Some(commit(1));
         }
-        let [Asked::Held { hold }, Asked::Io { op: Kind::Make }] =
+        let [Asked::Held { hold }, Asked::Io { mut op }] =
             self.step(Event::Prepare { client: Token::new(u64::from(n)), spec })[..]
         else {
             panic!("admitted")
         };
+        while op == Kind::Store {
+            let [Asked::Io { op: next }] = self.done(hold, Done::Succeeded)[..] else {
+                panic!("stores made before workspace")
+            };
+            op = next;
+        }
+        assert_eq!(op, Kind::Make);
         for _ in 0..limits.repositories {
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Clone }]);
         }
@@ -303,8 +317,8 @@ impl Fill {
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(1) })[..], [Asked::Io { op: Kind::Fetch }]);
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::CheckOut }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::IsAncestor }]);
-            assert_eq!(self.done(hold, Done::IsAncestor { contains: false })[..], [Asked::Io { op: Kind::Fetch }]);
-            assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::Merge }]);
+            assert_eq!(self.done(hold, Done::IsAncestor { contains: false })[..], [Asked::Io { op: Kind::Point }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
                     self.done(hold, Done::Conflicted { files: full_paths(&limits) })[..],

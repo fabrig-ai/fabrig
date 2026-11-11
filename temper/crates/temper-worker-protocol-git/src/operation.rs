@@ -132,6 +132,7 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Version
             | Command::Origin { .. }
+            | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
             | Command::Remote { .. }
@@ -161,6 +162,7 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
             | Command::Remote { .. }
@@ -266,6 +268,7 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Version
             | Command::Origin { .. }
+            | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
             | Command::Remote { .. }
@@ -311,6 +314,7 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
             | Command::Remote { .. }
@@ -607,11 +611,14 @@ impl Child {
 }
 
 fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
-    if let Command::Store { directory } = command {
-        return directory.clone();
+    if let Command::Store { .. } = command {
+        return Box::from(&b"stores"[..]);
     }
     match op {
-        git::Op::Clone { at, .. } => {
+        git::Op::Clone { at, store, .. } => {
+            if let Command::Format = command {
+                return invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()]);
+            }
             if let Command::Clone { .. } = command {
                 invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
             } else {

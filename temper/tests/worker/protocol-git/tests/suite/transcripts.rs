@@ -62,13 +62,13 @@ fn each_push_transcript_s_status_line_is_its_git_md_row() {
 #[test]
 fn each_failure_transcript_classifies_as_section_six_says() {
     let rows = [
-        ("clone-missing-repository", git::Kind::Clone, git::Fault::Missing { missing: git::Missing::Repository }),
-        ("clone-stranger-private", git::Kind::Clone, git::Fault::Missing { missing: git::Missing::Repository }),
+        ("clone-missing-repository", git::Kind::Store, git::Fault::Missing { missing: git::Missing::Repository }),
+        ("clone-stranger-private", git::Kind::Store, git::Fault::Missing { missing: git::Missing::Repository }),
         ("fetch-missing-branch", git::Kind::Fetch, git::Fault::Missing { missing: git::Missing::Branch }),
         ("fetch-missing-commit", git::Kind::Fetch, git::Fault::Missing { missing: git::Missing::Commit }),
         ("fetch-wrong-token", git::Kind::Fetch, git::Fault::Refused),
-        ("clone-wrong-token", git::Kind::Clone, git::Fault::Refused),
-        ("clone-refused-connection", git::Kind::Clone, git::Fault::Unreachable),
+        ("clone-wrong-token", git::Kind::Store, git::Fault::Refused),
+        ("clone-refused-connection", git::Kind::Store, git::Fault::Unreachable),
     ];
     for (case, kind, fault) in rows {
         let transcript = transcripts::read(case);

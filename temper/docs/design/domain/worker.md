@@ -616,9 +616,12 @@ runs as contained processes and whose output it parses.
   So a checkout made from an empty directory (a workstream's first on the
   worker, an evicted one, a saved start, a damaged one) transfers only
   what no earlier fetch on the worker brought, and never a branch the
-  assignment does not name. A prepare makes each store its repositories
-  need that the cache has not made yet, before its workspace; two prepares
-  making one store at once leave one. The cache keeps at most
+  assignment does not name, but for the store's making. A prepare makes
+  each store its repositories need that the cache has not made yet, before
+  its workspace, as a bare clone of the forge's default branch alone, the
+  one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
+  refuses a remote of another format, and a checkout borrowing a store
+  takes the store's); two prepares making one store at once leave one. The cache keeps at most
   `checkout.workspaces` times `checkout.repositories` stores
   (`../protocol/configuration/limits.md`), the most its checkouts can
   borrow at once; a remote that finds them all taken gets the slot of

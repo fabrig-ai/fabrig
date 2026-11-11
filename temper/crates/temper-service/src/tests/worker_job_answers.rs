@@ -92,7 +92,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, fault: GitFault) -
         match request {
             root::Request::Io { owner, op, .. } => {
                 let done = match (&op, fault) {
-                    (root::checkout::git::Op::Clone { .. }, GitFault::CloneRefused) => {
+                    (root::checkout::git::Op::Store { .. }, GitFault::CloneRefused) => {
                         root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
                     }
                     (

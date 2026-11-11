@@ -25,7 +25,11 @@ rerere.enabled=false
 merge.conflictStyle=merge
 -c
 submodule.recurse=false
-init
+clone
+--bare
+--single-branch
+--no-tags
 --quiet
 --
-empty
+http://127.0.0.1:3000/fixture/empty.git
+new-2

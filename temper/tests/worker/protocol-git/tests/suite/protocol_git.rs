@@ -118,3 +118,30 @@ fn memory_stays_within_its_heap_ceiling_at_its_limits() {
     assert!(peak > 0, "the allocator observed the component");
     assert!(peak <= GIT_OPERATIONS_HEAP_CEILING);
 }
+
+#[test]
+fn a_store_made_first_is_kept_and_its_competitors_whole_clone_is_discarded() {
+    for aside in [None, Some(skein_lib::Token::new(8))] {
+        let mut scenario =
+            fixtures::operations().into_iter().find(|(name, _)| *name == "store").expect("store sequence").1;
+        let git::Op::Store { aside: target, .. } = &mut scenario.op else { panic!("Store fixture") };
+        *target = aside;
+        scenario.files.insert(b"stores/9".to_vec(), Node::Directory);
+        scenario.files.insert(b"stores/9/kept".to_vec(), Node::File(b"first clone".as_slice().into()));
+        if aside.is_some() {
+            scenario.files.insert(b"stores/8".to_vec(), Node::Directory);
+            scenario.files.insert(b"stores/8/old".to_vec(), Node::File(b"unborrowed".as_slice().into()));
+        }
+        let outcome = world::run(&scenario, fixtures::SEED);
+        let Some(Node::File(kept)) = outcome.tree.get(b"stores/9/kept".as_slice()) else {
+            panic!("first clone remains")
+        };
+        assert_eq!(kept.as_ref(), b"first clone");
+        let discarded = if aside.is_some() { b"trash/1004".as_slice() } else { b"trash/1003" };
+        assert!(matches!(outcome.tree.get(discarded), Some(Node::Directory)));
+        assert!(!outcome.tree.keys().any(|path| path.starts_with(b"stores/new-")));
+        if aside.is_some() {
+            assert!(outcome.tree.contains_key(b"trash/1003/old".as_slice()));
+        }
+    }
+}

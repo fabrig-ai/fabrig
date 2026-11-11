@@ -27,6 +27,7 @@ pub const SETTINGS: [&[u8]; 13] = [
 /// One invocation in an operation's fixed sequence.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
+    Format,
     SnapshotHead,
     SnapshotMerge { head: git::Commit, second: Option<git::Commit> },
     SnapshotFetch { remote: Box<[u8]>, head: git::Commit, merging: Option<git::Commit>, second: git::Commit },
@@ -34,9 +35,9 @@ pub enum Command {
     SnapshotReset { commit: git::Commit },
     Version,
     Origin { directory: Box<[u8]> },
-    Clone { directory: Box<[u8]> },
+    Clone { directory: Box<[u8]>, format: Format },
     Remote { remote: Box<[u8]> },
-    Store { directory: Box<[u8]> },
+    Store { directory: Box<[u8]>, remote: Box<[u8]> },
     UpdateRef { into: git::Into, commit: git::Commit },
     Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
@@ -77,6 +78,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
     let remote = match command {
         Command::SnapshotFetch { remote, .. }
         | Command::Remote { remote }
+        | Command::Store { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote.as_ref()),
@@ -98,7 +100,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Origin { .. }
-        | Command::Store { .. }
+        | Command::Format
         | Command::Clone { .. }
         | Command::UpdateRef { .. }
         | Command::Version
@@ -200,9 +202,15 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             let git_dir = joined(&[b"--git-dir=", directory, b"/.git"]);
             words(&mut out, &[&git_dir, b"config", b"--local", b"--get", b"remote.origin.url"]);
         }
-        Command::Clone { directory } => words(&mut out, &[b"init", b"--quiet", b"--", directory]),
+        Command::Format => words(&mut out, &[b"rev-parse", b"--show-object-format"]),
+        Command::Clone { directory, format } => {
+            words(&mut out, &[b"init", b"--quiet", &joined(&[b"--object-format=", format.name()]), b"--", directory]);
+        }
         Command::Remote { remote } => words(&mut out, &[b"remote", b"add", b"origin", b"--", remote]),
-        Command::Store { .. } => words(&mut out, &[b"init", b"--bare", b"--quiet"]),
+        Command::Store { remote, directory } => words(
+            &mut out,
+            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory],
+        ),
         Command::UpdateRef { into, commit } => words(&mut out, &[b"update-ref", reference(*into), &hex(*commit)]),
         Command::Fetch { remote, source, into, workspace } => {
             let from = match source {
@@ -289,11 +297,10 @@ pub(crate) fn environment_for(
     credentials: bool,
 ) -> Box<[Box<[u8]>]> {
     let identity = match kind {
-        Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
+        Some(git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
         None
         | Some(
             git::Kind::Point
-            | git::Kind::Store
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
@@ -330,7 +337,7 @@ pub(crate) fn environment_for(
             let email = joined(&[b"GIT_AUTHOR_EMAIL=", email]);
             words(&mut out, &[&author, &email]);
         }
-        Some(git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
+        Some(git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
             if let Some(identity) = identity
                 && credentials
             {
@@ -347,7 +354,6 @@ pub(crate) fn environment_for(
         None
         | Some(
             git::Kind::Point
-            | git::Kind::Store
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
@@ -431,4 +437,20 @@ pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
 pub fn store_reference(workspace: Token, into: git::Into) -> Box<[u8]> {
     let name = reference(into).strip_prefix(b"refs/temper/").expect("fixed reference prefix");
     joined(&[b"refs/temper/", Decimal::of(workspace.raw()).as_bytes(), b"/", name])
+}
+
+/// The store and its borrowing repository have one object format (protocol/git.md, 4.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Format {
+    Sha1,
+    Sha256,
+}
+impl Format {
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::Sha1 => b"sha1",
+            Self::Sha256 => b"sha256",
+        }
+    }
 }

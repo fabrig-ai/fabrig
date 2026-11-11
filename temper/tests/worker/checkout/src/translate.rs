@@ -63,12 +63,12 @@ pub fn workspace(op: &Op) -> Option<Token> {
 #[must_use]
 pub fn identity(op: &Op) -> Option<u32> {
     match op {
-        Op::Fetch { identity, .. }
+        Op::Store { identity, .. }
+        | Op::Fetch { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
         Op::Point { .. }
-        | Op::Store { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
@@ -83,10 +83,11 @@ pub fn identity(op: &Op) -> Option<u32> {
 #[must_use]
 pub fn remote(op: &Op) -> Option<&[u8]> {
     match op {
-        Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => Some(remote),
+        Op::Store { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
+            Some(remote)
+        }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
         Op::Point { .. }
-        | Op::Store { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
@@ -120,18 +121,21 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),
             }
         }
-        Op::Store { store, aside, .. } => {
+        Op::Store { store, aside, remote, .. } => {
             if let Some(aside) = aside {
                 disk.remove(&store_path(aside));
             }
-            if !disk.exists(&store_path(store)) {
-                git::init(disk, &store_path(store), true);
+            if !disk.exists(&store_path(store))
+                && let Err(fault) = git::clone_bare(forge, disk, &remote, &store_path(store))
+            {
+                return failed(fault);
             }
             Done::Succeeded
         }
         Op::Clone { at, remote, store } => {
             assert!(disk.exists(&dir(at.workspace)), "a workspace made before its clone");
-            git::init(disk, &path(&at), false);
+            let format = git::object_format(disk, &store_path(store));
+            git::init_with_format(disk, &path(&at), false, format);
             let alternate = format!("../../../../../stores/{}/objects\n", store.raw());
             disk.write(&[path(&at).as_slice(), b"/.git/objects/info/alternates"].concat(), alternate.as_bytes());
             disk.write(&[path(&at).as_slice(), b"/.git/temper-remote"].concat(), &remote);

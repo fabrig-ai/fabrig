@@ -314,8 +314,21 @@ fn workspace_of(op: &Op) -> Token {
 fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out() {
     let mut h = Harness::new(LIMITS);
     let (hold, op) = h.begin(7, two(b"issue-1"));
-    assert_eq!(op, Op::Store { store: Token::new(0), aside: None, git: None });
-    assert_eq!(h.next(hold, Done::Succeeded), Op::Store { store: Token::new(1_u64 << 32), aside: None, git: None });
+    assert_eq!(
+        op,
+        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
+    );
+    assert_eq!(
+        h.next(hold, Done::Succeeded),
+        Op::Store {
+            store: Token::new(1_u64 << 32),
+            aside: None,
+            remote: remote(b"b"),
+            identity: 0,
+            account: None,
+            git: None
+        }
+    );
     let op = h.next(hold, Done::Succeeded);
     let Op::Make { workspace, ref stores } = op else { panic!("a new workspace is made: {op:?}") };
     assert_eq!(stores.as_ref(), &[Token::new(0), Token::new(1_u64 << 32)]);
@@ -365,7 +378,7 @@ fn every_operation_has_a_deadline_by_where_it_runs() {
     let Some(Request::Io { owner, op: Op::Store { .. }, deadline }) = requests.get(1) else {
         panic!("a new workspace is made");
     };
-    assert_eq!(*deadline, local, "making a directory is local");
+    assert_eq!(*deadline, remote, "Store reaches the forge");
     let owner = *owner;
     h.next(owner, Done::Succeeded);
     let Request::Io { deadline, op: Op::Clone { .. }, .. } = h.one(Event::Done { owner, done: Done::Succeeded }) else {
@@ -665,9 +678,8 @@ fn preparation_failures_are_typed() {
         ),
         (3, failed(Fault::TimedOut), Failure::Transient, b"fetch: TimedOut".as_slice()),
         (0, failed(Fault::Broken), Failure::Transient, b"make: Broken".as_slice()),
-        (4, failed(Fault::Broken), Failure::Transient, b"fetch push: Broken".as_slice()),
-        (5, failed(Fault::Broken), Failure::Transient, b"fetch landing: Broken".as_slice()),
-        (6, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
+        (4, failed(Fault::Broken), Failure::Transient, b"point landing: Broken".as_slice()),
+        (5, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
         (
             3,
             Done::FailedWithOutput {
@@ -681,15 +693,9 @@ fn preparation_failures_are_typed() {
     for (after, fault, failure, detail) in cases {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, two(b"w"));
-        // Make, clone a, clone b, fetch a, fetch its push, pin, check out a.
-        let answers = [
-            Done::Succeeded,
-            Done::Succeeded,
-            Done::Succeeded,
-            Done::Fetched { commit: commit(1) },
-            Done::Fetched { commit: commit(1) },
-            Done::Fetched { commit: commit(1) },
-        ];
+        // Make, clone a, clone b, fetch a, point its pin, check out a.
+        let answers =
+            [Done::Succeeded, Done::Succeeded, Done::Succeeded, Done::Fetched { commit: commit(1) }, Done::Succeeded];
         for done in answers.into_iter().take(after) {
             h.next(hold, done);
         }
@@ -1938,9 +1944,15 @@ fn begin_merged(h: &mut Harness, heads: &[Commit]) -> Token {
     h.next(hold, Done::Succeeded);
     let mut op = h.replaced(hold, commit(1));
     for head in heads {
-        let Op::Fetch { want: Want::Commit { commit }, .. } = op else { panic!("head fetched") };
-        assert_eq!(commit, *head);
-        op = h.next(hold, Done::Fetched { commit: *head });
+        let done = if let Op::Point { into: Into::Fetched, commit, .. } = op {
+            assert_eq!(commit, *head, "a repeated head is pointed locally");
+            Done::Succeeded
+        } else {
+            let Op::Fetch { want: Want::Commit { commit }, .. } = op else { panic!("unseen head fetched") };
+            assert_eq!(commit, *head);
+            Done::Fetched { commit: *head }
+        };
+        op = h.next(hold, done);
     }
     let Op::CheckOut { commit: base, clean, .. } = op else { panic!("base checkout") };
     assert_eq!(base, commit(1));
@@ -2273,7 +2285,7 @@ fn a_look_that_does_not_hold_makes_then_clones() {
         }
         assert_eq!(
             h.next(hold, Done::Looked { holds: false }),
-            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0)]) }
+            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
         );
         assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
     }
@@ -2285,7 +2297,10 @@ fn a_first_saved_start_makes_without_looking() {
         let mut h = if reuse { Harness::reusing(LIMITS) } else { Harness::new(LIMITS) };
         let repo = Repository { start: Start::Saved { branch: bytes(b"saved") }, ..repository(b"b", false) };
         let (_, op) = h.prepare(1, spec(b"work", Box::new([repository(b"a", true), repo])));
-        assert_eq!(op, Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0)]) });
+        assert_eq!(
+            op,
+            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
+        );
         assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::New }));
     }
 }
@@ -2333,10 +2348,12 @@ fn aborting_or_releasing_a_look_waits_for_its_terminal() {
 #[test]
 fn a_look_uses_the_local_deadline() {
     let mut h = Harness::reusing(LIMITS);
-    let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"work") });
-    let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
+    let (hold, _) = h.begin(1, one(b"work"));
+    let Request::Io { op, deadline, .. } = h.one(Event::Done { owner: hold, done: Done::Succeeded }) else {
+        panic!("look after Store")
+    };
     assert_eq!(op.kind(), Kind::Look);
-    assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
+    assert_eq!(deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }
 
 #[test]
@@ -2391,7 +2408,10 @@ fn concurrent_prepares_make_one_remote_independently() {
     let mut h = Harness::new(LIMITS);
     let (first, store) = h.begin(1, one(b"a"));
     let (second, same) = h.begin(2, one(b"b"));
-    assert_eq!(store, Op::Store { store: Token::new(0), aside: None, git: None });
+    assert_eq!(
+        store,
+        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
+    );
     assert_eq!(same, store);
     for hold in [first, second] {
         let Op::Make { stores, .. } = h.next(hold, Done::Succeeded) else { panic!("each successful Store goes on") };
@@ -2440,4 +2460,46 @@ fn a_damaged_fetch_rebuilds_its_workspace_but_never_its_store() {
 fn store_capacity_must_fit_even_when_hold_capacity_fits() {
     assert!(valid(&Limits { workspaces: 1, repositories: u32::MAX, ..LIMITS }));
     assert!(!valid(&Limits { workspaces: 2, repositories: u32::MAX, ..LIMITS }));
+}
+
+#[test]
+fn a_failed_store_is_not_marked_made_and_is_tried_again() {
+    for (fault, expected) in [
+        (Fault::Broken, Failure::Transient),
+        (
+            Fault::Missing { missing: Missing::Repository },
+            Failure::Missing { repository: 0, missing: Missing::Repository },
+        ),
+    ] {
+        let mut h = Harness::new(LIMITS);
+        let (hold, first) = h.begin(1, one(b"w"));
+        let Op::Store { .. } = first else { panic!("new remote") };
+        let Prepared::Failed { failure, .. } = prepared(h.one(Event::Done { owner: hold, done: failed(fault) })) else {
+            panic!("Store failure ends prepare")
+        };
+        assert_eq!(failure, expected);
+        h.one(Event::Release { hold });
+        let (_, again) = h.begin(2, one(b"w"));
+        assert_eq!(again, first, "a failed Store is tried again, not borrowed");
+    }
+}
+#[test]
+fn design_delivery_and_push_verification_fetch_through_the_repositorys_store() {
+    for design in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let mut spec = one(b"w");
+        if design {
+            spec.repositories[0].landing = spec.repositories[0].push.clone();
+        }
+        let hold = h.ready(1, spec);
+        h.one(Event::Push { hold, message: message() });
+        let mut op = h.next(hold, Done::Committed { commit: commit(11) });
+        if !design {
+            let Op::Push { .. } = op else { panic!("ordinary push") };
+            op = h.next(hold, failed(Fault::TimedOut));
+        }
+        let Op::Fetch { store, remote: source, .. } = op else { panic!("design tip or push verification fetched") };
+        assert_eq!(store, Token::new(0));
+        assert_eq!(source, remote(b"a"));
+    }
 }

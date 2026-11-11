@@ -136,9 +136,12 @@ impl Component {
         out: &mut Outputs,
     ) {
         let needs_identity = match op {
-            git::Op::Fetch { .. } | git::Op::Create { .. } | git::Op::Commit { .. } | git::Op::Push { .. } => true,
+            git::Op::Store { .. }
+            | git::Op::Fetch { .. }
+            | git::Op::Create { .. }
+            | git::Op::Commit { .. }
+            | git::Op::Push { .. } => true,
             git::Op::Point { .. }
-            | git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::CheckOut { .. }
@@ -259,12 +262,15 @@ impl Component {
         self.index.remove(&key).expect("live index");
         self.slots.retire(id);
     }
-    #[expect(clippy::too_many_lines, reason = "the fixed sequence's steps advance in one table")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the operation dispatcher includes file and process steps for stores and alternates"
+    )]
     fn advance(&mut self, id: Id<Operation>, next: Next, out: &mut Outputs) {
         let next = match next {
             Next::End(done) => {
                 let operation = self.slots.get(id).expect("live operation");
-                if let Command::Store { directory } = &operation.command {
+                if let Command::Store { directory, .. } = &operation.command {
                     Next::InstallStore { directory: directory.clone(), done: Box::new(done) }
                 } else {
                     Next::End(done)
@@ -297,8 +303,8 @@ impl Component {
                     let op = operation.op.as_ref().expect("no program is an operation failure");
                     let diagnostic = crate::invocation::no_program(op, &command);
                     let next = sequence::after(op, &command, 128, b"", &diagnostic, 0, &self.checkout);
-                    let Next::End(done) = next else { unreachable!("a fatal exit ends the operation") };
-                    self.finish(id, done, out);
+                    self.slots.get_mut(id).expect("live operation").command = command;
+                    self.advance(id, next, out);
                     return;
                 }
                 let Some(token) = self.token() else {
@@ -327,10 +333,11 @@ impl Component {
                 self.file_start(id, Task::make(*workspace, stores.clone()), out);
             }
             Next::Store => {
-                let Some(git::Op::Store { store, aside, .. }) = &self.slots.get(id).expect("live index").op else {
+                let Some(git::Op::Store { store, aside, remote, .. }) = &self.slots.get(id).expect("live index").op
+                else {
                     unreachable!("Store sequence")
                 };
-                let task = Task::store(*store, *aside, &mut self.directories);
+                let task = Task::store(*store, *aside, remote.clone(), &mut self.directories);
                 self.file_start(id, task, out);
             }
             Next::InstallStore { directory, done } => {

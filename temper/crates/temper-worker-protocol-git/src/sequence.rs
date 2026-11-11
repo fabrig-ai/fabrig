@@ -26,7 +26,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
-        git::Op::Clone { at, .. } => Command::Clone { directory: at.repository.clone() },
+        git::Op::Clone { .. } => Command::Format,
         git::Op::Fetch { at, remote, want, into, .. } => Command::Fetch {
             workspace: at.workspace,
             into: *into,
@@ -101,12 +101,26 @@ pub fn after(
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
         },
-        Command::Store { directory } => {
+        Command::Format if code == 0 => {
+            let format = match stdout {
+                b"sha1\n" => Some(invocation::Format::Sha1),
+                b"sha256\n" => Some(invocation::Format::Sha256),
+                other => {
+                    let _length = other.len();
+                    None
+                }
+            };
+            if let Some(format) = format {
+                let git::Op::Clone { at, .. } = op else { unreachable!("format is a clone's first invocation") };
+                return Next::Run(Command::Clone { directory: at.repository.clone(), format });
+            }
+        }
+        Command::Store { directory, .. } => {
             let done = if code == 0 {
                 git::Done::Succeeded
             } else {
                 git::Done::FailedWithOutput {
-                    fault: git::Fault::Broken,
+                    fault: output::classify(tail, git::Kind::Store),
                     diagnostic: git::PushDiagnostic::new(tail, cut),
                 }
             };
@@ -235,6 +249,7 @@ pub fn after(
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Version
+        | Command::Format
         | Command::Clone { .. }
         | Command::Remote { .. }
         | Command::UpdateRef { .. }
@@ -343,12 +358,12 @@ fn checked_out(op: &git::Op) -> Next {
 
 fn remote(command: &Command) -> bool {
     match command {
-        Command::Fetch { .. } | Command::Create { .. } | Command::Push { .. } => true,
-        Command::Version
+        Command::Store { .. } | Command::Fetch { .. } | Command::Create { .. } | Command::Push { .. } => true,
+        Command::Format
+        | Command::Version
         | Command::Origin { .. }
         | Command::Clone { .. }
         | Command::Remote { .. }
-        | Command::Store { .. }
         | Command::UpdateRef { .. }
         | Command::SnapshotHead
         | Command::SnapshotMerge { .. }

@@ -8,7 +8,11 @@ const CASES: &[(&str, Fault)] = &[
     ("origin-no-remote", Fault::None),
     ("checkout-index-locked", Fault::None),
     ("clone", Fault::None),
-    ("store-init", Fault::None),
+    ("clone-sha256", Fault::None),
+    ("object-format", Fault::None),
+    ("object-format-sha256", Fault::None),
+    ("init", Fault::None),
+    ("init-sha256", Fault::None),
     ("remote-add", Fault::None),
     ("update-ref", Fault::None),
     ("clone-empty", Fault::None),
@@ -77,13 +81,13 @@ fn each_failure_transcript_s_stderr_classifies_as_the_fake_s() {
     let rows = [
         ("checkout-index-locked", Fault::None, git::Kind::CheckOut),
         ("merge-in-progress", Fault::None, git::Kind::Merge),
-        ("clone-missing-repository", Fault::MissingRepository, git::Kind::Fetch),
-        ("clone-stranger-private", Fault::MissingRepository, git::Kind::Fetch),
+        ("clone-missing-repository", Fault::MissingRepository, git::Kind::Store),
+        ("clone-stranger-private", Fault::MissingRepository, git::Kind::Store),
         ("fetch-missing-branch", Fault::MissingBranch, git::Kind::Fetch),
         ("fetch-missing-commit", Fault::MissingCommit, git::Kind::Fetch),
-        ("fetch-wrong-token", Fault::WrongToken, git::Kind::Fetch),
-        ("clone-wrong-token", Fault::WrongToken, git::Kind::Fetch),
-        ("clone-refused-connection", Fault::Unreachable, git::Kind::Fetch),
+        ("fetch-wrong-token", Fault::WrongToken, git::Kind::Store),
+        ("clone-wrong-token", Fault::WrongToken, git::Kind::Store),
+        ("clone-refused-connection", Fault::Unreachable, git::Kind::Store),
         ("push-protected", Fault::ProtectedBranch, git::Kind::Push),
     ];
     for (case, fault, kind) in rows {
@@ -105,14 +109,15 @@ fn cloning_an_unborn_repository_imports_no_local_objects() {
     use temper_fake_git_hosted::{answer, check};
     use temper_worker_protocol_git::invocation::Command;
     let mut scenario = fixtures::named(b"fixture/empty", None);
-    let spawn = fixtures::spawn_of(&Command::Clone {
+    let spawn = fixtures::spawn_of(&Command::Store {
+        remote: scenario.remote.clone().into(),
         directory: b"empty".as_slice().into(),
     });
     let checked = check(&spawn).expect("empty clone spawn");
     let fake = answer(&checked, &mut scenario.checkout, &mut scenario.transport);
     assert_eq!(fake.exit, 0);
-    assert!(scenario.checkout.exists(b"workspaces/1/app/empty/.git"));
-    assert!(scenario.checkout.tree(b"workspaces/1/app/empty/.git/objects").is_empty());
+    assert!(scenario.checkout.exists(b"workspaces/1/app/empty"));
+    assert!(scenario.checkout.tree(b"workspaces/1/app/empty/objects").is_empty());
     assert!(scenario.transport.forge.borrow().domain.object(1).is_none());
 }
 
@@ -513,14 +518,13 @@ fn opened(fd: Fd) -> Opened {
 fn hosted_clone_creates_only_the_destination_without_checking_out_files() {
     let scenario = fixtures::scenario();
     let mut disk = Disk::new(&scenario);
-    let command = Command::Clone { remote: scenario.remote.clone().into(), directory: b"copy".as_slice().into() };
+    let command = Command::Store { remote: scenario.remote.clone().into(), directory: b"copy".as_slice().into() };
     let result = disk.run(&scenario, &command, b"");
     assert_eq!(result.exit, 0);
     assert!(result.stdout.is_empty());
     assert!(result.stderr.is_empty());
-    assert_eq!(disk.read(&scenario.at, b"copy/.git/objects/1"), b"");
-    assert_eq!(disk.read(&scenario.at, b"copy/.git/objects/2"), b"");
-    assert_eq!(disk.read(&scenario.at, b"copy/.git/temper-remote"), scenario.remote);
+    assert_eq!(disk.read(&scenario.at, b"copy/objects/1"), b"");
+    assert_eq!(disk.read(&scenario.at, b"copy/remote"), scenario.remote);
     assert_eq!(disk.read(&scenario.at, b"conflict.txt"), b"base\n");
     let cloned =
         disk.machine.open(disk.root, &[scenario.at.as_slice(), b"/copy/conflict.txt"].concat(), How::PathNoFollow);
@@ -625,6 +629,7 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
     let result = disk.run(
         &scenario,
         &Command::Fetch {
+            workspace: skein_lib::Token::new(1),
             into: git::Into::Fetched,
             remote: scenario.remote.clone().into(),
             source: invocation::Source::Default,
@@ -650,11 +655,16 @@ fn a_clone_keeps_its_given_origin_url() {
     let mut scenario = fixtures::named(b"fixture/specimen", None);
     let clone = temper_worker_protocol_git::invocation::Command::Clone {
         directory: b"fresh".as_slice().into(),
+        format: invocation::Format::Sha1,
     };
     let mut spawn = fixtures::spawn_of(&clone);
     spawn.dir = b"workspaces/1".as_slice().into();
     let cloned = temper_fake_git_hosted::check(&spawn).expect("clone invocation");
     let _cloned = temper_fake_git_hosted::answer(&cloned, &mut scenario.checkout, &mut scenario.transport);
+    let mut remote = fixtures::spawn_of(&Command::Remote { remote: scenario.remote.clone().into() });
+    remote.dir = b"workspaces/1/fresh".as_slice().into();
+    let remote = temper_fake_git_hosted::check(&remote).expect("remote add invocation");
+    let _answer = temper_fake_git_hosted::answer(&remote, &mut scenario.checkout, &mut scenario.transport);
     let command =
         temper_worker_protocol_git::invocation::Command::Origin { directory: b"workspaces/1/fresh".as_slice().into() };
     let checked = temper_fake_git_hosted::check(&fixtures::spawn_of(&command)).expect("local origin query");
