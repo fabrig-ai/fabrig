@@ -3582,6 +3582,10 @@ fn the_worst_small_changes_document_fits_its_decision() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "price the root's worst paths and full wire rules against one decision together"
+)]
 fn the_worst_small_ways_document_fits_its_decision() {
     // A stock headline's bound (temper/docs/design/protocol/configuration/settings.md, 8).
     const HEADLINE_BYTES: u32 = 120;
@@ -3656,7 +3660,30 @@ fn the_worst_small_ways_document_fits_its_decision() {
         may_change: true,
     };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
-    assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
+    let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
+    assert!(panel.rules().rows().is_empty());
+    assert!(panel.rules().note().is_empty());
+    // Price the root's worst panel with every wire rule bound filled.
+    let row = w::PathRule::new(
+        &w::CEILINGS,
+        w::PathRuleParts {
+            paths: repeated(b'p', w::CEILINGS.path_rule_paths),
+            review: repeated(b'r', w::CEILINGS.path_rule_review),
+            sign_off: repeated(b's', w::CEILINGS.path_rule_sign_off),
+            lands: repeated(b'l', w::CEILINGS.path_rule_lands),
+        },
+    )
+    .unwrap();
+    let mut rows = List::with_capacity(w::CEILINGS.path_rules_rows);
+    for _ in 0..w::CEILINGS.path_rules_rows {
+        rows.push(row.clone()).unwrap();
+    }
+    let rules =
+        w::PathRules::new(&w::CEILINGS, w::PathRulesParts { rows, note: repeated(b'n', w::CEILINGS.path_rules_note) })
+            .unwrap();
+    let panel = w::WaysPanel::new(&w::CEILINGS, w::WaysPanelParts { rules, ..panel.into_parts() }).unwrap();
+    let bytes = wire::ways_panel(&panel);
+    assert_eq!(wire::decode_ways_panel(&bytes, &w::CEILINGS), Some(panel));
     let mut journal = root::Journal::uncapped(1, 0);
     let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
     decision
