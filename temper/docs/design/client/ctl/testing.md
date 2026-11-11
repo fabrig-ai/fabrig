@@ -256,7 +256,7 @@ DIRECTORY's files and a call's exit are the real loop's (3).
 - **`temper ctl help`** prints the page `ctl` of `temper-docs`
   (`../../protocol/documentation.md`), then the tools from the table, a
   line each, its usage and its line. The page is the driver's first
-  read (`../../draft/agent-docs.md`, section 4): how to sign in, the loop
+  read (`../../protocol/documentation.md`, section 2.4): how to sign in, the loop
   of `tools.md`, 4 (read, act, wait), naming keys and their prefix, reading acts
   and the revisions they name, the exit statuses of `results.md`, 3, JSON, the forge
   read with whatever the agent chooses and what temper owns there
@@ -272,7 +272,8 @@ DIRECTORY's files and a call's exit are the real loop's (3).
   among them, never the page `ctl`'s.
 - **Checked:** every `temper ctl` line of the page parses
   (`../../protocol/documentation.md`, section 6); a tool named in it that
-  the table lacks fails the gate.
+  the table lacks fails the gate. Written pages use that document's
+  placeholders (2.1) and voice (2.3).
 
 The indexed walk `open-public-reading` joins the engine's public admission,
 HTTP and index figures, their configuration location and restart, owner
