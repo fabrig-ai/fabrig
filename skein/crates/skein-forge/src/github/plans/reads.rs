@@ -45,7 +45,7 @@ enum Read {
     File { head: api::Commit, path: Box<[u8]>, max_bytes: u32 },
     Compare { before: api::Commit, after: api::Commit },
     Commits { before: api::Commit, after: api::Commit, page: u32 },
-    PullFiles { number: u64, head: api::Commit, page: u32, skip: u32 },
+    PullFiles { number: u64, head: api::Commit, page: u32, skip: u32, sides: bool },
     Job { attempt: api::JobAttempt, max_bytes: u32, part: api::LogPart },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -135,7 +135,7 @@ impl Plan {
             api::Read::Remarks { number, review, page, skip } => Read::Remarks { number, review, page, skip },
             api::Read::Collaborators { page } => Read::Collaborators { page },
             api::Read::Permission { user } => Read::Permission { user },
-            api::Read::PullFiles { number, head, page, skip } => Read::PullFiles { number, head, page, skip },
+            api::Read::PullFiles { number, head, page, skip, sides } => Read::PullFiles { number, head, page, skip, sides },
             api::Read::Checks { commit } => Read::Checks { commit },
             api::Read::Protection { branch } => Read::Protection { branch },
             api::Read::Job { attempt, max_bytes, part } => Read::Job { attempt, max_bytes, part },

@@ -330,7 +330,7 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
             api::Read::Remarks { .. } => Listing::Remarks,
             api::Read::Branches { .. } => Listing::Branches,
             api::Read::Collaborators { .. } => Listing::Collaborators,
-            api::Read::PullFiles { .. } => Listing::PullFiles,
+            api::Read::PullFiles { .. } => return limits::page_size(Listing::PullFiles, cap, l, s),
             api::Read::Compare { .. } | api::Read::Commits { .. } => Listing::Compare,
             api::Read::Runs { .. } => Listing::Runs,
             api::Read::Tree { .. } => Listing::Tree,
