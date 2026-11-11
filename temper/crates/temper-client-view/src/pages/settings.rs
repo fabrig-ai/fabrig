@@ -321,9 +321,16 @@ pub(crate) fn how_work_runs(
         if shown.goals {
             working(b, root, w, forge, project, shown);
         }
+        if temper_client_domain::pages::delete_project::offered(root.pages().me(root.client()), project) {
+            b.open(Role::Button);
+            b.name(&w.say(Word::DeleteProject, &[]));
+            b.bind(bindings.insert(Act::DeleteProject { project }));
+            b.close();
+        }
         b.close();
     }
     b.close();
+    crate::confirm::delete_project(b, root, w, bindings);
     b.close();
 }
 
