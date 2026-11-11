@@ -745,6 +745,9 @@ priority = -1
 
 [profile.dev]
 overflow-checks = true
+# Line tables alone for the workspace's own crates: panics and backtraces keep file and line, and each
+# test executable, linked anew in every target directory, sheds most of its size.
+debug = "line-tables-only"
 
 [profile.dev.package]
 
