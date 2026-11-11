@@ -42,13 +42,14 @@ pub(crate) fn answered_repository(
             }
             let row = d.keep.repos.get_mut(&key).expect("repository remains");
             if more && !progress.bootstrap {
+                progress.since = progress.since.min(now);
                 match items.last() {
-                    Some(last) if last.updated > progress.since => {
-                        progress.since = last.updated;
+                    Some(last) if last.updated.min(now) > progress.since => {
+                        progress.since = last.updated.min(now);
                         progress.page = 1;
                     }
                     Some(_) | None => {
-                        progress.tied = Some(progress.tied.unwrap_or(progress.since));
+                        progress.tied = Some(progress.tied.unwrap_or(progress.since).min(now));
                         progress.page = match progress.page.checked_add(1) {
                             Some(page) => page,
                             None => {
@@ -61,13 +62,16 @@ pub(crate) fn answered_repository(
                 }
                 row.state = Scan::Due(progress);
             } else {
-                row.record.mark = Some(if progress.bootstrap {
-                    now
-                } else if progress.moved {
-                    progress.tied.unwrap_or(progress.newest)
-                } else {
-                    progress.newest
-                });
+                row.record.mark = Some(
+                    (if progress.bootstrap {
+                        now
+                    } else if progress.moved {
+                        progress.tied.unwrap_or(progress.newest)
+                    } else {
+                        progress.newest
+                    })
+                    .min(now),
+                );
                 row.retry = skein_lib::Duration::ZERO;
                 row.state = Scan::Idle;
                 row.fresh = Fresh::Complete;
