@@ -606,3 +606,11 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change
   with each `again`, as the browser's (`../web/journeys.md`, section 10).
+- **Redaction in `again`:** a recording keeps the recorder's OS account
+  name, the label the fake box gives Me, and a program's reply may name
+  the scratch directory `/tmp/temper-journey-PID-N` (8.2); neither is
+  drawn, and `add --redact` refuses an admitted recording. The
+  `launchpad-chat`, `launchpad-drawn`, `sign-in-approved` and
+  `design-session` recordings are committed so (the user, 2026-11-11).
+  Default: so, until a later change gives the fake box a fixed account
+  label under `again` and redacts the scratch prefix in what it records.
