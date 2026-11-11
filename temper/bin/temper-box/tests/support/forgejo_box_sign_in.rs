@@ -100,7 +100,7 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         }
         let mut running = Serve {
             child: Command::new(skein_scratch::paths::binary("temper-box"))
-                .args(["box", "--echo", "steps"])
+                .args(["--echo", "steps"])
                 .args(configuration::flags(root))
                 .current_dir(root)
                 .process_group(0)

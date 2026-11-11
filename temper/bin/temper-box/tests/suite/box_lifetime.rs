@@ -54,7 +54,7 @@ fn a_hangup_stops_a_box_and_leaves_nothing_running() {
 
     // The same retained configuration must bind again, including its owned listener.
     fs::remove_file(boxed.root().join("data/box/logs/serve.log")).expect("remove the old readiness marker");
-    let child = box_link::command(boxed.root(), "box")
+    let child = box_link::command(boxed.root(), "")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

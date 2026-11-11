@@ -38,7 +38,7 @@ fn directory_commands_take_flags_after_their_command_words() {
         (vec!["init", "--box", "--box"], false),
         (vec!["init", "extra"], false),
         (vec!["serve"], true),
-        (vec!["box"], true),
+        (vec![], true),
         (vec!["serve", "old.json"], false),
         (vec!["program-login", "name"], true),
         (vec!["program-login"], false),
@@ -376,46 +376,31 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
-fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_arguments() {
+fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
     use temper_box_machine::host::Echo;
-    for (flags, variable, expected) in [
-        (vec![], None, Echo::None),
-        (vec![], Some("steps"), Echo::Steps),
-        (vec![], Some("none"), Echo::None),
-        (vec!["--echo", "steps"], Some("none"), Echo::Steps),
-        (vec!["--echo", "none"], Some("steps"), Echo::None),
-    ] {
-        let words = ["box", "--config", "/c", "--data", "/d", "--cache", "/k"]
+    for (flags, expected) in
+        [(vec![], Echo::None), (vec!["--echo", "steps"], Echo::Steps), (vec!["--echo", "none"], Echo::None)]
+    {
+        let words = ["--config", "/c", "--data", "/d", "--cache", "/k"]
             .into_iter()
             .chain(flags)
             .map(|word| Box::from(word.as_bytes()))
             .collect::<Vec<_>>();
-        let environment = variable
-            .into_iter()
-            .map(|value| (Box::from(b"TEMPER_ECHO".as_slice()), Box::from(value.as_bytes())))
-            .collect::<Vec<_>>();
-        let super::Command::Box { echo, .. } = super::configure_with(&words, &environment, b"/").expect("box settings")
-        else {
+        let super::Command::Box { echo, .. } = super::configure_with(&words, &[], b"/").expect("box settings") else {
             panic!("ordinary box")
         };
         assert_eq!(echo, expected);
     }
-    for (flags, variable, origin) in [(vec!["--echo", "all"], "steps", "--echo"), (vec![], "all", "TEMPER_ECHO")] {
-        let words = ["box", "--config", "/c", "--data", "/d", "--cache", "/k"]
-            .into_iter()
-            .chain(flags)
-            .map(|word| Box::from(word.as_bytes()))
-            .collect::<Vec<_>>();
-        let environment = [(Box::from(b"TEMPER_ECHO".as_slice()), Box::from(variable.as_bytes()))];
-        let why = super::configure_with(&words, &environment, b"/").expect_err("echo refused");
-        assert!(why.starts_with(&format!("temper-box box: {origin}: expected none or steps")), "{why}");
-    }
+    let words =
+        ["--config", "/c", "--data", "/d", "--cache", "/k", "--echo", "all"].map(|word| Box::from(word.as_bytes()));
+    let why = super::configure_with(&words, &[], b"/").expect_err("echo refused");
+    assert!(why.starts_with("temper-box: --echo: expected none or steps"), "{why}");
     for flags in [
         vec!["--echo", "steps", "extra"],
         vec!["--echo", "none", "--unknown"],
         vec!["--echo", "steps", "--echo", "steps"],
     ] {
-        let words = ["box", "--config", "/c", "--data", "/d", "--cache", "/k"]
+        let words = ["--config", "/c", "--data", "/d", "--cache", "/k"]
             .into_iter()
             .chain(flags)
             .map(|word| Box::from(word.as_bytes()))

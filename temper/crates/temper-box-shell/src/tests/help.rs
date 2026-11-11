@@ -4,8 +4,7 @@ use temper_client_tools::jig::call::Parsed;
 
 #[test]
 fn tui_help_explains_closing_and_ending_the_sign_in() {
-    assert!(crate::commands::help().contains("temper help tui"), "--help must direct readers to the TUI page");
-    let index = help::answer(&configured(&["help"])).expect("help index");
+    let index = help::answer(&configured(&["help", "pages"])).expect("help index");
     assert!(index.contains("temper help tui"), "the index must list the TUI page");
     let page = help::answer(&configured(&["help", "tui"])).expect("TUI page");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -27,7 +26,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     }
     let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
     assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
-    let commands = help::answer(&configured(&["help", "commands"])).expect("command reference");
+    let commands = temper_shell::rows::TUI.notes;
     assert!(commands.contains("`/exit` or Ctrl+C closes it without signing out"));
     assert!(commands.contains("`q` types a character on every screen"));
 }
@@ -430,7 +429,13 @@ fn every_command_line_in_the_pages_parses() {
                     continue;
                 }
             };
-            let arguments = words[1..].iter().map(String::as_bytes).collect::<Vec<_>>();
+            let mut translated = words[1..].to_vec();
+            if translated.first().is_some_and(|word| word == "box") {
+                translated.remove(0);
+            } else if translated.is_empty() || (translated.len() == 1 && translated[0].starts_with("http://")) {
+                continue;
+            }
+            let arguments = translated.iter().map(String::as_bytes).collect::<Vec<_>>();
             let result = if words.get(1).is_some_and(|word| word == "ctl") {
                 ctl += 1;
                 match crate::ctl::parse(&arguments[1..]) {
@@ -509,14 +514,15 @@ fn configured(words: &[&str]) -> help::Request {
 }
 
 #[test]
-fn help_prints_the_index_before_init_with_no_environment_or_configuration() {
+fn help_prints_the_page_and_index_before_init_with_no_environment_or_configuration() {
     let directory = std::env::temp_dir().join(format!("temper-help-{}", std::process::id()));
     fs::create_dir(&directory).expect("empty working directory");
     assert_eq!(fs::read_dir(&directory).expect("working directory").count(), 0);
     let command = configure_with(&[Box::from(b"help".as_slice())], &[], directory.as_os_str().as_bytes())
         .expect("help before init");
-    let Command::Help { request } = command else { panic!("help command") };
-    let answer = help::answer(&request).expect("index page");
+    assert_eq!(command, Command::Overview);
+    assert_eq!(temper_shell::table::help(&crate::TABLE, &[]).expect("table help"), crate::TABLE.help());
+    let answer = help::answer(&configured(&["help", "pages"])).expect("index page");
     assert_eq!(answer, temper_docs::find(b"index").expect("index page").text);
     assert_eq!(fs::read_dir(&directory).expect("still empty working directory").count(), 0);
     fs::remove_dir(directory).expect("remove empty working directory");
@@ -841,7 +847,8 @@ fn help_requires_one_page_or_search_words() {
         let words = words.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
         assert_eq!(
             configure_with(&words, &[], b"/unused"),
-            Err("temper-box help: invalid arguments\nusage: temper-box help [NAME | --search WORDS...]\n".into())
+            Err("temper-box help: invalid arguments\nusage: temper-box help [NAME | pages | --search WORDS...]\n"
+                .into())
         );
     }
 }
