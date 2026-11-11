@@ -324,6 +324,8 @@ pub struct Facts {
     pub delegate: Option<Delegate>,
     /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
     pub catch_up: Option<Commit>,
+    /// This change follows source landings and never starts early (domain/forge/follows.md, 4).
+    pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).

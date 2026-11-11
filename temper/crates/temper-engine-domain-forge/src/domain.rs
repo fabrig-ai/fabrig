@@ -4368,6 +4368,7 @@ fn change_facts(
             None => None,
         },
         catch_up: row.catch_up,
+        follows: row.follows.is_some(),
         close: row.close.is_some(),
         contains_catch_up: pending.contains_catch_up,
         mergeable: match &pending.pull {
