@@ -697,17 +697,6 @@ whole.
   set. Default: the coordinator's card, until a draft asks for a
   close-out's role of its own (`change/branch-path.md`, *The project's roles*).
 
-- **A role's words on its card** (`change/branch-path.md`, *The project's roles*): the
-  forge keeps a charter's words, kind 9, what its runs do in a line, and
-  the draft has Roles say them after when the role runs, "For each chat:
-  talks with you and asks for the changes", its instructions' first
-  sentence where none is kept (`../../draft/surfaces.md`, section 7;
-  `../../draft/whole-story.execution.md`, P3e). The view `roles` would read
-  them as the root reads a charter (`charter_words`) and carry them on
-  each role's card, beside its `who`, within the card's bounds; How work
-  runs draws them (`../../client/README.md`, section 5, *How work runs'
-  later parts*). Default: a role's card says when it runs alone.
-
 - **Project-scoped rules on a real forge** (`change/gates.md`, 3): observe the
   every-project default, its override and reset, and branch-relative
   coverage through the existing process and live landing stories after
