@@ -955,10 +955,10 @@ pub fn run_ctl_with_face<T>(
 fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
     if probe {
-        environment.push(("TEMPER_R8_WAIT_CHECK".into(), "1".into()));
+        environment.push(("TEMPER_INTERNAL_WAIT_CHECK".into(), "1".into()));
     }
     if let Some(marker) = cut {
-        environment.push(("TEMPER_R8_CUT_AT_LISTEN".into(), marker.as_os_str().to_owned()));
+        environment.push(("TEMPER_INTERNAL_CUT_AT_LISTEN".into(), marker.as_os_str().to_owned()));
     }
     environment
 }
@@ -1236,7 +1236,7 @@ pub fn run_ctl_with_cut(
 
 fn chosen_fake_ports() -> (std::ffi::OsString, std::ffi::OsString) {
     let ports = super::free_addresses::<9>(&[]).map(|address| address.port().to_string()).join(",");
-    ("TEMPER_FAKE_BOX_PORTS".into(), ports.into())
+    ("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into())
 }
 
 fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {

@@ -18,7 +18,7 @@ use std::{
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Candidate names only: relative PATH entries are never searched.
 pub(crate) fn candidates(environment: &[EnvironmentEntry], name: &[u8]) -> Vec<PathBuf> {
-    let Some((_, value)) = environment.iter().find(|(key, _)| key.as_ref() == b"PATH") else { return Vec::new() };
+    let Some(value) = temper_shell::environment::PATH.value(environment) else { return Vec::new() };
     value
         .split(|byte| *byte == b':')
         .filter(|entry| entry.starts_with(b"/"))
@@ -336,24 +336,20 @@ fn write_deployment(
         }
     }
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment supplies init's executable choices; temper-box's table will pass it"
-)]
-pub(crate) fn core(directories: &Directories) -> Result<Written, String> {
+pub(crate) fn core(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write(directories, &skein_shell::environment(), &binary, [8367, 8368, 8369, 8370, 8371])
+    write(directories, environment, &binary, [8367, 8368, 8369, 8370, 8371])
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment supplies bare init's executable choices; temper-box's table will pass it"
-)]
-pub(crate) fn bare(directories: &Directories) -> Result<Written, String> {
+pub(crate) fn bare(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write_bare(directories, &skein_shell::environment(), &binary, [8367, 8371])
+    write_bare(directories, environment, &binary, [8367, 8371])
 }
-pub(crate) fn run(directories: &Directories, boxed: bool) -> Result<u8, String> {
-    let written = if boxed { core(directories)? } else { bare(directories)? };
+pub(crate) fn run(
+    directories: &Directories,
+    boxed: bool,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<u8, String> {
+    let written = if boxed { core(directories, environment)? } else { bare(directories, environment)? };
     for path in written.paths {
         eprintln!("init: wrote {}", path.display());
     }

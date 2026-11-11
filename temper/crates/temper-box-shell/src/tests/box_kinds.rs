@@ -322,7 +322,7 @@ fn no_group_file_and_no_owned_part_is_refused_naming_both() {
         ("prepare", vec!["prepare".into(), "17".into()]),
         ("run", vec!["run".into(), "17".into(), "forgejo".into()]),
     ] {
-        let refused = crate::forge::start(&directories, &arguments, None).expect_err("no owned part");
+        let refused = crate::forge::start(&directories, &arguments, None, &[]).expect_err("no owned part");
         assert_eq!(
             refused.line(),
             format!(
@@ -342,7 +342,7 @@ fn remove_refuses_a_forge_with_no_group_file() {
     let forge = scratch.path().join("forge-17");
     fs::create_dir(&forge).expect("forge directory");
     fs::write(forge.join("kept"), b"kept").expect("forge file");
-    let refused = crate::forge::start(&directories, &["remove".into(), "17".into()], None).expect_err("no kind");
+    let refused = crate::forge::start(&directories, &["remove".into(), "17".into()], None, &[]).expect_err("no kind");
     assert_eq!(
         refused.line(),
         format!("temper forge remove: forge 17: {}: absent\n", scratch.path().join("box/groups/17").display())

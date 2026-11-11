@@ -106,6 +106,8 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
     let result = temper_box_shell::boxed_operations_in(
+        &[],
+        b"/",
         &directories,
         &fs::read(paths[0].join("temper.json")).expect("configuration"),
     );
@@ -338,7 +340,9 @@ fn a_configuration_file_past_its_bound_is_refused() {
         .set_len(1_048_577)
         .expect("one byte past bound");
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused"),
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+            .err()
+            .expect("refused"),
         format!("temper serve: configuration {}: past 1048576 bytes\n", directory.join("temper.json").display())
     );
     scratch.remove();
@@ -350,8 +354,9 @@ fn a_secret_file_readable_by_others_refuses_the_start_naming_it() {
     support::configuration(directory, &support::Forge::Unreached);
     fs::set_permissions(directory.join("worker.secret"), fs::Permissions::from_mode(0o644))
         .expect("public permissions");
-    let refused =
-        temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("start refused");
+    let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+        .err()
+        .expect("start refused");
     assert_eq!(
         refused,
         format!(
@@ -370,7 +375,9 @@ fn a_worker_root_reached_through_a_link_is_refused() {
     fs::create_dir(directory.join("real-root")).expect("root directory");
     symlink(directory.join("real-root"), directory.join("worker-root")).expect("linked root");
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused"),
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+            .err()
+            .expect("refused"),
         "temper serve: application.workers[0].root: must be a private directory of this user's, not reached through a link\n"
     );
     scratch.remove();
@@ -381,7 +388,9 @@ fn problems_reach_stderr_one_line_each() {
     let directory = scratch.path();
     fs::write(directory.join("temper.json"), b"{}").expect("configuration");
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused"),
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+            .err()
+            .expect("refused"),
         "temper serve: engine: missing\ntemper serve: workers: missing\ntemper serve: application: missing\n"
     );
     scratch.remove();
@@ -470,7 +479,7 @@ fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
         &serde_json::to_vec(&value).expect("configuration JSON"),
     );
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()))
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
             .expect("configuration refused"),
         "temper serve: application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n"
@@ -483,11 +492,16 @@ fn box_document(scratch: &support::Scratch) -> serde_json::Value {
 }
 fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String {
     support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(value).expect("JSON"));
-    temper_box_shell::run(temper_box_shell::Command::Box {
-        directories: support::configuration::directories(scratch.path()),
-        echo: temper_box_machine::host::Echo::None,
-        no_tui: true,
-    })
+    temper_box_shell::run(
+        temper_box_shell::Command::Box {
+            directories: support::configuration::directories(scratch.path()),
+            echo: temper_box_machine::host::Echo::None,
+            no_tui: true,
+        },
+        &[],
+        b"/",
+        b"temper-box",
+    )
     .expect_err("box refused")
 }
 #[test]
@@ -568,11 +582,16 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
     let scratch = support::Scratch::startup("box-absent-document");
     fs::write(scratch.path().join("other"), b"kept").expect("nonempty configuration");
     assert_eq!(
-        temper_box_shell::run(temper_box_shell::Command::Box {
-            directories: support::configuration::directories(scratch.path()),
-            echo: temper_box_machine::host::Echo::None,
-            no_tui: true,
-        }),
+        temper_box_shell::run(
+            temper_box_shell::Command::Box {
+                directories: support::configuration::directories(scratch.path()),
+                echo: temper_box_machine::host::Echo::None,
+                no_tui: true,
+            },
+            &[],
+            b"/",
+            b"temper-box"
+        ),
         Err(format!(
             "temper-box: configuration {}: absent; temper init writes one\n",
             scratch.path().join("temper.json").display()
@@ -661,7 +680,7 @@ fn a_box_limit_past_its_check_refuses_temper_serve_too() {
     value["application"]["limits"]["overrides"]["box.backoff_max_ms"] = 100.into();
     support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&value).expect("JSON"));
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()))
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
             .expect("serve refused"),
         "temper serve: application.limits.overrides.box.backoff_ms: must agree with box.backoff_max_ms\n"
@@ -674,7 +693,7 @@ fn a_box_limit_within_its_check_is_accepted_by_temper_serve() {
     let mut value = box_document(&scratch);
     value["application"]["limits"]["overrides"]["box.restarts"] = 3.into();
     support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&value).expect("JSON"));
-    assert!(temper_box_shell::prepare_in(&support::configuration::directories(scratch.path())).is_ok());
+    assert!(temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path())).is_ok());
     scratch.remove();
 }
 
@@ -689,7 +708,7 @@ fn owned_example(case: &str) -> support::Scratch {
 #[test]
 fn the_owned_example_starts_without_credential_files() {
     let scratch = owned_example("owned-example-records");
-    let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     assert!(!scratch.path().join("forge-1").exists(), "startup writes no forge files");
     scratch.remove();
@@ -698,7 +717,7 @@ fn the_owned_example_starts_without_credential_files() {
 #[test]
 fn serve_prepares_once_on_the_owned_example() {
     let scratch = owned_example("owned-example-prepared");
-    let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
@@ -726,7 +745,7 @@ fn eight_slots(case: &str, leave: Option<&str>) -> support::Scratch {
 #[test]
 fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
     let scratch = eight_slots("eight-slots", None);
-    let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
@@ -749,7 +768,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
         ),
     ] {
         let scratch = eight_slots(&format!("eight-slots-{name}"), Some(name));
-        let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
         scratch.remove();
     }
@@ -764,7 +783,7 @@ fn serve_prepares_once_on_a_bare_init() {
         .output()
         .expect("bare init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     assert!(!scratch.path().join("demo").exists(), "bare init creates no demo");
     scratch.remove();
@@ -788,7 +807,7 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     ] {
         document["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
         support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
-        let prepared = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
             None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),
@@ -855,7 +874,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let section = if member == "tool_payload" { "declared" } else { "policy" };
         agent["profile"][section][member] = value.into();
         support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
-        let result = temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()));
+        let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
                 let mut service = result.expect("charter shortfalls warn");
@@ -880,7 +899,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     agent["profile"]["declared"]["tool_payload"] = 600.into();
     support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
     assert_eq!(
-        temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()))
+        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
             .expect("old tuple refused"),
         "temper serve: engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
@@ -997,17 +1016,22 @@ fn every_command_checks_setup_before_reading_files() {
     for (command, refused) in [
         (
             "serve",
-            temper_box_shell::prepare_in(&support::configuration::directories(scratch.path()))
+            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
                 .err()
                 .expect("serve refused"),
         ),
         (
             "temper-box",
-            temper_box_shell::run(temper_box_shell::Command::Box {
-                directories: support::configuration::directories(scratch.path()),
-                echo: temper_box_machine::host::Echo::None,
-                no_tui: true,
-            })
+            temper_box_shell::run(
+                temper_box_shell::Command::Box {
+                    directories: support::configuration::directories(scratch.path()),
+                    echo: temper_box_machine::host::Echo::None,
+                    no_tui: true,
+                },
+                &[],
+                b"/",
+                b"temper-box",
+            )
             .expect_err("box refused"),
         ),
     ] {
@@ -1290,7 +1314,7 @@ fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
         .expect("page with a head");
     support::forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:7100", "127.0.0.1:7200");
     support::forge_sign_in::success(&support::forge_sign_in::command(directory).output().expect("sign-in key"));
-    let prepared = temper_box_shell::prepare_in(&support::configuration::directories(directory));
+    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
@@ -1301,8 +1325,9 @@ fn a_bundle_page_without_a_head_refuses_the_start_for_its_metadata() {
     let directory = scratch.path();
     bundle_configuration(directory);
     fixture_bundle(directory);
-    let why =
-        temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("page refused");
+    let why = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+        .err()
+        .expect("page refused");
     assert_eq!(
         why,
         format!(
@@ -1344,7 +1369,9 @@ fn a_directory_that_is_no_bundle_refuses_the_start() {
         fixture_bundle(directory);
         spoil(directory);
         assert_eq!(
-            temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused"),
+            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+                .err()
+                .expect("refused"),
             expected.replace(": bundle", &format!(": {}/bundle", directory.display())),
             "row {name}"
         );
@@ -1372,7 +1399,9 @@ fn a_bundle_past_a_limit_refuses_the_start() {
         fixture_bundle(directory);
         support::owned::configuration_value(directory, limit);
         assert_eq!(
-            temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused"),
+            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+                .err()
+                .expect("refused"),
             expected.replace(": bundle", &format!(": {}/bundle", directory.display())),
             "row {name}"
         );
@@ -1416,8 +1445,9 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
         fs::write(agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
         // A later missing secret proves that the preflight neither creates nor inspects a login.
         fs::remove_file(directory.join("worker.secret")).expect("absent peer");
-        let refused =
-            temper_box_shell::prepare_in(&support::configuration::directories(directory)).err().expect("refused");
+        let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+            .err()
+            .expect("refused");
         if ["missing", "private", "linked-parent"].contains(&row) {
             assert!(refused.contains("workers[0].secret"), "{row}: {refused}");
             assert!(!refused.contains("programs.claude_code.directory"), "{row}: {refused}");
@@ -1636,7 +1666,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
         if row == "nonempty" {
             fs::write(config.join("other"), b"kept").expect("entry");
         }
-        let result = temper_box_shell::box_command::configuration(&dirs);
+        let result = temper_box_shell::box_command::configuration(&dirs, &[]);
         if row == "nonempty" {
             assert_eq!(
                 result.expect_err("missing document"),
@@ -1650,7 +1680,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert_eq!(held.len(), 5, "init retains its five listeners");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
-            let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs).expect("second read");
+            let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");
             assert_eq!(second, first, "existing configuration is kept");
             assert!(reopened.is_empty(), "reading an existing configuration reserves no listeners");
             for (fd, _) in held {
@@ -1761,7 +1791,7 @@ fn machine_startup_leaves_unconnected_forge_handover_files_unread() {
             }
             _ => unreachable!(),
         }
-        let answer = temper_box_shell::prepare_in(&support::configuration::directories(directory));
+        let answer = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
         assert!(answer.is_ok(), "unconnected machine leaves handover unread: {row}: {:?}", answer.err());
         if row == "unreadable" {
             fs::set_permissions(&token, fs::Permissions::from_mode(0o600)).expect("handover fixture");
@@ -1901,7 +1931,7 @@ fn the_live_github_configuration_passes_startup_admission() {
         .collect();
         let (directories, _) = temper_box_shell::directories::resolve(&args, &[], b"/").expect("member directories");
         let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-        let operations = temper_box_shell::operations_in(&directories, &bytes)
+        let operations = temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
             .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
@@ -2493,7 +2523,7 @@ fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
                 input["application"] = serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
                 fs::write(&document, serde_json::to_vec(&input).unwrap()).unwrap();
             }
-            let prepared = temper_box_shell::prepare_in(&support::configuration::directories(directory));
+            let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
             assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
             let launcher = directory.join("claude-code/claude");
             let cache = directory.join("claude-code/cache");

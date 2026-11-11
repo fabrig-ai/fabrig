@@ -33,10 +33,15 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
 
 #[must_use]
 pub fn refused(directory: &Path, name: &std::ffi::OsStr) -> String {
-    temper_box_shell::run(temper_box_shell::Command::ProgramLogin {
-        directories: super::configuration::directories(directory),
-        name: name.into(),
-    })
+    temper_box_shell::run(
+        temper_box_shell::Command::ProgramLogin {
+            directories: super::configuration::directories(directory),
+            name: name.into(),
+        },
+        &[],
+        b"/",
+        b"temper-box",
+    )
     .expect_err("login refused")
 }
 

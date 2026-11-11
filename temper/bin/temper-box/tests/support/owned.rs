@@ -51,7 +51,7 @@ pub fn prepare_command(directory: &Path, forge: u16) -> Command {
         .args(super::configuration::flags(directory))
         .arg(forge.to_string())
         .current_dir(directory)
-        .env_remove("TEMPER_FORGE_NO_REGISTRATION");
+        .env_remove("TEMPER_INTERNAL_FORGE_NO_REGISTRATION");
     command
 }
 #[must_use]
@@ -65,7 +65,7 @@ pub fn prepare(directory: &Path, forge: u16) -> Output {
 #[must_use]
 pub fn prepare_no_registration(directory: &Path, forge: u16) -> Output {
     super::story_command::standalone(
-        prepare_command(directory, forge).env("TEMPER_FORGE_NO_REGISTRATION", "1"),
+        prepare_command(directory, forge).env("TEMPER_INTERNAL_FORGE_NO_REGISTRATION", "1"),
         "the owned forge's preparation without registration",
         super::boxed::BOX_DEADLINE,
     )

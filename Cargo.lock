@@ -5979,6 +5979,7 @@ dependencies = [
  "smith-agent-document",
  "temper-fetch",
  "temper-fetch-shell",
+ "temper-shell",
 ]
 
 [[package]]

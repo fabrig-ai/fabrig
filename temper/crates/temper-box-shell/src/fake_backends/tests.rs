@@ -55,7 +55,7 @@ fn start_chosen(source: &Directories, bundle: Option<&Path>, chosen: Option<&Cho
         fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     }
     // Use the source fixture's explicit absence of optional executables.
-    prepare_with_environment(source, bundle, &adapter, chosen, &[])
+    prepare(source, bundle, &adapter, chosen, &[])
 }
 fn provision_bundle(path: &Path) -> PathBuf {
     make_private(&path.join("0000000000000001"), skein_shell::effective_user()).expect("private fixture bundle");
@@ -113,7 +113,7 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
         let scratch = Scratch::new(if sign_in { "stock-sign-in" } else { "stock-no-sign-in" });
         let source = stock_box_source(&scratch, sign_in);
         let original = fs::read(source.document()).expect("source public bytes");
-        let imported = Source::read(&source).expect("untouched box init imports");
+        let imported = Source::read(&source, &[]).expect("untouched box init imports");
         let (_, effective) = directories(&source).expect("sandbox directories");
         let (temper, agent) = imported.rebase(&effective).expect("rebase public paths").expect("source documents");
         let rebased: serde_json::Value = serde_json::from_slice(&temper).expect("rebased document");
@@ -180,7 +180,7 @@ fn modified_box_sign_in_is_refused() {
         let mut changed = stock.clone();
         *changed.pointer_mut(pointer).expect("stock member") = value;
         store_json(&source.document(), &changed);
-        let error = Source::read(&source).err().unwrap_or_else(|| panic!("{pointer}: modified sign-in accepted"));
+        let error = Source::read(&source, &[]).err().unwrap_or_else(|| panic!("{pointer}: modified sign-in accepted"));
         let refused = if pointer == "/engine/clients/provider" {
             "application/machine/owned/sign_in"
         } else {
@@ -954,7 +954,8 @@ fn fake_github_machine_passes_ordinary_admission_without_document_forges() {
     let machine = crate::box_command::machine(&first.bytes, &first.directories).expect("machine");
     assert_eq!(crate::address(&machine.github.expect("fake GitHub").api).expect("socket"), first.peers.github);
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
-    let operations = crate::operations_in(&first.directories, &first.bytes).expect("ordinary computed startup sizing");
+    let operations =
+        crate::operations_in(&[], b"/", &first.directories, &first.bytes).expect("ordinary computed startup sizing");
     assert!(operations > 0);
     eprintln!("four-forge ordinary sizing: {operations} operations");
 }

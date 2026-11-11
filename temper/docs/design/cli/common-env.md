@@ -121,6 +121,34 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 
 ## Internal
 
+### `TEMPER_INTERNAL_WAIT_CHECK`
+
+- **Set:** internal
+- **Reads**
+- **Form:** SWITCH
+- **Absent:** Check in debug builds only.
+- Check the service wait boundary.
+- **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_CUT_AT_LISTEN`
+
+- **Set:** internal
+- **Reads**
+- **Form:** FILE
+- **Absent:** Do not cut the start.
+- Abort once at the client listener, creating this marker.
+- **Notes:** Requires TEMPER_INTERNAL_WAIT_CHECK. An existing marker keeps the next start running.
+- **Read by:** temper-box, temper-engine
+
+### `TEMPER_INTERNAL_FORGE_NO_REGISTRATION`
+
+- **Set:** internal
+- **Reads**
+- **Form:** SWITCH
+- **Absent:** Register the first account.
+- Use links only instead of registering a first account.
+- **Read by:** temper-box, temper-engine
+
 ### `TEMPER_INTERNAL_COMMIT`
 
 - **Set:** internal

@@ -259,9 +259,9 @@ pub fn main() -> std::process::ExitCode;
   | `TEMPER_BUNDLE` | `TEMPER_INTERNAL_BUNDLE` | the bundle's build script |
   | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper-client` reads `temper-version`'s |
   | `TEMPER_DUMP_LLM` | `TEMPER_INTERNAL_DUMP_LLM` | the service and its agents |
-  | `TEMPER_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
-  | `TEMPER_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
-  | `TEMPER_R8_CUT_AT_LISTEN`, `TEMPER_R8_WAIT_CHECK` | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | serve's host |
+  | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
+  | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
+  | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | `TEMPER_INTERNAL_CUT_AT_LISTEN`, `TEMPER_INTERNAL_WAIT_CHECK` | serve's host |
   | `TEMPER_WORKSPACE_REUSE` | `TEMPER_INTERNAL_WORKSPACE_REUSE` | the worker |
 
   A compile-time name (`env!`) is declared as internal in each table

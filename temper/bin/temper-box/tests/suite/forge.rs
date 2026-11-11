@@ -670,14 +670,16 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
     forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
     assert!(fs::read(&path).expect("repeated ini") == closed);
     let empty = support::story_command::standalone(
-        owned::prepare_command(directory, 1).env("TEMPER_FORGE_NO_REGISTRATION", ""),
+        owned::prepare_command(directory, 1).env("TEMPER_INTERNAL_FORGE_NO_REGISTRATION", ""),
         "preparation with an empty registration switch",
         support::boxed::BOX_DEADLINE,
     );
     forge_sign_in::success(&empty);
     assert!(fs::read(&path).expect("empty switch ini") == original);
-    let output =
-        forge_sign_in::command(directory).env("TEMPER_FORGE_NO_REGISTRATION", "1").output().expect("sign-in command");
+    let output = forge_sign_in::command(directory)
+        .env("TEMPER_INTERNAL_FORGE_NO_REGISTRATION", "1")
+        .output()
+        .expect("sign-in command");
     forge_sign_in::success(&output);
     let settings = temper_forge_setup::sign_in::LINKS_ONLY_SETTINGS;
     assert!(output.stdout.windows(settings.len()).any(|part| part == settings));

@@ -16,3 +16,20 @@ fn prepare_hint_names_the_running_binary() {
         assert_eq!(prepare_hint(binary, "not prepared", 17, &directories), expected, "{binary}");
     }
 }
+
+#[test]
+fn inherited_listener_uses_the_given_descriptor_count() {
+    use temper_forge_setup::spec::Which;
+    let environment = [(Box::from(b"LISTEN_FDS".as_slice()), Box::from(b"2".as_slice()))];
+    assert_eq!(
+        super::inherited_listener(Which::Forgejo, &environment),
+        Err("LISTEN_FDS: forgejo requires exactly 1 listener at fd 3".into())
+    );
+    assert_eq!(
+        super::inherited_listener(Which::Runner, &environment),
+        Err("LISTEN_FDS: runner takes no listeners (fd 3)".into())
+    );
+    assert_eq!(super::inherited_listener(Which::Forgejo, &[]), Ok(None));
+    let empty = [(Box::from(b"LISTEN_FDS".as_slice()), Box::from(b"".as_slice()))];
+    assert_eq!(super::inherited_listener(Which::Forgejo, &empty), Ok(None));
+}

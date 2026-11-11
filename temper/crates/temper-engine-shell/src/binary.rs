@@ -84,10 +84,21 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                 return Err(refused("invalid arguments"));
             }
             refuse_document(command, &directories).map_err(|why| (1, why))?;
-            Ok(match serve::run(ENGINE.binary, &directories, false, None).map_err(|why| (1, why))? {
-                Exit::Code(code) => code,
-                Exit::Signal(_) => 1,
-            })
+            Ok(
+                match serve::run(
+                    ENGINE.binary,
+                    &captured.environment,
+                    working.as_os_str().as_bytes(),
+                    &directories,
+                    false,
+                    None,
+                )
+                .map_err(|why| (1, why))?
+                {
+                    Exit::Code(code) => code,
+                    Exit::Signal(_) => 1,
+                },
+            )
         }
         Reach::Words(words) => {
             let row = match words {

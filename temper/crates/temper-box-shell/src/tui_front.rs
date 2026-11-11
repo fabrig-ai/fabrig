@@ -22,7 +22,7 @@ pub(crate) fn handed(bytes: &[u8]) -> Option<Secret> {
     Some(Secret::new(bytes.into()))
 }
 
-pub(crate) fn run(argument: &[u8], clock: &Clock) -> u8 {
+pub(crate) fn run(argument: &[u8], clock: &Clock, environment: &[crate::EnvironmentEntry], working: &[u8]) -> u8 {
     let result = (|| {
         let engine = tui::address(argument).map_err(|why| why.line("temper"))?;
         let link = (|| {
@@ -39,7 +39,7 @@ pub(crate) fn run(argument: &[u8], clock: &Clock) -> u8 {
             skein_shell::close_startup_fd(terminal);
             return Err(terminal_refusal(why));
         }
-        start(engine, link, terminal, clock)
+        start(engine, link, terminal, clock, environment, working)
     })();
     match result {
         Ok(code) => code,
@@ -54,23 +54,24 @@ fn terminal_refusal(why: Error) -> String {
     format!("temper internal tui: terminal: {why:?}\n")
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment selects terminal scheme and depth; temper-box's table will pass it"
-)]
-fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Result<u8, String> {
-    let environment = skein_shell::environment();
-    let directory = tui::directory(&environment).map_err(|why| why.line("temper"))?;
+fn start(
+    engine: SocketAddr,
+    link: Secret,
+    terminal: Fd,
+    clock: &Clock,
+    environment: &[crate::EnvironmentEntry],
+    working: &[u8],
+) -> Result<u8, String> {
+    let directory = tui::directory(environment).map_err(|why| why.line("temper"))?;
     let user = skein_shell::effective_user();
     directories::make_private(&directory, user).map_err(|why| tui::Refused::Directory(why).line("temper"))?;
     let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
         .ok()
         .and_then(|bytes| tui::kept(bytes.expose()));
-    let link_file =
-        std::env::current_dir().ok().and_then(|working| tui::link_path(&environment, working.as_os_str().as_bytes()));
+    let link_file = tui::link_path(environment, working);
     let note = tui::read_note(&directory, engine, user);
-    let scheme = tui::scheme(&environment);
-    let depth = tui::depth(&environment);
+    let scheme = tui::scheme(environment);
+    let depth = tui::depth(environment);
     let input = skein_shell::raw_input(terminal, Keys::Pass).map_err(terminal_refusal)?;
     let (kept, size) = match input {
         Input::Terminal { kept, size } => (kept, size),
@@ -115,7 +116,7 @@ fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Resul
             depth,
             size: skein_ui_screen::Size { rows: size.rows, columns: size.columns },
             limits: limits::tui(),
-            opener: tui::opener(&environment, cfg!(target_os = "linux"), &|path| {
+            opener: tui::opener(environment, cfg!(target_os = "linux"), &|path| {
                 std::fs::metadata(path)
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),

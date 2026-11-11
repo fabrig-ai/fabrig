@@ -40,7 +40,7 @@ fn provider(directory: &Path, bits: Option<u32>, secret: bool) {
 
 fn refused(directory: &Path, field: &str) {
     let bytes = fs::read(directory.join("temper.json")).expect("configuration");
-    let why = temper_box_shell::operations_in(&support::configuration::directories(directory), &bytes)
+    let why = temper_box_shell::operations_in(&[], b"/", &support::configuration::directories(directory), &bytes)
         .expect_err("provider admission refuses");
     assert!(why.contains("provider") && why.contains(field), "{why}");
 }

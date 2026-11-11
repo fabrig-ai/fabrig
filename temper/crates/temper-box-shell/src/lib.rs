@@ -117,6 +117,7 @@ pub enum Command {
         directories: Directories,
         arguments: Vec<OsString>,
         ssl_cert_file: Option<PathBuf>,
+        environment: Box<[EnvironmentEntry]>,
     },
 }
 fn prefixed(command: &str, why: &str) -> String {
@@ -248,8 +249,8 @@ fn configure_row(
             };
             return temper_engine_shell::forge::configure(legacy, arguments, environment, working).map(|command| {
                 match command {
-                    forge::Command::Forge { directories, arguments, ssl_cert_file } => {
-                        Command::Forge { directories, arguments, ssl_cert_file }
+                    forge::Command::Forge { directories, arguments, ssl_cert_file, environment } => {
+                        Command::Forge { directories, arguments, ssl_cert_file, environment }
                     }
                     forge::Command::ForgeChild { parent, signal, program, arguments } => {
                         Command::ForgeChild { parent, signal, program, arguments }
@@ -271,7 +272,7 @@ fn configure_row(
     }
 }
 
-pub fn run(command: Command) -> Result<u8, String> {
+pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], run_as: &[u8]) -> Result<u8, String> {
     let exit = match command {
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -281,22 +282,29 @@ pub fn run(command: Command) -> Result<u8, String> {
             print!("{}", TABLE.version_line());
             return Ok(0);
         }
-        Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments)),
+        Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments, environment)),
         Command::Relay | Command::ProgramChild => unreachable!("smith modes are dispatched by main"),
         Command::Usage(row) => {
             print!("{}", TABLE.command_help(row));
             return Ok(0);
         }
         Command::Init { directories, boxed } => {
-            return init::run(&directories, boxed).map_err(|why| prefixed("temper init", &why));
+            return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed } => serve::run("temper", &directories, boxed, Some(&worker_half::Half))?,
+        Command::Serve { directories, boxed } => serve::run(
+            "temper",
+            environment,
+            working,
+            &directories,
+            boxed,
+            Some(&worker_half::Half { environment: environment.into() }),
+        )?,
         Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
+            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui, environment)
                 .map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Box { directories, echo, no_tui } => {
-            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper-box", &why))?
+            box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => temper_worker_shell::agent::decoded(&configuration)
             .inspect_err(|why| {
@@ -321,17 +329,17 @@ pub fn run(command: Command) -> Result<u8, String> {
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
-        Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments)),
+        Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
             return temper_engine_shell::forge::command(
                 "temper",
                 forge::Command::ForgeChild { parent, signal, program, arguments },
             );
         }
-        Command::Forge { directories, arguments, ssl_cert_file } => {
+        Command::Forge { directories, arguments, ssl_cert_file, environment } => {
             return temper_engine_shell::forge::command(
                 "temper",
-                forge::Command::Forge { directories, arguments, ssl_cert_file },
+                forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
         }
         Command::Help { request } => {
@@ -339,7 +347,7 @@ pub fn run(command: Command) -> Result<u8, String> {
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
-        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new())),
+        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new(), environment, working)),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {
@@ -355,40 +363,120 @@ pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub use temper_service_shell::host::{Host, ending as service_ending};
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
-fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
-    serve::prepare("temper", Some(&worker_half::Half), directories, bytes, owned)
+fn prepare(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<service::Service, String> {
+    serve::prepare(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        bytes,
+        owned,
+    )
 }
 #[cfg(test)]
 fn prepare_with_store(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", Some(&worker_half::Half), directories, bytes, owned)
+    serve::prepare_with_store(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        bytes,
+        owned,
+    )
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
-pub fn operations_in(directories: &Directories, config: &[u8]) -> Result<u32, String> {
-    serve::operations_in("temper", Some(&worker_half::Half), directories, config)
+pub fn operations_in(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    config: &[u8],
+) -> Result<u32, String> {
+    serve::operations_in(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        config,
+    )
 }
 /// The same for a boxed start.
-pub fn boxed_operations_in(directories: &Directories, config: &[u8]) -> Result<u32, String> {
-    serve::boxed_operations_in("temper", Some(&worker_half::Half), directories, config)
+pub fn boxed_operations_in(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    config: &[u8],
+) -> Result<u32, String> {
+    serve::boxed_operations_in(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        config,
+    )
 }
-pub fn prepare_in(directories: &Directories) -> Result<service::Service, String> {
-    serve::prepare_in("temper", Some(&worker_half::Half), directories)
+pub fn prepare_in(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+) -> Result<service::Service, String> {
+    serve::prepare_in(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+    )
 }
 /// Prepare an in-process world's service with the supplied defaults.
-pub fn prepare_in_with(directories: &Directories, given: &service::stock::Given) -> Result<service::Service, String> {
-    serve::prepare_in_with("temper", Some(&worker_half::Half), directories, given)
+pub fn prepare_in_with(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+) -> Result<service::Service, String> {
+    serve::prepare_in_with(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        given,
+    )
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
     directories: &Directories,
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    serve::operations_in_with("temper", Some(&worker_half::Half), directories, config, given)
+    serve::operations_in_with(
+        "temper",
+        environment,
+        working,
+        Some(&worker_half::Half { environment: environment.into() }),
+        directories,
+        config,
+        given,
+    )
 }
 /// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {

@@ -46,8 +46,9 @@ fn edge(part: Part, name: &str) {
     let mut document: Value =
         serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture document"))
             .expect("fixture JSON");
-    let admit =
-        |document: &Value| temper_box_shell::operations_in(&directories, &serde_json::to_vec(document).expect("JSON"));
+    let admit = |document: &Value| {
+        temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
+    };
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
     let resume = number(&document, Part::Engine, "core.resume_bytes");
@@ -107,7 +108,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
         let admit = |document: &Value| {
-            temper_box_shell::operations_in(&directories, &serde_json::to_vec(document).expect("JSON"))
+            temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
         };
         admit(&document).expect("both hubs hold the padded configured window");
         for part in [Part::Engine, Part::Worker] {
@@ -150,6 +151,8 @@ fn obsolete_owned_organization_members_refuse_startup() {
         let object = if member == "person.orgs" { &mut owned["person"] } else { owned };
         object["orgs"] = json!(["work"]);
         let why = temper_box_shell::operations_in(
+            &[],
+            b"/",
             &support::configuration::directories(scratch.path()),
             &serde_json::to_vec(&value).expect("JSON"),
         )

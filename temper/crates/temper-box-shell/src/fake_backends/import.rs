@@ -26,7 +26,7 @@ const RESOURCES: &[(&str, bool, &str)] = &[
     ("application/workers/0/root", false, "workspaces"),
 ];
 impl Source {
-    pub(super) fn read(dirs: &Directories) -> Result<Self, String> {
+    pub(super) fn read(dirs: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Self, String> {
         let config = crate::path(&dirs.config);
         let empty = match std::fs::read_dir(config) {
             Ok(mut entries) => entries.next().transpose().map_err(|why| why.to_string())?.is_none(),
@@ -48,7 +48,7 @@ impl Source {
         let agent_bytes = public(&config.join("agent.json"))?;
         let mut temper = Json::decode(&temper_bytes)?;
         let mut agent = Json::decode(&agent_bytes)?;
-        let (mut expected, expected_agent) = expected_documents(dirs, &temper, &agent)?;
+        let (mut expected, expected_agent) = expected_documents(dirs, &temper, &agent, environment)?;
         let bundle = match temper.at("application/clients/bundle")? {
             Json::Null => None,
             Json::String(path) => Some(resolved(config, path)?),
@@ -84,11 +84,16 @@ impl Source {
         Ok(Some((temper.encode()?, agent.encode()?)))
     }
 }
-fn expected_documents(dirs: &Directories, temper: &Json, agent: &Json) -> Result<(Json, Json), String> {
+fn expected_documents(
+    dirs: &Directories,
+    temper: &Json,
+    agent: &Json,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<(Json, Json), String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let git = match temper.at("application/workers/0/git")? {
         Json::Null => None,
-        Json::String(path) => Some(current_executable(b"git", path, "application/workers/0/git")?),
+        Json::String(path) => Some(current_executable(b"git", path, "application/workers/0/git", environment)?),
         Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_) => {
             return Err("application/workers/0/git: expected init's executable or null".into());
         }
@@ -153,21 +158,22 @@ fn equivalent(value: &mut Json, expected: &Json, pointer: &str, root: &Path, nam
     }
     value.set(pointer, expected.at(pointer)?.clone())
 }
-fn current_executable(name: &[u8], given: &[u8], pointer: &str) -> Result<PathBuf, String> {
-    match executable(name) {
+fn current_executable(
+    name: &[u8],
+    given: &[u8],
+    pointer: &str,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<PathBuf, String> {
+    match executable(name, environment) {
         Some(path) if path.as_os_str().as_bytes() == given => Ok(path),
         Some(_) | None => Err(format!(
             "{pointer}: custom external executables are unsupported; expected current init's PATH selection"
         )),
     }
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: PATH selects an imported executable; temper-box's table will pass it"
-)]
-fn executable(name: &[u8]) -> Option<PathBuf> {
+fn executable(name: &[u8], environment: &[crate::EnvironmentEntry]) -> Option<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
-    crate::init::candidates(&skein_shell::environment(), name)
+    crate::init::candidates(environment, name)
         .into_iter()
         .find(|path| std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0))
 }
@@ -204,4 +210,20 @@ fn documents(answer: temper_init::Answer) -> Result<(Json, Json), String> {
         }
     }
     Ok((temper.expect("init temper document"), agent.expect("init agent document")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn imported_executable_uses_the_given_search_path() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = skein_scratch::Scratch::new("imported-executable");
+        let git = scratch.path().join("git");
+        std::fs::write(&git, b"#!/bin/sh\nexit 1\n").expect("fixture executable");
+        std::fs::set_permissions(&git, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
+        let environment = [(Box::from(b"PATH".as_slice()), Box::from(scratch.path().as_os_str().as_bytes()))];
+        assert_eq!(executable(b"git", &environment), Some(git));
+        assert_eq!(executable(b"git", &[]), None);
+    }
 }

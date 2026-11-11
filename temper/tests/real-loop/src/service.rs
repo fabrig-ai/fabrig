@@ -98,7 +98,7 @@ impl ServiceHost {
     }
     #[expect(
         clippy::disallowed_methods,
-        reason = "cli C4: TEMPER_R8_WAIT_CHECK, through temper's test table once it exists"
+        reason = "cli C4: TEMPER_INTERNAL_WAIT_CHECK, through temper's test table once it exists"
     )]
     fn with_shape(
         path: PathBuf,
@@ -143,7 +143,7 @@ impl ServiceHost {
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations = temper_box_shell::operations_in_with(&roots, &config, &fixtures::given(&path))
+        let operations = temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
             .expect("standalone operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
@@ -154,7 +154,7 @@ impl ServiceHost {
             restartable,
             start_failures: 0,
             failed_starts: Vec::new(),
-            wait_check: std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
+            wait_check: std::env::var_os("TEMPER_INTERNAL_WAIT_CHECK").is_some(),
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,
@@ -289,7 +289,8 @@ impl ServiceHost {
         fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
             .expect("misconfigured start");
         for _ in 0..self.start_failures {
-            let Err(failure) = temper_box_shell::prepare_in_with(&directories, &fixtures::given(&self.path)) else {
+            let Err(failure) = temper_box_shell::prepare_in_with(&[], b"/", &directories, &fixtures::given(&self.path))
+            else {
                 panic!("unknown engine profile must refuse the start")
             };
             assert!(failure.contains("engine.limits.profile"), "{failure}");
@@ -367,6 +368,8 @@ impl ServiceHost {
     fn prepare_service(&self) -> temper_service::Service {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let mut service = temper_box_shell::prepare_in_with(
+            &[],
+            b"/",
             &Self::directories(&self.path, self.cluster.is_some()),
             &fixtures::given(&self.path),
         )

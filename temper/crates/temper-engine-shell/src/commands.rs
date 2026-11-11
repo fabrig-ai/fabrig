@@ -9,7 +9,12 @@ pub const ENGINE: Table = Table {
     commit: temper_version::COMMIT,
     commands: &[SERVE, VERSIONS, HELP, FETCH, PREPARE, RUN, SIGN_IN, SOURCE, REMOVE, FORGE_CHILD],
     settings: &[&directories::SETTINGS],
-    variables: &[&temper_version::INTERNAL_COMMIT],
+    variables: &[
+        &temper_service_shell::WAIT_CHECK,
+        &temper_service_shell::CUT_AT_LISTEN,
+        &super::forge_sign_in::NO_REGISTRATION,
+        &temper_version::INTERNAL_COMMIT,
+    ],
     more: "temper-engine COMMAND --help prints one command; temper-engine help pages lists the pages.",
 };
 

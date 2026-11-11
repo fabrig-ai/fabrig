@@ -288,6 +288,8 @@ mod tests {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
         let prepared = temper_box_shell::prepare_in_with(
+            &[],
+            b"/",
             &crate::service::directories(scratch.path()),
             &crate::fixtures::given(scratch.path()),
         )

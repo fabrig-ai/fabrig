@@ -76,8 +76,8 @@ pub fn running_word(environment: &[temper_shell::directories::EnvironmentEntry])
     let executable = std::env::current_exe().ok();
     program_word(&Machine {
         executable: executable.as_ref().map(|path| path.as_os_str().as_bytes()),
-        path: environment.iter().find(|(name, _)| name.as_ref() == b"PATH").map(|(_, value)| value.as_ref()),
-        home: environment.iter().find(|(name, _)| name.as_ref() == b"HOME").map(|(_, value)| value.as_ref()),
+        path: temper_shell::environment::PATH.value(environment),
+        home: skein_shell::HOME.value(environment),
         canonical: &|bytes| {
             let path = std::path::Path::new(std::ffi::OsStr::from_bytes(bytes));
             let metadata = std::fs::metadata(path).ok()?;
