@@ -1,6 +1,7 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
 mod goal;
+mod role;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
@@ -65,7 +66,10 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
-    if called.call.tool == rows::CHAT_CREATE_AT || called.call.tool == rows::GOAL_START_AT {
+    if called.call.tool == rows::CHAT_CREATE_AT
+        || called.call.tool == rows::GOAL_START_AT
+        || called.call.tool == rows::ROLE_START_AT
+    {
         let Some(me) = me(runner, client) else { return };
         let ask = creation(&called.call, me, &env.limits);
         prepared(runner, client, env, called, ask, out);
@@ -186,7 +190,11 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     }
 }
 fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
-    if call.tool == rows::GOAL_START_AT { goal::start(call, me, limits) } else { chat(call, me, limits) }
+    match call.tool {
+        rows::GOAL_START_AT => goal::start(call, me, limits),
+        rows::ROLE_START_AT => role::start(call, me, limits),
+        _ => chat(call, me, limits),
+    }
 }
 fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
@@ -988,6 +996,7 @@ fn draw_name(runner: &mut Runner, called: &mut Called) {
 fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
     match tool {
         rows::GOAL_START_AT => b"goal",
+        rows::ROLE_START_AT => b"role",
         rows::CLOSE_AT => b"close",
         _ => word,
     }

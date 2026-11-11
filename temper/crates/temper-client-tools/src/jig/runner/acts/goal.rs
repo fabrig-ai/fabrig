@@ -35,7 +35,7 @@ pub(super) fn start(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     }
 }
 
-fn refused(why: &c::Refusal, limits: &Limits) -> Failed {
+pub(super) fn refused(why: &c::Refusal, limits: &Limits) -> Failed {
     let book = crate::jig::render::document::phrasebook(limits.text);
     let mut measure = Text::measure();
     crate::jig::render::acts::refusal(why, &book, &mut measure);

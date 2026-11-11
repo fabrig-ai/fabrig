@@ -660,7 +660,10 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
                     .kinds
                     .iter()
                     .copied()
-                    .filter(|kind| *kind != jig_domain_authority::Executor::Charter(12))
+                    .filter(|kind| {
+                        *kind != jig_domain_authority::Executor::Charter(12)
+                            && *kind != jig_domain_authority::Executor::Charter(13)
+                    })
                     .collect();
             }
         }
@@ -758,7 +761,7 @@ fn the_stock_settings_document_decodes_in_every_client() {
     use jig_domain_core::{reads, settings};
     let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{}}));
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 17);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 18);
     let source = reads::SettingDocument {
         setting: settings::Setting::Rules,
         revision: 1,
@@ -783,11 +786,11 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
             .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
         let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
-        assert_eq!(rules.ceiling.delegation.kinds.len(), 17, "{name}");
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 18, "{name}");
         for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
             let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
             let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
-            assert_eq!(rules.ceiling.delegation.kinds.len(), 17);
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 18);
         }
     }
 }

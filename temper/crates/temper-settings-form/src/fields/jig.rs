@@ -46,7 +46,7 @@ pub static FORMS: [Form; 65] = [
     Form {
         shape: Shape::EndedBy,
         name: b"ended_by",
-        choice: Choice::One { words: &[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; requires `conversation` and a charter `executor`, else `shape` refusal." }] },
+        choice: Choice::One { words: &[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; requires `conversation` and a charter `executor`, else `shape` refusal." }, Word { word: b"standing", line: b"Only cancel; an agent with no conversation or tracking." }] },
         line: b"What ends a task: a word or one-member object.",
     },
     Form { shape: Shape::Closer, name: b"closer", choice: Choice::Every, line: b"Procedure closing the task when nothing remains to await." },

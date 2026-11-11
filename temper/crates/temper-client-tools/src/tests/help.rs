@@ -6,6 +6,9 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::ROLE_START_AT), "help_role_start"),
+    (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
+    (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -295,6 +298,9 @@ const USAGES: &[&[u8]] = &[
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
     b"project remove PROJECT --key KEY\n",
+    b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
+    b"role list --project PROJECT [--after CURSOR]\n",
+    b"role show TASK\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -569,6 +575,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"role", b"ctl-role");
 }
 
 #[test]

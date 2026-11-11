@@ -356,14 +356,14 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 16_384),
         ("authority.grants", 16),
-        // The closer procedure and close job add two executor places.
-        ("authority.executors", 17),
-        // The closer procedure and close job add two executor places.
-        ("tasks.executor_kinds", 17),
+        // The standing charter, closer procedure and close job are delegation targets.
+        ("authority.executors", 18),
+        // The standing charter, closer procedure and close job are delegation targets.
+        ("tasks.executor_kinds", 18),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
-        ("tasks.charters", 9),
-        ("core.templates", 5),
+        ("tasks.charters", 10),
+        ("core.templates", 6),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
         value["engine"]["limits"]["overrides"][name] = held.max(count).into();

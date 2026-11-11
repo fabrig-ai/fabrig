@@ -39,6 +39,7 @@ mod specification;
 
 mod goal_template;
 mod restore;
+mod role;
 
 mod project_remove;
 mod visibility;

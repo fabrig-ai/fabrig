@@ -83,9 +83,10 @@ fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -
 fn the_cluster_offers_every_stock_charter_but_the_trial() {
     let mut engine = cluster_engine("cluster-creating");
     let frame = stock_frame(&engine);
-    let expected: Vec<_> =
+    let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
-    assert_eq!(expected.len(), 8, "stock chat, producer, reviewer, coordinator, foreman, status, asking and drafter");
+    expected.sort_unstable();
+    assert_eq!(expected.len(), 9, "stock agents except the trial, including the standing role");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -103,7 +104,7 @@ fn the_cluster_offers_every_stock_charter_but_the_trial() {
 fn the_browser_receives_a_complete_stock_me_offer() {
     let mut engine = cluster_engine("browser-creating");
     // Isolate the receiver from the cluster's independently checked offer capacity.
-    engine.limits.core.documents.lines = 8;
+    engine.limits.core.documents.lines = 9;
     let frame = stock_frame(&engine);
     assert_eq!(offered(&frame).len(), engine.charters.iter().filter(|charter| charter.number != 10).count());
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
@@ -124,10 +125,10 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     let engine = configured_engine(&value);
-    assert_eq!(engine.charters.len(), 9);
-    assert_eq!(
-        offered(&stock_frame(&engine)),
-        engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect::<Vec<_>>()
-    );
+    assert_eq!(engine.charters.len(), 10);
+    let mut expected: Vec<_> =
+        engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
+    expected.sort_unstable();
+    assert_eq!(offered(&stock_frame(&engine)), expected);
     scratch.remove();
 }

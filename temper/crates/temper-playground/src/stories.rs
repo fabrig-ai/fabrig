@@ -17,7 +17,7 @@ pub const A: Story = Story {
     name: "a",
     description: include_str!("../stories/a/description.txt"),
     // The closer procedure and close job give the story seventeen authority executor places.
-    // Its task executor places hold the same seventeen-kind stock delegation.
+    // Its task executor places hold the same eighteen-kind stock delegation.
     // Two added 8-byte executor places make its largest stock chat payload 1,117 bytes.
     deployment: include_bytes!("../stories/a/deployment.json"),
     llm: include_bytes!("../stories/a/llm.json"),
