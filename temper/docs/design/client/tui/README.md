@@ -34,8 +34,9 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 - **Started by a box, too:** `temper-box` in a terminal runs the TUI in
   front of its services, `temper-box internal tui --box http://HOST:PORT`,
   signed in by a link the box hands it (`box.md`).
-- **Exit status:** 0 once the TUI closed (4); 1 when it cannot
-  start, with one line on stderr:
+- **Exit status:** 0 once the TUI closed (4); 1 when it cannot start;
+  2 for an address or arguments refused, followed by the usage
+  (`../../cli/README.md`, 4 and 7.4). Its refusals name `temper`:
 
   | Cause | stderr |
   |---|---|
@@ -48,15 +49,12 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 
   A panic aborts the process (fail-stop), the terminal left as it was
   found (4).
-- **In the deployment's client,** `temper-client [ADDRESS]` is the same
-  TUI by the same start (`../README.md`, section 2), its lines naming `temper-client`
-  where the table above names `temper`: `temper-client: the TUI needs a
-  terminal on stdin and stdout`, `run temper-client http://HOST:PORT and
-  paste it`, and, bare with no terminal, `temper-client: no command;
-  temper-client --help lists them`. Its directory, its `address` and its
-  `sign-in` note are the same files (2), so either binary finds what
-  the other kept, and it reads the engine's link file as the box's
-  `temper-box internal tui` does (`../../protocol/binaries.md`).
+- **The deployment's client** is `temper` (`../README.md`, section 2).
+  Its `temper-client-shell` captures arguments, environment and working
+  directory once and gives them to the TUI's start. The directory, its
+  `address` and `sign-in` note are the same files (2), and it reads the
+  engine's link file as the box's `temper-box internal tui` does
+  (`../../protocol/binaries.md`).
 
 ## 2. Its directory
 

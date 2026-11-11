@@ -296,9 +296,8 @@ of each:
 - **Its own table,** commands as above, from which its reach, its
   `--help`, its `COMMAND --help` and its usage lines derive, rendered
   under its own name: `skein_shell::Table` for `temper-box`,
-  `temper-engine`, `temper-worker` and `temper-agent`
-  (`../cli/README.md`), `temper-shell`'s `commands` for the client until
-  its is built (`../draft/cli.execution.md`, C3). A command two binaries
+  `temper-engine`, `temper-worker`, `temper-agent` and the client's
+  `temper` (`../cli/README.md`). A command two binaries
   share, the same words run by the same code, is one constant both
   tables hold. `help`, the pages, is every binary's.
 - **`--version`** prints `NAME VERSION (COMMIT)` before any command is

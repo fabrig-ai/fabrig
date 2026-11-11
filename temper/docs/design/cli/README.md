@@ -74,12 +74,10 @@ the client's.
   the library's code, its table and everything the binary runs. No other
   crate names the old library. The worker's package is already at
   `temper/bin/temper-worker`, its crate `temper-worker-shell`.
-- **The client's package splits too:** `temper/crates/temper-client`, a
-  library and the binary `temper-client` in one package, becomes the
-  binary's package `temper` at `temper/bin/temper` and its crate
-  `temper-client-shell` at `temper/crates/temper-client-shell`, which
+- **The client's package** is `temper/bin/temper`, the binary `temper`;
+  its crate `temper-client-shell` at `temper/crates/temper-client-shell`
   holds the library's code, its table and everything the binary runs
-  (7.4). The binary `temper-client` goes: whatever ran it runs `temper`.
+  (7.4). Whatever runs the client runs `temper`.
 - **Tests that run a binary live in its package,** under its `tests/`,
   since Cargo gives `CARGO_BIN_EXE_<name>` to its own package's tests
   alone: the whole product's integration tests, with their `[[test]]`
@@ -87,8 +85,7 @@ the client's.
   to `temper/bin/temper-box/tests/`, the engine's from
   `temper/crates/temper-engine/tests/` to `temper/bin/temper-engine/tests/`,
   the agent's suite from `temper/crates/temper-agent/tests/` to
-  `temper/bin/temper-agent/tests/`, and the client's from
-  `temper/crates/temper-client/tests/` to `temper/bin/temper/tests/`.
+  `temper/bin/temper-agent/tests/`, and the client's live in `temper/bin/temper/tests/`.
   They are dev-dependencies' users, which link nothing into the binary.
   Unit tests stay in their crate.
 - **A crate's features stay its own** until `../draft/cli.execution.md`'s
@@ -405,7 +402,7 @@ command; temper help pages lists the pages.`
 | `internal fetch-box` | internal | `[--cache DIR]`: find `temper-box` of `temper`'s own build, fetching it if it must, its lines on stdout, for `temper box` (`../client/box-binary.md`, 4) |
 
 - **The bare form** takes at most one argument, the engine's address,
-  as `temper-client` took it: `temper` alone runs the TUI on the
+  with `temper` alone running the TUI on the
   address its link file or its kept address names. A word that is no
   command is the address; one that isn't an address is refused as 4
   says, exit 2, naming it. Without a terminal it is refused as today,

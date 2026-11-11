@@ -1,4 +1,4 @@
-//! temper's client crates live under `temper-client` (jig's README.md, 15).
+//! temper's client crates carry `temper-client-` (jig's README.md, 15).
 
 #[test]
 fn client_crates_carry_the_client_prefix() {
@@ -10,6 +10,8 @@ fn client_crates_carry_the_client_prefix() {
         &root,
         "temper",
         &[
+            // The client's thin binary calls its prefixed shell (temper/docs/design/cli/README.md, 2).
+            "temper",
             "temper-box-shell",
             // Both binaries share their start helpers (temper/docs/design/client/README.md, 2).
             "temper-shell",
@@ -28,5 +30,5 @@ fn client_crates_carry_the_client_prefix() {
             "temper-playground-world",
         ],
     );
-    assert!(breaches.is_empty(), "client crates outside temper-client: {}", breaches.join(", "));
+    assert!(breaches.is_empty(), "client crates without the temper-client- prefix: {}", breaches.join(", "));
 }

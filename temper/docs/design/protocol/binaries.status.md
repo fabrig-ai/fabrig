@@ -35,16 +35,16 @@ own build alone, as 1 accepts.
   rehearsal and going back (jig's `protocol/store/opening.md`, 5) are not
   built, so neither binary's table has the row.
 
-`binaries.md`'s deployment client, `temper-client`, is present: its table
-of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,
-its help and refusals naming `temper-client`, and `--version`, in step
-tests of its package. `components.md`'s
-`temper-shell` holds the table's types and printing, the shared rows,
-`help`'s answers, the three directories and the engine's link file, and
-the box's `temper-box` prints from it. Built alone, the client links none of
-the engine's, the worker's, smith's agent, the box or the forge's setup,
-and `temper-protocol-records` without `forge` (`cargo tree -p
-temper-client`), but the five crates its row in `binaries.md`, 4 names as
-exceptions. `binaries.md`'s client story is written and compiled in the
+`binaries.md`'s deployment client is `temper`, with its thin binary
+under `bin/temper` and its table in `temper-client-shell`: public
+`[ADDRESS]` and `help`, internal `ctl`, help and refusals naming `temper`,
+and `--version` from `temper-version`. Its capture passes arguments,
+environment and working directory to its dispatch and the TUI's start.
+`temper-shell` holds the shared table rows and renderings, help's answers,
+the three directories and the engine's link file. Built alone, the client
+links none of the engine's, the worker's, smith's agent, the box or the
+forge's setup, and `temper-protocol-records` without `forge`
+(`cargo tree -p temper`), but the five crates its row in `binaries.md`, 4
+names as exceptions. Its client story is written and compiled in the
 process tier, and runs after landing.
 

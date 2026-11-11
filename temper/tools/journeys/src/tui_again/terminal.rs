@@ -33,7 +33,7 @@ impl Terminal {
                 b"-c".as_slice().into(),
                 b"read -r ready; exec \"$@\"".as_slice().into(),
                 b"tui-again".as_slice().into(),
-                paths.temper.with_file_name("temper-client").as_os_str().as_bytes().into(),
+                paths.temper.with_file_name("temper").as_os_str().as_bytes().into(),
                 address.into(),
             ]
             .into_boxed_slice(),

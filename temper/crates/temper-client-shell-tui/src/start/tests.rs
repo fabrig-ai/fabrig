@@ -239,14 +239,14 @@ fn the_lines_name_the_binary() {
             ],
         ),
         (
-            "temper-client",
+            "temper-box",
             [
-                "temper-client: the TUI needs a terminal on stdin and stdout\n",
-                "temper-client: not an address: ARG\n",
-                "temper-client: a sign-in link is never an argument: run temper-client http://HOST:PORT and paste it\n",
-                "temper-client: the engine's address must be on loopback\n",
-                "temper-client: /s/temper/tui: cannot open its files\n",
-                "temper-client: no command; temper-client --help lists them\n",
+                "temper-box: the TUI needs a terminal on stdin and stdout\n",
+                "temper-box: not an address: ARG\n",
+                "temper-box: a sign-in link is never an argument: run temper-box http://HOST:PORT and paste it\n",
+                "temper-box: the engine's address must be on loopback\n",
+                "temper-box: /s/temper/tui: cannot open its files\n",
+                "temper-box: no command; temper-box --help lists them\n",
             ],
         ),
     ] {
