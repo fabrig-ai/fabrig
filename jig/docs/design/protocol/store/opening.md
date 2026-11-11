@@ -394,9 +394,10 @@ impl PatchSets {
   from the component's own table (`README.md`, 4.4), the application's from its
   keys' encoders (`README.md`, section 7). A set with no kept text is an owner
   before its baseline, level none; otherwise its level is its patches'
-  count. Every real set is empty until the baseline (temper's
-  `draft/upgrades.md`, 4.1), so no store is behind and open patches
-  nothing; the component's tests hand it fixture owners' sets:
+  count. From the baseline, temper's store shell hands the four real
+  sets, `SKEIN_PATCH_SET`, `SMITH_PATCH_SET` and `JIG_PATCH_SET` of this
+  crate and temper's own (temper's `protocol/baseline.md`, 4), each kept
+  at level 0 with no patch until a landing brings one; the component's tests hand it fixture owners' sets:
   `jig-test-patches` in the application's slot and `jig-test-patches-jig`
   in jig's, so that the order across owners is shown, and
   `jig-test-patches-smith` in smith's, a fixture turn family whose frames

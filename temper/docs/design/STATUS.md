@@ -1171,6 +1171,7 @@ Design documents:
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/documentation.md`](protocol/documentation.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
+- [`protocol/baseline.md`](protocol/baseline.status.md)
 - [`client/README.md`](client/README.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/web/README.md`](client/web/README.status.md)
