@@ -1,6 +1,6 @@
 # ask-temper: status
 
-2026-11-09. Where the design lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-11. Where the design lags or departs from [ask-temper.md](ask-temper.md).
 
 M1 is built: charter 11 and template 5, its small request on both shapes,
 no workspace, its own tools, the configuring reads through `see`, proposals
@@ -44,7 +44,6 @@ of it follows landing with the walk.
   - 6.2: `../client/pages/chat/conversation.md`, 3 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/tui/pages.md`).
   - 8: `../domain/agent/ask-temper.md`: the instructions carry the Showing part's first step alone; its other views and the paragraph on sketches join with M3b.
   - 6.3: skein's `ui/README.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
-  - 7: jig's `domain/engine/briefs.md`, 2.1 gives a brief the person's preferences where its task's requester is the person and its authority holds the asking family, and `../domain/agent/ask-temper.md` has policy 1's roles hold that family; the stock's roles hold it for every task their person starts (`temper-service`'s `stock.rs`, `project_role`), so a person's chats of charter 1, goals and design sessions read the list in their briefs too, where this section has charter 11's runs alone read it, "for now". Found by reading the code; no test reads another charter's brief for the section. The repair keys the section on the run's charter naming the asking family, as `remember`'s declaration is (`../domain/agent/tools.md`).
 - **Design departs:** 5.2: `../domain/agent/ask-temper.md`, 2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; `ask-temper.md`, section 10 keeps durable parts for later if needed.
 - **Design departs:** 5.1: `../domain/agent/ask-temper.md`, 1 makes `me` of the
   project read and the inbox's needs filtered by the project, where 5.1

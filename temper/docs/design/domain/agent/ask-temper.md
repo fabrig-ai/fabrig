@@ -420,7 +420,13 @@ entry's description, its body empty.
   `start.rs`, "Kept about this person", so that each run of charter 11
   reads the whole list and nothing is searched; its budget 2,048 bytes
   (`../../draft/ask-temper.md`, 4.1's 2 KB), which twelve lines of 120 bytes
-  fit numbered.
+  fit numbered. jig gives it where the run's charter names the asking family
+  and its task's authority holds it, so of the stock's charters charter 11's
+  runs alone read it: policy 1's roles hold the family for every task their
+  person starts, but a chat of charter 1, a goal or a design session names
+  no asking family in its charter and reads no list. A deployment's own
+  charter that names the asking family reads it too, whether or not it is an
+  asking one (`tools.md`).
 - **Seen by the person alone:** `remember` is the root's one private tool,
   and "Kept about this person" its private section's title (jig's
   `domain/engine/briefs.md`, 2.1), so that a turn's read, an activity page and a
@@ -432,6 +438,7 @@ entry's description, its body empty.
 - **Its tests** (`../../testing/checks.md`, 1): its writes and refusals as rows of the
   engine's domain world's note tests, each with the stored entries and the
   answer; its words as one table of `temper-engine-smith`'s; a note
-  remembered in one Ask temper chat and read in the brief of the next; a
+  remembered in one Ask temper chat and read in the brief of the next, and
+  absent from the brief of the same person's chat of charter 1; a
   turn read by another role of the project with the list and the calls
   withheld, and whole by its person.
