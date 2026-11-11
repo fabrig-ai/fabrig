@@ -23,9 +23,9 @@ fn the_document_names_the_files_its_caller_reads() {
 fn both_jig_profiles_have_usable_store_edges() {
     // Small's settings bound adds two sets of four 16-byte parts slices and
     // eight templates with 24-byte later choices in both Template and New.
-    // The closer adds 2 * 8 * (16 + 8) bytes to Small's Template and New carriers.
+    // Model cache lifetimes occupy eight aligned bytes in every model carrier.
     for (label, name, value, commit, ops) in [
-        ("small", jig_protocol_config::Profile::Small, 2_410_404, 355_308_810, 41_606),
+        ("small", jig_protocol_config::Profile::Small, 2_411_492, 355_308_810, 41_606),
         ("standard", jig_protocol_config::Profile::Standard, 100_881_496, 901_830_282, 303_350),
     ] {
         let limits = crate::limits::profile_limits(name);
