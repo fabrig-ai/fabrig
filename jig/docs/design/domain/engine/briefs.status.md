@@ -1,6 +1,6 @@
 # briefs: status
 
-2026-11-10. Where the tree's code lags or departs from [briefs.md](briefs.md).
+2026-11-11. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6) [in flight: change 107].
 
@@ -42,3 +42,4 @@
   unignored is unknown. The core's own tests of a restore run
   (`jig-domain-core/src/tests/settings/restore.rs`).
 - **Not yet:** 2.2: the wait table bounded by `brief.briefs`, not by live tasks, and a wait that finds it full aborts the engine (`jig-domain-core/src/routing/run/preparation.rs`, `start_brief`; `routing/effect/note.rs`, `defer_brief`) [in flight: change 232].
+- **Not yet:** 2.1: the `preferences` section is given where the run's task's authority holds the asking family, whatever its charter names, so a run whose charter names no asking family reads its person's preferences too (`jig-domain-core/src/routing/run/preferences.rs`, `party`) [in flight: change 512].

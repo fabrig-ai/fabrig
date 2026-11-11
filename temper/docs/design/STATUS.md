@@ -368,9 +368,8 @@ lines in jig's party scope, each Ask temper brief carries them whole,
 a turn's read shows them and `remember`'s calls to the person alone, and
 the page "What temper remembers about you" reads, changes and deletes
 them (`domain/agent/ask-temper.md`, 4; `client/pages/remembered.md`). A fresh
-start's transcript tail shows `remember`'s calls to every reader, every
-task a person starts reads the list in its brief, not Ask temper's
-alone, and the page empties while it reads again
+start's transcript tail shows `remember`'s calls to every reader, and
+the page empties while it reads again
 (`domain/agent/README.status.md`; `draft/ask-temper.status.md`;
 `client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
