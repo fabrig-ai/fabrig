@@ -1109,6 +1109,7 @@ pub struct GateRemark {
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
+    pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,

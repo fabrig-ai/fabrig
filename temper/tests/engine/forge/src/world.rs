@@ -741,6 +741,14 @@ impl World {
         self.run_for(1);
     }
 
+    /// Commit the forge's settings and drive the resulting live-change wakes.
+    pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
+        self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
+        top::fire(&mut self.top, &self.env, &mut self.top_out);
+        self.take_top();
+        self.run_for(1);
+    }
+
     pub fn adopt(&mut self) {
         self.adopt_as(top::Role::Owned);
     }

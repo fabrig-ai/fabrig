@@ -18,6 +18,7 @@ jig-domain-people.workspace = true
 skein-world.workspace = true
 skein-lib.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-protocol-reaches.workspace = true
 temper-engine-domain-forge-tiers.workspace = true
 skein-forge-client.workspace = true
 temper-engine-domain-forge-issues = { path = "../../../crates/temper-engine-domain-forge-issues" }

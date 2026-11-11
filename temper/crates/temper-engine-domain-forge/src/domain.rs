@@ -79,6 +79,7 @@ enum StepStage {
     Compare,
     CatchUp,
     Reviews(u32),
+    Paths,
 }
 
 /// One sequence of fresh reads before a level-triggered change step.
@@ -103,8 +104,18 @@ pub(crate) struct PendingStep {
     contains_catch_up: change::Status,
     reviews: Box<[skein_forge::api::Review]>,
     reviews_complete: bool,
+    paths: Box<[Box<[u8]>]>,
+    paths_whole: bool,
     woken: bool,
 }
+/// Comparison at its head and the first time the last judged reviews were kept.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct ReviewHead {
+    head: Option<skein_forge::api::Commit>,
+    touched: crate::Touched,
+    since: Option<skein_lib::Wall>,
+}
+
 struct StepInput {
     task: u64,
     entry: u64,
@@ -194,7 +205,8 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
     pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
-    pub(crate) review_since: Map<u64, skein_lib::Wall>,
+    /// Comparison and review time per live change, unsaved and bounded like review facts.
+    pub(crate) review_heads: Map<u64, ReviewHead>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     pub(crate) entries: Map<u64, Outboxed>,
     pub(crate) flights: Map<(u64, u64), ()>,
@@ -508,8 +520,8 @@ impl Domain {
 
     /// Read the landing branch's procedure waits (temper/docs/design/domain/forge/change/gates.md, 2).
     #[must_use]
-    pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
-        self.held_requires(repository, branch)
+    pub fn requires(&self, repository: &Repository, branch: &[u8], touched: crate::Touched) -> crate::Requires {
+        self.held_requires(repository, branch, touched)
     }
 
     /// Read the connector's retained part for the exact supplied call identity.
@@ -572,6 +584,43 @@ impl Domain {
         }
     }
 
+    /// Last coverage at the change's current head, unknown until a step compares it.
+    #[must_use]
+    pub fn change_touched(&self, task: u64) -> crate::Touched {
+        match self.changes.get(&task) {
+            Some(row) => self.touched_at(row),
+            None => crate::Touched::UNKNOWN,
+        }
+    }
+
+    pub(crate) fn touched_at(&self, row: &ChangeRow) -> crate::Touched {
+        match self.review_heads.get(&row.task) {
+            Some(kept) if kept.head == row.change.last_head && !row.terminal() => kept.touched,
+            Some(_) | None => crate::Touched::UNKNOWN,
+        }
+    }
+
+    pub(crate) fn review_since(&self, task: u64) -> Option<skein_lib::Wall> {
+        match self.review_heads.get(&task) {
+            Some(kept) => kept.since,
+            None => None,
+        }
+    }
+
+    pub(crate) fn keep_touched(&mut self, task: u64, head: Option<skein_forge::api::Commit>, touched: crate::Touched) {
+        match self.review_heads.get_mut(&task) {
+            Some(kept) => {
+                kept.head = head;
+                kept.touched = touched;
+            }
+            None => {
+                self.review_heads
+                    .insert(task, ReviewHead { head, touched, since: None })
+                    .expect("one head per bounded live change");
+            }
+        }
+    }
+
     /// Retain the last judged reviews for a live change without writing its record.
     /// The same facts answer false; facts at the kept head keep their first time,
     /// and facts at another head take `wall` (domain/forge/change/gates.md, 2, and domain/forge/change/questions.md, 2).
@@ -586,7 +635,17 @@ impl Domain {
             None => false,
         };
         if !same_head {
-            self.review_since.insert(task, wall).expect("one review time per bounded live change");
+            match self.review_heads.get_mut(&task) {
+                Some(kept) => kept.since = Some(wall),
+                None => {
+                    self.review_heads
+                        .insert(
+                            task,
+                            ReviewHead { head: facts.head, touched: crate::Touched::UNKNOWN, since: Some(wall) },
+                        )
+                        .expect("one head per bounded live change");
+                }
+            }
         }
         self.review_facts.insert(task, facts).expect("one review read per bounded live change");
         true
@@ -736,7 +795,7 @@ impl Domain {
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
-            review_since: Map::with_capacity(l.changes),
+            review_heads: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
             flights: Map::with_capacity(l.entries),
@@ -3515,6 +3574,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     };
     d.steps.insert(owner, pending).expect("step capacity checked");
@@ -3582,6 +3643,8 @@ fn step_verified(
         contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     };
     let facts = change_facts(d, env, &row, &pending, merge);
@@ -3656,7 +3719,7 @@ fn step_read(
         }
         return;
     }
-    if result == Err(skein_forge::api::Error::Busy) {
+    if pending.stage != StepStage::Paths && result == Err(skein_forge::api::Error::Busy) {
         retry_step(env, pending.task, out);
         return;
     }
@@ -3845,7 +3908,7 @@ fn step_read(
                 Ok(_) | Err(_) => pending.base_ci = change::Status::Unknown,
             }
             let Some(head) = pending.branch else {
-                finish_step(d, env, pending, out);
+                step_paths(d, env, owner, pending, out);
                 return;
             };
             let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
@@ -3858,9 +3921,19 @@ fn step_read(
                 pending.stage = StepStage::Reviews(1);
                 skein_forge::api::Read::Reviews { number: pull.number, page: 1 }
             } else {
-                finish_step(d, env, pending, out);
+                step_paths(d, env, owner, pending, out);
                 return;
             }
+        }
+        StepStage::Paths => {
+            if let Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. }) = result {
+                pending.paths_whole = Some(before) == pending.base_tip
+                    && Some(after) == pending.branch
+                    && skein_lib::len_u64(files.len()) == changed;
+                pending.paths = files;
+            }
+            finish_step(d, env, pending, out);
+            return;
         }
         StepStage::Reviews(page) => match result {
             Ok(skein_forge::api::Answer::Reviews { reviews, more }) => {
@@ -3870,7 +3943,7 @@ fn step_read(
                 };
                 if total > skein_lib::usize_of(env.limits.client.inbox) {
                     pending.reviews_complete = false;
-                    finish_step(d, env, pending, out);
+                    step_paths(d, env, owner, pending, out);
                     return;
                 }
                 let mut gathered = List::with_capacity(env.limits.client.inbox);
@@ -3884,26 +3957,60 @@ fn step_read(
                 if more {
                     let Some(next) = page.checked_add(1) else {
                         pending.reviews_complete = false;
-                        finish_step(d, env, pending, out);
+                        step_paths(d, env, owner, pending, out);
                         return;
                     };
                     pending.stage = StepStage::Reviews(next);
                     let Some(pull) = &pending.pull else { unreachable!("review read has a pull") };
                     skein_forge::api::Read::Reviews { number: pull.number, page: next }
                 } else {
-                    finish_step(d, env, pending, out);
+                    step_paths(d, env, owner, pending, out);
                     return;
                 }
             }
             Ok(_) | Err(_) => {
                 pending.reviews_complete = false;
-                finish_step(d, env, pending, out);
+                step_paths(d, env, owner, pending, out);
                 return;
             }
         },
     };
     d.steps.insert(owner, pending).expect("replaces step");
     child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
+}
+
+fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    if let (Some(before), Some(after), Some(repository)) =
+        (pending.base_tip, pending.branch, d.repositories.get(&row.repository))
+    {
+        for held in &d.landing_rules(repository.project) {
+            if !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base) {
+                let repository = row.repository;
+                pending.stage = StepStage::Paths;
+                d.steps.insert(owner, pending).expect("replaces step");
+                child(
+                    d,
+                    env,
+                    skein_forge_client::Event::Read {
+                        owner,
+                        repository,
+                        read: skein_forge::api::Read::Compare { before, after },
+                    },
+                    out,
+                );
+                return;
+            }
+        }
+    }
+    finish_step(d, env, pending, out);
+}
+
+fn step_touched(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> crate::Touched {
+    match d.repositories.get(&row.repository) {
+        Some(repository) => crate::touched(&d.project_classes(repository.project), &pending.paths, pending.paths_whole),
+        None => crate::Touched::UNKNOWN,
+    }
 }
 
 pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<change::Ready>, Option<u64>) {
@@ -4115,6 +4222,15 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         && let Some(head) = pending.branch
     {
         accept_released_branch(d, env, &mut row, head, out);
+    }
+    let touched = step_touched(d, &row, pending);
+    d.keep_touched(row.task, pending.branch, touched);
+    if let Some(repository) = d.repositories.get(&row.repository) {
+        let Some(gates) = d.step_gates(&env.limits, &row, repository, touched) else {
+            emit(out, Request::Refused { task: row.task });
+            return;
+        };
+        row.change.gates = gates;
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
     let mut heard = change_standing(d, &row, pending);
@@ -4375,7 +4491,7 @@ fn change_facts(
         None => true,
     };
     let requires = match d.repositories.get(&row.repository) {
-        Some(repository) => d.requires(repository, &row.base),
+        Some(repository) => d.requires(repository, &row.base, step_touched(d, row, pending)),
         None => crate::Requires { ci: true, up_to_date: true },
     };
     let window = crate::settle::window(d, row.task);
@@ -4451,6 +4567,7 @@ fn agent_asking(row: &ChangeRow) -> bool {
 
 fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: change::Change) -> crate::ChangeEvidence {
     crate::ChangeEvidence {
+        touched: step_touched(d, row, pending),
         prior,
         head: pending.branch,
         base_tip: pending.base_tip.expect("step read base tip"),
@@ -5695,7 +5812,7 @@ fn committed(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Req
             for (change, row) in &d.changes {
                 if (direct && *change == task) || (!direct && row.change.landing == Some(task)) {
                     let facts = d.review_facts.remove(change);
-                    d.review_since.remove(change);
+                    d.review_heads.remove(change);
                     if facts.is_some() {
                         emit(out, Request::Marked { tasks: Box::new([crate::APPROVALS_SUBJECT, *change]) });
                     }
@@ -7005,7 +7122,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     }
     d.review_requests.remove(&row.task);
     d.review_facts.remove(&row.task);
-    d.review_since.remove(&row.task);
+    d.review_heads.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
         Some(_) | None => row.ci,

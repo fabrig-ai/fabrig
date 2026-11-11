@@ -67,26 +67,21 @@ fn goal_rule() -> LandingRule {
     rule(branch_pattern(b"name", GateLast::Open(Box::from(b"temper".as_slice()))), NEITHER)
 }
 
-fn main_name() -> Box<[Box<[u8]>]> {
-    branch_name(&[b"main"])
+fn main_name() -> Box<[u8]> {
+    b"main".as_slice().into()
 }
 
-fn goal_name() -> Box<[Box<[u8]>]> {
-    branch_name(&[b"temper", b"1", b"g1"])
+fn goal_name() -> Box<[u8]> {
+    b"temper/1/g1".as_slice().into()
 }
 
-fn branch_name(branch: &[&[u8]]) -> Box<[Box<[u8]>]> {
-    // Five base segments and up to three segments of the goal branch.
-    const NAME_SEGMENTS: u32 = 8;
-    let pattern = branch_pattern(b"name", GateLast::Exact(Box::new([])));
-    let mut name = List::with_capacity(NAME_SEGMENTS);
-    for segment in pattern.segments {
-        name.push(segment).expect("base fits name fixture");
+fn repository() -> crate::Repository {
+    crate::Repository {
+        host: b"host".as_slice().into(),
+        owner: b"owner".as_slice().into(),
+        name: b"name".as_slice().into(),
+        ..super::adopted()
     }
-    for segment in branch {
-        name.push(Box::from(*segment)).expect("branch fits name fixture");
-    }
-    name.into_boxed()
 }
 
 #[test]
@@ -435,7 +430,7 @@ fn requires_is_the_union_of_covering_rules() {
         ),
     ];
     for (label, held, name, expected) in rows {
-        assert_eq!(requires(&held, &name), expected, "{label}");
+        assert_eq!(requires(&held, &repository(), &name, crate::Touched::UNKNOWN), expected, "{label}");
     }
 }
 
@@ -445,7 +440,7 @@ fn requires_asks_both_where_no_rule_covers() {
     let rows: [(&str, Box<[Held]>, Requires); 2] =
         [("no rules", Box::new([]), BOTH), ("another repository", Box::new([held(PROJECT, FIRST_RULE, other)]), BOTH)];
     for (label, held, expected) in rows {
-        assert_eq!(requires(&held, &main_name()), expected, "{label}");
+        assert_eq!(requires(&held, &repository(), &main_name(), crate::Touched::UNKNOWN), expected, "{label}");
     }
 }
 
@@ -461,7 +456,11 @@ fn requires_reads_rules_that_do_not_enforce() {
         ("neither advice", LandingRule { enforce: false, ci: false, up_to_date: false, ..main_rule() }, NEITHER),
     ];
     for (label, rule, expected) in rows {
-        assert_eq!(requires(&[held(PROJECT, FIRST_RULE, rule)], &main_name()), expected, "{label}");
+        assert_eq!(
+            requires(&[held(PROJECT, FIRST_RULE, rule)], &repository(), &main_name(), crate::Touched::UNKNOWN),
+            expected,
+            "{label}"
+        );
     }
 }
 

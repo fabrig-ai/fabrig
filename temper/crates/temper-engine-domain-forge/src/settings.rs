@@ -3,7 +3,7 @@
 //! temper/docs/design/domain/forge/change/gates.md, 3).
 use alloc::boxed::Box;
 
-use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Requires, gates::covers};
+use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Repository, Requires, Touched, gates::covers};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
@@ -581,11 +581,11 @@ pub struct HeldRules {
 /// The procedure's waits over the supplied scopes' rules, enforcing or not
 /// (temper/docs/design/domain/forge/change/gates.md, 2).
 #[must_use]
-pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
+pub fn requires(held: &[Held], repository: &Repository, branch: &[u8], touched: Touched) -> Requires {
     let mut result = Requires { ci: false, up_to_date: false };
     let mut covered = false;
     for held in held {
-        if covers(&held.rule.pattern, name) {
+        if covers(&held.rule, repository, branch, touched) {
             covered = true;
             result.ci |= held.rule.ci;
             result.up_to_date |= held.rule.up_to_date;
