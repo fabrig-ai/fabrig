@@ -496,7 +496,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         temper_box_shell::Command::Box {
             directories: support::configuration::directories(scratch.path()),
             echo: temper_box_machine::host::Echo::None,
-            no_tui: true,
+            front: false,
         },
         &[],
         b"/",
@@ -586,7 +586,7 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             temper_box_shell::Command::Box {
                 directories: support::configuration::directories(scratch.path()),
                 echo: temper_box_machine::host::Echo::None,
-                no_tui: true,
+                front: false,
             },
             &[],
             b"/",
@@ -1026,7 +1026,7 @@ fn every_command_checks_setup_before_reading_files() {
                 temper_box_shell::Command::Box {
                     directories: support::configuration::directories(scratch.path()),
                     echo: temper_box_machine::host::Echo::None,
-                    no_tui: true,
+                    front: false,
                 },
                 &[],
                 b"/",

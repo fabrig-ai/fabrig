@@ -30,7 +30,6 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
-        Command::TuiFront { .. } => vec!["internal", "tui"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Overview | Command::Help { .. } => vec!["help"],
@@ -60,8 +59,8 @@ fn every_row_parses_from_an_example() {
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),
-        (&[], &["--echo", "steps", "--no-tui"]),
-        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps", "--no-tui"]),
+        (&[], &["--echo", "steps"]),
+        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -79,7 +78,6 @@ fn every_row_parses_from_an_example() {
         (&["internal", "agent-list"], &["--list", "internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
-        (&["internal", "tui"], &["internal", "tui", "--box", "http://127.0.0.1:8367"]),
         (&["fake", "llm"], &["fake", "llm"]),
         (&["fake", "llm"], &["fake", "llm", "--document", "llm.json"]),
         (&["fake", "forge"], &["fake", "forge", "1"]),
@@ -104,16 +102,42 @@ fn every_row_parses_from_an_example() {
         assert_eq!(passed.as_ref(), arguments, "all delegated arguments are preserved");
     }
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
-    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    assert!(matches!(configured(&["--front"]).expect("front"), Command::Box { front: true, .. }));
+    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { front: false, .. }));
     for words in [
-        vec!["--no-tui", "--no-tui"],
+        vec!["--no-tui"],
+        vec!["--front", "--front"],
+        vec!["--front", "--echo", "steps"],
         vec!["--bundle", "/bundle"],
         vec!["internal", "tui"],
         vec!["internal", "tui", "--box"],
     ] {
         assert!(configured(&words).is_err(), "refused {words:?}");
     }
+}
+
+#[test]
+fn front_parses_in_both_box_forms_and_refuses_echo_steps_and_the_removed_tui() {
+    for words in [
+        vec!["--front"],
+        vec!["--front", "--echo", "none"],
+        vec!["--fake-backends", "--front"],
+        vec!["--fake-backends", "--bundle", "/bundle", "--front"],
+    ] {
+        assert!(matches!(
+            configured(&words).expect("front form"),
+            Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. }
+        ));
+    }
+    for words in [
+        vec!["--front", "--echo", "steps"],
+        vec!["--fake-backends", "--front", "--echo", "steps"],
+        vec!["--no-tui"],
+        vec!["internal", "tui", "--box", "http://127.0.0.1:8367"],
+    ] {
+        assert!(configured(&words).is_err(), "refuse {words:?}");
+    }
+    assert!(matches!(configured(&[]).expect("bare"), Command::Box { front: false, .. }));
 }
 
 #[test]

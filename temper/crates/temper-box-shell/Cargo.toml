@@ -7,9 +7,6 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-record = ["temper-client-shell-tui/record"]
-
 [dependencies]
 temper-version.workspace = true
 temper-service-shell.workspace = true
@@ -37,11 +34,6 @@ temper-box-machine.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true
 temper-client-shell-terminal.workspace = true
-temper-client-shell-tui.workspace = true
-temper-client-tui.workspace = true
-skein-ui-screen.workspace = true
-skein-ui-screen-terminal.workspace = true
-skein-ui.workspace = true
 temper-worker-domain.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true

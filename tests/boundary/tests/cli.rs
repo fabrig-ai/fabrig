@@ -214,7 +214,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/crates/temper-service/Cargo.toml: temper-worker-domain-checkout", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: temper-worker-protocol-git", until: "cli C5" },
     Exception { what: "temper/crates/temper-worker-shell/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-box-shell/Cargo.toml: [features]", until: "cli C5" },
     Exception { what: "temper/crates/temper-box-shell/Cargo.toml: rustls", until: "cli C5" },
     Exception { what: "temper/crates/temper-box-shell/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/testing/temper-github-app/Cargo.toml: temper-protocol-records", until: "cli C5" },

@@ -79,59 +79,15 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Runtime directory for the engine link file.
 - **Read by:** temper-box, temper-engine, temper-worker, temper
 
-### `COLORTERM`
+### `XDG_CONFIG_HOME`
 
 - **Set:** public
 - **Reads**
-- **Form:** NAME
-- **Absent:** Use the terminal's indexed colours.
-- Terminal true-colour capability.
-- **Read by:** temper-box, temper
-
-### `COLORFGBG`
-
-- **Set:** public
-- **Reads**
-- **Form:** COLOURS
-- **Absent:** Use the default terminal background.
-- Terminal foreground and background colours.
-- **Read by:** temper-box, temper
-
-### `DISPLAY`
-
-- **Set:** public
-- **Reads**
-- **Form:** ADDRESS
-- **Absent:** On Linux, use WAYLAND_DISPLAY to identify a graphical session.
-- The X display, when opening a browser on this host.
-- **Read by:** temper-box, temper
-
-### `WAYLAND_DISPLAY`
-
-- **Set:** public
-- **Reads**
-- **Form:** NAME
-- **Absent:** On Linux, use DISPLAY to identify a graphical session.
-- The Wayland display, when opening a browser on this host.
-- **Read by:** temper-box, temper
-
-### `SSH_CONNECTION`
-
-- **Set:** public
-- **Reads**
-- **Form:** CONNECTION
-- **Absent:** Check SSH_TTY and the display variables.
-- An SSH session prevents opening a browser on the remote host.
-- **Read by:** temper-box, temper
-
-### `SSH_TTY`
-
-- **Set:** public
-- **Reads**
-- **Form:** TTY
-- **Absent:** Check SSH_CONNECTION and the display variables.
-- An SSH terminal prevents opening a browser on the remote host.
-- **Read by:** temper-box, temper
+- **Form:** DIR
+- **Absent:** Use $HOME/.config when HOME is absolute.
+- Base for a setting's configuration directory, before the tool's name.
+- **Notes:** Only absolute paths are used.
+- **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `HOME`
 
@@ -140,26 +96,6 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** DIR
 - **Absent:** A directory setting needs an absolute XDG base or an explicit value.
 - Base for a setting's directory when its XDG base is unusable.
-- **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper-engine, temper-worker, temper
-
-### `XDG_STATE_HOME`
-
-- **Set:** public
-- **Reads**
-- **Form:** DIR
-- **Absent:** Use $HOME/.local/state when HOME is absolute.
-- Base for a setting's state directory, before the tool's name.
-- **Notes:** Only absolute paths are used.
-- **Read by:** temper-box, temper
-
-### `XDG_CONFIG_HOME`
-
-- **Set:** public
-- **Reads**
-- **Form:** DIR
-- **Absent:** Use $HOME/.config when HOME is absolute.
-- Base for a setting's configuration directory, before the tool's name.
 - **Notes:** Only absolute paths are used.
 - **Read by:** temper-box, temper-engine, temper-worker, temper
 
