@@ -709,6 +709,7 @@ fn action_run(config: &Config, request: &Request, value: &a::Run) -> Result<d::R
         },
         event: bytes::copy_of(match value.event {
             a::RunEvent::Push => b"push",
+            a::RunEvent::PullRequest => b"pull_request",
             a::RunEvent::Dispatch => b"workflow_dispatch",
         }),
         trigger_actor: value.user,

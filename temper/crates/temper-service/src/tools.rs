@@ -128,6 +128,7 @@ pub(crate) fn render(
 /// Render within the core body and receiving agent allowances, preserving the
 /// proposing task's identity. `max_bytes` excludes the settled call's tool name.
 #[must_use]
+#[expect(clippy::too_many_arguments, reason = "host rendering carries the asked job beside both answer bounds")]
 pub fn render_for_task(
     to: ReplyTo,
     answer: &engine::CallAnswer,
@@ -136,8 +137,12 @@ pub fn render_for_task(
     task: u64,
     receiving_bytes: u32,
     forge: ForgeReadBounds,
+    job: Option<skein_forge::api::JobAttempt>,
 ) -> engine::Event {
     let max_bytes = max_bytes.min(receiving_bytes);
+    if let Some(job) = job {
+        return rendered(to, temper_engine_smith::answer_for_job(answer, tool, max_bytes, forge, job));
+    }
     if let engine::CallAnswer::Proposed { .. } = answer {
         rendered(to, temper_engine_smith::answer_for_task(answer, tool, max_bytes, task, forge))
     } else {

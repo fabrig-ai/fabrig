@@ -310,8 +310,17 @@ impl Engine {
                 root::Fact::ForgeLink { forge, note } => {
                     self.notes.push(crate::Note::ForgeLink { forge, note });
                 }
-                root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
-                    self.notes.push(crate::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error });
+                root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error, job } => {
+                    self.notes.push(crate::Note::ReadRefused {
+                        task,
+                        attempt,
+                        tool,
+                        layer,
+                        reason,
+                        findings,
+                        error,
+                        job,
+                    });
                 }
                 root::Fact::BriefReadRefused { task, section, stage, error } => {
                     self.notes.push(crate::Note::BriefReadRefused { task, section, stage, error });

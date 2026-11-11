@@ -212,6 +212,7 @@ pub enum Note {
         reason: &'static str,
         findings: Box<[jig_domain_authority::Finding]>,
         error: Option<skein_forge::api::Error>,
+        job: Option<skein_forge::api::JobAttempt>,
     },
     /// A brief section's forge read failed (temper/docs/design/domain/forge/change/repairs.md).
     BriefReadRefused {

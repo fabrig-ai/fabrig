@@ -966,10 +966,126 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
     );
 }
 
+fn pull_request_ci_world() -> World {
+    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        0,
+        Gate::default(),
+        None,
+        StoryLimits { brief: Some(small.root.brief), result_bytes: Some(512), ..StoryLimits::default() },
+    );
+    world.fake = fake::Domain::new(&world.fake_env.limits, 71);
+    let checks = raw::Checks {
+        contexts: Box::new([Box::from(*b"build")]),
+        cues: Box::new([]),
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        silent: 0,
+        passes: 0,
+        reruns: 0,
+        cue: Some(raw::Cue::PullFile {
+            path: Box::from(*b"changes/{pull}"),
+            no_pull: raw::Check::Skipped,
+            step: Box::from(*b"changes"),
+            log: Box::from(*b"missing changes/{pull}"),
+        }),
+    };
+    let setup = raw::Setup {
+        id: 2,
+        name: Box::from(*b"org/repo"),
+        default: Box::from(*b"main"),
+        tree: Box::new([]),
+        labels: Box::new([]),
+        checks: checks.clone(),
+        workflows: Box::new([]),
+        protection: None,
+        hooked: false,
+    };
+    fake::repository(&mut world.fake, &world.fake_env.limits, setup.clone());
+    fake::grant(&mut world.fake, b"org/repo", 1, raw::Permission::Admin);
+    fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
+    fake::grant(&mut world.fake, b"org/repo", 7, raw::Permission::Read);
+    fake::repository(
+        &mut world.fake,
+        &world.fake_env.limits,
+        raw::Setup {
+            id: 3,
+            name: Box::from(*b"org/other"),
+            checks: raw::Checks { contexts: Box::new([Box::from(*b"build"), Box::from(*b"fmt")]), ..checks },
+            ..setup
+        },
+    );
+    for n in 0..6 {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/other", b"main", b"file", &[n], 1).expect("other run");
+    }
+    world
+}
+
+#[test]
+fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt() {
+    let (mut world, _chat, producer, branch) = change_world_in(pull_request_ci_world(), Change::default());
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first", 1)
+        .expect("producer head");
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        producer_terminal(b"Small fix", 0),
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..1000 {
+        world.tick();
+        if world.assigned.len() == 3 {
+            break;
+        }
+    }
+    let repair = world.assigned.get(2).expect("CI repair assigned").clone();
+    let raw::Answer::Runs(runs) = world.external(
+        1,
+        raw::Op::Read(raw::Read::Runs { workflow: None, commit: Some(head), number: None, page: 1, limit: 2 }),
+    ) else {
+        panic!("pull runs")
+    };
+    assert_eq!(runs.len(), 1, "{runs:?}");
+    let run = &runs[0];
+    assert_eq!((run.commit, run.event), (head, raw::RunEvent::PullRequest));
+    assert_ne!(run.id, run.number);
+    let brief = std::str::from_utf8(ci_words(&repair)).expect("CI brief");
+    assert!(brief.contains("Failed step: 1 changes\nEnd of its log:\n"), "{brief}");
+    assert!(brief.contains("missing changes/1\n"), "{brief}");
+    let digits = engine::commit_text(&translate::commit(head));
+    let digits = std::str::from_utf8(&digits).expect("head");
+    let checks = named_read(&mut world, &repair, 195, b"read_checks", format!(r#"{{"commit":"{digits}"}}"#).as_bytes());
+    let rendered = temper_engine_smith::answer(&checks);
+    let text = std::str::from_utf8(rendered.text()).expect("checks text");
+    let line = text
+        .lines()
+        .find(|line| line.starts_with("read_job "))
+        .unwrap_or_else(|| panic!("resolved attempt: {checks:?}: {text}"));
+    let fields: Vec<_> = line.split_ascii_whitespace().collect();
+    assert_eq!(fields[2], digits);
+    assert_eq!(fields[4], run.id.to_string());
+    assert_ne!(fields[6], "0", "the link's index is not the job id");
+    let input =
+        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+    let job = named_read(&mut world, &repair, 196, b"read_job", input.as_bytes());
+    let rendered = temper_engine_smith::answer(&job);
+    assert!(!rendered.error());
+    assert!(rendered.text().ends_with(b"missing changes/1\n"));
+    world.close();
+}
+
 #[test]
 fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
     let (mut world, chat) = chat_world(true);
-    let input = smith_domain_run::HostInput::attested(br#"{"head":"0000000000000000000000000000000000000000","run":1,"job":0,"attempt":0,"max_bytes":32}"#.as_slice().into()).expect("bounded input");
+    world.protocol.defer_render = true;
+    let input = smith_domain_run::HostInput::attested(br#"{"head":"0100000000000000000000000000000000000000","run":2,"job":0,"attempt":1,"max_bytes":32}"#.as_slice().into()).expect("bounded input");
     let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
         smith_domain_run::CallName { activation: chat.attempt, completion: 1, position: 1 },
         b"read_job",
@@ -978,19 +1094,71 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
     .expect("job zero decodes") else {
         panic!("read call")
     };
-    assert!(
-        matches!(&call.tool, engine::Tool::ReadNamed { read: skein_forge::api::Read::Job { attempt, .. }, .. } if attempt.job == 0 && attempt.run == 1 && attempt.attempt == 0)
-    );
+    let engine::Tool::ReadNamed { read: skein_forge::api::Read::Job { attempt, .. }, .. } = &call.tool else {
+        panic!("job")
+    };
+    let pin = *attempt;
+    assert_eq!((pin.run, pin.job, pin.attempt), (2, 0, 1));
     let before = world.forge_calls;
-    let event = world.protocol.call(Token::new(7), chat.task, chat.attempt, 93, call);
+    let mut event = world.protocol.call(Token::new(7), chat.task, chat.attempt, 93, call);
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Call { tool, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("worker call")
+    };
+    *tool = b"read_job".as_slice().into();
     world.send(event);
-    world.until(Until::Read);
+    for _ in 0..200 {
+        world.tick();
+        if !world.protocol.pending_renders.is_empty() {
+            break;
+        }
+    }
     assert!(world.forge_calls > before, "read reaches the independent fake");
-    // The pinned fake assigns API job ids from 1; its UI's index 0 is not
-    // an API id. It must answer MissingJob, never silently read job 1.
+    let (to, name) = world.protocol.pending_renders.pop().expect("refusal to render");
+    let answer = &world.protocol.answers.last().expect("typed answer").1;
     assert!(
-        matches!(world.answers.as_slice(), [engine::CallAnswer::ForgeRead(result)] if result.as_ref() == &Err(skein_forge::api::Error::MissingJob))
+        matches!(answer, engine::CallAnswer::ForgeRead(result) if result.as_ref() == &Err(skein_forge::api::Error::MissingJob))
     );
+    assert_eq!(world.protocol.read_jobs.get(&name), Some(&pin));
+    let event = temper_service::render_for_task(
+        to,
+        answer,
+        b"read_job",
+        1024,
+        chat.task,
+        1024,
+        temper_engine_smith::ForgeReadBounds::STOCK,
+        world.protocol.read_jobs.get(&name).copied(),
+    );
+    world.send(event);
+    for _ in 0..200 {
+        world.tick();
+        if !world.call_errors.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(world.call_errors.last().expect("host refusal").text.as_ref(), b"Forge read failed: job missing. No job attempt at head 0100000000000000000000000000000000000000, run 2, job 0, attempt 1, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids.");
+    let mut observed = false;
+    while let Some(fact) = world.root.pop_fact() {
+        if let engine::Fact::ReadRefused { task, attempt, tool, layer, error, job, .. } = fact {
+            assert_eq!(
+                (task, attempt, tool.as_ref(), layer, error),
+                (
+                    chat.task,
+                    chat.attempt,
+                    b"read_job".as_slice(),
+                    "forge-client",
+                    Some(skein_forge::api::Error::MissingJob)
+                )
+            );
+            assert_eq!(job, Some(pin), "diagnostic names what was asked");
+            observed = true;
+        }
+    }
+    assert!(observed, "refused read diagnostic");
 }
 
 #[test]

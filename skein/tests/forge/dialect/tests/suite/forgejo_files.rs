@@ -136,6 +136,32 @@ fn a_failing_actions_status_links_its_run_and_job() {
 }
 
 #[test]
+fn a_pull_request_run_keeps_its_event_head_and_ids_distinct_from_link_numbers() {
+    use skein_forge::forgejo::{request::Request, server::Answer};
+    let link = skein_forge::forgejo::header::job_link(
+        b"/fixture/specimen/actions/runs/2/jobs/0",
+        b"http://127.0.0.1:3000/fixture/specimen",
+    );
+    assert_eq!(link, Some((2, 0)));
+    let mut run = common::cases::files::run();
+    run.id = 8;
+    run.index_in_repo = 2;
+    run.event = Box::from(*b"pull_request");
+    let encoded = server::encode(&Answer::Run(run.clone()), &forgejo::limits()).expect("run shape");
+    for field in [b"\"event\":\"pull_request\"".as_slice(), b"\"trigger_event\":\"pull_request\""] {
+        assert!(encoded.windows(field.len()).any(|bytes| bytes == field));
+    }
+    let request = Request::Run { at: forgejo::specimen(), run: 8 };
+    assert_eq!(forgejo::decode(&request, &encoded).document, Ok(Document::Run(run)));
+    let jobs = forgejo::decode(
+        &Request::Jobs { at: forgejo::specimen(), run: 8 },
+        br#"[{"id":15,"run_id":8,"attempt":1,"name":"build","status":"failure"}]"#,
+    );
+    let Row::Job(job) = &jobs.rows[0] else { panic!("job") };
+    assert_eq!((job.run_id, job.id, job.attempt), (8, 15, 1));
+}
+
+#[test]
 fn the_recorded_forgejo_zip_inflates_its_single_file() {
     // Forgejo 17's four-byte report in a 144-byte ZIP with a signed descriptor.
     const ZIP_BYTES: u32 = 144;

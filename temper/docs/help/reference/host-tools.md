@@ -384,8 +384,8 @@ A read.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `head`: text; required. The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits.
-- `run`: an integer from 1 to 18446744073709551615; required. The CI run's id.
-- `job`: an integer from 0 to 18446744073709551615; required. The CI job's id, which may be 0 on Forgejo.
+- `run`: an integer from 1 to 18446744073709551615; required. The CI run's id, as read_checks names it; not a link's run number.
+- `job`: an integer from 0 to 18446744073709551615; required. The CI job's id, as read_checks names it; not a link's job index.
 - `attempt`: an integer from 0 to 4294967295; required. The attempt's number, which may be 0 on Forgejo.
 - `max_bytes`: an integer from 1 to 4294967295; optional. At most this many bytes; the read's limit when absent.
 

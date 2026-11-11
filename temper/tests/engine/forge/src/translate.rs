@@ -769,7 +769,7 @@ fn run(run: forge::Run) -> client::Run {
         commit: commit(run.commit),
         workflow: run.workflow.unwrap_or_else(|| Box::from(b"ci".as_slice())),
         event: match run.event {
-            forge::RunEvent::Push => client::Event::Other,
+            forge::RunEvent::Push | forge::RunEvent::PullRequest => client::Event::Other,
             forge::RunEvent::Dispatch => client::Event::Dispatch,
         },
         actor: run.user,

@@ -118,14 +118,14 @@ impl Text {
 /// metadata and escaping. Files keep a marked prefix; cut logs keep the end.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
-    bounded(answer, &[], max_bytes, None, ForgeReadBounds::STOCK)
+    bounded(answer, &[], max_bytes, None, ForgeReadBounds::STOCK, None)
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
 /// File, pull-file, compare and job reads fit the host body bound.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32, forge: ForgeReadBounds) -> HostAnswer {
-    bounded(answer, tool, max_bytes, None, forge)
+    bounded(answer, tool, max_bytes, None, forge, None)
 }
 
 /// Render host feedback with the proposing task's ctl name, retaining its holder.
@@ -138,7 +138,37 @@ pub fn answer_for_task(
     task: u64,
     forge: ForgeReadBounds,
 ) -> HostAnswer {
-    bounded(answer, tool, max_bytes, Some(task), forge)
+    bounded(answer, tool, max_bytes, Some(task), forge, None)
+}
+
+/// Render a job read with its own pin, including evidence when the attempt is missing.
+#[must_use]
+pub fn answer_for_job(
+    answer: &CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    forge: ForgeReadBounds,
+    attempt: api::JobAttempt,
+) -> HostAnswer {
+    bounded(answer, tool, max_bytes, None, forge, Some(attempt))
+}
+
+fn job_missing(attempt: api::JobAttempt, max_bytes: u32) -> HostAnswer {
+    let mut text = Text::new();
+    missing_attempt(&mut text, attempt).expect("fixed job refusal and bounded attempt");
+    clipped_refusal(text, skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY))
+}
+
+fn missing_attempt(text: &mut Text, attempt: api::JobAttempt) -> Result<(), Problem> {
+    text.add(b"Forge read failed: job missing. No job attempt at head ")?;
+    text.commit(&attempt.head)?;
+    text.add(b", run ")?;
+    text.number(attempt.run)?;
+    text.add(b", job ")?;
+    text.number(attempt.job)?;
+    text.add(b", attempt ")?;
+    text.number(u64::from(attempt.attempt))?;
+    text.add(b", as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids.")
 }
 
 /// The kind of a forge read's answer no agent read asks for, as the log's
@@ -195,12 +225,24 @@ fn unasked_refusal(tool: &[u8], reason: &'static str, cap: usize) -> HostAnswer 
     clipped_refusal(text, cap)
 }
 
-fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>, forge: ForgeReadBounds) -> HostAnswer {
+fn bounded(
+    answer: &CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    task: Option<u64>,
+    forge: ForgeReadBounds,
+    job: Option<api::JobAttempt>,
+) -> HostAnswer {
     let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
     }
     if let CallAnswer::ForgeRead(read) = answer {
+        if let Some(job) = job
+            && read.as_ref() == &Err(api::Error::MissingJob)
+        {
+            return job_missing(job, max_bytes);
+        }
         if let Ok(value @ (api::Answer::File { .. } | api::Answer::Directory { .. } | api::Answer::PullFiles { .. })) =
             read.as_ref()
         {

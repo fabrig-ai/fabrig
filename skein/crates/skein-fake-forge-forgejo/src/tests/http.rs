@@ -349,6 +349,85 @@ fn a_failed_jobs_steps_and_failed_steps_log_are_served_over_http() {
 }
 
 #[test]
+fn a_pull_request_runs_wire_event_and_trigger_event_name_the_pull_request() {
+    let checks = a::Checks {
+        cues: Box::new([]),
+        contexts: Box::new([boxed(b"build")]),
+        latency_min: skein_lib::Duration::ZERO,
+        latency_max: skein_lib::Duration::ZERO,
+        silent: 0,
+        passes: 0,
+        reruns: 0,
+        cue: Some(a::Cue::PullFile {
+            path: boxed(b"changes/{pull}"),
+            no_pull: a::Check::Skipped,
+            step: boxed(b"changes"),
+            log: boxed(b"missing changes/{pull}"),
+        }),
+    };
+    let mut h = Harness::with_checks(fixtures::config(), false, fixtures::fake_config(), checks);
+    let head = h.push(b"work");
+    h.call(
+        fixtures::PERSON,
+        Op::Write(Write::OpenPull {
+            title: boxed(b"pull"),
+            body: boxed(b"body"),
+            head: boxed(b"work"),
+            base: boxed(b"main"),
+            opens_empty: false,
+        }),
+    )
+    .expect("pull");
+    let request = Request::Run { at: fixtures::at(), run: 2 };
+    h.send(&request);
+    assert_eq!(h.status(), 200);
+    for field in [b"\"event\":\"pull_request\"".as_slice(), b"\"trigger_event\":\"pull_request\""] {
+        assert!(bytes::find(&h.body(), field).is_some(), "{:?}", h.body());
+    }
+    let Document::Run(run) = h.decoded(&request).document else { panic!("run") };
+    assert_eq!(run.commit_sha, crate::routes::object(head));
+    assert_eq!(run.index_in_repo, 2);
+}
+
+#[test]
+fn a_passing_jobs_log_and_empty_step_answer_ranges_not_missing() {
+    let checks = a::Checks {
+        cues: Box::new([]),
+        contexts: Box::new([boxed(b"build")]),
+        latency_min: skein_lib::Duration::ZERO,
+        latency_max: skein_lib::Duration::ZERO,
+        silent: 0,
+        passes: 1000,
+        reruns: 0,
+        cue: None,
+    };
+    let mut h = Harness::with_checks(fixtures::config(), false, fixtures::fake_config(), checks);
+    skein_fake_forge_domain::set_opening(&mut h.domain, b"org/repo", b"build", b"passed\n");
+    h.push(b"work");
+    h.ask(b"GET", b"/api/v1/repos/org/repo/actions/jobs/1", b"");
+    assert_eq!(h.status(), 200);
+    assert!(bytes::find(&h.body(), b"\"status\":\"success\"").is_some());
+    h.ask(b"GET", b"/api/v1/repos/org/repo/actions/jobs/1/logs?attempt=1", b"");
+    assert_eq!((h.status(), h.body().as_ref()), (200, b"passed\nset up build\n".as_slice()));
+    for (step, suffix, header) in [
+        (b"0".as_slice(), b"build\n".as_slice(), b"content-range: bytes 14-19/20\r\n".as_slice()),
+        (b"1".as_slice(), b"".as_slice(), b"content-range: bytes 0--1/0\r\n".as_slice()),
+    ] {
+        let request = bytes::concat(&[
+            b"GET /api/v1/repos/org/repo/actions/jobs/1/logs?attempt=1&step=",
+            step,
+            b" HTTP/1.1\r\nHost: 127.0.0.1:3000\r\nAuthorization: token ",
+            fixtures::TOKEN,
+            b"\r\nRange: bytes=-6\r\n\r\n",
+        ]);
+        h.request(&request);
+        h.run();
+        assert_eq!((h.status(), h.body().as_ref()), (206, suffix));
+        assert!(bytes::find(&h.head(), header).is_some(), "{:?}", h.head());
+    }
+}
+
+#[test]
 fn a_steps_log_end_is_served_by_a_suffix_range() {
     let mut h = Harness::new(fixtures::config());
     assert_eq!(h.push(b"work"), 2);

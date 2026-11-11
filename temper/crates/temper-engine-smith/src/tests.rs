@@ -2574,6 +2574,39 @@ fn every_forge_read_declares_its_flat_members_as_json() {
 }
 
 #[test]
+fn a_missing_job_refusal_names_the_asked_head_run_job_and_attempt_with_recovery() {
+    for (head, digits, run, job, attempt) in
+        [([0; 32], "0".repeat(40), 2, 0, 1), ([0xab; 32], "ab".repeat(32), 8, 15, 3)]
+    {
+        let pin = skein_forge::api::JobAttempt { head, run, job, attempt };
+        let expected = format!(
+            "Forge read failed: job missing. No job attempt at head {digits}, run {run}, job {job}, attempt {attempt}, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids."
+        );
+        let rendered = crate::answer_for_job(
+            &engine::CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::MissingJob))),
+            b"read_job",
+            1024,
+            crate::ForgeReadBounds::STOCK,
+            pin,
+        );
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+        for cap in [0, 32, u32::try_from(expected.len()).unwrap() - 1] {
+            let clipped = crate::answer_for_job(
+                &engine::CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::MissingJob))),
+                b"read_job",
+                cap,
+                crate::ForgeReadBounds::STOCK,
+                pin,
+            );
+            assert!(clipped.error());
+            assert!(clipped.text().len() <= usize::try_from(cap).unwrap());
+            assert!(expected.as_bytes().starts_with(clipped.text()));
+        }
+    }
+}
+
+#[test]
 fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive() {
     for attempt_number in [0, 1] {
         let input = format!(
@@ -2611,13 +2644,17 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
         }
     }
     let schema = schema.expect("read_job tool");
-    for property in [
-        br#""job":{"type":"integer","description":"The CI job's id, which may be 0 on Forgejo.","minimum":0"#
-            .as_slice(),
-        br#""attempt":{"type":"integer","description":"The attempt's number, which may be 0 on Forgejo.","minimum":0"#
-            .as_slice(),
-    ] {
-        assert!(skein_lib::bytes::find(schema, property).is_some());
+    let schema = crate::json::parse(schema).expect("job schema");
+    let properties = schema.required(b"properties").unwrap();
+    for (name, minimum) in [(b"run".as_slice(), 1), (b"job".as_slice(), 0), (b"attempt".as_slice(), 0)] {
+        let property = properties.required(name).unwrap();
+        assert_eq!(property.required(b"minimum").unwrap().number(b"minimum").unwrap(), minimum);
+        if name != b"attempt" {
+            let words = property.required(b"description").unwrap().text(b"description").unwrap();
+            assert!(skein_lib::bytes::find(&words, b"read_checks").is_some(), "{words:?}");
+            assert!(skein_lib::bytes::find(&words, b"not a link's").is_some());
+            assert!(!words.contains(&b'0'), "no job-zero invitation");
+        }
     }
 }
 
