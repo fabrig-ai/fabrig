@@ -62,6 +62,19 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn tester_recipe_enables_the_shell_but_keeps_the_coding_charters_tools() {
+    let text = find(b"tester-that-cannot-land").expect("tester recipe").text;
+    let command = text
+        .lines()
+        .find(|line| line.starts_with("temper ctl DIR settings show charter 2 --json"))
+        .expect("copy stock coding charter 2");
+    assert!(command.contains(".shell = true"), "the stock shell is disabled; the tester must run tests");
+    assert!(!command.contains(".tools ="), "keep the coding charter's tool-family bits");
+    assert!(command.contains(".instructions ="), "give the tester its own instructions");
+    assert!(command.contains("Report each test, its path, its content and its result. Fix nothing."));
+}
+
+#[test]
 fn task_help_explains_refused_invalid_results() {
     let found = search(&PAGES, b"invalid results", 20).expect("search words");
     assert!(found.hits.as_slice().iter().any(|hit| hit.page == "task"), "invalid results must find task help");
