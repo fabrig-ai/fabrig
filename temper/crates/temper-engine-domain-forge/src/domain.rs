@@ -24,6 +24,7 @@ mod connection_wait;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
+mod landed;
 #[path = "make.rs"]
 pub(crate) mod make;
 #[path = "outage.rs"]
@@ -2223,41 +2224,32 @@ fn outcome_facts(
                     save_change(d, out, saved);
                 }
             }
-            if d.landed.len() < env.limits.landings.max(env.limits.changes) || d.landed.contains_key(&commit) {
-                d.landed.insert(commit, task).expect("preflighted landed capacity");
-                emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Landed { commit, task } });
-                if let Some(change) = d.changes.get(&task) {
-                    let repository = change.repository;
-                    let branch = change.base.clone();
-                    let resource = skein_forge_client::Resource {
-                        repository,
-                        what: skein_forge_client::What::Branch(branch.clone()),
-                    };
-                    let name = from_client(&resource, &env.limits);
-                    let before = match &name {
-                        Some(name) => match d.heads.get(name) {
-                            Some(head) => Some(head.commit),
-                            None => None,
-                        },
+            landed::landed_room(d, env, commit, task, out);
+            if let Some(change) = d.changes.get(&task) {
+                let repository = change.repository;
+                let branch = change.base.clone();
+                let resource =
+                    skein_forge_client::Resource { repository, what: skein_forge_client::What::Branch(branch.clone()) };
+                let name = from_client(&resource, &env.limits);
+                let before = match &name {
+                    Some(name) => match d.heads.get(name) {
+                        Some(head) => Some(head.commit),
                         None => None,
-                    };
-                    if let Some(name) = name
-                        && let Some(head) = d.heads.get_mut(&name)
-                        && head.owned
-                    {
-                        head.commit = commit;
-                        emit(
-                            out,
-                            Request::Save {
-                                read_afresh: None,
-                                release: None,
-                                record: Stored::BranchHead(head.clone()),
-                            },
-                        );
-                        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
-                    }
-                    crate::tiers::observed(d, env, repository, &branch, before, commit, out);
+                    },
+                    None => None,
+                };
+                if let Some(name) = name
+                    && let Some(head) = d.heads.get_mut(&name)
+                    && head.owned
+                {
+                    head.commit = commit;
+                    emit(
+                        out,
+                        Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) },
+                    );
+                    child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
                 }
+                crate::tiers::observed(d, env, repository, &branch, before, commit, out);
             }
         }
         skein_forge_client::Outcome::Made {
