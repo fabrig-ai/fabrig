@@ -49,6 +49,7 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
     );
     success(&initialized);
     super::own_listener_files(root);
+    fixture_bundle(root);
     let path = root.join("temper.json");
     let mut document: Value = serde_json::from_slice(&fs::read(&path)?).expect("box JSON");
     let temper: SocketAddr = document["application"]["clients"]["listener"]["socket"]
@@ -89,7 +90,6 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper path").into();
         super::write_private(&path, &serde_json::to_vec(&document).expect("failure configuration"));
     }
-    fixture_bundle(root);
     super::first_repository::stage_binaries(root);
     let login = document["application"]["machine"]["owned"]["person"]["login"].as_str().expect("person login");
     let email = document["application"]["machine"]["owned"]["person"]["email"].as_str().expect("person email");
@@ -230,8 +230,6 @@ fn delayed_forgejo(root: &Path, path: &Path, document: &Value) -> io::Result<()>
     )?;
     fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
     document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper").into();
-    document["application"]["limits"]["overrides"]["setup.deadline_ms"] = 200.into();
-    document["application"]["limits"]["overrides"]["setup.backoff_max_ms"] = 100.into();
     super::write_private(path, &serde_json::to_vec(&document).expect("delayed-engine configuration"));
     Ok(())
 }
