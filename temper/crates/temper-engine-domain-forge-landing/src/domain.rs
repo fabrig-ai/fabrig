@@ -115,7 +115,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
             proving(next, facts, *project, limits, now)
         }
         Phase::Proved { at } => {
-            if facts.turn_free && facts.first {
+            if facts.turn_free {
                 next.phase = Phase::Turn { at };
                 done(next, Decision::None)
             } else {

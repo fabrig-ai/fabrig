@@ -1037,6 +1037,7 @@ pub struct AfterLanding {
 /// Why a landing cannot be made (domain/landing.md, 12).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LandingRefusal {
+    Train,
     Landings,
     Members,
     Repository,

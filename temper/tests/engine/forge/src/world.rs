@@ -171,6 +171,20 @@ impl World {
             None,
         )
     }
+    #[must_use]
+    pub fn trains() -> World {
+        Self::configured(
+            11,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            8,
+            true,
+            None,
+        )
+    }
     pub fn project_landing(
         &mut self,
         project: u32,

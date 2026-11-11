@@ -122,6 +122,8 @@ pub struct Landing {
     /// Candidates' preparation, counted from 1.
     pub preparation: u16,
     pub stale_proofs: u32,
+    /// The train's landing branch (domain/landing.md, 9, 12).
+    pub branch: Box<[u8]>,
 }
 
 /// Current dispatch of this key. The top follows the current try, clearing
@@ -168,7 +170,6 @@ pub struct MemberFacts {
 pub struct Facts {
     pub members: Box<[MemberFacts]>,
     pub turn_free: bool,
-    pub first: bool,
     pub released: bool,
 }
 
