@@ -1,4 +1,4 @@
-//! Landed drafts, the writer's door (temper/docs/design/client/ctl/areas.md, 7).
+//! Landed drafts, the writer's door (temper/docs/design/client/ctl/areas.md), area 7.
 use crate::{
     jig::{
         self,
