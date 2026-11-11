@@ -584,7 +584,7 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         }
     }
 }
-// temper/docs/design/domain/worker.md, 4.3: one bounded, escaped operator line.
+// temper/docs/design/domain/worker/README.md, 4.3: one bounded, escaped operator line.
 fn run_refusal_line(binary: &str, diagnostic: temper_service::RunRefusalDiagnostic) -> String {
     let temper_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
@@ -613,7 +613,7 @@ fn run_failure_line(
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
 }
 
-// temper/docs/design/domain/worker.md, 4.4: the job's kind stays in the run line's detail.
+// temper/docs/design/domain/worker/jobs.md: the job's kind stays in the run line's detail.
 fn job_line(binary: &str, diagnostic: temper_service::JobDiagnostic) -> String {
     let temper_service::JobDiagnostic { task, run, attempt, kind, ending } = diagnostic;
     let prefix = format!("{binary} serve: task {task} run {run} attempt {attempt} ");
@@ -1854,7 +1854,7 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
 fn job_stderr_forms_escape_and_bound_their_why() {
     use jig_domain_host::{JobFailure, JobInvalid, JobRefusal, Preparation};
     use temper_service::{JobDiagnostic, JobDiagnosticEnding};
-    // worker.md, 4.4: all four forms retain the last 4,096 input bytes.
+    // domain/worker/jobs.md: all four forms retain the last 4,096 input bytes.
     const TAIL: usize = 4096;
     for (worker, refused, prefix) in [
         (false, false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),

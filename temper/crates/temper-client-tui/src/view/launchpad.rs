@@ -1,4 +1,4 @@
-//! Home's launchpad (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md, The launchpad).
+//! Home's launchpad (temper/docs/design/client/tui/pages/launchpad.md, 1 and temper/docs/design/client/tui/box.md, The launchpad).
 use super::{Binds, foot, front, text};
 use crate::{
     Own, Tui, look,

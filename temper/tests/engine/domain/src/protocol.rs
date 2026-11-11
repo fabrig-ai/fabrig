@@ -32,7 +32,7 @@ pub fn bounds() -> Bounds {
     }
 }
 
-/// The merge kind advertised by the scripted worker (temper/docs/design/domain/worker.md, 4.4).
+/// The merge kind advertised by the scripted worker (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
     JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(600) }

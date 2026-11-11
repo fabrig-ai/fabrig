@@ -380,13 +380,13 @@
   the engine answers a call it has seen before from its record, and smith
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
-- **An answer fits what the agent takes** (`../worker.md`, 4.3):
+- **An answer fits what the agent takes** (`../worker/README.md`, 4.3):
   rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
   the tool name and the receiving agent's reply bound, the root's
   `Domain::reply_bound` for the call's key (`../routing.md`, 2): the
   `agent.limits.bodies.host_reply_text` the run's worker names in its
   hello, from its agent's `agent.json` `profile.declared.tool_payload`
-  (`../worker.md`, section 6); where it names none, the local agent's.
+  (`../worker/README.md`, section 5); where it names none, the local agent's.
   Raising `core.call_answer_bytes` alone cannot overcome a smaller agent
   allowance. Where neither names one, the configured core allowance stands.
   A `see` answer is rendered within the local agent's bound alone

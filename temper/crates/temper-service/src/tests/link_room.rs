@@ -1,5 +1,5 @@
 //! Stock starts either reach the worker root or fail with their numbers;
-//! the socket stays live (temper/docs/design/domain/worker.md, 4.1 and 4.3;
+//! the socket stays live (temper/docs/design/domain/worker/README.md, 4.1 and 4.3;
 //! temper/docs/design/protocol/channel.md, 7 and 8).
 use super::{fixtures, fixtures::worker_peers::LinkPeer};
 use crate::{limits, settings, values::Values, workers::Workers};

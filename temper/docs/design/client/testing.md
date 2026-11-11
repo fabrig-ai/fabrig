@@ -169,7 +169,7 @@ own tests:
   interrupt, `q` drained. And, in a unit test, the terminal made from
   `limits::native()`'s limits, as `temper-box open` makes it, so the gate
   meets a refusal of temper's own limits before the process tier does.
-- **The TUI** (`tui/README.md`, 1 to 3 and `tui/pages.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
+- **The TUI** (`tui/README.md`, 1 to 3 and `tui/pages/README.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
   skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
   step tests and changed only by hand: signing in and its approval at 80
   by 24; the launchpad at 80 by 24, dark and light, and at 40 by 12, its
@@ -189,7 +189,7 @@ own tests:
   simulated machine (each way out writing the terminal's `LEAVE` last
   and exiting 0), and of the binary's parts as functions (the command's
   parse, the directory's resolution, the scheme and the depth). Nothing
-  opens a terminal or a browser. The engine's link and the note (`tui/README.md`, 2, `tui/pages.md`
+  opens a terminal or a browser. The engine's link and the note (`tui/README.md`, 2, `tui/pages/README.md`
   ): `link_file::path` one function for the engine and the TUI, its
   table of environments and data directories; the file written `0o600`
   at each new link and removed at exit; `Note`'s lines read back and

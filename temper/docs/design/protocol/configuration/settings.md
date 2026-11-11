@@ -562,7 +562,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | Limit | Relation |
 |---|---|
 | both `hub.turn_bytes` | T |
-| the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 (4 MiB), so that a coding run's whole window resumes after an interruption, not one turn's worth (`../../domain/worker.md`, section 2) |
+| the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 (4 MiB), so that a coding run's whole window resumes after an interruption, not one turn's worth (`../../domain/worker/README.md`, section 2) |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
 | the engine's and each worker's `io.output` | the same room, the greatest worker room derived from a turn of T's frame and the workers' configured rooms |

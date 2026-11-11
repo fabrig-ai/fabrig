@@ -689,8 +689,8 @@ Each is named here and designed when it comes.
   check, with no change to the deadline or the kept request's protocol.
 - **A failed-run hold's failure text** (`results.md`, 1): the log directions keep no
   text with the task. Storing the last failure needs the user's bound and
-  readers, with its stored and wire changes, as `../../domain/worker.md`,
-  section 12 asks. Default: direct the reader to the engine's log.
+  readers, with its stored and wire changes, as `../../domain/worker/README.md`,
+  section 10 asks. Default: direct the reader to the engine's log.
 - **A busy watch's precise cause** (`results.md`, 3): the deadline's line uses jig's
   `watches_full`, whose refusal carries no count and does not distinguish
   watch capacity from an opening's load slot. Distinct lines wait for jig

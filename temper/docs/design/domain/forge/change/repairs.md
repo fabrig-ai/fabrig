@@ -109,7 +109,7 @@
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
-  kind 3 (`../../worker.md`, 4.4), delegated by the change, which holds the
+  kind 3 (`../../worker/jobs.md`), delegated by the change, which holds the
   branch it writes. Its workspace is a resolution's, the base merged
   into the branch's head;
   the project's merge command settles the conflicts it knows
@@ -122,10 +122,10 @@
   resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
   try that will be spent again included, is a line on the worker that met
-  it and on the engine, naming the job, its kind and why (`../../worker.md`,
-  4.4); the job's own hold, out of tries, names its failures' class,
+  it and on the engine, naming the job, its kind and why (`../../worker/jobs.md`
+  ); the job's own hold, out of tries, names its failures' class,
   and its way out points at the engine's log, where each is named. Without a `merge_job`,
-  without the kind declared (`../../worker.md`, 4.4) or in its authority, or
+  without the kind declared (`../../worker/jobs.md`) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's
   resolutions, and the resolution after it as none, so the bound counts
@@ -134,7 +134,7 @@
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`../../worker.md`, section 5).
+  parents, and pushes it (`../../worker/checkouts.md`).
   **It waits for its producer.** A resolution, and a merge job before it,
   starts only once every task the change gave its branch to push, its
   producer and each repair, has ended: its terminal heard, a successful

@@ -1,4 +1,4 @@
-//! The first standing list (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
+//! The first standing list (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
 use crate::{Own, Scheme, Tui, WalkStep, theme::ThemeChoice, view::front, words::Word};
 use alloc::boxed::Box;

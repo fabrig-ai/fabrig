@@ -10,7 +10,7 @@ request `tui-launchpad`, are built, with golden frames and the joint-world
 story from the launchpad through the streamed and committed answer
 (`client/README.status.md`). Its post-landing terminal walks and later
 surfaces remain deferred; the sign-in field takes `q` as text and
-Ctrl+C closes there (`client/tui/README.md`, sections 1 to 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, section 4 and `client/README.md`, section 5;
+Ctrl+C closes there (`client/tui/README.md`, sections 1 to 3 and `client/tui/pages/README.md` and `client/tui/theme.md` and `client/tui/README.md`, section 4 and `client/README.md`, section 5;
 `draft/tui.status.md`). Browser-approved sign-in's engine configuration,
 native client-root half and web page at `/terminal` are built, with twelve
 gallery states and joint-client stories; signed out with Google's way
@@ -44,13 +44,13 @@ uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base
 colours, accent focus and scheme selection from COLORFGBG or a bounded
-OSC 11 query are built (`client/tui/README.md`, 1 to 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, 4). The user's
+OSC 11 query are built (`client/tui/README.md`, 1 to 3 and `client/tui/pages/README.md` and `client/tui/theme.md` and `client/tui/README.md`, 4). The user's
 requests of 2026-11-08 and the look request `tui-chat-title-below` are
 built: the band from the terminal's answered background, else dim words
 after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
-the box (`client/tui/README.md`, 2 to 3 and `client/tui/pages.md` and `client/tui/theme.md`; `draft/tui.status.md`).
+the box (`client/tui/README.md`, 2 to 3 and `client/tui/pages/README.md` and `client/tui/theme.md`; `draft/tui.status.md`).
 `temper box` in a terminal runs the TUI in front, by the look request
 `tui-box-front`: signed in by a link the box hands it, the welcome
 following the browser's steps, "Signed in as the owner" from the forges
@@ -68,10 +68,10 @@ lands saying "Still signing in"; the box's words in the terminal's ink,
 the accent on "❯" alone, by skein's focused value's paint; `/theme`'s
 list of Auto, Light and Dark, the choice kept in the TUI's small store;
 `/quit`, `/exit` still taking it unlisted; and a notice standing 6
-seconds at the quiet line's right end (`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md` and `client/tui/README.md`, 4 and `client/tui/box.md`
+seconds at the quiet line's right end (`client/tui/README.md`, 3 and `client/tui/pages/README.md` and `client/tui/theme.md` and `client/tui/README.md`, 4 and `client/tui/box.md`
 ). In front, Enter on the welcome's box with no command leaves
 `/log`'s note standing, and the commands reference still names `/exit`
-(`client/tui/pages.status.md` and `client/tui/box.status.md`); the committed journeys'
+(`client/tui/pages/README.status.md` and `client/tui/box.status.md`); the committed journeys'
 `screen` keeps `dark` (`client/tui/journeys.status.md`, 3.2). Their
 real-terminal check follows landing (`client/README.md`, section 5).
 The launchpad as drawn and views printed, the whole story's T1, are
@@ -82,16 +82,15 @@ with each row's project and the person's newest goal, Needs you marked
 and a reply's views printed a stop a line, with goldens at 80 by 24 in
 both themes and at 110 by 32, joint-world stories of a need walked and answered and of
 `/change` starting a chat, and the journey `launchpad-drawn`
-(`client/tui/README.md`, 3 and `client/tui/pages.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
+(`client/tui/README.md`, 3 and `client/tui/pages/README.md` and `client/tui/theme.md`; `client/tui/journeys.md`, 9). A
 design session, T2, is designed and not yet built: `/draft`, the draft
 in a side pane that skein's full-screen shell lays beside the body, a
-reply's choices as a prompt and `/goal` (`client/tui/pages.md`, *A
-design session*; `client/README.status.md`). The
+reply's choices as a prompt and `/goal` (`client/tui/pages/design-session.md`, 1; `client/README.status.md`). The
 team lines, `/talk` and `/tell` are T3's, the brief
 and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
 (`draft/surfaces.status.md`, 11); the blank row under the header is not
-yet drawn (`client/tui/pages.status.md`), and the walk follows
+yet drawn (`client/tui/pages/README.status.md`), and the walk follows
 landing.
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
@@ -220,7 +219,7 @@ of its own (`domain/forge/branches.status.md`, 2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
 Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
 the worker's frozen landing pin, or, for a repair or a resolution, the head
-its delivery replaces (`domain/worker.status.md`), run changed-package lints and focused
+its delivery replaces (`domain/worker/README.status.md`), run changed-package lints and focused
 tests with direct dependents, one process per test binary, and identify inherited failures. A project
 may give its changes' checks a bound of its own, and a check that only ran
 out of time runs once more at twice its time
@@ -499,7 +498,7 @@ fake forge/git. Calls, briefs, batches and reports have their configured
 room: the reference takes payload 63,740 and output 48,000 after smith
 refuses the 128 KB pair at the transcript ceiling. Stock and reference
 workflow words and a saved start overtaken by a repair remain separate work
-(`domain/agent/README.md`, `domain/forge/README.md`, `domain/worker.md`,
+(`domain/agent/README.md`, `domain/forge/README.md`, `domain/worker/README.md`,
 `draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
@@ -520,7 +519,7 @@ in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
 (`domain/forge/README.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
-(`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
+(`domain/worker/README.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are
 settings of temper's kinds, but a project's landing and a
 repository's gates are still the document's
@@ -665,7 +664,7 @@ stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge/README.md`). A
-merged start has no real run on record (`domain/worker.md`), a commit leaves out a
+merged start has no real run on record (`domain/worker/README.md`), a commit leaves out a
 stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
 asks a run to name no commit off its branch (`domain/agent/README.md`). A head already behind
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
@@ -677,10 +676,10 @@ committed before its run; a conflict's start, the help page and stock charters e
 its staged files. The parked producer's proof uses fake git and disk, with a delivery
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
-while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+while earlier saved work stands (`domain/worker/README.md`, `protocol/channel.md`).
 A start smith refuses as busy spends no try, but `temper help task` still
 says an "invalid results" hold may mean a start refused before any turn,
-which spends a permanent try (`domain/worker.md`). Template 4's report
+which spends a permanent try (`domain/worker/README.md`). Template 4's report
 reaches its run as at most 1,024 bytes, jig's contract text bound, where
 the reference gives it 63,738 (`protocol/configuration/README.md`).
 Saved work in the task's saved set
@@ -700,7 +699,7 @@ still past the room fails its run with its bytes and the room,
 serve writing `worker unsent`, and the link and its pings go on;
 `standard` admits one by its inbox alone, and making it run is an open
 question, while a worker whose turn's frame passes its `io.output` is
-refused naming no bound (`domain/worker.md`, 4.1, 4.3 and 12;
+refused naming no bound (`domain/worker/README.md`, 4.1, 4.3 and 10;
 `protocol/configuration/limits.status.md`). Tasks
 due together past the load slots stay due until a slot frees, a
 transcript window's later pages keep its first page's slot, and a turn
@@ -708,7 +707,7 @@ too large for a load page reaches the core cut, so its run starts fresh
 from the tail with the turn's marker, spending no try. Whether a
 deployment's held goals took the path this closes is unproven, and no
 stop test shows the whole engine's stop within a bound
-(`domain/worker.md`, 3.1; `protocol/cluster.md`, 3, and `protocol/README.md`, 11;
+(`domain/worker/README.md`, 3.1; `protocol/cluster.md`, 3, and `protocol/README.md`, 11;
 `domain/root.md`, 7). A lost kernel-chosen port is retried within 32
 attempts (`protocol/setup/box.md`, 5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
@@ -810,14 +809,14 @@ waiting on its socket and then signing in, no run on record has its OSC 8
 link on a real terminal, and a first box from a binary
 with no browser does not say so (`protocol/setup/README.md`), and a
 held task names no run's or job's failure, which
-is the user's to decide (`domain/worker.md`); a start past 20 slots on
+is the user's to decide (`domain/worker/README.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
-past a start (`domain/worker.md`); with
+past a start (`domain/worker/README.md`); with
 `TEMPER_INTERNAL_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
-for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+for one trusted person alone (`domain/worker/README.md`, `protocol/git.md`);
 with `TEMPER_INTERNAL_DUMP_LLM` set, never a shipped default, an agent's
-environment holds that directory (`domain/worker.md`);
+environment holds that directory (`domain/worker/README.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
@@ -866,7 +865,7 @@ takes no task and numbers a party's question, which `waiting on:` does not
 (`client/ctl/README.md`). With no account serving the work `task show` says so in its
 header, waiting line and JSON, while its phase stays due. Failure holds point to
 the engine's log; keeping their text still needs the user's bound and readers
-(`domain/worker.md`). Setup suppresses the true protection warning without
+(`domain/worker/README.md`). Setup suppresses the true protection warning without
 gaining access, and effort refusals name the effort locally only for models
 `me` shows (`client/ctl/README.md`). A bounded `task amend` prints its call alone, but
 a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
@@ -1150,7 +1149,7 @@ Design documents:
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
-- [`domain/worker.md`](domain/worker.status.md)
+- [`domain/worker/README.md`](domain/worker/README.status.md)
 - [`domain/agent/README.md`](domain/agent/README.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`protocol/README.md`](protocol/README.status.md)

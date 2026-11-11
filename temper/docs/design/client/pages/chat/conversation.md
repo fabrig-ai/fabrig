@@ -410,7 +410,7 @@ terminal draw the same path.
 - **Left to M3b** (`../../../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
   `task N timeline`. The TUI prints views as lines of its own text
-  (`../../tui/pages.md`, *A chat*, *a view*; `../../../draft/surfaces.md`, 11.5).
+  (`../../tui/pages/chat.md`, 1, *a view*; `../../../draft/surfaces.md`, 11.5).
 
 ## 4. Open questions
 
@@ -421,7 +421,7 @@ terminal draw the same path.
   chat asked to show a way. M3b adds a stop pressed in a reply opening
   its card and the views `queue`, `task N tree` and `task N timeline`
   (`../../../draft/ask-temper.execution.md`, M3b); the TUI prints views and
-  draws none (`../../tui/pages.md`, *A chat*). A view
+  draws none (`../../tui/pages/chat.md`, 1). A view
   at an older revision, and a decided proposal's paths, wait for a read of
   the settings as a revision left them. Default: the focused tables and
   gallery samples, which establish no rendered look.

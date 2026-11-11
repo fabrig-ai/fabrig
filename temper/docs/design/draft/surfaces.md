@@ -329,7 +329,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 11. The terminal
 
 This section revises `tui.md`, section 3, and the launchpad of
-`../client/tui/pages.md`. The terminal stays where a person works with
+`../client/tui/pages/README.md`. The terminal stays where a person works with
 agents, one thing in focus (`tui.md`, section 2); watching running work
 stays the web's.
 

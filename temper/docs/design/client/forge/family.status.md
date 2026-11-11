@@ -1,6 +1,6 @@
 # family: status
 
-2026-11-10. Where the tree's code lags or departs from [family.md](family.md).
+2026-11-11. Where the tree's code lags or departs from [family.md](family.md).
 
 - **Not yet:** 6: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 
@@ -55,3 +55,9 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
+
+- **Design departs:** 4, from `look-round-14`'s request for Copy public's
+  `rows=4`: the field takes a 107 px minimum height in the stylesheet,
+  because skein-ui carries no rows attribute. The plan's cut chose the
+  four-line box by rule; its rendered height remains `../README.md`, section 5's
+  after-landing comparison.

@@ -1,4 +1,4 @@
-//! Goal deliveries use the repository's checks (temper/docs/design/domain/worker.md, 5).
+//! Goal deliveries use the repository's checks (temper/docs/design/domain/worker/checkouts.md).
 use super::{World, call, engine, report_script, tasks};
 use skein_fake_llm_domain::api::{Part, Script};
 use temper_fake_checkout::git::Remote;

@@ -16,7 +16,7 @@ pub(crate) struct StartRefusal {
     pub(crate) why: Box<[u8]>,
 }
 
-/// A start's refusal policy (`temper/docs/design/domain/worker.md`, 4.3).
+/// A start's refusal policy (`temper/docs/design/domain/worker/README.md`, 4.3).
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum StartClass {
     Busy,

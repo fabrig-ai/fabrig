@@ -427,7 +427,7 @@ that changes the stock changes nothing of them.
   the project's checks are its `.temper/pre-pr` (smith's
   `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
-  pins (`../../domain/worker.md`, section 5), the lints of the packages the
+  pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
   direct dependents; a lint or test failure the repository's
   `.temper/known-reds.md` lists, and a counted baseline or citation the

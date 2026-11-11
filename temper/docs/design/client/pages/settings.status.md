@@ -1,6 +1,6 @@
 # settings: status
 
-2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -124,7 +124,7 @@ created proposals, including mixed outcomes. The view's
 and mixed calls and failures after two or eight reads, with failure
 descriptions and rows retained. No known gap remains in that wording.
 
-`../README.md`, section 2 and `../tui/README.md`, sections 1 to 3 and `../tui/pages.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../README.md`, section 4.1 have no known implementation gap in the
+`../README.md`, section 2 and `../tui/README.md`, sections 1 to 3 and `../tui/pages/README.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../README.md`, section 4.1 have no known implementation gap in the
 TUI's crates, command, private directory, link file and sign-in note,
 host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
@@ -217,3 +217,24 @@ of refusals under both names.
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
+
+- **Design departs:** 2, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
+
+- **Not yet:** 2, *The card in a chat*, and `README.md`'s `Chat { task }`: no live turn names its
+  proposal, so a live card always takes the place of one no call names, and its call stays a line of
+  its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
+  `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
+  `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
+  Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+  The `ui-proposal-card` plan keeps this gap: filling the core's turn record,
+  archived turn and call-to-proposal mapping is separate work (`../README.md`, section 5,
+  *Calls naming their proposals*). The making line supplies the card's place.
+
+- **Design departs:** 2, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
+  by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
+  direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
+  the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
+  the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
+  same, and only the client's world sends it, by the act (`../README.md`, section 5, *A Reject on a chat's card*).

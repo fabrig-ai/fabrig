@@ -316,7 +316,7 @@ The words for each offered source are:
     to `Forges`.
   - *A host:* on a box, where the deployment's read says `owned` (`../forge/records.md`),
     "Waiting for other work to finish. It starts by itself."; a box's
-    worker runs with its engine (`../../domain/worker.md`, section 6), and
+    worker runs with its engine (`../../domain/worker/README.md`, section 5), and
     a person who has only run `temper box` doesn't know "host". Otherwise,
     and until that read answers, "No host has room for this, or none is
     connected. It starts when one does." Either way, with nothing to press.

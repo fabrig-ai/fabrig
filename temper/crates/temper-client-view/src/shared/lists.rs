@@ -7,7 +7,7 @@ use temper_client_domain::{
     Address, Domain,
     pages::{Act, chats as chat_pages, terminal::Listing},
 };
-/// An option in the terminal's list (temper/docs/design/client/tui/pages.md, The commands).
+/// An option in the terminal's list (temper/docs/design/client/tui/pages/README.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Choice {
     pub name: Box<[u8]>,
@@ -34,7 +34,7 @@ pub fn models(root: &Domain, _task: Option<&c::Task>, w: &Words) -> Box<[Choice]
 pub fn efforts(root: &Domain, _task: Option<&c::Task>, _w: &Words) -> Box<[Choice]> {
     crate::choice::picker::effort_choices(root)
 }
-/// Live chats, newest first, without the open one (temper/docs/design/client/tui/pages.md, The commands).
+/// Live chats, newest first, without the open one (temper/docs/design/client/tui/pages/README.md, 2).
 #[must_use]
 pub fn chats(root: &Domain, w: &Words) -> Box<[Choice]> {
     let Some(chats) = root.pages().chats() else { return Box::default() };
@@ -84,7 +84,7 @@ pub struct Confirmation {
     pub take: &'static [u8],
     pub keep: &'static [u8],
 }
-/// An unsent close or restart (temper/docs/design/client/tui/pages.md, The commands).
+/// An unsent close or restart (temper/docs/design/client/tui/pages/README.md, 2).
 #[must_use]
 pub fn confirmation(root: &Domain) -> Option<Confirmation> {
     if !crate::pages::terminal::commands::confirms(root) || root.pages().confirmation()?.sent.is_some() {

@@ -10,7 +10,7 @@ story's restart gap is in `../protocol/configuration/reference.status.md`.
 
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
 `../domain/agent/tools.md`, `../domain/forge/change/README.md`, 1 and 3 and `../domain/forge/branches.md`
-, `../domain/worker.md`, section 5, and jig's `domain/hosts/charters.md`
+, `../domain/worker/checkouts.md`, and jig's `domain/hosts/charters.md`
 . The saved-start exception and remaining reference-workflow
 gaps are below.
 
@@ -43,7 +43,7 @@ section 11). The stock's figures stay as they are.
     mechanisms.
   - 4: a run resuming saved work starts from that saved tree, rather than
     from g's current tip (`../domain/forge/branches.md`, 3;
-    `../domain/worker.md`, sections 5 and 12), to preserve parked edits.
+    `../domain/worker/checkouts.md`), to preserve parked edits.
     Its design delivery merges g's moved tip first, so it is never stale.
   - 1, 4: the goal's runs deliver straight to g, as its design writers
     (`../domain/forge/branches.md`, 3), where `goal-as-designer.md`, section 4 has them deliver to

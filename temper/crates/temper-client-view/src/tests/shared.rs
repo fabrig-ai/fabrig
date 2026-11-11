@@ -1,4 +1,4 @@
-//! Shared words match the browser's trees (temper/docs/design/client/tui/pages.md).
+//! Shared words match the browser's trees (temper/docs/design/client/tui/pages/README.md).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,

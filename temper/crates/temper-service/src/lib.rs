@@ -188,13 +188,13 @@ pub enum Note {
         channel: u64,
         text: Box<[u8]>,
     },
-    /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
+    /// A failed answer accepted by the hub, for stderr only (domain/worker/README.md, 4.3).
     RunFailed(temper_engine_domain::RunDiagnostic),
-    /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).
+    /// A refused assignment accepted by the hub, for stderr only (domain/worker/README.md, 4.3).
     RunRefused(RunRefusalDiagnostic),
-    /// A failed or refused job accepted by the engine (domain/worker.md, 4.4).
+    /// A failed or refused job accepted by the engine (domain/worker/jobs.md).
     JobAnswered(JobDiagnostic),
-    /// The worker's own job evidence, kept outside facts and results (domain/worker.md, 4.4).
+    /// The worker's own job evidence, kept outside facts and results (domain/worker/jobs.md).
     WorkerJob {
         run: u64,
         attempt: u64,

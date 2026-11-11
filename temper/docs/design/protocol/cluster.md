@@ -341,6 +341,6 @@ worker added later, 4.6's hung worker.
   across starts (`README.md`, section 11).
 - **The cluster's workers of several slots,** as the case of
   `../testing/reference-case.md` has: a worker hosts an agent per slot
-  (`../domain/worker.md`, section 6), and the cluster's fixtures and
+  (`../domain/worker/README.md`, section 5), and the cluster's fixtures and
   stories still give each of its workers one slot.
 - **`temper-box init` for the cluster's shapes** (`README.md`, section 11).
