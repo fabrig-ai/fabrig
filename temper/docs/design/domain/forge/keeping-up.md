@@ -199,10 +199,16 @@ part:
   ten minutes, in every minute past its first two
   (`../../protocol/forge/README.md`, section 9): hearing, a job's delivery
   every 20 seconds, at most 40 requests a minute in all, its head's
-  statuses read at most 6 times and its pull at most 4; not hearing, its
+  statuses read at most 9 times and its pull at most 4; not hearing, its
   head's statuses and its pull each read at most 3 times a minute, and
   at most 30 requests a minute in all, its repository's listing among
-  them. A read is a request to that route, a page counted as one.
+  them. A read is a request to that route, a page counted as one. The
+  head's 9 while hearing are three a minute for each of three causes:
+  the commit's news read on each job's hint, the keep's own read of the
+  pull's CI that the same hint wakes, and settling's reread of a status
+  written after its delivery; the keep's read and the commit's are not
+  shared (measured 2026-11-11: worst minute 37 requests, 9 head-status
+  reads, 4 pull reads).
 - **GitHub settles too.** It answers mergeability unknown until it has
   checked, and may refuse a merge as not mergeable just after a head
   moves (skein's `forge/github.md`): within the window both are not
