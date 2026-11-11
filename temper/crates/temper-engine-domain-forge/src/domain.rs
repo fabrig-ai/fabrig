@@ -77,6 +77,7 @@ enum StepStage {
     Ci,
     BaseCi,
     Compare,
+    ContainsHead,
     CatchUp,
     Reviews(u32),
 }
@@ -102,6 +103,7 @@ pub(crate) struct PendingStep {
     ci: change::Status,
     base_ci: change::Status,
     contains_base: change::Status,
+    contains_head: change::Status,
     contains_catch_up: change::Status,
     reviews: Box<[skein_forge::api::Review]>,
     reviews_complete: bool,
@@ -3551,6 +3553,7 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
     None
 }
 
+#[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing and containment facts")]
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
     if d.stopping {
         return;
@@ -3637,6 +3640,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
+        contains_head: change::Status::Unknown,
         contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
@@ -3750,6 +3754,7 @@ fn step_verified(
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
+        contains_head: change::Status::Unknown,
         contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
@@ -4020,8 +4025,11 @@ fn step_read(
                 if ci == skein_forge::api::Ci::Failed || result_rows {
                     // Repairs retain the contexts they observed, beside the pull verdict.
                     skein_forge::api::Read::Checks { commit }
+                } else if let Some(read) = step_after_ci(d, &mut pending, out) {
+                    read
                 } else {
-                    step_after_ci(d, &mut pending, out)
+                    finish_step(d, env, pending, out);
+                    return;
                 }
             } else {
                 skein_forge::api::Read::Checks { commit }
@@ -4048,7 +4056,12 @@ fn step_read(
                     );
                 }
             }
-            step_after_ci(d, &mut pending, out)
+            if let Some(read) = step_after_ci(d, &mut pending, out) {
+                read
+            } else {
+                finish_step(d, env, pending, out);
+                return;
+            }
         }
         StepStage::BaseCi => {
             match result {
@@ -4071,9 +4084,26 @@ fn step_read(
         }
         StepStage::Compare => {
             pending.contains_base = ancestry_status(result);
-            if let Some(pull) = &pending.pull {
-                pending.stage = StepStage::Reviews(1);
-                skein_forge::api::Read::Reviews { number: pull.number, page: 1, skip: 0 }
+            if let Some(read) = read_contains_head(d, &mut pending) {
+                read
+            } else if let Some(read) = step_reviews(&mut pending) {
+                read
+            } else {
+                finish_step(d, env, pending, out);
+                return;
+            }
+        }
+        StepStage::ContainsHead => {
+            pending.contains_head = ancestry_status(result);
+            let mut settle = d.settling.get(&pending.task).copied().unwrap_or(crate::settle::Settle::NEW);
+            settle.contains_head = Some(crate::settle::HeadContainment {
+                head: pending.branch.expect("containment has a head"),
+                tip: pending.base_tip.expect("containment has a tip"),
+                status: pending.contains_head,
+            });
+            d.settling.insert(pending.task, settle).expect("one settle row per change");
+            if let Some(read) = step_reviews(&mut pending) {
+                read
             } else {
                 finish_step(d, env, pending, out);
                 return;
@@ -4123,6 +4153,35 @@ fn step_read(
     child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
 }
 
+/// Reverse ancestry is asked only when the head lacks the tip, once per pair
+/// (temper/docs/design/domain/forge/change/README.md, 2).
+fn read_contains_head(d: &mut Domain, pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
+    let head = pending.branch?;
+    let tip = pending.base_tip.expect("base read before ancestry");
+    let mut settle = d.settling.get(&pending.task).copied().unwrap_or(crate::settle::Settle::NEW);
+    if let Some(proof) = settle.contains_head {
+        if proof.head == head && proof.tip == tip {
+            pending.contains_head = proof.status;
+            return None;
+        }
+        settle.contains_head = None;
+        d.settling.insert(pending.task, settle).expect("one settle row per change");
+    }
+    if head == tip {
+        pending.contains_head = change::Status::Passed;
+    } else if pending.contains_base == change::Status::Failed {
+        pending.stage = StepStage::ContainsHead;
+        return Some(skein_forge::api::Read::Commits { before: tip, after: head, page: 1 });
+    }
+    None
+}
+
+fn step_reviews(pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
+    let pull = pending.pull.as_ref()?;
+    pending.stage = StepStage::Reviews(1);
+    Some(skein_forge::api::Read::Reviews { number: pull.number, page: 1, skip: 0 })
+}
+
 /// Landings, repairs and held observations retain the head's context rows.
 fn result_contexts(state: &change::State) -> bool {
     match state {
@@ -4153,17 +4212,23 @@ fn result_contexts(state: &change::State) -> bool {
 }
 
 /// Once the head's verdict is known, the same commit also serves as the base's CI.
-fn step_after_ci(d: &mut Domain, pending: &mut PendingStep, out: &mut Queue<Request>) -> skein_forge::api::Read {
+fn step_after_ci(
+    d: &mut Domain,
+    pending: &mut PendingStep,
+    out: &mut Queue<Request>,
+) -> Option<skein_forge::api::Read> {
     let head = pending.branch.expect("head read before CI");
     keep_panel_ci(d, pending.task, change::Ci { head, status: pending.ci }, out);
     let base_tip = pending.base_tip.expect("base read before CI");
     if head == base_tip {
         pending.base_ci = pending.ci;
-        pending.stage = StepStage::Compare;
-        skein_forge::api::Read::Commits { before: head, after: base_tip, page: 1 }
+        pending.contains_base = change::Status::Passed;
+        let read = read_contains_head(d, pending);
+        assert!(read.is_none(), "equal commits need no ancestry read");
+        step_reviews(pending)
     } else {
         pending.stage = StepStage::BaseCi;
-        skein_forge::api::Read::Checks { commit: base_tip }
+        Some(skein_forge::api::Read::Checks { commit: base_tip })
     }
 }
 
@@ -4600,6 +4665,7 @@ fn change_facts(
         },
         base_tip,
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
+        contains_head: pending.contains_head,
         updates: requires.up_to_date,
         merge_job: merge_available(d, row, pending, base_tip),
         delegate: match row.delegate {
@@ -5000,6 +5066,44 @@ fn cancellation_pull(d: &Domain, task: u64) -> Option<u64> {
     change.pull
 }
 
+/// No-change closes its open pull with its retained words (domain/forge/change/README.md, 2 and 4).
+fn no_change_words(d: &Domain, task: u64) -> Option<&[u8]> {
+    let row = d.changes.get(&task)?;
+    match &row.change.state {
+        change::State::NoChange { words } => Some(words),
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::Ended
+        | change::State::Held { .. } => None,
+    }
+}
+
+fn closing_pull(d: &Domain, task: u64, ending: ReleaseEnding) -> Option<u64> {
+    match ending {
+        ReleaseEnding::Cancelled => cancellation_pull(d, task),
+        ReleaseEnding::Done if no_change_words(d, task).is_some() => cancellation_pull(d, task),
+        ReleaseEnding::Done | ReleaseEnding::Failed => None,
+    }
+}
+
 fn recorded_merge(d: &Domain, task: u64) -> Option<skein_forge::api::Commit> {
     for (commit, owner) in &d.landed {
         if *owner == task {
@@ -5021,7 +5125,7 @@ fn release_row(
         task,
         root,
         ending,
-        close_pull: if ending == ReleaseEnding::Cancelled { close_pull } else { None },
+        close_pull,
         comment: None,
         pending: None,
         failed: false,
@@ -5039,7 +5143,7 @@ fn settle_effects(
     out: &mut Queue<Request>,
 ) {
     crate::landing::closing(d, task, ending, out);
-    let close_pull = cancellation_pull(d, task);
+    let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
         if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
             emit(out, Request::ReleaseFailed { task, account: None });
@@ -5128,13 +5232,20 @@ fn release(
     entry: u64,
     out: &mut Queue<Request>,
 ) {
+    let reason = match ending {
+        ReleaseEnding::Done => match no_change_words(d, task) {
+            Some(words) => Some(Box::from(words)),
+            None => reason,
+        },
+        ReleaseEnding::Cancelled | ReleaseEnding::Failed => reason,
+    };
     if let Some(reason) = &reason
         && reason.len() > skein_lib::usize_of(env.limits.client.op_bytes)
     {
         emit(out, Request::ReleaseFailed { task, account: None });
         return;
     }
-    let close_pull = cancellation_pull(d, task);
+    let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
         if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
             emit(out, Request::ReleaseFailed { task, account: None });
@@ -5148,7 +5259,7 @@ fn release(
         if row.failed {
             row.failed = false;
         }
-        if !row.releasing && ending == ReleaseEnding::Cancelled && row.close_pull.is_some() {
+        if !row.releasing && row.close_pull.is_some() {
             row.comment = reason;
         }
         row.releasing = true;
@@ -5159,7 +5270,7 @@ fn release(
             return;
         }
         let mut row = release_row(task, root, ending, close_pull, true, true);
-        if ending == ReleaseEnding::Cancelled && row.close_pull.is_some() {
+        if row.close_pull.is_some() {
             row.comment = reason;
         }
         d.releases.insert(task, row.clone()).expect("release capacity checked");

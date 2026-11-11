@@ -607,6 +607,126 @@ fn a_dependency_into_another_repository_does_not_wait_for_a_push() {
     stop(&mut world, &goal);
 }
 
+fn land_through_another_pull(world: &mut World, branch: &[u8], c2_head: u64) {
+    world.drain_cut();
+    let other_branch = b"other-change".as_slice();
+    assert!(matches!(
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: other_branch.into(), commit: c2_head })),
+        raw::Answer::Branch(_)
+    ));
+    let other_head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", other_branch, b"other", b"added", 2)
+        .expect("other change");
+    let raw::Answer::Created(other_pull) = world.external(
+        2,
+        raw::Op::Write(raw::Write::OpenPull {
+            opens_empty: false,
+            title: b"Other change".as_slice().into(),
+            body: Box::new([]),
+            head: other_branch.into(),
+            base: branch.into(),
+        }),
+    ) else {
+        panic!("other pull opened")
+    };
+    assert!(matches!(
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Merge {
+                number: other_pull,
+                head: other_head,
+                how: raw::MergeHow::FastForwardOnly
+            })
+        ),
+        raw::Answer::Merged(_)
+    ));
+    assert_eq!(
+        world.external(2, raw::Op::Write(raw::Write::DeleteBranch { branch: other_branch.into() })),
+        raw::Answer::Done
+    );
+    world.fake.reclaim();
+}
+
+/// A contained dependency is done, not cancelled (domain/forge/change/README.md, 2).
+#[test]
+fn an_early_dependent_goes_on_when_its_dependency_is_already_contained() {
+    let EarlyStory {
+        mut world,
+        goal,
+        branch,
+        base: main,
+        dependency: c2,
+        change: c3,
+        upstream: producer_c2,
+        producer: producer_c3,
+        head: c2_head,
+    } = early_story(b"Add C2", b"Add C3");
+    // Keep C2's own merge unsent while C3 starts and another pull lands its head.
+    world.fake_env.limits.settle_min = Duration::from_secs(20);
+    world.fake_env.limits.settle_max = Duration::from_secs(20);
+    finish(&mut world, &producer_c2, b"Add C2");
+    assert_eq!(live_task(&world, c3).started_from.as_ref(), &[c2]);
+    assert_eq!(
+        producer_c3.workspace.repositories[0].start,
+        engine::ForgeStart::Merged { branch: branch.clone(), heads: Box::new([translate::commit(c2_head)]) }
+    );
+    let start = merged_start(&mut world, main, c2_head);
+    for _ in 0..STEPS {
+        world.tick();
+        if change_row(&world, c2).pull.is_some() {
+            break;
+        }
+    }
+    let c2_pull = change_row(&world, c2).pull.expect("C2 opened while settling");
+    assert!(!ended(&world, c2));
+    world.fake_env.limits.settle_min = Duration::ZERO;
+    world.fake_env.limits.settle_max = Duration::ZERO;
+    land_through_another_pull(&mut world, &branch, c2_head);
+    let c3_head = push(&mut world, &producer_c3, start, b"C3");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch.clone()),
+            key: None,
+        },
+    })));
+    for _ in 0..STEPS {
+        world.tick();
+        if ended(&world, c2) {
+            break;
+        }
+    }
+    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(c2)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = world.store.rows.get(&key)
+    else {
+        panic!("C2 ends without landing: {:?}", change_row(&world, c2));
+    };
+    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words })) = &row.phase else {
+        panic!("C2 is done, not cancelled: {:?}", row.phase);
+    };
+    let commit = forge_top::commit_text(&translate::commit(c2_head));
+    assert_eq!(
+        words.as_ref(),
+        format!("The landing branch already contains its head {}.", core::str::from_utf8(&commit).expect("hex"))
+            .as_bytes()
+    );
+    assert_eq!(change_row(&world, c2).change.state, change::State::NoChange { words: words.clone() });
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == c2_pull && body == words)));
+    assert!(
+        world
+            .writes
+            .iter()
+            .any(|write| matches!(write, skein_forge::api::Write::Close { number } if *number == c2_pull))
+    );
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::DeleteBranch { branch } if *branch == producer_c2.workspace.repositories[0].push.clone().expect("C2 branch"))));
+    assert!(live_task(&world, c3).waiting_on.is_empty());
+    no_hold_or_escalation(&world, c3);
+    finish(&mut world, &producer_c3, b"Add C3");
+    landed(&mut world, c3);
+    assert_eq!(change_row(&world, c3).change.last_head, Some(translate::commit(c3_head)));
+    assert_eq!(world.assigned.len(), TWO_CHANGES + 1, "only the goal and the two producers");
+    stop(&mut world, &goal);
+}
+
 #[test]
 fn a_dependent_change_starts_early_on_its_dependencys_pushed_head() {
     let (mut world, goal, branch, main) = goal_world();
