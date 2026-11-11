@@ -292,9 +292,10 @@ project's Home's needs as at most three cards; Needs you as a list on a
 wide page, told something else in words, with Decided for you; their
 parts one pure function a page, with a fuzz test of the draft's density
 rules, the joint world's stories across two projects and thirteen
-gallery states; their render check, walk and journey follow landing. The
-draft, redrawn after the plan's cut, words the byline across projects
-otherwise, and its phone's headline is shorter, which a repair takes; a
+gallery states; their render check, walk and journey follow landing. Its
+repair, goal 338, words the byline across projects, "Each project's
+brief, its first line · the newest, vsr's, by the status agent at
+07:52", and the phone's shorter headline as the draft does; a
 need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
 (`client/pages/README.md` and `client/README.md`, 5;
