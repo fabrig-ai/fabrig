@@ -22,6 +22,7 @@ use temper_engine_forge_world::{self as forge_world, translate};
 /// Approval-rule stories shared with the change-panel regression.
 #[path = "forge_routes/approval_identity.rs"]
 pub(super) mod approval_identity;
+mod rules_by_path;
 
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
