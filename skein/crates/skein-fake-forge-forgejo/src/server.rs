@@ -647,7 +647,6 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
         | Request::CreateRepoHook { .. }
         | Request::EditRepoHook { .. }
         | Request::Migrate { .. }
-        | Request::DeleteRepository { .. }
         | Request::DeleteRepoHook { .. } => (
             scopes.repository,
             b"token does not have at least one of required scope(s): [read:repository]",
@@ -667,7 +666,7 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
             b"token does not have at least one of required scope(s): [read:admin]",
             b"token does not have at least one of required scope(s): [write:admin]",
         ),
-        Request::Org { .. } | Request::CreateRepository { .. } => (
+        Request::Org { .. } | Request::CreateRepository { .. } | Request::DeleteRepository { .. } => (
             scopes.organization,
             b"token does not have at least one of required scope(s): [read:organization]",
             b"token does not have at least one of required scope(s): [write:organization]",

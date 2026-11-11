@@ -56,7 +56,7 @@ impl Store {
         user: u64,
         config: &mut Config,
         limits: &Limits,
-        hosted: Option<&mut Hosted<'_>>,
+        mut hosted: Option<&mut Hosted<'_>>,
     ) -> Result<(Box<[u8]>, Op), Reply> {
         if !self.resolve_user(config, user).is_admin {
             return Err(refusal(403, b"user should be the site admin", limits));
@@ -71,22 +71,12 @@ impl Store {
                     return Err(refusal(422, b"invalid repository name", limits));
                 }
                 let destination = concat(&[&at.owner, b"/", &at.name]);
-                let domain_taken = match hosted {
+                let domain_taken = match hosted.as_ref() {
                     Some(hosted) => hosted.domain.metadata(&destination).is_ok(),
                     None => false,
                 };
                 if super::collaborators::repository(config, at).is_some() || domain_taken {
                     return Err(refusal(409, b"repository already exists", limits));
-                }
-                let mut found = None;
-                for source in &config.sources {
-                    if source.address.as_ref() == from {
-                        found = Some(source);
-                    }
-                }
-                let Some(source) = found else { return Err(refusal(422, MISSING_SOURCE, limits)) };
-                if source.private {
-                    return Err(refusal(422, PRIVATE_SOURCE, limits));
                 }
                 if config.repositories.room() == 0
                     || self.private.room() == 0
@@ -95,6 +85,54 @@ impl Store {
                     return Err(full(limits));
                 }
                 let Some(id) = self.repository_high.checked_add(1) else { return Err(full(limits)) };
+                let mut found = None;
+                for source in &config.sources {
+                    if source.address.as_ref() == from {
+                        found = Some(source);
+                    }
+                }
+                let message = match found {
+                    None => Some(MISSING_SOURCE),
+                    Some(source) => {
+                        if source.private {
+                            Some(PRIVATE_SOURCE)
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if let Some(message) = message {
+                    let Some(hosted) = hosted.as_mut() else { return Err(full(limits)) };
+                    let organization = self.organization(&at.owner).expect("checked organization");
+                    let Some(owner) = self.find(&organization.owner) else { return Err(absent(limits)) };
+                    if let Err(error) = skein_fake_forge_domain::create_empty_repository(
+                        hosted.domain,
+                        hosted.config,
+                        &destination,
+                        owner.id,
+                    ) {
+                        return Err(crate::response::failure(
+                            limits,
+                            crate::errors::answer(error, crate::Route::Migrate, Time::ZERO),
+                        ));
+                    }
+                    if hosted.domain.can_grant(&destination, user) == Ok(true) {
+                        skein_fake_forge_domain::grant(
+                            hosted.domain,
+                            &destination,
+                            user,
+                            skein_fake_forge_domain::api::Permission::Admin,
+                        );
+                    }
+                    config
+                        .repositories
+                        .push(Repository { id, full: destination, protected: None })
+                        .expect("checked room");
+                    self.private.push(u64::from(id)).expect("checked private room");
+                    self.repository_high = id;
+                    return Err(refusal(422, message, limits));
+                }
+                let source = found.expect("public source");
                 let repository = source.repository.clone();
                 let op = Op::Write(Write::Copy { owner: at.owner.clone(), name: at.name.clone(), fill: source.fill });
                 config.repositories.push(Repository { id, full: destination, protected: None }).expect("checked room");
