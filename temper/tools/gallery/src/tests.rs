@@ -1954,11 +1954,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide implementation choices" },
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
             Part::Text { text: "Let agents decide implementation choices, then tell you." },
             Part::Named { role: Role::Button, name: "Apply" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Propose" },
         ],
     },
@@ -1966,13 +1966,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-stop-asking-set",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
-            Part::Expanded { name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Expanded { name: "Stop asking: let agents decide some changes to protocol core" },
             Part::Reader { role: jig_client::contract::HeldRole::Member },
             Part::Text { text: "Let agents decide changes to protocol core that are:" },
             Part::Named { role: Role::TextField, name: "Which changes" },
             Part::Text { text: "Let agents decide changes to src/wire/**, apart from the rest of protocol core." },
             Part::Named { role: Role::Button, name: "Propose" },
-            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Absent { role: Role::Button, name: "Apply" },
         ],
     },
@@ -1980,10 +1980,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-why",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[
+            Part::Named { role: Role::Button, name: "Keep asking" },
             Part::Text {
                 text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
             },
-            Part::Named { role: Role::Button, name: "Stop asking" },
+            Part::Named { role: Role::Button, name: "Stop asking: let agents decide implementation choices" },
         ],
     },
     Holds {

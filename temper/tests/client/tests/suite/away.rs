@@ -869,7 +869,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     story.open_need(b"Which local implementation?");
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");
-    story.press(Role::Button, b"Stop asking");
+    story.press(Role::Button, b"Stop asking: let agents decide implementation choices");
     story.sees(b"Let agents decide implementation choices, then tell you.");
     story.press(Role::Button, b"Apply");
     let setting = story.front.engine.store.rows.get(&StoreKey::Forge(forge::Key::Setting(classes_key)));
