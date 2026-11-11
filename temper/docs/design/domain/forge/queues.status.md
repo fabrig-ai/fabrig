@@ -1,6 +1,6 @@
 # queues: status
 
-2026-11-10. Where the tree's code lags or departs from [queues.md](queues.md).
+2026-11-11. Where the tree's code lags or departs from [queues.md](queues.md).
 
 - **Not yet:**
   -  the user's N4 request of 2026-11-08 asks for focused and
@@ -201,11 +201,11 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
-- **Departs:** the whole document: the first keeps its turn only until the next ready change
-  steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
-  among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,
-  `Gating` or `Landing`, so a queued change stepped while the first is there
-  takes `First` too. Nothing wakes the queue at the first's update or merge, so
-  it wants a step of that change's own. `changes_document_keeps_the_first_while_it_updates`
-  pins the choice and the document's two owning rows; no story runs it, and no
-  reason is recorded.
+- **Not yet:** the whole document, *The first owns the queue*: the first keeps its turn
+  only until the next ready change steps: `queue_first`
+  (`temper-engine-domain-forge/src/domain.rs`) chooses among `queue_ready`'s
+  changes, which leave out one at `Updating`, `Checking`, `Gating` or `Landing`,
+  so a queued change stepped while the first is there takes `First` too; several
+  ways of leaving the queue keep `owns_turn`; and only a change leaving `Queued`
+  or `First` wakes the next, not one giving up its turn elsewhere or landing
+  [in flight: change 594].

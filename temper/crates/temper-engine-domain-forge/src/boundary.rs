@@ -107,7 +107,7 @@ pub struct Kinds {
 pub const READ_KINDS: [u16; 1] = [1];
 
 /// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
-pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
+pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1925,6 +1925,8 @@ pub enum Event {
         task: u64,
         entry: u64,
         prior: change::Change,
+        /// Holds, refusals and pending dependencies end the turn; an approval wait does not.
+        leaves_queue: bool,
     },
     /// Subscribe a live task to a topic.
     Subscribe {
