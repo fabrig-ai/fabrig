@@ -114,7 +114,8 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
         let starting = crate::startup::named(&document, &directories).unwrap_err();
-        let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+        let reading =
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
