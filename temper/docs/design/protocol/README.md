@@ -792,16 +792,10 @@ Each document keeps its own; these cross them:
   `temper-box-machine` and `temper-fake`, with none of their commands (`components.md`
   ). Default: so; a check of those members in a crate of no side would
   cut both from its closure.
-- **The box's `versions` and `upgrade`** (`binaries.md`): the draft gives
-  both to `temper-engine` (`binaries.md`, 2) and has the box keep the commands it
-  has (`../draft/deployment-binaries.md`, sections 3 and 9), and the box
-  has neither yet. Default: the box's table keeps both rows as `binaries.md`
-  designs them, until the draft's M5 settles the box's table
-  (`../draft/deployment-binaries.execution.md`).
-- **The closures' two shapes** (`binaries.md`, 1, 4): `binaries.rs` holds the
-  engine's closure by the crates its row excludes, `closure.rs` the
-  agent's by the temper crates and trees its row allows, where the
-  draft has one test hold every binary's
-  (`../draft/deployment-binaries.md`, sections 4 and 10). Default: both,
-  each with its row, until M5's test of the dependency rule keeps one
-  shape for every binary (`../draft/deployment-binaries.execution.md`).
+- **The box's `upgrade`** (`binaries.md`): the draft gives it to
+  `temper-engine` (`binaries.md`, 2) and has the box keep the commands
+  it has (`../draft/deployment-binaries.md`, sections 3 and 9); the box
+  holds `temper-engine`'s `versions` row and code, and neither binary
+  has `upgrade` yet. Default: the box's table takes `upgrade` as one
+  constant with the engine's, once jig's rehearsal and going back are
+  built.
