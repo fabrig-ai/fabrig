@@ -199,9 +199,11 @@ Roles, every agent the project's work runs, from the view `roles`, a
 goal's budget and the switches at its foot, its parts one pure
 function, with a fuzz test of their rules, the joint world's paths over
 CI and tiers and over neither, and six gallery states; its render check
-and walk follow landing. A role's model is among its opened terms, and
-the drafter is no role yet (`client/pages/settings.status.md`, 2;
-`domain/forge/change/branch-path.status.md`; `draft/surfaces.status.md`, 7). A
+and walk follow landing. A role's model is among its opened terms
+(`client/pages/settings.status.md`, 2); its repair, goal 310, gives the
+drafter its place among Roles, and each role's line says when it runs
+and what it does, its charter's words or its instructions' first
+sentence (`domain/forge/change/branch-path.md`). A
 goal's path draws "design" in place of "plan", and a "close-out" after
 the landing, from kind 11, its template's work, the whole story's
 milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
@@ -235,12 +237,11 @@ project's headline and lede, kept, judged, read and proposed by ctl and
 Ask temper's tools, Ask temper's *Configuring* asking for both; each
 stock way's headline and the project's words in the `ways` read, heading
 How work runs; and a tier's description from the configuration, on its
-card and in `see settings gates`. Roles says no charter's words, which
-the help says it does, `see ways` no way's headline, and no record shows
-the user's review of Ask temper's sentence; the render check follows
-landing (`protocol/configuration/engine.status.md` and `protocol/configuration/settings.status.md`, 2;
-`client/pages/settings.status.md`, 2; `domain/agent/ask-temper.status.md`, 1;
-`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). How
+card and in `see settings gates`. Roles says each charter's words after
+when its role runs, and `see ways` each way's headline, by its repair,
+goal 310; no record shows the user's review of Ask temper's sentence,
+and the render check follows landing (`protocol/configuration/engine.status.md` and `protocol/configuration/settings.status.md`, 2;
+`draft/ask-temper.status.md`, 5.2). How
 work runs' What reaches you is the whole story's milestone P3b, by plan
 `ui-p3b-reaches`: the project's classes, kind 8, in three columns of
 words, each subject once by one pure function, "Asks you" saying what

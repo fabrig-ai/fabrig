@@ -3165,6 +3165,24 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let expected_after = w::BranchPath::new(&w::CEILINGS, expected_after).unwrap();
     let card = path.stops[1].card.clone();
     let expected_card = expected.stops().get(1).unwrap().card().clone();
+    let mut roles = List::uncapped();
+    let mut expected_roles = List::with_capacity(3);
+    for (number, name, who) in [
+        (1, b"Chat".as_slice(), b"For each chat: talks with you and asks for the changes".as_slice()),
+        (12, b"Drafter", b"When you start a draft: writes a draft with you, one question at a time, and starts nothing"),
+        (9, b"Status agent", b"When you look at Home after landings: writes the few lines at the top of Home, from what landed and what waits"),
+    ] {
+        let mut role = card.clone();
+        role.name = name.into();
+        role.who = who.into();
+        roles.push((number, role)).unwrap();
+        let mut parts = expected_card.clone().into_parts();
+        parts.name = name.into();
+        parts.who = who.into();
+        expected_roles.push(w::CharterView::new(&w::CEILINGS, w::CharterViewParts {
+            charter: number, card: w::Card::new(&w::CEILINGS, parts).unwrap(),
+        }).unwrap()).unwrap();
+    }
     for (view, expected_view) in [
         (
             ways::View::Proposal { before: path.clone(), after },
@@ -3205,24 +3223,8 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             ),
         ),
         (
-            ways::View::Roles(Box::new([(3, card.clone()), (9, card)])),
-            w::View::Roles(
-                w::RolesView::new(
-                    &w::CEILINGS,
-                    w::RolesViewParts {
-                        roles: List::from_boxed(Box::new([
-                            w::CharterView::new(
-                                &w::CEILINGS,
-                                w::CharterViewParts { charter: 3, card: expected_card.clone() },
-                            )
-                            .unwrap(),
-                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 9, card: expected_card })
-                                .unwrap(),
-                        ])),
-                    },
-                )
-                .unwrap(),
-            ),
+            ways::View::Roles(roles.into_boxed()),
+            w::View::Roles(w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: expected_roles }).unwrap()),
         ),
         (
             ways::View::NotDrawn(b"No such charter".as_slice().into()),

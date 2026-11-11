@@ -1664,6 +1664,31 @@ fn every_stock_charter_has_exactly_one_fitting_line() {
 }
 
 #[test]
+fn every_stock_role_keeps_its_whole_line_in_who() {
+    use temper_engine_domain_forge::settings::Value;
+    use temper_engine_domain_ways::{WHO, role_who};
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    for (number, when) in [
+        (1, b"For each chat".as_slice()),
+        (11, b"When you ask"),
+        (12, b"When you start a draft"),
+        (5, b"For each goal"),
+        (2, b"For each change"),
+        (4, b"For each change"),
+        (6, b"When a coding agent asks"),
+        (9, b"When you look at Home after landings"),
+    ] {
+        let item = stock.iter().find(|item| item.kind == 9 && item.number == number).expect("role's stock words");
+        let Value::CharterWords(line) = &item.value.value else { panic!("role's words") };
+        let who = role_who(when, line);
+        assert_eq!(who.as_ref(), [when, b": ", line].concat(), "charter {number}");
+        assert!(who.len() <= WHO, "charter {number}");
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "stock way rows keep their words and settings together")]
 fn the_stock_ways_hold_their_words_and_settings() {
     use temper_engine_domain_forge::{

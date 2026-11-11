@@ -50,6 +50,9 @@ chosen.
   worlds' parties, accounts and templates. Their counts, words, available
   tabs and resulting page lengths differ because the gallery draws those
   domains (`tools/gallery/src/samples.rs`), not the mock's stored state.
+- **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
+  drafter, and each role's `who` says when it runs alone, where
+  `whole-story/how.html` says what it does too [in flight: change 316].
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so

@@ -714,12 +714,41 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::NoRole { role: Role::Table },
             Part::Named { role: Role::Heading { level: 2 }, name: "Roles" },
-            Part::Named { role: Role::Disclosure, name: "Chat" },
-            Part::Named { role: Role::Disclosure, name: "Ask temper" },
-            Part::Named { role: Role::Disclosure, name: "Coordinator" },
-            Part::Named { role: Role::Disclosure, name: "Coding agent" },
-            Part::Named { role: Role::Disclosure, name: "Foreman" },
-            Part::Named { role: Role::Disclosure, name: "Status agent" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Chat",
+                description: "For each chat: talks with you and asks for the changes",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Ask temper",
+                description: "When you ask: explains how work runs here, and proposes changes to it",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Drafter",
+                description: "When you start a draft: writes it with you, in the terminal",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Coordinator",
+                description: "For each goal: designs it, cuts it into changes and lands it",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Coding agent",
+                description: "For each change: makes it, repairs it and resolves its conflicts",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Foreman",
+                description: "When a coding agent asks: answers from the goal’s design, or passes it up",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Status agent",
+                description: "When you look at Home after landings: writes the lines at its top",
+            },
             Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
             Part::StyledText {
                 style: temper_client_view::look::HOW_ROW,
