@@ -5,7 +5,8 @@ applies to skein itself: which tiers skein has, what they run, the
 example services and the minimal fake machine they need, where the tests
 live, what skein supplies for a service's own tiers, and where things
 stand. How each part is tested in its own tier is in that part's
-document.
+document. The shared LLM, forge and checkout fakes are indexed in
+[`fakes/README.md`](fakes/README.md).
 
 ## 1. In one page
 
