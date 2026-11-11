@@ -8,7 +8,7 @@ use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{
-    ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Stories, Tier, WITHIN, first_chat, reader_opens, reading,
+    ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Stories, Tier, WITHIN, first_chat, reader_opens, reading, temper,
 };
 
 /// Sending keeps the focus in the composer, by a press or a key (client/pages/README.md).
@@ -660,9 +660,9 @@ fn held(harness: &Harness, story: &str, before: &str, after: &str) {
 // This holds a read out long enough to measure the words before its answer lands.
 fn serve_signal(tier: &Tier, signal: &str) -> [Step; 2] {
     use skein_fake_person_browser::{Command, Stdin};
-    let setup = tier.setup();
-    let flags = setup.args.iter().skip(1).map(|arg| arg.to_str().expect("fixture flag")).collect::<Vec<_>>().join(" ");
-    let command = format!("{} internal serve {flags} --box", setup.server.display());
+    let args = tier.box_serve();
+    let args = args.iter().map(|arg| arg.to_str().expect("fixture argument")).collect::<Vec<_>>().join(" ");
+    let command = format!("{} {args}", temper().display());
     let mut pattern = String::from("^");
     for ch in command.chars() {
         if ".^$*+?()[]{}|\\".contains(ch) {
