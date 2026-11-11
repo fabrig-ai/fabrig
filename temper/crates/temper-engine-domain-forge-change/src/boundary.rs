@@ -316,6 +316,8 @@ pub struct Facts {
     pub ci: Ci,
     pub base_ci: Ci,
     pub base_tip: Commit,
+    /// Whether the head contains `Updating.base` while updating, otherwise `base_tip`.
+    /// The asked base remains the update's even when its landing branch moves on.
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
