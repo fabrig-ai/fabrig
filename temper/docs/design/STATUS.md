@@ -573,8 +573,8 @@ link is stored on the forge, eligibility counts per repository's forge,
 and approval waits merge into Needs you, Home and goal bands, with the
 files-page review link and Later. Proposals and help state the accepted
 owned-Forgejo limit: agents and CI run as the person, so the rule stops
-mistakes, not a deliberate bypass. A retained link is not cleared on a
-start outside the box with the same sole owner; that scope gap remains
+mistakes, not a deliberate bypass. A start outside the box, or with
+another sole owner or none, clears a restored link
 (`domain/forge/adoption.md`, 6; `draft/forge-identity.md`, section 9).
 The scripted composed story covers owned Forgejo; GitHub's full box
 story, real human reviews and rendered comparison remain unproved.

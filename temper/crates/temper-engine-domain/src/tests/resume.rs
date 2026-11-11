@@ -732,11 +732,12 @@ fn a_restored_forge_link_follows_the_deployments_sole_owner() {
         restored.rows.insert(row.key(), row);
     }
     let mut failures = List::uncapped();
-    for (name, holdings, expected) in [
-        ("P owner", Box::from([P_OWNER].as_slice()), LINK),
-        ("P and Q owners", Box::from([P_OWNER, Q_OWNER].as_slice()), None),
-        ("Q owner", Box::from([Q_OWNER].as_slice()), None),
-        ("P owner and Q member", Box::from([P_OWNER, Q_MEMBER].as_slice()), LINK),
+    for (name, holdings, under_box, expected) in [
+        ("P owner", Box::from([P_OWNER].as_slice()), true, LINK),
+        ("P and Q owners", Box::from([P_OWNER, Q_OWNER].as_slice()), true, None),
+        ("Q owner", Box::from([Q_OWNER].as_slice()), true, None),
+        ("P owner and Q member", Box::from([P_OWNER, Q_MEMBER].as_slice()), true, LINK),
+        ("P owner without box", Box::from([P_OWNER].as_slice()), false, None),
     ] {
         let mut store = super::resume_fixture::StartStore::new();
         store.rows = restored.rows.clone();
@@ -746,7 +747,7 @@ fn a_restored_forge_link_follows_the_deployments_sole_owner() {
         }));
         store.rows.insert(row.key(), row);
         let mut config = super::resume_fixture::config(7);
-        config.under_box = true;
+        config.under_box = under_box;
         config.forges.first_mut().unwrap().mode = forge::Mode::Owned;
         let mut domain = Domain::new(config, &env.limits).unwrap();
         crate::step(&mut domain, &env, Event::Restart { pending: false });
