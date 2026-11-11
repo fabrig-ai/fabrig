@@ -201,6 +201,19 @@ fn tier_operations_keep_branch_states_faults_and_pending_tips() {
     }
 }
 #[test]
+fn a_missing_workflow_kind_round_trips_in_the_flight_and_hold() {
+    use temper_engine_domain_forge_landing::Fault;
+    let mut row = fixtures::tier_row();
+    row.held = Some(Fault::MissingWorkflow);
+    row.flight.as_mut().unwrap().fault = Some(Fault::MissingWorkflow);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let bytes = records::encode(&d::Stored::Tier(row));
+    let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
+    assert_eq!(decoded.held, Some(Fault::MissingWorkflow));
+    assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::MissingWorkflow));
+    assert_eq!(records::encode(&d::Stored::Tier(decoded)), bytes);
+}
+#[test]
 fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for pending_tips in [true, false] {
