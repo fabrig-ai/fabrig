@@ -7,6 +7,8 @@ use skein_json::writer::Encoder;
 #[derive(Debug)]
 pub(crate) struct Operation {
     pub project: Option<u32>,
+    /// Only a live project removal keeps the name me gave at the call.
+    pub removed_project_name: Option<c::DocumentText>,
     pub revision: Option<u32>,
     pub exported: Option<(u32, u32)>,
     pub file: Option<Box<[u8]>>,
@@ -156,6 +158,7 @@ impl Operation {
         }
         Self {
             project: funding_project(ask),
+            removed_project_name: None,
             revision: settings_revision(ask),
             exported: None,
             file: None,
@@ -383,6 +386,17 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));
+        return;
+    }
+    if let c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project }) = done {
+        out.put(b"removed: project ");
+        out.number(u64::from(*project));
+        if let Some(name) = &operation.removed_project_name
+            && !name.bytes().is_empty()
+        {
+            out.put(b", ");
+            out.put(name.bytes());
+        }
         return;
     }
     out.put(b"done: ");
@@ -680,6 +694,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
+        rows::PROJECT_REMOVE_AT => &rows::PROJECT_REMOVE,
         _ => unreachable!("act tool"),
     }
 }
