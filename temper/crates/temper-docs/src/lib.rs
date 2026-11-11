@@ -326,7 +326,7 @@ pub static PAGES: [Page; 63] = [
         name: "commands",
         kind: Kind::Reference,
         title: "temper's commands",
-        summary: "Every command of the temper-box binary, by who runs it: its usage, what it does, its arguments and its notes.",
+        summary: "Every command of temper's binaries, a section each: its usage, what it does, its arguments and its notes. A command two binaries share is written under the first and named under the others.",
         text: include_str!("../../../docs/help/reference/commands.md"),
     },
     Page {

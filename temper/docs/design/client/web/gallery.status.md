@@ -1,6 +1,6 @@
 # gallery: status
 
-2026-11-10. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured

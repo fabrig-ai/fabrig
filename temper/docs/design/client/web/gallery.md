@@ -447,8 +447,8 @@ from the engine's own answers, is where the look is tuned.
 | `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
-| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, the person reading the project's owner with two questions and a review waiting, and Sam, a member, with a question waiting on one of Sam's chats; "Two of you."; a service member left out |
-| `team-alone` | one person, nothing waiting: "Just you." and one box, "Nothing waits on you." |
+| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, both owners of the project, the person reading with two questions and a review waiting, "Three things wait on you.", and Sam with a question waiting on one of Sam's chats, "One question waits on Sam."; "Two of you."; "owners of shop" at People's head's right, and each box "Owner"; a service member left out |
+| `team-alone` | one person, the project's owner, nothing waiting: "Just you.", People's head its title alone, and one box, "Owner" and "Nothing waits on you." |
 | `night-team` | `team` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |

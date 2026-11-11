@@ -156,7 +156,7 @@
 
 - **Ask temper's ways after landing** (1, *Ask temper's page*; `settings.md`, 2;
   `chat/conversation.md`, 3): temper/ui compares the look request `ask-temper-ways` with main
-  at 1440, 1000 and 420 px (`../../draft/look-requests.md`, 4): each tab, a
+  at 1440, 1000 and 420 px (`../web/look-requests.md`, 4): each tab, a
   stop's card open on an agent, a person and code, "Yours", a refusal, a
   member with no act, "Keep it" gone once To begin's step is done, at
   night, and the terminal's print. With them, the repairs of its first
