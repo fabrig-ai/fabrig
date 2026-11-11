@@ -6355,11 +6355,21 @@ dependencies = [
 name = "temper-stage-one"
 version = "0.0.0"
 dependencies = [
- "serde",
- "serde_json",
  "skein-fail-stop",
  "skein-scratch",
+ "temper-stage-one-tool",
+]
+
+[[package]]
+name = "temper-stage-one-tool"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
  "temper-settings-form",
+ "temper-version",
 ]
 
 [[package]]

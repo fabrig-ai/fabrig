@@ -2,12 +2,7 @@
 use skein_shell::{Argument, Command, Fallback, Front, Reach, Set, Setting, Settings, Switch, Table};
 use std::process::ExitCode;
 
-const JSON: Switch = Switch {
-    name: "json",
-    set: Set::Internal,
-    line: "Print JSON instead of text.",
-    notes: "",
-};
+const JSON: Switch = Switch { name: "json", set: Set::Internal, line: "Print JSON instead of text.", notes: "" };
 const EVIDENCE: Argument = Argument { shown: "EVIDENCE", line: "The collected evidence directory." };
 
 pub(crate) const OBLIGATIONS: Command = Command {
@@ -103,7 +98,9 @@ const COLLECT_SETTINGS: Settings = Settings {
 
 pub(crate) const COLLECT: Command = Command {
     reach: Reach::Words(&["collect"]),
-    forms: &["--temper PATH --ctl DIR --project NUMBER --revision NUMBER --proposal TASK/NUMBER --chat NUMBER --forge HOST --repository OWNER/NAME EVIDENCE"],
+    forms: &[
+        "--temper PATH --ctl DIR --project NUMBER --revision NUMBER --proposal TASK/NUMBER --chat NUMBER --forge HOST --repository OWNER/NAME EVIDENCE",
+    ],
     line: "Collect the accepted revision and current settings through ctl reads.",
     arguments: &[EVIDENCE],
     settings: &[&COLLECT_SETTINGS],
@@ -163,9 +160,8 @@ pub fn main() -> ExitCode {
 
 fn run(command: &Command, rest: &[Box<[u8]>]) -> ExitCode {
     let arguments: Result<Vec<_>, _> = rest.iter().map(|word| String::from_utf8(word.to_vec())).collect();
-    let arguments = match arguments {
-        Ok(arguments) => arguments,
-        Err(_) => return refuse(&TABLE.refusal(command, "an argument is not UTF-8")),
+    let Ok(arguments) = arguments else {
+        return refuse(&TABLE.refusal(command, "an argument is not UTF-8"));
     };
     match *command {
         OBLIGATIONS => crate::golden::main(&arguments),

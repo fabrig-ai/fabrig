@@ -398,7 +398,7 @@ fn parse_number(text: &str, flag: &str) -> Result<u32, CollectError> {
 pub fn main(args: &[String]) -> ExitCode {
     let args = match CollectArgs::parse(args) {
         Ok(args) => args,
-        Err(error) => return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::COLLECT, &error.to_string())),
+        Err(error) => return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::COLLECT, &error.reason)),
     };
     match collect(&args) {
         Ok(()) => ExitCode::SUCCESS,
