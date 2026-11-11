@@ -146,13 +146,11 @@ impl Plan {
             }
             State::Run { .. } | State::Job { .. } => {
                 if status == 404 {
-                    tables.drop_repository(repository);
                     return Err(api::Error::MissingJob);
                 }
             }
             State::Log { truncated, part, max, .. } => {
                 if status == 404 {
-                    tables.drop_repository(repository);
                     return Err(api::Error::MissingJob);
                 }
                 if let Some(range) = fields.content_range {

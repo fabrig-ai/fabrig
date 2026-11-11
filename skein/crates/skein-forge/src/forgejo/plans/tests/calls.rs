@@ -290,7 +290,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
     ]
 }
-fn repository_cases() -> [ReadCase; 5] {
+fn repository_cases() -> [ReadCase; 7] {
     [
         ReadCase {
             name: "protection",
@@ -354,6 +354,26 @@ fn repository_cases() -> [ReadCase; 5] {
             login: Some(b"seven"),
         },
         ReadCase {
+            name: "branch fills settings",
+            read: Read::Branch { branch: Box::from(*b"work") },
+            replies: &[(200, REPOSITORY), (200, BRANCH)],
+            expected: Ok(Answer::Commit(HEAD)),
+            sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/branches/work"],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
+            name: "missing pull for keeps the row",
+            read: Read::PullFor { head: Box::from(*b"work"), base: Box::from(*b"main") },
+            replies: &[(200, REPOSITORY), (404, b"{}")],
+            expected: Err(Error::Missing),
+            sends: &["GET /api/v1/repositories/1", "GET /api/v1/repos/fixture/specimen/pulls/main/work"],
+            range: None,
+            kept: true,
+            login: None,
+        },
+        ReadCase {
             name: "missing branch keeps the row",
             read: Read::Branch { branch: Box::from(&b"gone"[..]) },
             replies: &[(200, REPOSITORY), (404, b"{}")],
@@ -383,6 +403,22 @@ fn read_calls_follow_canned_exchanges() {
             case.name
         );
         assert_eq!(run.tables().user(REPO.forge, 7), case.login, "{}", case.name);
+        if case.kept {
+            for _ in 0_u8..2 {
+                let mut settings = super::super::plan::Plan::new(REPO, Op::Read(Read::Settings));
+                assert_eq!(
+                    settings.begin(BOUNDS, fixtures::WORD, run.tables()),
+                    Ok(Step::Done(Ok(Answer::Settings(api::Settings {
+                        default_branch: Box::from(*b"main"),
+                        merge: true,
+                        squash: false,
+                        rebase: false,
+                    })))),
+                    "settings after {} sends nothing",
+                    case.name,
+                );
+            }
+        }
     }
 }
 #[test]
@@ -626,6 +662,16 @@ fn refusals_match_status_and_whole_message() {
             failure::classify(asked, status, refusal, retry),
             Classified { error, drop },
             "{asked:?} {status} {message:?} {retry:?}"
+        );
+    }
+    for status in [401, 403] {
+        let mut run = begun(create_issue());
+        assert_eq!(run.answer(status, b"{}"), Step::Done(Err(Error::Forbidden)));
+        assert_eq!(run.tables().repository(REPO), None);
+        let mut next = super::super::plan::Plan::new(REPO, Op::Read(Read::Settings));
+        assert_eq!(
+            next.begin(BOUNDS, fixtures::WORD, run.tables()),
+            Ok(Step::send(crate::forgejo::request::Request::RepositoryById { id: 1 },))
         );
     }
     let mut run = begun(create_issue());

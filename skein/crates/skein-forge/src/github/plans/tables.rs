@@ -20,6 +20,7 @@ pub struct Repository {
     /// `None` when no method is allowed; no disabled method is chosen as a default.
     pub merge: Option<Method>,
     pub html_url: Box<[u8]>,
+    pub settings: api::Settings,
 }
 #[derive(Debug)]
 pub struct Tables {
@@ -68,5 +69,11 @@ pub fn repository(row: &document::Repository) -> Repository {
         organization: row.organization,
         merge,
         html_url: row.html_url.clone(),
+        settings: api::Settings {
+            default_branch: row.default_branch.clone(),
+            merge: row.merge,
+            squash: row.squash,
+            rebase: row.rebase,
+        },
     }
 }
