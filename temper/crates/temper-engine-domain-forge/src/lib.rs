@@ -67,7 +67,7 @@ pub mod items;
 mod judge;
 mod kinds;
 pub use follows::{
-    FollowCommit, FollowEntry, FollowLag, FollowParity, FollowRow, FollowSkip, FollowState, FollowVerdict, followed,
+    FollowCommit, FollowEntry, FollowQuestion, FollowRefusal, FollowLag, FollowParity, FollowRow, FollowSkip, FollowState, FollowVerdict, followed,
 };
 mod landing;
 mod landing_log;

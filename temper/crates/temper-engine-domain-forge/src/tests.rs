@@ -561,6 +561,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
@@ -654,6 +656,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
@@ -740,6 +744,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
