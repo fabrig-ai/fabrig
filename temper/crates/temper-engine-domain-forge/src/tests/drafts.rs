@@ -90,17 +90,24 @@ fn full_projects_evict_only_the_oldest_unlisted_row_and_replace_existing_paths()
     assert_eq!(drafts(&d).rows.len(), 64);
     assert_eq!(drafts(&d).rows[0].row.path.as_ref(), b"62.md");
     ready_row(&mut d, PATH); refused(&d, DraftRefusal::Full); assert_eq!(d.drafts.len(), 64);
+    let out = ready_row(&mut d, b"63.md");
+    assert!(matches!(d.application_answer(TOKEN), Some(Answered::SetDraft(SetDraftAnswer::Kept(_)))));
+    for request in out { if let Request::Erase { .. } = request { panic!("existing path erased a row"); } }
     d.drafts.get_mut(&(REPO, b"00.md".as_slice().into())).unwrap().ready = false;
-    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().goal = Some(40);
-    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
-    d.drafts.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().ready = false;
     let out = ready_row(&mut d, PATH);
     assert!(out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: b"00.md".as_slice().into() } }));
     let mut expected = row(PATH); expected.chat = None;
     assert!(out.contains(&Request::Save { record: Stored::LandedDraft(expected), release: None, read_afresh: None }));
     assert_eq!(d.drafts.len(), 64);
     assert!(!d.drafts.contains_key(&(REPO, b"00.md".as_slice().into())));
-    let out = ready_row(&mut d, b"01.md");
+    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().goal = Some(40);
+    d.drafts.get_mut(&(REPO, b"01.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
+    d.drafts.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().ready = false;
+    d.drafts.get_mut(&(REPO, b"02.md".as_slice().into())).unwrap().at = Wall::from_nanos(0);
+    let out = ready_row(&mut d, b"another.md");
+    assert!(out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: b"01.md".as_slice().into() } }));
+    assert_eq!(d.drafts.len(), 64);
+    let out = ready_row(&mut d, b"03.md");
     for request in out { if let Request::Erase { .. } = request { panic!("existing path erased a row"); } }
     assert!(matches!(d.application_answer(TOKEN), Some(Answered::SetDraft(SetDraftAnswer::Kept(_)))));
 }
