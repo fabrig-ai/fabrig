@@ -2491,6 +2491,39 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     }
 }
 
+// Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
+    let tasks = domain.forge.change_tasks();
+    if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
+        return true;
+    }
+    let mut oldest = None;
+    for number in tasks {
+        if !domain.forge.droppable(number) {
+            continue;
+        }
+        let row = domain.forge.change(number).expect("enumerated change");
+        let goal = match row.goal {
+            Some(goal) => Some(goal),
+            None => tracked_ancestor(domain, tasks::Party::Task(number)),
+        };
+        if let Some(goal) = goal
+            && domain.core.tasks.task(goal).is_some()
+        {
+            continue;
+        }
+        oldest = Some(match oldest {
+            Some(prior) => number.min(prior),
+            None => number,
+        });
+    }
+    if let Some(task) = oldest {
+        domain.work.push(Work::Forge(forge::Event::DropChange { task }));
+        return true;
+    }
+    false
+}
+
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -2599,6 +2632,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let Some(base_parts) = branch_parts(&base, env.limits.forge.name_bytes) else { return false };
     let Some(gates) = configured_gates(domain, env, adopted, &base) else { return false };
     if domain.forge.change(task).is_none() {
+        let room = drop_settled_change(domain, env);
         domain.work.push(Work::Forge(forge::Event::Change {
             row: forge::ChangeRow {
                 task,
@@ -2672,6 +2706,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 merge_result: None,
             },
         }));
+        if !room {
+            return true;
+        }
         let branch_name =
             forge::Name { forge: provider.forge, repository: provider.repository, what: forge::What::Branch(parts) };
         let base_name = forge::Name {

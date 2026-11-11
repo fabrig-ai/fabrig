@@ -1750,6 +1750,10 @@ pub enum Event {
         entry: u64,
         goal: u64,
     },
+    /// Give a full change table the room of a settled, unpinned row (domain/forge/change/README.md, 7).
+    DropChange {
+        task: u64,
+    },
     /// Register one activated change task with its held branch.
     Change {
         row: ChangeRow,

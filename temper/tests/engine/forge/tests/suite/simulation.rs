@@ -2741,7 +2741,7 @@ fn goals_classify_landings_from_their_subtree_heads_and_planned_paths_after_rest
     };
     world.event(top::Event::Hint { hint: hint.clone() });
     world.run_for(5);
-    for (task, expected) in [(42, top::Class::Wakes), (43, top::Class::Kept), (44, top::Class::Wakes)] {
+    for (task, expected) in [(42, top::Class::Wakes), (43, top::Class::Kept), (44, top::Class::Kept)] {
         let news: Vec<_> = world
             .seen()
             .iter()
