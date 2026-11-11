@@ -275,7 +275,8 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    its gates carried over where they count clean updates (`gates.md`, 1); or in
    conflict, and it leaves the queue to be
    **resolved** (`repairs.md`: the merge job, then a resolution for what it
-   leaves), its new head checked again and its gates asked again.
+   leaves, each only once its producer and repairs have ended, at its
+   latest pushed head), its new head checked again and its gates asked again.
    Where they ask no update, it is merged as its head is, once the forge
    finds it mergeable; one the forge finds in conflict, or whose merge it
    refuses for a conflict, leaves the queue to be resolved the same way,

@@ -641,7 +641,11 @@ holds, and neither of its components reads them.
   hello and stayed open for the configured span. While the grace's clock
   runs (below), no wait passes a quarter of the grace, whatever the
   ceiling, so a worker dials an engine that is restarting at least four
-  times before its grace passes.
+  times before its grace passes. One dial is due at the grace's end less
+  the handshake's deadline: a wait begun before that point that would
+  carry past it ends at it, and a dial after it waits as before. So the
+  last dial leaves its handshake the time to be admitted before the
+  grace passes, and an engine answering by then takes the hello.
 - **The hub hears the link,** through the worker's root: up, once ready,
   when it asks the hub to report what it hosts and sends the hello first;
   lost, when it starts the grace's clock.
