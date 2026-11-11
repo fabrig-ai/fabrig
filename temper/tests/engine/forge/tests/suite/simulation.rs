@@ -164,6 +164,133 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
 }
 
 #[test]
+fn an_updating_first_keeps_its_turn_then_wakes_the_next_to_land() {
+    let (mut world, head) = reviewed_change(true, change::Freshness::Clean);
+    world.event(top::Event::Priority { task: 51, priority: 9 });
+    world.push_file(b"main", b"base", b"base moved");
+    let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let (decision, update) = uncommitted_queue_step(&mut world, 51, 1, gates.clone());
+    assert!(matches!(decision, change::Decision::Effect(change::Effect::Update { .. })));
+    assert!(queue_change(&world, 51).change.owns_turn);
+
+    world.produce_file(b"temper/52", b"second", b"second change");
+    world.status(b"temper/52", skein_fake_forge_domain::api::Check::Passed);
+    let pull = world.open_pull(b"temper/52", b"main");
+    let second_head = translate::commit(world.branch(b"temper/52"));
+    let mut second = change_row();
+    second.task = 52;
+    second.change.task = 52;
+    second.priority = 1;
+    second.branch = b"temper/52".as_slice().into();
+    second.pull = Some(pull);
+    second.change.last_head = Some(second_head);
+    second.change.ready_since = Some(world.wall());
+    second.change.state = change::State::Queued { head: second_head, ready_since: world.wall() };
+    world.event(top::Event::Change { row: second });
+    assert_second_waits(&mut world, 2);
+    assert_eq!(world.writes(), 0, "the update is still uncommitted");
+
+    world.event(top::Event::Committed { entry: update.unwrap() });
+    world.run_for(1);
+    let updated = translate::commit(world.branch(b"temper/51"));
+    assert_ne!(updated, head);
+    world.status(b"temper/51", skein_fake_forge_domain::api::Check::Pending);
+    assert!(matches!(change_step(&mut world, 3, change::Status::Passed, gates.clone()), change::Decision::Wait { .. }));
+    assert!(queue_change(&world, 51).change.owns_turn, "CI at the updated head keeps the turn");
+    assert_second_waits(&mut world, 4);
+    world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
+    assert_eq!(change_step(&mut world, 5, change::Status::Passed, gates.clone()), change::Decision::Ready);
+    assert_second_waits(&mut world, 6);
+    let (decision, merge) = uncommitted_queue_step(&mut world, 51, 7, gates);
+    assert!(matches!(decision, change::Decision::Effect(change::Effect::Merge { head, .. }) if head == updated));
+    assert_second_waits(&mut world, 8);
+
+    world.take_seen();
+    world.event(top::Event::Committed { entry: merge.unwrap() });
+    world.run_for(1);
+    assert!(
+        world.seen().iter().any(|event| matches!(event, top::Request::WakeProcedure { task: 52 })),
+        "the merge itself wakes the next, without another step of either change"
+    );
+    assert!(!queue_change(&world, 51).change.owns_turn);
+    // The world's task scheduler consumes that wake, not a timer or a forge hint.
+    assert!(matches!(
+        change_step_task(&mut world, 52, 9, change::Status::Passed, Box::new([]), false, false),
+        change::Decision::Effect(change::Effect::Update { .. })
+    ));
+    assert!(queue_change(&world, 52).change.owns_turn);
+    world.status(b"temper/52", skein_fake_forge_domain::api::Check::Passed);
+    let mut finished = false;
+    for entry in 10..18 {
+        if matches!(
+            change_step_task(&mut world, 52, entry, change::Status::Passed, Box::new([]), false, false),
+            change::Decision::Finish { .. }
+        ) {
+            finished = true;
+            break;
+        }
+    }
+    assert!(finished, "the second lands on its own turn");
+    assert_eq!(world.writes(), 4, "two updates and two merges; no repeated reviews");
+}
+
+fn queue_change(world: &World, task: u64) -> &top::ChangeRow {
+    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(task)) else { panic!("change {task}") };
+    row
+}
+
+fn assert_second_waits(world: &mut World, entry: u64) {
+    assert_eq!(
+        change_step_task(world, 52, entry, change::Status::Passed, Box::new([]), false, false),
+        change::Decision::Wait { until: None }
+    );
+    let row = queue_change(world, 52);
+    assert!(matches!(row.change.state, change::State::Queued { .. }));
+    assert!(!row.change.owns_turn);
+}
+
+fn uncommitted_queue_step(
+    world: &mut World,
+    task: u64,
+    entry: u64,
+    gates: Box<[change::GateReport]>,
+) -> (change::Decision, Option<u64>) {
+    world.take_seen();
+    world.event(top::Event::StepChange {
+        task,
+        entry,
+        heard: change::Heard {
+            delegate_running: false,
+            delegate_live: false,
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates,
+        queue_repair_active: false,
+        kept: false,
+        merge_job: false,
+        pending: Box::new([]),
+    });
+    world.run_for(1);
+    world
+        .seen()
+        .iter()
+        .find_map(|request| match request {
+            top::Request::ChangeDecision { task: decided, decision, entry, .. } if *decided == task => {
+                Some((*decision, *entry))
+            }
+            _ => None,
+        })
+        .expect("a step decides without committing its effect")
+}
+
+#[test]
 fn goal_landing_refuses_to_merge_without_complete_ancestry() {
     use skein_forge::api::{Answer, Error};
     for result in

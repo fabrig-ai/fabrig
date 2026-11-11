@@ -1322,8 +1322,11 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ChangeEnding { task, ending } => {
             if let Some(row) = d.changes.get_mut(&task) {
+                let owned = row.change.owns_turn;
+                row.change.owns_turn = false;
                 row.ending = Some(ending);
                 let row = row.clone();
+                wake_after_turn(d, &row, owned);
                 save_change(d, out, row);
             }
         }
@@ -1708,6 +1711,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::RelayRefused { task, questions, words } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
+                let owned = row.change.owns_turn;
                 row.questions = questions;
                 row.change.state = change::State::Held {
                     was: Box::new(before_relay_hold(&row.change.state)),
@@ -1716,12 +1720,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 row.change.owns_turn = false;
                 row.producer_failure = Some(words);
                 let saved = row.clone();
+                wake_after_turn(d, &saved, owned);
                 save_queue_change(d, env, before, saved, out);
             }
         }
         Event::Relayed { task, questions } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
+                let owned = row.change.owns_turn;
                 let was_asking = agent_asking(row);
                 let hold = match questions.open.first() {
                     Some(question) => {
@@ -1740,6 +1746,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     row.change.owns_turn = false;
                 }
                 let saved = row.clone();
+                wake_after_turn(d, &saved, owned);
                 save_queue_change(d, env, before, saved, out);
                 if answered {
                     emit(out, Request::WakeProcedure { task });
@@ -1758,11 +1765,18 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ReviewRequested { task, head } => {
-            if let Some(row) = d.changes.get(&task)
+            if let Some(row) = d.changes.get_mut(&task)
                 && !row.terminal()
             {
+                let owned = row.change.owns_turn;
+                row.change.owns_turn = false;
+                let saved = row.clone();
                 d.review_requests.insert(task, head).expect("one review request per change");
                 d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                if owned {
+                    wake_after_turn(d, &saved, owned);
+                    save_change(d, out, saved);
+                }
             }
         }
         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept, merge_job, pending } => {
@@ -1785,7 +1799,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Committed { entry } => committed(d, env, entry, out),
         Event::Resolve { entry, again } => resolve(d, env, entry, again, out),
         Event::Withdraw { entry } => withdraw(d, env, entry, out),
-        Event::VetoChange { task, entry, prior } => veto_change(d, env, task, entry, prior, out),
+        Event::VetoChange { task, entry, prior, leaves_queue } => {
+            veto_change(d, env, task, entry, prior, leaves_queue, out);
+        }
         Event::Subscribe { subscription } => subscribe(d, env, subscription, out),
         Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
@@ -2219,8 +2235,11 @@ fn outcome_facts(
                 if let Some(row) = d.changes.get_mut(&task)
                     && landed_commit(&row.change.state).is_none()
                 {
+                    let owned = row.change.owns_turn;
+                    row.change.owns_turn = false;
                     row.change.state = change::State::Landed { merge: commit, since: env.wall };
                     let saved = row.clone();
+                    wake_after_turn(d, &saved, owned);
                     save_change(d, out, saved);
                 }
             }
@@ -3255,9 +3274,12 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
+    let owned = row.change.owns_turn;
+    row.change.owns_turn = false;
     let state = unasked(row, kind);
     row.change.state = change::State::Held { was: Box::new(state), why: change::Hold::Failed };
     let saved = row.clone();
+    wake_after_turn(d, &saved, owned);
     save_queue_change(d, env, before, saved, out);
 }
 
@@ -3375,6 +3397,7 @@ fn delegate_result(
     if expected != child {
         return;
     }
+    let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
         && delegate_wait(was)
@@ -3437,6 +3460,7 @@ fn delegate_result(
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
     let saved = row.clone();
+    wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
         emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
@@ -3616,6 +3640,15 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     }
     let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, merge_job, pending: dependencies } =
         input;
+    if kept
+        && let Some(row) = d.changes.get_mut(&task)
+        && row.change.owns_turn
+    {
+        row.change.owns_turn = false;
+        let saved = row.clone();
+        wake_after_turn(d, &saved, true);
+        save_change(d, out, saved);
+    }
     heard.start_conflict = d.start_conflict(task);
     heard.review_request = d.review_requests.get(&task).copied();
     if heard.released {
@@ -4388,7 +4421,52 @@ fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) ->
     let (ready, repair) = queue_ready(d, row, l);
     match repair {
         Some(task) => row.task == task,
-        None => change::first(ready.as_slice(), l.queue_window, now) == Some(row.task),
+        None => {
+            for (_, owner) in &d.changes {
+                if owner.repository == row.repository && owner.base == row.base && owns_turn(owner) {
+                    return row.task == owner.task;
+                }
+            }
+            change::first(ready.as_slice(), l.queue_window, now) == Some(row.task)
+        }
+    }
+}
+
+/// Only a live turn can exclude a ready change (temper/docs/design/domain/forge/queues.md).
+pub(crate) fn owns_turn(row: &ChangeRow) -> bool {
+    if !row.change.owns_turn || row.ending.is_some() {
+        return false;
+    }
+    match row.change.state {
+        change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::Landing { .. } => true,
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Queued { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::Held { .. } => false,
+    }
+}
+
+fn wake_after_turn(d: &mut Domain, row: &ChangeRow, owned: bool) {
+    if owned && !owns_turn(row) {
+        wake_queue(d, row);
     }
 }
 
@@ -4456,8 +4534,10 @@ fn titled_change(
         );
         let decision = if env.wall >= until {
             let before = crate::panel::ready(&row);
+            let owned = row.change.owns_turn;
             row.change.owns_turn = false;
             row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+            wake_after_turn(d, &row, owned);
             d.changes.insert(task, row.clone()).expect("replaces change");
             save_queue_change(d, env, before, row, out);
             change::Decision::Hold(change::Hold::Stalled)
@@ -4585,9 +4665,10 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 {
                     crate::landing_log::landed(d, env.wall, commit, row.task, out);
                 }
-                if in_queue(&prior.state) && !in_queue(&row.change.state) {
+                if !prior.owns_turn && in_queue(&prior.state) && !in_queue(&row.change.state) {
                     wake_queue(d, &row);
                 }
+                wake_after_turn(d, &row, prior.owns_turn);
                 save_queue_change(d, env, before, row.clone(), out);
                 topics::refresh(d, env, row.task, out);
                 emit(
@@ -4901,6 +4982,7 @@ fn emit_change_effect(
         None => None,
     };
     d.changes.insert(row.task, row.clone()).expect("replaces change");
+    wake_after_turn(d, row, prior.owns_turn);
     save_queue_change(d, env, before, row.clone(), out);
     keep_entry(d, entry, None, out);
     emit(
@@ -5571,6 +5653,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     crate::verification::released(d, task, out);
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
+    let owned = row.change.owns_turn;
     row.change.state = ended_change_state(&row.change.state, merge, cancelled, env.wall);
     row.ending = match &row.change.state {
         change::State::Landed { .. }
@@ -5611,6 +5694,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     row.delegate = None;
     row.drift = None;
     let saved = row.clone();
+    wake_after_turn(d, &saved, owned);
     save_queue_change(d, env, before, saved, out);
 }
 
@@ -6278,6 +6362,7 @@ fn veto_change(
     task: u64,
     entry: u64,
     prior: change::Change,
+    leaves_queue: bool,
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.changes.get_mut(&task) else { return };
@@ -6285,11 +6370,42 @@ fn veto_change(
         return;
     }
     let before = crate::panel::ready(row);
+    let owned = row.change.owns_turn;
     row.change = prior;
+    if leaves_queue {
+        row.change.owns_turn = false;
+        match row.change.state {
+            change::State::First { head, .. } | change::State::Queued { head, .. } => {
+                row.change.state = change::State::Gating { head, asked: Box::new([]) };
+            }
+            change::State::Producing { .. }
+            | change::State::Opening { .. }
+            | change::State::Recreating { .. }
+            | change::State::Reopening { .. }
+            | change::State::Checking { .. }
+            | change::State::Gating { .. }
+            | change::State::Ready { .. }
+            | change::State::Preparing { .. }
+            | change::State::CancellingGates { .. }
+            | change::State::Updating { .. }
+            | change::State::WaitingProducer { .. }
+            | change::State::Resolving { .. }
+            | change::State::Repairing { .. }
+            | change::State::Landing { .. }
+            | change::State::NoChange { .. }
+            | change::State::Ended
+            | change::State::Landed { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
+            | change::State::Held { .. } => {}
+        }
+    }
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.effect_account = None;
     let saved = row.clone();
+    wake_after_turn(d, &saved, owned);
     save_queue_change(d, env, before, saved, out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
@@ -7510,7 +7626,8 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
     if let Some(landing) = row.change.landing {
         tasks.push(landing).expect("member landing subject");
     }
-    if (row.change.owns_turn || row.base_repair)
+    // A retained ready time keeps the queue and status panels fresh after the turn ends.
+    if (row.change.owns_turn || row.change.ready_since.is_some() || row.base_repair)
         && let Some(subject) = crate::views::changes_mark(d, row.repository)
     {
         for subject in subject {
@@ -7911,6 +8028,10 @@ pub(crate) fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Op
     }
     Some(segments.into_boxed())
 }
+
+#[cfg(test)]
+#[path = "tests/queue_turn.rs"]
+mod queue_turn_tests;
 
 #[cfg(test)]
 #[path = "tests/verification.rs"]
