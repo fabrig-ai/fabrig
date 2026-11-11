@@ -371,7 +371,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
   when. A release reopens it; a cancel closes the change.
 - **Its branch moved** while nothing of temper's writes it, a late copy
   of its own update among them (`../README.md`, section 6), or by another
-  identity, or not forward: held, the head kept as it is. Under its
+  identity, or not forward: held, the head kept as it is, the hold's
+  words naming the head it expected and the one it found, each at the
+  forge's short length (`its branch moved: expected 0123456789ab, found
+  89abcdef0123`). Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
   (`../../worker.md`, 4.4). A release
@@ -409,6 +412,26 @@ while the run goes on, never "branch moved"; a move by another identity,
 or not forward, is drift. The change's own delegates, its repairs, its
 resolution and its merge job, take the slot as any claim does (jig's
 `domain/tasks/holds.md`, 3), beside the design writer.
+
+**Its own writes are its own.** A head a write of temper's made for the
+change is the change's, recorded as its branch's head in the step that
+settles the write, so no later read takes it for drift:
+
+- **Its update** (`../README.md`, section 6): the head the forge's answer
+  names, or, its answer let go, a head read afresh that holds the base
+  the update asked for (its `base`, though the base has moved on since).
+  It goes on to CI on that head (2, step 3; under its turn, step 6).
+- **On its requester's held branch, a merge into it** by a change of its
+  requester's subtree (a goal's close-out or catch-up landing into the
+  goal's branch, `../branches.md`): the merge holds the branch's writer
+  slot from its entry until it settles, so the change decides nothing on
+  the head meanwhile, as above; once settled, the merge's commit is the
+  branch's head and the change's new head, checked again (2, step 3).
+  The same holds for the merge job's push on the branch (`repairs.md`).
+
+So a goal's landing whose own update, or its goal's close-out merged just
+before, moves the goal's branch goes on to CI on that head and merges;
+only a head no write of temper's in flight or settled explains is drift.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a

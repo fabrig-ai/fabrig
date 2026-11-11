@@ -424,7 +424,9 @@ instead (`../landing.md`, section 5).
   `forge/github.md`, 5.2). Either way the update is done once the head,
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (section 4), and the new head is heard as any
-  push.
+  push. That head is the change's own, recorded as its branch's head in
+  the step that settles the update, never drift (`change/README.md`,
+  3, *Its own writes are its own*).
 - **Lost, and made again.** An update whose answer is lost is looked for
   by that read and, not found after its lifetime, checked and made again,
   up to `write_attempts` (skein's `forge/client.md`, 7.5). It holds no one.
@@ -433,7 +435,9 @@ instead (`../landing.md`, section 5).
   did not answer, or what it was decided on has gone, perhaps to a copy of
   its own. The top keeps its account and reports no result, and a change
   updating or preparing (`../landing.md`, 5.2) with no result and none
-  outstanding decides again on a fresh read of its head and base:
+  outstanding decides again on a fresh read of its head and base, the
+  base being the tip the update asked for, though the branch has moved
+  on since:
 
   | Its head | Holds the base | It |
   |---|---|---|
@@ -610,6 +614,13 @@ restart; an update whose answer is lost, found, or made again and landed,
 under a queue and as a turn's prepare; one lost for good, decided again
 until its count holds it, told why, and released; one whose base went on
 while it was lost; a copy of it landing after the change moved on, held;
+a goal's landing whose own update lands, going on to CI on its new head
+and merging, and one whose goal's close-out merged into its branch just
+before, doing the same; a push from outside during an update, held with
+both heads named; a stalled update held after the stall, its words
+naming the step; two changes into one branch, the second, better placed,
+staying queued while the first updates, is checked at its new head and
+merges, then taking its turn unprompted;
 a mergeability unsettled within the window, then settled; a
 forge preloaded with ten times the history, idle at the same cost. Of
 the rules as settings (`change/gates.md`, 3): a landing rule changed between two merges,
