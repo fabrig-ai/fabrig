@@ -56,9 +56,34 @@ pub fn to_root(
                 }
             };
             let request = match request {
-                // The engine keeps no landed drafts yet (temper/docs/design/domain/forge/drafts.status.md).
-                w::Request::SetDraft(_) => {
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                w::Request::SetDraft(value) => {
+                    let value = value.into_parts();
+                    let repository = match value.repository {
+                        Some(named) => {
+                            let named = named.into_parts();
+                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
+                        }
+                        None => None,
+                    };
+                    let change = match value.change {
+                        w::DraftChange::Ready(value) => forge::DraftChange::Ready { chat: *value.chat() },
+                        w::DraftChange::NotReady => forge::DraftChange::NotReady,
+                        w::DraftChange::Started(value) => forge::DraftChange::Started { goal: value.goal() },
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
+                            project: value.project,
+                            repository,
+                            path: value.path,
+                            change,
+                        })),
+                    }));
                 }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
@@ -500,8 +525,12 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
-                    // The engine keeps no landed drafts yet (temper/docs/design/domain/forge/drafts.status.md).
-                    w::Watch::Drafts(_) | w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    w::Watch::Drafts(subject) => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::drafts_subject(subject.project())),
+                    },
+                    w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
@@ -874,6 +903,21 @@ pub fn answer(
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
+        Some(root::ApplicationAnswer::SetDraft(answer)) => match answer {
+            forge::SetDraftAnswer::Kept(view) => w::Outcome::Drafted(landed_draft(view, limits)?),
+            forge::SetDraftAnswer::Refused(why) => {
+                let reason = match why {
+                    forge::DraftRefusal::NoRepository => w::DraftRefusal::NoRepository,
+                    forge::DraftRefusal::Path => w::DraftRefusal::Path,
+                    forge::DraftRefusal::Missing => w::DraftRefusal::Missing,
+                    forge::DraftRefusal::NotAFile => w::DraftRefusal::NotAFile,
+                    forge::DraftRefusal::Unreachable => w::DraftRefusal::Unreachable,
+                    forge::DraftRefusal::Unknown => w::DraftRefusal::Unknown,
+                    forge::DraftRefusal::Full => w::DraftRefusal::Full,
+                };
+                w::Outcome::DraftRefused(w::DraftRefused::new(limits, w::DraftRefusedParts { reason }).ok()?)
+            }
+        },
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
             forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
             forge::OverturnAnswer::Already => w::Outcome::OverturnRefused(
@@ -1489,6 +1533,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
         forge::Document::Changes(value) => changes_panel(value, limits),
+        forge::Document::Drafts(value) => drafts_panel(value, limits),
         forge::Document::Landings(value) => {
             let mut landings = List::with_capacity(u32::try_from(value.landings.len()).ok()?);
             for line in value.landings {
@@ -1598,6 +1643,36 @@ fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]
     let document =
         w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows, asked, cut: value.cut }).ok()?;
     Some(wire::decisions(&document))
+}
+
+fn landed_draft(view: forge::DraftView, limits: &w::Limits) -> Option<w::LandedDraft> {
+    let row = view.row;
+    w::LandedDraft::new(
+        limits,
+        w::LandedDraftParts {
+            forge: row.repository.forge,
+            owner: view.owner,
+            name: view.name,
+            path: row.path,
+            branch: row.branch,
+            commit: forge::commit_text(&row.commit),
+            title: row.title,
+            writer: row.writer,
+            at: row.at.as_nanos(),
+            chat: row.chat,
+            goal: row.goal,
+            ready: row.ready,
+        },
+    )
+    .ok()
+}
+fn drafts_panel(value: forge::DraftsView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut drafts = List::with_capacity(forge::DRAFTS);
+    for row in value.rows {
+        drafts.push(landed_draft(row, limits)?).ok()?;
+    }
+    let panel = w::DraftsPanel::new(limits, w::DraftsPanelParts { project: value.project, drafts }).ok()?;
+    Some(wire::drafts_panel(&panel))
 }
 
 fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u8]>> {

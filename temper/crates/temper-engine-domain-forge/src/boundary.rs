@@ -182,6 +182,7 @@ pub enum Ask {
         into: Option<crate::MakeInto>,
     },
     Adopt(Adoption),
+    SetDraft(crate::SetDraft),
     SetUp {
         forge: Making,
         first: SetUpFirst,
@@ -259,6 +260,7 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    SetDraft(crate::SetDraftAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1237,6 +1239,7 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    LandedDraft(crate::LandedDraft),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1285,6 +1288,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1375,6 +1379,12 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    SetDraft {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::SetDraft,
+    },
     SetAway {
         request: Token,
         token: Token,

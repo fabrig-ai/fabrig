@@ -12,6 +12,7 @@ mod applications;
 mod budget;
 mod configuring;
 mod document_limits;
+mod drafts;
 mod escalation;
 mod fabrig_scale;
 mod forge_routes;

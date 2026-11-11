@@ -258,6 +258,7 @@ pub(crate) fn adopted(domain: &mut Domain, token: Token, outcome: Option<forge::
             )
             | forge::Answered::Make(_)
             | forge::Answered::SetUp(_)
+            | forge::Answered::SetDraft(_)
             | forge::Answered::SetAway(_)
             | forge::Answered::Overturn(_)
             | forge::Answered::Looked(_)

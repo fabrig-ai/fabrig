@@ -191,6 +191,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
@@ -753,6 +754,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            drafts: None,
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
@@ -1528,6 +1530,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
                 crate::making::admit(d, env, request, token, retention, role, ask, out);
             }
+            crate::Ask::SetDraft(_) => unreachable!("draft admissions carry their party"),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
         },
@@ -1542,6 +1545,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
+        }
+        Event::SetDraft { request, token, party, call } => {
+            crate::drafts::start(d, env, request, token, party, call, out);
         }
         Event::SetAway { request, token, party, project, on, until } => {
             crate::away::set_away(d, env, request, token, party, project, on, until, out);
@@ -1629,6 +1635,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             None => {
                 if d.repositories.remove(&repository).is_some() {
                     crate::landing_log::erased(d, repository, out);
+                    crate::drafts::erase_repository(d, repository, out);
                     emit(out, Request::Erase { key: Key::Repository(repository) });
                     emit(out, Request::MarkedForges);
                 }
@@ -2095,6 +2102,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     crate::capabilities::answered(d, env, owner, result, out);
                 } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
                     brief::brief_answer(d, owner, result, env.limits.client.rows, out);
+                } else if crate::drafts::reading(d, owner) {
+                    crate::drafts::answer(d, env, owner, result, out);
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
                 } else if d.landings.contains_key(&owner) {
@@ -7089,6 +7098,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
+        Stored::LandedDraft(row) => {
+            crate::drafts::restore(d, &env.limits, row);
+        }
         Stored::Away(row) => {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");
         }
@@ -7395,6 +7407,7 @@ pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Q
     for repository in erased.into_boxed() {
         d.repositories.remove(&repository);
         crate::landing_log::erased(d, repository, out);
+        crate::drafts::erase_repository(d, repository, out);
         emit(out, Request::Erase { key: Key::Repository(repository) });
         emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(repository)) });
     }
@@ -7831,6 +7844,7 @@ impl Domain {
             | RecordKind::Setting
             | RecordKind::Making
             | RecordKind::ProjectFacts
+            | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided
             | RecordKind::Looked
