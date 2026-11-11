@@ -19,24 +19,35 @@ use skein_lib::{Duration, Secret, Time, Token};
 const SOURCE: &[u8] = b"https://sources.invalid/upstream/repository";
 const DESTINATION: &[u8] = b"creation/copied";
 #[expect(clippy::disallowed_macros, reason = "the committed conformance answer is the fake's oracle")]
-const MISSING_REFUSAL: &[u8] = include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source/response");
+const MISSING_REFUSAL: &[u8] =
+    include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source/response");
 #[expect(clippy::disallowed_macros, reason = "the committed conformance read is the fake's oracle")]
-const MISSING_READ: &[u8] = include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source-read/response");
+const MISSING_READ: &[u8] =
+    include_bytes!("../../../../tests/forge/conformance/transcripts/setup-migrate-missing-source-read/response");
 
 fn json(h: &Harness, body: &[u8]) -> skein_json::Document {
     skein_json::parse(body, &h.env.limits.documents.json, &skein_json::document::Limits { tokens: 1024, text: 8192 })
         .expect("answer JSON")
 }
+fn version_and_status(line: &[u8]) -> (&[u8], &[u8]) {
+    let version = skein_lib::bytes::find(line, b" ").expect("HTTP version");
+    let tail = &line[version.saturating_add(1)..];
+    let code = skein_lib::bytes::find(tail, b" ").expect("status code");
+    (&line[..version], &tail[..code])
+}
 fn recorded(h: &Harness, transcript: &[u8], fields: &[&[u8]]) {
     let line = skein_lib::bytes::find(transcript, b"\r\n").expect("recorded status line");
     let output = h.output.as_slice();
     let end = skein_lib::bytes::find(output, b"\r\n").expect("fake status line");
-    assert_eq!(&output[..end], &transcript[..line]);
-    let body = skein_lib::bytes::find(transcript, b"\r\n\r\n").expect("recorded body").checked_add(4).expect("body offset");
+    // Reason phrases are advisory: Forgejo uses "Unprocessable Entity", HTTP uses RFC 9110's "Unprocessable Content".
+    assert_eq!(version_and_status(&output[..end]), version_and_status(&transcript[..line]));
+    let body =
+        skein_lib::bytes::find(transcript, b"\r\n\r\n").expect("recorded body").checked_add(4).expect("body offset");
     let expected = json(h, &transcript[body..]);
     let actual = json(h, &h.body());
     for field in fields {
-        let expected_value = expected.token(expected.member(0, field).expect("recorded field")).expect("recorded value");
+        let expected_value =
+            expected.token(expected.member(0, field).expect("recorded field")).expect("recorded value");
         let actual_value = actual.token(actual.member(0, field).expect("fake field")).expect("fake value");
         assert_eq!(actual_value.kind, expected_value.kind);
         assert_eq!(actual.text(actual_value), expected.text(expected_value));
@@ -426,7 +437,12 @@ fn migrate_needs_write_repository_and_delete_needs_write_organization() {
     );
     let encoded = skein_forge::forgejo::client::encode(&migrate(), &h.env.limits.documents).expect("request");
     for (method, path, body, scope) in [
-        (b"POST".as_slice(), encoded.target.as_ref(), encoded.body.as_deref().expect("body"), b"write:repository".as_slice()),
+        (
+            b"POST".as_slice(),
+            encoded.target.as_ref(),
+            encoded.body.as_deref().expect("body"),
+            b"write:repository".as_slice(),
+        ),
         (b"DELETE", b"/api/v1/repos/creation/copied".as_slice(), b"".as_slice(), b"write:organization".as_slice()),
     ] {
         h.ask_as(method, path, body, token);

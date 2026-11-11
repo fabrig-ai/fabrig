@@ -93,21 +93,41 @@ impl Store {
                 }
                 let message = match found {
                     None => Some(MISSING_SOURCE),
-                    Some(source) => if source.private { Some(PRIVATE_SOURCE) } else { None },
+                    Some(source) => {
+                        if source.private {
+                            Some(PRIVATE_SOURCE)
+                        } else {
+                            None
+                        }
+                    }
                 };
                 if let Some(message) = message {
                     let Some(hosted) = hosted.as_mut() else { return Err(full(limits)) };
                     let organization = self.organization(&at.owner).expect("checked organization");
                     let Some(owner) = self.find(&organization.owner) else { return Err(absent(limits)) };
                     if let Err(error) = skein_fake_forge_domain::create_empty_repository(
-                        hosted.domain, hosted.config, &destination, owner.id,
+                        hosted.domain,
+                        hosted.config,
+                        &destination,
+                        owner.id,
                     ) {
-                        return Err(crate::response::failure(limits, crate::errors::answer(error, crate::Route::Migrate, Time::ZERO)));
+                        return Err(crate::response::failure(
+                            limits,
+                            crate::errors::answer(error, crate::Route::Migrate, Time::ZERO),
+                        ));
                     }
                     if hosted.domain.can_grant(&destination, user) == Ok(true) {
-                        skein_fake_forge_domain::grant(hosted.domain, &destination, user, skein_fake_forge_domain::api::Permission::Admin);
+                        skein_fake_forge_domain::grant(
+                            hosted.domain,
+                            &destination,
+                            user,
+                            skein_fake_forge_domain::api::Permission::Admin,
+                        );
                     }
-                    config.repositories.push(Repository { id, full: destination, protected: None }).expect("checked room");
+                    config
+                        .repositories
+                        .push(Repository { id, full: destination, protected: None })
+                        .expect("checked room");
                     self.private.push(u64::from(id)).expect("checked private room");
                     self.repository_high = id;
                     return Err(refusal(422, message, limits));
