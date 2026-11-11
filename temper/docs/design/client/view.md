@@ -116,7 +116,7 @@
     `not_signed_in`), the paragraph says so in place of the shell's
     words: full, "All N sign-ins are in use; the earliest ends MOMENT
     UTC. This link stays usable until LINK UTC; after that, opening it
-    has `temper serve` print a fresh one." (N the deployment's room,
+    has `temper-box serve` print a fresh one." (N the deployment's room,
     MOMENT the earliest saved expiry and LINK the link's own, each with
     its date beside its clock, "Oct 24, 09:30", as the accounts page says
     its moments, `pages/accounts.md`, 2: a sign-in's life is a day or more, so a bare clock
@@ -474,7 +474,7 @@ clients (the browser tier's bundle may name less, with its window: `web/testing.
 a chat's document's section is read within the view's `text_bytes`, which prices one.
 
 A line of a conversation holds words the store took, and they are `long_text` too:
-a person's message or reply, up to `people.words` (8,192 on `temper init`'s box),
+a person's message or reply, up to `people.words` (8,192 on `temper-box init`'s box),
 and an agent's message, question or answer and a result, up to
 `tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
 the browser and the terminal, never cut (jig's `client/domain/client/README.md`, section
@@ -485,7 +485,7 @@ maximum nodes and text, plus ten structural nodes per `LINE_ROOM`, with room for
 their names and text. A person's words waiting to be read total at
 most `document_bytes` too (jig's `client/domain/client/conversations.md`), and the
 view prices them so. A line past `long_text`, or a page of lines past
-`document_bytes`, has its page refused and its read ended (`pages/chat/conversation.md`, 2): no box `temper
+`document_bytes`, has its page refused and its read ended (`pages/chat/conversation.md`, 2): no box `temper-box
 init` makes reaches one (`README.md`, section 5).
 
 A composer, a chat's message, a new chat's first words, an agent's or a goal's
@@ -502,7 +502,7 @@ client holds. A suggestion's words and a choice's stay within `CUE_BYTES`, as a
 cue's and a button's. The view prices one composer's value at `long_text`.
 
 A chat's first message reads back whole. Past the engine's `documents.text_bytes`
-(512 on `temper init`'s box) its spec comes marked cut, and the chat's page reads
+(512 on `temper-box init`'s box) its spec comes marked cut, and the chat's page reads
 the rest through `TaskText`, as a goal's page does (`pages/goal.md`, 2), drawing what it has, ending
 in `…`, until it has it all or the read ended. The view prices that line at
 `long_text`. It prices a question read whole (`pages/needs-you.md`, 1, *Whole*) the same, one to a page,

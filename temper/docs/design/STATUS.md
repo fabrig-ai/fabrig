@@ -637,7 +637,7 @@ stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
 reply or failure, so authorization waits for room (`protocol/openid-provider.md`,
 3). Startup readiness beyond that local admission remains separate
-work (`protocol/sign-in.md`, section 9). `temper init`'s documents hold
+work (`protocol/sign-in.md`, section 9). `temper-box init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup/README.md`). A run reads a task's words
@@ -791,7 +791,7 @@ step test past one that delivers nothing asserts no read
 (`protocol/setup/README.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge/README.md`), and the adoption form draws no read-only line
-(`client/README.md`); `temper forge sign-in` prints an owned
+(`client/README.md`); `temper-box forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup/README.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
@@ -878,7 +878,7 @@ restored document, on no replay since, its cause unknown (`client/README.md`). T
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
-`temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
+`temper-box forge run`'s refusal and the terminal's `temper-box open` still say plain `temper-box` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
 account's trial names no model choice; a later trial and its retries name that
@@ -1072,8 +1072,8 @@ answer combines several causes (`client/ctl/areas.md` and `client/ctl/testing.md
 The deployment's client, `temper-client`, is built (M1 of
 `draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
 and `ctl`, run by the box's code from the shells both binaries link, its
-help, refusals and `--version`, on `temper-shell`, which the box's `temper`
-prints its table from. Its ctl story runs the box's `temper serve` as the
+help, refusals and `--version`, on `temper-shell`, which the box's `temper-box`
+prints its table from. Its ctl story runs the box's `temper-box serve` as the
 engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
 accounts protocol and engine-side crates through an unused line of ctl's
 manifest, and no test yet holds its closure: its boundary row is M5's; its
@@ -1086,7 +1086,7 @@ The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
 forge's commands, `internal forge-child`, `versions`, help and `--version`
 from `temper-version`, refusing a worker alone's and a standalone document
 by the binary that runs each, in a table step test of the built binary.
-Its commands are `temper-engine-shell`'s, which the box's `temper` runs too
+Its commands are `temper-engine-shell`'s, which the box's `temper-box` runs too
 with its worker's half; `temper-service`'s worker half is its `worker`
 feature, off in the engine's build; the brief's fitter is
 `temper-protocol-brief`'s. The boundary test holds its closure free of the

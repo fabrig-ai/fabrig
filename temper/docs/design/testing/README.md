@@ -216,7 +216,7 @@ in temper.
 ### 2.3 Simulated worlds
 
 temper's simulated world is the one-process world (2.5). Every process
-in a scenario runs its `iterate` on skein's simulator: `temper serve`'s
+in a scenario runs its `iterate` on skein's simulator: `temper-box serve`'s
 service, the agents it spawns, the fake forge as a service, the fake LLM
 peer and the person's client. A spawn the worker asks for starts an agent
 process or the fake git program, and a kill ends it. The machine sits
@@ -233,10 +233,10 @@ terminal client, the captures and the faults.
 - **What runs,** on skein's simulator and skein's fake machine:
   - `temper-service`'s system module, the engine's and one worker's
     services in one `iterate`, started from configuration's bytes as
-    `temper serve` starts them, joined by the in-process name `workers`;
+    `temper-box serve` starts them, joined by the in-process name `workers`;
   - the store, jig's store component on skein-kv, on the simulator's
     crashing disk;
-  - the worker's agents, smith's agent processes as `temper internal
+  - the worker's agents, smith's agent processes as `temper-box internal
     agent` runs them, hosted as programs of the world, over skein's fake
     LLM peer;
   - the fake git program for every git invocation (`fakes.md`, 3);
@@ -246,7 +246,7 @@ terminal client, the captures and the faults.
     its domain, view and jig's native transport (../client/README.md, section 2;
     `fakes.md`, 4).
 - **Stories:**
-  - a person signs in by the link `temper serve` prints, and a chat is
+  - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
@@ -365,7 +365,7 @@ tests nothing (`../release.md`, 5.1).
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
   (`process-tier.md`), never a copy of it: the workflow runs it alone under the profile
   `process-temper`, and a run that selects nothing is red.
-- **Its binaries come through `temper forge fetch`** (`../protocol/setup/owned.md`,
+- **Its binaries come through `temper-box forge fetch`** (`../protocol/setup/owned.md`,
   6), into a cache of the workflow's own that starts empty, so each
   run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
   `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
@@ -504,9 +504,9 @@ bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read 
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
 bin/temper-box/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
 bin/temper-box/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)
-tests/client-browser                temper-client-browser-world: the browser tier (../client/web/testing.md), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
+tests/client-browser                temper-client-browser-world: the browser tier (../client/web/testing.md), Chromium against temper-box serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/testing.md)
-crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
+crates/temper-fake-git              the fake git program's core: temper-box fake git (4.3)
 crates/temper-fake-git-hosted       the fake git program hosted by skein's simulated world (4.3), which the playground ships; its fixtures with the tests
 crates/temper-playground            the world's composition, the playground's and the one-process world's (../playground.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
@@ -554,9 +554,9 @@ scripts/proof-live.sh               the live tier
   ). temper's protocol world for the forge, over skein's crates, is
   `tests/engine/protocol-forge` (../protocol/forge/README.md, section 9).
 - **The setup's crates** test as step code does: `temper-forge-setup`'s
-  files, specs and steps, and `temper-box`'s machine, by their step
+  files, specs and steps, and `temper-box-machine`'s machine, by their step
   tests (../protocol/setup/testing.md, 1); reconcile's machine by skein's world;
-  the hosts, `temper-forge-setup-shell` and `temper-box`'s own, by the
+  the hosts, `temper-forge-setup-shell` and `temper-box-machine`'s own, by the
   process tier (`process-tier.md`), as the binary's are.
 
 ## 6. Open questions

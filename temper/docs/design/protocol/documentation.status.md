@@ -11,7 +11,7 @@ executor list. No configuring-chat help or reference migration remains.
 
 Section 8 has no known gap in the reference page `see`: `temper-engine-smith`'s
 table of addresses (`see/addresses.rs`, `GROUPS`) renders it, a row an
-address with its line and its `Next:` addresses, and `temper`'s step test
+address with its line and its `Next:` addresses, and `temper-box-shell`'s step test
 `the_page_see_is_what_the_addresses_render` holds
 `docs/help/reference/see.md` equal to that rendering. The same table
 gives an unknown address's line and each answer's `see:` line.

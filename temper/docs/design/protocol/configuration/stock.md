@@ -1,7 +1,7 @@
 # temper's stock defaults
 
 The binary holds them, and gives them to jig's builder as `Config`'s
-defaults at each start (jig's `domain/engine/settings.md`, 1); `temper
+defaults at each start (jig's `domain/engine/settings.md`, 1); `temper-box
 init`'s document carries none of them (`../setup/init.md`, 3).
 
 | Setting | Its value |
@@ -93,7 +93,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   charters 2, 4, 6, 9, 10 and 12 are declared no `goal`, `change` or
   `delegate`.
   smith's host part counts a run's brief beside its tools, so a brief
-  is rendered within the room its charter leaves. At `temper init`'s
+  is rendered within the room its charter leaves. At `temper-box init`'s
   models the host part's bound is that of their smallest window, which
   init's scripted model sets at `gpt-6-luna`'s (`../setup/init.md`, 3): it
   holds the largest stock charter's non-brief host part, charter 5
@@ -152,7 +152,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   for a run's admission (its window and output at its costliest
   prices), since a person may pick any of them and a charter's order
   falls to any of them: sized by the first alone, K would admit no run on
-  Astra 6 where Opus 5.5 comes first. At `temper init`'s models that is
+  Astra 6 where Opus 5.5 comes first. At `temper-box init`'s models that is
   Fable 5.1's and Astra 6's, 10,896, so K is 43,584 and a chat's 24K
   1,046,016. A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
@@ -177,7 +177,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   a person may spend is the same as without it. A deployment whose models change
   between starts gets new defaults, a release's revision (`settings.md`, 5, step 1).
 - **A fine unit.** smith charges each completion at least one whole
-  unit, so `temper init` states its models' prices in thousandths of a
+  unit, so `temper-box init` states its models' prices in thousandths of a
   dollar per 1,000,000 tokens, that floor costing a run nothing it
   needs; C, and so every budget above, scales with it.
 - **The stock's models,** the binary's, as read from the providers' pages on
@@ -201,7 +201,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 |
   | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 |
   | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 |
-- **The box's limits for that work.** `temper init`'s document, and
+- **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
   sized for a project of fabrig's scale: its own development,
@@ -227,7 +227,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | sub-agents at once in one run | 5 | the agent's `conversations` 26, a run and 25 |
   | a task's spec, a message | 19 kB (5.9 kB) | `tasks.spec_bytes` 131,072; `tasks.message_bytes` 262,144 in the profile, since a result is a message in its parent's inbox; the box's, what its agent takes (below) |
   | a report (a result) | 46 kB (4.9 kB) | `tasks.result_bytes` 262,144 in the profile; the box's, its message bound; templates 1 and 2's report, the deployment's result bound |
-  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper init`'s models (`../../domain/agent/tools.md`) |
+  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper-box init`'s models (`../../domain/agent/tools.md`) |
   | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
   | conflicted paths in one merge | past 4, the bound then, on a goal's merge (2026-11-11) | `checkout.conflicts` 512 and `git_component.stdout_bytes` 131,072 in both profiles, for a merge of a few hundred conflicted paths (`limits.md`, the checkout's capacity) |

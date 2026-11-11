@@ -603,7 +603,7 @@ The words for each offered source are:
   want the same. Default: as they are (`../../draft/sign-in-new-tab.md`, 6).
 - **A box with no `owned` part** (`../forge/records.md`, `accounts.md`, 2): `temper box` on a document with
   no `application.machine.owned` reads `owned` false, so a wait for a host
-  there keeps the words for many hosts. `temper init`'s box document has the
+  there keeps the words for many hosts. `temper-box init`'s box document has the
   part. Default: so, over a new fact on the wire, until a person meets it.
 
 - **A command for anyone but the owner** (`README.md`, `../forge/records.md`): `program_login` goes to any

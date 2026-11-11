@@ -122,7 +122,7 @@ unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
 Section 6's agent program is the worker's named program: the box's
-`temper internal agent AGENT.json` or a deployment's `temper-agent
+`temper-box internal agent AGENT.json` or a deployment's `temper-agent
 AGENT.json`, with the same program used for a model list
 (`../protocol/README.status.md`, 5). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
@@ -182,7 +182,7 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   `workers[0].limits: past its bound`, naming none. The `worker-many-slots`
   request of 2026-11-05 has each start's refusal name what to raise; it asked
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
-  slots past `temper::prepare_in`: that request takes the next deployment at 8
+  slots past `temper_box_shell::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
 - **Departs:** 5, 9: with `TEMPER_INTERNAL_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and

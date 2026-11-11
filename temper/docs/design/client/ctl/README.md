@@ -122,7 +122,7 @@ temper                       the binary: `temper ctl` runs the host
   `jig` holds what is generic: jig's part of the table, the call, the
   runner, digests and conditions, the rendering. It names no temper item:
   a boundary test fails the gate when a file under `src/jig/` names
-  `temper`, or an item of the crate outside `crate::jig`. Extraction is then
+  `temper-box-shell`, or an item of the crate outside `crate::jig`. Extraction is then
   that module moved into a crate of jig's (section 11).
 - **The forge's side is reused, not copied.** The tools' root holds the
   forge's client side of `temper-client-domain`, its adoption's ask,
@@ -261,11 +261,11 @@ temper ctl help [GROUP [VERB]]
 - **`GROUP VERB`** is a tool's name (`tools.md`, 1); `temper ctl DIRECTORY GROUP
   VERB --help` prints its row, as `temper ctl help GROUP VERB` does.
 
-- **DIRECTORY** is the client's private directory, as for `temper open`
+- **DIRECTORY** is the client's private directory, as for `temper-box open`
   (`../line.md`, 1): its credential, `token`, its small store, `store`,
   and the engine's address, `address`, all `jig-client-shell-native`'s
   or beside them, `0o700` and refused unless the user's own. A
-  DIRECTORY is `temper ctl`'s or `temper open`'s, never both's (`README.md`, section 12).
+  DIRECTORY is `temper ctl`'s or `temper-box open`'s, never both's (`README.md`, section 12).
 - **`address`** is `temper-client-shell-cli`'s: one line,
   `http://HOST:PORT`, `0o600`, written by `sign-in` and read by every
   other call.
@@ -295,9 +295,9 @@ temper ctl help [GROUP [VERB]]
   before the loop, the directory of the FILE its arguments name, and
   `--call`'s call is decoded on the loop, from FILE or from stdin
   alike.
-- **`sign-in FILE|-`** signs in by the link `temper serve` printed, read
+- **`sign-in FILE|-`** signs in by the link `temper-box serve` printed, read
   from FILE or stdin and never an argument (section 7), on loopback, and
-  writes the token and the address the link names, as `temper open` does
+  writes the token and the address the link names, as `temper-box open` does
   (`../README.md`, section 4). It offers the token DIRECTORY holds, if any,
   beside the link: a sign-in kept leaves `token` as it was. Its
   answers, each exit 1 with one line, and none writing `token` or
@@ -308,10 +308,10 @@ temper ctl help [GROUP [VERB]]
     before DIRECTORY is ready, so empty stdin is refused without waiting
     or sending a sign-in;
   - *refused* (the link spent, expired or unknown): `temper ctl: the
-    sign-in link was refused`; `temper serve` prints a fresh link;
+    sign-in link was refused`; `temper-box serve` prints a fresh link;
   - *full* (jig's `domain/people/README.md`, section 3): `temper ctl: all N
     sign-ins are in use; the earliest ends at T; this link stays usable
-    until U; after that, temper serve prints a fresh one when it is
+    until U; after that, temper-box serve prints a fresh one when it is
     tried`, N the deployment's room, T the earliest saved expiry among
     its sign-ins and U the link's own, in universal time to the second,
     `YYYY-MM-DDTHH:MM:SSZ`. The link is not spent: the same `sign-in`
@@ -321,7 +321,7 @@ temper ctl help [GROUP [VERB]]
     deadline (6.2); past it, after busy, `temper ctl: temper is busy;
     this link stays usable until it expires`, and after not ready,
     `temper ctl: temper is not ready: it is starting, or its core is not
-    answering, and temper serve's log says why; this link stays usable
+    answering, and temper-box serve's log says why; this link stays usable
     until it expires` (`../../protocol/README.md`, 6.2). A sign-in never
     answered keeps the deadline's own line.
 
@@ -329,7 +329,7 @@ temper ctl help [GROUP [VERB]]
   ends the sign-in, and jig's native shell, keeping none, leaves `token`
   a zero-byte file, which a call reads as no token. Every other tool
   signs in with the token DIRECTORY holds (`SignIn { with: Held }`).
-- **Loopback only,** as `temper open`, until the clients' listener
+- **Loopback only,** as `temper-box open`, until the clients' listener
   serves TLS: a call checks that `address` is on loopback, `127.0.0.0/8`
   or `[::1]`, before it sends the token, and otherwise exits 1, "the
   engine's address must be on loopback".
@@ -471,7 +471,7 @@ The deployment an agent drives is an owned setup run by `temper box`
 directory of its harness's:
 
 - **Started:** `temper box`, given the harness's three directories
-  (`../../protocol/configuration/directories.md`); its stdout carries `temper
+  (`../../protocol/configuration/directories.md`); its stdout carries `temper-box
   serve`'s sign-in links, and the harness passes the first to `temper
   ctl DIRECTORY sign-in -` on stdin.
 - **The deployment's LLM key:** a fresh box has no LLM account, so no
@@ -731,7 +731,7 @@ Each is named here and designed when it comes.
   document does not say, so with no holder `task show` prints neither
   line until the task has ended. Naming it changes jig's document and
   its protocol.
-- **`temper open` at a stopped box** (`../line.md`, 1): ctl says at once
+- **`temper-box open` at a stopped box** (`../line.md`, 1): ctl says at once
   that nothing listens (`results.md`, 3); the terminal keeps the native shell's reset
   and retry. Whether it says so too waits on a timing of what a person
   meets there.
@@ -772,9 +772,9 @@ Each is named here and designed when it comes.
 
 ## 12. Open questions
 
-- **`temper open` and `temper ctl` on one DIRECTORY:** not supported and
+- **`temper-box open` and `temper ctl` on one DIRECTORY:** not supported and
   not detected (`../README.md`, section 5). Default: the lock of 6.3 is
-  `temper ctl`'s alone, until `temper open` takes it.
+  `temper ctl`'s alone, until `temper-box open` takes it.
 - **The one-shot host's place:** temper's, in `temper-client-shell-cli`.
   Default: it moves into `jig-client-shell-native` with the extraction
   (section 11), if jig wants one.

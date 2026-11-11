@@ -356,7 +356,7 @@ the routing in the step that routes the record:
   | `credentials` | the number of git identities, one per kept forge | `forge.forges` (configuration/limits.md) |
 
 - **Within jig's ceilings.** Each must fit the ceiling jig's schema gives
-  its field; `temper serve` refuses a start whose limits pass one, naming
+  its field; `temper-box serve` refuses a start whose limits pass one, naming
   the limit. jig's ceiling for `saved`, 16 MiB, is above the most
   temper's payload ceilings let two repositories' conflicts make,
   8,396,832 bytes at 1,024 conflicts of 4,096 bytes, so a raise of the
@@ -385,7 +385,7 @@ the routing in the step that routes the record:
 - **The engine's within the worker's.** Each side computes its sizes from
   its own limits, and jig's terms compare them at the opening (jig's
   `protocol/channel/README.md`, 4.1). In one process both are known at start,
-  so `temper serve` refuses limits under which the engine could send an
+  so `temper-box serve` refuses limits under which the engine could send an
   item larger than the worker takes, rather than a link that never
   opens.
   A worker started alone takes a GitHub value's entries and an entry's

@@ -15,7 +15,7 @@ section 7.
 
 - **temper's engine makes no LLM call.** Its runs are on workers, jig's
   third shape (jig's `domain/hosts/README.md`, section 3), each in an agent
-  process: `temper internal agent`, smith's agent shell over skein's LLM
+  process: `temper-box internal agent`, smith's agent shell over skein's LLM
   client (section 2).
 - **LLM providers, endpoints and models are configuration,** jig's `llm`
   member on the engine and smith's agent configuration on the worker, by
@@ -54,7 +54,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 ```
 
 - **The agent process** is the worker's agent's program, the box's
-  `temper internal agent AGENT.json` or a deployment's `temper-agent
+  `temper-box internal agent AGENT.json` or a deployment's `temper-agent
   AGENT.json` (binaries.md, 3), spawned by the worker's protocol layer for
   each run
   (configuration/README.md, section 4; jig's `protocol/service.md`, section 6).
@@ -94,7 +94,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   they may run, each with its programs directory. The worker's routing
   decodes each charter against these endpoints (jig's
   `protocol/channel/README.md`, 5.1).
-- **The same names on both.** `temper serve` refuses a start whose
+- **The same names on both.** `temper-box serve` refuses a start whose
   engine names an endpoint, a model or a program the agent's
   configuration does not declare the same way (configuration/README.md, section
   4), so no run's charter fails for a name.
@@ -265,7 +265,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   `parallel-faults` of 2026-11-06 saw 19 runs fail `timed out during response
   idle (HTTP 200)` in 73 minutes, on two tasks with requests of 456 to 801 KB,
   where a run at 823 KB worked, and reading doesn't settle why. The bound is per
-  model in a deployment's `agent.json`: `temper init`'s template has 30 s and
+  model in a deployment's `agent.json`: `temper-box init`'s template has 30 s and
   smith's local presets 120 s and 300 s, so a raise in `smith/` might not reach a
   deployment. It arms at the response's head and only an event carrying output
   re-arms it, so a 200 with no event, a stream of pings and a stall partway read

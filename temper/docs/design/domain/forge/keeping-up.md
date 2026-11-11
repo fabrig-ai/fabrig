@@ -55,7 +55,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   fit small's `forge.tasks` and `forge.holds`, both eight; each change's two
   names fit `forge.resources_per_task`, which is three. Landed changes keep their watches until
   they clear (`../after-landing.md`, section 6). temper's `standard`, which
-  `temper init`'s box runs, sizes them for a project of fabrig's scale
+  `temper-box init`'s box runs, sizes them for a project of fabrig's scale
   (`../../protocol/configuration/stock.md`): `forge.tasks` and
   `forge.holds` 128, and the resource capacity 128, at least the holds,
   each a held branch's watch.

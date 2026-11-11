@@ -343,7 +343,7 @@ that changes the stock changes nothing of them.
   reference from `docs/examples/reference/` and the repository's own
   files:
   - `limits.json`, the members of the document the reference sets over
-    `temper init`'s (`../setup/init.md`, 3): its engine's and its
+    `temper-box init`'s (`../setup/init.md`, 3): its engine's and its
     application's limits' overrides (`limits.md`), merged into the box's
     document before its first start, member by member, an object's
     members over the document's and any other value replacing it, as
@@ -376,7 +376,7 @@ that changes the stock changes nothing of them.
   run's time and the agent's timeouts stay the box's (`stock.md`), and a run held at its spend is its
   person's to fund (`../../domain/forge/change/repairs.md`).
 
-  | Limit | The box (`temper init`) | The reference | For |
+  | Limit | The box (`temper-box init`) | The reference | For |
   |---|---|---|---|
   | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
   | `forge.change_policy.questions` | 80 | 4 | questions per change (`../../draft/reference-code-production.md`, sections 8 and 14) |
@@ -457,7 +457,7 @@ that changes the stock changes nothing of them.
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
   a walk meets it; and a test merges `limits.json` and `room.json` over
-  `temper init`'s document, runs the start's checks on it with init's
+  `temper-box init`'s document, runs the start's checks on it with init's
   agent configuration as `room.json` sets it, holds its figures to `settings.md`, 7's
   relations from that agent, and holds the settings file to them: its charters
   within `tasks.charters`, their documents within

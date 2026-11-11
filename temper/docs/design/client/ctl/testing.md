@@ -213,7 +213,7 @@ outstanding operations and release between iterations.
 A real-loop failure is kept with its trace and reproduced lower down
 where possible; its seed does not replay the kernel's schedule.
 
-One story reads at `temper init`'s template's bounds, its documents'
+One story reads at `temper-box init`'s template's bounds, its documents'
 rows below the tools' 32-row window: a goal with more delegates than
 those rows, one of them ended with an ended dependency, and `task show
 TASK --tree` answering within a second, cut and saying so, and `task
