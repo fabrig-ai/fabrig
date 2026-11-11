@@ -1,6 +1,9 @@
 # gates: status
 
-2026-11-10. Where the tree's code lags or departs from [gates.md](gates.md).
+2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
+
+- **Not yet:** 1: a follow's check, dispatched by its change with the
+  followed source commit [in flight: change 111].
 
 - **Not yet:**
   - 1: the user's N4 request of 2026-11-08 asks for focused and
