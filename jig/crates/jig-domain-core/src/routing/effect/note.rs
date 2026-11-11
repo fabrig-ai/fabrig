@@ -176,9 +176,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Brief { task }) => match why {
                     notes::Refusal::Busy => {
                         if core.notes.busy() {
-                            core.pending_note_briefs
-                                .insert(task, NoteBrief::Operation)
-                                .expect("brief count bounds waiting notes");
+                            wait_for_notes(core, work, task, NoteBrief::Operation);
                         } else {
                             defer_brief(core, work, task);
                         }
@@ -220,7 +218,7 @@ pub(crate) fn tag_notes(
     out
 }
 
-fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
+pub(crate) fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
     if !core.notes.busy() {
         let mut waiting = None;
         for (&task, state) in &core.pending_note_briefs {
@@ -241,8 +239,26 @@ fn defer_brief(core: &mut Core, work: &mut Queue<Work>, task: u64) {
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
-    core.pending_note_briefs.insert(task, NoteBrief::Activation).expect("brief count bounds deferred activations");
-    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+    if wait_for_notes(core, work, task, NoteBrief::Activation) {
+        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
+    }
+}
+
+/// One wait per live task; a full table pauses as capacity
+/// (`jig/docs/design/domain/engine/briefs.md`, 2.2).
+pub(crate) fn wait_for_notes(core: &mut Core, work: &mut Queue<Work>, task: u64, wait: NoteBrief) -> bool {
+    if core.pending_note_briefs.insert(task, wait).is_ok() {
+        return true;
+    }
+    work.push(Work::PreparationFailed {
+        task,
+        failure: jig_domain_brief::GatherFailure {
+            fate: jig_domain_brief::GatherFate::Capacity,
+            section: b"notes",
+            words: Box::from(b"no room for the index".as_slice()),
+        },
+    });
+    false
 }
 
 pub(crate) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>, more: bool) -> CallPart {
