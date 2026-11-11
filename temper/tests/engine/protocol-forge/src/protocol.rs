@@ -34,6 +34,7 @@ pub struct Protocol {
     item_pages: Vec<u64>,
     item_start: u64,
     request_times: Vec<Wall>,
+    hints_forwarded: usize,
     merge_cut: Option<usize>,
     cut_taken: bool,
     cut_call: Option<(u64, skein_forge::api::Repository, skein_forge::api::Write)>,
@@ -94,6 +95,46 @@ impl Protocol {
         );
         Self::with_limits(seed, joint, fixtures::FORGEJO, limits)
     }
+    /// Long Actions CI, with optional signed webhook transport.
+    #[must_use]
+    pub fn forgejo_ci(seed: u64, limits: &top::Limits, hearing: bool) -> Self {
+        let mut config = fixtures::protocol_config();
+        config.max_response_items = 32;
+        let mut settings = fixtures::writer_settings();
+        if hearing {
+            let hooked = skein_forge_kit::fixtures::hook_settings();
+            settings.webhooks = hooked.webhooks;
+            settings.forges.get_mut(0).expect("forge").access.as_mut().expect("access").webhook_secret =
+                hooked.forges.get(0).expect("forge").access.as_ref().expect("access").webhook_secret.clone();
+            config.hooks = skein_forge_kit::fixtures::hooked_protocol_config().hooks;
+        }
+        let mut checks = joint::checks(1000);
+        checks.contexts = (0..30).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
+        checks.latency_min = Duration::from_secs(600);
+        checks.latency_max = Duration::from_secs(600);
+        let mut component_limits = fixtures::limits();
+        component_limits.inner = 64;
+        let joint = Joint::with(seed, 0, config, component_limits, settings,
+            fixtures::protocol_shared_for(&limits.client), checks);
+        Self::with_limits(seed, joint, fixtures::FORGEJO, limits)
+    }
+    /// One job's end, with its status independently scheduled by the story.
+    pub fn job_end(&mut self, branch: &[u8], job: u32) {
+        let commit = self.branch(branch);
+        let context = format!("job-{job}");
+        let reference = self.joint.domain.check_run(self.fixture.path, commit, context.as_bytes()).expect("job");
+        self.joint.hook(forge::Request::Hook {
+            queue: None, repository: Box::from(self.fixture.path), change: raw::Change::Job,
+            number: None, branch: None, commit: None, by: Some(1), body: None,
+            ended: Some(raw::Ended { job: reference, commit, state: raw::Check::Passed }),
+        });
+    }
+    pub fn job_status(&mut self, branch: &[u8], job: u32) {
+        self.external(raw::Op::Write(raw::Write::Status {
+            commit: self.branch(branch), context: format!("job-{job}").into_bytes().into_boxed_slice(),
+            state: raw::Check::Passed, description: Box::new([]), link: Box::new([]),
+        }), self.fixture.writer);
+    }
     fn with(seed: u64, joint: Joint, fixture: fixtures::Fixture) -> Self {
         Self::with_limits(seed, joint, fixture, &LIMITS)
     }
@@ -119,6 +160,7 @@ impl Protocol {
             item_pages: Vec::new(),
             item_start: 0,
             request_times: Vec::new(),
+            hints_forwarded: 0,
             merge_cut: None,
             cut_taken: false,
             cut_call: None,
@@ -425,14 +467,15 @@ impl Protocol {
             &mut output,
         );
         let mut answer = None;
-        for _ in 0..4 {
+        for _ in 0..256 {
             if self.joint.domain.is_due(env.now) {
                 forge::fire(&mut self.joint.domain, &env, &mut output);
             }
         }
         while let Some(request) = output.pop() {
-            if let forge::Request::Reply { result, .. } = request {
-                answer = Some(result.expect("scripted operation"));
+            match request {
+                forge::Request::Reply { result, .. } => answer = Some(result.expect("scripted operation")),
+                hook @ forge::Request::Hook { .. } => self.joint.hook(hook),
             }
         }
         self.joint.domain.reclaim();
@@ -661,7 +704,12 @@ impl Protocol {
         self.joint.call(self.serial, repository, op);
     }
     fn take_answers(&mut self) -> bool {
-        let changed = !self.joint.answers.is_empty();
+        let changed = !self.joint.answers.is_empty() || self.hints_forwarded < self.joint.hints.len();
+        let hints = self.joint.hints[self.hints_forwarded..].to_vec();
+        self.hints_forwarded = self.joint.hints.len();
+        for hinted in hints {
+            self.event(top::Event::Hint { hint: hinted.hint });
+        }
         for (id, answer) in core::mem::take(&mut self.joint.answers) {
             assert!(self.answered.insert(id), "call {id} answered once");
             let (generation, call, items, sample) = self.pending.remove(&id).expect("submitted call");

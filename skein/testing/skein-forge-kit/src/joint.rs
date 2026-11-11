@@ -138,6 +138,7 @@ impl Joint {
     ) -> Self {
         let is_github = config.is_none();
         let mut fake_config = fixtures::fake_config();
+        fake_config.limits.contexts = fake_config.limits.contexts.max(u32::try_from(checks.contexts.len()).expect("contexts"));
         if is_github {
             fake_config.latency_min = Duration::ZERO;
             fake_config.latency_max = Duration::ZERO;
@@ -212,6 +213,11 @@ impl Joint {
         self.action(Request::Call { call: Token::new(call), repository, op });
     }
     /// Hands an owner request to the component without adding startup actions.
+    /// Queue a scripted delivery through the fake's encoder and the real listener.
+    pub fn hook(&mut self, request: fake::Request) {
+        assert!(matches!(request, fake::Request::Hook { .. }), "a delivery, not a reply");
+        self.fake_out.push(request);
+    }
     pub fn action(&mut self, request: Request) {
         self.component.down(&self.env, request, &mut self.above, &mut self.below);
     }

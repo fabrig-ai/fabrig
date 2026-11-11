@@ -1,4 +1,5 @@
 mod ci_poll;
+mod forgejo_ci;
 use skein_fake_forge_domain::{Observation, api::Kind};
 use skein_fake_forge_forgejo::Route;
 use skein_forge_kit::joint::REPO;
