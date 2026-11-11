@@ -184,10 +184,14 @@ fn a_changes_reviewer_reads_its_own_pull() {
     };
     assert_eq!(pull.number, 1);
     assert_eq!(pull.commit, head);
-    let Answer::PullFiles { head: observed, files, more, .. } =
-        read(&mut world, &reviewer, 11, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1, skip: 0 })
-            .expect("files read")
-    else {
+    let Answer::PullFiles { head: observed, files, more, .. } = read(
+        &mut world,
+        &reviewer,
+        11,
+        forge_world::REPO,
+        Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true },
+    )
+    .expect("files read") else {
         panic!("files")
     };
     assert_eq!(observed, head);
@@ -764,7 +768,13 @@ fn a_changes_grants_name_its_repository_alone() {
     let (mut world, reviewer, head) = repository_scoped_reviewer();
     assert!(
         matches!(
-            read(&mut world, &reviewer, 10, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1, skip: 0 }),
+            read(
+                &mut world,
+                &reviewer,
+                10,
+                forge_world::REPO,
+                Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true }
+            ),
             Ok(Answer::PullFiles { .. })
         ),
         "chat change passes its reads to the reviewer"
@@ -2159,7 +2169,13 @@ fn lost_read_diagnostics_change_no_reviewer_grant_or_answer() {
     }
     assert_eq!(world.root.facts_lost(), 1);
     assert!(matches!(
-        read(&mut world, &reviewer, 100, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1, skip: 0 }),
+        read(
+            &mut world,
+            &reviewer,
+            100,
+            forge_world::REPO,
+            Read::PullFiles { number: 1, head, page: 1, skip: 0, sides: true }
+        ),
         Ok(Answer::PullFiles { .. })
     ));
     assert_eq!(

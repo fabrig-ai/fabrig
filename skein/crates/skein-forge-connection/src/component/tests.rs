@@ -17,7 +17,7 @@ fn call_sizes_distinguish_real_rows_single_recovery_and_github() {
     for (read, github) in [
         (api::Read::Reviews { number: 1, page: 1, skip: 0 }, 8),
         (api::Read::Remarks { number: 1, review: 7, page: 1, skip: 0 }, 8),
-        (api::Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0 }, 1),
+        (api::Read::PullFiles { number: 1, head: [0; 32], page: 1, skip: 0, sides: true }, 8),
     ] {
         let op = api::Op::Read(read);
         for (kind, expected) in [(crate::settings::Kind::Forgejo, 8), (crate::settings::Kind::GitHub, github)] {
