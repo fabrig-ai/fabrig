@@ -127,6 +127,7 @@ enum Part {
     StyleCount { style: skein_ui::Style, count: usize },
     HomeCards { primary: &'static [&'static str], projects: &'static [&'static str] },
     Destination { name: &'static str, href: &'static str },
+    Current { name: &'static str },
     FirstButton { disclosure: &'static str, name: &'static str },
     CardChanges { title: &'static str, changes: &'static [&'static str] },
     Cards { section: &'static str, from: &'static [&'static str] },
@@ -399,13 +400,19 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-across",
-        heading: "Nothing needs you.",
+        heading: "Two things need you.",
         parts: &[
             Part::Pressed { name: "All projects" },
             Part::Named { role: Role::Disclosure, name: "All projects" },
+            Part::Destination { name: "temper home", href: "/home" },
+            Part::Destination { name: "Home", href: "/home" },
+            Part::Destination { name: "Needs you 2", href: "/" },
+            Part::Destination { name: "Needs 2", href: "/" },
+            Part::Current { name: "Needs you 2" },
+            Part::Current { name: "Needs 2" },
             Part::Destination { name: "Work", href: "/projects/1/work" },
             Part::Destination { name: "How work runs", href: "/projects/1/settings" },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs 2", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -4613,6 +4620,14 @@ fn each_state_holds_what_its_name_says() {
                             sample.name
                         );
                     }
+                }
+                Part::Current { name } => {
+                    let id = find(tree, Role::Link, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("current link").states.as_slice().contains(&skein_ui::State::Current),
+                        "{}: {name} current",
+                        sample.name
+                    );
                 }
                 Part::Destination { name, href } => {
                     let Found::Node(node) = main.find(&Find::exactly_named(Role::Link, name.as_bytes())) else {

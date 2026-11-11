@@ -112,7 +112,11 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         ),
         None => (0, false),
     };
-    let needs = root.pages().needs().count(root.client(), root.forge().approvals(), project);
+    let needs = if across(root) {
+        root.pages().needs().count_across(root.client(), root.forge().approvals())
+    } else {
+        root.pages().needs().count(root.client(), root.forge().approvals(), project)
+    };
     Facts {
         projects,
         needs: needs.count,
