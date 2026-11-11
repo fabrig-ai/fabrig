@@ -27,7 +27,28 @@ pub struct ApprovalWait {
 }
 
 impl Domain {
-    /// Every live change in state `First` or `Landing`, with a pull request, whose review facts
+    /// Kept facts at this head show an enforcing approval short and none refused
+    /// (domain/forge/queues.md, Out of the queue while a sign-off waits).
+    pub(crate) fn short_approvals(&self, row: &crate::ChangeRow) -> Box<[PanelApproval]> {
+        let mut short = List::uncapped();
+        for approval in self.panel_approvals(row) {
+            if approval.refused {
+                return Box::new([]);
+            }
+            if let Some(remaining) = approval.remaining
+                && remaining > 0
+            {
+                short.push(approval).expect("admitted approvals");
+            }
+        }
+        short.into_boxed()
+    }
+
+    pub(crate) fn approval_short(&self, row: &crate::ChangeRow) -> bool {
+        !self.short_approvals(row).is_empty()
+    }
+
+    /// Every live change in state `Queued`, `First` or `Landing`, with a pull request, whose review facts
     /// are at its last head, with an approval still short and none refused; oldest `since`
     /// first, then by task. Allocates; changes nothing.
     #[must_use]
@@ -38,7 +59,7 @@ impl Domain {
                 continue;
             }
             match row.change.state {
-                State::First { .. } | State::Landing { .. } => {}
+                State::Queued { .. } | State::First { .. } | State::Landing { .. } => {}
                 State::Producing { .. }
                 | State::Opening { .. }
                 | State::Recreating { .. }
@@ -48,7 +69,6 @@ impl Domain {
                 | State::Ready { .. }
                 | State::Preparing { .. }
                 | State::CancellingGates { .. }
-                | State::Queued { .. }
                 | State::Updating { .. }
                 | State::WaitingProducer { .. }
                 | State::Resolving { .. }
@@ -67,17 +87,8 @@ impl Domain {
             if facts.head != row.change.last_head {
                 continue;
             }
-            let mut short = List::uncapped();
-            let mut refused = false;
-            for approval in self.panel_approvals(row) {
-                refused |= approval.refused;
-                if let Some(remaining) = approval.remaining
-                    && remaining > 0
-                {
-                    short.push(approval).expect("admitted approvals");
-                }
-            }
-            if refused || short.is_empty() {
+            let short = self.short_approvals(row);
+            if short.is_empty() {
                 continue;
             }
             let since = *self.review_since.get(task).expect("kept review facts have their first time");
@@ -105,7 +116,7 @@ impl Domain {
                         since,
                         whole: facts.reviews_complete,
                         behind,
-                        short: short.into_boxed(),
+                        short,
                     },
                 )
                 .expect("one wait per bounded change");

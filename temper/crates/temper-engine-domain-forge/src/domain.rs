@@ -1734,6 +1734,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
             }
         }
+        Event::ReviewsChanged { task } => reviews_changed(d, env, task, out),
         Event::ReviewRequested { task, head } => {
             if let Some(row) = d.changes.get(&task)
                 && !row.terminal()
@@ -2182,6 +2183,7 @@ fn outcome_facts(
                 {
                     row.change.state = change::State::Landed { merge: commit, since: env.wall };
                     let saved = row.clone();
+                    wake_queue(d, &saved);
                     save_change(d, out, saved);
                 }
             }
@@ -3911,6 +3913,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             && repair.base == row.base
             && repair.base_repair
             && crate::panel::ready(repair).is_some()
+            && !d.approval_short(repair)
         {
             base_repair = Some(repair.task);
             break;
@@ -3918,7 +3921,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
     }
     let mut ready = List::with_capacity(l.changes);
     for (_, other) in &d.changes {
-        if other.repository != row.repository || other.base != row.base {
+        if other.repository != row.repository || other.base != row.base || d.approval_short(other) {
             continue;
         }
         let since = match other.change.state {
@@ -3955,11 +3958,24 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
 }
 
 fn queue_first(d: &Domain, row: &ChangeRow, now: skein_lib::Wall, l: &Limits) -> bool {
-    let (ready, repair) = queue_ready(d, row, l);
-    match repair {
-        Some(task) => row.task == task,
-        None => change::first(ready.as_slice(), l.queue_window, now) == Some(row.task),
+    if d.approval_short(row) {
+        return false;
     }
+    let (ready, repair) = queue_ready(d, row, l);
+    if let Some(task) = repair {
+        return row.task == task;
+    }
+    for (_, other) in &d.changes {
+        if other.repository == row.repository
+            && other.base == row.base
+            && other.change.owns_turn
+            && !other.terminal()
+            && (!in_queue(&other.change.state) || !d.approval_short(other))
+        {
+            return row.task == other.task;
+        }
+    }
+    change::first(ready.as_slice(), l.queue_window, now) == Some(row.task)
 }
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
@@ -4059,6 +4075,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, pending, out) else { return };
     let before = crate::panel::ready(&row);
+    let owned_turn = row.change.owns_turn && !row.terminal();
     let prior = row.change.clone();
     let Some(base_tip) = pending.base_tip else {
         emit(out, Request::Refused { task: pending.task });
@@ -4104,7 +4121,15 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     if row.delegate_status != change::Status::Unknown {
         row.delegate = None;
     }
+    let mut reviewed = false;
     for _ in 0_u32..16 {
+        if !reviewed && in_queue(&row.change.state) && !d.panel_approvals(&row).is_empty() {
+            emit(
+                out,
+                Request::Reviewed { task: row.task, evidence: step_evidence(d, &row, pending, row.change.clone()) },
+            );
+            reviewed = true;
+        }
         let effect_prior = row.change.clone();
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         d.review_requests.remove(&row.task);
@@ -4121,7 +4146,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
-                // An approval wait keeps its turn (temper/docs/design/domain/forge/change/questions.md, 2).
+                // A veto restores the ready state before applying the kept review facts.
                 let prior = match effect {
                     change::Effect::Merge { .. } => effect_prior,
                     change::Effect::Open
@@ -4154,7 +4179,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 {
                     crate::landing_log::landed(d, env.wall, commit, row.task, out);
                 }
-                if in_queue(&prior.state) && !in_queue(&row.change.state) {
+                if (in_queue(&prior.state) && !in_queue(&row.change.state))
+                    || (owned_turn && (!row.change.owns_turn || row.terminal()))
+                {
                     wake_queue(d, &row);
                 }
                 save_queue_change(d, env, before, row.clone(), out);
@@ -4200,7 +4227,7 @@ fn repair_poll(
     decision
 }
 
-fn in_queue(state: &change::State) -> bool {
+pub(crate) fn in_queue(state: &change::State) -> bool {
     match state {
         change::State::Queued { .. } | change::State::First { .. } => true,
         change::State::Producing { .. }
@@ -4225,6 +4252,40 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::Uncleared { .. }
         | change::State::Held { .. } => false,
     }
+}
+
+/// New review facts change membership without changing the change's first ready time.
+fn reviews_changed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(mut row) = d.changes.get(&task).cloned() else { return };
+    if row.terminal() || row.change.way != change::Way::Queue {
+        return;
+    }
+    if yield_approval_turn(d, &mut row) {
+        d.changes.insert(task, row.clone()).expect("replaces change");
+        save_change(d, out, row.clone());
+    }
+    if let Some(tasks) = crate::views::changes_mark(d, row.repository) {
+        emit(out, Request::Marked { tasks: Box::from(tasks) });
+    }
+    wake_queue(d, &row);
+    if in_queue(&row.change.state) {
+        if d.approval_short(&row) {
+            d.wait_change(env, task, None);
+        } else {
+            d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+        }
+    }
+}
+
+fn yield_approval_turn(d: &mut Domain, row: &mut ChangeRow) -> bool {
+    let change::State::First { head, ready_since } = row.change.state else { return false };
+    if !d.approval_short(row) {
+        return false;
+    }
+    row.change.state = change::State::Queued { head, ready_since };
+    row.change.owns_turn = false;
+    wake_queue(d, row);
+    true
 }
 
 fn wake_queue(d: &mut Domain, row: &ChangeRow) {
@@ -4388,6 +4449,26 @@ fn agent_asking(row: &ChangeRow) -> bool {
     false
 }
 
+fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: change::Change) -> crate::ChangeEvidence {
+    crate::ChangeEvidence {
+        prior,
+        head: pending.branch,
+        base_tip: pending.base_tip.expect("step read base tip"),
+        contains_base: pending.contains_base,
+        ci: if match d.repositories.get(&row.repository) {
+            Some(repository) => repository.ci,
+            None => true,
+        } {
+            pending.ci
+        } else {
+            change::Status::Passed
+        },
+        gates: pending.gates.clone(),
+        reviews: pending.reviews.clone(),
+        reviews_complete: pending.reviews_complete,
+    }
+}
+
 fn emit_change_effect(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4451,23 +4532,7 @@ fn emit_change_effect(
             task: row.task,
             decision: change::Decision::Effect(effect),
             entry: Some(pending.entry),
-            evidence: Some(crate::ChangeEvidence {
-                prior,
-                head: pending.branch,
-                base_tip: pending.base_tip.expect("step read base tip"),
-                contains_base: pending.contains_base,
-                ci: if match d.repositories.get(&row.repository) {
-                    Some(repository) => repository.ci,
-                    None => true,
-                } {
-                    pending.ci
-                } else {
-                    change::Status::Passed
-                },
-                gates: pending.gates.clone(),
-                reviews: pending.reviews.clone(),
-                reviews_complete: pending.reviews_complete,
-            }),
+            evidence: Some(step_evidence(d, row, pending, prior)),
         },
     );
 }
@@ -5769,8 +5834,14 @@ fn veto_change(
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.effect_account = None;
-    let saved = row.clone();
+    let mut saved = row.clone();
+    let yielded = yield_approval_turn(d, &mut saved);
+    let repository = saved.repository;
+    d.changes.insert(task, saved.clone()).expect("replaces change");
     save_queue_change(d, env, before, saved, out);
+    if yielded && let Some(tasks) = crate::views::changes_mark(d, repository) {
+        emit(out, Request::Marked { tasks: Box::from(tasks) });
+    }
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }

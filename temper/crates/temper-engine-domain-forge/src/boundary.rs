@@ -1821,6 +1821,10 @@ pub enum Event {
         task: u64,
         head: skein_forge::api::Commit,
     },
+    /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
+    ReviewsChanged {
+        task: u64,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         /// The change's current authority delegates to the merge kind (domain/forge/change/repairs.md).
@@ -2287,6 +2291,11 @@ pub enum Request {
     /// A projection could not continue under current facts or limits.
     ProjectionFailed {
         goal: u64,
+    },
+    /// A ready change's fresh review evidence for the root to judge (domain/forge/change/gates.md, 2).
+    Reviewed {
+        task: u64,
+        evidence: ChangeEvidence,
     },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {
