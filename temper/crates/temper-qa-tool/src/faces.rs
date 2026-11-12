@@ -381,6 +381,135 @@ impl ClockFace for RealClock {
     }
 }
 
+/// The place's build alone reads recipes and walks their drive lines (qa/places.md, 8).
+pub trait DriveFace {
+    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal>;
+    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal>;
+    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal>;
+}
+pub struct RecipeWalk<'a> {
+    pub place: &'a crate::place::PlacePaths,
+    pub setups: &'a Path,
+    pub name: &'a str,
+    pub from: Option<&'a str>,
+}
+pub struct WalkOutput {
+    pub code: u8,
+    pub tail: String,
+}
+pub struct RealDrive {
+    pub environment: Environment,
+}
+impl RealDrive {
+    fn command(&self, place: &crate::place::PlacePaths, operation: &str) -> Command {
+        let mut command = Command::new(place.bin.join("temper-client-journeys"));
+        captured(&mut command, &self.environment);
+        command.current_dir(&place.directory).stdin(Stdio::null()).args(["recipe", operation]);
+        command
+    }
+    fn text(command: &mut Command, name: &str) -> Result<String, Refusal> {
+        let output = command.output().map_err(|why| refused(format!("recipe {name}: {why}")))?;
+        if !output.status.success() {
+            let why = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            return Err(refused(format!("recipe {name}: {}", why.trim())));
+        }
+        String::from_utf8(output.stdout).map_err(|why| refused(format!("recipe {name}: {why}")))
+    }
+}
+impl DriveFace for RealDrive {
+    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal> {
+        Self::text(self.command(place, "list").arg("--setups").arg(setups), "list")
+    }
+    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal> {
+        let text = Self::text(self.command(place, "hash").arg(name).arg("--setups").arg(setups), name)?;
+        let hash = text.trim();
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+            return Err(refused(format!("recipe {name}: invalid chain hash")));
+        }
+        Ok(hash.into())
+    }
+    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal> {
+        use std::io::{BufRead, Seek};
+        let place = request.place;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .read(true)
+            .open(&place.walk_log)
+            .map_err(|why| refused(format!("walk.log: {why}")))?;
+        let start = log.seek(std::io::SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        let output = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
+        let error = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
+        let mut command = self.command(place, "walk");
+        command.arg(request.name);
+        if let Some(from) = request.from {
+            command.args(["--from", from]);
+        }
+        let status = command
+            .arg("--bin")
+            .arg(&place.bin)
+            .arg("--bundle")
+            .arg(&place.bundle)
+            .arg("--scratch")
+            .arg(&place.scratch)
+            .arg("--setups")
+            .arg(request.setups)
+            .arg("--strict")
+            .stdout(output)
+            .stderr(error)
+            .status()
+            .map_err(|why| refused(format!("recipe {}: {why}", request.name)))?;
+        log.seek(std::io::SeekFrom::Start(start)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        let mut tail = std::collections::VecDeque::new();
+        for line in std::io::BufReader::new(log).lines() {
+            tail.push_back(line.map_err(|why| refused(format!("walk.log: {why}")))?);
+            if tail.len() > 40 {
+                tail.pop_front();
+            }
+        }
+        Ok(WalkOutput {
+            code: status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1),
+            tail: tail.into_iter().collect::<Vec<_>>().join("\n"),
+        })
+    }
+}
+
+/// Copies hold config/ and data/ alone; cache/ stays at the place (qa/places.md, 2 and 4).
+pub trait ArchiveFace {
+    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal>;
+    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal>;
+}
+pub struct RealArchive {
+    pub environment: Environment,
+}
+impl RealArchive {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
+        let mut command = Command::new("tar");
+        captured(&mut command, &self.environment);
+        command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
+        command
+    }
+}
+impl ArchiveFace for RealArchive {
+    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+        checked(
+            self.command("--create", scratch, archive)
+                .args(["config", "data"])
+                .output()
+                .map_err(|why| refused(format!("tar: {why}")))?,
+            "tar --create",
+        )?;
+        Ok(())
+    }
+    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+        checked(
+            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
+            "tar --extract",
+        )?;
+        Ok(())
+    }
+}
+
 fn captured(command: &mut Command, environment: &Environment) {
     command.env_clear().envs(environment.iter().map(|(key, value)| (OsStr::from_bytes(key), OsStr::from_bytes(value))));
 }

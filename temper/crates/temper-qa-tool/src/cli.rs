@@ -1,5 +1,10 @@
 //! The table and command boundary (testing/tools.md, 4; qa/README.md, 2).
-use crate::{CaseInput, Home, Refusal, refused};
+use crate::{
+    CaseInput, Home, Refusal,
+    faces::{GitFace, RealArchive, RealDrive, RealGit},
+    place::{PassPlace, RecipeInput},
+    refused,
+};
 use skein_shell::{Argument, Command, Front, Reach, Set, Table, Variable, Way};
 use std::{ffi::OsStr, io::Read, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
 
@@ -168,12 +173,43 @@ const REPORT: Command = Command {
     variables: &[&HOME],
     notes: "",
 };
+const SETUP: Command = Command {
+    reach: Reach::Words(&["pass", "setup"]),
+    set: Set::Internal,
+    forms: &["NAME"],
+    line: "Restore a pass setup at its place, or make it again from the nearest restoring copy.",
+    arguments: &[Argument { shown: "NAME", line: "fresh, or a recipe of the pass's setups." }],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "The drive session must be closed. Walks use the place's build with --strict. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.",
+};
+const RECIPE: Command = Command {
+    reach: Reach::Words(&["pass", "recipe"]),
+    set: Set::Internal,
+    forms: &["NAME FILE"],
+    line: "Write a recipe in the pass's setups and prove it by walking from its parent.",
+    arguments: &[
+        Argument {
+            shown: "NAME",
+            line: "A recipe name not among the build's setups; a pass-added recipe may be replaced.",
+        },
+        Argument {
+            shown: "FILE",
+            line: "A JSON object with after, lines, readme and optional scripts; - reads stdin.",
+        },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "The drive session must be closed. A failed proof removes the recipe. Exits are pass setup's.",
+};
 pub const TABLE: Table = Table {
     binary: "temper-qa",
     line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[RUN, KEEP, NONE, CASE, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES, REPORT],
+    commands: &[RUN, KEEP, NONE, CASE, SETUP, RECIPE, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES, REPORT],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -204,10 +240,10 @@ pub fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            match run(command, argument, &environment) {
-                Ok(text) => {
+            match execute(command, argument, &environment) {
+                Ok((code, text)) => {
                     print!("{text}");
-                    ExitCode::SUCCESS
+                    ExitCode::from(code)
                 }
                 Err(why) => {
                     eprintln!("temper-qa: {why}");
@@ -224,6 +260,21 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             [] => Err("COMMIT and DIR are not given".into()),
             [_] => Err("DIR is not given".into()),
             _ => Err("expected COMMIT and DIR".into()),
+        };
+    }
+    if command == &SETUP {
+        return match rest {
+            [name] if !name.starts_with(b"--") => Ok(rest),
+            [] => Err("NAME is not given".into()),
+            _ => Err("expected NAME".into()),
+        };
+    }
+    if command == &RECIPE {
+        return match rest {
+            [name, file] if !name.starts_with(b"--") && !file.starts_with(b"--") => Ok(rest),
+            [] => Err("NAME and FILE are not given".into()),
+            [_] => Err("FILE is not given".into()),
+            _ => Err("expected NAME and FILE".into()),
         };
     }
     if command == &OUTCOME || command == &CHECK {
@@ -281,6 +332,53 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
     } else {
         Err("no arguments are taken".into())
     }
+}
+fn execute(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<(u8, String), Refusal> {
+    if command != &SETUP && command != &RECIPE {
+        return run(command, arguments, environment).map(|text| (0, text));
+    }
+    let session = SESSION
+        .value(environment)
+        .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session"))?;
+    let session = std::str::from_utf8(session)
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
+    let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
+    let mut place = PassPlace::for_session(
+        &home,
+        session,
+        RealDrive { environment: environment.to_vec() },
+        RealArchive { environment: environment.to_vec() },
+    )?;
+    let name = std::str::from_utf8(arguments.first().expect("checked name"))
+        .map_err(|_| refused("recipe name must be UTF-8"))?;
+    let mut output = std::io::stdout().lock();
+    let code = if command == &SETUP {
+        place.setup(name, &mut output)?
+    } else {
+        let file = arguments.get(1).expect("checked file");
+        let bytes = if file.as_ref() == b"-" {
+            let mut bytes = Vec::new();
+            std::io::stdin().read_to_end(&mut bytes).map_err(|why| refused(format!("recipe {name}: stdin: {why}")))?;
+            bytes
+        } else {
+            std::fs::read(Path::new(OsStr::from_bytes(file)))
+                .map_err(|why| refused(format!("recipe {name}: {}: {why}", String::from_utf8_lossy(file))))?
+        };
+        let input = RecipeInput::decode(&bytes)?;
+        let mut git =
+            RealGit { directory: home.configuration.git.directory.clone(), environment: environment.to_vec() };
+        let names = git
+            .entries(&place.pass.build, "temper/docs/development/qa/setups")?
+            .into_iter()
+            .filter(|entry| entry.directory)
+            .map(|entry| entry.name)
+            .collect::<Vec<_>>();
+        place.recipe(name, &input, &names, &mut output)?
+    };
+    Ok((code, String::new()))
 }
 fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
     home.transact(|ledger| {
