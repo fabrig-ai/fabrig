@@ -435,17 +435,7 @@ impl Session {
         }
     }
     fn logs(&self) -> Result<(LogLines, LogLines), String> {
-        let read = |path: PathBuf| -> Result<LogLines, String> {
-            match fs::read(&path) {
-                Ok(bytes) => Ok(bytes
-                    .split_inclusive(|b| *b == b'\n')
-                    .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
-                    .collect()),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
-                Err(error) => Err(format!("{}: {error}", path.display())),
-            }
-        };
-        Ok((read(self.scratch.join("data/box/logs/serve.log"))?, read(self.scratch.join("session/box.log"))?))
+        logs(&self.scratch)
     }
     fn drain(&mut self) {
         self.tui.stop();
@@ -469,3 +459,21 @@ impl Session {
         }
     }
 }
+
+pub(super) fn logs(scratch: &std::path::Path) -> Result<(LogLines, LogLines), String> {
+        let read = |path: PathBuf| -> Result<LogLines, String> {
+            match fs::read(&path) {
+                Ok(bytes) => Ok(bytes
+                    .split_inclusive(|b| *b == b'\n')
+                    .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
+                    .collect()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+                Err(error) => Err(format!("{}: {error}", path.display())),
+            }
+        };
+        let mut logs = read(scratch.join("data/box/logs/serve.log"))?;
+        for name in ["fake-github.log", "fake-forgejo.log"] {
+            logs.extend(read(scratch.join("data/box/logs").join(name))?);
+        }
+        Ok((logs, read(scratch.join("session/box.log"))?))
+    }

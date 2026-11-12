@@ -341,6 +341,44 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     ));
 }
 #[test]
+fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
+    for (line, expected) in [
+        ("temper-box fake forge: state /scratch/data/github-forge.state refused: Domain(Malformed(\"format\"))", 3),
+        ("2026-11-12T01:00:00Z temper-box fake forge: state /scratch/data/forgejo-forge.state refused: image length", 3),
+        ("temper-box fake forge: state /scratch-other/data/forge.state refused: format", 4),
+        ("temper-box fake forge: state /elsewhere/state refused: /scratch/data", 4),
+        ("temper-box fake forge: state /scratch/data/state: cannot write", 4),
+    ] {
+        let (mut m, _) = Machine::start(plan(), Time::ZERO);
+        step(&mut m, exited(Process::Box, 1));
+        step(&mut m, Event::FaceDone(Ok(())));
+        let actions = step(&mut m, Event::Logs { serve: vec![line.as_bytes().into()], box_tail: vec![] });
+        let exit = finish(&actions);
+        assert_eq!(exit.status, expected, "{line}");
+        if expected == 3 {
+            assert_eq!(exit.shown, [format!("refused: {}", String::from_utf8_lossy(strip_log_time(line.as_bytes())))]);
+        }
+    }
+    let scratch = skein_scratch::Scratch::new("drive-forge-refused");
+    let logs = scratch.path().join("data/box/logs");
+    std::fs::create_dir_all(&logs).expect("box logs");
+    for name in ["fake-github.log", "fake-forgejo.log"] {
+        let line = format!("temper-box fake forge: state {}/data/forge.state refused: format", scratch.path().display());
+        std::fs::write(logs.join(name), &line).expect("forge log");
+        let (serve, box_tail) = super::io::logs(scratch.path()).expect("read box logs");
+        let mut p = plan();
+        p.options.scratch = scratch.path().into();
+        let (mut m, _) = Machine::start(p, Time::ZERO);
+        step(&mut m, exited(Process::Box, 1));
+        step(&mut m, Event::FaceDone(Ok(())));
+        let actions = step(&mut m, Event::Logs { serve, box_tail });
+        let exit = finish(&actions);
+        assert_eq!(exit.status, 3);
+        assert_eq!(exit.shown, [format!("refused: {line}")]);
+        std::fs::remove_file(logs.join(name)).expect("remove log");
+    }
+}
+#[test]
 fn ctl_destinations_cannot_escape_scratch() {
     use skein_scratch::Scratch;
     use std::{fs, os::unix::fs::symlink};

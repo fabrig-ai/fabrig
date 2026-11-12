@@ -17,7 +17,9 @@ const BLOB_LISTENER: Token = Token::new(u64::MAX - 1);
 
 mod delivery;
 mod github_delivery;
+mod image;
 mod layer;
+pub use image::Refusal;
 mod observe;
 mod shared;
 

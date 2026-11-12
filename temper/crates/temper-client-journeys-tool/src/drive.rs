@@ -3,7 +3,7 @@ use crate::line::{Line, Record, Web};
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
-use std::path::PathBuf;
+use std::{os::unix::ffi::OsStrExt, path::{Path, PathBuf}};
 mod io;
 mod options;
 mod tui;
@@ -595,7 +595,9 @@ impl Machine {
         let scratch = self.plan.options.scratch.as_os_str().as_encoded_bytes();
         let refusal = serve.iter().find_map(|line| {
             let line = strip_log_time(line);
-            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch) {
+            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch)
+                || forge_state_refused(line, scratch)
+            {
                 Some(String::from_utf8_lossy(line).into_owned())
             } else {
                 None
@@ -643,6 +645,14 @@ fn origin(link: &[u8]) -> Option<Box<[u8]>> {
 }
 fn strip_log_time(line: &[u8]) -> &[u8] {
     if line.get(10) == Some(&b'T') && line.get(19..21) == Some(b"Z ") { line.get(21..).unwrap_or(line) } else { line }
+}
+fn forge_state_refused(line: &[u8], scratch: &[u8]) -> bool {
+    let Some(rest) = line.strip_prefix(b"temper-box fake forge: state ") else { return false };
+    let Some(at) = rest.windows(b" refused: ".len()).position(|part| part == b" refused: ") else { return false };
+    let path = Path::new(std::ffi::OsStr::from_bytes(&rest[..at]));
+    path.starts_with(Path::new(std::ffi::OsStr::from_bytes(scratch)))
+        && path != Path::new(std::ffi::OsStr::from_bytes(scratch))
+        && !path.components().any(|part| part == std::path::Component::ParentDir)
 }
 fn names_scratch(line: &[u8], scratch: &[u8]) -> bool {
     !scratch.is_empty()
