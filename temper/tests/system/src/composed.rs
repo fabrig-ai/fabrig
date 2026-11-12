@@ -1345,7 +1345,7 @@ impl World {
             worker::Request::CancelRelay { run, attempt, call } => {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });
             }
-            worker::Request::Stop => panic!("the worker stops only once shut down"),
+            worker::Request::Stop | worker::Request::Abandon => panic!("the worker stops only once shut down"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
