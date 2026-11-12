@@ -27,14 +27,15 @@ fn shown(lines: Vec<WalkLine>) -> Vec<String> {
 fn forge_steps_walk_before_resets_and_checks_from_fresh_or_copy() {
     let mut files = Files::new();
     put(&mut files, "base", "recipe", b"recipe 1\nweb see \"Base\"\n");
-    put(&mut files, "gate", "recipe", b"recipe 1\nafter \"base\"\nforge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"\nforge checks 1 playground/widget\nweb see \"Green\"\ntui see \"Green\"\n");
+    put(&mut files, "gate", "recipe", b"recipe 1\nafter \"base\"\nforge commit forgejo playground/widget \"gate\" \"a.txt\"\nforge checks forgejo playground/widget\nweb see \"Green\"\ntui see \"Green\"\n");
+    put(&mut files, "gate", "files/a.txt", b"x\n");
     let chain = read(&files, "gate").expect("forge recipe");
     let fresh = [
         "walk: web reload \"/\"",
         "walk: tui stop",
         "base:2 web see \"Base\"",
-        "gate:3 forge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"",
-        "gate:4 forge checks 1 playground/widget",
+        "gate:3 forge commit forgejo playground/widget \"gate\" \"a.txt\"",
+        "gate:4 forge checks forgejo playground/widget",
         "walk: web reload \"/\"",
         "walk: tui stop",
         "gate:5 web see \"Green\"",
@@ -143,12 +144,11 @@ fn b1_plan_commits_exactly_the_twins_gate_before_waiting_on_checks() {
     let recipe = chain.recipes.last().expect("B1 plan");
     assert_eq!(recipe.after.as_deref(), Some("widget"));
     let mut steps = recipe.steps.iter();
-    let Record::Forge(Forge::Commit { forge, repository, message, files }) =
+    let Record::Forge(Forge::Commit { repository, message, paths }) =
         steps.next().expect("gate is the first step").line.record()
     else {
         panic!("B1 starts by committing its gate");
     };
-    assert_eq!(*forge, 1);
     assert_eq!(repository.as_ref(), b"playground/widget");
     assert_eq!(message.as_ref(), b"CI: each pull request adds changes/<its number>.md");
     let fixture: Value = serde_json::from_slice(
@@ -163,20 +163,27 @@ fn b1_plan_commits_exactly_the_twins_gate_before_waiting_on_checks() {
         .expect("widget")["tree"]
         .as_array()
         .expect("widget tree");
-    assert_eq!(files.len(), 2, "exactly the workflow and contributing guide");
+    assert_eq!(
+        paths.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b".forgejo/workflows/ci.yml".as_slice(), b"CONTRIBUTING.md", b".fake-forge/ci"]
+    );
+    assert_eq!(recipe.files.len(), 3);
+    assert_eq!(
+        recipe.files.get(b".fake-forge/ci".as_slice()).expect("CI declaration"),
+        b"pull-file changes/{pull}.md\n"
+    );
     for path in [".forgejo/workflows/ci.yml", "CONTRIBUTING.md"] {
         let entry = tree.iter().find(|entry| entry["path"] == path).expect("gate file in fixture");
-        let (_, content) =
-            files.iter().find(|(name, _)| name.as_ref() == path.as_bytes()).expect("gate file in recipe");
+        let content = recipe.files.get(path.as_bytes()).expect("gate file in recipe");
         assert_eq!(
-            content.as_ref(),
+            content.as_slice(),
             entry["content"].as_str().expect("gate content").as_bytes(),
             "{path} equals the twin's tree"
         );
     }
     assert_eq!(
         steps.next().expect("wait on the gate's checks before requesting work").line.record(),
-        &Record::Forge(Forge::Checks { forge: 1, repository: b"playground/widget".as_slice().into() })
+        &Record::Forge(Forge::Checks { repository: b"playground/widget".as_slice().into() })
     );
 }
 
@@ -314,7 +321,7 @@ fn hash_frames_root_first_bytes_and_excludes_readme() {
     put(&mut files, "root", "scripts.json", b"{}");
     let hash = read(&files, "child").expect("chain").hash();
     // Independently framed SHA-256 vector, not the production list of fields.
-    assert_eq!(hex(hash), "fecb4ec1759344cfd094415c06e5f5d9a1b13525eae3f21539802009888be5a5");
+    assert_eq!(hex(hash), "02c50b7858ce88c7d9487dca8454438358f600beedd6dca6224d54a93b2b6b47");
     put(&mut files, "root", "README.md", b"Reworded.");
     assert_eq!(read(&files, "child").expect("README ignored").hash(), hash);
     let before = files.clone();
@@ -341,7 +348,7 @@ fn finished(actions: Vec<Action>) -> Exit {
 fn walk_stops_on_first_failure_and_ends_before_status_five() {
     let chain = read(&three(), "last").expect("chain");
     let (mut walk, first) = Walk::start(&chain, None).expect("walk");
-    assert!(matches!(first.as_slice(), [Action::Line(bytes)] if bytes.as_ref() == br#"web press button "Start""#));
+    assert!(matches!(first.as_slice(), [Action::Line(line)] if line.line.as_ref() == br#"web press button "Start""#));
     let actions =
         walk.step(Event::Answer(Answer { shown: vec!["a".into(), "b".into()], failed: Some("missing Start".into()) }));
     let [Action::Print(a), Action::Print(b), Action::Print(failed), Action::End] = actions.as_slice() else {
@@ -476,4 +483,123 @@ fn catalogue_sorts_parents_and_continues_after_a_refusal() {
     assert!(lines[0].starts_with("last: refused: last:2: "), "{lines:?}");
     assert_eq!(lines[1], "middle (after project-landing): The middle state!");
     assert_eq!(lines[2], "project-landing: A project.");
+}
+
+fn committing_files(count: usize) -> Files {
+    use std::fmt::Write;
+    let mut files = Files::new();
+    let mut recipe = "recipe 1\n".to_owned();
+    for start in (0..count).step_by(16) {
+        recipe.push_str("forge commit forgejo playground/widget \"files\"");
+        for n in start..(start + 16).min(count) {
+            let path = format!("{n:02}.txt");
+            write!(recipe, " \"{path}\"").expect("recipe field");
+            put(&mut files, "root", &format!("files/{path}"), b"bytes");
+        }
+        recipe.push('\n');
+    }
+    recipe.push_str("web see \"Ready\"\n");
+    put(&mut files, "root", "recipe", recipe.as_bytes());
+    files
+}
+
+#[test]
+fn recipe_files_require_exactly_the_named_regular_files_with_inclusive_bounds() {
+    let mut files = committing_files(64);
+    put(&mut files, "root", "files/00.txt", &vec![b'x'; 65536]);
+    let chain = read(&files, "root").expect("64 files, 64 KiB inclusive");
+    assert_eq!(chain.recipes[0].files.len(), 64);
+    assert_eq!(chain.recipes[0].files[b"00.txt".as_slice()].len(), 65536);
+    for (case, file, expected) in [
+        ("missing", "files/00.txt", "missing"),
+        ("unused", "files/unmentioned.txt", "no forge commit"),
+        ("count", "files/extra.txt", "64 files"),
+        ("large", "files/00.txt", "64 KiB"),
+    ] {
+        let mut files = if case == "unused" { committing_files(1) } else { files.clone() };
+        match case {
+            "missing" => {
+                files.get_mut("root").expect("root").remove(OsStr::new(file));
+            }
+            "unused" | "count" => put(&mut files, "root", file, b"extra"),
+            "large" => put(&mut files, "root", file, &vec![b'x'; 65537]),
+            _ => unreachable!(),
+        }
+        let refusal = read(&files, "root").map(|_| ()).expect_err(case);
+        assert_eq!(refusal.file.as_deref(), Some(file), "{case}: {refusal}");
+        assert!(refusal.why.contains(expected), "{case}: {refusal}");
+    }
+}
+
+#[test]
+fn recipe_files_hash_frames_sorted_paths_and_bytes_after_scripts() {
+    let mut files = committing_files(2);
+    put(&mut files, "child", "recipe", b"recipe 1\nafter \"root\"\nweb see \"Child\"\n");
+    let mut chain = read(&files, "child").expect("chain with parent files");
+    let hash = chain.hash();
+    assert_eq!(hex(hash), "19177e75929c5647896a56acff95b2915436bc8aeda9aa57007657f5fbd4c3c7");
+    chain.recipes[0].files.insert(b"00.txt".as_slice().into(), b"changed".to_vec());
+    assert_ne!(chain.hash(), hash, "a parent's file bytes count");
+    chain.recipes[0].files.insert(b"00.txt".as_slice().into(), b"bytes".to_vec());
+    let bytes = chain.recipes[0].files.remove(b"00.txt".as_slice()).expect("old path");
+    chain.recipes[0].files.insert(b"renamed.txt".as_slice().into(), bytes);
+    assert_ne!(chain.hash(), hash, "path alone counts, without changing recipe bytes");
+}
+
+#[test]
+fn walk_commits_each_recipes_own_files_even_when_paths_are_the_same() {
+    use crate::drive::Action as DriveAction;
+    use crate::drive::tests::forge::{begin, fixture, response, select_files};
+    let scratch = skein_scratch::Scratch::new("walk-recipe-files");
+    let setups = scratch.path();
+    for (name, after, content) in [("root", "", "parent bytes"), ("child", "after \"root\"\n", "child bytes")] {
+        std::fs::create_dir_all(setups.join(name).join("files")).expect("files directory");
+        std::fs::write(
+            setups.join(name).join("recipe"),
+            format!(
+                "recipe 1\n{after}forge commit forgejo playground/widget \"commit\" \"a.txt\"\nweb see \"Ready\"\n"
+            ),
+        )
+        .expect("recipe");
+        std::fs::write(setups.join(name).join("files/a.txt"), content).expect("content");
+    }
+    let chain = Chain::read(setups, "child").expect("chain");
+    let (_session_scratch, mut machine) = fixture();
+    let (mut walk, mut actions) = Walk::start(&chain, None).expect("walk");
+    let mut committed = vec![];
+    loop {
+        match actions.pop().expect("walk action") {
+            Action::Line(line) => {
+                if line.line.starts_with(b"forge commit") {
+                    select_files(&mut machine, line.files(setups));
+                    let actions = begin(&mut machine, std::str::from_utf8(&line.line).expect("line"));
+                    assert!(matches!(actions.as_slice(), [DriveAction::ForgeRequest { .. }]));
+                    let actions = response(
+                        &mut machine,
+                        &actions,
+                        "/repos/playground/widget",
+                        200,
+                        br#"{"default_branch":"main"}"#,
+                        0,
+                    );
+                    let actions = response(
+                        &mut machine,
+                        &actions,
+                        "/repos/playground/widget/contents/a.txt?ref=main",
+                        404,
+                        b"",
+                        0,
+                    );
+                    let [DriveAction::ForgeRequest { body, .. }] = actions.as_slice() else { panic!("POST") };
+                    let body: serde_json::Value = serde_json::from_slice(body).expect("commit JSON");
+                    committed.push(body["files"][0]["content"].as_str().expect("base64 content").to_owned());
+                    machine.step(drive::Event::ForgeFailure("finish fake line".into()), skein_lib::Time::ZERO);
+                }
+                actions = walk.step(Event::Answer(Answer { shown: vec![], failed: None }));
+            }
+            Action::End => break,
+            other => panic!("{other:?}"),
+        }
+    }
+    assert_eq!(committed, ["cGFyZW50IGJ5dGVz", "Y2hpbGQgYnl0ZXM="]);
 }
