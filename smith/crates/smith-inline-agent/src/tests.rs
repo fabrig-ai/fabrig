@@ -122,7 +122,7 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
     while out.pop().is_some() {}
     let turn = smith::session::record::Turn {
         dialect: 1,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
                 system: None,

@@ -17,7 +17,7 @@ pub const LIMITS: Limits = Limits {
     tool_payload: 256,
     read_bytes: 64,
     list_entries: 4,
-    ..smith_domain_tools::fixture::SMALL
+    ..smith_domain_tools_fixtures::SMALL
 };
 
 /// Explicit inspect, modify and shell grants for the memory fixture.

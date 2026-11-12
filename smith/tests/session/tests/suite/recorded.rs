@@ -1276,7 +1276,7 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
         endpoint: Some(llm::Endpoint(7)),
         dialect: 23,
         sequence: 19,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             bytes(b"model"),
             record::Kind::Window(Box::new(record::Opener {
                 system: None,

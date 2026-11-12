@@ -25,7 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    inline::fixture::small(smith_agent_world::LIMITS)
+    smith_inline_agent_fixtures::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.
