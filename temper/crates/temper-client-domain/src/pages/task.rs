@@ -202,10 +202,27 @@ pub enum Shape {
     Agent,
     HeaderAndPlan,
 }
+/// A standing role's composer uses Talk whenever its document supplies that act
+/// (client/pages/task.md, 4), including its refusal rather than falling back to steering.
+#[must_use]
+pub fn talks(task: &c::Task) -> bool {
+    task.flags.ended_by == c::EndedBy::Standing
+        && jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Talk).is_some()
+}
+/// Leave belongs to the reader's open talk and must be admitted by the document.
+#[must_use]
+pub fn can_leave(task: &c::Task, me: Option<&c::Me>) -> bool {
+    super::chat::allowed(task, c::ActKind::Leave)
+        && match (&task.talk, me) {
+            (Some(open), Some(me)) => open.party == me.party.number,
+            (Some(_), None) | (None, Some(_) | None) => false,
+        }
+}
 /// A task page's request kinds, one in flight per kind (client/pages/task.md, 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
     Message,
+    Leave,
     Stop,
     Resume,
     Cancel,
@@ -484,6 +501,7 @@ impl Task {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::LeaveTalk
             | Act::Pause
             | Act::Resume
             | Act::Stop
@@ -631,6 +649,7 @@ impl Task {
             | Act::ChangeProposal { .. }
             | Act::MessageWords { .. }
             | Act::Send
+            | Act::LeaveTalk
             | Act::Pause
             | Act::Resume
             | Act::Stop
@@ -680,7 +699,7 @@ impl Task {
                 if (self.shape == Shape::Agent || self.shape == Shape::Tracked)
                     && task.chip.details.phase != c::ChipPhase::Ended
                     && !self.words.is_empty()
-                    && super::chat::allowed(task, c::ActKind::Message) =>
+                    && super::chat::allowed(task, if talks(task) { c::ActKind::Talk } else { c::ActKind::Message }) =>
             {
                 let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return None };
                 if super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
@@ -689,8 +708,18 @@ impl Task {
                 let Ok(words) = c::Text::new(self.words.clone(), env.limits.client.domain.long_text) else {
                     return None;
                 };
-                c::Ask::Message { project: task.project, task: self.number, words }
+                if talks(task) {
+                    c::Ask::Talk { project: task.project, task: self.number, words }
+                } else {
+                    c::Ask::Message { project: task.project, task: self.number, words }
+                }
             }
+            Sending::Leave
+                if self.shape == Shape::Agent
+                    && can_leave(task, match latest(client, super::me_handle()) {
+                        Some(Latest::Jig(c::Delivery::Me(me))) => Some(me),
+                        Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
+                    }) => c::Ask::Leave { project: task.project, task: self.number },
             Sending::Stop | Sending::Resume => control(task, kind, paused)?,
             Sending::Cancel if super::chat::allowed(task, c::ActKind::Cancel) => c::Ask::Cancel {
                 project: task.project,
@@ -723,7 +752,7 @@ impl Task {
                     reason: c::Text::new(Box::from(*b"Amended from its page"), u32::MAX).expect("page reason fits"),
                 }
             }
-            Sending::Message | Sending::Cancel | Sending::Amend => return None,
+            Sending::Message | Sending::Leave | Sending::Cancel | Sending::Amend => return None,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -732,7 +761,7 @@ impl Task {
         }
         *serial = serial.checked_add(1).expect("task keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
-        if let c::Ask::Message { words, .. } = &ask {
+        if let c::Ask::Message { words, .. } | c::Ask::Talk { words, .. } = &ask {
             let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return None };
             if !self.thread.sending(key, me.party.number, words.clone(), 0) {
                 self.outcome = Some(jig_client::Outcome::Limit);
@@ -756,7 +785,7 @@ impl Task {
     }
     /// Goal outcomes belong to the frame toast (client/pages/task.md, 4).
     pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {
-        if self.shape != Shape::Tracked {
+        if self.shape != Shape::Tracked && self.shape != Shape::Agent {
             return None;
         }
         let Told::Answered { key, outcome } = told else { return None };
@@ -773,13 +802,19 @@ impl Task {
             | jig_client::Outcome::Unsent
             | jig_client::Outcome::Lost => false,
         };
+        if kind == Sending::Leave && done {
+            return Some(super::needs::Toasted::LeftTalk);
+        }
+        if self.shape != Shape::Tracked {
+            return None;
+        }
         match kind {
             Sending::Stop if done => Some(super::needs::Toasted::Paused),
             Sending::Resume if done => Some(super::needs::Toasted::Resumed),
-            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message if !done => {
+            Sending::Leave | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message if !done => {
                 Some(super::needs::Toasted::Refused { outcome: outcome.clone() })
             }
-            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message | Sending::Amend => None,
+            Sending::Leave | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message | Sending::Amend => None,
         }
     }
     fn pending_kind(&self, key: Key) -> Option<Sending> {
@@ -825,7 +860,7 @@ impl Task {
         {
             said = true;
         }
-        if (kind == Some(Sending::Stop) || kind == Some(Sending::Resume))
+        if (kind == Some(Sending::Leave) || kind == Some(Sending::Stop) || kind == Some(Sending::Resume))
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) = &outcome
         {
             said = true;
@@ -1233,6 +1268,6 @@ pub(super) fn control(task: &c::Task, kind: Sending, paused: bool) -> Option<c::
             revision: c::Revision { value: chip_hold(&task.chip)? },
             again: None,
         }),
-        Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => None,
+        Sending::Leave | Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => None,
     }
 }
