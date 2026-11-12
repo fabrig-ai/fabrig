@@ -8,5 +8,3 @@ link exchange. Without `secret`, or at a different route, no link is taken.
 The shell's table covers these cases; cookie fallback remains deferred in
 section 16.
 
-- **Not yet:** 4.1: no `rust-toolchain.toml` pins the toolchain the module
-  builds on [in flight: change 1919].

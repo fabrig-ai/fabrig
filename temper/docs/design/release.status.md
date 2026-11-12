@@ -21,5 +21,3 @@ through their tables, the client's through `line`.
   its start; only `temper-box init` warns of a missing git
   (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
-- **Not yet:** 5.1: `release-macos.yml` installs Rust 1.95 by its `RUST_VERSION`, with
-  the target by its own flag, not what `rust-toolchain.toml` pins [in flight: change 1919].
