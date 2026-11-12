@@ -12,7 +12,10 @@ pub(super) enum Cancellation {
 impl Cancellation {
     pub(super) fn drain(&mut self) -> Result<(), Error> {
         match self {
-            Self::Waiting => { *self = Self::Draining; Ok(()) }
+            Self::Waiting => {
+                *self = Self::Draining;
+                Ok(())
+            }
             Self::Draining | Self::Requested => Err(Error::Order),
         }
     }

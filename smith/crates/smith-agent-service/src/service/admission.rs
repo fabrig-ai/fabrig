@@ -37,7 +37,9 @@ impl Admission {
             Self::Waiting => Self::Admitted { run },
             Self::Cancelled => Self::Owed { run },
             Self::Draining => Self::DrainOwed { run },
-            Self::Owed { .. } | Self::DrainOwed { .. } | Self::Admitted { .. } => unreachable!("one Admitted per Start"),
+            Self::Owed { .. } | Self::DrainOwed { .. } | Self::Admitted { .. } => {
+                unreachable!("one Admitted per Start")
+            }
         };
     }
 }
@@ -61,7 +63,9 @@ pub(super) fn cancel(service: &mut Stages) {
 pub(super) fn drain(service: &mut Stages) {
     service.admission = match service.admission {
         Admission::Waiting => Admission::Draining,
-        state @ (Admission::Cancelled | Admission::Draining | Admission::Owed { .. } | Admission::DrainOwed { .. }) => state,
+        state @ (Admission::Cancelled | Admission::Draining | Admission::Owed { .. } | Admission::DrainOwed { .. }) => {
+            state
+        }
         state @ Admission::Admitted { run } => {
             service.domain_events.push(domain::Event::Drain { run });
             state

@@ -177,7 +177,6 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
     }
 }
 
-
 #[test]
 fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
     use super::super::admission::Admission;
@@ -187,13 +186,21 @@ fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
         channel_event(&mut service.stages, &mut service.frame, channel::Heard::Drain);
         assert_eq!(service.stages.admission, Admission::Draining);
         assert!(service.stages.domain_events.is_empty());
-        if cancel { channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel); }
+        if cancel {
+            channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel);
+        }
         service.stages.admission.admit(run);
         domain_down(&mut service.stages, Some(&mut service.frame));
         let event = service.stages.domain_events.pop().expect("held control delivered");
         match event {
-            domain::Event::Cancel { run: owner } => { assert!(cancel); assert_eq!(owner, run); }
-            domain::Event::Drain { run: owner } => { assert!(!cancel); assert_eq!(owner, run); }
+            domain::Event::Cancel { run: owner } => {
+                assert!(cancel);
+                assert_eq!(owner, run);
+            }
+            domain::Event::Drain { run: owner } => {
+                assert!(!cancel);
+                assert_eq!(owner, run);
+            }
             other => panic!("held control, got {other:?}"),
         }
         domain_down(&mut service.stages, Some(&mut service.frame));

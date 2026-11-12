@@ -239,8 +239,12 @@ fn from_parent(
                         agent.outbox.push(Down::Drain);
                     }
                 }
-                State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. }
-                | State::Terminating { .. } | State::Killing | State::Closed => {}
+                State::Cancelled { .. }
+                | State::Draining { .. }
+                | State::Exiting { .. }
+                | State::Terminating { .. }
+                | State::Killing
+                | State::Closed => {}
             }
             token
         }
@@ -549,7 +553,8 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Message { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
-            | Down::Cancel | Down::Drain) => old,
+            | Down::Cancel
+            | Down::Drain) => old,
         };
         agent.outbox.push(next);
     }

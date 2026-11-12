@@ -1107,9 +1107,10 @@ impl World {
         match event {
             run::Event::HostReturned { relay, .. } => self.relays.owners.get(&relay.owner).copied(),
             run::Event::Start { .. } => None,
-            run::Event::Cancel { run } | run::Event::Drain { run } | run::Event::Acknowledge { run, .. } | run::Event::Message { run, .. } => {
-                Some(*run)
-            }
+            run::Event::Cancel { run }
+            | run::Event::Drain { run }
+            | run::Event::Acknowledge { run, .. }
+            | run::Event::Message { run, .. } => Some(*run),
             run::Event::Read { owner, .. } | run::Event::Probed { owner, .. } => Some(*owner),
             run::Event::JobsCancelled { conversation }
             | run::Event::Started { conversation, .. }
@@ -1398,7 +1399,9 @@ impl World {
                     self.stats.starts += 1;
                     self.send(Lane::Agent, Delivery::Start { reply_to, host_run, charter, workspace });
                 }
-                event @ (run::Event::Message { .. } | run::Event::Drain { .. }) => self.send(Lane::Agent, Delivery::Host(event)),
+                event @ (run::Event::Message { .. } | run::Event::Drain { .. }) => {
+                    self.send(Lane::Agent, Delivery::Host(event))
+                }
                 run::Event::Cancel { run } => {
                     self.stats.cancels += 1;
                     self.send(Lane::Agent, Delivery::Cancel { run });

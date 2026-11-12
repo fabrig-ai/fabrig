@@ -103,8 +103,13 @@ fn yielded_working(
         if replied && run.charter.waiting == Duration::ZERO {
             yielded_parked(run, conversations, yielding, out)
         } else {
-            wind_down(conversations, yielding.reply_to, yielding.main,
-                Ending::Failed(crate::RunFailure::Cancelled), out)
+            wind_down(
+                conversations,
+                yielding.reply_to,
+                yielding.main,
+                Ending::Failed(crate::RunFailure::Cancelled),
+                out,
+            )
         }
     } else if run.wind_down.is_some() {
         yielded_finishing(run, conversations, yielding, env, out)

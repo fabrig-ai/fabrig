@@ -1404,7 +1404,8 @@ mod read_tests {
             world.host_cancels();
             world.settle();
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
-            let record = smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            let record =
+                smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
             inject_agent(&mut world, smith_channel::Body::Drain(record));
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
             assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
@@ -1415,11 +1416,11 @@ mod read_tests {
     fn a_second_wire_drain_is_a_rule_fault() {
         let mut world = World::started();
         for _ in 0..2 {
-            let record = smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            let record =
+                smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
             inject_agent(&mut world, smith_channel::Body::Drain(record));
         }
         assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
         assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
     }
-
 }

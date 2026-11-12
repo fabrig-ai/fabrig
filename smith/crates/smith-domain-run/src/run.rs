@@ -553,7 +553,9 @@ pub(crate) fn turn(
 /// A child or a run that did not drain retains its own closing path.
 pub fn close_drained(domain: &mut Domain, conversation: Token, now: Time, out: &mut Queue<Request>) {
     let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return };
-    if conversation.asker.is_some() { return; }
+    if conversation.asker.is_some() {
+        return;
+    }
     let id = conversation.run;
     let run = domain.runs.get(id).expect("conversation retains its run");
     if run.draining && !run.main_turn_pending {
@@ -658,9 +660,14 @@ pub(crate) fn drain(domain: &mut Domain, token: Token, out: &mut Queue<Request>)
     let Some(run) = domain.runs.get_mut(Id::from_token(token)) else { return };
     match run.state {
         State::Working { .. } if run.main_turn_pending => run.draining = true,
-        State::Preparing { .. } | State::Awaiting { .. } | State::Stopping { .. }
-        | State::Working { .. } | State::Listening { .. } | State::Waiting { .. }
-        | State::Winding { .. } | State::Closed => cancel(domain, token, out),
+        State::Preparing { .. }
+        | State::Awaiting { .. }
+        | State::Stopping { .. }
+        | State::Working { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Closed => cancel(domain, token, out),
     }
 }
 

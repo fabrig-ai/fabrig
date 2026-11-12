@@ -181,7 +181,8 @@ impl Timing {
                     host::Down::Answer { .. }
                     | host::Down::Acknowledge { .. }
                     | host::Down::Grant { .. }
-                    | host::Down::Cancel | host::Down::Drain,
+                    | host::Down::Cancel
+                    | host::Down::Drain,
                 ..
             } => {}
         }

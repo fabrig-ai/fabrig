@@ -827,7 +827,8 @@ impl Worker {
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
-            | smith::Down::Cancel | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Cancel
+            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1160,7 +1161,8 @@ fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith:
         | smith::Down::Message { .. }
         | smith::Down::Answer { .. }
         | smith::Down::Acknowledge { .. }
-        | smith::Down::Cancel | smith::Down::Drain) => other,
+        | smith::Down::Cancel
+        | smith::Down::Drain) => other,
     }
 }
 
