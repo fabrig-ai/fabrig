@@ -886,10 +886,23 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
         way.name = b"Draft first".as_slice().into();
         let role = w::WayRole::new(&w::CEILINGS, w::WayRoleParts { charter: 14, words: WORDS.into(), budget: 25_000, running }).unwrap();
         way.roles = List::from_boxed(Box::new([role]));
+        let triager = br#"{"owner":{"charter":14}}"#;
+        let mut items = List::with_capacity(3);
+        for item in &way.items { items.push(item.clone()).unwrap(); }
+        items.push(w::ProposalItem::new(&w::CEILINGS, w::ProposalItemParts {
+            kind: 13, scope: f::PROJECT, number: 1,
+            edit: w::SettingEdit::Set(w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: triager.as_slice().into() }).unwrap()),
+        }).unwrap()).unwrap();
+        way.items = items;
         *parts.ways.get_mut(1).unwrap() = w::StockWay::new(&w::CEILINGS, way).unwrap();
         show(&mut f, &w::WaysPanel::new(&w::CEILINGS, parts).unwrap());
         let (key, settings) = use_way(&mut f);
-        assert_eq!(settings.items, way_items(None), "settings precede any role request");
+        let mut expected_items = way_items(None);
+        expected_items.push(c::SettingItem {
+            setting: c::Setting::Application { kind: 13, scope: f::PROJECT, number: 1 },
+            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(triager.as_slice().into()) }),
+        }).unwrap();
+        assert_eq!(settings.items, expected_items, "settings precede any role request");
         let out = answer(&mut f, key, c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: NEXT })));
         let mut sent = List::uncapped();
         for request in &out {
