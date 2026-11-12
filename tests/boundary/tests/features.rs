@@ -2,7 +2,8 @@
 //! Each of the three fixed contexts includes dev-dependencies and every occurrence,
 //! including the host's build scripts and procedural macros. Members inherit one
 //! request per entry; rustls's two entries are named only on their platforms.
-//! There are no exceptions. Unreadable metadata, tree output or packages fail.
+//! Cargo's root settings unify the workspace, including crates below ours.
+//! There are no exceptions. Unreadable metadata, tree output, packages or config fail.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::{Command, Stdio};
@@ -264,6 +265,54 @@ fn findings(context: &str, metadata: &Metadata, occurrences: &[Occurrence]) -> V
         }
     }
     result.into_iter().collect()
+}
+
+fn settings_findings(text: &str) -> Vec<String> {
+    let mut table = "";
+    let mut settings = BTreeSet::new();
+    for line in text.lines() {
+        let line = line.split('#').next().expect("a split has at least one part").trim();
+        if line.starts_with('[') {
+            table = line;
+        } else if let Some((key, value)) = line.split_once('=')
+            && key.trim() == "feature-unification"
+        {
+            settings.insert((table, value.trim()));
+        }
+    }
+    [("[unstable]", "true"), ("[resolver]", "\"workspace\"")]
+        .into_iter()
+        .filter(|setting| !settings.contains(setting))
+        .map(|(table, value)| format!(".cargo/config.toml: missing {table} feature-unification = {value}"))
+        .collect()
+}
+
+#[test]
+fn settings_require_both_values_in_their_own_tables() {
+    let unstable = ".cargo/config.toml: missing [unstable] feature-unification = true";
+    let resolver = ".cargo/config.toml: missing [resolver] feature-unification = \"workspace\"";
+    for (text, expected) in [
+        (
+            "# workspace unification\n\n [unstable] # nightly\n feature-unification = true # enabled\n[resolver]\nfeature-unification = \"workspace\"\n",
+            vec![],
+        ),
+        ("[unstable]\n[resolver]\nfeature-unification = \"workspace\"\n", vec![unstable]),
+        ("[unstable]\nfeature-unification = true\n[resolver]\nfeature-unification = \"selected\"\n", vec![resolver]),
+        ("[other]\nfeature-unification = true\n[resolver]\nfeature-unification = \"workspace\"\n", vec![unstable]),
+        ("[unstable]\nfeature-unification = true\n[other]\nfeature-unification = \"workspace\"\n", vec![resolver]),
+        ("[unstable]\n# feature-unification = true\n[resolver]\nfeature-unification = \"workspace\"\n", vec![unstable]),
+        ("[unstable]\nfeature-unification = true\n[resolver]\n# feature-unification = \"workspace\"\n", vec![resolver]),
+    ] {
+        assert_eq!(settings_findings(text), expected, "{text}");
+    }
+}
+
+#[test]
+fn workspace_settings_unify_every_member() {
+    let path = skein_scratch::paths::workspace().join(".cargo/config.toml");
+    let text = std::fs::read_to_string(&path).expect("read workspace .cargo/config.toml");
+    let failures = settings_findings(&text);
+    assert!(failures.is_empty(), "Feature settings findings:\n{}", failures.join("\n"));
 }
 
 fn cargo(args: &[&str]) -> Result<String, String> {

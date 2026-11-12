@@ -110,10 +110,7 @@ fn commands_keep_jobserver_and_remove_outer_flags() {
         assert_eq!(command.remove, ["CARGO_ENCODED_RUSTFLAGS", "RUSTFLAGS", "RUSTC_WORKSPACE_WRAPPER", "CLIPPY_ARGS"]);
         assert_eq!(
             command.set,
-            [
-                ("CARGO_TARGET_DIR", "/target/bundle".into()),
-                ("CARGO_RESOLVER_FEATURE_UNIFICATION", "selected".into()),
-            ]
+            [("CARGO_TARGET_DIR", "/target/bundle".into()), ("CARGO_RESOLVER_FEATURE_UNIFICATION", "selected".into()),]
         );
     }
     assert_eq!(commands[2].remove.len(), 0);
