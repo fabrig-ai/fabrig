@@ -4,7 +4,7 @@ Kind: reference
 
 Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
 
-Each section is a JSON object shape; each bullet a member, its type, bound and effect on work. A settings file is `file`. Read `settings show KIND N`, edit, and set the whole value. Ctl sends these bounds; the deployment may refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
+Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
 
 ## file
 
@@ -17,7 +17,7 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words` or `follow`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
