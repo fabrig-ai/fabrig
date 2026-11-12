@@ -118,8 +118,8 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   under `generations/` to open, and start again."
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
-  the first release, which records no patch levels, and this start has
-  changed nothing in it. A store from before the first release is not
+  the baseline, the first build whose stores later builds upgrade, and this
+  start has changed nothing in it. A store from before the baseline is not
   translated, so every start refuses this one until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
@@ -612,6 +612,22 @@ deployment's lock as a start does (1, step 1).
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   removed as it ends.
+- **Every record decoded** in a rehearsal, after the copy and before
+  the plan, whether or not a pending patch changes its family (the
+  user's words of 2026-11-11): each family of each set, at the version `A`
+  holds it (its owner's level in `A`'s row, 0 by `BASELINE` (`records.md`,
+  3), and the family's kept version at that level, from its first kept
+  version through the set's patches' blocks), is walked over its
+  ranges of `A`'s maps (3, `Keys`), each record decoded as a generic
+  value of that version's kept text from its range's root; a family of
+  frames, each frame of each transcript from its frames' root. A start
+  never does it: its patches decode what they change, and its codecs
+  the rest as read. The first record that does not decode ends the
+  rehearsal there, with `Event::Undecodable` naming its family, version
+  and place, and the plan does not run; all decoding, `Event::Decoded`
+  with the count, and the plan runs. An owner whose level the binary
+  does not know (ahead, unleveled) is not walked: the plan's refusal
+  says why.
 - **Going back** (`Store::back`, over the deployment's directory): once
   a patched generation is active, its previous one, `A`, stays on disk
   (`README.md`, section 2), and `active` may name it again until `A + 1`'s first
@@ -632,6 +648,9 @@ deployment's lock as a start does (1, step 1).
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written
 Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool }           // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
+Event::Decoded { owner: Token, records: u64 }                                              // every record of A decoded; the plan runs
+Event::Undecodable { owner: Token, family: Box<str>, version: u32, at: Undecoded }          // the rehearsal's last event but `Closed`
+pub enum Undecoded { Record { map: KeptMap, key: Box<[u8]> }, Frame { transcript: Box<str>, offset: u64 } }
 Request::Back { owner: Token, root: Root }
 pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 }, Unreadable }
 Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`

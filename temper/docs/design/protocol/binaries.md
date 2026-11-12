@@ -198,7 +198,14 @@ default; the document is `temper.json` in the configuration directory
   never writes: it works in a scratch copy under the cache directory,
   with the configuration `temper-box serve` would read; the open patches
   and checks as a start would, restores, and stops before its switch
-  step. It prints a line per patch with its counts and time, the time
+  step. Before its plan it decodes every record of every kept family
+  by its version's kept text, patched or not (jig's
+  `protocol/store/opening.md`, 5, "Every record decoded"); the first
+  that does not decode is printed, `record not decodable: {family}
+  {version}, {map} key {hex}` (a frame: `{family} {version},
+  transcript {name} at {offset}`), and the rehearsal ends there, exit
+  1; else `decoded {records} records`. It prints a line per patch with
+  its counts and time, the time
   of the whole, and the refusal a start would meet, in a start's words,
   or that the patches and the restores pass, saying that what follows
   the switch is not rehearsed; then whether the workers may stay: yes

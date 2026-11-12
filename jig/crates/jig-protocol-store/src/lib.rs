@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+mod baseline;
 
 #[path = "../patches/mod.rs"]
 pub mod patches;
