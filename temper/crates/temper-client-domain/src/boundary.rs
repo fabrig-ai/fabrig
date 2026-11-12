@@ -6,9 +6,14 @@ use skein_lib::List;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     Approve(crate::approve::Act),
-    Copy { words: Box<[u8]> },
+    Copy {
+        words: Box<[u8]>,
+    },
     /// The end of a login in the TUI's terminal (client/tui/box.md, Lending its terminal).
-    LoginEnded { number: u32, exit: jig_client::contract::LoginExit },
+    LoginEnded {
+        number: u32,
+        exit: jig_client::contract::LoginExit,
+    },
     Forge(crate::forge::Act),
     Pages(crate::pages::Act),
 }
@@ -21,7 +26,9 @@ pub enum Event {
     /// The TUI's reads across projects (client/tui/pages/launchpad.md, 2).
     Launchpad,
     /// Offer the terminal once, keeping its watch for the client's lifetime.
-    Lends { terminal: u64 },
+    Lends {
+        terminal: u64,
+    },
     /// The browser left full screen, whoever left it (client/pages/README.md).
     ScreenLeft,
     /// At start, the kept store’s look (client/pages/README.md).

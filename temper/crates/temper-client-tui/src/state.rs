@@ -104,7 +104,10 @@ pub enum Notice {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
-    Lending { number: u32, name: Box<[u8]> },
+    Lending {
+        number: u32,
+        name: Box<[u8]>,
+    },
     Unlend,
     Lent,
     Walk {

@@ -36,6 +36,7 @@ pub(crate) struct StepLine {
     pub words: Box<[u8]>,
     pub style: Style,
     pub detail: Option<Box<[u8]>>,
+    pub detail_style: Style,
 }
 
 pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
@@ -170,7 +171,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
                 } else {
                     look::STEP_AHEAD
                 },
-                detail: if number == 2 && mark.current {
+                detail_style: if number == 3 { look::STEP_DONE } else { look::STEP_NOW },
+                detail: if number == 2 {
                     forge_underway(root, words)
                 } else if number == 3 && mark.ticked {
                     model_detail(root, words)
@@ -288,7 +290,9 @@ fn after(b: &mut Builder, part: &Welcome, words: &Words) {
         b.open(Role::Item);
         b.style(step.style);
         b.text(Run::Plain, &step.words);
-        if let Some(detail) = &step.detail {
+        if step.style == step.detail_style
+            && let Some(detail) = &step.detail
+        {
             b.open(Role::Text);
             b.style(look::HINT);
             b.run(Run::Plain, &words.say(Word::Separator, &[]));

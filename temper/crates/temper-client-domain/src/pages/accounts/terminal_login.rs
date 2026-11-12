@@ -5,11 +5,14 @@ use alloc::boxed::Box;
 use jig_client::{Handle, Latest, State, contract as c};
 use skein_lib::{Env, Queue};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Terminal {
     handle: Option<Handle>,
 }
 impl Terminal {
+    pub(crate) const fn new() -> Self {
+        Self { handle: None }
+    }
     pub(crate) fn login<'a>(&self, client: &'a jig_client::Client) -> Option<&'a c::TerminalLogin> {
         let document = client.document(self.handle?)?;
         if document.state != State::Live {
@@ -26,18 +29,27 @@ pub(crate) fn offer(root: &mut Domain, env: &Env<Limits>, terminal: u64, out: &m
     // Accounts occupies MAX; both global watches stand outside increasing page handles.
     let handle = Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(1).expect("global handle") };
     root.terminal.handle = Some(handle);
-    route::client(root, env, jig_client::Event::Watch { handle, subject: jig_client::Watchable::Jig(c::Subject::Terminal { terminal }) }, out);
+    route::client(
+        root,
+        env,
+        jig_client::Event::Watch { handle, subject: jig_client::Watchable::Jig(c::Subject::Terminal { terminal }) },
+        out,
+    );
 }
 pub(crate) fn ended(root: &mut Domain, env: &Env<Limits>, number: u32, exit: c::LoginExit, out: &mut Queue<Request>) {
-    let name = crate::pages::account_request_name(root.pages.serial);
     root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
     let key = jig_client::Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    route::client(root, env, jig_client::Event::Send {
-        key,
-        name: Some(name),
-        request: jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AskAccountHolder::Own,
-            change: c::AccountChange::LoginEnded { number, exit },
-        })),
-    }, out);
+    route::client(
+        root,
+        env,
+        jig_client::Event::Send {
+            key,
+            name: None,
+            request: jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+                holder: c::AskAccountHolder::Own,
+                change: c::AccountChange::LoginEnded { number, exit },
+            })),
+        },
+        out,
+    );
 }
