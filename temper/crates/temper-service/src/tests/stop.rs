@@ -73,6 +73,19 @@ fn refused(why: OpenRefusal) {
     );
     assert_eq!(service.end(), Some(&End::Stopped(expected)), "{why:?}");
 }
+
+#[test]
+fn a_corrupt_open_stops_before_any_root_load_exists() {
+    let mut settings = fixtures::engine();
+    fixtures::fill_files(&mut settings);
+    let mut service =
+        crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).expect("unopened engine");
+    let engine = service.engine.as_mut().expect("engine");
+    assert!(!engine.store.opened);
+    engine.store.host.above.push(jig_protocol_store::Event::Corrupt { owner: skein_lib::Token::new(1) });
+    crate::engine::iterate(engine, skein_lib::Time::from_nanos(1), skein_lib::Wall::EPOCH);
+    assert_eq!(service.end(), Some(&End::Stopped(Stop::StoreOpen { why: OpenRefusal::Failed })));
+}
 fn version(family: Family) {
     let current =
         jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, fixtures::seeds().deployment);

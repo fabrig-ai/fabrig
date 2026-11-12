@@ -1,5 +1,13 @@
 //! Baseline owner admission, coverage and the application's mark-only fixture.
 #[test]
+fn prebaseline_rehearsals_without_wires_report_the_older_layout() {
+    temper_one_process_world::upgrade::check::prebaseline_rehearsals();
+}
+#[test]
+fn a_corrupt_store_open_reaches_a_report_and_empties_scratch() {
+    temper_one_process_world::upgrade::check::corrupt_open_rehearsal();
+}
+#[test]
 fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit() {
     temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
 }

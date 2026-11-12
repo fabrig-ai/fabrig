@@ -11,6 +11,7 @@ pub struct Report {
     pub end: Option<End>,
     pub restored: bool,
     pub done: bool,
+    pub open_failure: Option<jig_protocol_store::restore::OpenFailure>,
 }
 
 #[expect(
@@ -35,6 +36,7 @@ impl State {
                 end: None,
                 restored: false,
                 done: false,
+                open_failure: None,
             },
             rehearsal,
             began: None,
