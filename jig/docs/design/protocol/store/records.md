@@ -299,7 +299,12 @@ settings (decided 2026-11-03).
       store's jig level: `BASELINE`'s, moved by each block of jig's
       patches up to that level (jig's patch 1 moves `tasks` 9 to 10 and
       `settings` 1 to 2, temper's `protocol/baseline.md`, 9); a family
-      no patch up to that level moves keeps `BASELINE`'s. Another
+      the set names that no patch up to that level moves keeps
+      `BASELINE`'s. A family jig's set names nowhere, which only a
+      test's set owning jig with families of its own leaves out, no
+      patch of that set can move: its version must be the binary's, as
+      at equal levels. Jig's real set names every family `BASELINE`
+      lists, so a real store at jig level 0 holds `BASELINE`'s. Another
       version refuses `Format` naming the family, the version found and
       the version at that level. Jig's patches rewrite each to the
       binary's in the sealing commit; the layouts are not compared here,
