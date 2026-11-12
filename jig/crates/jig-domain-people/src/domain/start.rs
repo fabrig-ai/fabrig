@@ -87,7 +87,10 @@ impl Domain {
             match answer.outcome.family() {
                 OutcomeFamily::ServiceMade(person) => link(self, &mut missing, source, person),
                 OutcomeFamily::RolesSet(project) => {
-                    if !self.roles.contains_key(&project) && missing.is_none() {
+                    // Until its own rows go, an answer links to the kept deletion
+                    // (jig/docs/design/domain/people/acts.md, 2).
+                    if !self.roles.contains_key(&project) && !self.deletions.contains_key(&project) && missing.is_none()
+                    {
                         missing = Some(RestoreFailure {
                             key: source,
                             cause: crate::RestoreCause::Link { target: Key::Roles(project) },

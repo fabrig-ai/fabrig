@@ -546,6 +546,76 @@ fn a_deleted_projects_chat_finishes_within_the_deletions_grace() {
     assert!(!final_rows(&world).contains_key(&deletion()));
 }
 
+#[test]
+fn a_roles_answer_survives_restart_during_deletion_then_is_forgotten() {
+    const MEMBER: u64 = 8;
+    const SET_ROLES: u8 = 90;
+    let (config, limits) = configuration(SEED);
+    let initial = profile_fixtures::create_chat(
+        &profile_fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        PROJECT,
+        0,
+        b"live conversation".as_slice().into(),
+    );
+    let mut rows = account_rows(&config).into_vec();
+    rows.push(root::Record::Core(core::Record::People(people::Stored::Person {
+        number: MEMBER,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 1, subject: b"member".as_slice().into() },
+            login: b"member".as_slice().into(),
+            name: b"Member".as_slice().into(),
+        },
+    })));
+    let mut world = World::new(Setup {
+        seed: SEED,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows.into_boxed_slice()),
+        ..Setup::default()
+    });
+    let chat = world.task();
+    let ask = people::Ask::SetRoles {
+        project: PROJECT,
+        holdings: Box::new([
+            people::Holding { person: PARTY, role: people::Role::Owner },
+            people::Holding { person: MEMBER, role: people::Role::Member },
+        ]),
+    };
+    request(&mut world, SET_ROLES, ask.clone());
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::RolesSet { project: PROJECT }))
+    );
+    let answer = root::Key::Core(core::Key::People(people::Key::Answer(people::RequestKey {
+        person: PARTY,
+        key: [SET_ROLES; 16],
+    })));
+    act(&mut world, 89, people::Act::Close { project: PROJECT, task: chat, grace: Some(GRACE), reason: Box::new([]) });
+    assert!(live_row(&world, chat).grace.is_some());
+    // The deployment can remove the project while its conversation is still live.
+    remove_graced(&mut world);
+    removed(&world);
+    assert!(matches!(
+        world.store.rows.get(&deletion()),
+        Some(root::Record::Core(core::Record::People(people::Stored::Deletion {
+            step: people::DeletionStep::Tasks,
+            ..
+        })))
+    ));
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Roles(PROJECT)))));
+    assert!(world.store.rows.contains_key(&answer));
+    restart_world(&mut world);
+    assert_eq!(world.domain.start_failure(), None, "a retained answer links to the deletion");
+    world.advance(GRACE);
+    finish(&mut world);
+    assert!(world.domain.ready());
+    assert!(!world.store.rows.contains_key(&answer), "own-rows cleanup forgets the roles answer");
+    assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new());
+    request(&mut world, SET_ROLES, ask);
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Refused(people::Refusal::Unknown)));
+}
+
 /// The uncut run's first and last commit of the deletion, and its final rows.
 pub(crate) fn uncut_deletion() -> (u64, u64, BTreeMap<root::Key, root::Record>) {
     let mut uncut = deleted_world(SEED);
