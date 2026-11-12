@@ -1697,9 +1697,6 @@ dependencies = [
 [[package]]
 name = "jig-ops-domain-connectors"
 version = "0.0.0"
-dependencies = [
- "skein-lib",
-]
 
 [[package]]
 name = "jig-ops-domain-infrastructure"
@@ -3674,7 +3671,6 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-fake-oauth",
- "skein-fake-peers",
  "skein-heap",
  "skein-http",
  "skein-io",
@@ -3684,7 +3680,6 @@ dependencies = [
  "skein-oauth",
  "skein-scratch",
  "skein-sim",
- "skein-world",
 ]
 
 [[package]]
@@ -3707,7 +3702,6 @@ dependencies = [
 name = "skein-playground-world"
 version = "0.0.0"
 dependencies = [
- "skein-fail-stop",
  "skein-heap",
  "skein-http",
  "skein-io",
@@ -5069,7 +5063,6 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-world",
- "smith-domain",
  "smith-domain-session",
  "smith-domain-session-fixtures",
  "smith-domain-tools",
