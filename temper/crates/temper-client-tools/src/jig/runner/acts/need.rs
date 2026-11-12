@@ -2,6 +2,7 @@
 use super::{Call, Failed, Limits, Prepared, Request, c, number, value, words};
 use crate::jig::{call::{Value, Values}, render::Text};
 use skein_lib::List;
+use alloc::boxed::Box;
 
 pub(super) fn ask(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
@@ -19,7 +20,7 @@ pub(super) fn ask(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     for (index, choice) in choices.iter().enumerate() {
         let Value::Text(choice) = choice else { return Err(Failed::Fixed(b"choice must be text")) };
         let code = u32::try_from(index).expect("six choices").checked_add(1).expect("choice code");
-        let choice = c::Text::new(choice.clone(), limits.words).ok_or(Failed::Fixed(b"choice past words bound"))?;
+        let choice = c::Text::new(choice.clone(), limits.words).or(Err(Failed::Fixed(b"choice past words bound")))?;
         if choice.bytes().is_empty() { return Err(Failed::Fixed(b"choice must not be empty")); }
         parameters.push(c::Parameter::Bytes { name: code, value: choice }).expect("six choices");
         verdicts.push(c::VerdictChoice { code, words: limits.words, followups: 0, fields: List::with_capacity(0) }).expect("six choices");
@@ -30,7 +31,7 @@ pub(super) fn ask(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     spec(&question, &why, &mut measure);
     let mut text = Text::writing_exact(measure);
     spec(&question, &why, &mut text);
-    let words = c::Text::new(text.finish(), limits.words).ok_or(Failed::Fixed(b"question and why past words bound"))?;
+    let words = c::Text::new(text.finish(), limits.words).or(Err(Failed::Fixed(b"question and why past words bound")))?;
     let address = match number(call, 1) {
         Some(party) => c::PersonAddress::Party(party),
         None => c::PersonAddress::Role(u32::try_from(number(call, 2).unwrap_or(0)).expect("role fits")),
@@ -47,7 +48,7 @@ pub(super) fn ask(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         flags: c::TaskFlags { conversation: false, listed: true, retention: c::Retention::Kept, ended_by: c::EndedBy::Result },
         llm: None,
     };
-    Ok((Request::Ask(c::Ask::Create { project, tasks: List::from_boxed(alloc::boxed::Box::new([task])) }), None))
+    Ok((Request::Ask(c::Ask::Create { project, tasks: List::from_boxed(Box::new([task])) }), None))
 }
 fn spec(question: &c::Text, why: &c::Text, out: &mut Text) {
     out.put(question.bytes()); out.put(b"\n\nWhy: "); out.put(why.bytes());

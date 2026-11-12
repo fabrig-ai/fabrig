@@ -8,6 +8,7 @@ mod amend;
 mod change;
 mod demo;
 mod forge;
+mod finding;
 mod forges;
 pub mod jig;
 pub mod key;
