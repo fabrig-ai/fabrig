@@ -5625,8 +5625,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
     assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
+    assert!(person.contains("role=\"menuitem\">Telling you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
-    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 4);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()
