@@ -42,6 +42,8 @@ pub enum Subject {
     Deployment,
     /// The signed-in party's accounts.
     Accounts,
+    /// A terminal offered for a program's login (domain/terminal-login.md, 5).
+    Terminal { terminal: u64 },
 }
 
 /// A whole current watch value, except the run text stream.
@@ -72,6 +74,7 @@ pub enum Delivery {
     Deployment(Box<super::Deployment>),
     /// Whole party account facts.
     Accounts(Box<super::Accounts>),
+    Terminal(Box<super::Terminal>),
 }
 
 /// Current owner run state; absent writing does not assert a call ended.

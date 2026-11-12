@@ -388,6 +388,7 @@ record OutcomeAccountSignInStarted { source: u32 address: bytes 2048 }
 enum AccountHostWhy { not_in_contact, lost, failed }
 record AccountHostFailure { name: bytes 4096 why: AccountHostWhy }
 record OutcomeAccountProgramDeclared { source: u32 name: bytes 32 }
+record OutcomeAccountLoginAsked { number: u32 }
 record OutcomeAccountSignedOut { confirmed: bool failed_hosts: list 128 AccountHostFailure }
 record OutcomeAccountKeyKept { source: u32 }
 record OutcomeAccountRemoved { confirmed: bool failed_hosts: list 128 AccountHostFailure }
@@ -398,7 +399,7 @@ record OutcomeProjectRemoved { project: u32 }
 record OutcomeAccountMovedIn { account: u32 renewed: bool }
 record OutcomeAccountFinishing { source: u32 }
 record OutcomeLifted { hold: u64 released: u32 }
-enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet, left: OutcomeStopped }
+enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet, left: OutcomeStopped, account_login_asked: OutcomeAccountLoginAsked }
 record MadeTasks { tasks: list 32 u64 }
 record MadeService { party: u64 credential: secret 40 }
 record MadePersonResult { task: u64 }
@@ -797,7 +798,8 @@ record SubjectChips { tasks: list 32 u64 }
 record SubjectInbox { window: u32 }
 record SubjectTasks { query: TaskQuery window: u32 }
 record SubjectRun { task: u64 turn: option ProvisionalTurnName offset: u32 }
-enum Subject { me, task: SubjectTask, tree: SubjectTree, chips: SubjectChips, inbox: SubjectInbox, tasks: SubjectTasks, run: SubjectRun, deployment, accounts, settings }
+record SubjectTerminal { terminal: u64 }
+enum Subject { me, task: SubjectTask, tree: SubjectTree, chips: SubjectChips, inbox: SubjectInbox, tasks: SubjectTasks, run: SubjectRun, deployment, accounts, settings, terminal: SubjectTerminal }
 record StoreFill { bytes: u64 mark: u64 }
 record Capacity { used: u32 limit: u32 }
 record ProjectCapacity { project: u32 tasks: Capacity proposals: u32 }
@@ -919,7 +921,13 @@ record AccountChangeMoveOut { account: u32 }
 record AccountChangeWritten { number: u32 }
 record AccountChangeMoveIn { digest: fixed 32 }
 record AccountChangeFinishSignIn { source: u32 digest: fixed 32 }
-enum AccountChange { add_key: AccountChangeAddKey, replace_key: AccountChangeReplaceKey, remove_key: AccountChangeRemoveKey, resume: AccountChangeResume, remove: AccountChangeRemove, move_account: AccountChangeMoveAccount, move_source: AccountChangeMoveSource, set_uses: AccountChangeSetUses, declare_program: AccountChangeDeclareProgram, check_program: AccountChangeCheckProgram, move_out: AccountChangeMoveOut, written: AccountChangeWritten, move_in: AccountChangeMoveIn, finish_sign_in: AccountChangeFinishSignIn }
+record LoginExitExited { code: u8 }
+record LoginExitKilled { signal: u8 }
+enum LoginExit { exited: LoginExitExited, killed: LoginExitKilled, not_started }
+record AccountChangeLoginProgram { provider: u32 name: bytes 32 }
+record AccountChangeCancelLogin { number: u32 }
+record AccountChangeLoginEnded { number: u32 exit: LoginExit }
+enum AccountChange { add_key: AccountChangeAddKey, replace_key: AccountChangeReplaceKey, remove_key: AccountChangeRemoveKey, resume: AccountChangeResume, remove: AccountChangeRemove, move_account: AccountChangeMoveAccount, move_source: AccountChangeMoveSource, set_uses: AccountChangeSetUses, declare_program: AccountChangeDeclareProgram, check_program: AccountChangeCheckProgram, move_out: AccountChangeMoveOut, written: AccountChangeWritten, move_in: AccountChangeMoveIn, finish_sign_in: AccountChangeFinishSignIn, login_program: AccountChangeLoginProgram, cancel_login: AccountChangeCancelLogin, login_ended: AccountChangeLoginEnded }
 record AskAccountChange { holder: AskAccountHolder change: AccountChange }
 record AccountHolderParty { party: u64 }
 enum AccountHolder { deployment, party: AccountHolderParty }

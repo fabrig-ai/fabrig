@@ -174,6 +174,7 @@ pub enum DocumentOutcome {
         source: u32,
         name: Box<[u8]>,
     },
+    AccountLoginAsked { number: u32 },
     AccountChanged,
     /// A moved account was adopted or renewed (domain/accounts.md, 6).
     AccountMovedIn {
