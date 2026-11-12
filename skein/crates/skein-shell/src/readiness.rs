@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, OpenHow, Submit};
+use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, OpenHow, Submit, Way};
 use skein_lib::{Queue, Token, usize_of};
 
 use crate::system::Poller;
@@ -339,6 +339,9 @@ impl Readiness {
                     }
                     (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) => {
                         for pipe in &spawn.pipes {
+                            if pipe.way == Way::Inherit {
+                                continue;
+                            }
                             let fd = pipe.parent.expect("a successful Spawn fills each parent end");
                             let configured = system::nonblocking(fd);
                             assert!(

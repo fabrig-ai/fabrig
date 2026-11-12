@@ -453,40 +453,43 @@ fn given_entries_resolve_without_pipe_entities_and_preserve_pipe_order() {
 }
 
 #[test]
-fn null_entries_have_no_tokens_among_given_entries_and_ordered_pipes() {
-    let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
-    let held = rig.io.adopt_listener(Fd::new(50), super::local(8000)).expect("held listener");
-    let mut spawning = rig
-        .down(Request::Spawn {
-            owner: owner(1),
-            spawn: command(&[(0, Way::Null), (7, Way::In), (3, Way::Given(held)), (2, Way::Null), (9, Way::Out)]),
-        })
-        .take(Kind::Spawn);
-    assert_eq!(rig.io.entities.len(), 4, "listener, child and two pipes fill the slab");
-    let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
-    assert_eq!(spawn.pipes[2].parent, Some(Fd::new(50)));
-    assert!(spawning.kind.is_valid(), "resolved Given is a valid backend submission");
-    let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
-    spawn.pipes[1].parent = Some(Fd::new(51));
-    spawn.pipes[4].parent = Some(Fd::new(52));
-    let out = rig.complete(spawning, Ok(Done::Spawned { pidfd: Fd::new(53), sender: crate::kernel::Sender::new(1) }));
-    let [Event::Spawned { pipes, .. }] = out.events.as_slice() else { panic!("spawned") };
-    assert_eq!(pipes.len(), 2);
-    let (input, output) = (pipes[0], pipes[1]);
-    let read = rig.next().take(Kind::PipeRead);
-    let Op::PipeRead { fd, .. } = &read.kind else { panic!("output pipe") };
-    assert_eq!(*fd, Fd::new(52));
-    rig.down(Request::Stream { stream: input, down: Down::Demand { read: Read::Nothing, room: 1 } }).nothing();
-    assert_eq!(rig.next().events, [Event::Stream { owner: input, up: Up::Room }]);
-    let write =
-        rig.down(Request::Stream { stream: input, down: Down::Send(Box::from(&b"x"[..])) }).take(Kind::PipeWrite);
-    let Op::PipeWrite { fd, .. } = &write.kind else { panic!("input pipe") };
-    assert_eq!(*fd, Fd::new(51));
-    rig.complete(write, Ok(Done::Count(1))).nothing();
-    rig.down(Request::Stream { stream: output, down: Down::Demand { read: Read::Fill(1), room: 0 } }).nothing();
-    rig.next().nothing();
-    assert_eq!(rig.complete(read, Ok(Done::Count(0))).events, [Event::Stream { owner: output, up: Up::End }]);
-    assert_eq!(rig.io.tables.held.get(&super::local(8000)).copied(), Some(skein_lib::Id::from_token(held)));
+fn null_and_inherited_entries_have_no_tokens_among_given_entries_and_ordered_pipes() {
+    for way in [Way::Null, Way::Inherit] {
+        let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
+        let held = rig.io.adopt_listener(Fd::new(50), super::local(8000)).expect("held listener");
+        let mut spawning = rig
+            .down(Request::Spawn {
+                owner: owner(1),
+                spawn: command(&[(0, way), (7, Way::In), (3, Way::Given(held)), (2, way), (9, Way::Out), (1, way)]),
+            })
+            .take(Kind::Spawn);
+        assert_eq!(rig.io.entities.len(), 4, "listener, child and two pipes fill the slab");
+        let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
+        assert_eq!(spawn.pipes[2].parent, Some(Fd::new(50)));
+        assert!(spawning.kind.is_valid(), "resolved Given is a valid backend submission");
+        let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
+        spawn.pipes[1].parent = Some(Fd::new(51));
+        spawn.pipes[4].parent = Some(Fd::new(52));
+        let out =
+            rig.complete(spawning, Ok(Done::Spawned { pidfd: Fd::new(53), sender: crate::kernel::Sender::new(1) }));
+        let [Event::Spawned { pipes, .. }] = out.events.as_slice() else { panic!("spawned") };
+        assert_eq!(pipes.len(), 2);
+        let (input, output) = (pipes[0], pipes[1]);
+        let read = rig.next().take(Kind::PipeRead);
+        let Op::PipeRead { fd, .. } = &read.kind else { panic!("output pipe") };
+        assert_eq!(*fd, Fd::new(52));
+        rig.down(Request::Stream { stream: input, down: Down::Demand { read: Read::Nothing, room: 1 } }).nothing();
+        assert_eq!(rig.next().events, [Event::Stream { owner: input, up: Up::Room }]);
+        let write =
+            rig.down(Request::Stream { stream: input, down: Down::Send(Box::from(&b"x"[..])) }).take(Kind::PipeWrite);
+        let Op::PipeWrite { fd, .. } = &write.kind else { panic!("input pipe") };
+        assert_eq!(*fd, Fd::new(51));
+        rig.complete(write, Ok(Done::Count(1))).nothing();
+        rig.down(Request::Stream { stream: output, down: Down::Demand { read: Read::Fill(1), room: 0 } }).nothing();
+        rig.next().nothing();
+        assert_eq!(rig.complete(read, Ok(Done::Count(0))).events, [Event::Stream { owner: output, up: Up::End }]);
+        assert_eq!(rig.io.tables.held.get(&super::local(8000)).copied(), Some(skein_lib::Id::from_token(held)));
+    }
 }
 
 #[test]
@@ -565,6 +568,23 @@ fn duplicate_child_descriptors_with_null_entries_are_refused() {
     let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
     for specs in [[(3, Way::Null), (3, Way::Out)], [(3, Way::In), (3, Way::Null)], [(3, Way::Null), (3, Way::Null)]] {
         refused_spawn(&mut rig, &specs);
+    }
+}
+
+#[test]
+fn inherited_entries_refuse_nonstandard_and_duplicate_descriptors_before_making_anything() {
+    let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
+    let held = rig.io.adopt_listener(Fd::new(50), super::local(8000)).expect("held");
+    for specs in [
+        &[(3, Way::Inherit)][..],
+        &[(7, Way::In), (u32::MAX, Way::Inherit)][..],
+        &[(0, Way::Inherit), (0, Way::In)][..],
+        &[(1, Way::Out), (1, Way::Inherit)][..],
+        &[(2, Way::Inherit), (2, Way::Given(held))][..],
+        &[(0, Way::Null), (0, Way::Inherit)][..],
+        &[(1, Way::Inherit), (1, Way::Inherit)][..],
+    ] {
+        refused_spawn(&mut rig, specs);
     }
 }
 
