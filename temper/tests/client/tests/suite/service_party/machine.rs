@@ -44,17 +44,24 @@ pub(super) struct Machine {
     held: Vec<Submit>,
     stdout: Vec<u8>,
     stderr: Vec<u8>,
+    stdin: VecDeque<u8>,
 }
 impl Machine {
     pub(super) fn new() -> Self {
+        Self::with_front(Joint::with_service_party(fixtures::SEED, fixtures::domain_limits()))
+    }
+    pub(super) fn findings() -> Self {
+        Self::with_front(Joint::with_finding_services(fixtures::SEED, fixtures::domain_limits()))
+    }
+    fn with_front(front: Joint) -> Self {
         let mut files = BTreeMap::new();
-        for name in ["", "owner", "agent"] {
+        for name in ["", "owner", "agent", "docs"] {
             files.insert(name.to_owned(), File { bytes: Vec::new(), mode: 0o700, kind: Kind::Directory });
         }
         files
             .insert("link".to_owned(), File { bytes: front::printed_link().into_vec(), mode: 0o600, kind: Kind::File });
         Self {
-            front: Joint::with_service_party(fixtures::SEED, fixtures::domain_limits()),
+            front,
             files,
             descriptors: BTreeMap::new(),
             sockets: BTreeMap::new(),
@@ -67,6 +74,7 @@ impl Machine {
             held: Vec::new(),
             stdout: Vec::new(),
             stderr: Vec::new(),
+            stdin: VecDeque::new(),
         }
     }
     pub(super) fn private_file(&self, path: &str) {
@@ -75,6 +83,10 @@ impl Machine {
         assert!(!file.bytes.is_empty());
     }
     pub(super) fn call(&mut self, directory: &str, words: &[&[u8]]) -> String {
+        self.call_input(directory, words, b"")
+    }
+    pub(super) fn call_input(&mut self, directory: &str, words: &[&[u8]], input: &[u8]) -> String {
+        self.stdin = input.iter().copied().collect();
         self.serial += 1;
         let who = ClientId(self.serial);
         let native = limits::native();
@@ -227,7 +239,13 @@ impl Machine {
                 }
                 Ok(Done::Count(u32::try_from(count).expect("receive count")))
             }
-            Op::PipeRead { .. } => Ok(Done::Count(0)),
+            Op::PipeRead { buf, .. } => {
+                let count = buf.len().min(self.stdin.len());
+                for byte in &mut buf[..count] {
+                    *byte = self.stdin.pop_front().expect("stdin byte");
+                }
+                Ok(Done::Count(u32::try_from(count).expect("input count")))
+            }
             Op::PipeWrite { fd, bytes, from } => {
                 let bytes = &bytes[*from as usize..];
                 if *fd == Fd::new(3) {
