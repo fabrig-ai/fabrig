@@ -194,6 +194,8 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),

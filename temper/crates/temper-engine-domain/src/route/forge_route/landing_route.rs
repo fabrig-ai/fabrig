@@ -204,6 +204,8 @@ fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u3
                 phase: landing::Phase::Waiting,
                 preparation: 0,
                 stale_proofs: 0,
+
+                round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                 branch: Box::from(branch),
                 members: members.into_boxed(),
             },
@@ -240,7 +242,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, _env: &Env<Limits>, contex
     domain.work.push(Work::Forge(forge::Event::StepLanding {
         task,
         entry,
-        heard: forge::LandingHeard { released, cancelled: false, kept: Box::new([]) },
+        heard: forge::LandingHeard { preparation: landing::Preparation::Idle, released, cancelled: false, kept: Box::new([]) },
     }));
 }
 
