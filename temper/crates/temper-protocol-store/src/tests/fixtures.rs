@@ -844,6 +844,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         priority: -6,
         ci: None,
         change: Change {
+            ended_held: None,
             early: temper_engine_domain_forge_change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
