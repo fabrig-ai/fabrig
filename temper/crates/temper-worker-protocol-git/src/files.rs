@@ -13,12 +13,13 @@ pub(crate) struct Directories {
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
     pub stores: Option<Fd>,
+    pub making: Option<Fd>,
     pub serial: u64,
     pub failures: u64,
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories { keep: false, trash: None, workspaces: None, stores: None, serial, failures: 0 }
+        Directories { keep: false, trash: None, workspaces: None, stores: None, making: None, serial, failures: 0 }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -47,7 +48,9 @@ pub(crate) enum Layout {
     OpenTrash,
     Workspaces,
     Home,
-    Stores,
+    Making,
+    NewMaking,
+    OpenMaking,
     NewStores,
     OpenStores,
     NewWorkspaces,
@@ -128,8 +131,8 @@ impl Task {
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
     }
-    pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>, dirs: &mut Directories) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote, dirs)) }
+    pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
         Task { pending: Token::new(0), phase: Phase::Store(Store::install(store, directory, done)) }
@@ -203,6 +206,9 @@ impl Task {
     }
 }
 fn closing(dirs: &mut Directories) -> Action {
+    if let Some(fd) = dirs.making.take() {
+        return close(fd);
+    }
     if let Some(fd) = dirs.stores.take() {
         return close(fd);
     }
@@ -221,10 +227,15 @@ fn layout(
     settings: &Settings,
 ) -> Action {
     let allowed = match stage {
-        Layout::Trash => result == Err(Error::Exists),
-        Layout::Workspaces | Layout::Stores | Layout::Home => result == Err(Error::NotFound),
-        Layout::NewWorkspaces | Layout::NewStores => dirs.keep && result == Err(Error::Exists),
-        Layout::OpenTrash | Layout::NewHome | Layout::OpenWorkspaces | Layout::OpenStores => false,
+        Layout::Trash | Layout::NewStores => result == Err(Error::Exists),
+        Layout::Workspaces | Layout::Making | Layout::Home => result == Err(Error::NotFound),
+        Layout::NewWorkspaces => dirs.keep && result == Err(Error::Exists),
+        Layout::OpenTrash
+        | Layout::NewMaking
+        | Layout::OpenMaking
+        | Layout::NewHome
+        | Layout::OpenWorkspaces
+        | Layout::OpenStores => false,
     };
     if let Err(error) = result
         && !allowed
@@ -236,16 +247,17 @@ fn layout(
         Layout::OpenTrash => {
             dirs.trash = Some(fd(result).expect("successful open"));
             if dirs.keep {
-                (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..])))
+                (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..])))
             } else {
                 (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
             }
         }
-        Layout::Workspaces => (Layout::Stores, dirs.rename(settings.root, Box::from(&b"stores"[..]))),
-        Layout::Stores => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
+        Layout::Workspaces => (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..]))),
+        Layout::Making => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),
         Layout::NewWorkspaces => (Layout::NewStores, mkdir(settings.root, b"stores")),
-        Layout::NewStores => (Layout::NewHome, mkdir(settings.root, b"home")),
+        Layout::NewStores => (Layout::NewMaking, mkdir(settings.root, b"making")),
+        Layout::NewMaking => (Layout::NewHome, mkdir(settings.root, b"home")),
         Layout::NewHome => {
             (Layout::OpenWorkspaces, open(settings.root, Box::from(&b"workspaces"[..]), OpenHow::DirectoryNoFollow))
         }
@@ -255,6 +267,10 @@ fn layout(
         }
         Layout::OpenStores => {
             dirs.stores = Some(fd(result).expect("successful open"));
+            (Layout::OpenMaking, open(settings.root, Box::from(&b"making"[..]), OpenHow::DirectoryNoFollow))
+        }
+        Layout::OpenMaking => {
+            dirs.making = Some(fd(result).expect("successful open"));
             return Action::Layout(Ok(()));
         }
     };

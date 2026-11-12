@@ -204,11 +204,11 @@ fn store_clone(
     directory: &str,
     identity: Option<(&str, &str)>,
 ) -> Result<Output> {
-    let stores = f.store.parent().ok_or("store parent")?;
-    fs::create_dir_all(stores.join(directory))?;
+    let making = f.store.parent().ok_or("store parent")?.with_file_name("making");
+    fs::create_dir_all(making.join(directory))?;
     c.execute(
         case,
-        stores,
+        &making,
         &["clone", "--bare", "--single-branch", "--no-tags", "--quiet", "--", url, directory],
         identity,
         false,
@@ -216,9 +216,9 @@ fn store_clone(
     )
 }
 fn clones(f: &Fixture, c: &mut Capture) -> Result<()> {
-    success(&store_clone(c, f, Some("clone"), &f.remote("specimen"), "new-1", Some(f.identity()))?)?;
-    fs::rename(f.store.with_file_name("new-1"), &f.store)?;
-    success(&store_clone(c, f, Some("clone-empty"), &f.remote("empty"), "new-2", Some(f.identity()))?)?;
+    success(&store_clone(c, f, Some("clone"), &f.remote("specimen"), "1", Some(f.identity()))?)?;
+    fs::rename(f.store.parent().ok_or("store parent")?.with_file_name("making").join("1"), &f.store)?;
+    success(&store_clone(c, f, Some("clone-empty"), &f.remote("empty"), "2", Some(f.identity()))?)?;
     success(&c.execute(Some("object-format"), &f.store, &["rev-parse", "--show-object-format"], None, false, b"")?)?;
     success(&c.execute(
         Some("init"),
@@ -237,14 +237,14 @@ fn clones(f: &Fixture, c: &mut Capture) -> Result<()> {
         false,
         b"",
     )?)?;
-    store_clone(c, f, Some("clone-missing-repository"), &f.remote("missing"), "new-3", Some(f.identity()))?;
-    store_clone(c, f, Some("clone-wrong-token"), &f.remote("specimen"), "new-4", Some(("writer", "wrong-token")))?;
+    store_clone(c, f, Some("clone-missing-repository"), &f.remote("missing"), "3", Some(f.identity()))?;
+    store_clone(c, f, Some("clone-wrong-token"), &f.remote("specimen"), "4", Some(("writer", "wrong-token")))?;
     store_clone(
         c,
         f,
         Some("clone-stranger-private"),
         &f.remote("private"),
-        "new-5",
+        "5",
         Some((&f.stranger.login, f.stranger.token.value())),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -256,7 +256,7 @@ fn clones(f: &Fixture, c: &mut Capture) -> Result<()> {
         f,
         Some("clone-refused-connection"),
         &format!("http://127.0.0.1:{port}/fixture/specimen.git"),
-        "new-6",
+        "6",
         Some(f.identity()),
     )?;
     Ok(())
@@ -283,8 +283,8 @@ fn fetches(f: &Fixture, c: &mut Capture) -> Result<()> {
         b"",
     )?)?;
     let hashed = f.store.with_file_name("hashed");
-    success(&store_clone(c, f, Some("clone-sha256"), &f.remote("hashed"), "new-7", Some(f.identity()))?)?;
-    fs::rename(f.store.with_file_name("new-7"), &hashed)?;
+    success(&store_clone(c, f, Some("clone-sha256"), &f.remote("hashed"), "7", Some(f.identity()))?)?;
+    fs::rename(f.store.parent().ok_or("store parent")?.with_file_name("making").join("7"), &hashed)?;
     success(&c.execute(
         Some("object-format-sha256"),
         &hashed,

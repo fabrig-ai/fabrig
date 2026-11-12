@@ -171,7 +171,9 @@ impl Component {
         let mut next = sequence::first(&op);
         // Concurrent first uses check independently; only completed answers
         // are reused, and the last completed check replaces the cache.
-        if let Some(program) = crate::invocation::item_program(&op) {
+        if let Some(program) = crate::invocation::item_program(&op)
+            && op.kind() != git::Kind::Store
+        {
             next = match &self.checked {
                 Some((checked, answer)) if checked.as_ref() == program => {
                     if usable(*answer) {
@@ -247,6 +249,13 @@ impl Component {
                 } else {
                     next
                 };
+                let next = match operation.after_version.take() {
+                    Some(command) => {
+                        operation.command = *command;
+                        if let Next::Store = next { Next::Run(operation.command.clone()) } else { next }
+                    }
+                    None => next,
+                };
                 self.advance(id, next, out);
                 self.maintain(false, out);
             }
@@ -299,6 +308,28 @@ impl Component {
         match next {
             Next::Run(command) => {
                 let operation = self.slots.get(id).expect("live index");
+                if let Command::Store { .. } = &command
+                    && let Some(program) =
+                        crate::invocation::item_program(operation.op.as_ref().expect("Store operation"))
+                {
+                    let checked = match &self.checked {
+                        Some((checked, answer)) if checked.as_ref() == program => Some(usable(*answer)),
+                        Some(_) | None => None,
+                    };
+                    match checked {
+                        Some(true) => {}
+                        Some(false) => {
+                            self.slots.get_mut(id).expect("live operation").command = command;
+                            self.advance(id, Next::End(git::Done::Failed { fault: git::Fault::Broken }), out);
+                            return;
+                        }
+                        None => {
+                            self.slots.get_mut(id).expect("live operation").after_version = Some(Box::new(command));
+                            self.advance(id, Next::Run(Command::Version), out);
+                            return;
+                        }
+                    }
+                }
                 if operation.program(&self.settings).is_none() {
                     let op = operation.op.as_ref().expect("no program is an operation failure");
                     let diagnostic = crate::invocation::no_program(op, &command);
@@ -337,7 +368,7 @@ impl Component {
                 else {
                     unreachable!("Store sequence")
                 };
-                let task = Task::store(*store, *aside, remote.clone(), &mut self.directories);
+                let task = Task::store(*store, *aside, remote.clone());
                 self.file_start(id, task, out);
             }
             Next::InstallStore { directory, done } => {
@@ -553,6 +584,7 @@ impl Component {
             && self.directories.trash.is_none()
             && self.directories.workspaces.is_none()
             && self.directories.stores.is_none()
+            && self.directories.making.is_none()
     }
     #[must_use]
     pub fn operations(&self) -> u32 {

@@ -45,8 +45,8 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
     [
         (Command::Remote { remote: remote.clone() }, &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE]),
         (
-            Command::Store { remote: remote.clone(), directory: Box::from(&b"new-1"[..]) },
-            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", fixtures::REMOTE, b"new-1"],
+            Command::Store { remote: remote.clone(), directory: Box::from(&b"1"[..]) },
+            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", fixtures::REMOTE, b"1"],
         ),
         (Command::Format, &[b"rev-parse", b"--show-object-format"]),
         (
