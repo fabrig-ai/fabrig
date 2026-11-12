@@ -93,7 +93,9 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
 #[test]
 fn an_already_contained_member_lands_at_the_base_without_preparing() {
     let mut world = landings::turn_world(); world.produce(MEMBER); landings::ready_change(&mut world, CHANGE, MEMBER);
-    world.merge(world.change(CHANGE).pull.expect("pull"), b"main"); let base = translate::commit(world.branch(b"main"));
+    let head = world.branch(MEMBER);
+    world.external(raw::Op::Git(raw::Git::Push { branch: b"main".as_slice().into(), commit: head, expected: Some(world.branch(b"main")) }), 1);
+    world.run_for(4); let base = translate::commit(world.branch(b"main"));
     let row = landings::landing_row(world.change(CHANGE)); world.event(top::Event::Landing { row });
     world.take_calls(); landings::drive_landing(&mut world, LANDING);
     assert_eq!(world.landing(LANDING).landing.members[0].landed, Some(base));
@@ -107,6 +109,43 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
     assert!(matches!(world.landing(LANDING).landing.phase, landing::Phase::Held { why: landing::Hold::Prepare, .. }));
     assert_eq!(world.landing_hold_words(LANDING).expect("hold").as_ref(), b"prepare job: push refused");
     assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { .. }));
+}
+#[test]
+fn a_restart_finds_uncertain_opening_and_record_by_reading_the_forge() {
+    for record in [false, true] {
+        let mut world = start(true); world.prepare_landing(LANDING, true);
+        if record { until_merge(&mut world); }
+        world.land_writes_late(skein_lib::Duration::from_secs(3));
+        let decision = landings::step_landing_raw(&mut world, LANDING, 200);
+        assert_eq!(matches!(decision, landing::Decision::Record { .. }), record);
+        assert_eq!(decision == landing::Decision::Open, !record);
+        world.run_for(4); world.answer_writes(); world.restart();
+        landings::drive_landing(&mut world, LANDING);
+        assert!(world.landing(LANDING).landing.round.recorded);
+        let writes = world.take_calls();
+        assert_eq!(writes.iter().filter(|op| matches!(op, api::Op::Write(api::Write::OpenPull { .. }))).count(), 1);
+        assert_eq!(writes.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Merge { how: api::MergeHow::Recorded { .. }, .. }))).count(), 1);
+    }
+}
+#[test]
+fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
+    let mut world = start(false); world.prepare_landing(LANDING, false);
+    for entry in 102..140 {
+        landings::step_landing_raw(&mut world, LANDING, entry);
+        if matches!(world.landing(LANDING).landing.phase, landing::Phase::Turn { .. }) { break; }
+    }
+    assert!(matches!(world.landing(LANDING).landing.phase, landing::Phase::Turn { .. }));
+    let base = world.branch(b"main"); world.push_file(MEMBER, b"next", b"new delivery");
+    let head = translate::commit(world.branch(MEMBER)); let mut row = world.change(CHANGE).clone();
+    row.change.last_head = Some(head); row.change.state = change::State::Gating { head, asked: Box::new([]) };
+    world.event(top::Event::Change { row }); landings::drive_landing(&mut world, LANDING);
+    assert!(world.landing(LANDING).landing.members[0].landed.is_none()); assert_eq!(world.branch(b"main"), base);
+    assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { head: latest, .. } if latest == head));
+    assert_eq!(world.change(CHANGE).change.landing, None);
+    let writes = world.take_calls();
+    assert!(writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))));
+    assert!(writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. }))));
+    assert!(!writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::Merge { .. }))));
 }
 #[test]
 fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {

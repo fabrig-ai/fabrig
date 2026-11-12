@@ -885,3 +885,25 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     assert_eq!(landing_rows(&world)[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a]);
     assert!(!ended(&world, b), "new change is still producing, outside the sealed landing");
 }
+
+#[test]
+fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
+    let (mut world, change) = produced_turn_change(None);
+    for _ in 0..600 { world.tick(); if !world.jobs.is_empty() { break; } }
+    assert_eq!(world.jobs.len(), 1);
+    let job = world.jobs.remove(0); assert_eq!(job.kind, jig_domain_link::JobKind(1));
+    let landing = job.workspace.as_ref().expect("job workspace").workstream;
+    let result = format!("{{\"conflict\":{{\"member\":{change},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
+    let event = world.protocol.answer_job(Token::new(7), job.run.raw(), job.attempt.raw(), host::JobEnding::Finished { result: result.into_bytes().into(), work: host::Work { left: None, saved: None } });
+    world.send(event);
+    for _ in 0..600 {
+        world.tick();
+        if task_row(&world, landing).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_)))
+            && matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { .. }) { break; }
+    }
+    assert!(matches!(task_row(&world, landing).expect("landing").phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round");
+    assert!(row.landing.members[0].landed.is_none());
+    assert!(matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { base, .. } if Some(base) == row.landing.members[0].base));
+    assert!(!world.writes.iter().any(|write| matches!(write, api::Write::Merge { .. } | api::Write::Update { .. })));
+}
