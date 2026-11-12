@@ -1,7 +1,6 @@
 //! Findings (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, w};
 use crate::Undecodable;
-use alloc::boxed::Box;
 use skein_lib::Wall;
 use temper_engine_domain_forge as d;
 fn encode_holder(value: d::Holder) -> w::FindingHolder {

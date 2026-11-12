@@ -8,6 +8,55 @@ use temper_engine_domain::{self as engine, Delivery};
 use temper_engine_domain_world::direct::Driver;
 
 #[test]
+fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
+    use super::findings as fixture;
+    use temper_engine_domain_forge::{self as forge, settings::AreaOwner};
+    let mut bounds = fixture::limits();
+    bounds.call_records = 16;
+    let (mut driver, run) = fixture::driver_with_limits(bounds);
+    assert_eq!(driver.root.tasks().task(run.task).unwrap().label, 3);
+    fixture::settings(&mut driver, Some(fixture::area(AreaOwner::Party(1))), Some(AreaOwner::Task(run.task)));
+    let file = br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"reproduce"}"#;
+    driver.protocol.defer_render = true;
+    let before = driver.transactions.len();
+    let first = decoded_task_call(&mut driver, &run, 31, b"finding", file);
+    assert_eq!(fixture::row(&driver, 1).filer, forge::Filer::Task(run.task));
+    let writes = driver.transactions[before..].iter().find(|writes| writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Finding(_))))).expect("finding decision");
+    assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Finding(_), .. }))), "answer shares the finding's decision");
+    assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(_)))))), "core named call shares the decision");
+    driver.protocol.defer_render = false;
+    driver.protocol.pending_renders.clear();
+    fixture::restart(&mut driver, &run);
+    let replay = decoded_task_call(&mut driver, &run, 31, b"finding", file);
+    assert_eq!(replay, first, "unsettled answer survives restart under its name");
+    let second = decoded_task_call(&mut driver, &run, 32, b"finding", file);
+    assert!(matches!(second, engine::CallAnswer::Finding(ref answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge::FindingReply { number: 2, .. }))));
+    let applied = driver.store.applied;
+    let listed = decoded_task_call(&mut driver, &run, 33, b"finding", br#"{"act":"list","mine":true}"#);
+    assert_eq!(driver.store.applied, applied, "list is a read");
+    let engine::CallAnswer::Finding(list) = listed else { panic!("finding list") };
+    let engine::FindingToolAnswer::List(list) = *list else { panic!("list snapshot") };
+    assert_eq!(list.rows.iter().map(|row| row.number).collect::<Vec<_>>(), [2, 1]);
+    assert_eq!(list.rows[0].holder, forge::Holder::Task(run.task));
+    decoded_task_call(&mut driver, &run, 34, b"finding", br#"{"act":"hand","number":1,"area":"tests","why":"test scope"}"#);
+    assert_eq!(fixture::row(&driver, 1).area.as_deref(), Some(b"tests".as_slice()));
+    assert_eq!(fixture::row(&driver, 1).hander, Some(forge::Filer::Task(run.task)));
+    let denied = decoded_task_call(&mut driver, &run, 35, b"finding", br#"{"act":"drop","number":1,"reason":"not mine"}"#);
+    assert!(temper_engine_smith::answer(&denied).error(), "a task cannot triage the party's finding");
+    decoded_task_call(&mut driver, &run, 36, b"finding", br#"{"act":"backlog","number":2}"#);
+    assert_eq!(fixture::row(&driver, 2).state, forge::FindingState::Backlog);
+    decoded_task_call(&mut driver, &run, 37, b"finding", br#"{"act":"drop","number":2,"reason":"duplicate"}"#);
+    assert_eq!(fixture::row(&driver, 2).reason.as_deref(), Some(b"duplicate".as_slice()));
+    let applied = driver.store.applied;
+    let shown = decoded_task_call(&mut driver, &run, 38, b"finding", br#"{"act":"show","number":2}"#);
+    assert_eq!(driver.store.applied, applied, "show is a read");
+    assert!(String::from_utf8_lossy(temper_engine_smith::answer(&shown).text()).contains("reason: duplicate"));
+    let settled = driver.store.rows.clone();
+    assert_eq!(decoded_task_call(&mut driver, &run, 31, b"finding", file), first);
+    assert_eq!(driver.store.rows, settled, "settled replay files no second finding");
+}
+
+#[test]
 fn an_undecodable_call_is_answered_as_an_error_with_no_commit() {
     let (mut driver, run) = Driver::chat();
     let (applied, rows) = (driver.store.applied, driver.store.rows.clone());
@@ -132,7 +181,7 @@ fn decoded_task_call(
     } else {
         driver.settle();
     }
-    driver.answered(call).expect("task call answered").clone()
+    driver.answered(call).unwrap_or_else(|| panic!("task call {call} not answered: {:?}", driver.delivered.last())).clone()
 }
 
 fn coordinator() -> (Driver, engine::Assignment) {

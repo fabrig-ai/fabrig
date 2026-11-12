@@ -570,6 +570,9 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
+#[path = "finding/tests.rs"]
+mod finding;
+
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
         (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),

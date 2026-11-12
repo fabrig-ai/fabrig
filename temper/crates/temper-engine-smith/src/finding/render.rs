@@ -164,12 +164,13 @@ fn list(doc: &f::Findings, cap: usize) -> HostAnswer {
         length = next;
         count = next_count;
     }
-    let mut output = Writer::new(cap);
+    let remaining = lines.len().saturating_sub(count);
+    let size = if remaining == 0 { length } else { length.saturating_add(usize::from(count != 0)).saturating_add(more(remaining).len()).min(cap) };
+    let mut output = Writer::new(size);
     for (at, line) in lines.iter().take(skein_lib::usize_of(count)).enumerate() {
         if at != 0 { output.put(b"\n").expect("measured separator"); }
         output.put(line).expect("measured finding line");
     }
-    let remaining = lines.len().saturating_sub(count);
     if remaining != 0 {
         if count != 0 { output.put(b"\n").expect("reserved separator"); }
         let marker = more(remaining);
