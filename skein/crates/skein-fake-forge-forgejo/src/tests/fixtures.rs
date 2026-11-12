@@ -514,7 +514,7 @@ impl Harness {
 }
 
 pub fn fake_config() -> fake::Config {
-    fake::Config::TEST
+    fake::Config::test()
 }
 
 pub fn deliver(

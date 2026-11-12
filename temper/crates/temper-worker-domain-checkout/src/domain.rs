@@ -1,6 +1,6 @@
 //! The checkout child domain's state and its entry point (section 3).
 
-use skein_lib::{Env, Queue, Slab};
+use skein_lib::{Env, Id, Queue, Slab};
 
 use crate::boundary::{Event, Request};
 use crate::cache::Cache;
@@ -13,6 +13,10 @@ use crate::limits::{self, Limits};
 pub struct Domain {
     pub(crate) cache: Cache,
     pub(crate) holds: Slab<Hold>,
+    /// Preparing and store-waiting holds, each keeping one permit.
+    pub(crate) active: u32,
+    /// Holds waiting for a preparation permit, oldest first.
+    pub(crate) queued: Queue<Id<Hold>>,
     pub(crate) facts: Facts,
 }
 
@@ -24,6 +28,8 @@ impl Domain {
         Domain {
             cache: Cache::with_capacity(limits.workspaces, limits::stores(limits).expect("validated store slots")),
             holds: Slab::with_capacity(holds),
+            active: 0,
+            queued: Queue::with_capacity(limits.workspaces),
             facts: Facts::with_capacity(limits.facts),
         }
     }
@@ -91,8 +97,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::PushUnchecked { hold } => hold::unchecked(domain, env, hold, out),
         Event::Push { hold, message } => hold::push(domain, env, hold, message, out),
         Event::Save { hold, message } => hold::save(domain, env, hold, message, out),
-        Event::Abort { hold } => hold::abort(domain, hold, out),
-        Event::Release { hold } => hold::release(domain, hold, out),
+        Event::Abort { hold } => hold::abort(domain, env, hold, out),
+        Event::Release { hold } => hold::release(domain, env, hold, out),
         Event::Done { owner, done } => hold::done(domain, env, owner, done, out),
     }
 }

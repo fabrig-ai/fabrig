@@ -333,7 +333,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 182] = [
+pub static NAMES: [Name; 183] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -1071,6 +1071,12 @@ pub static NAMES: [Name; 182] = [
         unit: Unit::Count,
         line: "Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.",
         value: |limits| u64::from(limits.checkout.workspaces),
+    },
+    Name {
+        name: "checkout.preparations",
+        unit: Unit::Count,
+        line: "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.",
+        value: |limits| u64::from(limits.checkout.preparations),
     },
     Name {
         name: "checkout.repositories",

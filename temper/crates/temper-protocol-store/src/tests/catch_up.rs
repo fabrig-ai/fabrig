@@ -1,10 +1,11 @@
 //! Main's stored additions join the baseline catch-up (protocol/baseline.md, 9).
 use skein_codec::patch::{Capacity, Patcher, Step};
+use skein_lib::bytes;
 
-fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 2,
+        versions: 4,
         patches: 1,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072,
@@ -13,8 +14,8 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     for text in texts {
         patcher.keep(text.as_bytes()).expect("kept schema");
     }
-    let root = patcher.schema(11).expect("baseline schema").find(root).expect("old record");
-    let plan = patcher.plan(crate::patches::PATCHES[0].as_bytes()).expect("valid plan").expect("family moves");
+    let root = patcher.schema(version).expect("kept schema").find(root).expect("old record");
+    let plan = patcher.plan(crate::patches::PATCHES[patch].as_bytes()).expect("valid plan").expect("family moves");
     patcher.start(plan, root, bytes).expect("baseline record");
     loop {
         match patcher.next().expect("patch step") {
@@ -33,23 +34,26 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     patcher.finish().expect("patched record").into()
 }
 
-fn baseline_golden(name: &str) -> Box<[u8]> {
-    let schema = skein_codegen::parse(crate::patches::kept::temper_store::TEXTS[0]).expect("old schema");
-    for golden in skein_codegen::generate(&schema).goldens {
-        if golden.name == name {
-            return skein_lib::bytes::copy_of(&golden.bytes);
+fn kept_golden(version: u16, name: &str) -> Box<[u8]> {
+    for text in crate::patches::kept::temper_store::TEXTS {
+        let schema = skein_codegen::parse(text).expect("kept schema");
+        if schema.version != version {
+            continue;
+        }
+        for golden in skein_codegen::generate(&schema).goldens {
+            if golden.name == name {
+                return golden.bytes.into_boxed_slice();
+            }
         }
     }
-    panic!("old golden");
+    unreachable!("kept golden")
 }
 
 #[test]
 fn a_baseline_adopted_row_has_no_contexts() {
-    let adopted = baseline_golden("record_adopted_full.bin");
-    let mut before = skein_lib::Writer::new(adopted.len().checked_add(3).expect("golden with prefix"));
-    before.put(&[0, 11, 2]).expect("row version, repository variant");
-    before.put(&adopted).expect("adopted golden");
-    let bytes = patched(b"Row", before.finish());
+    let adopted = kept_golden(11, "record_adopted_full.bin");
+    let before = bytes::concat(&[&[0, 11, 2], &adopted]); // Row version, repository variant.
+    let bytes = patched(11, 0, b"Row", before);
     let row = crate::v12::Row::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
     let crate::v12::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
@@ -59,9 +63,21 @@ fn a_baseline_adopted_row_has_no_contexts() {
 
 #[test]
 fn a_foreman_with_a_task_becomes_retired() {
-    let before = baseline_golden("enum_stands_foreman_full.bin");
-    let bytes = patched(b"Stands", before);
+    let before = kept_golden(11, "enum_stands_foreman_full.bin");
+    let bytes = patched(11, 0, b"Stands", before);
     let value =
         crate::v12::Stands::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
     assert_eq!(value, crate::v12::Stands::Retired);
+}
+
+#[test]
+fn a_v13_closer_upgrades_with_no_question_relay() {
+    let before = kept_golden(13, "record_closer_full.bin");
+    let bytes = patched(13, 2, b"Closer", before);
+    let row = crate::v14::Closer::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+        .expect("upgraded closer");
+    assert_eq!(row.relay(), &None);
+    assert_eq!(row.task(), u64::MAX);
+    assert_eq!(row.goal(), u64::MAX);
+    assert!(row.done());
 }

@@ -16,6 +16,14 @@ temper-shell.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-shell-cli.workspace = true
 skein-shell.workspace = true
+skein-io.workspace = true
+skein-lib.workspace = true
+temper-fetch.workspace = true
+temper-fetch-shell.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+temper-test-env.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

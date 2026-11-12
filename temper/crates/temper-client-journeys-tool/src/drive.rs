@@ -11,6 +11,7 @@ mod forge;
 mod io;
 mod options;
 mod tui;
+mod values;
 pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
 const STEP: Duration = Duration::from_secs(60);
@@ -66,16 +67,20 @@ pub enum Output {
 }
 #[derive(Debug)]
 pub enum Action {
-    ReadForgeLog {
+    ReadBoxLog {
         path: PathBuf,
     },
     ForgeRequest {
         api: Box<[u8]>,
-        header: PathBuf,
+        token_file: PathBuf,
         method: skein_http::Method,
         path: Box<[u8]>,
         body: Box<[u8]>,
         until: Time,
+    },
+    ReadForgeFiles {
+        directory: PathBuf,
+        paths: Vec<Box<[u8]>>,
     },
     CancelForge,
     Start {
@@ -119,7 +124,8 @@ pub enum Action {
 }
 #[derive(Debug)]
 pub enum Event {
-    ForgeLog(Result<Box<[u8]>, String>),
+    BoxLog(Result<Box<[u8]>, String>),
+    ForgeFiles(Result<Vec<Box<[u8]>>, String>),
     ForgeResponse { status: u16, body: Box<[u8]> },
     ForgeFailure(String),
     TuiReady,
@@ -159,6 +165,7 @@ enum Phase {
     Snapshot,
     Diagnosing,
     Ctl,
+    CtlValues,
     Forge,
     TuiStarting,
     TuiBrowse,
@@ -239,7 +246,8 @@ impl Machine {
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
         match event {
-            Event::ForgeLog(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
+            Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
+            Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
                 self.forge_event(event, now, &mut out);
             }
             Event::TuiReady
@@ -323,14 +331,13 @@ impl Machine {
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {
-                if let Err(why) = self.plan.check_ctl_writes(args) {
-                    self.answer(Some(why), out);
-                    return;
+                if args.iter().any(|arg| crate::line::BoxValue::parse(arg).is_some()) {
+                    self.wait(Phase::CtlValues, now, STEP);
+                    out.push(Action::ReadBoxLog { path: self.plan.options.scratch.join("session/box.log") });
+                } else {
+                    let args = args.clone();
+                    self.ctl_start(&args, now, out);
                 }
-                let program = self.plan.ctl(args, Input::Null);
-                let bound = ctl_bound(args);
-                self.wait(Phase::Ctl, now, bound);
-                out.push(Action::Start { process: Process::Ctl, program });
             }
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
@@ -358,6 +365,30 @@ impl Machine {
                 out.push(Action::Snapshot);
             }
         }
+    }
+    fn ctl_values(&mut self, result: Result<Box<[u8]>, String>, now: Time, out: &mut Vec<Action>) {
+        let Some(Record::Ctl(args)) = self.current.as_ref().map(Line::record) else { return };
+        let resolved = result.and_then(|log| {
+            args.iter()
+                .map(|arg| match crate::line::BoxValue::parse(arg) {
+                    Some(value) => values::read(&log, value),
+                    None => Ok(arg.clone()),
+                })
+                .collect::<Result<Vec<_>, _>>()
+        });
+        match resolved {
+            Ok(args) => self.ctl_start(&args, now, out),
+            Err(why) => self.answer(Some(why), out),
+        }
+    }
+    fn ctl_start(&mut self, args: &[Box<[u8]>], now: Time, out: &mut Vec<Action>) {
+        if let Err(why) = self.plan.check_ctl_writes(args) {
+            self.answer(Some(why), out);
+            return;
+        }
+        let program = self.plan.ctl(args, Input::Null);
+        self.wait(Phase::Ctl, now, ctl_bound(args));
+        out.push(Action::Start { process: Process::Ctl, program });
     }
     fn answer(&mut self, why: Option<String>, out: &mut Vec<Action>) {
         let failed = why.map(|why| format!("line {}: {}", self.number, why.replace(['\n', '\r'], " ")));
@@ -743,4 +774,4 @@ fn duration(bytes: &[u8]) -> Option<u64> {
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
 }
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

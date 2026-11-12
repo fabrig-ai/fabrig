@@ -2,7 +2,7 @@
 
 2026-11-12. Where the design lags or departs from [redeploys.md](redeploys.md).
 
-Of this draft, section 9 alone is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infrastructure failures a class and a bound of their own.
+Sections 6.3 and 6.4 are designed, in `../domain/worker/checkouts.md`: stores kept across a restart and made once, blob-less, workspaces not kept, and preparations a few at a time, `checkout.preparations` of them, 1 by default. Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infrastructure failures a class and a bound of their own. Nothing else of this draft is designed or built yet.
 
 - **Design lags:**
   - 3.1, 8: jig's `protocol/README.md`, section 7, jig's `protocol/channel/README.md`, 4.1, smith's `protocol/README.md`, section 8, skein's `data/codec/README.md`, section 5, and `../protocol/README.md`, section 7 still change the wires in place before v0.1.0, keep no older version and translate nothing. `../protocol/channel.md`, section 3 versions temper's payloads by one number; `../domain/worker/jobs.md` gives jobs' requests and results no version; the host tools have no versioned contract.
@@ -13,6 +13,5 @@ Of this draft, section 9 alone is designed and built: jig's `domain/tasks/lifecy
   - 4.2: `../protocol/channel.md`, section 6 encodes a git identity's value once, for every worker.
   - 4.4: `../domain/worker/README.md`, section 5 and `../protocol/binaries.md`, section 5 start the agent the configuration names, read again at each spawn.
   - 6.1: jig's `domain/hosts/hub.md`, 7 cancels every run at once, and a job cancelled by its worker's shutdown ends lost.
-  - 6.4: `../domain/worker/checkouts.md` admits every preparation at once.
 - **Design departs:** none yet.
 - **Open:** none.

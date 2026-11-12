@@ -6,7 +6,10 @@
 
 A change made with questions `up` (`README.md`, 1) relays its agents'
 questions: its producing, its repairs and its resolutions ask it, it
-passes each to its requester, and it answers the asker. It decides
+passes each to its requester, and it answers the asker. A goal's
+closer, the requester of each change it makes and a procedure, passes
+each on to its goal and relays the answer back down
+(`../branches.md`, 2). It decides
 nothing itself (jig's `domain/tasks/proposals.md`
 ): the requester decides, and the change relays
 (`../../../draft/notes.md`, N1). A change made with questions `none`
@@ -342,3 +345,12 @@ rest of the branch lands while a sign-off waits a night
   save once its conflicts are settled. A report written before that merge names
   an older head; a contained tip makes no new one. Default: so; the head delivered
   names what is on the branch (`../../agent/README.md`, section 5).
+
+- **A route `up` with no Message family to keep** (`questions.md`, 1): the
+  change keeps its asking agents' Message family, never adds it, so a
+  change whose own authority lacks it (made by a caller without it, or
+  amended to an authority, whole, that leaves it out) delegates agents
+  that cannot ask, though it would relay their questions. Refusing such a
+  making or amendment would bind jig's amendment to a forge route.
+  Default: so; `decided` tells such an agent that it can ask no one
+  (`../../agent/tools.md`).

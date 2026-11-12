@@ -12,7 +12,7 @@ mod making;
 pub(crate) mod playground;
 pub(crate) mod standing;
 pub use host_route::{
-    ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
+    AskHow, ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
 mod decided;
 pub(crate) mod document;

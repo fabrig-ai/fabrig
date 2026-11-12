@@ -144,6 +144,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## checkout
 
 - `checkout.workspaces`: count, 3. Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.
+- `checkout.preparations`: count, 1. Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
 - `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.

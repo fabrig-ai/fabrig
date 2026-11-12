@@ -124,7 +124,6 @@ fn record(
                 "XDG_DATA_HOME",
                 "XDG_CACHE_HOME",
                 "XDG_RUNTIME_DIR",
-                temper_shell::environment::INTERNAL_RECORD.name,
             ]
             .iter()
             .any(|forward| name == forward)
@@ -348,7 +347,7 @@ impl<'a> Walker<'a> {
                 self.terminal = Some(
                     Terminal::start(
                         &self.paths.scratch,
-                        &self.paths.temper.with_file_name("temper-client"),
+                        &self.paths.temper.with_file_name("temper"),
                         &address,
                         &self.environment,
                     )

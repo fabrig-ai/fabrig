@@ -49,7 +49,7 @@ impl Recorder {
     /// Give one report and keep its duties in order.
     pub fn report(&mut self, host: &mut Host, page: &Page<'_>, report: Report) -> Duties {
         match &report {
-            Report::Screen(_) => {}
+            Report::Push(_) | Report::Screen(_) => {}
             Report::Start => self.keep(&Line::Start),
             Report::Copied { token, written } => self.keep(&Line::Copied { token: *token, written: *written }),
             Report::Due => self.keep(&Line::Due),

@@ -100,6 +100,9 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
     }
     writeln!(text, "{binary} upgrade: whole rehearsal/tool time: {} ns", report.elapsed.as_nanos())
         .expect("string write");
+    if let Some(failure) = &report.open_failure {
+        writeln!(text, "{binary} upgrade: store opening failed: {failure:?}").expect("string write");
+    }
     if let Some(end) = &report.end {
         let (refusal, _) = crate::host::ending_with_binary(binary, Some(end), false, directories, deployment, &[]);
         text.push_str(&refusal);
@@ -174,7 +177,7 @@ mod tests {
     fn report(event: Event) -> Report {
         let mut events = Queue::uncapped();
         events.push(event);
-        Report { events, elapsed: Duration::from_secs(1), end: None, restored: false, done: true }
+        Report { events, elapsed: Duration::from_secs(1), end: None, restored: false, done: true, open_failure: None }
     }
     #[test]
     fn report_words_cover_workers_back_and_patched_starts() {

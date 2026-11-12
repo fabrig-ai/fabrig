@@ -24,6 +24,7 @@ const READY: [Style; 4] = [look::STEP_DONE, look::STEP_DONE, look::STEP_DONE, lo
 fn front(link: Option<&[u8]>) -> Tui {
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Front);
+    tui.step(Told::Stage { stage: crate::BoxStage::Running });
     if let Some(link) = link {
         tui.step(Told::BoxLine { line: BoxLine::Link { url: Secret::new(link.into()) } });
     }
@@ -609,7 +610,7 @@ fn welcome_root(rows: &[w::ForgeRow], linked: bool, model: Option<bool>, playgro
                     w::Read::Deployment => Some(wire::deployment_answer(
                         &w::DeploymentAnswer::new(
                             &w::CEILINGS,
-                            w::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
+                            w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: None },
                         )
                         .unwrap(),
                     )),
@@ -651,4 +652,128 @@ fn welcome_root(rows: &[w::ForgeRow], linked: bool, model: Option<bool>, playgro
     }
     assert_eq!(root.forge().linked(), Some(linked), "the fixture delivered the forges document");
     root
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the stage golden table embeds its frames")]
+fn the_starting_box_welcomes_are_their_goldens() {
+    use crate::BoxStage;
+    let rows = [
+        (
+            "welcome-finding-80x24-dark",
+            BoxStage::Finding,
+            None,
+            "Finding temper-box…",
+            look::HINT,
+            include_bytes!("golden/welcome-finding-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "welcome-fetching-80x24-dark",
+            BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
+            None,
+            "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
+            look::HINT,
+            include_bytes!("golden/welcome-fetching-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "welcome-fetching-unsized-80x24-dark",
+            BoxStage::Fetching { done: 12_300_000, total: None },
+            None,
+            "Downloading temper-box, once for this build: 12.3 MB",
+            look::HINT,
+            include_bytes!("golden/welcome-fetching-unsized-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "welcome-starting-80x24-dark",
+            BoxStage::Starting,
+            Some(b"10:41:01 Starting serve".as_slice()),
+            "Starting the box…",
+            look::HINT,
+            include_bytes!("golden/welcome-starting-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "welcome-failed-80x24-dark",
+            BoxStage::Failed { why: b"WHY".as_slice().into() },
+            None,
+            "temper-box could not start: WHY",
+            look::REFUSED,
+            include_bytes!("golden/welcome-failed-80x24-dark.txt").as_slice(),
+        ),
+    ];
+    let root = f::signed_out();
+    let mut views = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for (_, stage, log, line, style, _) in &rows {
+        let mut tui = front(None);
+        tui.step(Told::Size { columns: FULL.columns });
+        tui.step(Told::Local { local: Local::Signing });
+        tui.step(Told::Stage { stage: stage.clone() });
+        if let Some(line) = log {
+            tui.step(Told::BoxLine { line: BoxLine::Log { line: (*line).into() } });
+        }
+        let view = build(&root, &tui);
+        let node = f::find(view.tree(), Role::Paragraph, line.as_bytes());
+        assert!(node.styles.as_slice().contains(style));
+        for line in &body(view.tree()) {
+            assert_ne!(line.as_ref(), ONCE.as_bytes());
+        }
+        super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+        views.push(view).unwrap();
+    }
+    let mut checks = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for ((name, _, _, _, _, want), view) in rows.iter().zip(&views) {
+        checks
+            .push(goldens::Golden {
+                name,
+                tree: view.tree(),
+                scheme: Scheme::Dark,
+                background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+                size: FULL,
+                focus: skein_ui_screen::Focus::default(),
+                want,
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
+    startup_details();
+}
+
+fn startup_details() {
+    use crate::{BoxStage, view};
+    for (done, total, want) in [
+        (12_349_999, Some(24_199_999), "Downloading temper-box, once for this build: 12.3 of 24.1 MB"),
+        (0, None, "Downloading temper-box, once for this build: 0.0 MB"),
+        (u64::MAX, None, "Downloading temper-box, once for this build: 18446744073709.5 MB"),
+    ] {
+        let mut tui = front(None);
+        tui.step(Told::Stage { stage: BoxStage::Fetching { done, total } });
+        assert_eq!(view::front::stage(&tui, &f::words()), Some((want.as_bytes().into(), look::HINT)));
+    }
+    let (starting, _) = f::starting();
+    let (live, _) = f::live(Some(f::me(&[])));
+    let signed_out = f::signed_out();
+    for (root, local, last) in
+        [(&signed_out, Local::Signing, true), (&starting, Local::Ended, true), (&live, Local::Idle, false)]
+    {
+        let mut tui = front(Some(PRINTED));
+        tui.step(Told::Local { local });
+        tui.step(Told::Size { columns: 12 });
+        tui.step(Told::BoxLine { line: BoxLine::Log { line: b"old".as_slice().into() } });
+        tui.step(Told::BoxLine { line: BoxLine::Log { line: "ab界cd界ef".as_bytes().into() } });
+        let part = view::welcome::read(root, &tui, &f::words(), f::NOW);
+        assert_eq!(part.last_log.as_deref(), if last { Some("ab界cd界".as_bytes()) } else { None });
+        assert!(part.stage.is_none(), "the printed link wins over a stage");
+        assert!(!part.signed_in, "the browser's sign-in is not the TUI's");
+    }
+    let mut tui = front(None);
+    assert!(view::front::stage(&tui, &f::words()).is_none(), "running without a link draws nothing");
+    tui.step(Told::Stage { stage: BoxStage::Failed { why: b"\xff\x80".as_slice().into() } });
+    assert_eq!(
+        view::front::stage(&tui, &f::words()),
+        Some(("temper-box could not start: ��".as_bytes().into(), look::REFUSED))
+    );
+    let mut tui = front(None);
+    tui.step(Told::Local { local: Local::Signing });
+    tui.step(Told::Stage { stage: BoxStage::Failed { why: Box::new([0xff; 513]) } });
+    let view = build(&signed_out, &tui);
+    super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
 }

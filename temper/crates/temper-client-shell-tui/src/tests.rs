@@ -18,7 +18,7 @@ use temper_client_domain::{
         terminal::{self, Command, Font, Theme},
     },
 };
-use temper_client_tui::{Event, Local, Note, Own, Scheme, Told, WalkStep};
+use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Scheme, Told, WalkStep};
 
 fn host() -> Host {
     Host::new(&Settings { limits: limits::tui() }, 7, Time::ZERO, Wall::EPOCH)
@@ -62,6 +62,7 @@ fn empty(duties: &Duties) {
     assert!(duties.address.is_none());
     assert!(duties.open.is_none());
     assert!(!duties.close);
+    assert!(duties.stop.is_none());
 }
 
 #[test]
@@ -3254,6 +3255,7 @@ enum FrontAct {
 
 enum FrontWant {
     Quit { close: bool, asking: bool },
+    Stop,
     Log { shown: bool, unknown: Option<&'static [u8]> },
     Line(temper_client_tui::BoxLine),
 }
@@ -3267,17 +3269,9 @@ fn in_front_quitting_asks_while_work_runs() {
     let closed = || FrontWant::Quit { close: true, asking: false };
     let mut rows = vec![
         ("bare working", false, true, vec![(close(), closed())]),
-        ("front idle", true, false, vec![(close(), closed())]),
-        ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
-        (
-            "quit",
-            true,
-            true,
-            vec![
-                (FrontAct::Send(b"/quit"), asked()),
-                (FrontAct::Send(b"/quit"), FrontWant::Quit { close: true, asking: true }),
-            ],
-        ),
+        ("front idle", true, false, vec![(close(), FrontWant::Stop)]),
+        ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Stop)]),
+        ("quit", true, true, vec![(FrontAct::Send(b"/quit"), asked()), (FrontAct::Send(b"/quit"), FrontWant::Stop)]),
         ("exit alias", true, true, vec![(FrontAct::Send(b"/exit"), asked())]),
         (
             "stay",
@@ -3289,19 +3283,14 @@ fn in_front_quitting_asks_while_work_runs() {
                 (close(), asked()),
             ],
         ),
-        (
-            "stop",
-            true,
-            true,
-            vec![(close(), asked()), (FrontAct::Event(Event::Stop), FrontWant::Quit { close: true, asking: true })],
-        ),
+        ("stop", true, true, vec![(close(), asked()), (FrontAct::Event(Event::Stop), FrontWant::Stop)]),
     ];
     let gave_up = BoxLine::GaveUp { step: b"forge".as_slice().into() };
     rows.push((
         "given up",
         true,
         true,
-        vec![(FrontAct::Line(gave_up.clone()), FrontWant::Line(gave_up)), (close(), closed())],
+        vec![(FrontAct::Line(gave_up.clone()), FrontWant::Line(gave_up)), (close(), FrontWant::Stop)],
     ));
     for (name, front, words) in [
         ("log", true, b"/log".as_slice()),
@@ -3334,6 +3323,7 @@ fn in_front_quitting_asks_while_work_runs() {
         let mut host = if running { home_host(true) } else { signed_host(true).0 };
         if front {
             host.tell(Told::Front);
+            host.report(Report::Stage(BoxStage::Running));
         }
         // Running must clear a known restart, rather than leave an already running box alone.
         host.report(Report::Front(BoxLine::Restarting { step: b"forge".as_slice().into() }));
@@ -3348,7 +3338,15 @@ fn in_front_quitting_asks_while_work_runs() {
                 FrontAct::Line(line) => host.report(Report::Front(line)),
             };
             let passed = match want {
-                FrontWant::Quit { close, asking } => duties.close == close && host.state().quitting() == asking,
+                FrontWant::Quit { close, asking } => {
+                    duties.close == close && duties.stop.is_none() && host.state().quitting() == asking
+                }
+                FrontWant::Stop => {
+                    duties.stop == Some(crate::host::Stop::First)
+                        && !duties.close
+                        && host.state().box_stage() == &BoxStage::Stopping
+                        && !host.state().quitting()
+                }
                 FrontWant::Log { shown, unknown } => {
                     duties.asked.is_empty()
                         && !duties.close
@@ -3376,6 +3374,72 @@ fn in_front_quitting_asks_while_work_runs() {
         }
     }
     assert!(failures.is_empty(), "front rows: {failures:?}");
+}
+
+#[test]
+fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
+    use crate::host::Stop;
+    let ended = BoxStage::Ended { end: BoxEnd::Exited { code: 0 } };
+    for stage in [
+        BoxStage::Finding,
+        BoxStage::Fetching { done: 7, total: None },
+        BoxStage::Fetching { done: 7, total: Some(10) },
+        BoxStage::Starting,
+        BoxStage::Running,
+        BoxStage::Stopping,
+        BoxStage::Failed { why: b"cannot fetch".as_slice().into() },
+        ended.clone(),
+        BoxStage::Ended { end: BoxEnd::Killed { signal: 9 } },
+    ] {
+        for command in [false, true] {
+            let mut host = host();
+            let duties = host.report(Report::Start(Start {
+                front: true,
+                size: Size { columns: 80, rows: 24 },
+                scheme: Some(Scheme::Dark),
+                background: None,
+                address: b"127.0.0.1:8367".as_slice().into(),
+                local: true,
+                boxed: false,
+                kept: Vec::new(),
+                credential: None,
+                note: None,
+            }));
+            assert!(duties.local && duties.asked.is_empty());
+            assert!(host.state().front());
+            assert_eq!(host.state().box_stage(), &BoxStage::Finding);
+            let duties = host.report(Report::Stage(stage.clone()));
+            assert!(!duties.close, "an unasked end stays open");
+            assert_eq!(host.state().box_stage(), &stage);
+            let quit = |host: &mut Host| {
+                if command {
+                    typed(host, b"/quit");
+                    give(host, Event::Send)
+                } else {
+                    host.report(Report::Key(Key::Control(b'c')))
+                }
+            };
+            let first = quit(&mut host);
+            if matches!(stage, BoxStage::Ended { .. }) {
+                assert!(first.close && first.stop.is_none());
+                continue;
+            }
+            assert_eq!(
+                first.stop,
+                Some(if stage == BoxStage::Stopping { Stop::Second } else { Stop::First }),
+                "{stage:?}, /quit={command}"
+            );
+            assert!(!first.close);
+            // Failed is terminal for the displayed stage, but the host still waits on its stop duty.
+            if !matches!(stage, BoxStage::Failed { .. }) {
+                assert_eq!(host.state().box_stage(), &BoxStage::Stopping);
+            }
+            let second = quit(&mut host);
+            assert_eq!(second.stop, Some(Stop::Second));
+            assert!(!second.close);
+            assert!(host.report(Report::Stage(ended.clone())).close);
+        }
+    }
 }
 
 fn working_chip(task: u64, title: &[u8]) -> w::Chip {

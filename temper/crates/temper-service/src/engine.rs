@@ -718,6 +718,13 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.installation = installation;
             }
             jig_protocol_store::Event::OpenRefused { why, .. } => open_refused(engine, why),
+            jig_protocol_store::Event::Corrupt { .. } if !engine.store.opened => {
+                // Opening has no load route; corruption is the open's terminal.
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.open_failure = engine.store.host.component.start_open_failure().cloned();
+                }
+                stop::open(engine, &jig_protocol_store::OpenRefusal::Failed);
+            }
             event @ (jig_protocol_store::Event::Decoded { .. }
             | jig_protocol_store::Event::Undecodable { .. }
             | jig_protocol_store::Event::Rehearsing { .. }

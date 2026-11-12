@@ -320,6 +320,7 @@ fn the_welcomes_host_check_precedes_the_trial() {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .unwrap();

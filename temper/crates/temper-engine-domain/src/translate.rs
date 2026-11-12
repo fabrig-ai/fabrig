@@ -31,7 +31,7 @@ pub struct Config {
     /// The stock ways, in their order (temper/docs/design/protocol/configuration/settings.md, 8).
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Forge writer identities and this deployment's branch namespace.
-    pub forge: skein_forge_client::Config,
+    pub forge: temper_engine_domain_forge::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
@@ -464,7 +464,7 @@ fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits
                 Some(tasks::Refusal::Read)
             } else if match &amendment.authority {
                 Some(authority) => !tasks::valid_authority(limits, authority),
-                None => true,
+                None => false,
             } {
                 Some(tasks::Refusal::AuthorityShape)
             } else {
@@ -649,4 +649,66 @@ pub fn landing_stock(
     review: u32,
 ) -> Box<[forge::settings::Stock]> {
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
+}
+
+#[cfg(test)]
+mod proposal_tests {
+    use super::{ProposedAction, proposal_shape, tasks};
+    use alloc::boxed::Box;
+
+    fn amendment(authority: Option<tasks::Authority>, reason: &[u8]) -> ProposedAction {
+        ProposedAction::Amend {
+            task: 1,
+            revision: 0,
+            amendment: tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: Some(b"revised instructions".as_slice().into()),
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority,
+                llm: None,
+                reason: reason.into(),
+            },
+        }
+    }
+
+    #[test]
+    fn an_amend_proposal_may_omit_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        assert_eq!(proposal_shape(&amendment(None, b"new plan"), b"please amend", &limits), None);
+    }
+
+    #[test]
+    fn an_amend_proposal_rejects_malformed_named_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        let mut authority = tasks::Authority {
+            tools: tasks::Tools(0),
+            models: tasks::Models::NONE,
+            grants: Box::new([]),
+            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+            budget: tasks::Budget { spend: 0, deadline: None },
+            notes: tasks::Scopes(0),
+            note_resources: Box::new([]),
+        };
+        assert!(tasks::valid_authority(&limits, &authority));
+        assert_eq!(proposal_shape(&amendment(Some(authority.clone()), b"plan"), b"ask", &limits), None);
+        authority.notes = tasks::Scopes(8);
+        assert!(!tasks::valid_authority(&limits, &authority));
+        assert_eq!(
+            proposal_shape(&amendment(Some(authority), b"plan"), b"ask", &limits),
+            Some(tasks::Refusal::AuthorityShape)
+        );
+    }
+
+    #[test]
+    fn an_amend_proposal_bounds_both_reasons() {
+        let mut limits = crate::tests::resume_fixture::limits().tasks;
+        limits.message_bytes = 4;
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!", &limits), None);
+        assert_eq!(proposal_shape(&amendment(None, b"plan!"), b"ask!", &limits), Some(tasks::Refusal::Read));
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!!", &limits), Some(tasks::Refusal::Read));
+    }
 }

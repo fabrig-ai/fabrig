@@ -496,7 +496,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         temper_box_shell::Command::Box {
             directories: support::configuration::directories(scratch.path()),
             echo: temper_box_machine::host::Echo::None,
-            no_tui: true,
+            front: false,
         },
         &[],
         b"/",
@@ -588,7 +588,7 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             temper_box_shell::Command::Box {
                 directories: support::configuration::directories(scratch.path()),
                 echo: temper_box_machine::host::Echo::None,
-                no_tui: true,
+                front: false,
             },
             &[],
             b"/",
@@ -1033,7 +1033,7 @@ fn every_command_checks_setup_before_reading_files() {
                 temper_box_shell::Command::Box {
                     directories: support::configuration::directories(scratch.path()),
                     echo: temper_box_machine::host::Echo::None,
-                    no_tui: true,
+                    front: false,
                 },
                 &[],
                 b"/",
@@ -1630,10 +1630,10 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             )
         );
         let path = scratch.path().display();
-        let command = if boxed { "box" } else { "serve" };
-        assert!(lines.ends_with(&format!(
-            "init: start it with temper {command} --config {path} --data {path} --cache {path}\n"
-        )));
+        let command = if boxed { "temper box" } else { "temper-box serve" };
+        assert!(
+            lines.ends_with(&format!("init: start it with {command} --config {path} --data {path} --cache {path}\n"))
+        );
 
         let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
         assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });

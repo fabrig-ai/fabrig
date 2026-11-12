@@ -87,6 +87,11 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
             &captured.environment,
         )));
     }
+    if matches!(&command, Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. })
+        && ![3, 4].into_iter().all(|fd| skein_shell::descriptor_writes(skein_io::kernel::Fd::new(fd)) == Ok(true))
+    {
+        return Err((2, "temper-box --front: fd 3 and fd 4 are its parent's pipes\n".into()));
+    }
     crate::run(
         command,
         &captured.environment,

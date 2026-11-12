@@ -53,8 +53,12 @@ this order:
   now sees or does on the web client or the TUI, the green path only, as
   `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
   draft's promises, written before anything is tried; no QA, with a line
-  why, when the landing changes nothing a person meets there; reading
-  alone, no box started, within its bound.
+  why, when the landing changes nothing a person meets there; the fakes
+  alone, the person's forge the box's fake Forgejo, so what only the
+  box's own Forgejo or another real backend shows is no case, and a
+  landing that changes nothing else a person meets is no QA, its line
+  saying so (`../../draft/landed-qa.md`, 6 and 12); reading alone, no
+  box started, within its bound.
 - **The landing:** its number, goal, pull request, merge commit and
   title.
 - **Its drafts,** each a path in the tree: every draft the merge's

@@ -238,6 +238,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::Relay { .. }
         | core::Held::PeopleReply { .. }
         | core::Held::CallAnswer { .. }
+        | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
