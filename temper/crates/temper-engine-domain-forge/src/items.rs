@@ -180,7 +180,7 @@ impl Domain {
         if let Some((row, change::Delegate::Produce)) = inherited {
             let merge_landing = match &row.change.early {
                 change::Early::Started(_) | change::Early::Spent(_) => true,
-                change::Early::None => !self.requires(repository, &row.base).up_to_date,
+                change::Early::None => !self.requires(repository, &row.base, self.touched_at(row)).up_to_date,
             };
             if merge_landing {
                 match &start {

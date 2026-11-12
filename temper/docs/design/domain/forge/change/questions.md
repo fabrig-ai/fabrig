@@ -249,15 +249,16 @@ early, by these rules:
 ## 2. Waiting on a person's approval
 
 A change whose merge waits on a person's approval on the forge (`gates.md`, 2,
-requirement 4) shows under Needs you to whoever's review it waits on, with
+requirement 4), or whose step's facts show one short, shows under Needs you to whoever's review it waits on, with
 its link (`../../../client/forge/README.md`, 4.1). It is a read, neither a task nor a
 hold (`../../../draft/forge-identity.md`, section 8): a person task would ask for
 an authority widened down the tree, to agents too, couldn't be opened by a
 change made before its rule, and would need a stored number, a delegate slot
 and a task per head; a hold escalates to the goal above first, wakes an
-agent to no purpose and offers a Release that does nothing here. The read
-leaves the landing branch held by the change first in line (`../queues.md`),
-which is what a person's approval asks of it.
+agent to no purpose and offers a Release that does nothing here. A change
+it shows is out of its branch's queue meanwhile (`../queues.md`), so the
+rest of the branch lands while a sign-off waits a night
+(`../../../draft/what-reaches-you.md`, section 7).
 
 - **The subject `approvals`:** one number, `APPROVALS_SUBJECT`, `(1 << 62) |
   (1 << 37)`, outside the task numbers as `TRIALS_SUBJECT` is (`../../trial.md`,
@@ -269,19 +270,22 @@ which is what a person's approval asks of it.
   watcher's role itself. One subject serves the deployment, as `dismissed`
   does (`../attention.md`, 1). It stores nothing.
 - **The forge's part:** each live change, in a project that lands by queue or
-  by turn, in state `First` or `Landing`, with a pull request, whose review
+  by turn, in state `Queued`, `First` or `Landing`, with a pull request, whose review
   facts (`gates.md`, 2) are at its last head, with an approval of an enforcing rule
-  covering its landing branch still short and none refused, each judged as its
+  covering it, by its branch and the path sets it touches at that head
+  (`gates.md`, 2, the kept `Touched`), still short and none refused, each judged as its
   panel judges them (`README.md`, 5). Of each: its task, project and forge; its
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
-  how many changes wait behind it in its landing branch's order (`../queues.md`),
-  counted as its panel counts those ahead (`README.md`, 5); and its short approvals, each
-  its scope, rule, role, required count and the people counted. Reviews read
+  and its short approvals, each its scope, rule, role, required count, the
+  people counted, and `sets`, the sets of its rule the change touches
+  there, bit `n − 1` for set `n`, none for a rule naming no set. No change
+  waits behind one it shows, which is out of its queue (`../queues.md`), so a
+  row counts none. It carries its pull request's size at that head, as its
+  approval evidence keeps it (`gates.md`, 2), none where it keeps none. Reviews read
   in part make a row as a whole read does. A change with no facts at its last
-  head has none: one not yet judged at its merge, one that left the queue or
-  was held, and every change after a restart until its next step judges its
-  merge again.
+  head has none: one not yet judged, one that was held, and every change
+  after a restart until its next step's facts are kept.
 - **The root's part:** of those, the changes in a project where the watcher
   holds a role. The row's approval is the first short one whose role is the
   watcher's, else, for an owner of the project, the first short one; a
@@ -299,7 +303,16 @@ which is what a person's approval asks of it.
   - otherwise *counts*.
 
   It names, too, the goal the change was made under, the outermost goal
-  above its task, if any, for that goal's page to show it.
+  above its task, if any, for that goal's page to show it, and, for the
+  row's approval, `sets`: each set of its rule the change touches, by
+  number in order, `ApprovalSet { number, name }`, its name the project's
+  classes' as the forge holds them (`../attention.md`, 6), empty for a number
+  the classes hold no set at; none for a rule naming no set. The client
+  says them on the card (`../../../client/forge/README.md`, 4.1). It carries
+  the size the forge's part gives, each count kept in 32 bits as the row's other
+  counts are, one past 4294967295 kept at it and the size marked cut, so
+  that the card says so (`../../../client/forge/records.md`, the subject
+  `approvals`).
 - **Its rows,** oldest first by when their facts were first kept, then by
   task: at most 32, and as many as one whole delivery holds at the largest
   row, as the trials' are bounded (`../../trial.md`, section 6); `more` counts the

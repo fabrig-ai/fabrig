@@ -187,11 +187,24 @@ merge, kind 4, on a pattern of landing branches (jig's
   change, kept only in the forge domain's working set, bounded like
   `change_due`, with when it was first kept at its head, and removed when
   the change's merge is admitted or the change ends: a review that counts
-  takes the change from Needs you (`questions.md`, 2) as its merge goes, not when it
+  takes the change from Needs you (`questions.md`, 2) once a step's facts
+  count it, or as its merge goes, not when it
   lands, and until a merge refused or failed is judged again its panel
   says reviews not read yet. Both procedure and
   landing merge waits supply its head, whether the read is complete,
-  the verified reviewers and the reviews from unmapped forge accounts.
+  the verified reviewers and the reviews from unmapped forge accounts,
+  and the pull request's size at that head: the forge's own counts of
+  its files, additions and deletions (skein's `forge/README.md`, 3.6),
+  from the read of the pull request the same step made, none where that
+  read gave none or answered another head. A pull request's answer the
+  store keeps carries no size, as it carries no queue facts, so a step
+  answered from it keeps none.
+  So does each step of a change ready in a queue (`Queued` or `First`)
+  that an enforcing rule covering it asks an approval of: the forge hands
+  the root the step's evidence, `Request::Reviewed { task, evidence }`,
+  and the root judges its reviews as it judges a merge's
+  (`landing_reviewers`) and keeps them, so the facts that take a change
+  out of its queue and bring it back (`../queues.md`) are a step's own.
   No row, event or restore carries it. The panel selects requirements
   from the live enforcing rules, as the merge judgement does, and shares
   its reviewer count: role, freshness, distinct people and conflicting
@@ -210,6 +223,54 @@ merge, kind 4, on a pattern of landing branches (jig's
   deployment's, and never replace them; gates a plan asks for on one
   change are the change's own (1), and add to the rules', never
   replace them.
+- **A rule by path** names path sets of its project's classes (`sets`,
+  `../../../protocol/configuration/engine.md`; `../attention.md`, 6) and
+  covers a change into a branch its pattern covers only where the change
+  touches one of them at the head judged; a rule naming none covers every
+  change there, as every rule did before (`../../../draft/what-reaches-you.md`,
+  section 7). Covering is one predicate, `covers(rule, branch, touched)`
+  in `temper-engine-domain-forge`'s `gates.rs`, for every reader of the
+  rules: the procedure's waits (`requires`, below), the gates a change
+  asks for (1), requirements 5 and 6 at the merge, the panel's
+  requirements (`README.md`, 5) and the approvals' rows (`questions.md`, 2).
+- **What a change touches** at a head is the paths of its diff from its
+  merge base with the landing branch to that head: the forge's comparison
+  of the landing branch's tip and the head, `Read::Compare { before: tip,
+  after: head }`, which counts from their merge base (skein's
+  `forge/README.md`, 3.3), so an update bringing the landing branch's own
+  edits into the change touches nothing. A step reads it with the change's
+  review facts, once its base and head are read, wherever a rule covering
+  the branch, enforcing or not, names a set, and nowhere else. The decision
+  that reads it matches its paths against the project's classes as the
+  forge holds them then (`PathSet::matched`, `temper-protocol-reaches`),
+  giving a `Touched { sets, whole }`, in `gates.rs` beside `covers`:
+  - `sets`, a u8: bit `n − 1` for set `n` where one of its patterns
+    matches one of the paths, and for each number 1 to 6 at which the
+    classes hold no set (`../../../protocol/configuration/engine.md`);
+  - `whole`, false where the comparison left a path out (its `changed`
+    past its paths), named other endpoints than asked, or failed; then
+    `sets` has every bit: a change whose files the forge can't give whole
+    touches every set, as an unknown overlap wakes (`../README.md`, 5.3);
+  - `Touched::UNKNOWN`, every bit and `whole` false, for a change whose
+    head has no comparison read: one before its first step reads it, or
+    after a restart until its next does.
+  A rule naming sets covers where `touched.sets` holds one of their bits.
+- **At that exact head:** the step's `Touched` is the merge's evidence,
+  `ChangeEvidence`'s `touched`, judged with its review facts at the head
+  the merge names, so a merge lands only what was checked and a head that
+  newly touches a set waits again for what its rule asks. The forge keeps
+  each change's last `Touched` at its head in its working set, beside the
+  review facts and dropped as they are, for the readers outside a step:
+  the panel and the approvals' rows judge a change by the kept one at its
+  current head, else `Touched::UNKNOWN`. Under the turn, the turn's merge
+  of a member reads the comparison of its main's tip, read afresh, and its
+  candidate, with the member's reviews, into its `LandingEvidence`'s
+  change evidence (`../../landing.md`, 8).
+- **The `paths` kind and a rule by path are two judgements:** `decided`
+  judges whether a choice may be made for a person, on the paths a call
+  names (`../attention.md`, 6); the rule judges whether a change may
+  land, on its diff at the merge. A choice decided inside a path set
+  still lands only with the rule's sign-off.
 - **The usual rule** for `main`: CI passed at the head (or the
   repository's checks, without CI), the head up to date with the branch,
   and an agent's review as a gate. A project adds what it wants on every
@@ -222,16 +283,19 @@ merge, kind 4, on a pattern of landing branches (jig's
   rule not marked `enforce` leaves its criteria to those waits alone. A
   requirement that waits keeps the change at its turn until it is asked
   again; one that refuses holds the change, saying which, and never
-  lands it. Approvals are waited for at the merge alone; for what the
+  lands it. Approvals are waited for at the merge, and a ready change
+  whose step's facts show one short waits out of its queue for it
+  (`../queues.md`), never holding the branch; for what the
   procedure waits for itself, a refusal at the merge is a bug in the
   procedure, counted (jig's `domain/authority.md`, section 10).
 - **What the procedure asks of the rules:** for a repository's landing
   branch, `Requires { ci, up_to_date }`, from `temper-engine-domain-forge`'s
   `requires` (in its `gates.rs`, beside the gates the rules name) over
-  the rules as the forge holds them (3): `ci` where some rule covering
-  the branch, the deployment's or its project's, enforcing or not, asks
-  CI passed; `up_to_date` where some such rule asks up to date; both
-  where no rule covers the branch, so a branch without rules keeps the
+  the rules as the forge holds them (3), with the step's `Touched`: `ci`
+  where some rule covering the change, the deployment's or its project's,
+  enforcing or not, asks CI passed; `up_to_date` where some such rule asks
+  up to date; both where no rule covers the change, so a branch without
+  rules, or one whose only rules are by path and untouched, keeps the
   procedure's own waits. It is read at each step of the change, never
   kept on it, so a rule changed reaches a live change at its next step.
   A rule asking neither lets a change merge at its head once the forge

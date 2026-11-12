@@ -254,8 +254,8 @@ profile, `docs/examples/reference/` (`../protocol/configuration/reference.md`
 ).
 
 - **Held by the acceptance, never by the binary.** The golden, the check
-  and the judge's brief are one tool crate, `tools/stage-one`
-  (`temper-stage-one`, `README.md`, section 5), which may read temper's crates and
+  and the judge's brief are one tool crate, `crates/temper-stage-one-tool`
+  (`bin/temper-stage-one`, `README.md`, section 5), which may read temper's crates and
   which no crate of the binary reads. Neither the stock nor the
   documentation compiled into the binary carries any of it, so the agent
   works from the person's description alone.

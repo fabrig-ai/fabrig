@@ -20,7 +20,8 @@ const HEADERS: u32 = 6;
 pub struct Exchange {
     request: Option<Box<github::plans::plan::Exchange>>,
     decoder: Option<Box<github::decode::Decoder>>,
-    done: Option<Body>,
+    // Completed documents occupy room only while waiting for the transport end.
+    done: Option<Box<Body>>,
     heard: Queue<Heard>,
 }
 impl Exchange {
@@ -142,7 +143,7 @@ impl Exchange {
             {
                 c.malformed_json(decode::Malformed::Bound { field: b"token" });
             }
-            github::decode::Step::Done(document) => self.done = Some(Body::Document(document)),
+            github::decode::Step::Done(document) => self.done = Some(Box::new(Body::Document(document))),
             github::decode::Step::Malformed(decode::Malformed::Json(tokenizer::Error::Stream(_))) => {
                 c.failed(super::Failure::Seen);
             }
@@ -165,10 +166,14 @@ impl Exchange {
                 Moved::Token(event) => self.token(c, env, event),
                 Moved::Finished { reuse, raw } => {
                     let body = match raw {
-                        Payload::Json => {
-                            self.done.take().unwrap_or(Body::Malformed(decode::Malformed::Missing { field: b"" }))
-                        }
-                        Payload::Empty => self.done.take().unwrap_or(Body::Empty),
+                        Payload::Json => match self.done.take() {
+                            Some(body) => *body,
+                            None => Body::Malformed(decode::Malformed::Missing { field: b"" }),
+                        },
+                        Payload::Empty => match self.done.take() {
+                            Some(body) => *body,
+                            None => Body::Empty,
+                        },
                         Payload::Raw { bytes, more } => Body::Raw { bytes, more },
                     };
                     let closes = match &body {

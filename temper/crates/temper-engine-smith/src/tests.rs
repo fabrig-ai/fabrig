@@ -1192,6 +1192,7 @@ fn pull_answer(state: skein_forge::api::State, head: [u8; 32], merged: Option<[u
         ci: api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     })
 }
 

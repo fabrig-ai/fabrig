@@ -476,6 +476,7 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
 fn landing_value() -> temper_engine_domain_forge::settings::Value {
     use temper_engine_domain_forge::{GateLast, GatePattern, settings};
     settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: GateLast::Open(Box::new([])),
@@ -508,6 +509,7 @@ fn settings_proposals_carry_typed_landing_values() {
             2,
             7,
             settings::Value::Rule(settings::LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern {
                     segments: Box::new([Box::from(b"branch".as_slice())]),
                     last: GateLast::Exact(Box::from(b"main".as_slice())),
