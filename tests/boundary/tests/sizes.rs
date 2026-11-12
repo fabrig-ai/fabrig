@@ -43,8 +43,6 @@ const EXCEPTIONS: &[Exception] = &[
         what: "jig-client-view",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
     },
-    Exception { what: "jig-protocol-store people", until: "G2" },
-    Exception { what: "jig-protocol-store tasks", until: "G2" },
     Exception {
         what: "jig-client-protocol-wire (own)",
         until: "a crate of its own for public (tools/crates/design.md, 5)",

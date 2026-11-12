@@ -255,6 +255,11 @@ members = [
     "jig/crates/jig-protocol-tools",
     "jig/crates/jig-protocol-config",
     "jig/crates/jig-protocol-store",
+    "jig/crates/jig-protocol-store-people",
+    "jig/crates/jig-protocol-store-tasks",
+    "jig/crates/jig-protocol-store-core",
+    "jig/crates/jig-protocol-store-settings",
+    "jig/crates/jig-protocol-store-families",
     "jig/tests/accounts",
     "jig/tests/protocol-accounts",
     "jig/tests/brief",
@@ -347,6 +352,7 @@ members = [
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
+    "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
@@ -581,6 +587,11 @@ jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }
 jig-protocol-store = { path = "jig/crates/jig-protocol-store" }
+jig-protocol-store-people = { path = "jig/crates/jig-protocol-store-people" }
+jig-protocol-store-tasks = { path = "jig/crates/jig-protocol-store-tasks" }
+jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
+jig-protocol-store-settings = { path = "jig/crates/jig-protocol-store-settings" }
+jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" }
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
 jig-client-world = { path = "jig/tests/client" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
@@ -691,6 +702,7 @@ temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git"
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
+temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }

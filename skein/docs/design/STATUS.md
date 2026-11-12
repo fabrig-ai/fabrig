@@ -15,8 +15,9 @@ No macOS runner runs skein's suites, no build of the shell's `posix` for macOS i
 Provider-list parsing, the standalone exchange and fake list replies are
 built; later pages and sharing the exchange shape remain deferred
 (`llm/README.md`, 4.9 and 6; `llm/connection.md`, 4.3 and 9; `testing/fakes/llm.md`, 3.2).
-`README.md`, `data/codec/README.md`, `testing/world.md`, `testing/fakes/checkout.md`,
-`oauth/issuer.md` and `ui/text.md` have no gap. Updates recover for both
+`README.md`, `testing/world.md`, `testing/fakes/checkout.md`,
+`oauth/issuer.md` and `ui/text.md` have no gap. The codec crates of `skein-oauth` and
+`skein-ui-example-view` wait for G3 of temper's crate-graph (`data/codec/README.status.md`, 2). Updates recover for both
 styles in the worlds; the update conformance gap remains `forge/forgejo.status.md`, 2. The viewport runtime check remains `testing/browser.status.md`, 9. The kit reads a toggle's pressed
 state, and its harness awaits that state by a named target within the
 step's bound (`testing/browser.md`, section 5; `ui/web/testing.md`, 2).

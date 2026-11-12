@@ -12,20 +12,7 @@ pub use patch_set::PATCH_SET;
 use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "the generated change fields ending and pending name distinct durable facts")]
-#[path = "generated/v16.rs"]
-pub mod v16;
-#[cfg(test)]
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "the generated fields head/held and ending/pending name distinct durable facts")]
-#[path = "generated/v14.rs"]
-pub mod v14;
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "the generated change fields ending and pending name distinct durable facts")]
-#[cfg(test)]
-#[path = "generated/v12.rs"]
-pub mod v12;
+pub use temper_protocol_store_codec::{v15, v16};
 #[cfg(test)]
 mod tests;
 

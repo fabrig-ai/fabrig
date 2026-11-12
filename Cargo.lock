@@ -1986,6 +1986,11 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-protocol-store-core",
+ "jig-protocol-store-families",
+ "jig-protocol-store-people",
+ "jig-protocol-store-settings",
+ "jig-protocol-store-tasks",
  "jig-test-patches",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
@@ -1999,6 +2004,46 @@ dependencies = [
  "skein-scratch",
  "skein-sim",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-store-core"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-protocol-store-families"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-protocol-store-people"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-protocol-store-settings"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-protocol-store-tasks"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -6693,6 +6738,15 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-store-codec",
+]
+
+[[package]]
+name = "temper-protocol-store-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]

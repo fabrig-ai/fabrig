@@ -84,7 +84,8 @@ fn a_foreman_with_a_task_becomes_retired() {
 fn a_v13_closer_upgrades_with_no_question_relay() {
     let before = kept_golden(2, "record_closer_full.bin");
     let bytes = patched(13, 2, b"Closer", before);
-    let row = crate::v14::Closer::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let bytes = patched(14, 3, b"Closer", bytes);
+    let row = crate::v15::Closer::decode(&crate::v15::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
     assert_eq!(row.relay(), &None);
     assert_eq!(row.task(), u64::MAX);
