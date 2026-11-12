@@ -6778,6 +6778,8 @@ dependencies = [
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+ "temper-worker-service",
+ "temper-worker-service-fixtures",
 ]
 
 [[package]]
@@ -7046,6 +7048,70 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-worker-service"
+version = "0.0.0"
+dependencies = [
+ "jig-client-protocol-wire",
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-protocol-config",
+ "jig-protocol-engine-workers",
+ "jig-protocol-worker-agents",
+ "jig-protocol-worker-link",
+ "jig-protocol-worker-wire",
+ "skein-channel",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "skein-world",
+ "smith-agent-shell",
+ "smith-agent-world",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain-run",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-local-service",
+ "smith-protocol-channel",
+ "smith-protocol-program",
+ "smith-transcript",
+ "temper-protocol-brief",
+ "temper-protocol-worker-wire",
+ "temper-service-core",
+ "temper-worker-domain",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
+ "temper-worker-protocol-git-world",
+]
+
+[[package]]
+name = "temper-worker-service-fixtures"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-protocol-config",
+ "jig-protocol-worker-link",
+ "skein-channel",
+ "skein-io",
+ "skein-lib",
+ "smith-agent-world",
+ "smith-channel",
+ "smith-charter",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-protocol-channel",
+ "smith-transcript",
+ "temper-protocol-worker-wire",
+ "temper-service-core",
+ "temper-worker-domain",
+ "temper-worker-protocol-git",
+ "temper-worker-service",
+]
+
+[[package]]
 name = "temper-worker-shell"
 version = "0.0.0"
 dependencies = [
@@ -7063,11 +7129,11 @@ dependencies = [
  "smith-host-protocol",
  "temper-launcher",
  "temper-playground",
- "temper-service",
  "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-worker-domain",
+ "temper-worker-service",
 ]
 
 [[package]]

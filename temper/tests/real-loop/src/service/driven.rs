@@ -74,7 +74,7 @@ impl Driven {
     pub(crate) fn pending(&self, now: Time) -> temper_service::diagnostics::Pending {
         match &self.service {
             Service::Joined(service) => service.pending(now),
-            Service::Worker(service) => service.pending(now),
+            Service::Worker(service) => service.pending(now).into(),
         }
     }
     pub(crate) fn work_pending(&self, now: Time) -> bool {

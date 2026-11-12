@@ -1,5 +1,5 @@
 use super::{ending_with_binary as worker_ending_words, note_line as worker_note_words};
-use temper_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone as worker};
+use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone as worker};
 
 const BINARY: &str = "temper-worker";
 fn directories() -> temper_shell::directories::Directories {
@@ -79,7 +79,7 @@ fn worker_aborted_words_and_exit_keep_their_behavior() {
 
 #[test]
 fn worker_link_notes_print_each_address_and_refusal_exactly() {
-    use temper_service::{Refusal, worker_alone::Note};
+    use temper_worker_service::{Refusal, worker_alone::Note};
     for (address, printed) in
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {
@@ -114,7 +114,7 @@ fn worker_link_notes_print_each_address_and_refusal_exactly() {
 
 #[test]
 fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
-    use temper_service::{WorkerClosed as Closed, WorkerLoss as Loss, worker_alone::Note};
+    use temper_worker_service::{WorkerClosed as Closed, WorkerLoss as Loss, worker_alone::Note};
     for (why, expected) in [
         (Loss::Closed(Closed::Stream), "lost worker-a [::1]:7100 stream\n"),
         (Loss::Closed(Closed::Truncated), "lost worker-a [::1]:7100 truncated\n"),

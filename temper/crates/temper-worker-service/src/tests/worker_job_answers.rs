@@ -187,7 +187,7 @@ fn assert_merge_answer(up: &hub::LinkUp, parts: &[jig_protocol_worker_wire::Part
     assert!(reader.is_empty());
     assert_eq!(left.landed().len(), 1);
     let landed = left.landed().get(0).unwrap();
-    assert_eq!(landed.tag(), temper_engine_domain_forge::tag(1, 3));
+    assert_eq!(landed.tag(), (1_u64 << 32_u32) | 3);
     assert_eq!(landed.commit(), &MERGE_PUSHED);
 }
 
@@ -197,7 +197,7 @@ fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
     worker.root = root::Domain::new(
         &worker.env.limits,
         Box::new([root::tooling::Kind {
-            bound: crate::limits::merge_bound(),
+            bound: temper_service_core::limits::merge_bound(),
             verb: b"merge".as_slice().into(),
             delivers: true,
         }]),
@@ -266,7 +266,7 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
             );
             let preparation = v1::Preparation::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
             let v1::Preparation::Refused(tag) = preparation else { panic!("refused repository") };
-            assert_eq!(tag.tag(), temper_engine_domain_forge::tag(1, 3));
+            assert_eq!(tag.tag(), (1_u64 << 32_u32) | 3);
             assert_eq!(work, hub::Work { left: None, saved: None });
         } else {
             assert_eq!(failure, hub::JobFailure::Cancelled(hub::Reason::Engine));

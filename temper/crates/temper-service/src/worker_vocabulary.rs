@@ -1,24 +1,11 @@
-//! The worker's own vocabulary (temper/docs/design/protocol/services.md, 5).
-use alloc::boxed::Box;
-use jig_protocol_config::Problems;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum End {
-    Drained,
-    Aborted,
-    Stopped(Stop),
-}
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Stop {
-    Start(Problems),
-}
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Note {
-    WorkerJob { run: u64, attempt: u64, kind: u32, verb: Box<[u8]>, ending: crate::WorkerJobEnding, why: Box<[u8]> },
-    Linked { worker: Box<[u8]>, address: Box<core::net::SocketAddr> },
-    Lost { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, why: crate::WorkerLoss },
-    Refused { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, reason: crate::Refusal },
-}
+//! Join the worker vocabulary (temper/docs/design/protocol/services.md, 6).
+#[cfg(feature = "worker")]
+use crate::worker_alone::{End, Note, Stop};
+#[cfg(not(feature = "worker"))]
+#[path = "unbuilt_vocabulary.rs"]
+mod unbuilt;
+#[cfg(not(feature = "worker"))]
+pub use unbuilt::{End, Note, Stop};
 impl From<Note> for crate::Note {
     fn from(note: Note) -> Self {
         match note {

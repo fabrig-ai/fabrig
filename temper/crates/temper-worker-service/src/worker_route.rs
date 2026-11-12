@@ -49,9 +49,9 @@ pub fn items(
     assignment: &hub::Assignment,
     parts: &[jig_protocol_worker_wire::Part],
     limits: &temper_protocol_worker_wire::v1::Limits,
-) -> Result<crate::worker::translate::Assigned, temper_worker_domain::wire::Undecodable> {
+) -> Result<translate::Assigned, temper_worker_domain::wire::Undecodable> {
     let Some(workspace) = &assignment.assignment.workspace else {
-        return Ok(crate::worker::translate::workspace(None));
+        return Ok(translate::workspace(None));
     };
     let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::Undecodable)?;
     let mut reader = Reader::new(bytes);
@@ -60,7 +60,7 @@ pub fn items(
     if !reader.is_empty() {
         return Err(temper_worker_domain::wire::Undecodable);
     }
-    Ok(crate::worker::translate::workspace(Some(&items)))
+    Ok(translate::workspace(Some(&items)))
 }
 /// A job's workspace uses the run's items family (temper/docs/design/domain/worker/jobs.md).
 pub fn job_items(
@@ -69,12 +69,12 @@ pub fn job_items(
     limits: &temper_protocol_worker_wire::v1::Limits,
 ) -> Result<temper_worker_domain::wire::Workspace, temper_worker_domain::wire::Undecodable> {
     let Some(workspace) = &job.workspace else {
-        return Ok(crate::worker::translate::workspace(None));
+        return Ok(translate::workspace(None));
     };
     let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::Undecodable)?;
     let items = temper_protocol_worker_wire::v1::Items::decode(limits, &mut Reader::new(bytes))
         .or(Err(temper_worker_domain::wire::Undecodable))?;
-    Ok(crate::worker::translate::workspace(Some(&items)))
+    Ok(translate::workspace(Some(&items)))
 }
 /// Decode the job's spec at the protocol boundary (temper/docs/design/protocol/tooling.md, 2).
 pub fn job_spec(
@@ -106,7 +106,7 @@ pub fn identity(
     if !reader.is_empty() {
         return None;
     }
-    crate::worker::translate::value(&identity)
+    translate::value(&identity)
 }
 
 /// Parts only under tokens an answer names; refusals have no application parts.
@@ -169,7 +169,7 @@ fn resource_parts(
     use jig_protocol_worker_wire::Part;
     use temper_protocol_worker_wire as payload;
     let mut parts = List::with_capacity(3);
-    let (left, saved) = crate::worker::translate::work(work);
+    let (left, saved) = translate::work(work);
     if let Some(token) = names.left {
         parts.push(Part { token, bytes: payload::left(&left) }).expect("three parts");
     }
@@ -180,7 +180,7 @@ fn resource_parts(
     }
     if let Some(token) = resource
         && let Some(preparation) = preparation
-        && let Some(preparation) = crate::worker::translate::preparation(preparation)
+        && let Some(preparation) = translate::preparation(preparation)
     {
         parts.push(Part { token, bytes: payload::preparation(&preparation) }).expect("three parts");
     }
@@ -216,3 +216,6 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
         smith::Charter::new(charter, charter_bytes).expect("fitted charter within the admitted ownership bound");
     start
 }
+
+/// The worker payload translations used by composition readers.
+pub use crate::worker::translate;

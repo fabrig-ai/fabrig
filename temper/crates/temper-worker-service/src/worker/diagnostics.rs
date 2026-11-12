@@ -5,7 +5,8 @@ use jig_domain_link::{Hosting, Phase};
 use skein_lib::{List, Time};
 
 impl Worker {
-    pub(crate) fn pending(&self, now: Time) -> diagnostics::Worker {
+    #[must_use]
+    pub fn pending(&self, now: Time) -> diagnostics::Worker {
         let hosting = self.root.hosting();
         let mut attempts =
             List::with_capacity(hosting.len().checked_add(self.root.kept_answers()).expect("host attempts"));
