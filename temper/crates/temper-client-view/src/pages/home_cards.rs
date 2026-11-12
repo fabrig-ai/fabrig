@@ -12,7 +12,6 @@ use temper_client_domain::{
     pages::{Act, needs},
 };
 
-#[expect(clippy::too_many_lines, reason = "Home's cards keep each need's question, size and acts together")]
 pub(crate) fn cards(
     b: &mut Builder,
     root: &Domain,

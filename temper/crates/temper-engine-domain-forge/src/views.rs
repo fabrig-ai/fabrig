@@ -39,6 +39,7 @@ pub enum Document {
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
+    Drafts(crate::DraftsView),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -130,6 +131,9 @@ impl Domain {
         }
         if subject == crate::status_subject(project) {
             return Some(Document::Status(self.status_view(project, party, now, limits)?));
+        }
+        if subject == crate::drafts_subject(project) {
+            return Some(Document::Drafts(self.drafts_view(project)));
         }
         if subject == changes_subject(project) {
             return Some(Document::Changes(self.changes_view(project, now, limits)?));
@@ -334,9 +338,21 @@ fn proof_key(proof: policy::Proof) -> Option<[u8; 32]> {
 impl Document {
     /// Owned storage retained by the root's asking decision (domain/routing.md, 1).
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "the document inventory counts owned bytes for every panel variant")]
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Drafts(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for draft in &view.rows {
+                    size = size
+                        .saturating_add(draft.owner.len())
+                        .saturating_add(draft.name.len())
+                        .saturating_add(draft.row.path.len())
+                        .saturating_add(draft.row.branch.len())
+                        .saturating_add(draft.row.title.len());
+                }
+            }
             Self::Changes(view) => {
                 size = size
                     .saturating_add(view.landing.len())

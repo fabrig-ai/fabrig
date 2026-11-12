@@ -4,7 +4,14 @@
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
-each document keeps its deferred work and open questions.
+each document keeps its deferred work and open questions. Landed
+drafts are the whole story's milestone P8, by goal 638: a project keeps
+each draft landed in its repositories that its writer says is ready, by
+`temper ctl draft ready`, read at the landing branch's head and kept with
+its commit, title, chat and, once started, its goal; Work lists the ready
+ones under Drafts, each starting a goal at the project's way; its render
+check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
+`draft/surfaces.status.md`, 5).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -78,6 +85,7 @@ Design documents:
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
+- [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)

@@ -139,6 +139,7 @@ pub(crate) fn admit(
     let (forge, org, name, from, into) = match ask {
         Ask::MakeRepository { forge, org, name, from, into } => (forge, org, name, from, into),
         Ask::DismissMaking { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }

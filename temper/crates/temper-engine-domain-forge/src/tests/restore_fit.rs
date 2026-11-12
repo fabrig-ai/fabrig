@@ -150,6 +150,19 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Looked => {
             Stored::Looked(Looked { party: n, project: 0, previous: None, latest: Wall::EPOCH, seen: 0, next_seen: 0 })
         }
+        RecordKind::LandedDraft => Stored::LandedDraft(LandedDraft {
+            repository: REPO,
+            path: format!("{n}.md").into_bytes().into(),
+            project: 1,
+            branch: b"main".as_slice().into(),
+            commit: [1; 32],
+            title: Box::new([]),
+            writer: 1,
+            at: Wall::EPOCH,
+            chat: None,
+            goal: None,
+            ready: true,
+        }),
         RecordKind::Away => {
             Stored::Away(Away { party: 1, project: 1, since: Wall::EPOCH, until: None, landed: 0, off: None })
         }

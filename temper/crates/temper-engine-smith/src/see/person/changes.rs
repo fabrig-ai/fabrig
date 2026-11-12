@@ -209,6 +209,7 @@ pub(super) fn queues(
         Some(
             Document::Change(_)
             | Document::Landing(_)
+            | Document::Drafts(_)
             | Document::Changes(_)
             | Document::Status(_)
             | Document::Aways(_)

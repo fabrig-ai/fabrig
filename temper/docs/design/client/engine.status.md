@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [engine.md](engine.md).
 
+- **Not yet:** the FORGE requests' `SetDraft`: the engine neither routes
+  nor answers it (`../domain/forge/drafts.md`) [in flight: change 663].
 - **Not yet:** 
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.

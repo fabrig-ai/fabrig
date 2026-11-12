@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
+- **Not yet:** 2: `work` and `work-drafts` hold no landed draft
+  [in flight: change 664].
+
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery-tool --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`

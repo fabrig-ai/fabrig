@@ -184,6 +184,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
     &["task", "text", "1"],
+    &["draft", "ready", "--project", "shop", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
+    &["draft", "list", "--project", "shop"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -828,7 +831,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 92;
+pub(super) const TOOL_FORMS: u32 = 95;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -938,3 +941,6 @@ pub(crate) fn offer_programs(root: &mut Harness) {
     me.providers = provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
 }
+
+mod drafts;
+pub(crate) use drafts::*;

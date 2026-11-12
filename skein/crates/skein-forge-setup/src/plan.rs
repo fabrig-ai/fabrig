@@ -51,10 +51,6 @@ pub enum Outcome {
 }
 /// The outcome of the outstanding need.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a reply's document moves whole, as the store's records do")
-)]
 pub enum Event {
     Begin,
     Read(Option<Secret>),
@@ -65,7 +61,7 @@ pub enum Event {
 /// An HTTP answer decoded by the host.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Reply {
-    Document(Document),
+    Document(Box<Document>),
     /// A page of rows: a list, or a repository search that answered `ok`.
     Rows(Box<[Row]>),
     Empty,

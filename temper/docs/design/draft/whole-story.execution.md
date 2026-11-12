@@ -80,7 +80,7 @@ or the nearest thing, and says so in that draft's status.
 | P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | nice | not started |
 | P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
 | P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | landed; its render check and walk follow (`../client/README.md`, 5) |
-| P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
+| P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | landed; its render check follows (`../client/README.md`, 5) |
 | N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | landed, R1 a standing role's case; its repair's web part landed, its render check and walk following (section 5) |
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | landed; its walk follows (section 5) |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | landed but for what waits on a login and Only you's other kinds, which wait on reads (section 5) |
@@ -301,7 +301,8 @@ P2's, as goal 338, its repair's wording, landed, and
 N1's that day, as goal 367, its repair's web part, landed, and
 R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
 N1's, N2's, N5's, N6's and P3c's that day, as N2 retired, and
-P7's that day, as goal 493 landed. Plans
+P7's that day, as goal 493 landed, and
+P8's, as goal 638 landed. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -322,7 +323,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P5b | waits | R2, by its needs, and Tell temper's filing (P5a) |
 | P6 | done | |
 | P7 | landed; its render check and walk follow | goal 493 reads the forge's own counts of a pull request's files, additions and deletions with it (skein's `forge/README.md`, 3.6), keeps them with the change's approval evidence at the head reviewed (`../domain/forge/change/gates.md`, 2), and draws them on the approval's card on Needs you and Home, "+142 -18 in 4 files", a count past 32 bits marked "+" (`../client/forge/README.md`, 4.1); `pair/needs.html`'s table of files, the CI and repair chips and the launchpad's line wait (`surfaces.status.md`, 4 and 11); its render check and walk follow landing (`../client/README.md`, 5) |
-| P8 | starts | |
+| P8 | landed; its render check follows | goal 638 keeps a project's landed drafts (`../domain/forge/drafts.md`): a writer says one ready by `temper ctl draft ready`, temper reads it at the landing branch's head and keeps its commit, title, chat and, once started, its goal; Work lists the ready ones under Drafts and starts a goal from each (`../client/pages/work.md`, 1); saying ready on the web or in a design session, and a goal's card naming its draft, are those documents' open questions; its render check follows landing (`../client/README.md`, 5) |
 | N1 | landed; its render check and walk follow | `ui-reaches` built `what-reaches-you.md`, 2 to 6, in the engine and the web client, and R1 a standing role's case; judging the paths an asker's change touches at its head, read since N2, is N1's repair's (`what-reaches-you.status.md`, 4); its repair, goal 367, draws Needs you's Decided head with "Limits" on a filtered page, a words offer's sentence over its field and Home's Away spell with no row showing, and the why line on the signal ground, over the choices, with "Keep asking" and the narrower rule on it, as `needs.html` does, saying "agents" where it says "goals" (`surfaces.status.md`, 4); the TUI's reason line is temper/tui's, T1 having drawn none; its render check and walk follow landing (`../client/README.md`, 5) |
 | N2 | landed; its walk follows | goal 187 built `what-reaches-you.md`, 7, in the engine and the web client: a landing rule's `sets` of the project's path sets, through settings files and ctl; what a change touches, from its merge base to its head, judged at that exact head by every reader of the rules and by the turn's merge; a change whose sign-off waits out of its branch's queue, so the rest of the branch lands; and Needs you's card saying the path sets it signs off, with "Sign off on Forgejo ↗"; the domain world's story holds a path rule's change for its sign-off while another lands. The path's stop for a path set is P3c's (`what-reaches-you.status.md`, 7); its walk follows landing |
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
