@@ -158,8 +158,7 @@ new to say. Its charter is the stock's 9
   With neither, its run waits, as *In flight* has it.
 - **Its run:** the procedure's first step delegates to charter 9 with the
   task's words, unlisted, no person asked (`asks` false), its authority
-  narrowed to no tools, grants, notes or delegation (as a foreman's is,
-  `change/questions.md`, 1), and no workspace: a run of this charter selects no repository. A
+  narrowed to no tools, grants, notes or delegation, and no workspace: a run of this charter selects no repository. A
   project whose policy's delegation doesn't name charter 9 has its
   delegate refused, which is a refused run. It is kept as a tier run's task
   is: jig forgets a result only for a person's request.
@@ -169,8 +168,7 @@ new to say. Its charter is the stock's 9
   the project's live goals each with its delegates done and total, and the
   failing tests each tier of the project's repositories holds. They say
   only what the engine keeps.
-- **Heard** at the procedure's next step, from its inbox, as a foreman's
-  result is (`change/questions.md`, 1): the report's first paragraph is `sentence`, the rest
+- **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
   `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
   the subject `status` marked. A failed, cancelled, refused or empty run

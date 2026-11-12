@@ -261,7 +261,7 @@ agent must name.
   where it names one, so a rule by none reads as it always has
   (`../../protocol/configuration/engine.md`), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
-  "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
+  "way": N}`, for a project's questions `"none"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,
   each ITEM `{"kind": KIND, "words": TEXT, "class": CLASS}` or `{"set": N,
   "words": TEXT, "class": CLASS}`, `words` optional and empty by default,

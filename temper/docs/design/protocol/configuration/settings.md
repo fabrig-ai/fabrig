@@ -18,7 +18,7 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
 | Member today | Becomes | Its default (`stock.md`) |
 |---|---|---|
 | Models in the deployment and agent files, refused under passed defaults | jig's models | temper's stock models, numbered (`stock.md`) |
-| jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), a coding agent's (2), a reviewer's (4), a coordinator's (5), a foreman's (6), the status agent's (9), a trial's (10) and Ask temper's (11) |
+| jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), the implementer's (2), a reviewer's (4), the goal's agent's (5), the status agent's (9), a trial's (10) and Ask temper's (11) |
 | jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), a goal for a draft (4), and temper's Ask temper (5) |
 | jig's `engine.policies` | jig's policies projects are made from | the stock policy (1) |
 | jig's `engine.rules` | jig's rules | temper's stock rules, the landing's two requirements among them (3) |
@@ -64,10 +64,10 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 |---|---|---|---|---|
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
-| 3, the forge's charters | the deployment | 1, the change's; 2, its reviews'; 3, its foremen's | a charter's number, a u32 | the deployment's owners |
+| 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
 | 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../../domain/landing.md`, 13.1) | that project's owners |
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../../domain/landing.md`, 13.1) | that project's owners |
-| 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none, foreman or up (`../../domain/forge/change/questions.md`, 1) | that project's owners |
+| 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none or up (`../../domain/forge/change/questions.md`, 1) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
@@ -250,18 +250,25 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   already made stays as it was decided.
 - **The forge's charters are read when a change is made.** The forge
   reads its own kind 3, as it holds it, and the root grants the
-  change's procedure delegation to its producer's charter, its
-  review charter and, when requested, its foreman's charter. Its producer's charter is the one its `change` call
+  change's procedure delegation to its producer's charter and its
+  review charter. Its producer's charter is the one its `change` call
   names (`../../domain/agent/tools.md`, 1), or, with none, the change's
   charter (number 1), its default. The change keeps their numbers on
   its row: its producing, its repairs, its resolutions and its checks'
   gates run under the producer's charter it was made with, its agents'
   gates, the reviews, under the
-  review charter it was made with (number 2; the stock's charter 4), its
-  foremen under the foreman's charter it was made with (number 3; the
-  stock's charter 6), and a newer charter of any reaches the
-  changes made after it (`../../domain/root.md`, section 5). A change whose
-  questions take no foreman is granted no delegation to the foreman's.
+  review charter it was made with (number 2; the stock's charter 4),
+  and a newer charter of either reaches the
+  changes made after it (`../../domain/root.md`, section 5).
+- **The foreman is retired** (`../../draft/stock-charters.md`, 3): kind 3
+  has no number 3 and kind 6 no `foreman`. Their codecs keep each
+  remaining value's encoding and reuse none: a stored kind 3 number 3,
+  or a stored kind 6 whose value is the retired route, is refused, not
+  read, naming its setting as ctl names it (as a start names
+  `charter 1.hosts`), with no compatibility before v0.1.0: at a start,
+  which then does not start, and at a restore of a settings revision
+  holding it, which then changes nothing. A proposal or a change setting
+  either is refused as an unknown value is.
 - **A project's questions are read when a change is made,** as its
   charters are: a `change` that names no route takes its project's
   kind 6 (`none` on the stock), kept on the change's row as its

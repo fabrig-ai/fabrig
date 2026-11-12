@@ -210,11 +210,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   5. "Coding agent", "For each change": the producer, kind 3's number 1;
   6. "Reviewer", "For each change": the reviews' charter, kind 3's
      number 2, while the project's path draws a "review";
-  7. "Foreman", "When a coding agent asks": the foreman's charter (the
-     stock's 6), while kind 6 routes questions to it or the project's
-     path starts a goal, whose coordinator names it
-     (`../../../protocol/configuration/reference.md`);
-  8. "Status agent", "When you look at Home after landings": the status
+  7. "Status agent", "When you look at Home after landings": the status
      agent's charter (the stock's 9), on its triggers (`../attention.md`, 3).
   Never the deployment's model trial; a charter the settings lack is
   left out. Each role is a card: `name` its name; `who` when it runs,

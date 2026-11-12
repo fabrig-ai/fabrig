@@ -380,12 +380,12 @@
     head: none, pending, approved, or changes asked;
   - its repairs, its resolutions and its updates, each used of its
     limit (u32 each);
-  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none, foreman
+  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none
     or up; the questions taken, used of its limit (u32 each); and its
     open questions, at most 8 in the order taken, each with its asker's
     task (u64) and the question's number there (u32), the first line of
     its words (at most 256 bytes, cut on a UTF-8 boundary and marked),
-    and where it stands: taken, with its foreman (its task, u64), asked
+    and where it stands: taken, asked
     of the change's requester, or answered and held for the change's
     dependencies. A change past its bound
     shows the question that held it among them, as its hold says.
