@@ -183,6 +183,16 @@ default names a tool:
   the run's end or by its process's death. Unset or empty, nothing is
   started and the run is as before.
 
+  So a hold program, the prefix started alone with no arguments added and
+  without `TIERS_HOLD` in its environment: keeps the directory first, then
+  writes one line, newline-ended and flushed, to its stdout within 60
+  seconds; writes nothing more there, since no one reads it after that
+  line; keeps the directory until it reads end of file on its stdin; then
+  gives it back and exits within 10 seconds. Its keeping must also end if
+  it is killed by `SIGKILL` at that point, and a signal sent to the entry
+  point's process group reaches it too. It holds no build of its own: no
+  cargo command waits on it.
+
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,
 and their inputs must stay still until completion. A low disk check sleeps 60
