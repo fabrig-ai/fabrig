@@ -227,6 +227,8 @@ impl World {
         )
     }
     #[must_use]
+    pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> { self.top.landing_hold_words(task) }
+    #[must_use]
     pub fn landing(&self, task: u64) -> &top::LandingRow {
         self.top.landing(task).expect("fixture landing")
     }
@@ -500,6 +502,7 @@ impl World {
                 hooked,
             },
         );
+        if turn { forge::manual_merges(&mut fake, b"org/repo", raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true }); }
         forge::grant(&mut fake, b"org/repo", 1, raw::Permission::Admin);
         forge::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         let top = top::Domain::new(
@@ -1095,6 +1098,23 @@ impl World {
             ),
             raw::Answer::Pushed(raw::Pushed::Pushed)
         );
+    }
+    /// The scripted worker delivers a clean prepare on a new landing branch.
+    pub fn prepare_landing(&mut self, task: u64, squash: bool) -> u64 {
+        let row = self.landing(task).clone(); let member = &row.landing.members[0];
+        let base = translate::number(member.base.expect("round base")); let head = translate::number(member.head.expect("round head"));
+        let mut tree: std::collections::BTreeMap<Box<[u8]>, Box<[u8]>> = self.forge.object(base).expect("base").tree.iter().map(|(path, bytes)| (path.clone(), bytes.clone())).collect();
+        for (path, bytes) in &self.forge.object(head).expect("head").tree { tree.insert(path.clone(), bytes.clone()); }
+        let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
+        let brings = row.landing.round.upstream.is_some_and(|upstream| {
+            let raw::Answer::Commits { commits } = self.inspect(&raw::Read::Commits { before: base, after: translate::number(upstream) }) else { panic!("upstream commits") };
+            commits.iter().any(|commit| self.forge.is_ancestor(commit.id, head))
+        });
+        let squash = squash && !brings;
+        let message = if squash { format!("candidate\n\nTemper-Head: {}", String::from_utf8(top::commit_text(&translate::commit(head)).into_vec()).expect("hex")) } else { "Prepared merge".to_owned() };
+        let candidate = forge::commit_tree(&mut self.forge, &self.forge_env.limits, base, if squash { None } else { Some(head) }, files, message.as_bytes()).expect("prepare commit");
+        let answer = self.external(raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }), 1);
+        assert!(matches!(answer, raw::Answer::PushNew { existing: None })); candidate
     }
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> u64 {
