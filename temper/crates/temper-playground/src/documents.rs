@@ -168,8 +168,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        // Two added 8-byte executor places make the largest stock chat payload 1,117 bytes.
-        ("people.amendment_bytes", 1125),
+        // Three additional 8-byte executor places make the largest chat payload 1,149 bytes.
+        ("people.amendment_bytes", 1149),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
