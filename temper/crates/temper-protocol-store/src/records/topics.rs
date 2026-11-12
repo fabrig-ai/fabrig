@@ -7,7 +7,9 @@ use temper_engine_domain_forge as d;
 
 fn encode_topic(value: &d::Topic) -> w::Topic {
     match value {
-        d::Topic::Findings { project } => w::Topic::Findings(w::FindingsTopic::new(&w::CEILINGS, w::FindingsTopicParts { project: *project }).expect(FITS)),
+        d::Topic::Findings { project } => w::Topic::Findings(
+            w::FindingsTopic::new(&w::CEILINGS, w::FindingsTopicParts { project: *project }).expect(FITS),
+        ),
         d::Topic::Landings { repository, branch } => w::Topic::Landings(
             w::LandingsTopic::new(
                 &w::CEILINGS,

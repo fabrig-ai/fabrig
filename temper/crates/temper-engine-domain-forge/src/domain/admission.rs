@@ -109,6 +109,7 @@ fn subscription_bound(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "repository topics and project findings share subscription admission")]
 pub(super) fn subscription_problem(
     d: &Domain,
     limits: &Limits,
@@ -194,7 +195,7 @@ pub(super) fn subscription_problem(
             resource,
         ));
     }
-    let Some(repository) = repository else { return None };
+    let repository = repository?;
     if !d.repositories.contains_key(&repository) {
         return Some(SubscriptionProblem {
             words: b"repository is not adopted; select an adopted owner/name",

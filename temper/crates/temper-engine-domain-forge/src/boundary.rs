@@ -802,14 +802,28 @@ pub enum Writer {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
-    Landings { repository: skein_forge::api::Repository, branch: Box<[u8]> },
+    Landings {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+    },
     /// CI changed on one commit.
-    Ci { repository: skein_forge::api::Repository, head: skein_forge::api::Commit },
+    Ci {
+        repository: skein_forge::api::Repository,
+        head: skein_forge::api::Commit,
+    },
     /// A pull's state changed.
-    Pull { repository: skein_forge::api::Repository, number: u64 },
+    Pull {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
     /// A participant wrote on an object.
-    Participation { repository: skein_forge::api::Repository, number: u64 },
-    Findings { project: u32 },
+    Participation {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
+    Findings {
+        project: u32,
+    },
 }
 /// A subscriber's classification of observed news.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -14,6 +14,7 @@ mod completed_reads;
 mod connect;
 mod dismissed;
 mod early;
+mod findings;
 pub(crate) mod fixtures;
 mod flight;
 mod forge_user;
