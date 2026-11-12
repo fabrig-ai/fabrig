@@ -968,6 +968,7 @@ fn family_subject(record: &jig_client::Family, scope: c::Scope) -> jig_client_te
             | temper_client_protocol_wire::v1::Watch::Dismissed
             | temper_client_protocol_wire::v1::Watch::Landing(_)
             | temper_client_protocol_wire::v1::Watch::Changes(_)
+            | temper_client_protocol_wire::v1::Watch::Devices
             | temper_client_protocol_wire::v1::Watch::Away
             | temper_client_protocol_wire::v1::Watch::Decided(_)
             | temper_client_protocol_wire::v1::Watch::Status(_)

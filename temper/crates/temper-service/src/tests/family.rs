@@ -1464,6 +1464,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
+                        | root::Application::AddDevice(_)
+                        | root::Application::RemoveDevice { .. }
                         | root::Application::Overturn { .. } => {
                             panic!("manifest or install")
                         }

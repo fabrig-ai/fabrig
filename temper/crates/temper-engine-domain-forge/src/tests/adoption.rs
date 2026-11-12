@@ -498,7 +498,8 @@ fn thirty_two_adoptions_are_answered_during_retention() {
     let mut d = Domain::new(
         &limits,
         4,
-        Config { push: None,
+        Config {
+            push: None,
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },

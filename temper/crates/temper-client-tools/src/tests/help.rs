@@ -295,6 +295,9 @@ const USAGES: &[&[u8]] = &[
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
     b"project remove PROJECT --key KEY\n",
+    b"push list\n",
+    b"push add FILE [--label LABEL] [--key KEY]\n",
+    b"push remove NUMBER [--key KEY]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -525,6 +528,7 @@ fn the_forge_reference_is_what_the_table_renders() {
 #[test]
 fn the_playground_reference_is_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
+    reference_matches(b"push", b"ctl-push");
 }
 #[expect(
     clippy::disallowed_methods,
@@ -544,16 +548,17 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut out = skein_lib::Writer::new(measured.written());
     crate::help::reference(group, &mut out).expect("reference measured");
     let rendered = out.finish();
-    let page = temper_docs::find(page_name).expect("reference page");
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
         Some(value) => value == "1",
         None => false,
     };
     if write {
-        let path = std::path::Path::new("../../docs/help/reference").join(page.name).with_extension("md");
+        let name = core::str::from_utf8(page_name).expect("reference name");
+        let path = std::path::Path::new("../../docs/help/reference").join(name).with_extension("md");
         std::fs::write(path, &rendered).expect("write group reference");
         return;
     }
+    let page = temper_docs::find(page_name).expect("reference page");
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
 }
 

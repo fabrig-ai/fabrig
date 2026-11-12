@@ -31,8 +31,8 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::AddDevice(_)
-| w::Request::RemoveDevice(_)
-| w::Request::SetAway(_)
+            | w::Request::RemoveDevice(_)
+            | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
             | w::Request::EndPlayground => {

@@ -1,37 +1,50 @@
 //! Push tools through both roots (client/ctl/tools.md, 2, 3; attention.md, 7.1).
 use jig_client_kit::harness::{ClientId, Settings, World};
-use temper_client_world::{app::{Event, Temper}, fixtures, front::Joint};
+use temper_client_world::{
+    app::{Event, Temper},
+    fixtures,
+    front::Joint,
+};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
 // RFC 8291 Appendix A's user-agent public key and authentication secret.
-const FILE: &[u8] = br#"{"endpoint":"http://push.test:4000/push/alice-phone","keys":{"p256dh":"BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4","auth":"BTBZMqHH6r4Tts7J_aSIgg"},"expirationTime":null}"#;
+const FILE: &[u8] = br#"{"endpoint":"http://push.test:4000/push/alice-phone","keys":{"p256dh":"BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4","auth":"BTBZMqHH6r4Tts7J_aSIgg"},"expirationTime":null,"ignored":1234567890123456789012345678901234567890}"#;
 type JointWorld = World<Temper, Joint>;
 fn world(push: bool) -> JointWorld {
     let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
     let limits = front.engine.env.limits;
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
-        if push { config.forge.push = Some(Box::new([b"http://push.test:4000".as_slice().into()])); }
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        if push {
+            config.forge.push = Some(Box::new([b"http://push.test:4000".as_slice().into()]));
+        }
         config
     });
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
     front.engine.settle();
-    let mut world = World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() }, front);
+    let mut world = World::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
+        front,
+    );
     world.randomness(2, 0, 0);
     world
 }
 fn add(world: &mut JointWorld, client: ClientId, file: &[u8]) -> temper_client_tools::jig::Printed {
     // Supply precisely the host's loaded FILE, not an external path or an endpoint argument.
-    let Event::Call { call, json, .. } = fixtures::call(&[b"push", b"add", b"subscription.json"]) else { panic!("ctl call") };
+    let Event::Call { call, json, .. } = fixtures::call(&[b"push", b"add", b"subscription.json"]) else {
+        panic!("ctl call")
+    };
     let number = world.root(client).agent().calls() + 1;
     world.event(client, Event::Call { number, call, json, value: Some(skein_lib::Secret::new(file.into())) });
     fixtures::answered(world, client, number)
 }
 fn call(world: &mut JointWorld, client: ClientId, words: &[&[u8]]) -> temper_client_tools::jig::Printed {
-    let number = fixtures::give(world, client, words); fixtures::answered(world, client, number)
+    let number = fixtures::give(world, client, words);
+    fixtures::answered(world, client, number)
 }
 #[test]
 fn ctl_registers_lists_only_the_origin_and_removes_a_device() {

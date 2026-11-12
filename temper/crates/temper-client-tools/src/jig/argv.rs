@@ -309,9 +309,12 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
         check_amend(call, limits)?;
     }
     if tool.name == b"push add" {
-        if call.values.contains(&Some(Values::One(Value::Stdin))) { return Err(Usage::Stdin); }
+        if call.values.contains(&Some(Values::One(Value::Stdin))) {
+            return Err(Usage::Stdin);
+        }
         if let Some(Value::Text(label)) = crate::jig::call::value(call, 1)
-            && !crate::push::valid_label(label) {
+            && !valid_device_label(label)
+        {
             return Err(Usage::Long { tool: call.tool, form: call.form, argument: 1 });
         }
     }
@@ -780,4 +783,9 @@ fn check_creation(tool: &Tool, call: &Call, limits: &Limits) -> Result<(), Usage
         check_goal(call, limits)?;
     }
     Ok(())
+}
+
+#[expect(clippy::disallowed_methods, reason = "argv validates device labels as UTF-8 before the host reads a file")]
+fn valid_device_label(label: &[u8]) -> bool {
+    !label.is_empty() && label.len() <= 60 && core::str::from_utf8(label).is_ok()
 }

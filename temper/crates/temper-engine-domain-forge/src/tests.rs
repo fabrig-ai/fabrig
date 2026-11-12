@@ -4,7 +4,6 @@ use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
 mod away;
-mod devices;
 mod binding;
 mod brief_document;
 mod change;
@@ -13,6 +12,7 @@ mod ci_brief;
 mod closer;
 mod completed_reads;
 mod connect;
+mod devices;
 mod dismissed;
 mod early;
 pub(crate) mod fixtures;
@@ -275,7 +275,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        Config { push: None,
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -812,7 +813,8 @@ fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
     let mut d = Domain::new(
         &LIMITS,
         4,
-        Config { push: None,
+        Config {
+            push: None,
             namespace: b"test".as_slice().into(),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -2151,7 +2153,8 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        Config { push: None,
+        Config {
+            push: None,
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },

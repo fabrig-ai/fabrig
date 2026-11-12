@@ -625,6 +625,8 @@ pub fn devices(record: &v1::Devices) -> Box<[u8]> {
 pub fn decode_devices(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Devices> {
     let mut reader = Reader::new(bytes);
     let record = v1::Devices::decode(limits, &mut reader).ok()?;
-    if !reader.is_empty() { return None; }
+    if !reader.is_empty() {
+        return None;
+    }
     Some(record)
 }

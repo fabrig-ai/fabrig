@@ -301,9 +301,9 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::RemoveRefused(_)
                 | w::Outcome::Reset
                 | w::Outcome::DeviceAdded(_)
-| w::Outcome::DeviceRemoved
-| w::Outcome::DeviceRefused(_)
-| w::Outcome::Away
+                | w::Outcome::DeviceRemoved
+                | w::Outcome::DeviceRefused(_)
+                | w::Outcome::Away
                 | w::Outcome::Tried
                 | w::Outcome::NotTheirs
                 | w::Outcome::Overturned

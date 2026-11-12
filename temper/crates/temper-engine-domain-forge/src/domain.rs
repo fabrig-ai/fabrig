@@ -186,8 +186,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
-    pub(crate) devices: Map<(u64, u32), crate::Device>,
-    pub(crate) push: Option<Box<[Box<[u8]>]>>,
+    pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
@@ -749,8 +748,10 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
-            push: config.push,
-            devices: Map::with_capacity(l.devices()),
+            devices: match config.push {
+                Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
+                None => None,
+            },
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
@@ -826,7 +827,11 @@ impl Domain {
             reconciliation: crate::reconcile::Reconciliation::new(l),
             restore_started: None,
             restore_fit: None,
-            client: skein_forge_client::Domain::configured(&l.client, seed, skein_forge_client::Config { namespace: config.namespace, writers: config.writers })?,
+            client: skein_forge_client::Domain::configured(
+                &l.client,
+                seed,
+                skein_forge_client::Config { namespace: config.namespace, writers: config.writers },
+            )?,
             client_out: Queue::uncapped(),
             brief_reclaim: 0,
             brief_fetches: Map::with_capacity(l.brief_sections),
@@ -1573,10 +1578,20 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             d.making_acts.remove(&key);
         }
         Event::AddDevice { request, token, party, person, call } => {
-            if person { crate::devices::add(d, env, request, token, party, call, out); }
-            else { d.connect.answer(request, token, crate::Answered::Device(crate::DeviceAnswer::Refused(crate::DeviceRefusal::Person)), out); }
+            if person {
+                crate::devices::add(d, env, request, token, party, call, out);
+            } else {
+                d.connect.answer(
+                    request,
+                    token,
+                    crate::Answered::Device(crate::DeviceAnswer::Refused(crate::DeviceRefusal::Person)),
+                    out,
+                );
+            }
         }
-        Event::RemoveDevice { request, token, party, number } => { crate::devices::remove(d, request, token, party, number, out); }
+        Event::RemoveDevice { request, token, party, number } => {
+            crate::devices::remove(d, request, token, party, number, out);
+        }
         Event::SetAway { request, token, party, project, on, until } => {
             crate::away::set_away(d, env, request, token, party, project, on, until, out);
         }
@@ -7022,7 +7037,15 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
         Stored::Device(row) => {
-            d.devices.insert((row.party, row.number), row).expect("restored device room checked");
+            if d.devices.is_none() {
+                d.devices = Some(Box::new(crate::devices::State::new(None, env.limits.devices())));
+            }
+            d.devices
+                .as_mut()
+                .expect("restoring a device retains its state")
+                .rows
+                .insert((row.party, row.number), row)
+                .expect("restored device room checked");
         }
         Stored::Away(row) => {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");

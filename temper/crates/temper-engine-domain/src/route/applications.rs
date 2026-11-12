@@ -43,7 +43,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => people::ApplicationScope::Own,
+        Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => {
+            people::ApplicationScope::Own
+        }
         Application::Dismiss {
             what:
                 forge::PersonFact::ToBegin { project }
@@ -74,7 +76,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Looked { .. }
         | Application::SetAway { .. }
         | Application::Overturn { .. }
-        | Application::AddDevice(_) | Application::RemoveDevice { .. } => carried,
+        | Application::AddDevice(_)
+        | Application::RemoveDevice { .. } => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -129,7 +132,13 @@ pub(super) fn admitted(
                 Some(people::Kind::Person) => true,
                 Some(people::Kind::Service) | None => false,
             };
-            domain.work.push(Work::Forge(forge::Event::AddDevice { request, token, party: person, person: person_kind, call }));
+            domain.work.push(Work::Forge(forge::Event::AddDevice {
+                request,
+                token,
+                party: person,
+                person: person_kind,
+                call,
+            }));
         }
         Application::RemoveDevice { number } => {
             domain.work.push(Work::Forge(forge::Event::RemoveDevice { request, token, party: person, number }));
