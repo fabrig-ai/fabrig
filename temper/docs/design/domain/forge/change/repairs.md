@@ -157,6 +157,12 @@
   head: the resolution's pull section is pinned at that head, and a merge
   job merges the base into it. Clean, it goes on with no resolution, a
   head that moved meanwhile checked again as any push of its own is.
+  **A resolution's reads never fail it for good on a forge catching up:**
+  a head that moves under them, as a landing's does when the forge
+  updates its branch, pauses its brief as a moved head does, with no try
+  spent, and the change reads afresh; a comparison past a bound is
+  omitted (both below); so a resolution fails for good only on what a
+  fresh read would meet again.
   Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
@@ -245,7 +251,7 @@
   | `Unavailable` | transient | `the forge could not be reached` |
   | `Timeout` | transient | `the forge did not answer in time` |
   | `RateLimited` | transient | `the forge is limiting calls` |
-  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it | capacity | `the change's head moved` |
+  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it; a pull's files read the forge answers `Stale`, its head having moved between the pull's read and the files' | capacity | `the change's head moved` |
   | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
@@ -297,6 +303,9 @@
   and for a head another writer moved,
   `temper-box serve: brief read refused task=T section=pull stage=pull reason=the change's head moved pinned=PINNED head=HEAD`,
   each head in full hexadecimal, as the `read refused` line's `head=` is.
+  A files read answered `Stale` read no head, so its line names the error
+  alone:
+  `temper-box serve: brief read refused task=T section=pull stage=files reason=the change's head moved error=Stale`.
   A read the forge answered and temper refused names no error: never
   `error=None`.
   A brief that fails adds one more, naming how it counts and its reason:
