@@ -5486,6 +5486,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-test-env",
@@ -6014,6 +6015,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-service",
 ]
@@ -6243,12 +6245,20 @@ dependencies = [
 name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
- "jig-protocol-config",
  "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "temper-protocol-records-forge"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
  "skein-forge",
  "skein-forge-connection",
  "skein-forge-setup",
  "skein-lib",
+ "temper-protocol-records",
 ]
 
 [[package]]
@@ -6344,6 +6354,7 @@ dependencies = [
  "temper-github-app",
  "temper-playground",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-service",
  "temper-service-shell",
@@ -6438,6 +6449,7 @@ dependencies = [
  "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service-core",

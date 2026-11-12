@@ -261,6 +261,7 @@ members = [
     "temper/bin/temper-playground-serve",
     "temper/crates/temper-protocol-reaches",
     "temper/crates/temper-protocol-records",
+    "temper/crates/temper-protocol-records-forge",
     "temper/tests/real-loop",
     "temper/crates/temper-box-machine",
     "temper/crates/temper-client-gallery-tool",
@@ -589,7 +590,8 @@ temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
-temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
+temper-protocol-records = { path = "temper/crates/temper-protocol-records" }
+temper-protocol-records-forge = { path = "temper/crates/temper-protocol-records-forge" }
 temper-box-machine = { path = "temper/crates/temper-box-machine" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
 temper-fetch-shell = { path = "temper/crates/temper-fetch-shell" }

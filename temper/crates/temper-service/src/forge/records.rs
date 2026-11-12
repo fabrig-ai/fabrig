@@ -5,15 +5,16 @@ use jig_protocol_store::{Event, SecretOwner, Secrets};
 use skein_lib::List;
 use skein_lib::{Queue, Secret, Token};
 use temper_protocol_records as records;
+use temper_protocol_records_forge as forge_records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
 /// Every forge-family row survives until its record chooses the runtime (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Debug)]
 pub(crate) struct Rows {
-    values: records::Rows,
+    values: forge_records::Rows,
 }
 impl Rows {
     fn new() -> Self {
-        Self { values: records::Rows::new() }
+        Self { values: forge_records::Rows::new() }
     }
     pub(crate) fn push(&mut self, number: u64, bytes: Secret, value_bytes: u32) {
         if number < records::CARRIED && number >> 48_u32 == u64::from(records::FAMILY_FORGE) {
@@ -23,7 +24,7 @@ impl Rows {
     pub(crate) fn remove(&mut self, forge: u16) {
         self.values.remove(forge);
     }
-    pub(crate) fn forge(&self, forge: u16) -> Option<&records::ForgeRows> {
+    pub(crate) fn forge(&self, forge: u16) -> Option<&forge_records::ForgeRows> {
         self.values.forge(forge)
     }
 }
@@ -166,10 +167,10 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
     if engine.setup.records_only(number) {
         return;
     }
-    let expected = records::origin(kind, &forge.api);
+    let expected = forge_records::origin(kind, &forge.api);
     let start = match engine.forge_records.rows.forge(number) {
-        Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, engine.forge.webhooks),
-        None => Err(records::NotConnected::NoRecords),
+        Some(rows) => forge_records::access(kind, &expected, rows, &engine.forge_records.bounds, engine.forge.webhooks),
+        None => Err(forge_records::NotConnected::NoRecords),
     };
     let start = match start {
         Ok(start) => {
