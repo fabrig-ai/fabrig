@@ -108,6 +108,61 @@ fn a_v14_closer_keeps_its_question_relay_through_r2() {
     assert!(closer.relay().is_some());
 }
 
+const V15_LANDING_BYTES: u32 = 512;
+
+fn v15_landing(place: u8, held: bool, member: bool) -> Box<[u8]> {
+    let mut bytes = skein_lib::Intake::with_capacity(V15_LANDING_BYTES);
+    bytes.append(&61_u64.to_be_bytes()).expect("bounded landing fixture");
+    bytes.append(&7_u32.to_be_bytes()).expect("bounded landing fixture");
+    bytes.append(&[place]).expect("bounded landing fixture");
+    if place == 3 || place == 4 {
+        bytes.append(&123_u64.to_be_bytes()).expect("bounded landing fixture");
+    }
+    bytes.append(&[u8::from(held)]).expect("bounded landing fixture");
+    if held {
+        bytes.append(&0_u16.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&0_u16.to_be_bytes()).expect("bounded landing fixture");
+    }
+    bytes.append(&u32::from(member).to_be_bytes()).expect("bounded landing fixture");
+    if member {
+        bytes.append(&62_u64.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&1_u16.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&2_u32.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&10_u64.to_be_bytes()).expect("bounded landing fixture");
+        for commit in [1_u8, 2, 3] {
+            bytes.append(&[1]).expect("bounded landing fixture");
+            bytes.append(&[commit; 32]).expect("bounded landing fixture");
+        }
+        bytes.append(&1_u32.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&[2]).expect("bounded landing fixture"); // dispatched proof
+        bytes.append(&[4_u8; 32]).expect("bounded landing fixture");
+        bytes.append(&2_u16.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&[1]).expect("bounded landing fixture"); // pending posting
+        bytes.append(&3_u32.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&[1]).expect("bounded landing fixture");
+        bytes.append(&2_u16.to_be_bytes()).expect("bounded landing fixture"); // asked preparation
+        bytes.append(&[u8::from(place == 5)]).expect("bounded landing fixture");
+        if place == 5 {
+            bytes.append(&[3_u8; 32]).expect("bounded landing fixture");
+        }
+    }
+    bytes.append(&2_u16.to_be_bytes()).expect("bounded landing fixture");
+    bytes.append(&5_u32.to_be_bytes()).expect("bounded landing fixture");
+    bytes.append(&u32::from(member).to_be_bytes()).expect("bounded landing fixture");
+    if member {
+        bytes.append(&[1, 0]).expect("bounded landing fixture");
+        bytes.append(&[1_u8; 32]).expect("bounded landing fixture");
+        bytes.append(&[2_u8; 32]).expect("bounded landing fixture");
+    }
+    bytes.append(&u32::from(member).to_be_bytes()).expect("bounded landing fixture");
+    if member {
+        bytes.append(&81_u64.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&0_u16.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&0_u16.to_be_bytes()).expect("bounded landing fixture");
+        bytes.append(&[4]).expect("bounded landing fixture");
+    }
+    bytes.meet(skein_lib::stream::Read::Fill(bytes.len())).expect("whole landing fixture")
+}
 #[test]
 fn v15_landings_keep_their_in_flight_state_without_entering_a_round() {
     for (place, held, member) in [
@@ -120,58 +175,9 @@ fn v15_landings_keep_their_in_flight_state_without_entering_a_round() {
         (6, false, false),
         (2, true, true),
     ] {
-        let mut bytes = Vec::new();
-        bytes.extend(61_u64.to_be_bytes());
-        bytes.extend(7_u32.to_be_bytes());
-        bytes.push(place);
-        if place == 3 || place == 4 {
-            bytes.extend(123_u64.to_be_bytes());
-        }
-        bytes.push(u8::from(held));
-        if held {
-            bytes.extend(0_u16.to_be_bytes());
-            bytes.extend(0_u16.to_be_bytes());
-        }
-        bytes.extend(u32::from(member).to_be_bytes());
-        if member {
-            bytes.extend(62_u64.to_be_bytes());
-            bytes.extend(1_u16.to_be_bytes());
-            bytes.extend(2_u32.to_be_bytes());
-            bytes.extend(10_u64.to_be_bytes());
-            for commit in [1_u8, 2, 3] {
-                bytes.push(1);
-                bytes.extend([commit; 32]);
-            }
-            bytes.extend(1_u32.to_be_bytes());
-            bytes.push(2); // dispatched proof
-            bytes.extend([4_u8; 32]);
-            bytes.extend(2_u16.to_be_bytes());
-            bytes.push(1); // pending posting
-            bytes.extend(3_u32.to_be_bytes());
-            bytes.push(1);
-            bytes.extend(2_u16.to_be_bytes()); // asked preparation
-            bytes.push(u8::from(place == 5));
-            if place == 5 {
-                bytes.extend([3_u8; 32]);
-            }
-        }
-        bytes.extend(2_u16.to_be_bytes());
-        bytes.extend(5_u32.to_be_bytes());
-        bytes.extend(u32::from(member).to_be_bytes());
-        if member {
-            bytes.extend([1, 0]);
-            bytes.extend([1_u8; 32]);
-            bytes.extend([2_u8; 32]);
-        }
-        bytes.extend(u32::from(member).to_be_bytes());
-        if member {
-            bytes.extend(81_u64.to_be_bytes());
-            bytes.extend(0_u16.to_be_bytes());
-            bytes.extend(0_u16.to_be_bytes());
-            bytes.push(4);
-        }
+        let bytes = v15_landing(place, held, member);
         let mut context = crate::patches::Context { landing_branch: Some(b"release".as_slice().into()) };
-        let bytes = patched_with(15, 4, b"LandingRow", bytes.into_boxed_slice(), &mut context);
+        let bytes = patched_with(15, 4, b"LandingRow", bytes, &mut context);
         let row = crate::v16::LandingRow::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes))
             .expect("migrated landing");
         let landing = row.landing();

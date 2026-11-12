@@ -2163,10 +2163,6 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "bounded landing failure snapshots remain in the existing durable save request"
-)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,

@@ -69,7 +69,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         let w::Activity::Heard(heard) = wire_rows.get(1).unwrap().source().line() else { panic!("heard") };
         let w::MessageKind::Result(result) = heard.value().kind() else { panic!("result") };
         assert_eq!(result.value(), &w::WordResult::Job);
-        assert!(heard.value().words().is_empty());
+        assert_eq!(heard.value().words(), b"");
         let client = jig_client_domain::Limits { rows: 3, ..*fixtures::client_limits().client() };
         let client = jig_client_protocol_link::Limits::new(client, 4).unwrap();
         let page = jig_client_protocol_link::translate::pages::activity_page(page, &client).unwrap();
@@ -150,7 +150,7 @@ fn job_results_cross_word_lines_and_question_answers_without_bytes() {
             };
             let w::MessageKind::Result(result) = kind else { panic!("result") };
             assert_eq!(result.value(), &w::WordResult::Job);
-            assert!(words.is_empty());
+            assert_eq!(words, b"");
             assert_eq!((decoded.task(), decoded.position(), decoded.at()), (7, 2, 29));
         }
     }

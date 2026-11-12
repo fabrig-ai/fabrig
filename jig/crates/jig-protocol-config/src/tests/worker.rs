@@ -50,20 +50,23 @@ fn an_absent_drain_uses_three_minutes() {
     let worker = worker(&bytes).unwrap();
     assert_eq!(worker.graces.drain, Duration::from_millis(180_000));
     assert_eq!(worker.stop_bound, Duration::from_secs(205));
-    let member = crate::members::MEMBERS.iter().find(|row| row.shape == "graces" && row.name == "drain_ms").unwrap();
-    assert!(!member.required);
-    assert!(
-        crate::members::MEMBERS
-            .iter()
-            .filter(|row| row.shape == "graces" && row.name != "drain_ms")
-            .all(|row| row.required)
-    );
+    let mut drain = None;
+    for row in &crate::members::MEMBERS {
+        if row.shape == "graces" {
+            if row.name == "drain_ms" {
+                drain = Some(row);
+            } else {
+                assert!(row.required);
+            }
+        }
+    }
+    assert!(!drain.expect("drain member").required);
 }
 #[test]
 fn a_present_drain_accepts_unsigned_milliseconds_up_to_a_duration() {
     for millis in [0, 180_000, 18_446_744_073_709_u64] {
-        let drain = format!("\"drain_ms\": {millis}");
-        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""drain_ms": 10000"#, drain.as_bytes());
+        let drain = fixtures::with(br#""drain_ms": MILLIS"#, b"MILLIS", skein_lib::Decimal::of(millis).as_bytes());
+        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""drain_ms": 10000"#, &drain);
         // No cancellation tail: the largest drain fits the whole stop bound too.
         let bytes = fixtures::with(&bytes, b"\"agent_stop_ms\": 10000", b"\"agent_stop_ms\": 0");
         let bytes = fixtures::with(&bytes, b"\"delivery_ms\": 20000", b"\"delivery_ms\": 0");
@@ -81,12 +84,8 @@ fn invalid_drain_members_name_their_field() {
         (b"18446744073710", What::Bound),
         (b"10000, \"drain_ms\": 10", What::Duplicate),
     ] {
-        refuses(
-            b"\"drain_ms\": 10000",
-            &[b"\"drain_ms\": ".as_slice(), drain].concat(),
-            fixtures::path(&[b"graces", b"drain_ms"]),
-            what,
-        );
+        let drain = fixtures::with(br#""drain_ms": VALUE"#, b"VALUE", drain);
+        refuses(b"\"drain_ms\": 10000", &drain, fixtures::path(&[b"graces", b"drain_ms"]), what);
     }
 }
 fn a_silence_under_three_pings_is_refused() {

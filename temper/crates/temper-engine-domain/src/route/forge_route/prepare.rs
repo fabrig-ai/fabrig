@@ -123,7 +123,7 @@ mod tests {
         };
         let bytes = spec(&request, 16_384).expect("bounded prepare");
         let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
-        assert!(decoded.command().is_empty());
+        assert_eq!(decoded.command(), b"");
         assert_eq!(decoded.request(), br#"{"version":1,"repository":"repo","main":"0101010101010101010101010101010101010101010101010101010101010101","combine":"squash","train_upstream":"0303030303030303030303030303030303030303030303030303030303030303","members":[{"number":12,"branch":"temper/7/c12","head":"0202020202020202020202020202020202020202020202020202020202020202","message":"Merge \"title\"\n\nLanded","squash":"title\n\nTemper-Change: 12"}],"upstreams":[],"gates":[]}"#);
         assert!(spec(&request, u32::try_from(bytes.len()).expect("length") - 1).is_none());
     }
