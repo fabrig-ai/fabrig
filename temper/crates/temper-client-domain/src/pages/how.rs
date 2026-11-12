@@ -386,8 +386,10 @@ pub fn follows(
     if let Some(panel) = panel {
         for row in panel.follows() {
             let setting = row.setting();
-            let w::FollowOwner::Person(person) = setting.owner();
-            let owner = follow_owner(person.person(), members, reader);
+            let owner = match setting.owner() {
+                w::FollowOwner::Person(person) => follow_owner(person.person(), members, reader),
+                w::FollowOwner::Task(_) => Owner::Unknown,
+            };
             let code_starts = match setting.start() {
                 w::FollowStart::Code => true,
                 w::FollowStart::Owner => false,
