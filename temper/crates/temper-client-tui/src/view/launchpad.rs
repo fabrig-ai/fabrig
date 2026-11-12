@@ -74,6 +74,7 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -501,7 +502,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         }
         b.close();
     }
-    if part.notes.log.is_some() {
+    if part.notes.follows_end() {
         b.open(Role::Group);
     } else {
         b.close();
@@ -510,7 +511,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     for line in &part.brief {
         text(b, line.role, &line.words, line.style);
     }
-    if part.notes.log.is_some() {
+    if part.notes.follows_end() {
         b.close();
         b.close();
     }

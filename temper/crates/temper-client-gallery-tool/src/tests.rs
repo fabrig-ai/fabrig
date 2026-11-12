@@ -274,6 +274,86 @@ const HOW_RULES_NOTE: Part = Part::Named {
 };
 static HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "night-told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "night-told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "night-told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
         name: "remembered-none",
         heading: "What temper remembers about you",
         parts: &[
@@ -5900,8 +5980,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
     assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
+    assert!(person.contains("role=\"menuitem\">Telling you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
-    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 4);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()

@@ -109,8 +109,8 @@ impl Store {
                 && hook.repository == repository
                 && hook.id == id
             {
+                // Forgejo keeps the secret the hook was made with (forge/setup/forgejo.md, 2).
                 hook.url.clone_from(&spec.url);
-                hook.secret = spec.secret.clone();
                 hook.events.clone_from(&spec.events);
                 hook.active = spec.active;
                 return encoded(200, Answer::Hook(document(hook)), limits);

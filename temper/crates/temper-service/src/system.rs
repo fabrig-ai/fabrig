@@ -161,7 +161,11 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
     }
-    #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::too_many_lines,
+        reason = "startup keeps the checked settings and runtime facts, including push, together"
+    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -217,11 +221,16 @@ impl Service {
             program_login: if worker.is_some() { program_login } else { None },
             welcome: settings.welcome,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            push: match &settings.push {
+                Some(push) => Some(*push.key.public()),
+                None => None,
+            },
         };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         clients.configure_forge_sign_in(&settings);
+        clients.pushes.configure(settings.push.take());
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
         let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");

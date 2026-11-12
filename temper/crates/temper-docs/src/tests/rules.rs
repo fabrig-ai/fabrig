@@ -522,6 +522,22 @@ fn public_reading_says_what_may_show_and_what_the_pages_hold() {
 }
 
 #[test]
+fn box_and_tui_help_distinguish_the_front_and_its_once_per_build_download() {
+    for (name, alone) in [(b"box".as_slice(), "`temper-box` alone"), (b"tui", "`temper-box` runs the box without it")] {
+        let page = find(name).expect("front help page");
+        for check in [head, template, links, placeholders, voice] {
+            check(page).unwrap_or_else(|why| panic!("{why}"));
+        }
+        let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(text.contains("`temper box` in a terminal runs"));
+        assert!(text.contains("TUI in front"));
+        assert!(text.contains("downloading `temper-box` once"), "the box is downloaded once if needed");
+        assert!(text.contains("if needed"));
+        assert!(text.contains(alone));
+    }
+}
+
+#[test]
 fn box_help_locates_forgejo_lifecycle_and_hands() {
     let text = find(b"box").expect("box help").text.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(text.contains("`DATA/box/logs/box.log`:"), "locate the lifecycle notices in the box's own log");

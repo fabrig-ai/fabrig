@@ -47,7 +47,7 @@ open.
 temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST]
 ```
 
-- **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper-client`,
+- **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper`,
   each an executable regular file. The client is the TUI's recording
   build (`tui/journeys.md`, 2), whose saves the TUI's lines read
   (3.3). The box finds `fake-claude` beside itself
@@ -107,7 +107,7 @@ In order, each within its bound; a failure is 2.5's.
    stdout and stderr read a line at a time into `session/box.log`. Its
    first link is the first stdout line starting `http://`
    (`../protocol/setup/box.md`, 2), within 60 seconds.
-2. **ctl:** `BIN/temper-client ctl SCRATCH/session/ctl sign-in -`, the
+2. **ctl:** `BIN/temper ctl SCRATCH/session/ctl sign-in -`, the
    link on its stdin and then stdin's end (`ctl/README.md`, 6.1 and 8),
    exit 0 within 60 seconds. It waits on serve's start as a link opened
    early waits (`../protocol/setup/box.md`, 2).
@@ -180,7 +180,7 @@ has it. WIDTH is 320 to 3840.
 
 ### 3.3 The TUI's lines
 
-The TUI starts at a `tui` line when none runs: `BIN/temper-client
+The TUI starts at a `tui` line when none runs: `BIN/temper
 http://HOST:PORT`, at the box's origin, in a pseudo-terminal of 80
 columns by 24 rows, its environment `tui/journeys.md`, 8.2's in the
 session's directories, its output read and dropped. The session signs
@@ -203,7 +203,7 @@ saying that the session needs the client's recording build
 
 ### 3.4 ctl's lines
 
-`ctl ARGS...` runs `BIN/temper-client ctl SCRATCH/session/ctl ARGS
+`ctl ARGS...` runs `BIN/temper ctl SCRATCH/session/ctl ARGS
 </dev/null`, each field after `ctl` one argument: an act as the
 signed-in person, the deployment's first owner (`ctl/README.md`, 7). It
 answers ctl's stderr and then its stdout, each line prefixed `| `, then

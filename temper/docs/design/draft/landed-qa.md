@@ -1,7 +1,8 @@
 # landed-qa: QA of each landing, from kept builds and saved setups
 
 Draft, 2026-11-11, from a session with the user that day; amended
-2026-11-12 with the user, for QA on the fakes alone. Goals land on
+2026-11-12 with the user, for QA on the fakes alone and for stores
+patched forward. Goals land on
 the project's deployment faster than anyone can check them by hand. This
 draft makes QA after landing keep up: an agent beside the deployment,
 woken by landings, building nothing, starting each check from a saved
@@ -32,8 +33,9 @@ round trips".
   written before anything is tried.
 - **Setups** (section 5): a recipe, kept in the repository, and a copy of
   the stopped box it reaches, kept as a cache. A copy is restored at its
-  place with the pass's build; one the build refuses is made again from
-  its recipe. The catalogue grows as passes need new states.
+  place with the pass's build, which patches its store forward; one the
+  build refuses is a finding, and is made again from its recipe. The
+  catalogue grows as passes need new states.
 - **No real backend** (section 6): the fake forges, keeping their state
   across a restart, and the fake model on the setup's scripts, strict, so
   that a turn no script answers fails rather than drifts. No place runs a
@@ -196,11 +198,15 @@ round trips".
   started from `bin/` with the recipe's scripts. The box prints a new
   sign-in link, which the drivers follow, so a copy holds no browser's
   session. The recipe's closing check runs before any case starts.
-- **Made again when refused:** stored formats change in place before
-  v0.1.0, so a newer build may refuse an older copy's store, by name. The
+- **Patched forward, or a finding:** a stored format's change moves its
+  version and brings its patch (the user, 2026-11-12; `upgrades.md`, 4
+  and 6), so a newer build patches an older copy's store as it starts,
+  as a redeploy does. A copy it refuses, by name, or whose patching
+  fails, is a finding against temper, naming the store, the copy's commit
+  and the pass's build, so that every pass also proves the patches. The
   pass then walks the recipe from its nearest ancestor whose copy
-  restores, and saves the new copy. Any other failure to start, or a
-  panic, is a finding (section 7).
+  restores, saves the new copy, and goes on with the setup's cases. Any
+  other failure to start, or a panic, is a finding (section 7).
 - **A recipe that no longer walks** is judged by the agent against the
   drafts of the landings since it last walked: a flow a landing changed
   on purpose is the recipe's to follow, and the agent edits it, as a
@@ -290,10 +296,11 @@ round trips".
   pass's own reasons (a copy not made again, a script missing, an agent
   out of time) is blocked, with why. A case that cannot reach it because
   temper fails on the way (a box that will not start on a fresh place or
-  panics, a store refused other than by name, a recipe's step that broke
-  with no landing meaning it to, section 5) is failed, with that finding.
-  This is `../../development/qa.md`, 6's finding for a start refused or
-  a panic.
+  panics, a recipe's step that broke with no landing meaning it to,
+  section 5) is failed, with that finding. This is
+  `../../development/qa.md`, 6's finding for a start refused or a panic.
+  A copy's store refused, or its patching failed, is a finding of its
+  own, and the setup's cases go on from the copy made again (section 5).
 - **Evidence beside the ledger:** each finding's screenshot or screen
   text, and the box's log where it matters, with the case and the
   commit.
@@ -371,8 +378,9 @@ For the first passes, on the web client and the TUI:
 - **A box at its place:** a stopped box's data and configuration,
   unpacked where they were made, start with a newer build installed in
   the same `bin/`, with its fake forges' repositories, pull requests and
-  checks and its tasks as they were, or the store is refused by name when
-  the build cannot read it.
+  checks and its tasks as they were, its store patched forward as a
+  redeploy patches it; a store the build has no patch for is refused by
+  name, never read wrongly.
   A process-tier story proves it: the engine, its agents, its adapters
   and the bundle all run the newer build, and nothing runs the old one.
 - **The fake model's scripts and strictness:** `temper box
@@ -407,8 +415,9 @@ Focused and fuzzy suites alone, each failing first:
   queue at a session's end; a case blocked twice leaving the queue;
 - the recipe format: its chain read and walked, a cycle or a ninth parent
   refused, its hash changing with its parents';
-- a copy a newer build refuses by name, made again from its nearest
-  restoring ancestor;
+- a copy whose store a newer build refuses by name: a finding naming the
+  store, the copy's commit and the build, and the copy made again from
+  its nearest restoring ancestor;
 - the fake model: a box's scripts given in place of its own; under the
   strict switch, a turn no script answers fails, naming the request;
 - the drivers: a line given and its effect; the kept lines, without

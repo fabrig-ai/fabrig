@@ -130,6 +130,7 @@ impl Replay {
                 | Line::Unsaved
                 | Line::Kept { .. }
                 | Line::BoxLine(_)
+                | Line::BoxStage(_)
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -142,6 +143,8 @@ impl Replay {
                 | Line::Keep(_)
                 | Line::Signed(_)
                 | Line::Browse(_)
+                | Line::StopBox
+                | Line::StopBoxAgain
                 | Line::Quit => {
                     let report = self.report()?;
                     self.at += 1;
@@ -203,6 +206,9 @@ impl Replay {
             Line::Kept { written } => Report::Kept { written: *written },
             Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
             Line::BoxLine(bytes) => Report::Front(temper_client_tui::BoxLine::read(bytes).expect("validated box line")),
+            Line::BoxStage(bytes) => {
+                Report::Stage(temper_client_tui::BoxStage::read(bytes).expect("validated box stage"))
+            }
             Line::Opened { opened } => Report::Opened { opened: *opened },
             Line::Journey { .. }
             | Line::Seed(_)
@@ -228,6 +234,8 @@ impl Replay {
             | Line::Signed(_)
             | Line::Browse(_)
             | Line::Quit
+            | Line::StopBox
+            | Line::StopBoxAgain
             | Line::Deadline(_)
             | Line::Mark(_)
             | Line::End(_) => return Err(self.stale(b"nothing".as_slice().into())),
@@ -391,6 +399,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Unsaved
             | Line::Kept { .. }
             | Line::BoxLine(_)
+            | Line::BoxStage(_)
             | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {
@@ -400,6 +409,11 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
                     && temper_client_tui::BoxLine::read(bytes).is_none()
                 {
                     return Err(Unreadable { line: number(index), why: "unreadable box line" });
+                }
+                if let Line::BoxStage(bytes) = line
+                    && temper_client_tui::BoxStage::read(bytes).is_none()
+                {
+                    return Err(Unreadable { line: number(index), why: "unreadable box stage" });
                 }
                 kept = true;
                 may_ask = true;
@@ -415,6 +429,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Keep(_)
             | Line::Signed(_)
             | Line::Browse(_)
+            | Line::StopBox
+            | Line::StopBoxAgain
             | Line::Quit => {
                 if !in_turn || !may_ask {
                     return Err(bad());

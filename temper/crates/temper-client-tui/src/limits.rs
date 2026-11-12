@@ -75,7 +75,9 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
     let note_lines = 8_u32.checked_mul(18)?.checked_add(1)?;
     let nodes = foot_nodes.checked_add(64)?.checked_add(note_lines.checked_mul(2)?)?;
     let most = u32::try_from(crate::BoxLine::MOST).ok()?;
-    let front_text = BOX_LOG.checked_mul(LOG_LINE)?.checked_add(most)?.checked_add(4096)?;
+    // /log and the stopping note can each draw the retained log.
+    let front_text = BOX_LOG.checked_mul(2)?.checked_mul(LOG_LINE)?.checked_add(most)?.checked_add(4096)?;
+    let front_nodes = 192_u32.checked_add(BOX_LOG.checked_mul(2)?)?;
     let foot_text = field.checked_add(line.checked_mul(16)?)?;
     let screens = skein_ui::Limits {
         // Signing in: Page, Main, ten pairs of blocks and text leaves,
@@ -91,13 +93,13 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         ..skein_ui::Limits::EMPTY
     };
     let limits = skein_ui::Limits {
-        nodes: screens.nodes.max(view.nodes).checked_add(192)?,
+        nodes: screens.nodes.max(view.nodes).checked_add(front_nodes)?,
         depth: screens.depth.max(view.depth),
         text_per_node: screens.text_per_node.max(view.text_per_node),
         text_bytes: screens.text_bytes.max(view.text_bytes).checked_add(front_text)?,
         drawing_bytes: screens.drawing_bytes.max(view.drawing_bytes),
         styles_per_node: screens.styles_per_node.max(view.styles_per_node),
-        patches: screens.patches.max(view.patches).checked_add(192_u32.checked_mul(4)?)?,
+        patches: screens.patches.max(view.patches).checked_add(front_nodes.checked_mul(4)?)?,
         bindings: screens.bindings.max(view.bindings).checked_add(1)?,
         slots: screens.slots.max(view.slots),
         markdown_depth: screens.markdown_depth.max(view.markdown_depth),

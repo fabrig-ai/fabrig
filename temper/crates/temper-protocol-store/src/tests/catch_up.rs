@@ -4,7 +4,7 @@ use skein_codec::patch::{Capacity, Patcher, Step};
 fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 2, patches: 1, text: skein_codec::schema::MAX_TEXT,
+        versions: 3, patches: 1, text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072, nodes: 16_384,
     });
     for text in texts {

@@ -39,9 +39,10 @@ pub fn down(request: client::Request) -> Down {
         client::Request::Client { request } => Down::Shell(request),
         client::Request::Unlinked { request } => Down::Unlinked(request),
         client::Request::Show { address, replace } => Down::Duty(Duty::Show { address, replace }),
-        client::Request::Screen { .. } | client::Request::KeepLook { .. } | client::Request::KeepSignIn { .. } => {
-            Down::Notice(Notice::Unasked)
-        }
+        client::Request::Push(_)
+        | client::Request::Screen { .. }
+        | client::Request::KeepLook { .. }
+        | client::Request::KeepSignIn { .. } => Down::Notice(Notice::Unasked),
         client::Request::Tab { tab } => match tab {
             client::Tab::Point { to } => Down::Notice(Notice::Leave { to }),
             client::Tab::Open { .. } | client::Tab::Close => Down::Notice(Notice::Unasked),

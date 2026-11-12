@@ -253,6 +253,39 @@ path and each script's cue, and reads the key at the playground's start,
 which makes the scripted account with it (../setup/playground.md); with `null`,
 the playground is not offered.
 
+**`push`:** pushing to people's devices (`../../domain/forge/attention.md`,
+7.3), absent or `null` for none. Unlike the members above, it may be
+missing, so a document written before it reads as it did: absent is
+`null`, and nothing is pushed.
+
+```json
+"push": {
+  "key": "push.key",
+  "subject": "mailto:operator@example.com",
+  "services": null
+}
+```
+
+| Member | Type | Bounds | Feeds |
+|---|---|---|---|
+| `key` | a data path | a secrets' file (`README.md`, section 5), private, 0o600, at most skein's `VAPID_PEM_BYTES`, PKCS#8 PEM of a P-256 key with its public half (skein's `net/push.md`, 3), as `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out push.key` writes it; one skein's `Vapid::from_pkcs8_pem` refuses refuses the start, naming the file | each push's VAPID token; its public half, the deployment's read's `push` (`../../client/forge/records.md`) |
+| `subject` | a string | a `mailto:` or `https:` URI, 1 to skein's `SUBJECT_BYTES` | each token's `sub`: where a push service may reach the operator |
+| `services` | a list, or `null` | `null` for Google's, Mozilla's and Apple's push services, `https://fcm.googleapis.com`, `https://updates.push.services.mozilla.com` and `https://web.push.apple.com`; otherwise 1 to 8 origins, each `https` and a host with an optional port, or `http` to a loopback host, for a test's fake push service | which endpoints a device may name (`AddDevice`'s `service` refusal) and where pushes go; each host resolved when a push is sent, over TLS with the machine's roots for `https` |
+
+- **What else push needs,** none of it configuration: the web client at
+  the deployment's name over HTTPS, `clients.public` (`../sign-in.md`,
+  section 2), since a browser subscribes only on a secure origin; and
+  the key kept for good, since every device subscribed with its public
+  half (`../../domain/forge/attention.md`, 7.3).
+
+**`mail`:** sending mail, designed and not built
+(`../../domain/forge/attention.md`, 7.4); absent or `null` for none, as
+`push`. On: `host`, a host name; `port`, 465 for TLS from the start or
+587 for STARTTLS; `from`, an address of 3 to 254 bytes; `user`, 1 to 256
+bytes; `password`, a data path, a secrets' file, private, 0o600. Until
+it is built, the start refuses a document naming `mail` as it refuses
+any member it doesn't know.
+
 **What the engine root's `Config` takes,** field by field:
 
 | Field | From |
@@ -266,6 +299,7 @@ the playground is not offered.
 | `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
+| `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 
 Beside the root: the forge component takes each kept forge's number,
 kind, address and transport from its record, and its kind's log

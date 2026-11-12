@@ -103,3 +103,28 @@ pub(super) fn decode_reach(record: w::Reach) -> Result<temper_protocol_reaches::
         v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
     temper_protocol_reaches::reach_from(&record).ok_or(Undecodable::Malformed)
 }
+
+// The codec checks sizes; admission checks the service and subscription key.
+pub(super) fn encode_device(row: &d::Device) -> w::Device {
+    w::Device::new(
+        &w::CEILINGS,
+        w::DeviceParts {
+            party: row.party,
+            number: row.number,
+            endpoint: row.endpoint.clone(),
+            p256dh: row.p256dh,
+            auth: row.auth,
+            label: row.label.clone(),
+            at: row.at.as_nanos(),
+        },
+    )
+    .expect(FITS)
+}
+#[expect(clippy::disallowed_methods, reason = "the stored device label must be UTF-8 (store.md, 2)")]
+pub(super) fn decode_device(row: w::Device) -> Result<d::Device, Undecodable> {
+    let w::DeviceParts { party, number, endpoint, p256dh, auth, label, at } = row.into_parts();
+    if endpoint.is_empty() || label.is_empty() || core::str::from_utf8(&label).is_err() {
+        return Err(Undecodable::Malformed);
+    }
+    Ok(d::Device { party, number, endpoint, p256dh, auth, label, at: Wall::from_nanos(at) })
+}

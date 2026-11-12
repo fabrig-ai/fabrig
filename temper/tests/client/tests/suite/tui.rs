@@ -494,7 +494,8 @@ fn a_tui_in_front_shows_the_boxs_state_and_its_log() {
     tui.boxed(&mut world, BoxLine::GaveUp { step: b"forgejo-3".as_slice().into() });
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.text().contains("The box gave up: forgejo-3. /log shows why; Ctrl+C closes."));
-    assert!(!tui.closed, "the front stays open after the box gives up");
+    tui.stage(&mut world, temper_client_tui::BoxStage::Ended { end: temper_client_tui::BoxEnd::Exited { code: 1 } });
+    assert!(!tui.closed, "the front stays open after the box gives up and ends");
     tui.press(&mut world, vec![Key::Control(b'c')]);
     assert!(tui.closed, "Ctrl+C closes at once after give-up");
     assert!(!tui.text().contains("Stop the box?"), "nothing asks after give-up");

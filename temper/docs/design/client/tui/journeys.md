@@ -58,7 +58,7 @@ the look, 11 what is open.
   browser's `journey` module is.
 - **Switched on by `TEMPER_INTERNAL_RECORD`** (`../../cli/README.md`, 8):
   internal, read from the binary's captured environment where the TUI
-  starts, by the client's start and by the box's front alike; set to
+  starts, by bare `temper` and `temper box` alike; set to
   any nonempty value, the start opens the TUI's directory for the
   recording and gives the run a recording (`run::Settings.record`);
   absent or empty, it gives none, and the run records nothing. The
@@ -136,6 +136,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
+| `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
@@ -147,6 +148,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
+| `stop-box` | none | the duty to stop the box (`box.md`, *Quitting*) |
+| `stop-box-again` | none | the duty of the box's second stop (`box.md`, *Quitting*) |
 | `deadline` | nanoseconds, or `none` | each turn's end (shared) |
 | `mark` | the live frame's print | before its key, or at the mark key, in a turn of its own (`turn`, `mark`, `deadline`) (shared) |
 | `end` | the live frame's print | the last line (shared) |
@@ -503,19 +506,18 @@ ordinary Rust over skein's harness:
 
 ### 8.3 A box with the TUI in front
 
-What `again` does to record a journey of `temper-box` with the TUI in
-front of it (`box.md`; `../../protocol/setup/box.md`, 6),
+What `again` does to record a journey of `temper box`, the TUI in
+front of the box (`box.md`; `../../protocol/setup/box.md`, 6),
 where 8.2 says otherwise:
 
-- **The box in the pseudo-terminal:** `temper-box --fake-backends` from
-  the scratch copy is itself started in the pseudo-terminal of 80 by 24,
-  in a session of its own, with the TUI's environment of 8.2 but
-  `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
-  the front opens that terminal and takes its foreground. The front is
-  the same `temper-box`, given `TEMPER_INTERNAL_RECORD=1`, and records into the TUI's
-  directory as bare `temper` does (3.1). No `temper` is started apart,
-  and no approval is walked: the front signs in by the link the box
-  hands it.
+- **`temper box` in the pseudo-terminal:** `temper box --fake-backends`,
+  `temper` with `TEMPER_INTERNAL_RECORD=1` with the scratch copy's `temper-box`
+  beside it, is started in the pseudo-terminal of 80 by 24, in a session
+  of its own, with the TUI's environment of 8.2 and the box's
+  directories, so that the TUI runs there and the box behind it, as its
+  child. It records into the TUI's directory as bare `temper` does
+  (3.1). No box is started apart, and no approval is walked: the TUI
+  signs in by the link the box hands it.
 - **The printed link,** which the box writes to no stream `again` reads,
   is read from the latest save's last `box-line` record holding a `link`
   line, and opened in the browser, which it signs in; the walk's record
@@ -534,8 +536,8 @@ where 8.2 says otherwise:
   the wrap.
 - **Why not yet:** 8.2's `again` drives `temper` in the pseudo-terminal
   and the box apart, on pipes, reading the box's printed link from its
-  stdout; a box whose TUI is in front needs the terminal itself and
-  prints no link on a stream. Until 8.3 is built, a recording made by
+  stdout; `temper box` starts the box itself, whose printed link reaches
+  no stream `again` reads. Until 8.3 is built, a recording made by
   hand whose marks draw the welcome's link wrapped fails its first
   replay's proof, as a link typed key by key does (section 5), and
   nothing is written.

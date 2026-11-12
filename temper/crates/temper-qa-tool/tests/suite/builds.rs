@@ -14,7 +14,7 @@ const SHORT: &str = "0123456789ab";
 const REQUIRED: [&str; 6] = [
     "bin/temper-box",
     "bin/fake-claude",
-    "bin/temper-client",
+    "bin/temper",
     "bin/temper-client-journeys",
     "bundle/index.html",
     "bundle-record/index.html",
@@ -32,7 +32,7 @@ fn stage() -> (Scratch, Home, PathBuf) {
     for directory in ["bin", "bundle", "bundle-record"] {
         fs::create_dir_all(stage.join(directory)).expect("stage directory");
     }
-    for binary in ["temper-box", "temper-client", "temper-client-journeys"] {
+    for binary in ["temper-box", "temper", "temper-client-journeys"] {
         script(&stage.join("bin").join(binary), &format!("{binary} 0.1.0 ({SHORT})"));
     }
     script(&stage.join("bin/fake-claude"), "2.1.312 (Claude Code)");
