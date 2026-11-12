@@ -1540,6 +1540,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::RefusedSetting(key) => top::Key::Setting(*key),
         top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Making(row) => top::Key::Making(row.key.clone()),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),

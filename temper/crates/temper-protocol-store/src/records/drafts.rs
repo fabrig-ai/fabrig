@@ -25,7 +25,7 @@ pub(super) fn decode(row: w::LandedDraft) -> Result<d::LandedDraft, Undecodable>
     let w::LandedDraftParts { repository, path, project, branch, commit, title, writer, at, chat, goal, ready } =
         row.into_parts();
     if !d::draft_path(&path) {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     Ok(d::LandedDraft {
         repository: names::decode_repository(repository),

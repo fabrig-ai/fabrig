@@ -69,7 +69,7 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
             let mut reader = Reader::new(v.refusal());
             let record =
                 jig_protocol_store::people_v14::Refusal::decode(&jig_protocol_store::people_v14::CEILINGS, &mut reader)
-                    .or(Err(Undecodable))?;
+                    .or(Err(Undecodable::Malformed))?;
             d::ApplicationOutcome::CoreRefused(refusal::decode_refusal(record))
         }
         w::ApplicationOutcome::ForgeRefused(v) => {

@@ -44,7 +44,6 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectQuestions::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Questions(match record.route() {
                 v1::QuestionsRoute::None => Route::None,
-                v1::QuestionsRoute::Foreman => Route::Foreman,
                 v1::QuestionsRoute::Up => Route::Up,
             })
         }
@@ -277,7 +276,6 @@ fn wire_charter(charter: u32) -> v1::ForgeCharter {
 fn wire_questions(route: Route) -> v1::ProjectQuestions {
     let route = match route {
         Route::None => v1::QuestionsRoute::None,
-        Route::Foreman => v1::QuestionsRoute::Foreman,
         Route::Up => v1::QuestionsRoute::Up,
     };
     v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route }).expect("fixed route field")

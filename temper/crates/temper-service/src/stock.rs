@@ -235,7 +235,6 @@ const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const ASK_TOOLS: jig_domain_tasks::Tools =
     jig_domain_tasks::Tools(ToolFamilies::JIG.ask.0 | ToolFamilies::JIG.settings);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
-const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 const TRIAL_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 
@@ -367,7 +366,6 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         reviewer(&models),
         coordinator(&models),
         standing_role(&models),
-        foreman(&models),
         status(&models),
         trial(&models),
         ask_charter(&models),
@@ -478,9 +476,9 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
 const CHAT_TURNS: u32 = 64;
 // Chat, Ask temper and drafter charter rows: one hour (temper/docs/design/protocol/configuration/stock.md).
 const CHAT_TIME: Duration = Duration::from_secs(3_600);
-// Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration/stock.md).
+// Coding and reviewer rows (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TURNS: u32 = 800;
-// Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration/stock.md).
+// Coding and reviewer rows: eight hours (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TIME: Duration = Duration::from_secs(28_800);
 
 fn charter(
@@ -541,7 +539,6 @@ fn charter(
                 1 | 5 => CHAT_CHARTER_TOOLS,
                 2 => CODING_TOOLS,
                 4 => REVIEWING_TOOLS,
-                6 => FOREMAN_TOOLS,
                 9 => STATUS_TOOLS,
                 10 => TRIAL_TOOLS,
                 11 => ASK_TOOLS,
@@ -655,12 +652,6 @@ fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
     (bytes::copy_of(shared.trim_matches('\n').as_bytes()), parts.into_boxed())
 }
 
-fn foreman(models: &[CatalogueModel]) -> Charter {
-    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), models, FIRST_CHOICES);
-    value.policy.modify = false;
-    value.policy.agents = false;
-    value
-}
 fn status(models: &[CatalogueModel]) -> Charter {
     let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), models, FIRST_CHOICES);
     value.policy.inspect = false;
@@ -704,7 +695,6 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(2),
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(5),
-                authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
                 authority::Executor::Charter(11),
                 authority::Executor::Charter(12),
@@ -825,13 +815,8 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (
             9,
             5,
-            settings::Value::CharterWords(bytes::copy_of(b"cuts a goal's draft into changes and lands the goal whole")),
-        ),
-        (
-            9,
-            6,
             settings::Value::CharterWords(bytes::copy_of(
-                b"answers a coding agent's question from the goal's design, or passes it up",
+                b"designs a goal's draft, cuts it into changes, and answers what they ask",
             )),
         ),
         (

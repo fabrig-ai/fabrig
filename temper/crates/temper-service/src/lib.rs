@@ -106,6 +106,8 @@ pub enum Stop {
     },
     /// The deployment's namespace binding was refused.
     Binding,
+    /// A current stored setting names a retired value or number.
+    Setting(temper_engine_domain_forge::settings::SettingKey),
     /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,

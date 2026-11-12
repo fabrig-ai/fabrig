@@ -257,7 +257,7 @@ fn change_row() -> ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,

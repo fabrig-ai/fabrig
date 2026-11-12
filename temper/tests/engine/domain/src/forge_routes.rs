@@ -441,10 +441,7 @@ impl World {
                 reviewer.number = 4;
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
-                let mut foreman = reviewer.clone();
-                foreman.number = 6;
-                foreman.policy.shell = false;
-                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
+                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
                 limits.tasks.authority_grants = 11;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
@@ -577,7 +574,6 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
-                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
@@ -634,7 +630,6 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
-                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
@@ -2119,22 +2114,6 @@ impl World {
             panic!("producer's question sent")
         };
         message
-    }
-
-    /// A foreman settles its contract through the worker's result.
-    pub fn foreman_verdict(&mut self, foreman: &engine::Assignment, code: u32, words: &[u8]) {
-        let event = self.protocol.answer(
-            Token::new(7),
-            foreman.task,
-            foreman.attempt,
-            5,
-            tasks::End::Finished {
-                result: tasks::TaskResult::Verdict { code, fields: Box::new([]), words: words.into() },
-                cancel_delegates: false,
-            },
-            engine::Parts::none(),
-        );
-        self.send(event);
     }
 
     /// The goal answers the change's own question through its message call.

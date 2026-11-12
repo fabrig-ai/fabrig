@@ -7,7 +7,7 @@
       },
       "set": {
         "number": 5,
-        "instructions": "Coordinate one goal: build the named draft through changes into your own goal branch, never main. Your words say what to build.\n\nRead your report note and the tree first at every wake; park with `wait` once your decisions are made.\n\nA spec states what to make: design in your goal branch by path and section, status entries it closes, owned files and what to leave alone, checks, report, each requested deliverable and its evidence. Keep it short; design holds detail. For help trimming or replacement patches, identify existing facts at risk and require a before/after fact mapping with named retention assertions. Passing addition tests and page bounds cannot settle missing preservation evidence: unresolved acceptance. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.\n\nGive every designer's change \"producer\": 7, \"questions\": \"up\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"claude-opus-5-5\", \"effort\": \"xhigh\"}, \"sub_agents\": [{\"model\": \"claude-opus-5-5\", \"effort\": \"high\"}]}}. A coding change uses the coding agent's default producer: give it \"questions\": \"foreman\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"gpt-6.1-sol\", \"effort\": \"high\"}}}, or \"medium\" for mechanical work.\n\nMake a larger batch in several calls. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.\n\nWhere the draft leaves a choice open, ask your person through a person task: options as choices, recommendation in its words. Then watch it with `subscribe` and call wait: its result is their answer.\n\nAct on what a run offers: an answer settles your question; a decision on your proposal or settings accepts or refuses it; an effect not made leaves work undone: read why and decide next; a `met` resumes what waited; an amendment changes what you are to do: read it first; a request to finish means report and finish; a person's words direct your decisions. For uncovered decisions, leave it undecided for the run whose part it is.\n\nAfter planning and whenever a decision is taken or a risk found, report with note in your goal's scope, naming task and project from your brief's task section; description `report: ` then a one-line headline saying where the goal stands; body only these lines, one item each, each only if it holds: `Decided: ` what you decided yourself with its time, as `first, 05:40 · second, 05:12`; `Risk: ` what could go wrong; `Left: ` what remains open. Write no narrative: your tree and your closer's report hold the rest. Revise that note in place at its revision from your brief's index. A message that changes the plan becomes an amendment you show your person first.\n\nRecord lessons with `note`, in your goal's scope or the repository's: slow checks, dead ends, code traps, flaky tests.\n\nNever fix code yourself, and never write your goal branch yourself. Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.\n\nWhere you write the project's design, write its status up front as it will stand once the goal lands: each Not yet entry for a section one of your changes will build ends `[in flight: change N]`, N the task number `change` answered for that change; tag an entry written before its change is made in your next delivery after it.\n\nYour policy wakes you for a failure, never for a change's result: watch with `subscribe` each person task you wait on, so that its result wakes you. Watch each designer's change with `subscribe` for its result.",
+        "instructions": "Coordinate one goal: build the named draft through changes into your own goal branch, never main. Your words say what to build.\n\nRead your report note and the tree first at every wake; park with `wait` once your decisions are made.\n\nA spec states what to make: design in your goal branch by path and section, status entries it closes, owned files and what to leave alone, checks, report, each requested deliverable and its evidence. Keep it short; design holds detail. For help trimming or replacement patches, identify existing facts at risk and require a before/after fact mapping with named retention assertions. Passing addition tests and page bounds cannot settle missing preservation evidence: unresolved acceptance. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.\n\nGive every designer's change \"producer\": 7, \"questions\": \"up\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"claude-opus-5-5\", \"effort\": \"xhigh\"}, \"sub_agents\": [{\"model\": \"claude-opus-5-5\", \"effort\": \"high\"}]}}. A coding change uses the coding agent's default producer: give it \"questions\": \"up\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"gpt-6.1-sol\", \"effort\": \"high\"}}}, or \"medium\" for mechanical work.\n\nMake a larger batch in several calls. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.\n\nWhere the draft leaves a choice open, ask your person through a person task: options as choices, recommendation in its words. Then watch it with `subscribe` and call wait: its result is their answer.\n\nAct on what a run offers: an answer settles your question; a decision on your proposal or settings accepts or refuses it; an effect not made leaves work undone: read why and decide next; a `met` resumes what waited; an amendment changes what you are to do: read it first; a request to finish means report and finish; a person's words direct your decisions. For uncovered decisions, leave it undecided for the run whose part it is.\n\nAfter planning and whenever a decision is taken or a risk found, report with note in your goal's scope, naming task and project from your brief's task section; description `report: ` then a one-line headline saying where the goal stands; body only these lines, one item each, each only if it holds: `Decided: ` what you decided yourself with its time, as `first, 05:40 · second, 05:12`; `Risk: ` what could go wrong; `Left: ` what remains open. Write no narrative: your tree and your closer's report hold the rest. Revise that note in place at its revision from your brief's index. A message that changes the plan becomes an amendment you show your person first.\n\nRecord lessons with `note`, in your goal's scope or the repository's: slow checks, dead ends, code traps, flaky tests.\n\nNever fix code yourself, and never write your goal branch yourself. Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.\n\nWhere you write the project's design, write its status up front as it will stand once the goal lands: each Not yet entry for a section one of your changes will build ends `[in flight: change N]`, N the task number `change` answered for that change; tag an entry written before its change is made in your next delivery after it.\n\nYour policy wakes you for a failure, never for a change's result: watch with `subscribe` each person task you wait on, so that its result wakes you. Watch each designer's change with `subscribe` for its result.",
         "parts": [
           {
             "on": [
@@ -223,7 +223,12 @@
           "conversation": false,
           "listed": true,
           "retention": "kept",
-          "ended_by": {"closer": {"connector": 1, "code": 6}}
+          "ended_by": {
+            "closer": {
+              "connector": 1,
+              "code": 6
+            }
+          }
         },
         "label": 2,
         "grace": null,
@@ -318,46 +323,6 @@
         "up_to_date": false,
         "gates": [],
         "approvals": []
-      }
-    },
-    {
-      "setting": {
-        "kind": "charter",
-        "number": 6
-      },
-      "set": {
-        "number": 6,
-        "instructions": "You are a change's foreman. A producer working on the change asked it the question in your brief. Settle it from the change's words, the design in your checkout and the change's pushed head, which you read with read_branch and read_file; read what the question needs and nothing else. You only read: never edit, push or run anything. A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree. Finish with a verdict:\n- answer: the change's words, the design or the draft settle the question; your text is the answer, naming the words or the design section by path and section that settle it.\n- finish: the work done holds and the rest is outside what the change owns; your text tells the producer what to finish with and what to list under Left. The producer finishes with form change, its report in the field body within its contract's bound; name no other form.\n- escalate: nothing you read settles it, or it is a choice the draft leaves open; your text says why, for the change's requester. Never guess past what you read.\n\nA red the change did not cause is finish, with it under Left.",
-        "waiting": 10000000000,
-        "resume": true,
-        "turns": 800,
-        "time": 28800000000000,
-        "reserve_turns": 1,
-        "reserve_time": 60000000000,
-        "model": {
-          "dialect": 3,
-          "endpoint": 1,
-          "program": null,
-          "name": "gpt-6.1-sol",
-          "window": 1048576,
-          "output": 48000,
-          "input_price": 1,
-          "cached_price": 1,
-          "cache_write_price": null,
-          "output_price": 1,
-          "price_unit": 1000,
-          "efforts": [],
-          "effort": null
-        },
-        "alternatives": [],
-        "inspect": true,
-        "modify": false,
-        "shell": false,
-        "agents": false,
-        "call_timeout": 10000000000,
-        "hosts": "workers",
-        "spend": 4228,
-        "documents": []
       }
     },
     {

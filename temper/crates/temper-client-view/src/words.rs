@@ -198,7 +198,6 @@ pub enum Word {
     SettingsProposalOff,
     SettingsProposalShown,
     SettingsProposalHidden,
-    SettingsProposalForeman,
     SettingsProposalUp,
     SettingsProposalNone,
     SettingsProposalChange,
@@ -233,7 +232,6 @@ pub enum Word {
     SettingsWays,
     SettingsDefault,
     SettingsQuestions,
-    SettingsForeman,
     SettingsUp,
     SettingsAlone,
     SettingsWhole,
@@ -1792,7 +1790,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2345;
+const PHRASES: u32 = 2343;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1819,10 +1817,10 @@ const PHRASES: u32 = 2345;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4232;
+const SEGMENTS: u32 = 4230;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56704;
-const ALL: [Word; 1661] = [
+const ENGLISH_BYTES: u32 = 56630;
+const ALL: [Word; 1659] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2005,7 +2003,6 @@ const ALL: [Word; 1661] = [
     Word::SettingsProposalOff,
     Word::SettingsProposalShown,
     Word::SettingsProposalHidden,
-    Word::SettingsProposalForeman,
     Word::SettingsProposalUp,
     Word::SettingsProposalNone,
     Word::SettingsProposalChange,
@@ -2039,7 +2036,6 @@ const ALL: [Word; 1661] = [
     Word::SettingsWays,
     Word::SettingsDefault,
     Word::SettingsQuestions,
-    Word::SettingsForeman,
     Word::SettingsUp,
     Word::SettingsAlone,
     Word::SettingsWhole,
@@ -3784,7 +3780,6 @@ impl Word {
             Self::SettingsProposalOff => 3423,
             Self::SettingsProposalShown => 3424,
             Self::SettingsProposalHidden => 3425,
-            Self::SettingsProposalForeman => 3426,
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
@@ -3818,7 +3813,6 @@ impl Word {
             Self::SettingsWays => 3447,
             Self::SettingsDefault => 3448,
             Self::SettingsQuestions => 3458,
-            Self::SettingsForeman => 3459,
             Self::SettingsUp => 3460,
             Self::SettingsAlone => 3461,
             Self::SettingsWhole => 3391,
@@ -6891,7 +6885,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalOff => (&[b"off"], &[]),
         Word::SettingsProposalShown => (&[b"shown"], &[]),
         Word::SettingsProposalHidden => (&[b"hidden"], &[]),
-        Word::SettingsProposalForeman => (&[b"Questions: answered by the goal"], &[]),
         Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
         Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
         Word::SettingsProposalChange => (&[b"Change something"], &[]),
@@ -6909,7 +6902,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsWays => (&[b"Ways of working"], &[]),
         Word::SettingsDefault => (&[b"The default"], &[]),
         Word::SettingsQuestions => (&[b"Questions a goal can answer from its plan"], &[]),
-        Word::SettingsForeman => (&[b"Answered by the goal, kept in its decisions"], &[]),
         Word::SettingsUp => (&[b"Asked of me too"], &[]),
         Word::SettingsAlone => (&[b"Not asked: each agent decides alone"], &[]),
         Word::SettingsWhole => (&[b"Plan, tasks, land whole"], &[]),

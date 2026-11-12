@@ -496,7 +496,6 @@ fn a_projects_kinds_are_judged() {
     };
     let values = [
         (6, Value::Questions(Route::None), Ok(())),
-        (6, Value::Questions(Route::Foreman), Ok(())),
         (6, Value::Questions(Route::Up), Ok(())),
         (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX }), Ok(())),
         (8, Value::Classes(Classes::stock(Way::AgentsReview)), Ok(())),

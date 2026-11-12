@@ -726,7 +726,7 @@ fn kinds_six_seven_and_eight_are_named_until_their_values_are_read() {
         (c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
     ];
     for (on, route, expected) in [
-        (true, w::QuestionsRoute::Foreman, b"Questions: answered by the goal".as_slice()),
+        (true, w::QuestionsRoute::Up, b"Questions: asked of me too".as_slice()),
         (false, w::QuestionsRoute::Up, b"Questions: asked of me too"),
         (false, w::QuestionsRoute::None, b"Questions: not asked"),
     ] {

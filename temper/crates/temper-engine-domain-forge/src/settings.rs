@@ -342,6 +342,7 @@ pub enum Refusal {
     Charter,
     Value,
     Replaced,
+    Retired,
     Way,
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
@@ -370,6 +371,7 @@ impl Refusal {
             Self::DeploymentSets => b"a deployment's rule names no path set",
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
+            Self::Retired => b"retired stored setting",
             Self::Replaced => b"the replaced value is no longer kept",
             Self::FollowPaths => b"more paths than forge.follow_paths",
             Self::FollowPath => b"a malformed path or one past 256 bytes",
@@ -700,4 +702,27 @@ pub fn rows(l: &Limits) -> Option<u32> {
         .checked_add(l.judge_projects.checked_mul(2)?)?
         .checked_add(l.judge_projects.checked_mul(l.follows)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
+}
+
+/// Name a retired stored setting in ctl's terms (protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn retired_words(key: SettingKey) -> Box<[u8]> {
+    let (name, number) = if key.kind == 6 {
+        (b"project-questions ".as_slice(), key.scope)
+    } else {
+        (b"forge-charter ".as_slice(), key.number)
+    };
+    let number = skein_lib::Decimal::of(u64::from(number));
+    let reason = b": retired stored setting";
+    let length = name
+        .len()
+        .checked_add(number.as_bytes().len())
+        .expect("bounded setting identity")
+        .checked_add(reason.len())
+        .expect("bounded refusal");
+    let mut words = skein_lib::Writer::new(length);
+    words.put(name).expect("sized setting name");
+    words.put(number.as_bytes()).expect("sized setting number");
+    words.put(reason).expect("sized refusal");
+    words.finish()
 }

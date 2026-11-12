@@ -252,9 +252,8 @@ enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
 enum Way { queue, turn }
-enum Route { none, foreman, up }
-record Foreman { task: option u64 }
-enum Stands { taken, foreman: Foreman, asked, held }
+enum Route { none, up }
+enum Stands { taken, asked, held }
 record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
 record Questions { route: Route taken: Used open: list 8 Question }
 # Landing-rule approvals (domain/forge/change/gates.md, 2; client/forge/README.md, 4).
@@ -304,7 +303,7 @@ record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval sets: list 6 u8 }
 record ForgeCharter { charter: u32 }
 record TemplateGoal { design: bool close_out: bool }
-enum QuestionsRoute { none, foreman, up }
+enum QuestionsRoute { none, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge/attention.md, 6).

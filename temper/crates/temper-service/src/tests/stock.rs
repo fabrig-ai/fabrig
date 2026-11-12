@@ -566,16 +566,16 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing role's charter executor.
-        (b"core.policy_bytes", 6014, Setting::Policy(1), "the stock's policy 1 needs 6014 bytes"),
+        (b"core.policy_bytes", 5982, Setting::Policy(1), "the stock's policy 1 needs 5982 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
         // The standing charter, closer procedure and close job are delegation targets.
-        (b"authority.executors", 18, Setting::Rules, "the stock's rules need 18 executors"),
+        (b"authority.executors", 17, Setting::Rules, "the stock's rules need 17 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 10, Setting::Charter(1), "the stock offers 10 charters"),
+        (b"tasks.charters", 9, Setting::Charter(1), "the stock offers 9 charters"),
         (b"core.templates", 6, Setting::Template(1), "the stock offers 6 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
@@ -695,7 +695,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6014 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -1097,47 +1097,6 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 }
 
 #[test]
-fn the_foremans_charter_reads_and_gives_a_verdict() {
-    let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
-    expected.number = 6;
-    expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
-    assert_eq!(*foreman, expected);
-    assert_eq!(foreman.wake, jig_domain_tasks::WakePolicy::DEFAULT);
-    assert_eq!(foreman.policy.instructions.as_ref(), include_bytes!("../stock/foreman.txt"));
-    assert!(foreman.policy.inspect);
-    assert!(!foreman.policy.modify);
-    assert!(!foreman.policy.shell);
-    assert!(!foreman.policy.agents);
-    for authority in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
-        &defaults.policies.get(&1).expect("policy 1").policy.roles[0].authority,
-    ] {
-        assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
-    }
-}
-
-#[test]
-fn the_foremans_words_name_the_three_verdicts() {
-    let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
-    for phrase in [
-        "answer:",
-        "finish:",
-        "escalate:",
-        "never edit, push or run anything",
-        "The producer finishes with form change, its report in the field body within its contract's bound; name no other form.",
-    ] {
-        assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
-    }
-}
-
-#[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let document =
@@ -1422,12 +1381,6 @@ fn the_coders_words_say_what_a_resume_holds() {
 }
 
 #[test]
-fn the_foremans_words_keep_a_resumed_merge() {
-    let words = include_str!("../stock/foreman.txt");
-    assert!(words.contains("A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree."));
-}
-
-#[test]
 fn the_coders_words_wait_after_asking() {
     let words = crate::stock::charter_set().implementer.unwrap();
     assert!(words.contains("Then call `wait`, not `finish`: the answer reaches this run."));
@@ -1601,7 +1554,7 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 14;
+    const ITEMS: usize = 13;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1639,8 +1592,7 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
         (1, b"talks with you and asks for the changes".as_slice()),
         (2, b"makes each change, repairs it and resolves its conflicts".as_slice()),
         (4, b"reviews each change at its head, and holds it until it approves".as_slice()),
-        (5, b"cuts a goal's draft into changes and lands the goal whole".as_slice()),
-        (6, b"answers a coding agent's question from the goal's design, or passes it up".as_slice()),
+        (5, b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice()),
         (9, b"writes the few lines at the top of Home, from what landed and what waits".as_slice()),
         (10, b"answers one word, so that a new model is known to run".as_slice()),
         (11, b"explains how work runs here, and proposes changes to it".as_slice()),
@@ -1688,7 +1640,6 @@ fn every_stock_role_keeps_its_whole_line_in_who() {
         (5, b"For each goal"),
         (2, b"For each change"),
         (4, b"For each change"),
-        (6, b"When a coding agent asks"),
         (9, b"When you look at Home after landings"),
     ] {
         let item = stock.iter().find(|item| item.kind == 9 && item.number == number).expect("role's stock words");
@@ -1934,7 +1885,6 @@ fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
         include_str!("../../../../docs/charters/stock/coordinator.md"),
         include_str!("../../../../docs/charters/stock/implementer.md"),
         include_str!("../stock/review.txt"),
-        include_str!("../stock/foreman.txt"),
         include_str!("../stock/status.txt"),
         include_str!("../stock/trial.txt"),
     ] {
@@ -2160,4 +2110,28 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
         crate::startup::lines(&warnings).as_ref(),
         b"engine.charters[0].alternatives[6]: needs 8192 output tokens; the agent offers 8191 tokens\n"
     );
+}
+
+#[test]
+fn the_stock_has_no_foreman() {
+    use temper_engine_domain_forge::settings::Value;
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let defaults = crate::stock::defaults(&engine.jig.llm, engine.jig.limits.core.tasks.result_bytes);
+    assert!(!defaults.charters.iter().any(|charter| charter.number == 6));
+    assert!(!defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
+    let stock = crate::stock::forge(&limits);
+    assert_eq!(
+        stock.iter().filter(|item| item.kind == 3).map(|item| item.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2]
+    );
+    assert!(!stock.iter().any(|item| item.kind == 9 && item.number == 6));
+    let goal = stock.iter().find(|item| item.kind == 9 && item.number == 5).expect("goal's words");
+    assert_eq!(
+        goal.value.value,
+        Value::CharterWords(
+            b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice().into()
+        )
+    );
+    assert!(!include_str!("../stock/ask.txt").contains("answer change questions"));
 }

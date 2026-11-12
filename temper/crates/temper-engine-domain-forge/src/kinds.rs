@@ -163,6 +163,12 @@ impl Domain {
                         number: item.number,
                         slot: SettingSlot::Replaced(revision),
                     };
+                    if self.refused_settings.contains_key(&key) {
+                        judged
+                            .push(settings::Judged::Refuse(settings::Refusal::Retired))
+                            .expect("one judgement per item");
+                        continue;
+                    }
                     match self.setting_rows.get(&key) {
                         Some(Edit::Set(value)) => Edit::Set(value.clone()),
                         Some(Edit::Remove | Edit::Reset) | None => {
@@ -215,6 +221,13 @@ impl Domain {
                 erases.push(*key).expect("bounded replaced rows");
             }
         }
+        for (key, ()) in &self.refused_settings {
+            if let SettingSlot::Replaced(revision) = key.slot
+                && revision < before
+            {
+                erases.push(*key).expect("bounded refused setting identities");
+            }
+        }
         for key in &erases {
             self.erase_setting(*key, out);
         }
@@ -222,6 +235,15 @@ impl Domain {
 
     pub fn drop_proposal_settings(&mut self, proposal: u64, out: &mut Queue<Request>) {
         for (key, _) in &self.proposal_settings(proposal) {
+            self.erase_setting(*key, out);
+        }
+        let mut refused = List::with_capacity(self.refused_settings.capacity());
+        for (key, ()) in &self.refused_settings {
+            if key.slot == SettingSlot::Proposal(proposal) {
+                refused.push(*key).expect("bounded refused proposal identities");
+            }
+        }
+        for key in &refused {
             self.erase_setting(*key, out);
         }
         self.rebuild_settings();
@@ -579,12 +601,14 @@ impl Domain {
     }
 
     fn save_setting(&mut self, key: SettingKey, edit: Edit, out: &mut Queue<Request>) {
+        self.refused_settings.remove(&key);
         self.setting_rows.insert(key, edit.clone()).expect("settings checked by jig fit the forge's rows");
         out.push(Request::Save { record: Stored::Setting(SettingRow { key, edit }), release: None, read_afresh: None });
     }
 
     fn erase_setting(&mut self, key: SettingKey, out: &mut Queue<Request>) {
-        if self.setting_rows.remove(&key).is_some() {
+        let refused = self.refused_settings.remove(&key).is_some();
+        if self.setting_rows.remove(&key).is_some() || refused {
             out.push(Request::Erase { key: Key::Setting(key) });
         }
     }

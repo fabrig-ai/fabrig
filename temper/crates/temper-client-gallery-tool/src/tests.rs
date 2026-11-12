@@ -768,11 +768,6 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Described {
                 role: Role::Disclosure,
-                name: "Foreman",
-                description: "When a coding agent asks: answers from the goal’s design, or passes it up",
-            },
-            Part::Described {
-                role: Role::Disclosure,
                 name: "Status agent",
                 description: "When you look at Home after landings: writes the lines at its top",
             },
@@ -3707,7 +3702,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "How temper will run tally" },
             Part::Named { role: Role::Heading { level: 5 }, name: "temper enforces" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Button, name: "Change something" },
@@ -3719,7 +3714,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
             Part::Absent { role: Role::Button, name: "Accept" },
@@ -3731,7 +3726,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Rejected · nothing changes" },
             Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
@@ -3745,7 +3740,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Withdrawn · nothing changes" },
             Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
@@ -3759,7 +3754,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Replaced by the proposal below" },
             Part::Named { role: Role::Button, name: "Accept" },

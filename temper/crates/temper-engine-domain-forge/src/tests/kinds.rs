@@ -757,7 +757,7 @@ fn words() -> crate::settings::ProjectWords {
 fn project_values() -> [(u32, SizedValue); 4] {
     [
         (10, SizedValue { value: Value::ProjectWords(words()), size: 20 }),
-        (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
+        (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Up), size: 1 }),
         (
             7,
             SizedValue {
@@ -827,7 +827,7 @@ fn project_questions_reads_none_until_set_then_the_route() {
     assert_eq!(d.setting(6, 1, 1), None);
     assert_eq!(d.setting(7, 1, 1), None);
     let mut out = Queue::uncapped();
-    for route in [Route::None, Route::Foreman, Route::Up] {
+    for route in [Route::None, Route::Up] {
         let value = SizedValue { value: Value::Questions(route), size: 1 };
         let asked = item(6, 1, 1, Edit::Set(value));
         d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);

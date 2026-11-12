@@ -418,16 +418,7 @@ fn tier_lines() -> List<Box<[u8]>> {
 pub fn questions() -> v1::Questions {
     let limits = limits();
     let mut open = List::with_capacity(5);
-    for (index, stands) in [
-        v1::Stands::Taken,
-        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: None }).expect("pending foreman")),
-        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: Some(15) }).expect("foreman")),
-        v1::Stands::Asked,
-        v1::Stands::Held,
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, stands) in [v1::Stands::Taken, v1::Stands::Asked, v1::Stands::Held].into_iter().enumerate() {
         open.push(
             v1::Question::new(
                 &limits,
@@ -445,7 +436,7 @@ pub fn questions() -> v1::Questions {
     v1::Questions::new(
         &limits,
         v1::QuestionsParts {
-            route: v1::Route::Foreman,
+            route: v1::Route::Up,
             taken: v1::Used::new(&limits, v1::UsedParts { used: 2, limit: 4 }).expect("questions taken"),
             open,
         },
