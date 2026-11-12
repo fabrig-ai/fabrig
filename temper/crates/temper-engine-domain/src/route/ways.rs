@@ -156,7 +156,7 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::Questions(_)
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
-                | settings::Value::ProjectWords(_),
+                | settings::Value::ProjectAreas(_) | settings::Value::ProjectTriager(_) | settings::Value::ProjectWords(_),
             ..
         })
         | None => None,

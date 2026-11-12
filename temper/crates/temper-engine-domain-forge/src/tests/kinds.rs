@@ -209,7 +209,7 @@ fn items_that_leave_a_setting_as_it_is_are_the_same() {
     let mut out = Queue::uncapped();
     d.keep_settings(&env(), 2, None, &[set.clone(), removed.clone()], &mut out);
     let reset = item(1, 0, 1, Edit::Reset);
-    assert_eq!(d.judge_settings(&BOUNDS, &[set, removed, reset]).as_ref(), &[Judged::Same; 3]);
+    assert_eq!(d.judge_settings(&BOUNDS, &[set, removed, reset]).as_ref(), &[const { Judged::Same }; 3]);
     let mut sized = rule(false);
     sized.size += 1;
     assert_eq!(
@@ -258,7 +258,7 @@ fn a_refused_item_names_what_fails() {
             &[item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1))), item(3, 0, 2, Edit::Remove)]
         )
         .as_ref(),
-        &[Judged::Refuse(Refusal::Charter); 2]
+        &[const { Judged::Refuse(Refusal::Charter) }; 2]
     );
 }
 
@@ -626,8 +626,8 @@ fn a_restore_item_with_no_replaced_row_is_refused() {
         Restored { kind: 2, scope: 2, number: 1, edit: RestoredEdit::Set { revision: 4 } },
         Restored { kind: 2, scope: 1, number: 2, edit: RestoredEdit::Set { revision: 4 } },
     ];
-    assert_eq!(d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(), &[Judged::Refuse(Refusal::Replaced); 4]);
-    assert_eq!(Refusal::Replaced.words(), b"the replaced value is no longer kept");
+    assert_eq!(d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(), &[const { Judged::Refuse(Refusal::Replaced) }; 4]);
+    assert_eq!(Refusal::Replaced.words().as_ref(), b"the replaced value is no longer kept");
     assert!(out.is_empty());
     assert!(d.proposal_settings(7).is_empty());
 }
