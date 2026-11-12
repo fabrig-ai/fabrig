@@ -645,7 +645,7 @@ fn signing_out_withdraws_the_program_grant() {
         world.domain.select(
             jig_domain_accounts::Use::Party(7),
             PROVIDER,
-            Some(b"claude_code"),
+            jig_domain_accounts::Ways { program: true, direct: false },
             Some(0),
             None,
             &[jig_domain_accounts::Coverage { account: 0, serves: true }],

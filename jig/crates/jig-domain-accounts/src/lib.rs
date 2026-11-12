@@ -38,6 +38,6 @@ pub use limits::{Limits, valid};
 pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
 pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 pub use restore::{RestoreLimit, RestoreLink, RestoreSet};
-pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy};
+pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy, Ways};
 
 use jig_domain_link::{Form, Grant, SourceName, Worker};

@@ -47,7 +47,7 @@ impl Core {
                     .candidates(
                         coverage::payer(payer),
                         provider,
-                        model.program.as_deref(),
+                        self.settings.model_ways(model),
                         None,
                         None,
                         coverage.as_slice(),
