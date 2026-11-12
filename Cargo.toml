@@ -400,7 +400,7 @@ skein-ui-example-server = { path = "skein/examples/ui/server" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
-web-sys = { version = "=0.3.103" }
+web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }

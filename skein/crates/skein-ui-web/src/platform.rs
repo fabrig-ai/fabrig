@@ -40,6 +40,19 @@ pub trait Platform {
     fn read_on(&mut self);
 }
 
+/// Navigation policy of a browser platform (ui/web/README.md, 8).
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Default)]
+struct Navigation {
+    loopback: bool,
+}
+#[cfg(any(target_arch = "wasm32", test))]
+impl Navigation {
+    fn allowed(&self, to: &[u8]) -> bool {
+        crate::navigation::allowed(to, self.loopback)
+    }
+}
+
 pub struct Facts {
     pub now: skein_lib::Time,
     pub wall: skein_lib::Wall,
@@ -56,5 +69,24 @@ pub fn primary(platform: Option<&str>) -> Primary {
         Primary::Meta
     } else {
         Primary::Control
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Navigation;
+
+    #[test]
+    fn browser_navigation_requires_application_opt_in_for_loopback() {
+        let mut navigation = Navigation::default();
+        for target in [b"http://127.0.0.1:80/".as_slice(), b"http://[::1]:80/"] {
+            assert!(!navigation.allowed(target));
+            navigation.loopback = true;
+            assert!(navigation.allowed(target));
+            navigation.loopback = false;
+            assert!(!navigation.allowed(target));
+        }
+        assert!(navigation.allowed(b"/welcome"));
+        assert!(navigation.allowed(b"https://example.com/"));
     }
 }

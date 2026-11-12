@@ -166,14 +166,19 @@ impl Life {
         let platform = self.worker.take().expect("the waiting world's worker");
         let (now, wall) = platform.clocks();
         let store = Store::new(b"temper.", None);
-        let mut host =
-            host::Host::new(self.facts.seed, now, wall, self.facts.offset, temper_client_view::sign_in::Ways::NONE);
+        let mut host = host::Host::new(
+            crate::limits::client(),
+            self.facts.seed,
+            now,
+            wall,
+            self.facts.offset,
+            temper_client_view::sign_in::Ways::NONE,
+        );
         host.start(path.as_bytes(), store.read_all(&platform), secret);
         let page: Rc<RefCell<Page<'static>>> = Rc::new(RefCell::new(host::page(&host.bounds.tree, self.facts.primary)));
         let dom = Dom::new(element(super::APP), &page, inbox, Report::Act, &[]);
         self.shell = Some(Shell {
             host,
-            #[cfg(feature = "record")]
             recorder: None,
             page,
             dom,
@@ -243,7 +248,6 @@ impl Life {
                         new_page = shown;
                     }
                 }
-                #[cfg(feature = "record")]
                 report @ (Report::Mark | Report::Save) => {
                     if !self.failed
                         && let Some(shell) = &mut self.shell

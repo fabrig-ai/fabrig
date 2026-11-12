@@ -564,7 +564,7 @@ fn empty_configuration_refuses_before_creating_data_or_cache() {
 
 fn missing_bundle_refuses(source: &Directories) {
     let error = start(source, None).err().expect("no bundle");
-    assert!(error.contains("scripts/bundle.sh --loopback DIR"), "{error}");
+    assert!(error.contains("scripts/bundle.sh DIR"), "{error}");
     assert!(error.contains("application.clients.bundle"), "{error}");
     assert!(error.contains("temper-box --fake-backends --bundle BUNDLE"), "{error}");
     assert!(!crate::path(&source.data).exists(), "refuse before data mutation");

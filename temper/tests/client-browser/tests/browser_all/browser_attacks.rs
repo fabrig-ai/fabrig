@@ -3,7 +3,7 @@
 use jig_client_fake_person_browser::pages;
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
-use skein_fake_person_browser::{Harness, Outcome, Script, Step, origins::Origin};
+use skein_fake_person_browser::{Outcome, Script, Step, origins::Origin};
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, Tier, WITHIN};
 
@@ -27,7 +27,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         Step::Visit { origin: 1, path: b"/framing".as_slice().into() },
         Step::Trouble { words: b"frame-ancestors".as_slice().into(), within: WITHIN },
         Step::Person(PersonStep::Gone { find: row.clone(), within: ABSENT }),
-        Step::Person(PersonStep::Go { address: target.page.into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(target.page) }),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
@@ -39,7 +39,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         steps.extend([
             Step::Visit { origin, path: b"/forging".as_slice().into() },
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Forged requests completed")),
-            Step::Person(PersonStep::Go { address: target.page.into() }),
+            Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(target.page) }),
             see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
             see(tier.states().live),
             temper_client_browser_world::connected(),
@@ -50,5 +50,5 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         ]);
     }
     let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(Harness::new(setup).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut script]), Outcome::Done);
 }
