@@ -269,7 +269,8 @@
       2): "A name is 1 to 32 lowercase letters, digits and -, starting
       with a letter.", "PROJECT has an area named NAME already." and "What
       it covers is 1 to 480 bytes, on one line.", each under its field
-      once it is left or the act pressed.
+      once the act is pressed, as Start a goal's sheet judges its fields:
+      skein's ui has no act for leaving a field.
     - *To which role:* a choice, a line each: each role the roles' watch
       lists, by its title, the first chosen; then "Prover, from the
       stock", "Owns its area's tests: triages their reds and flakes and
