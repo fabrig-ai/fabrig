@@ -28,7 +28,12 @@ runs as contained processes and whose output it parses.
   So a checkout made from an empty directory (a workstream's first on the
   worker, an evicted one, a saved start, a damaged one) transfers only
   what no earlier fetch on the worker brought, and never a branch the
-  assignment does not name, but for the store's making. A prepare makes
+  assignment does not name, but for the store's making and the file
+  contents it checks out. A store is blob-less: its making and every fetch
+  into it bring the history's commits and trees whole and no file
+  contents (git's `--filter=blob:none`), and a check out or a merge fetches
+  the contents it needs from the forge into its checkout, which keeps them
+  (`../../protocol/git.md`, 4.5, 4.6 and 4.11). A prepare makes
   each store its repositories need that the cache has not made yet, before
   its workspace, as a bare clone of the forge's default branch alone, the
   one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
@@ -52,7 +57,8 @@ runs as contained processes and whose output it parses.
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
   made again. A checkout's own `.git`, which its run may write, is still
-  never another workstream's, and no fetch runs in it.
+  never another workstream's, and no fetch of history runs in it: only a
+  check out's or a merge's fetch of file contents.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
@@ -62,7 +68,10 @@ runs as contained processes and whose output it parses.
   and ends aborted at once. A checkout runs one operation at a time (a prepare, a
   push or a save), each a sequence of git operations with deadlines as
   data, one for the forge and one for the disk; the checkout arms no
-  timers.
+  timers. A check out and a merge take the forge's deadline
+  (`checkout.remote_timeout_ms`) and name their repository's identity, since
+  each may fetch the file contents it lacks: such a lazy fetch runs within
+  its operation, under that deadline and with that identity's credential.
 - **Prepare** fetches what the assignment names and checks out exactly its
   starting point. It fetches each branch of a repository at most once: a
   pin or a baseline naming a branch this prepare has fetched, or a commit
@@ -319,6 +328,15 @@ ID (2026-11-04).
   remotes a worker serves that is not expected, and nothing checks it.
   Sharing would mix their objects in one store, which every fetch still
   names by its own remote. Default: unchecked.
+- **File contents fetched once per checkout.** A check out's or a merge's
+  lazy fetch writes into its checkout's own `.git`, not the store, so two
+  checkouts of one repository each fetch the contents they check out, and a
+  checkout made again from an empty directory fetches them again. Measured
+  on one deployment's forge, a blob-less store's clone took 2.3 s and 50 MB
+  where a full one took 17.4 s and 198 MB (2026-11-12). Default: so; a
+  store that keeps the contents its checkouts fetched, if a deployment
+  shows the repeated fetches. A store made full before stores were
+  blob-less stays whole, its later fetches blob-less.
 - **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:
