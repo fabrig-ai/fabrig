@@ -3,3 +3,15 @@
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - test temper-client-journeys-tool tests::the_overlay_is_empty
+- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
+- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
+- test temper-box::suite forge_land::setup_accepts_a_project_free_first_repository_row
+- test temper-box::suite forge_land::terminal_login_cleanup_excludes_a_restart_import
+- test temper-box::suite forge_land::a_held_login_returns_when_validation_panics_between_boxes
+- test temper-box::suite startup::serve_checks_the_owned_agents_admission_at_each_bound
+- test temper-box::suite startup::a_failed_terminal_return_allows_recovery_without_reopening_import
+- test temper-box::suite startup::a_held_record_at_its_path_owes_the_guard_nothing
+- test temper-box::suite startup::a_lent_record_not_back_keeps_its_store_and_the_storys_panic
+- test temper-box::suite support_tests::github_file_scan_excludes_only_jigs_generation_secrets_store
+- test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
